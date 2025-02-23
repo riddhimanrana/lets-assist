@@ -3,7 +3,7 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { Rocket, Menu, User, Settings, LogOut, LayoutDashboard, UserCog, Heart, Bug } from "lucide-react"
+import { Menu, User, Settings, LogOut, LayoutDashboard, UserCog, Heart, Bug } from "lucide-react"
 import { createClient } from "@/utils/supabase/client"
 import { User as SupabaseUser } from '@supabase/supabase-js'
 import { logout } from '@/app/logout/actions'
@@ -40,6 +40,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { ReportBugDialog } from "@/components/ReportBugDialog"
 import { useState } from "react"
+import Image from "next/image"
 
 const features = [
   {
@@ -103,7 +104,7 @@ export default function Navbar({ initialUser }: NavbarProps) {
  
     <Link href="/">
       <div className="flex items-center space-x-2">
-        <Rocket className="h-6 w-6" />
+        <Image src="/letsassist-logo.png" alt="letsassist logo" width={30} height={30} />
         <span className="text-lg font-bold">letsassist</span>
       </div>
     </Link>
@@ -122,7 +123,7 @@ export default function Navbar({ initialUser }: NavbarProps) {
                         className="flex h-full w-full select-none flex-col justify-end rounded-md bg-gradient-to-b from-muted/50 to-muted p-6 no-underline outline-none focus:shadow-md"
                         href="/"
                       >
-                        <Rocket className="h-6 w-6" />
+                        <Image src="/letsassist-logo.png" alt="letsassist logo" width={30} height={30} />
                         <div className="mb-2 mt-4 text-lg font-medium">
                           letsassist
                         </div>

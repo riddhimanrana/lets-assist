@@ -23,7 +23,7 @@ export function ReportBugDialog({ onOpenChangeAction }: ReportBugDialogProps) {
                     <div className="text-sm text-muted-foreground">
                         Our bug reporting system is coming soon! For now, please email any issues to:
                         <div className="mt-2 font-medium">
-                            letsassist4@gmail.com
+                            support@lets-assist.com
                         </div>
                     </div>
                 </DialogHeader>

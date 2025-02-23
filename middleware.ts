@@ -1,24 +1,25 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createClient } from '@/utils/supabase/middleware';
 
-const PUBLIC_PATHS = [
-    '/login',
-    '/',
-    '/signup',
-    '/error',
-    '/auth/confirm',
-    '/auth/callback'
-]; 
+// Paths that require authentication
+const PROTECTED_PATHS = [
+    '/admin',
+    '/home',
+    '/projects',
+    '/account'
+];
 
+// Paths that logged-in users shouldn't access
 const RESTRICTED_PATHS_FOR_LOGGED_IN_USERS = ['/', '/login', '/signup'];
 
-// Function to check if a path starts with any of the public paths
-function isPublicPath(path: string) {
-    return PUBLIC_PATHS.some(publicPath => path === publicPath || path.startsWith(`${publicPath}/`));
+// Function to check if a path requires authentication
+function isProtectedPath(path: string) {
+    return PROTECTED_PATHS.some(protectedPath => 
+        path === protectedPath || path.startsWith(`${protectedPath}/`)
+    );
 }
 
 export async function middleware(request: NextRequest) {
-    // Check for noRedirect parameter first
     const searchParams = request.nextUrl.searchParams;
     if (searchParams.get('noRedirect') === '1') {
         return NextResponse.next();
@@ -35,21 +36,17 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(new URL('/account/profile', request.url));
     }
 
-    // Special handling for profile paths - allow both public and private access
-    if (currentPath.startsWith('/profile')) {
-        return response;
-    }
-
-    // Handle non-public paths for non-authenticated users
-    if (!user && !isPublicPath(currentPath)) {
-        return NextResponse.redirect(new URL('/login', request.url));
-    }
-
-    // Handle restricted paths for authenticated users
+    // Redirect authenticated users trying to access restricted paths
     if (user && RESTRICTED_PATHS_FOR_LOGGED_IN_USERS.includes(currentPath)) {
         return NextResponse.redirect(new URL('/home', request.url));
     }
 
+    // Redirect non-authenticated users trying to access protected paths
+    if (!user && isProtectedPath(currentPath)) {
+        return NextResponse.redirect(new URL('/login', request.url));
+    }
+
+    // Allow access to all other paths
     return response;
 }
 

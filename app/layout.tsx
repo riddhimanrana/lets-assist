@@ -5,6 +5,7 @@ import "./globals.css";
 import { ThemeProvider } from 'next-themes'
 import { SpeedInsights } from "@vercel/speed-insights/next"
 import Navbar from "@/components/Navbar"
+import { Footer } from "@/components/Footer"
 import localFont from "next/font/local";
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
@@ -68,12 +69,13 @@ export default async function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <div className="bg-background text-foreground">
+          <div className="bg-background text-foreground min-h-screen flex flex-col">
             {/* Pass server-fetched user to Navbar */}
             <Navbar initialUser={user} />
-            <main>
+            <main className="flex-1">
               {children}
             </main>
+            <Footer />
             <SpeedInsights />
           </div>
         </ThemeProvider>
