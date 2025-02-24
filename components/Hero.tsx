@@ -2,17 +2,22 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
-import { useTheme } from "next-themes";
-import Image from "next/image";
 import Link from "next/link";
-
+import { motion } from "framer-motion";
 
 export const HeroSection = () => {
-  const { theme } = useTheme();
   return (
-    <section className="container w-full">
+    <section className="container relative w-full overflow-hidden mx-auto">
+      {/* Background gradient blob */}
+      <div className="absolute -z-10 blur-3xl opacity-20 bg-gradient-to-r from-primary via-blue-500 to-purple-500 w-[500px] h-[500px] rounded-full top-0 left-0 transform -translate-x-1/2 -translate-y-1/2"></div>
+      
       <div className="grid place-items-center lg:max-w-screen-xl gap-8 mx-auto py-20 md:py-32">
-        <div className="text-center space-y-8">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="text-center space-y-8"
+        >
           <Badge variant="outline" className="text-sm py-2">
             <span className="mr-2 text-primary">
               <Badge>New</Badge>
@@ -20,46 +25,70 @@ export const HeroSection = () => {
             <span> v1.0 released 🎉</span>
           </Badge>
 
-            <div className="max-w-screen-md mx-auto text-center text-6xl md:text-6xl font-extrabold font-sans">
-            <h1>
-              Give back to your community,
-              <span className="text-transparent px-2 bg-gradient-to-r from-[#4ed247] to-primary bg-clip-text">
-              your way
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2, duration: 0.5 }}
+            className="max-w-screen-md mx-auto text-center px-4 sm:px-6"
+          >
+            <h1 className="text-3xl sm:text-4xl md:text-6xl font-extrabold font-sans mb-4">
+              Give back to your 
+              <span className="text-transparent px-2 bg-gradient-to-r from-[#4ed247] to-primary bg-clip-text block sm:inline-block">
+                community
               </span>
+              <span className="block sm:inline-block mt-2 sm:mt-0"> your way</span>
             </h1>
-            </div>
+          </motion.div>
 
-          <p className="max-w-screen-sm mx-auto text-xl text-muted-foreground">
-            {`Find local volunteering opportunities today with Let's Assist, and give back to your community`}
-          </p>
+          <motion.p 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.4, duration: 0.5 }}
+            className="max-w-screen-sm mx-auto text-xl text-muted-foreground"
+          >
+            Find and track local volunteering opportunities, connect with organizations, and make a difference in your community.
+          </motion.p>
 
-          <div className="space-y-4 md:space-y-0 md:space-x-4">
-          <Link href="/signup">
-            <Button className="w-5/6 md:w-1/4 font-inter font-semibold group/arrow text-sm transform transition-transform duration-200 hover:scale-105">
-              Get Started
-              <ArrowRight className="size-5 ml-2 group-hover/arrow:translate-x-1 transition-transform duration-500" />
-            </Button>
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6, duration: 0.5 }}
+            className="flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-4 px-4"
+          >
+            <Link href="/signup">
+              <Button className="w-full md:w-auto px-8 font-inter font-semibold group/arrow text-sm transform transition-transform duration-200 hover:scale-105">
+                Get Started
+                <ArrowRight className="size-5 ml-2 group-hover/arrow:translate-x-1 transition-transform duration-500" />
+              </Button>
             </Link>
+            <Link href="/projects">
+              <Button variant="outline" className="w-full md:w-auto px-8">
+                Browse Opportunities
+              </Button>
+            </Link>
+          </motion.div>
+        </motion.div>
+
+        {/* Stats section */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.8, duration: 0.5 }}
+          className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8 mt-12 w-full max-w-3xl px-4"
+        >
+          <div className="text-center">
+            <h3 className="text-3xl font-bold text-primary">500+</h3>
+            <p className="text-muted-foreground">Active Opportunities</p>
           </div>
-        </div>
-
-        <div className="relative group mt-14">
-          <div className="absolute top-2 lg:-top-8 left-1/2 transform -translate-x-1/2 w-[90%] mx-auto h-24 lg:h-80 bg-primary/50 rounded-full blur-3xl"></div>
-            <Image
-            width={1200}
-            height={1200}
-            priority
-            className="w-full md:w-[1200px] mx-auto rounded-lg relative rouded-lg leading-none flex items-center border border-t-2 border-secondary  border-t-primary/30"
-            src={
-              theme === "light"
-              ? "/hero-image-light.png"
-              : "/hero-image-dark.png"
-            }
-            alt="dashboard"
-            />
-
-          <div className="absolute bottom-0 left-0 w-full h-20 md:h-28 bg-gradient-to-b from-background/0 via-background/50 to-background rounded-lg"></div>
-        </div>
+          <div className="text-center">
+            <h3 className="text-3xl font-bold text-primary">1000+</h3>
+            <p className="text-muted-foreground">Volunteers</p>
+          </div>
+          <div className="text-center col-span-2 md:col-span-1">
+            <h3 className="text-3xl font-bold text-primary">50+</h3>
+            <p className="text-muted-foreground">Organizations</p>
+          </div>
+        </motion.div>
       </div>
     </section>
   );

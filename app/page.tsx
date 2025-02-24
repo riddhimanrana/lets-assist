@@ -1,5 +1,9 @@
 "use client";
 import { HeroSection } from "@/components/Hero";
+import { Features } from "@/components/Features";
+import { StudentSection } from "@/components/StudentSection";
+import { OrganizationsSection } from "@/components/OrganizationsSection";
+import { CallToAction } from "@/components/CallToAction";
 import { useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { Toaster, toast } from "sonner";
@@ -15,7 +19,6 @@ function HomeContent() {
       toast.success("Success! Email verified. Login to continue.", {
         duration: 5000,
       });
-      // Clean URL after showing toast
       window.history.replaceState({}, document.title, "/");
     }
 
@@ -23,22 +26,29 @@ function HomeContent() {
       toast.error("Your account has been successfully deleted.", {
         duration: 5000,
       });
-
       window.history.replaceState({}, document.title, "/");
     }
   }, [searchParams]);
 
   return (
-    <div className="flex items-center justify-center min-h-screen">
+    <main className="flex flex-col min-h-screen">
       <Toaster position="bottom-right" theme="dark" richColors />
       <HeroSection />
-    </div>
+      <Features />
+      <StudentSection />
+      <OrganizationsSection />
+      <CallToAction />
+    </main>
   );
 }
 
 export default function Home() {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-pulse">Loading...</div>
+      </div>
+    }>
       <HomeContent />
     </Suspense>
   );
