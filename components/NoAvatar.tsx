@@ -2,9 +2,10 @@ import React from 'react';
 
 type NoAvatarProps = {
     fullName?: string | null;
+    className?: string;
 }
 
-export const NoAvatar: React.FC<NoAvatarProps> = ({ fullName }) => {
+export const NoAvatar: React.FC<NoAvatarProps> = ({ fullName, className }) => {
     if (!fullName) return "";
     
     const initials = fullName.split(" ").length > 1
@@ -14,5 +15,5 @@ export const NoAvatar: React.FC<NoAvatarProps> = ({ fullName }) => {
             .join("")
         : fullName.substring(0, 2);
     
-    return initials.toUpperCase();
+    return <span className={className}>{initials.toUpperCase()}</span>;
 };

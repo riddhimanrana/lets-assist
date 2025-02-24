@@ -35,8 +35,11 @@ export async function signup(formData: FormData) {
         })
 
       if (authError) {
-        if (authError.message.includes('User already registered')) {
+        if (authError.code === '23503') {
           return { error: { server: ['ACCEXISTS0'] } }
+        }
+        if (authError.code === '23505') {
+          return { error: { server: ['NOCNFRM0'] } }
         }
         throw authError
       }
@@ -57,14 +60,22 @@ export async function signup(formData: FormData) {
           })
 
       if (profileError) {
-        console.log(profileError)
+        if (profileError.code === '23503') {
+          return { error: { server: ['ACCEXISTS0'] } }
+        }
+        if (profileError.code === '23505') {
+          return { error: { server: ['NOCNFRM0'] } }
+        }
         throw profileError
       }
 
       return { success: true }
   } catch (error) {
-      if (error instanceof Error && error.message.includes('User already registered')) {
+      if (error instanceof Error && error.message.includes('23503')) {
         return { error: { server: ['ACCEXISTS0'] } }
+      }
+      if (error instanceof Error && error.message.includes('23505')) {
+        return { error: { server: ['NOCNFRM0'] } }
       }
       return { error: { server: [(error as Error).message] } }
   }

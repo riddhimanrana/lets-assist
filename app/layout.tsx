@@ -9,6 +9,7 @@ import { Footer } from "@/components/Footer"
 import localFont from "next/font/local";
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { PostHogProvider } from './providers'
 
 const overusedgrotesk = localFont({
   src: '../public/fonts/OverusedGrotesk-VF.woff2',
@@ -69,6 +70,7 @@ export default async function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
+          <PostHogProvider>
           <div className="bg-background text-foreground min-h-screen flex flex-col">
             {/* Pass server-fetched user to Navbar */}
             <Navbar initialUser={user} />
@@ -78,6 +80,7 @@ export default async function RootLayout({
             <Footer />
             <SpeedInsights />
           </div>
+          </PostHogProvider>
         </ThemeProvider>
       </body>
     </html>

@@ -17,6 +17,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form'
 import { Toaster, toast } from 'sonner'
+import { useTheme } from "next-themes"
 
 const signupSchema = z.object({
     fullName: z.string().min(3, 'Full name must be at least 3 characters'),
@@ -27,6 +28,7 @@ const signupSchema = z.object({
 type SignupValues = z.infer<typeof signupSchema>
 
 export default function SignupForm() {
+    const { theme } = useTheme()
     const [isLoading, setIsLoading] = useState(false)
     const [isGoogleLoading, setIsGoogleLoading] = useState(false)
     const form = useForm<SignupValues>({
@@ -44,7 +46,6 @@ export default function SignupForm() {
         Object.entries(data).forEach(([key, value]) => formData.append(key, value))
         const result = await signup(formData)
 
-        
         if (result.error) {
             const errors: { email?: string[]; password?: string[]; server?: string[] } = result.error
             Object.keys(errors).forEach((key) => {
@@ -56,7 +57,8 @@ export default function SignupForm() {
                 }
             })
             if (errors.server && errors.server[0] === "ACCEXISTS0") {
-                toast.error("Account already exists. Login to continue.")
+                console.log(errors)
+                toast.warning("This email is already registered. Please sign in.")
             } else if (errors.server && errors.server[0] === "NOCNFRM0") {
                 toast.warning("Email confirmation is required. Please check your inbox.")
             }
@@ -189,7 +191,7 @@ export default function SignupForm() {
                     </Form>
                 </CardContent>
             </Card>
-            <Toaster position="bottom-right" theme="dark" richColors />
+            <Toaster position="bottom-right" theme={theme as "light" | "dark"} richColors />
         </div>
     )
 }

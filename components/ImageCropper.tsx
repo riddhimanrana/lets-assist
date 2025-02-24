@@ -9,9 +9,10 @@ interface ImageCropperProps {
     imageSrc: string
     onCropComplete: (croppedImage: string) => void
     onCancel: () => void
+    isUploading?: boolean
 }
 
-const ImageCropper = ({ imageSrc, onCropComplete: handleCropComplete, onCancel }: ImageCropperProps) => {
+const ImageCropper = ({ imageSrc, onCropComplete: handleCropComplete, onCancel, isUploading = false }: ImageCropperProps) => {
     const [crop, setCrop] = useState({ x: 0, y: 0 })
     const [zoom, setZoom] = useState(1)
     const [croppedAreaPixels, setCroppedAreaPixels] = useState<{ x: number; y: number; width: number; height: number } | null>(null)
@@ -73,11 +74,11 @@ const ImageCropper = ({ imageSrc, onCropComplete: handleCropComplete, onCancel }
                 </div>
 
                 <div className="flex gap-2">
-                    <Button variant="outline" onClick={onCancel} className="flex-1">
+                    <Button variant="outline" onClick={onCancel} disabled={isUploading} className="flex-1">
                         Cancel
                     </Button>
-                    <Button onClick={createCroppedImage} className="flex-1">
-                        Crop & Save
+                    <Button onClick={createCroppedImage} disabled={isUploading} className="flex-1">
+                        {isUploading ? "Saving..." : "Crop & Save"}
                     </Button>
                 </div>
             </div>

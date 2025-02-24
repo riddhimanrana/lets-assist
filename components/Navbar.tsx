@@ -3,7 +3,8 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { Menu, User, Settings, LogOut, LayoutDashboard, UserCog, Heart, Bug } from "lucide-react"
+import { Menu, Settings, LogOut, LayoutDashboard, UserCog, Heart, Bug } from "lucide-react"
+import { NoAvatar } from "@/components/NoAvatar"
 import { createClient } from "@/utils/supabase/client"
 import { User as SupabaseUser } from '@supabase/supabase-js'
 import { logout } from '@/app/logout/actions'
@@ -163,7 +164,7 @@ export default function Navbar({ initialUser }: NavbarProps) {
                   src={profile?.avatar_url}
                   />
                 <AvatarFallback>
-                  <User className="h-5 w-5" />
+                  <NoAvatar fullName={profile?.full_name} />
                 </AvatarFallback>
               </Avatar>
             )}
@@ -258,7 +259,7 @@ export default function Navbar({ initialUser }: NavbarProps) {
                 <>
                 <div className="flex items-center space-x-4 px-4 py-2">
                 <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center">
-                  <User className="h-5 w-5" />
+                  <NoAvatar fullName={profile?.full_name} />
                 </div>
                 <span className="text-sm">{user.email}</span>
                 </div>
@@ -319,7 +320,7 @@ export default function Navbar({ initialUser }: NavbarProps) {
 }
 
 const ListItem = React.forwardRef<
-  React.ElementRef<"a">,
+  React.ComponentRef<"a">,
   React.ComponentPropsWithoutRef<"a">
 >(({ className, title, children, ...props }, ref) => {
   return (
