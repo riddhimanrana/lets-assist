@@ -77,7 +77,7 @@ A: This is a solo project. Essentially as I was in the creation stage of letsass
 
 ## 🛡️ License
 
-This project is licensed under the [GPL License](LICENSE.md).
+This project is licensed under the [GPL License](LICENSE).
 
 ## 📧 Contact
 
