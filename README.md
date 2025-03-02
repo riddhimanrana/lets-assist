@@ -20,13 +20,14 @@ Try it out at [lets-assist.com](https://lets-assist.com/)
 
 This project is built using the following technologies:
 
-- [Next.js](https://nextjs.org/): React framework for building performant web applications.
-- [TypeScript](https://www.typescriptlang.org/): Superset of JavaScript for enhanced type safety and developer experience.
+- [Next.js](https://nextjs.org/): React framework for SSR and static site generation.
+- [Vercel](https://vercel.com/): Cloud platform for deployment and hosting.
 - [Tailwind CSS](https://tailwindcss.com/): Utility-first CSS framework for rapid UI development.
-- [PostHog](https://posthog.com/): Analytics platform for insights into user behavior.
-- [next-themes](https://github.com/pacocoursey/next-themes): For theme management.
-- [cmdk](https://cmdk.paco.me/): Fast, composable, unstyled command menu for React.
-- Other libraries: Add any other relevant libraries here.
+- [PostHog](https://posthog.com/): Open-source product analytics platform.
+- [shadcn/ui](https://ui.shadcn.com/): Reusable components built with Radix UI and Tailwind CSS.
+- [Supabase](https://supabase.com/): Open-source Firebase alternative with PostgreSQL database.
+- [Catpuccin](https://catppuccin.com/): Soothing color palette for consistent theming.
+- Other libraries: Additional tools enhancing project functionality.
 
 ## 📝 Usage
 
