@@ -6,36 +6,36 @@ Try it out at [lets-assist.com](https://lets-assist.com/)
 
 ## ✨ Features
 
--   **User-Friendly Interface:** Intuitive design for easy navigation and a seamless user experience.
--   **Volunteer Profiles:** Detailed profiles showcasing skills, availability, and interests.
--   **Assistance Listings:** Clear and concise listings of assistance requests, including descriptions, locations, and requirements.
--   **Matching Algorithm:** Smart matching system connecting volunteers with relevant opportunities.
--   **Real-Time Communication:** Integrated messaging for direct communication between volunteers and those seeking assistance.
--   **Admin Dashboard:** Tools for managing users, listings, and platform content.
--   **Authentication:** Secure user authentication and authorization.
--   **Responsive Design:** Fully responsive layout for access on various devices.
--   **Theming:** Toggle between light and dark mode.
+- **User-Friendly Interface:** Intuitive design for easy navigation and a seamless user experience.
+- **Volunteer Profiles:** Detailed profiles showcasing skills, availability, and interests.
+- **Assistance Listings:** Clear and concise listings of assistance requests, including descriptions, locations, and requirements.
+- **Matching Algorithm:** Smart matching system connecting volunteers with relevant opportunities.
+- **Real-Time Communication:** Integrated messaging for direct communication between volunteers and those seeking assistance.
+- **Admin Dashboard:** Tools for managing users, listings, and platform content.
+- **Authentication:** Secure user authentication and authorization.
+- **Responsive Design:** Fully responsive layout for access on various devices.
+- **Theming:** Toggle between light and dark mode.
 
 ## 🛠️ Tech Stack
 
 This project is built using the following technologies:
 
--   [Next.js](https://nextjs.org/): React framework for building performant web applications.
--   [TypeScript](https://www.typescriptlang.org/): Superset of JavaScript for enhanced type safety and developer experience.
--   [Tailwind CSS](https://tailwindcss.com/): Utility-first CSS framework for rapid UI development.
--   [PostHog](https://posthog.com/): Analytics platform for insights into user behavior.
--   [next-themes](https://github.com/pacocoursey/next-themes): For theme management.
--   [cmdk](https://cmdk.paco.me/): Fast, composable, unstyled command menu for React.
--   Other libraries: Add any other relevant libraries here.
+- [Next.js](https://nextjs.org/): React framework for building performant web applications.
+- [TypeScript](https://www.typescriptlang.org/): Superset of JavaScript for enhanced type safety and developer experience.
+- [Tailwind CSS](https://tailwindcss.com/): Utility-first CSS framework for rapid UI development.
+- [PostHog](https://posthog.com/): Analytics platform for insights into user behavior.
+- [next-themes](https://github.com/pacocoursey/next-themes): For theme management.
+- [cmdk](https://cmdk.paco.me/): Fast, composable, unstyled command menu for React.
+- Other libraries: Add any other relevant libraries here.
 
 ## 📝 Usage
 
-*   **Signup/Login:** Create an account or log in to access the platform.
-*   **Complete Profile:** Add your skills, availability, and interests to your profile.
-*   **Browse Listings:** Find assistance requests that match your skills and interests.
-*   **Offer Help:** Contact individuals or organizations to offer your services.
-*   **Manage Listings:** Create, update, and manage your assistance requests (if applicable).
-*   **Communicate:** Use the integrated messaging system to coordinate with others.
+- **Signup/Login:** Create an account or log in to access the platform.
+- **Complete Profile:** Add your skills, availability, and interests to your profile.
+- **Browse Listings:** Find assistance requests that match your skills and interests.
+- **Offer Help:** Contact individuals or organizations to offer your services.
+- **Manage Listings:** Create, update, and manage your assistance requests (if applicable).
+- **Communicate:** Use the integrated messaging system to coordinate with others.
 
 ## ❓ FAQ
 
@@ -47,8 +47,6 @@ This project is built using the following technologies:
   <img src="https://github.com/user-attachments/assets/2e59f1c1-4500-46b1-804f-b5347dfe0b32" alt="Santa Cruz Beach Cleanup" width="500">
 </details>
 
-
-
 <details>
 <summary>I thought you said this was a solo project, who are the other contributors?</summary>
   <br>
@@ -56,7 +54,8 @@ A: This is a solo project. Essentially as I was in the creation stage of letsass
 <br>
 
 [Before](https://youtu.be/OTF20YUN25U?si=5pVTplgBM3Kz02OR) and [After](https://lets-assist.com/)
-  <br>
+<br>
+
   <div style="display: flex; justify-content: space-between;">
     <img src="https://github.com/user-attachments/assets/dc18a87f-fdf1-4334-aa61-cc4dd9f89098" alt="Before Prototype" width="300">
     <img src="https://github.com/user-attachments/assets/b51cc020-bd2c-4d58-bf9a-11edeecac453" alt="After Redo" width="300">

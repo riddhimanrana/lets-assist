@@ -20,15 +20,15 @@ const nextConfig = {
   images: {
     remotePatterns: [
       {
-        protocol: 'https',
-        hostname: '*.googleusercontent.com',
-        pathname: '/**',
+        protocol: "https",
+        hostname: "*.googleusercontent.com",
+        pathname: "/**",
       },
       {
-        protocol: 'https',
-        hostname: 'fotdmeakexgrkronxlof.supabase.co',
-        pathname: '/**',
-      }
+        protocol: "https",
+        hostname: "fotdmeakexgrkronxlof.supabase.co",
+        pathname: "/**",
+      },
     ],
   },
 };

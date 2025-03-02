@@ -1,7 +1,7 @@
-import Link from "next/link"
-import Image from "next/image"
-import { Mail } from "lucide-react"
-import { SiInstagram, SiX } from "react-icons/si"
+import Link from "next/link";
+import Image from "next/image";
+import { Mail } from "lucide-react";
+import { SiInstagram, SiX } from "react-icons/si";
 
 export function Footer() {
   return (
@@ -22,16 +22,28 @@ export function Footer() {
 
           {/* Left aligned nav links */}
           <nav className="mt-2 grid grid-cols-2 gap-x-6 gap-y-4 text-left sm:flex sm:flex-wrap sm:justify-start sm:gap-x-8 ml-3">
-            <Link href="/" className="text-sm text-muted-foreground hover:text-foreground">
+            <Link
+              href="/"
+              className="text-sm text-muted-foreground hover:text-foreground"
+            >
               Home
             </Link>
-            <Link href="/privacy" className="text-sm text-muted-foreground hover:text-foreground">
+            <Link
+              href="/privacy"
+              className="text-sm text-muted-foreground hover:text-foreground"
+            >
               Privacy
             </Link>
-            <Link href="/terms" className="text-sm text-muted-foreground hover:text-foreground">
+            <Link
+              href="/terms"
+              className="text-sm text-muted-foreground hover:text-foreground"
+            >
               Terms
             </Link>
-            <Link href="/contact" className="text-sm text-muted-foreground hover:text-foreground">
+            <Link
+              href="/contact"
+              className="text-sm text-muted-foreground hover:text-foreground"
+            >
               Contact
             </Link>
             <Link
@@ -44,31 +56,33 @@ export function Footer() {
 
           {/* Copyright with social media icons right aligned */}
           <div className="flex items-center justify-between ml-3">
-            <p className="text-sm text-muted-foreground">© 2025 Let&apos;s Assist, LLC</p>
+            <p className="text-sm text-muted-foreground">
+              © 2025 Let&apos;s Assist, LLC
+            </p>
             <div className="flex items-center mr-5 space-x-4">
               <Link
-          href="https://instagram.com/letsassist1"
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="Instagram"
+                href="https://instagram.com/letsassist1"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Instagram"
               >
-          <SiInstagram className="h-5 w-5" />
+                <SiInstagram className="h-5 w-5" />
               </Link>
               <Link
-          href="https://x.com/lets_assist"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-muted-foreground hover:text-foreground"
-          aria-label="Twitter"
+                href="https://x.com/lets_assist"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-muted-foreground hover:text-foreground"
+                aria-label="Twitter"
               >
-          <SiX className="h-5 w-5" />
+                <SiX className="h-5 w-5" />
               </Link>
               <Link
-          href="mailto:contact@letsassist.com"
-          className="text-muted-foreground hover:text-foreground"
-          aria-label="Email"
+                href="mailto:contact@letsassist.com"
+                className="text-muted-foreground hover:text-foreground"
+                aria-label="Email"
               >
-          <Mail className="h-5 w-5" />
+                <Mail className="h-5 w-5" />
               </Link>
             </div>
           </div>
@@ -78,7 +92,12 @@ export function Footer() {
         <div className="hidden md:flex md:flex-row md:items-center md:justify-between">
           <div className="flex items-center space-x-3">
             {/* Already left aligned */}
-            <Image src="/letsassist-logo.png" alt="letsassist Logo" width={32} height={32} />
+            <Image
+              src="/letsassist-logo.png"
+              alt="letsassist Logo"
+              width={32}
+              height={32}
+            />
             <p className="text-sm text-muted-foreground">
               © 2025 Let&apos;s Assist, LLC. All rights reserved.
             </p>
@@ -86,16 +105,28 @@ export function Footer() {
 
           <div className="flex items-center space-x-8">
             <nav className="flex space-x-6 text-left">
-              <Link href="/" className="text-sm text-muted-foreground hover:text-foreground">
+              <Link
+                href="/"
+                className="text-sm text-muted-foreground hover:text-foreground"
+              >
                 Home
               </Link>
-              <Link href="/privacy" className="text-sm text-muted-foreground hover:text-foreground">
+              <Link
+                href="/privacy"
+                className="text-sm text-muted-foreground hover:text-foreground"
+              >
                 Privacy
               </Link>
-              <Link href="/terms" className="text-sm text-muted-foreground hover:text-foreground">
+              <Link
+                href="/terms"
+                className="text-sm text-muted-foreground hover:text-foreground"
+              >
                 Terms
               </Link>
-              <Link href="/contact" className="text-sm text-muted-foreground hover:text-foreground">
+              <Link
+                href="/contact"
+                className="text-sm text-muted-foreground hover:text-foreground"
+              >
                 Contact
               </Link>
               <Link
@@ -137,5 +168,5 @@ export function Footer() {
         </div>
       </div>
     </footer>
-  )
+  );
 }

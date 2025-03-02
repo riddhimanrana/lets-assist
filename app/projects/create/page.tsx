@@ -1,44 +1,51 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useCallback } from "react"
-import { useEventForm } from "@/hooks/use-event-form"
-import BasicInfo from "./BasicInfo"
-import EventType from "./EventType"
-import Schedule from "./Schedule"
-import Finalize from "./Finalize"
-import VerificationSettings from "./VerificationSettings"
+import { useState, useEffect, useCallback } from "react";
+import { useEventForm } from "@/hooks/use-event-form";
+import BasicInfo from "./BasicInfo";
+import EventType from "./EventType";
+import Schedule from "./Schedule";
+import Finalize from "./Finalize";
+import VerificationSettings from "./VerificationSettings";
 
 // shadcn components
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Progress } from "@/components/ui/progress"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Progress } from "@/components/ui/progress";
 
 // icon components
-import { Loader2, ChevronLeft, ChevronRight, AlertCircle } from "lucide-react"
+import { Loader2, ChevronLeft, ChevronRight, AlertCircle } from "lucide-react";
 
 // utility
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 
 // Add these imports
-import { createProject } from './actions'
-import { useToast } from "@/hooks/use-toast"
-import { useRouter } from "next/navigation"
+import { createProject } from "./actions";
+import { useToast } from "@/hooks/use-toast";
+import { useRouter } from "next/navigation";
 
 interface LocationResult {
   display_name: string;
 }
 
 export default function CreateProject() {
-  const { 
-    state, 
-    nextStep, 
-    prevStep, 
-    setEventType, 
-    updateBasicInfo, 
-    addMultiDaySlot, 
-    addMultiDayEvent, 
+  const {
+    state,
+    nextStep,
+    prevStep,
+    setEventType,
+    updateBasicInfo,
+    addMultiDaySlot,
+    addMultiDayEvent,
     addRole,
     updateOneTimeSchedule,
     updateMultiDaySchedule,
@@ -48,18 +55,21 @@ export default function CreateProject() {
     removeDay,
     removeSlot,
     removeRole,
-    canProceed
-  } = useEventForm()
-  const { toast } = useToast()
-  const router = useRouter()
-  const [isSubmitting, setIsSubmitting] = useState(false)
+    canProceed,
+  } = useEventForm();
+  const { toast } = useToast();
+  const router = useRouter();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Map Dialog state
-  const [mapDialogOpen, setMapDialogOpen] = useState(false)
-  const [searchQuery, setSearchQuery] = useState("")
-  const [results, setResults] = useState<LocationResult[]>([])
-  const [isLoading, setIsLoading] = useState(false)
-  const [userCoords, setUserCoords] = useState<{ lat: number; lon: number } | null>(null)
+  const [mapDialogOpen, setMapDialogOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [results, setResults] = useState<LocationResult[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [userCoords, setUserCoords] = useState<{
+    lat: number;
+    lon: number;
+  } | null>(null);
 
   // Request user location only when Map dialog is open
   useEffect(() => {
@@ -68,25 +78,27 @@ export default function CreateProject() {
         (position) => {
           setUserCoords({
             lat: position.coords.latitude,
-            lon: position.coords.longitude
+            lon: position.coords.longitude,
           });
         },
         (error) => {
-          console.error('Error getting user location:', error);
-        }
+          console.error("Error getting user location:", error);
+        },
       );
     }
   }, [mapDialogOpen]);
 
   // Function to format location results (simplified)
   const formatLocation = (displayName: string) => {
-    const parts = displayName.split(',').map(p => p.trim());
-    const title = parts[0] || '';
-    const address = parts.slice(1, 4).join(', ');
+    const parts = displayName.split(",").map((p) => p.trim());
+    const title = parts[0] || "";
+    const address = parts.slice(1, 4).join(", ");
     return (
       <div>
         <div className="font-medium">{title}</div>
-        {address && <div className="text-sm text-muted-foreground">{address}</div>}
+        {address && (
+          <div className="text-sm text-muted-foreground">{address}</div>
+        )}
       </div>
     );
   };
@@ -107,7 +119,7 @@ export default function CreateProject() {
       const data = await res.json();
       setResults(data);
     } catch (error) {
-      console.error('Error searching location:', error);
+      console.error("Error searching location:", error);
     } finally {
       setIsLoading(false);
     }
@@ -122,7 +134,7 @@ export default function CreateProject() {
   }, [searchQuery, searchLocation]);
 
   const handleSelectLocation = (displayName: string) => {
-    updateBasicInfo('location', displayName);
+    updateBasicInfo("location", displayName);
     setMapDialogOpen(false);
   };
 
@@ -132,13 +144,13 @@ export default function CreateProject() {
         case 1:
           return "Please fill in all required fields";
         case 3:
-          if (state.eventType === 'oneTime') {
+          if (state.eventType === "oneTime") {
             return "Please select a date, time, and number of volunteers";
           }
-          if (state.eventType === 'multiDay') {
+          if (state.eventType === "multiDay") {
             return "Please ensure all days have valid dates, times, and volunteer counts";
           }
-          if (state.eventType === 'sameDayMultiArea') {
+          if (state.eventType === "sameDayMultiArea") {
             return "Please ensure all roles have names, valid times, and volunteer counts";
           }
         case 4:
@@ -153,73 +165,88 @@ export default function CreateProject() {
   // Add submit function
   const handleSubmit = async () => {
     if (state.step !== 5) {
-      nextStep()
-      return
+      nextStep();
+      return;
     }
-    
+
     try {
-      setIsSubmitting(true)
-      
+      setIsSubmitting(true);
+
       // Create form data for the server action
-      const formData = new FormData()
-      formData.append('projectData', JSON.stringify(state))
-      
-      const result = await createProject(formData)
-      
+      const formData = new FormData();
+      formData.append("projectData", JSON.stringify(state));
+
+      const result = await createProject(formData);
+
       if (result.error) {
         toast({
           title: "Error",
           description: result.error,
-          variant: "destructive"
-        })
+          variant: "destructive",
+        });
       } else if (result.id) {
         toast({
           title: "Success!",
           description: "Your project has been created successfully.",
-        })
-        router.push(`/projects/${result.id}`)
+        });
+        router.push(`/projects/${result.id}`);
       }
     } catch (error) {
-      console.error('Error submitting project:', error)
+      console.error("Error submitting project:", error);
       toast({
         title: "Error",
         description: "Something went wrong. Please try again.",
-        variant: "destructive"
-      })
+        variant: "destructive",
+      });
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   // Render step based on current state.step
   const renderStep = () => {
     switch (state.step) {
       case 1:
-        return <BasicInfo state={state} updateBasicInfoAction={updateBasicInfo} onMapClickAction={() => setMapDialogOpen(true)} />
+        return (
+          <BasicInfo
+            state={state}
+            updateBasicInfoAction={updateBasicInfo}
+            onMapClickAction={() => setMapDialogOpen(true)}
+          />
+        );
       case 2:
-        return <EventType eventType={state.eventType} setEventTypeAction={setEventType} />
+        return (
+          <EventType
+            eventType={state.eventType}
+            setEventTypeAction={setEventType}
+          />
+        );
       case 3:
-        return <Schedule 
-                  state={state} 
-                  updateOneTimeScheduleAction={updateOneTimeSchedule}
-                  updateMultiDayScheduleAction={updateMultiDaySchedule}
-                  updateMultiRoleScheduleAction={updateMultiRoleSchedule}
-                  addMultiDaySlotAction={addMultiDaySlot}
-                  addMultiDayEventAction={addMultiDayEvent}
-                  addRoleAction={addRole}
-                  removeDayAction={removeDay}
-                  removeSlotAction={removeSlot}
-                  removeRoleAction={removeRole}
-               />
+        return (
+          <Schedule
+            state={state}
+            updateOneTimeScheduleAction={updateOneTimeSchedule}
+            updateMultiDayScheduleAction={updateMultiDaySchedule}
+            updateMultiRoleScheduleAction={updateMultiRoleSchedule}
+            addMultiDaySlotAction={addMultiDaySlot}
+            addMultiDayEventAction={addMultiDayEvent}
+            addRoleAction={addRole}
+            removeDayAction={removeDay}
+            removeSlotAction={removeSlot}
+            removeRoleAction={removeRole}
+          />
+        );
       case 4:
-        return <VerificationSettings
-                  verificationMethod={state.verificationMethod}
-                  requireLogin={state.requireLogin}
-                  updateVerificationMethodAction={updateVerificationMethod}
-                  updateRequireLoginAction={updateRequireLogin}
-               />
+        return (
+          <VerificationSettings
+            verificationMethod={state.verificationMethod}
+            requireLogin={state.requireLogin}
+            updateVerificationMethodAction={updateVerificationMethod}
+            updateRequireLoginAction={updateRequireLogin}
+          />
+        );
       case 5:
-        return <Finalize state={state} />
+        return <Finalize state={state} />;
       default:
         return null;
     }
@@ -228,14 +255,51 @@ export default function CreateProject() {
   return (
     <div className="container mx-auto p-4 sm:p-8 max-w-3xl">
       <div className="mb-6 sm:mb-8">
-        <h1 className="text-3xl sm:text-4xl font-bold mb-4">Create a Volunteering Project</h1>
+        <h1 className="text-3xl sm:text-4xl font-bold mb-4">
+          Create a Volunteering Project
+        </h1>
         <Progress value={(state.step / 5) * 100} className="h-2" />
         <div className="grid grid-cols-5 mt-2 text-xs sm:text-sm text-muted-foreground">
-          <span className={cn("text-center sm:text-left truncate", state.step === 1 && "text-primary font-medium")}>Basic Info</span>
-          <span className={cn("text-center sm:text-left truncate", state.step === 2 && "text-primary font-medium")}>Event Type</span>
-          <span className={cn("text-center sm:text-left truncate", state.step === 3 && "text-primary font-medium")}>Schedule</span>
-          <span className={cn("text-center sm:text-left truncate", state.step === 4 && "text-primary font-medium")}>Settings</span>
-          <span className={cn("text-center sm:text-left ", state.step === 5 && "text-primary font-medium")}>Finalize</span>
+          <span
+            className={cn(
+              "text-center sm:text-left truncate",
+              state.step === 1 && "text-primary font-medium",
+            )}
+          >
+            Basic Info
+          </span>
+          <span
+            className={cn(
+              "text-center sm:text-left truncate",
+              state.step === 2 && "text-primary font-medium",
+            )}
+          >
+            Event Type
+          </span>
+          <span
+            className={cn(
+              "text-center sm:text-left truncate",
+              state.step === 3 && "text-primary font-medium",
+            )}
+          >
+            Schedule
+          </span>
+          <span
+            className={cn(
+              "text-center sm:text-left truncate",
+              state.step === 4 && "text-primary font-medium",
+            )}
+          >
+            Settings
+          </span>
+          <span
+            className={cn(
+              "text-center sm:text-left ",
+              state.step === 5 && "text-primary font-medium",
+            )}
+          >
+            Finalize
+          </span>
         </div>
       </div>
 
@@ -250,8 +314,8 @@ export default function CreateProject() {
         )}
 
         <div className="flex justify-between gap-4">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={prevStep}
             disabled={state.step === 1 || isSubmitting}
             className="w-[120px]"
@@ -259,7 +323,7 @@ export default function CreateProject() {
             <ChevronLeft className="h-4 w-4 mr-2" />
             Back
           </Button>
-          <Button 
+          <Button
             onClick={handleSubmit}
             disabled={!canProceed() || isSubmitting}
             className="w-[120px]"
@@ -267,7 +331,7 @@ export default function CreateProject() {
             {isSubmitting ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : state.step === 5 ? (
-              'Create'
+              "Create"
             ) : (
               <>
                 Continue
@@ -290,11 +354,17 @@ export default function CreateProject() {
                 placeholder="Enter location..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') searchLocation() }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") searchLocation();
+                }}
                 className="flex-grow"
               />
               <Button onClick={searchLocation} className="ml-2 shrink-0">
-                {isLoading ? <Loader2 className="animate-spin h-4 w-4" /> : 'Search'}
+                {isLoading ? (
+                  <Loader2 className="animate-spin h-4 w-4" />
+                ) : (
+                  "Search"
+                )}
               </Button>
             </div>
             <div className="max-h-64 overflow-y-auto">
@@ -309,7 +379,9 @@ export default function CreateProject() {
                   </div>
                 ))
               ) : (
-                <p className="text-sm text-muted-foreground">No results found.</p>
+                <p className="text-sm text-muted-foreground">
+                  No results found.
+                </p>
               )}
             </div>
           </div>
