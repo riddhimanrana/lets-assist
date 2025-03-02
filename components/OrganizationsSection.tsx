@@ -19,23 +19,39 @@ export const OrganizationsSection = () => {
           >
             <div className="p-4 sm:p-6 bg-background rounded-xl shadow-sm">
               <Building2 className="w-6 h-6 sm:w-8 sm:h-8 text-primary mb-3 sm:mb-4" />
-              <h3 className="font-semibold mb-2 text-sm sm:text-base">Streamlined Management</h3>
-              <p className="text-xs sm:text-sm text-muted-foreground">Efficiently manage events and volunteer coordination</p>
+              <h3 className="font-semibold mb-2 text-sm sm:text-base">
+                Streamlined Management
+              </h3>
+              <p className="text-xs sm:text-sm text-muted-foreground">
+                Efficiently manage events and volunteer coordination
+              </p>
             </div>
             <div className="p-4 sm:p-6 bg-background rounded-xl shadow-sm">
               <Users2 className="w-6 h-6 sm:w-8 sm:h-8 text-primary mb-3 sm:mb-4" />
-              <h3 className="font-semibold mb-2 text-sm sm:text-base">Volunteer Database</h3>
-              <p className="text-xs sm:text-sm text-muted-foreground">Access a pool of verified and eager volunteers</p>
+              <h3 className="font-semibold mb-2 text-sm sm:text-base">
+                Volunteer Database
+              </h3>
+              <p className="text-xs sm:text-sm text-muted-foreground">
+                Access a pool of verified and eager volunteers
+              </p>
             </div>
             <div className="p-4 sm:p-6 bg-background rounded-xl shadow-sm">
               <BarChart className="w-6 h-6 sm:w-8 sm:h-8 text-primary mb-3 sm:mb-4" />
-              <h3 className="font-semibold mb-2 text-sm sm:text-base">Analytics & Insights</h3>
-              <p className="text-xs sm:text-sm text-muted-foreground">Track impact and engagement metrics</p>
+              <h3 className="font-semibold mb-2 text-sm sm:text-base">
+                Analytics & Insights
+              </h3>
+              <p className="text-xs sm:text-sm text-muted-foreground">
+                Track impact and engagement metrics
+              </p>
             </div>
             <div className="p-4 sm:p-6 bg-background rounded-xl shadow-sm">
               <Shield className="w-6 h-6 sm:w-8 sm:h-8 text-primary mb-3 sm:mb-4" />
-              <h3 className="font-semibold mb-2 text-sm sm:text-base">Verified Platform</h3>
-              <p className="text-xs sm:text-sm text-muted-foreground">Join a trusted network of organizations</p>
+              <h3 className="font-semibold mb-2 text-sm sm:text-base">
+                Verified Platform
+              </h3>
+              <p className="text-xs sm:text-sm text-muted-foreground">
+                Join a trusted network of organizations
+              </p>
             </div>
           </motion.div>
 
@@ -46,11 +62,16 @@ export const OrganizationsSection = () => {
             transition={{ duration: 0.5 }}
             className="lg:pl-8"
           >
-            <span className="text-primary font-semibold mb-2 block text-sm sm:text-base">FOR ORGANIZATIONS</span>
-            <h2 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6">Connect with Passionate Volunteers</h2>
+            <span className="text-primary font-semibold mb-2 block text-sm sm:text-base">
+              FOR ORGANIZATIONS
+            </span>
+            <h2 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6">
+              Connect with Passionate Volunteers
+            </h2>
             <p className="text-sm sm:text-base text-muted-foreground mb-6 sm:mb-8">
-              Join our network of non-profits and local organizations to find dedicated volunteers. 
-              Our platform helps you manage events, track participation, and make a bigger impact in your community.
+              Join our network of non-profits and local organizations to find
+              dedicated volunteers. Our platform helps you manage events, track
+              participation, and make a bigger impact in your community.
             </p>
             <div className="space-y-3 sm:space-y-4">
               <div className="flex items-center gap-2 text-xs sm:text-sm">
@@ -68,7 +89,11 @@ export const OrganizationsSection = () => {
             </div>
             <div className="mt-6 sm:mt-8">
               <Link href="/signup">
-                <Button variant="outline" size="lg" className="w-full sm:w-auto">
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="w-full sm:w-auto"
+                >
                   Partner with Us
                 </Button>
               </Link>

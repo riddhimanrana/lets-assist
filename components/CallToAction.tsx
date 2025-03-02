@@ -10,7 +10,7 @@ export const CallToAction = () => {
     <section className="py-20 relative overflow-hidden ">
       {/* Background gradient */}
       <div className="absolute inset-0 bg-gradient-to-b from-transparent to-muted/50"></div>
-      
+
       <div className="container relative mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -24,8 +24,8 @@ export const CallToAction = () => {
             Who will you help today?
           </h2>
           <p className="text-lg text-muted-foreground">
-            Every small act of kindness creates ripples of change in our community. 
-            Start your volunteering journey today.
+            Every small act of kindness creates ripples of change in our
+            community. Start your volunteering journey today.
           </p>
           <motion.div
             initial={{ opacity: 0, y: 10 }}

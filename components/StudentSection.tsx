@@ -20,15 +20,21 @@ export const StudentSection = () => {
           >
             <h2 className="text-2xl sm:text-3xl font-bold leading-tight">
               High School Students & CSF Members
-              <span className="block text-primary mt-2">Track Your Hours with Ease</span>
+              <span className="block text-primary mt-2">
+                Track Your Hours with Ease
+              </span>
             </h2>
             <p className="text-muted-foreground text-base sm:text-lg">
-              Meet your community service requirements hassle-free. Our platform automatically tracks and verifies your volunteering hours, making it perfect for:
+              Meet your community service requirements hassle-free. Our platform
+              automatically tracks and verifies your volunteering hours, making
+              it perfect for:
             </p>
             <ul className="space-y-3 sm:space-y-4">
               <li className="flex items-center gap-2 text-sm sm:text-base">
                 <ChevronRight className="text-primary w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
-                <span>California Scholarship Federation (CSF) requirements</span>
+                <span>
+                  California Scholarship Federation (CSF) requirements
+                </span>
               </li>
               <li className="flex items-center gap-2 text-sm sm:text-base">
                 <ChevronRight className="text-primary w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
@@ -48,7 +54,7 @@ export const StudentSection = () => {
               </Link>
             </div>
           </motion.div>
-          
+
           <motion.div
             initial={{ opacity: 0, x: 50 }}
             whileInView={{ opacity: 1, x: 0 }}

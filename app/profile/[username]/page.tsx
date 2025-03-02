@@ -1,34 +1,36 @@
-import React from "react"
-import { createClient } from "@/utils/supabase/server"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Separator } from "@/components/ui/separator"
-import { format } from "date-fns"
-import { notFound } from "next/navigation"
-import { NoAvatar } from "@/components/NoAvatar"
+import React from "react";
+import { createClient } from "@/utils/supabase/server";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
+import { format } from "date-fns";
+import { notFound } from "next/navigation";
+import { NoAvatar } from "@/components/NoAvatar";
 
 interface Profile {
-  username: string
-  full_name: string
-  avatar_url: string | null
-  created_at: string
+  username: string;
+  full_name: string;
+  avatar_url: string | null;
+  created_at: string;
 }
 
 type Props = {
-    params: Promise<{ username: string }>
-}
-export default async function ProfilePage(params: Props): Promise<React.ReactElement> {
-  const supabase = await createClient()
+  params: Promise<{ username: string }>;
+};
+export default async function ProfilePage(
+  params: Props,
+): Promise<React.ReactElement> {
+  const supabase = await createClient();
   const { username } = await params.params;
   // Fetch user profile data
   const { data: profile, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('username', username)
-    .single<Profile>()
+    .from("profiles")
+    .select("*")
+    .eq("username", username)
+    .single<Profile>();
 
   if (error || !profile) {
-    notFound()
+    notFound();
   }
 
   return (
@@ -36,7 +38,10 @@ export default async function ProfilePage(params: Props): Promise<React.ReactEle
       <Card>
         <CardHeader className="flex flex-row items-center gap-4">
           <Avatar className="h-20 w-20">
-            <AvatarImage src={profile.avatar_url || undefined} alt={profile.full_name} />
+            <AvatarImage
+              src={profile.avatar_url || undefined}
+              alt={profile.full_name}
+            />
             <AvatarFallback>
               <NoAvatar fullName={profile?.full_name} />
             </AvatarFallback>
@@ -59,5 +64,5 @@ export default async function ProfilePage(params: Props): Promise<React.ReactEle
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }
