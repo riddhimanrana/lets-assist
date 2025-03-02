@@ -1,17 +1,17 @@
-// Schedule.tsx - Handles scheduling step
-
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
+// import { Badge } from "@/components/ui/badge"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar as CalendarIcon } from "lucide-react"
 import { TimePicker } from "@/components/ui/time-picker"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
+// import { VerificationMethod } from "@/types"
 
 interface ScheduleProps {
   state: {
@@ -24,7 +24,7 @@ interface ScheduleProps {
         volunteers: number;
       };
       multiDay: { date: string; slots: { startTime: string; endTime: string; volunteers: number }[] }[];
-      multiRole: {
+      sameDayMultiArea: {
         date: string;
         overallStart: string;
         overallEnd: string;
@@ -265,7 +265,7 @@ export default function Schedule({
   }
 
   if (state.eventType === 'sameDayMultiArea') {
-    const overallTimeInvalid = isTimeRangeInvalid(state.schedule.multiRole.overallStart, state.schedule.multiRole.overallEnd);
+    const overallTimeInvalid = isTimeRangeInvalid(state.schedule.sameDayMultiArea.overallStart, state.schedule.sameDayMultiArea.overallEnd);
     return (
       <Card>
         <CardHeader>
@@ -283,12 +283,12 @@ export default function Schedule({
                       variant="outline"
                       className={cn(
                         "w-full justify-start text-left font-normal mt-1.5",
-                        !state.schedule.multiRole.date && "text-muted-foreground"
+                        !state.schedule.sameDayMultiArea.date && "text-muted-foreground"
                       )}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {state.schedule.multiRole.date ? 
-                        format(new Date(state.schedule.multiRole.date), "PPP") : 
+                      {state.schedule.sameDayMultiArea.date ? 
+                        format(new Date(state.schedule.sameDayMultiArea.date), "PPP") : 
                         "Pick a date"
                       }
                     </Button>
@@ -296,7 +296,7 @@ export default function Schedule({
                   <PopoverContent className="w-auto p-0" align="start">
                     <Calendar
                       mode="single"
-                      selected={state.schedule.multiRole.date ? new Date(state.schedule.multiRole.date) : undefined}
+                      selected={state.schedule.sameDayMultiArea.date ? new Date(state.schedule.sameDayMultiArea.date) : undefined}
                       onSelect={(date) => 
                         updateMultiRoleScheduleAction('date', date ? format(date, 'yyyy-MM-dd') : '')
                       }
@@ -309,13 +309,13 @@ export default function Schedule({
                 <Label>Overall Event Hours</Label>
                 <div className="grid grid-cols-2 gap-2 mt-1.5">
                   <TimePicker
-                    value={state.schedule.multiRole.overallStart}
+                    value={state.schedule.sameDayMultiArea.overallStart}
                     onChangeAction={(time: string) => updateMultiRoleScheduleAction('overallStart', time)}
                     error={overallTimeInvalid}
                     errorMessage={overallTimeInvalid ? "Invalid time" : undefined}
                   />
                   <TimePicker
-                    value={state.schedule.multiRole.overallEnd}
+                    value={state.schedule.sameDayMultiArea.overallEnd}
                     onChangeAction={(time: string) => updateMultiRoleScheduleAction('overallEnd', time)}
                     error={overallTimeInvalid}
                     errorMessage={overallTimeInvalid ? "Invalid time" : undefined}
@@ -323,7 +323,7 @@ export default function Schedule({
                 </div>
               </div>
             </div>
-            {state.schedule.multiRole.roles.map((role: { name: string, startTime: string, endTime: string, volunteers: number }, roleIndex: number) => {
+            {state.schedule.sameDayMultiArea.roles.map((role: { name: string, startTime: string, endTime: string, volunteers: number }, roleIndex: number) => {
               const roleTimeInvalid = isTimeRangeInvalid(role.startTime, role.endTime);
               return (
                 <div key={roleIndex} className="p-4 border rounded-lg space-y-4">

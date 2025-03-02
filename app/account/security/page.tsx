@@ -106,23 +106,23 @@ export default function SecurityPage() {
         <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
+            className="p-4 sm:p-6"
         >
-            <div className="container mx-auto py-6 max-w-7xl">
-                <div className="mb-8">
-                    <h1 className="text-3xl font-bold tracking-tight">Privacy & Security</h1>
-                    <p className="text-muted-foreground">
+            <div className="max-w-5xl mx-auto">
+                <div className="mb-6">
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Privacy & Security</h1>
+                    <p className="text-muted-foreground mt-1">
                         Manage your email, password, and account security
                     </p>
                 </div>
 
-                <div className="space-y-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <Card className="h-full relative">
-                        <div className="absolute inset-0 z-10 rounded-lg"/>
-                        <CardHeader>
-                            <CardTitle>Email Address</CardTitle>
+                <div className="space-y-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <Card className="h-full">
+                        <CardHeader className="px-5 py-4 sm:px-6">
+                            <CardTitle className="text-xl">Email Address</CardTitle>
                             <CardDescription>Change your email address</CardDescription>
                         </CardHeader>
-                        <CardContent>
+                        <CardContent className="px-5 sm:px-6 py-4">
                             <Alert className="mb-4">
                                 <AlertDescription>
                                     Email changes will be available in a future release.
@@ -135,22 +135,21 @@ export default function SecurityPage() {
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="new-email">New Email</Label>
-                                    <Input id="new-email" type="email" required />
+                                    <Input id="new-email" type="email" required disabled />
                                 </div>
-                                <Button type="submit" disabled={true}>
+                                <Button type="submit" disabled={true} className="w-full sm:w-auto">
                                     Coming Soon
                                 </Button>
                             </form>
                         </CardContent>
                     </Card>
 
-                    <Card className="relative">
-                        <div className="absolute inset-0 z-10 rounded-lg"/>
-                        <CardHeader>
-                            <CardTitle>Password</CardTitle>
+                    <Card>
+                        <CardHeader className="px-5 py-4 sm:px-6">
+                            <CardTitle className="text-xl">Password</CardTitle>
                             <CardDescription>Change your password</CardDescription>
                         </CardHeader>
-                        <CardContent>
+                        <CardContent className="px-5 sm:px-6 py-4">
                             <Alert className="mb-4">
                                 <AlertDescription>
                                     Password changes will be available in a future release.
@@ -159,17 +158,17 @@ export default function SecurityPage() {
                             <form onSubmit={handlePasswordChange} className="space-y-4">
                                 <div className="space-y-2">
                                     <Label htmlFor="current-password">Current Password</Label>
-                                    <Input id="current-password" type="password" required />
+                                    <Input id="current-password" type="password" required disabled />
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="new-password">New Password</Label>
-                                    <Input id="new-password" type="password" required />
+                                    <Input id="new-password" type="password" required disabled />
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="confirm-password">Confirm New Password</Label>
-                                    <Input id="confirm-password" type="password" required />
+                                    <Input id="confirm-password" type="password" required disabled />
                                 </div>
-                                <Button type="submit" disabled={true}>
+                                <Button type="submit" disabled={true} className="w-full sm:w-auto">
                                     Coming Soon
                                 </Button>
                             </form>
@@ -178,18 +177,18 @@ export default function SecurityPage() {
                 </div>
 
                 <Card className="border-destructive mt-6">
-                    <CardHeader>
+                    <CardHeader className="px-5 py-4 sm:px-6">
                         <CardTitle className="text-destructive">Delete Account</CardTitle>
                         <CardDescription>
                             Permanently delete your account and all associated data
                         </CardDescription>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="px-5 sm:px-6 py-4">
                         <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
                             <DialogTrigger asChild>
-                                <Button variant="destructive">Delete Account</Button>
+                                <Button variant="destructive" className="w-full sm:w-auto">Delete Account</Button>
                             </DialogTrigger>
-                            <DialogContent className="sm:max-w-lg">
+                            <DialogContent className="sm:max-w-lg max-w-[95vw]">
                                 <DialogHeader>
                                     <DialogTitle>Are you absolutely sure?</DialogTitle>
                                     <DialogDescription>
@@ -210,11 +209,12 @@ export default function SecurityPage() {
                                         />
                                     </div>
                                 </div>
-                                <DialogFooter>
+                                <DialogFooter className="flex-col sm:flex-row gap-2">
                                     <Button
                                         variant="destructive"
                                         onClick={handleDeleteAccount}
                                         disabled={deleteConfirmation !== "delete my account" || isDeleting}
+                                        className="w-full sm:w-auto order-2 sm:order-1"
                                     >
                                         {isDeleting 
                                             ? `Deleting in ${countdown}s...` 
@@ -222,7 +222,11 @@ export default function SecurityPage() {
                                         }
                                     </Button>
                                     {isDeleting && (
-                                        <Button variant="secondary" onClick={handleCancelDelete}>
+                                        <Button 
+                                            variant="secondary" 
+                                            onClick={handleCancelDelete}
+                                            className="w-full sm:w-auto order-1 sm:order-2"
+                                        >
                                             Cancel
                                         </Button>
                                     )}

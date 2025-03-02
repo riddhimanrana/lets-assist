@@ -3,8 +3,8 @@ import Link from 'next/link';
 
 const TermsPage = () => {
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen py-8">
-      <main className="flex flex-col items-center justify-center w-full flex-1 px-20 text-center">
+    <div className="flex flex-col items-center justify-center min-h-screen py-8 px-6">
+      <main className="flex flex-col items-center justify-center w-full flex-1 sm:px-10 md:px-24 text-center">
         <h1 className="text-4xl font-bold mb-2">Terms of Service</h1>
         <p className="text-sm mt-0 mb-8 text-muted-foreground">Last updated February 22, 2025</p>
 

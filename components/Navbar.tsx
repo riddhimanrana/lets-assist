@@ -3,13 +3,15 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { Menu, Settings, LogOut, LayoutDashboard, UserCog, Heart, Bug } from "lucide-react"
+import { Menu, UserRound, LogOut, LayoutDashboard, Settings, Heart, Bug, ChevronDown, ChevronUp } from "lucide-react"
 import { NoAvatar } from "@/components/NoAvatar"
 import { createClient } from "@/utils/supabase/client"
 import { User as SupabaseUser } from '@supabase/supabase-js'
 import { logout } from '@/app/logout/actions'
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+
+
 import {
   Avatar,
   AvatarFallback,
@@ -27,6 +29,7 @@ import {
   Sheet,
   SheetContent,
   SheetTrigger,
+  SheetTitle,
 } from "@/components/ui/sheet"
 import { ModeToggle } from "@/components/theme-toggle"
 import { Separator } from "@/components/ui/separator"
@@ -42,6 +45,29 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { ReportBugDialog } from "@/components/ReportBugDialog"
 import { useState } from "react"
 import Image from "next/image"
+
+interface SectionProps {
+  title: string;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+}
+
+const CollapsibleSection = ({ title, children, defaultOpen = false }: SectionProps) => {
+  const [isOpen, setIsOpen] = React.useState(defaultOpen);
+  
+  return (
+    <div className="mb-4">
+      <button 
+        className="flex w-full items-center justify-between py-2"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <span className="text-base font-bold">{title}</span>
+        {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+      </button>
+      {isOpen && <div className="mt-1 space-y-1">{children}</div>}
+    </div>
+  );
+};
 
 const features = [
   {
@@ -241,74 +267,120 @@ export default function Navbar({ initialUser }: NavbarProps) {
 
       {/* Mobile Navigation */}
       <Sheet>
-      <div className="sm:hidden flex ml-auto mr-4">
-            <ModeToggle />
+      <SheetTitle className="hidden">
+      </SheetTitle>
+        <div className="sm:hidden flex items-center ml-auto">
+          <ModeToggle />
         </div>
         <SheetTrigger asChild>
-          <Button variant="ghost" size="icon" className="md:hidden">
-            <Menu className="h-6 w-6" />
+          <Button variant="ghost" size="icon" className="md:hidden ml-2">
+            <Menu className="h-5 w-5" />
             <span className="sr-only">Toggle menu</span>
           </Button>
         </SheetTrigger>
-        <SheetContent side="right">
-          <nav className="flex flex-col space-y-6">
-            <Button variant="ghost" className="justify-start">Volunteering Near Me</Button>
-            <Button variant="ghost" className="justify-start">Connected Organizations</Button>
-            <hr className="my-4" />
-            {user ? (
+        <SheetContent side="right" className="w-[85%] sm:w-[380px] pt-6">
+          <div className="flex flex-col h-full">
+            <div className="space-y-4 flex-1">
+              {user && (
+                <div className="flex items-center space-x-3 mb-6 pb-4 border-b">
+                  {isProfileLoading ? (
+                    <Skeleton className="w-12 h-12 rounded-full" />
+                  ) : (
+                    <Avatar className="w-12 h-12">
+                      <AvatarImage src={profile?.avatar_url} />
+                      <AvatarFallback>
+                        <NoAvatar fullName={profile?.full_name} />
+                      </AvatarFallback>
+                    </Avatar>
+                  )}
+                  <div className="flex flex-col">
+                    <p className="font-medium">{profile?.full_name}</p>
+                    <p className="text-sm text-muted-foreground">{user.email}</p>
+                  </div>
+                </div>
+              )}
+              
+              <CollapsibleSection title="Navigation" defaultOpen={true}>
+                <Button variant="ghost" className="w-full justify-start text-muted-foreground" asChild>
+                  <Link href="/">Home</Link>
+                </Button>
+                <Button variant="ghost" className="w-full justify-start text-muted-foreground">
+                  Volunteering Near Me
+                </Button>
+                <Button variant="ghost" className="w-full justify-start text-muted-foreground">
+                  Connected Organizations
+                </Button>
+              </CollapsibleSection>
+              
+              {user && (
                 <>
-                <div className="flex items-center space-x-4 px-4 py-2">
-                <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center">
-                  <NoAvatar fullName={profile?.full_name} />
-                </div>
-                <span className="text-sm">{user.email}</span>
-                </div>
-                <Link href="/dashboard"></Link>
-                <Button variant="ghost" className="justify-start space-x-2 w-full">
-                  <LayoutDashboard className="mr-4 h-5 w-5" />
-                  Dashboard
-                </Button>
-                <Link href="/account-settings">
-                <Button variant="ghost" className="justify-start space-x-2 w-full">
-                  <UserCog className="mr-4 h-5 w-5" />
-                  Account settings
-                </Button>
-                </Link>
-                <Link href="/preferences">
-                <Button variant="ghost" className="justify-start space-x-2 w-full">
-                  <Settings className="mr-4 h-5 w-5" />
-                  Preferences
-                </Button>
-                </Link>
-                <Separator />
+                <CollapsibleSection title="Dashboard" defaultOpen={true}>
+                  <Button variant="ghost" className="w-full justify-start text-muted-foreground" asChild>
+                    <Link href="/home">
+                      <LayoutDashboard className="mr-2 h-4 w-4" />
+                      Dashboard
+                    </Link>
+                  </Button>
+                </CollapsibleSection>
+                
+                <CollapsibleSection title="Account" defaultOpen={true}>
+                  <Button variant="ghost" className="w-full justify-start text-muted-foreground" asChild>
+                    <Link href="/account/profile">
+                      <Settings className="mr-2 h-4 w-4" />
+                      Account Settings
+                    </Link>
+                  </Button>
+                  <Button variant="ghost" className="w-full justify-start text-muted-foreground" asChild>
+                    <Link href={`/profile/${profile?.username}`}>
+                      <UserRound className="mr-2 h-4 w-4" />
+                      My Profile
+                    </Link>
+                  </Button>
+                </CollapsibleSection>
+                </>
+              )}
+            </div>
+            
+            {user ? (
+              <div className="border-t pt-4 mt-auto">
+                <p className="text-base font-bold mb-2 pl-2">Support</p>
                 <Button 
                   variant="ghost" 
-                  className="justify-start space-x-2 w-full"
+                  className="w-full justify-start mb-2 text-muted-foreground"
                   onClick={() => setShowBugDialog(true)}
                 >
-                  <Bug className="mr-4 h-5 w-5" />
+                  <Bug className="mr-2 h-4 w-4" />
                   Report a Bug
                 </Button>
                 <Button 
-                variant="ghost" 
-                className="justify-start text-destructive font-bold space-x-2 mt-4 w-full" 
-                onClick={async () => { setUser(null); await logout();}}
+                  variant="ghost"
+                  className="w-full justify-start mb-2 text-muted-foreground"
                 >
-                <LogOut className="mr-4 h-5 w-5" />
-                Log Out
+                  <Heart className="mr-2 h-4 w-4" />
+                  Donate
                 </Button>
-              </>
+                <Button 
+                  variant="destructive" 
+                  className="w-full mt-2" 
+                  onClick={async () => { setUser(null); await logout();}}
+                >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Log Out
+                </Button>
+              </div>
             ) : (
-              <>
-                <Link href="/login">
-                  <Button variant="ghost" className="justify-start">Login</Button>
-                </Link>
-                <Link href="/signup">
-                  <Button className="justify-start">Sign Up</Button>
-                </Link>
-              </>
+              <div className="border-t pt-4 mt-auto">
+                <div className="grid gap-2">
+                  <Link href="/login" className="w-full">
+                    <Button variant="outline" className="w-full">Login</Button>
+                  </Link>
+                  <Link href="/signup" className="w-full">
+                    <Button className="w-full">Sign Up</Button>
+                  </Link>
+                </div>
+              </div>
             )}
-          </nav>
+          </div>
         </SheetContent>
       </Sheet>
     </nav>

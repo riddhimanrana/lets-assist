@@ -60,86 +60,86 @@ export default function AuthenticationPage() {
         <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
+            className="p-4 sm:p-6"
         >
-            <div className="container mx-auto py-6 max-w-7xl">
-                <div className="space-y-6">
-                    <div>
-                        <h1 className="text-3xl font-bold tracking-tight">Authentication</h1>
-                        <p className="text-muted-foreground">
-                            Manage your connected accounts and sign-in methods
-                        </p>
-                    </div>
+            <div className="space-y-6 max-w-5xl mx-auto">
+                <div>
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Authentication</h1>
+                    <p className="text-muted-foreground mt-1">
+                        Manage your connected accounts and sign-in methods
+                    </p>
+                </div>
 
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Connected Accounts</CardTitle>
-                            <CardDescription>
-                                Connect your accounts for a seamless sign-in experience
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-6">
-                            <div className="flex items-center justify-between p-4 border rounded-lg">
-                                <div className="flex items-center space-x-4">
-                                    <svg 
-                                        className="h-6 w-6" 
-                                        aria-hidden="true" 
-                                        focusable="false" 
-                                        data-prefix="fab" 
-                                        data-icon="google" 
-                                        role="img" 
-                                        xmlns="http://www.w3.org/2000/svg" 
-                                        viewBox="0 0 488 512"
-                                    >
-                                        <path 
-                                            fill="currentColor" 
-                                            d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 123 24.5 166.3 64.9l-67.5 64.9C258.5 52.6 94.3 116.6 94.3 256c0 86.5 69.1 156.6 153.7 156.6 98.2 0 135-70.4 140.8-106.9H248v-85.3h236.1c2.3 12.7 3.9 24.9 3.9 41.4z"
-                                        />
-                                    </svg>
-                                    <div>
-                                        <h4 className="text-sm font-semibold">Google Account</h4>
-                                        <p className="text-sm text-muted-foreground">
-                                            {isGoogleConnected 
-                                                ? "Your account is connected with Google" 
-                                                : "Connect your account with Google for easier sign-in"}
-                                        </p>
-                                    </div>
-                                </div>
-                                <div className="flex items-center">
-                                    <Button 
-                                        variant={isGoogleConnected ? "outline" : "default"}
-                                        onClick={handleGoogleConnect}
-                                        disabled={isConnecting}
-                                    >
-                                        {isConnecting ? "Connecting..." : 
-                                         isGoogleConnected ? "Connected" : "Connect"}
-                                    </Button>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Two-Factor Authentication</CardTitle>
-                            <CardDescription>
-                                Add an extra layer of security to your account
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="flex items-center justify-between p-4 border rounded-lg opacity-50">
-                                <div className="space-y-1">
-                                    <h4 className="text-sm font-semibold">Authenticator App</h4>
-                                    <p className="text-sm text-muted-foreground">
-                                        Use an authenticator app to generate two-factor codes
+                <Card className="border shadow-sm">
+                    <CardHeader className="px-5 py-4 sm:px-6">
+                        <CardTitle className="text-xl">Connected Accounts</CardTitle>
+                        <CardDescription>
+                            Connect your accounts for a seamless sign-in experience
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="px-5 sm:px-6 py-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-3 sm:p-4 border rounded-lg">
+                            <div className="flex items-center space-x-4">
+                                <svg 
+                                    className="h-5 w-5 sm:h-6 sm:w-6" 
+                                    aria-hidden="true" 
+                                    focusable="false" 
+                                    data-prefix="fab" 
+                                    data-icon="google" 
+                                    role="img" 
+                                    xmlns="http://www.w3.org/2000/svg" 
+                                    viewBox="0 0 488 512"
+                                >
+                                    <path 
+                                        fill="currentColor" 
+                                        d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 123 24.5 166.3 64.9l-67.5 64.9C258.5 52.6 94.3 116.6 94.3 256c0 86.5 69.1 156.6 153.7 156.6 98.2 0 135-70.4 140.8-106.9H248v-85.3h236.1c2.3 12.7 3.9 24.9 3.9 41.4z"
+                                    />
+                                </svg>
+                                <div>
+                                    <h4 className="text-sm font-semibold">Google Account</h4>
+                                    <p className="text-xs sm:text-sm text-muted-foreground">
+                                        {isGoogleConnected 
+                                            ? "Your account is connected with Google" 
+                                            : "Connect your account with Google for easier sign-in"}
                                     </p>
                                 </div>
-                                <Button variant="outline" disabled>
-                                    Coming Soon
+                            </div>
+                            <div>
+                                <Button 
+                                    variant={isGoogleConnected ? "outline" : "default"}
+                                    onClick={handleGoogleConnect}
+                                    disabled={isConnecting}
+                                    className="w-full sm:w-auto"
+                                >
+                                    {isConnecting ? "Connecting..." : 
+                                     isGoogleConnected ? "Connected" : "Connect"}
                                 </Button>
                             </div>
-                        </CardContent>
-                    </Card>
-                </div>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card className="border shadow-sm">
+                    <CardHeader className="px-5 py-4 sm:px-6">
+                        <CardTitle className="text-xl">Two-Factor Authentication</CardTitle>
+                        <CardDescription>
+                            Add an extra layer of security to your account
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="px-5 sm:px-6 py-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-3 sm:p-4 border rounded-lg opacity-50">
+                            <div className="space-y-1">
+                                <h4 className="text-sm font-semibold">Authenticator App</h4>
+                                <p className="text-xs sm:text-sm text-muted-foreground">
+                                    Use an authenticator app to generate two-factor codes
+                                </p>
+                            </div>
+                            <Button variant="outline" disabled className="w-full sm:w-auto">
+                                Coming Soon
+                            </Button>
+                        </div>
+                    </CardContent>
+                </Card>
             </div>
         </motion.div>
     )

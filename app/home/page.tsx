@@ -39,71 +39,70 @@ export default async function Home() {
     return (
         <div className="min-h-screen">
             <EmailVerificationToast />
-            <main className="container mx-auto p-8">
-            <div className="flex justify-between items-center mb-8">
-                <div className="flex items-center gap-3">
-                <Avatar className="w-10 h-10">
-                    <AvatarImage src={profileData?.avatar_url} alt={userName} />
-                    <AvatarFallback>
-                    <NoAvatar fullName={profileData?.full_name} />
-                    </AvatarFallback>
-                </Avatar>
-                <div>
-                    <h1 className="text-3xl font-bold">Hi, {userName}</h1>
-                    <p className="text-sm text-muted-foreground">Check out the latest projects</p>
-                </div>
-                </div>
-                <Link href="/projects/create">
-                <Button size="lg" className="font-semibold flex items-center gap-1">
-                    <Plus className="h-10 w-10"></Plus>
-                    Create Project
-                </Button>
-                </Link>
-            </div>
-
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {mockProjects.map((project) => (
-                <Card key={project.id} className="p-4 hover:shadow-lg transition-shadow max-w-sm">
-                    <div className="flex justify-between items-start mb-3">
-                    <div className="flex gap-3">
-                        <Avatar className="w-12 h-12">
-                        <AvatarImage src="" alt={project.creator} />
-                        <AvatarFallback>
-                            <NoAvatar fullName={project.creator} />
-                        </AvatarFallback>
+            <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+                    <div className="flex items-center gap-3">
+                        <Avatar className="w-10 h-10">
+                            <AvatarImage src={profileData?.avatar_url} alt={userName} />
+                            <AvatarFallback>
+                                <NoAvatar fullName={profileData?.full_name} />
+                            </AvatarFallback>
                         </Avatar>
                         <div>
-                        <h2 className="text-xl font-semibold">{project.title}</h2>
-                        <div className="flex items-center text-muted-foreground gap-1">
-                            <MapPin className="h-4 w-4" />
-                            <span className="text-sm">{project.location}</span>
-                        </div>
-                        <div className="text-sm text-muted-foreground mt-1"></div>
-                            <span className="font-medium">{project.creator}</span>
-                        </div>
+                            <h1 className="text-3xl font-bold">Hi, {userName}</h1>
+                            <p className="text-sm text-muted-foreground">Check out the latest projects</p>
                         </div>
                     </div>
+                    <Link href="/projects/create" className="w-full md:w-auto">
+                        <Button size="lg" className="font-semibold flex items-center gap-1 w-full md:w-auto">
+                            <Plus className="h-10 w-10" />
+                            Create Project
+                        </Button>
+                    </Link>
+                </div>
 
-                    <div>
-                        <p className="text-sm font-medium mb-1">Available Days:</p>
-                        <div className="flex flex-wrap gap-2">
-                            {mockProjects[0].slots.map((slot, index) => (
-                                <Badge key={index} variant="outline" className="px-2 py-1 text-xs">
-                                    {slot.day}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {mockProjects.map((project) => (
+                        <Card key={project.id} className="p-4 hover:shadow-lg transition-shadow">
+                            <div className="flex flex-col md:flex-row justify-between items-start mb-3 gap-2">
+                                <div className="flex gap-3 items-center">
+                                    <Avatar className="w-12 h-12">
+                                        <AvatarImage src="" alt={project.creator} />
+                                        <AvatarFallback>
+                                            <NoAvatar fullName={project.creator} />
+                                        </AvatarFallback>
+                                    </Avatar>
+                                    <div>
+                                        <h2 className="text-xl font-semibold">{project.title}</h2>
+                                        <div className="flex items-center text-muted-foreground gap-1">
+                                            <MapPin className="h-4 w-4" />
+                                            <span className="text-sm">{project.location}</span>
+                                        </div>
+                                        <span className="font-medium text-sm mt-1 block">{project.creator}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <p className="text-sm font-medium mb-1">Available Days:</p>
+                                <div className="flex flex-wrap gap-2">
+                                    {project.slots.map((slot, index) => (
+                                        <Badge key={index} variant="outline" className="px-2 py-1 text-xs">
+                                            {slot.day}
+                                        </Badge>
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="mt-4">
+                                <Badge variant="secondary" className="inline-flex items-center gap-1 px-2 py-1">
+                                    <Users className="h-4 w-4" />
+                                    <span className="text-xs">{project.spotsLeft} spots left</span>
                                 </Badge>
-                            ))}
-                        </div>
-                    </div>
-                    <div className="mt-4">
-                        <Badge variant="secondary" className="inline-flex items-center gap-1 px-2 py-1">
-                            <Users className="h-4 w-4" />
-                            <span className="text-xs">{mockProjects[0].spotsLeft} spots left</span>
-                        </Badge>
-                    </div>
-                </Card>
-                ))}
-            </div>
-        </main>
-    </div>
-);
+                            </div>
+                        </Card>
+                    ))}
+                </div>
+            </main>
+        </div>
+    );
 }

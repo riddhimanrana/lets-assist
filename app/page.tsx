@@ -31,7 +31,7 @@ function HomeContent() {
   }, [searchParams]);
 
   return (
-    <main className="flex flex-col min-h-screen">
+    <main className="flex flex-col min-h-screen overflow-x-hidden">
       <Toaster position="bottom-right" theme="dark" richColors />
       <HeroSection />
       <Features />

@@ -25,6 +25,7 @@ import {
     FormLabel,
     FormControl,
     FormMessage,
+    FormDescription,
 } from "@/components/ui/form";
 import { Toaster, toast } from "sonner";
 import { completeOnboarding, removeProfilePicture } from "./actions";
@@ -35,17 +36,29 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion } from "framer-motion";
 
-// Modified schema: preprocess empty strings into undefined so that non-updated values pass validation.
+// Constants for character limits
+const NAME_MAX_LENGTH = 64;
+const USERNAME_MAX_LENGTH = 32;
+const USERNAME_REGEX = /^[a-zA-Z0-9_.-]+$/;
+
+// Modified schema with character limits and validation
 const onboardingSchema = z.object({
     fullName: z.preprocess(
         (val) =>
             typeof val === "string" && val.trim() === "" ? undefined : val,
-        z.string().min(3, "Full name must be at least 3 characters").optional()
+        z.string()
+          .min(3, "Full name must be at least 3 characters")
+          .max(NAME_MAX_LENGTH, `Full name cannot exceed ${NAME_MAX_LENGTH} characters`)
+          .optional()
     ),
     username: z.preprocess(
         (val) =>
             typeof val === "string" && val.trim() === "" ? undefined : val,
-        z.string().min(3, "Username must be at least 3 characters").optional()
+        z.string()
+          .min(3, "Username must be at least 3 characters")
+          .max(USERNAME_MAX_LENGTH, `Username cannot exceed ${USERNAME_MAX_LENGTH} characters`)
+          .regex(USERNAME_REGEX, "Username can only contain letters, numbers, underscores, dots and hyphens")
+          .optional()
     ),
     avatarUrl: z.string().optional(),
 });
@@ -116,15 +129,15 @@ function Avatar({ url, onUpload, onRemove }: AvatarProps) {
 
     return (
         <>
-            <div className="flex items-center space-x-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
                 <AvatarUI className="w-20 h-20">
                     <AvatarImage src={url || undefined} alt="Profile picture" />
                     <AvatarFallback>{url ? "PIC" : "ADD"}</AvatarFallback>
                 </AvatarUI>
-                <div className="flex items-center space-x-2">
-                    <Button variant="outline" className="relative" disabled={isUploading}>
-                        <Upload className="w-5 h-5 mr-2" />
-                        {isUploading ? "Uploading..." : "Upload Picture"}
+                <div className="flex flex-wrap gap-2">
+                    <Button variant="outline" className="relative flex-1 sm:flex-none" disabled={isUploading}>
+                        <Upload className="w-4 h-4 mr-2" />
+                        {isUploading ? "Uploading..." : "Upload"}
                         <input
                             type="file"
                             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
@@ -138,10 +151,11 @@ function Avatar({ url, onUpload, onRemove }: AvatarProps) {
                             variant="ghost"
                             onClick={onRemove}
                             disabled={isRemoving || isUploading}
-                            className="text-destructive bg-destructive/10 hover:bg-destructive/10"
+                            className="text-destructive bg-destructive/10 hover:bg-destructive/20 flex-1 sm:flex-none"
                             title="Remove Picture"
                         >
-                            <Trash2 className="w-5 h-5" /> Remove
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Remove
                         </Button>
                     )}
                 </div>
@@ -174,6 +188,8 @@ export default function AccountSettings() {
         avatarUrl: undefined,
     });
     const [isDataLoading, setIsDataLoading] = useState(true);
+    const [nameLength, setNameLength] = useState(0);
+    const [usernameLength, setUsernameLength] = useState(0);
 
     useEffect(() => {
         async function fetchUserProfile() {
@@ -185,7 +201,6 @@ export default function AccountSettings() {
                     .select("full_name, avatar_url, username")
                     .eq("id", user?.id)
                     .single();
-                console.log(profileData);
 
                 if (profileData) {
                     setDefaultValues({
@@ -193,6 +208,9 @@ export default function AccountSettings() {
                         username: profileData.username,
                         avatarUrl: profileData.avatar_url,
                     });
+                    // Initialize character counts
+                    setNameLength(profileData.full_name?.length || 0);
+                    setUsernameLength(profileData.username?.length || 0);
                 }
             } catch (error) {
                 console.error("Error fetching user profile:", error);
@@ -221,6 +239,10 @@ export default function AccountSettings() {
         const data = await res.json();
         setUsernameAvailable(data.available);
         setCheckingUsername(false);
+    }
+
+    function checkUsernameValid(username: string): boolean {
+        return USERNAME_REGEX.test(username);
     }
 
     async function onSubmit(data: OnboardingValues) {
@@ -272,27 +294,30 @@ export default function AccountSettings() {
     };
 
     return (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-            <div className="container mx-auto py-6 max-w-7xl">
-                {/* Main Content Header */}
+        <motion.div 
+            initial={{ opacity: 0, y: 20 }} 
+            animate={{ opacity: 1, y: 0 }}
+            className="p-4 sm:p-6"
+        >
+            <div className="max-w-5xl mx-auto">
                 <div className="space-y-6">
                     <div>
-                        <h1 className="text-3xl font-bold tracking-tight">Profile</h1>
-                        <p className="text-muted-foreground">
+                        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Profile</h1>
+                        <p className="text-muted-foreground mt-1">
                             Manage your personal information and how others see you
                         </p>
                     </div>
 
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Profile Picture</CardTitle>
+                    <Card className="border shadow-sm">
+                        <CardHeader className="px-5 py-4 sm:px-6">
+                            <CardTitle className="text-xl">Profile Picture</CardTitle>
                             <CardDescription>
                                 Choose a profile picture for your account
                             </CardDescription>
                         </CardHeader>
-                        <CardContent>
+                        <CardContent className="px-5 sm:px-6 py-4">
                             {isDataLoading ? (
-                                <div className="space-y-6">
+                                <div className="flex justify-center">
                                     <Skeleton className="h-20 w-20 rounded-full" />
                                 </div>
                             ) : (
@@ -318,14 +343,14 @@ export default function AccountSettings() {
                         </CardContent>
                     </Card>
 
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Personal Information</CardTitle>
+                    <Card className="border shadow-sm">
+                        <CardHeader className="px-5 py-4 sm:px-6">
+                            <CardTitle className="text-xl">Personal Information</CardTitle>
                             <CardDescription>
                                 Update your personal details and public profile
                             </CardDescription>
                         </CardHeader>
-                        <CardContent>
+                        <CardContent className="px-5 sm:px-6 py-4">
                             {isDataLoading ? (
                                 <div className="space-y-6">
                                     <Skeleton className="h-10 w-full" />
@@ -340,10 +365,26 @@ export default function AccountSettings() {
                                                 name="fullName"
                                                 render={({ field }) => (
                                                     <FormItem>
-                                                        <FormLabel>Full Name</FormLabel>
+                                                        <div className="flex justify-between items-center">
+                                                            <FormLabel>Full Name</FormLabel>
+                                                            <span className={`text-xs ${nameLength > NAME_MAX_LENGTH ? 'text-destructive font-semibold' : 'text-muted-foreground'}`}>
+                                                                {nameLength}/{NAME_MAX_LENGTH}
+                                                            </span>
+                                                        </div>
                                                         <FormControl>
-                                                            <Input placeholder="Enter your full name" {...field} />
+                                                            <Input 
+                                                                placeholder="Enter your full name" 
+                                                                {...field} 
+                                                                maxLength={NAME_MAX_LENGTH}
+                                                                onChange={(e) => {
+                                                                    field.onChange(e);
+                                                                    setNameLength(e.target.value.length);
+                                                                }}
+                                                            />
                                                         </FormControl>
+                                                        <FormDescription>
+                                                            Your full name as you&apos;d like others to see it
+                                                        </FormDescription>
                                                         <FormMessage />
                                                     </FormItem>
                                                 )}
@@ -354,20 +395,28 @@ export default function AccountSettings() {
                                                 name="username"
                                                 render={({ field }) => (
                                                     <FormItem>
-                                                        <FormLabel>Username</FormLabel>
+                                                        <div className="flex justify-between items-center">
+                                                            <FormLabel>Username</FormLabel>
+                                                            <span className={`text-xs ${usernameLength > USERNAME_MAX_LENGTH ? 'text-destructive font-semibold' : 'text-muted-foreground'}`}>
+                                                                {usernameLength}/{USERNAME_MAX_LENGTH}
+                                                            </span>
+                                                        </div>
                                                         <div className="relative">
                                                             <FormControl>
                                                                 <Input
                                                                     placeholder="Choose a unique username"
                                                                     {...field}
+                                                                    maxLength={USERNAME_MAX_LENGTH}
                                                                     onChange={(e) => {
                                                                         const noSpaces = e.target.value.replace(/\s/g, "");
                                                                         field.onChange(noSpaces);
+                                                                        setUsernameLength(noSpaces.length);
                                                                     }}
                                                                     onBlur={(e) => {
                                                                         field.onBlur();
                                                                         handleUsernameBlur(e);
                                                                     }}
+                                                                    className={!checkUsernameValid(field.value || "") && field.value ? "border-destructive" : ""}
                                                                 />
                                                             </FormControl>
                                                             {checkingUsername && (
@@ -385,6 +434,9 @@ export default function AccountSettings() {
                                                                 </div>
                                                             )}
                                                         </div>
+                                                        <FormDescription className="flex items-center gap-1.5">
+                                                            Only letters, numbers, underscores, dots, and hyphens allowed
+                                                        </FormDescription>
                                                         <FormMessage />
                                                     </FormItem>
                                                 )}
@@ -395,6 +447,7 @@ export default function AccountSettings() {
                                             <Button
                                                 type="submit"
                                                 disabled={isLoading || !form.formState.isDirty}
+                                                className="w-full sm:w-auto"
                                             >
                                                 {isLoading ? "Saving Changes..." : "Save Changes"}
                                             </Button>

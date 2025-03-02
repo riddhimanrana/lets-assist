@@ -5,7 +5,7 @@ import { createClient } from '@/utils/supabase/middleware';
 const PROTECTED_PATHS = [
     '/admin',
     '/home',
-    '/projects',
+    '/projects/create',
     '/account'
 ];
 
