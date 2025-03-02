@@ -27,6 +27,7 @@ This project is built using the following technologies:
 - [shadcn/ui](https://ui.shadcn.com/): Reusable components built with Radix UI and Tailwind CSS.
 - [Supabase](https://supabase.com/): Open-source Firebase alternative with PostgreSQL database.
 - [Catpuccin](https://catppuccin.com/): Soothing color palette for consistent theming.
+- [Cloudflare](https://www.cloudflare.com/): Security, domain and performance optimization.
 - Other libraries: Additional tools enhancing project functionality.
 
 ## 📝 Usage
@@ -51,7 +52,7 @@ This project is built using the following technologies:
 <details>
 <summary>I thought you said this was a solo project, who are the other contributors?</summary>
   <br>
-A: This is a solo project. Essentially as I was in the creation stage of letsassist, I saw a hackathon and I asked my friends if they wanted to come together to help. We created an initial prototype and submitted that but after that the group disbanded. This was an extremely rough first sketch and after the hackathon I deleted all of it and restarted from scratch with a completely new tech stack, new look and redo(you can check commit history to confirm this :) )
+A: This is a solo project. Essentially as I was in the creation stage of letsassist, I saw a hackathon and I asked my friends if they wanted to come together to help. We created an initial prototype and submitted that but after that the group disbanded. This was an extremely rough first sketch and after the hackathon I deleted all of it and restarted from scratch with a completely new tech stack, new look and redo(you can check commit history to confirm this)
 <br>
 
 [Before](https://youtu.be/OTF20YUN25U?si=5pVTplgBM3Kz02OR) and [After](https://lets-assist.com/)
@@ -66,18 +67,18 @@ A: This is a solo project. Essentially as I was in the creation stage of letsass
 <details>
   <summary>What makes Let's Assist any different from SignUpGenius?</summary>
   <br>
-  A: I created Let’s Assist for two main reasons. First, I wanted an easy way to find and browse volunteering opportunities in my community. Second, I needed a fast, efficient way to track my hours across all projects. Let’s Assist solves both issues because platforms like SignUpGenius aren’t designed specifically for volunteering. By addressing these problems, Let’s Assist enhances the experience for thousands of high school volunteers and improves our community with a more meaninngful impact.
+  A: I created Let’s Assist for two main reasons. First, I wanted an easy way to find and browse volunteering opportunities in my community. Second, I needed a fast, efficient way to track my hours across all projects. Let’s Assist solves both issues because platforms like SignUpGenius aren’t designed specifically for volunteering. By addressing these problems, Let’s Assist enhances the experience for thousands of high school volunteers and improves our community with a more meaningful impact.
 </details>
 
 <details>
-  <summary>How can I get involved?</summary>
+  <summary>Are you looking to bring more people on board?</summary>
   <br>
-  A: You can get involved by creating a profile, browsing listings, and offering your help to those in need.
+  A: Let's Assist is a solo project and I am not looking to bring anyone on board at this time. However, if you have any feedback on the product feel free to put it [here](https://letsassist.featurebase.app/)
 </details>
 
 ## 🛡️ License
 
-This project is licensed under the [GPL License](LICENSE).
+This project is licensed under the [GPL License](LICENSE)
 
 ## 📧 Contact
 
