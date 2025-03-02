@@ -1,5 +1,11 @@
 import React from "react";
 import Link from "next/link";
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Terms of Service",
+  description: "Read the terms of service for Let's Assist to understand your rights and obligations.",
+};
 
 const TermsPage = () => {
   return (

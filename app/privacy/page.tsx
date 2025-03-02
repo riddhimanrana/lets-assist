@@ -1,5 +1,12 @@
 import React from "react";
 import Link from "next/link";
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Privacy Policy",
+  description:
+    "Read the privacy policy for Let's Assist to understand how we handle your data and protect your privacy.",
+};
 
 const PrivacyPage = () => {
   return (

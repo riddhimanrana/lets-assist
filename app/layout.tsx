@@ -24,7 +24,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Let's Assist | Volunteering Platform",
+  title: "Let's Assist",
   description:
     "Let's Assist is a platform that connects volunteers with people in need of assistance.",
 };

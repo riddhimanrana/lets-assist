@@ -8,6 +8,13 @@ import { MapPin, Users, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { NoAvatar } from "@/components/NoAvatar";
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Let's Assist",
+  description:
+    "Find and join local volunteer projects. Connect with your community and make a difference today.",
+};
 
 export default async function Home() {
   const supabase = await createClient();
