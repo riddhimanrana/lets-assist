@@ -71,9 +71,9 @@ A: This is a solo project. Essentially as I was in the creation stage of letsass
 </details>
 
 <details>
-  <summary>Are you looking to bring more people on board?</summary>
-  <br>
-  A: Let's Assist is a solo project and I am not looking to bring anyone on board at this time. However, if you have any feedback on the product feel free to put it [here](https://letsassist.featurebase.app/)
+    <summary>Are you looking to bring more people on board?</summary>
+    <br>
+    A: Let's Assist is a solo project and I am not looking to bring anyone on board at this time.
 </details>
 
 ## 🛡️ License
