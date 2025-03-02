@@ -211,6 +211,16 @@ export default function SignupClient() {
                   </FormItem>
                 )}
               />
+              <p className="text-sm text-muted-foreground text-center">
+                By joining, you agree to our{" "}
+                <Link href="/terms" className="text-chart-3">
+                  Terms of Service
+                </Link>{" "}
+                and{" "}
+                <Link href="/privacy" className="text-chart-3">
+                  Privacy Policy
+                </Link>
+              </p>
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? "Creating Account..." : "Create Account"}
               </Button>
