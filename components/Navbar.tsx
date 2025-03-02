@@ -113,6 +113,7 @@ export default function Navbar({ initialUser }: NavbarProps) {
   } | null>(null);
   const [isProfileLoading, setIsProfileLoading] = React.useState(true);
   const [showBugDialog, setShowBugDialog] = useState(false);
+  const [isSheetOpen, setIsSheetOpen] = React.useState(false);
 
   React.useEffect(() => {
     async function getUserAndProfile() {
@@ -143,6 +144,11 @@ export default function Navbar({ initialUser }: NavbarProps) {
 
     getUserAndProfile();
   }, []);
+
+  const handleNavigation = () => {
+    setIsSheetOpen(false);
+  };
+
   return (
     <>
       <div>
@@ -308,7 +314,7 @@ export default function Navbar({ initialUser }: NavbarProps) {
           </div>
 
           {/* Mobile Navigation */}
-          <Sheet>
+          <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
             <SheetTitle className="hidden"></SheetTitle>
             <div className="sm:hidden flex items-center ml-auto">
               <ModeToggle />
@@ -319,11 +325,11 @@ export default function Navbar({ initialUser }: NavbarProps) {
                 <span className="sr-only">Toggle menu</span>
               </Button>
             </SheetTrigger>
-            <SheetContent side="right" className="w-[85%] sm:w-[380px] pt-6">
+            <SheetContent side="right" className="w-[85%] sm:w-[380px] pt-10 px-4 pb-4 overflow-y-auto">
               <div className="flex flex-col h-full">
-                <div className="space-y-4 flex-1">
-                  {user && (
-                    <div className="flex items-center space-x-3 mb-6 pb-4 border-b">
+                {user ? (
+                  <>
+                    <div className="flex items-center space-x-3 mb-4">
                       {isProfileLoading ? (
                         <Skeleton className="w-12 h-12 rounded-full" />
                       ) : (
@@ -341,115 +347,121 @@ export default function Navbar({ initialUser }: NavbarProps) {
                         </p>
                       </div>
                     </div>
-                  )}
-
-                  <CollapsibleSection title="Navigation" defaultOpen={true}>
-                    <Button
-                      variant="ghost"
-                      className="w-full justify-start text-muted-foreground"
-                      asChild
-                    >
-                      <Link href="/">Home</Link>
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      className="w-full justify-start text-muted-foreground"
-                    >
-                      Volunteering Near Me
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      className="w-full justify-start text-muted-foreground"
-                    >
-                      Connected Organizations
-                    </Button>
-                  </CollapsibleSection>
-
-                  {user && (
-                    <>
-                      <CollapsibleSection title="Dashboard" defaultOpen={true}>
-                        <Button
-                          variant="ghost"
-                          className="w-full justify-start text-muted-foreground"
-                          asChild
-                        >
-                          <Link href="/home">
-                            <LayoutDashboard className="mr-2 h-4 w-4" />
-                            Dashboard
-                          </Link>
-                        </Button>
-                      </CollapsibleSection>
-
-                      <CollapsibleSection title="Account" defaultOpen={true}>
-                        <Button
-                          variant="ghost"
-                          className="w-full justify-start text-muted-foreground"
-                          asChild
-                        >
-                          <Link href="/account/profile">
-                            <Settings className="mr-2 h-4 w-4" />
-                            Account Settings
-                          </Link>
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          className="w-full justify-start text-muted-foreground"
-                          asChild
-                        >
-                          <Link href={`/profile/${profile?.username}`}>
-                            <UserRound className="mr-2 h-4 w-4" />
-                            My Profile
-                          </Link>
-                        </Button>
-                      </CollapsibleSection>
-                    </>
-                  )}
-                </div>
-
-                {user ? (
-                  <div className="border-t pt-4 mt-auto">
-                    <p className="text-base font-bold mb-2 pl-2">Support</p>
-                    <Button
-                      variant="ghost"
-                      className="w-full justify-start mb-2 text-muted-foreground"
-                      onClick={() => setShowBugDialog(true)}
-                    >
-                      <Bug className="mr-2 h-4 w-4" />
-                      Report a Bug
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      className="w-full justify-start mb-2 text-muted-foreground"
-                    >
-                      <Heart className="mr-2 h-4 w-4" />
-                      Donate
-                    </Button>
                     <Button
                       variant="destructive"
-                      className="w-full mt-2"
+                      className="w-full mb-6"
                       onClick={async () => {
                         setUser(null);
+                        handleNavigation();
                         await logout();
                       }}
                     >
                       <LogOut className="mr-2 h-4 w-4" />
                       Log Out
                     </Button>
-                  </div>
+                  </>
                 ) : (
-                  <div className="border-t pt-4 mt-auto">
-                    <div className="grid gap-2">
-                      <Link href="/login" className="w-full">
-                        <Button variant="outline" className="w-full">
-                          Login
-                        </Button>
-                      </Link>
-                      <Link href="/signup" className="w-full">
-                        <Button className="w-full">Sign Up</Button>
-                      </Link>
-                    </div>
+                  <div className="grid gap-2 mb-6">
+                    <Link href="/login" className="w-full" onClick={handleNavigation}>
+                      <Button variant="outline" className="w-full">
+                        Login
+                      </Button>
+                    </Link>
+                    <Link href="/signup" className="w-full" onClick={handleNavigation}>
+                      <Button className="w-full">Sign Up</Button>
+                    </Link>
                   </div>
                 )}
+
+                <Separator className="mb-4" />
+
+                <div className="space-y-1">
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-between text-muted-foreground"
+                    asChild
+                    onClick={handleNavigation}
+                  >
+                    <Link href="/">Home</Link>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-between text-muted-foreground"
+                    onClick={handleNavigation}
+                  >
+                    Volunteering Near Me
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-between text-muted-foreground"
+                    onClick={handleNavigation}
+                  >
+                    Connected Organizations
+                  </Button>
+                </div>
+
+                {user && (
+                  <>
+                    <Separator className="my-4" />
+                    <Button
+                      variant="ghost"
+                      className="w-full justify-between text-muted-foreground"
+                      asChild
+                      onClick={handleNavigation}
+                    >
+                      <Link href="/home">
+                        Dashboard
+                        <LayoutDashboard className="h-4 w-4" />
+                      </Link>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className="w-full justify-between text-muted-foreground"
+                      asChild
+                      onClick={handleNavigation}
+                    >
+                      <Link href="/account/profile">
+                        Account Settings
+                        <Settings className="h-4 w-4" />
+                      </Link>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className="w-full justify-between text-muted-foreground"
+                      asChild
+                      onClick={handleNavigation}
+                    >
+                      <Link href={`/profile/${profile?.username}`}>
+                        My Profile
+                        <UserRound className="h-4 w-4" />
+                      </Link>
+                    </Button>
+                  </>
+                )}
+
+                <Separator className="my-4" />
+
+                <div className="space-y-1">
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-between text-chart-3 hover:text-chart-3 hover:bg-chart-3/10"
+                    onClick={() => {
+                      setShowBugDialog(true);
+                      handleNavigation();
+                    }}
+                  >
+                    Report a Bug
+                    <Bug className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-between text-chart-4 hover:text-chart-4 hover:bg-chart-4/10"
+                    onClick={handleNavigation}
+                  >
+                    Donate
+                    <Heart className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </SheetContent>
           </Sheet>

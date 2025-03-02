@@ -141,7 +141,7 @@ function Avatar({ url, onUpload, onRemove }: AvatarProps) {
         <div className="flex flex-wrap gap-2">
           <Button
             variant="outline"
-            className="relative flex-1 sm:flex-none"
+            className="relative flex-1 sm:flex-none cursor-pointer"
             disabled={isUploading}
           >
             <Upload className="w-4 h-4 mr-2" />
