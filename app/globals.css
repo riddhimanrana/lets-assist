@@ -2,6 +2,24 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+    --popover: 0 0% 100%;
+  }
+
+  .dark {
+    --background: 240 21% 12%;
+    --foreground: 226 64% 88%;
+    --card: 240 21% 12%;
+    --card-foreground: 226 64% 88%;
+    --popover: 240 21% 12%;
+  }
+}
+
 :root {
   --background: 220 22% 92%;
   --foreground: 109 58% 40%;
@@ -24,6 +42,8 @@ body {
   padding: 0;
   box-sizing: border-box;
   font-family: var(--font-inter), sans-serif;
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
 }
 
 @media (max-width: 768px) {
