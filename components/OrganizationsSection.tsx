@@ -18,9 +18,9 @@ export const OrganizationsSection = () => {
       {/* Extended background gradient that connects to adjacent components */}
       <div className="absolute inset-0 bg-gradient-to-b from-transparent to-background z-0"></div>
       
-      {/* Larger gradient blobs that extend beyond section boundaries */}
-      <div className="absolute -top-[40%] -left-[10%] w-[60%] h-[60%] rounded-full bg-gradient-to-br from-primary/10 to-violet-500/20 blur-[120px] animate-blob z-0"></div>
-      <div className="absolute top-[50%] -right-[15%] w-[50%] h-[60%] rounded-full bg-gradient-to-br from-emerald-500/20 to-primary/10 blur-[120px] animate-blob animation-delay-2000 z-0"></div>
+      {/* Show gradient blobs only on desktop */}
+      <div className="hidden md:block absolute -top-[40%] -left-[10%] w-[60%] h-[60%] rounded-full bg-gradient-to-br from-primary/10 to-violet-500/20 blur-[120px] animate-blob z-0" />
+      <div className="hidden md:block absolute top-[50%] -right-[15%] w-[50%] h-[60%] rounded-full bg-gradient-to-br from-emerald-500/20 to-primary/10 blur-[120px] animate-blob animation-delay-2000 z-0" />
       
       <div className="container px-4 sm:px-6 mx-auto relative z-10">
         <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">

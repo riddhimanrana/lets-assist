@@ -11,8 +11,8 @@ export const CallToAction = () => {
       {/* Enhanced background gradient */}
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-muted/30 to-muted/80"></div>
       
-      {/* Animated accent circles */}
-      <div className="absolute -left-24 bottom-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl"></div>
+      {/* Show accent circle only on desktop */}
+      <div className="hidden md:block absolute -left-24 bottom-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl"></div>
       {/* <div className="absolute -right-20 top-10 w-72 h-72 bg-emerald-500/10 rounded-full blur-3xl animate-pulse-slow"></div> */}
 
       <div className="container relative mx-auto ">
