@@ -28,6 +28,10 @@ type ScheduleData =
   | SameDayMultiAreaSchedule
   | undefined;
 
+const formatSpots = (count: number) => {
+  return `${count} ${count === 1 ? 'spot' : 'spots'}`;
+};
+
 export default function ProjectDetails({
   project,
   creator,
@@ -83,7 +87,7 @@ export default function ProjectDetails({
             </Badge>
             <Badge variant="outline">
               <Users className="h-4 w-4 mr-1" />
-              {oneTimeData.volunteers} spots
+              {formatSpots(oneTimeData.volunteers)}
             </Badge>
           </div>
         );
@@ -158,7 +162,7 @@ export default function ProjectDetails({
                     </span>
                     <span className="flex items-center ml-2">
                       <Users className="h-3.5 w-3.5 mr-1" />
-                      {oneTimeData.volunteers} spots
+                      {formatSpots(oneTimeData.volunteers)}
                     </span>
                   </div>
                 </div>
@@ -200,7 +204,7 @@ export default function ProjectDetails({
                             </span>
                             <span className="flex items-center ml-2">
                               <Users className="h-3.5 w-3.5 mr-1" />
-                              {slot.volunteers} spots
+                              {formatSpots(slot.volunteers)}
                             </span>
                           </div>
                           <Button
@@ -252,7 +256,7 @@ export default function ProjectDetails({
                           </div>
                           <div className="flex items-center">
                             <Users className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-1 flex-shrink-0" />
-                            <span>{role.volunteers} spots</span>
+                            <span>{formatSpots(role.volunteers)}</span>
                           </div>
                         </div>
                       </div>
