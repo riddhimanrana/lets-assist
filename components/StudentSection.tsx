@@ -8,9 +8,9 @@ import Link from "next/link";
 export const StudentSection = () => {
   return (
     <section className="py-16 sm:py-24 overflow-hidden mx-auto relative">
-      {/* Background gradient accent */}
-      <div className="absolute top-0 right-0 w-1/3 h-1/3 bg-gradient-to-br from-primary/10 to-violet-500/10 rounded-full blur-3xl -z-10"></div>
-      <div className="absolute bottom-0 left-0 w-1/3 h-1/3 bg-gradient-to-tr from-emerald-500/10 to-primary/10 rounded-full blur-3xl -z-10"></div>
+      {/* Show gradients only on desktop */}
+      <div className="hidden md:block absolute top-0 right-0 w-1/3 h-1/3 bg-gradient-to-br from-primary/10 to-violet-500/10 rounded-full blur-3xl -z-10" />
+      <div className="hidden md:block absolute bottom-0 left-0 w-1/3 h-1/3 bg-gradient-to-tr from-emerald-500/10 to-primary/10 rounded-full blur-3xl -z-10" />
       
       <div className="container px-4 sm:px-6 relative z-10">
         <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
