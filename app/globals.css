@@ -2,47 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: 220 22% 92%;
-  --foreground: 109 58% 40%;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
-  }
-  .dark {
-    --background: 240 21% 12%;
-    --foreground: 226 64% 88%;
-  }
-}
-
-/* globals.css */
-body {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-  font-family: var(--font-inter), sans-serif;
-}
-
-@media (max-width: 768px) {
-  .hidden-md {
-    display: none;
-  }
-  .flex-md {
-    display: flex;
-  }
-}
-
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
-}
-
 @layer base {
   :root {
+    /* Light theme variables */
+    --page-background: 0 0% 100%; /* base */
+    --page-foreground: 240 10% 3.9%; /* text */
     --background: 0 0% 100%; /* base */
     --foreground: 240 10% 3.9%; /* text */
     --card: 0 0% 100%; /* base */
@@ -71,37 +35,29 @@ body {
   }
 
   .dark {
-    --background: 240 21% 15%; /* base */
+    /* Dark theme variables */
+    --page-background: 240 21% 12%; /* mantle */
+    --page-foreground: 226 64% 88%; /* text */
+    --background: 240 21% 12%; /* base */
     --foreground: 226 64% 88%; /* text */
-
     --muted: 237 16.239316761493683% 23%; /* surface0 */
     --muted-foreground: 227 35.29411852359772% 80%; /* subtext1 */
-
     --popover: 240 21% 15%; /* base */
     --popover-foreground: 226 64% 88%; /* text */
-
     --card: 240 21% 15%; /* base */
     --card-foreground: 226 64% 88%; /* text */
-
     --border: 234 13% 31%; /* surface1 */
     --input: 234 13% 31%; /* surface1 */
-
     --primary: 115 54% 76%; /* accent - Green */
     --primary-foreground: 240 21% 15%; /* base */
-
     --secondary: 237 16% 23%; /* surface0 */
     --secondary-foreground: 226 64% 88%; /* text */
-
     --accent: 237 16% 23%; /* surface0 */
     --accent-foreground: 226 64% 88%; /* text */
-
     --destructive: 343 81 75%; /* red */
     --destructive-foreground: 240 21% 12%; /* mantle */
-
     --ring: 226 64% 88%; /* text */
-
     --radius: 0.75rem;
-
     --chart-1: 343 81% 75%; /* red */
     --chart-2: 170 57% 73%; /* teal/aqua */
     --chart-3: 217 92% 76%; /* blue */
@@ -114,7 +70,27 @@ body {
   * {
     @apply border-border;
   }
+  
   body {
     @apply bg-background text-foreground;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: var(--font-inter), sans-serif;
+  }
+}
+
+@media (max-width: 768px) {
+  .hidden-md {
+    display: none;
+  }
+  .flex-md {
+    display: flex;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
   }
 }

@@ -6,6 +6,7 @@ import { Separator } from "@/components/ui/separator";
 import { format } from "date-fns";
 import { notFound } from "next/navigation";
 import { NoAvatar } from "@/components/NoAvatar";
+import { Metadata } from "next";
 
 interface Profile {
   username: string;
@@ -17,6 +18,25 @@ interface Profile {
 type Props = {
   params: Promise<{ username: string }>;
 };
+
+export async function generateMetadata(
+  params: Props,
+): Promise<Metadata> {
+  const { username } = await params.params;
+  const supabase = await createClient();
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("username", username)
+    .single<Profile>();
+
+  return {
+    title: `${profile?.full_name} (${username})` || username,
+    description: `Profile page for ${username}`,
+  };
+}
+
 export default async function ProfilePage(
   params: Props,
 ): Promise<React.ReactElement> {

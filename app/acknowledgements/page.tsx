@@ -6,6 +6,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import Link from "next/link";
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Acknowledgements",
+  description:
+    "Acknowledgements page for Let's Assist, recognizing the open source projects, libraries, and contributors that have made this project possible.",
+};
 
 export default function AcknowledgementsPage() {
   return (
