@@ -8,9 +8,6 @@ import { motion } from "framer-motion";
 export const HeroSection = () => {
   return (
     <section className="container relative w-full overflow-hidden mx-auto px-4">
-      {/* Background gradient blob */}
-      <div className="absolute -z-10 blur-3xl opacity-20 bg-gradient-to-r from-primary via-blue-500 to-purple-500 w-[300px] sm:w-[500px] h-[300px] sm:h-[500px] rounded-full top-0 left-0 transform -translate-x-1/2 -translate-y-1/2"></div>
-
       <div className="grid place-items-center w-full gap-6 mx-auto py-12 md:py-28">
         <motion.div
           initial={{ opacity: 0, y: 20 }}

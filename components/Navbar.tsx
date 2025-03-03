@@ -7,7 +7,6 @@ import {
   Menu,
   UserRound,
   LogOut,
-  LayoutDashboard,
   Settings,
   Heart,
   Bug,
@@ -403,17 +402,6 @@ export default function Navbar({ initialUser }: NavbarProps) {
                 {user && (
                   <>
                     <Separator className="my-4" />
-                    <Button
-                      variant="ghost"
-                      className="w-full justify-between text-muted-foreground"
-                      asChild
-                      onClick={handleNavigation}
-                    >
-                      <Link href="/home">
-                        Dashboard
-                        <LayoutDashboard className="h-4 w-4" />
-                      </Link>
-                    </Button>
                     <Button
                       variant="ghost"
                       className="w-full justify-between text-muted-foreground"
