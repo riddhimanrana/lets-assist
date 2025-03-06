@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import axios from "axios";
 import useSWRInfinite from "swr/infinite";
 import { useInView } from "react-intersection-observer";
@@ -28,6 +28,9 @@ import {
   LayoutGrid,
   List,
   Table2,
+  CheckCircle2,
+  ClipboardList,
+  PackageX,
 } from "lucide-react";
 import {
   Card,
@@ -47,6 +50,7 @@ import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { cn } from "@/lib/utils";
 import { format, isAfter, isBefore, isWithinInterval, parseISO } from "date-fns";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Separator } from "@/components/ui/separator";
 
 const fetcher = (url: string) => axios.get(url).then((res) => res.data);
 
@@ -60,6 +64,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
   const [isClientReady, setIsClientReady] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [view, setView] = useState<"card" | "list" | "table">("card");
+  const [reachedEnd, setReachedEnd] = useState(false);
   
   // Debug local storage issue with hydration
   useEffect(() => {
@@ -75,19 +80,44 @@ export const ProjectsInfiniteScroll: React.FC = () => {
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
-  const { data, error, size, setSize, isLoading } = useSWRInfinite(
+  const { data, error, size, setSize, isLoading, isValidating } = useSWRInfinite(
     (index) => `/api/projects?limit=${limit}&offset=${index * limit}`,
-    fetcher
+    fetcher,
+    {
+      revalidateFirstPage: false,
+      revalidateOnFocus: false, // Prevent reloading when window gets focus
+    }
   );
 
-  const { ref, inView } = useInView();
+  const { ref, inView } = useInView({
+    threshold: 0.5, // Trigger when 50% of the element is visible
+    rootMargin: '100px', // Start loading a bit earlier
+  });
 
-  // Load more when scrolling to the bottom
+  // Compute if the last page has fewer projects than the limit.
+  const isReachingEnd = useMemo(() => {
+    return data && data[data.length - 1]?.length < limit;
+  }, [data, limit]);
+
+  const isLoadingMore = isValidating && size > 1;
+
+  // Determine if we've reached the end of content
   useEffect(() => {
-    if (inView && data && data[data.length - 1]?.length === limit) {
+    if (data) {
+      const lastPage = data[data.length - 1];
+      // If we got fewer items than the limit or an empty array, we've reached the end
+      if (!lastPage || lastPage.length < limit) {
+        setReachedEnd(true);
+      }
+    }
+  }, [data, limit]);
+
+  // Only request a new page if the marker is in view, we're not loading, and we haven't reached the end.
+  useEffect(() => {
+    if (inView && !isValidating && !reachedEnd && data) {
       setSize(size + 1);
     }
-  }, [inView, data, setSize, size, limit]);
+  }, [inView, isValidating, reachedEnd, data, setSize, size]);
 
   // Helper function to check if a project is within the date range
   const isProjectInDateRange = (project: any, dateRange: DateRange | undefined) => {
@@ -206,15 +236,15 @@ export const ProjectsInfiniteScroll: React.FC = () => {
   });
   
   // Apply sorting if needed
-  const sortedProjects = sortByVolunteers(filteredProjects, volunteersSort);
+  const sortedProjects = useMemo(() => sortByVolunteers(filteredProjects, volunteersSort), [filteredProjects, volunteersSort]);
 
   // Count active filters
-  const activeFilterCount = [
+  const activeFilterCount = useMemo(() => [
     debouncedSearchTerm ? 1 : 0,
     eventTypeFilter ? 1 : 0,
     dateFilter?.from ? 1 : 0,
     volunteersSort ? 1 : 0,
-  ].reduce((a, b) => a + b, 0);
+  ].reduce((a, b) => a + b, 0), [debouncedSearchTerm, eventTypeFilter, dateFilter, volunteersSort]);
 
   // Clear all filters function
   const clearAllFilters = () => {
@@ -241,7 +271,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
         
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="flex flex-col gap-4">
+            <div key={i} className="flex flex-col gap-4 border rounded-lg p-5 animate-pulse">
               <Skeleton className="h-6 w-3/4" />
               <Skeleton className="h-4 w-1/2" />
               <Skeleton className="h-20 w-full" />
@@ -264,7 +294,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
     return (
       <Card className="border-destructive">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-destructive">
             <AlertCircle className="h-5 w-5" />
             Error Loading Projects
           </CardTitle>
@@ -272,12 +302,21 @@ export const ProjectsInfiniteScroll: React.FC = () => {
             There was an error loading the projects. Please try again later.
           </CardDescription>
         </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground mb-4">
+            This could be due to a network issue or the server may be temporarily unavailable.
+          </p>
+        </CardContent>
         <CardFooter>
           <Button 
             onClick={() => window.location.reload()}
             variant="outline"
+            className="gap-2"
           >
-            Retry
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Try Again
           </Button>
         </CardFooter>
       </Card>
@@ -505,22 +544,39 @@ export const ProjectsInfiniteScroll: React.FC = () => {
           )}
         </div>
 
-        <Card className="bg-muted/40">
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <div className="rounded-full bg-muted p-3 mb-4">
-              <Search className="h-6 w-6 text-muted-foreground" />
+        <Card className="bg-muted/40 border-dashed">
+          <CardContent className="flex flex-col items-center justify-center py-16">
+            <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center mb-6">
+              {activeFilterCount > 0 ? (
+                <Search className="h-10 w-10 text-muted-foreground opacity-80" />
+              ) : (
+                <PackageX className="h-10 w-10 text-muted-foreground opacity-80" />
+              )}
             </div>
-            <h3 className="text-lg font-medium mb-2">No projects found</h3>
-            <p className="text-muted-foreground text-center max-w-sm mb-6">
+            <h3 className="text-xl font-medium mb-2">No projects found</h3>
+            <p className="text-muted-foreground text-center max-w-md mb-8">
               {activeFilterCount > 0
-                ? "Try adjusting your filters to find what you're looking for."
-                : "There are currently no volunteer projects available. Check back later or create your own!"}
+                ? "We couldn't find any projects matching your current filters. Try adjusting your search criteria or browse all projects."
+                : "There are currently no volunteer projects available in our database. Be the first to create a project and start making a difference!"}
             </p>
-            {activeFilterCount > 0 && (
-              <Button variant="outline" onClick={clearAllFilters}>
-                Clear all filters
+            
+            <div className="flex gap-4 flex-wrap justify-center">
+              {activeFilterCount > 0 && (
+                <Button variant="default" onClick={clearAllFilters} className="gap-2">
+                  <X className="h-4 w-4" />
+                  Clear all filters
+                </Button>
+              )}
+              
+              <Button asChild variant={activeFilterCount > 0 ? "outline" : "default"}>
+                <a href="/projects/create" className="gap-2">
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Create a project
+                </a>
               </Button>
-            )}
+            </div>
           </CardContent>
         </Card>
       </>
@@ -699,7 +755,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
                   ? `${format(dateFilter.from, "MMM d")} - ${format(dateFilter.to, "MMM d")}`
                   : `From ${format(dateFilter.from, "MMM d")}`
                 }
-                <Button 
+                <Button
                   variant="ghost" 
                   size="icon" 
                   className="h-3 w-3 ml-1 p-0"
@@ -750,8 +806,48 @@ export const ProjectsInfiniteScroll: React.FC = () => {
         />
       )}
       
-      {/* Infinite scrolling marker */}
-      <div ref={ref} className="h-4" />
+      {/* Loading indicator at the bottom */}
+      {!reachedEnd && (
+        <div className="py-6 flex justify-center" ref={ref}>
+          {isLoadingMore ? (
+            <div className="flex items-center gap-2">
+              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+              <span className="text-sm text-muted-foreground">Loading more projects...</span>
+            </div>
+          ) : (
+            <div className="h-16" />
+          )}
+        </div>
+      )}
+      
+      {/* Show end of results message when we've reached the end */}
+      {reachedEnd && sortedProjects.length > 0 && (
+        <div className="py-8 text-center">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-muted/40">
+            <CheckCircle2 className="h-5 w-5 text-primary" />
+            <span className="font-medium">You've seen all available projects</span>
+          </div>
+          
+          <div className="mt-6">
+            <Button 
+              variant="outline" 
+              className="gap-2"
+              onClick={(e) => {
+                e.preventDefault();
+                window.scrollTo({ 
+                  top: 0, 
+                  behavior: 'smooth' 
+                });
+              }}
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+              </svg>
+              Back to top
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

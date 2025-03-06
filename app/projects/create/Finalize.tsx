@@ -55,6 +55,20 @@ interface FinalizeProps {
 }
 
 export default function Finalize({ state }: FinalizeProps) {
+  // Helper function to parse date string to Date object without timezone shifting
+  const parseStringToDate = (dateString: string): Date | undefined => {
+    if (!dateString) return undefined;
+    const [year, month, day] = dateString.split('-').map(Number);
+    return new Date(year, month - 1, day); // month is 0-indexed in JavaScript Date
+  };
+
+  // Helper function to format date for display
+  const formatDateForDisplay = (dateString: string): string => {
+    if (!dateString) return "Date not set";
+    const date = parseStringToDate(dateString);
+    return date ? format(date, "EEEE, MMMM d, yyyy") : "Date not set";
+  };
+
   // Format verification method for display
   const getVerificationMethodDisplay = (method: string) => {
     switch (method) {
@@ -165,12 +179,7 @@ export default function Finalize({ state }: FinalizeProps) {
               <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm">
-                  {state.schedule.oneTime.date
-                    ? format(
-                        new Date(state.schedule.oneTime.date),
-                        "EEEE, MMMM d, yyyy",
-                      )
-                    : "Date not set"}
+                  {formatDateForDisplay(state.schedule.oneTime.date)}
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -197,9 +206,7 @@ export default function Finalize({ state }: FinalizeProps) {
                   <div className="flex items-center gap-2">
                     <Calendar className="h-4 w-4 text-muted-foreground" />
                     <span className="text-sm font-medium">
-                      {day.date
-                        ? format(new Date(day.date), "EEEE, MMMM d, yyyy")
-                        : "Date not set"}
+                      {formatDateForDisplay(day.date)}
                     </span>
                   </div>
                   {day.slots.map((slot, slotIndex) => (
@@ -229,12 +236,7 @@ export default function Finalize({ state }: FinalizeProps) {
               <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm">
-                  {state.schedule.sameDayMultiArea.date
-                    ? format(
-                        new Date(state.schedule.sameDayMultiArea.date),
-                        "EEEE, MMMM d, yyyy",
-                      )
-                    : "Date not set"}
+                  {formatDateForDisplay(state.schedule.sameDayMultiArea.date)}
                 </span>
               </div>
               <div className="flex items-center gap-2">

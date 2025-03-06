@@ -28,9 +28,9 @@ import { Loader2, ChevronLeft, ChevronRight, AlertCircle } from "lucide-react";
 // utility
 import { cn } from "@/lib/utils";
 
-// Add these imports
+// Replace shadcn toast with Sonner
+import { Toaster, toast } from "sonner";
 import { createProject } from "./actions";
-import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 
 interface LocationResult {
@@ -57,7 +57,6 @@ export default function ProjectCreator() {
     removeRole,
     canProceed,
   } = useEventForm();
-  const { toast } = useToast();
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -162,7 +161,7 @@ export default function ProjectCreator() {
     return "";
   };
 
-  // Add submit function
+  // Modify submit function to use Sonner toast
   const handleSubmit = async () => {
     if (state.step !== 5) {
       nextStep();
@@ -170,31 +169,33 @@ export default function ProjectCreator() {
     }
     try {
       setIsSubmitting(true);
+      
+
+      
       // Create form data for the server action
       const formData = new FormData();
       formData.append("projectData", JSON.stringify(state));
       const result = await createProject(formData);
+      
+      // Dismiss the loading toast
+      toast.dismiss("project-creation");
+      
       if (result.error) {
-        toast({
-          title: "Error",
-          description: result.error,
-          variant: "destructive",
-        });
+        toast.error(result.error);
+        setIsSubmitting(false);
       } else if (result.id) {
-        toast({
-          title: "Success!",
-          description: "Your project has been created successfully.",
-        });
-        router.push(`/projects/${result.id}`);
+        // Show success toast and delay redirect
+        toast.success("Project Created Successfully! 🎉");
+        
+        // Delay redirect to allow toast to be seen (5 seconds)
+        setTimeout(() => {
+          router.push(`/projects/${result.id}`);
+        }, 5000);
       }
     } catch (error) {
       console.error("Error submitting project:", error);
-      toast({
-        title: "Error",
-        description: "Something went wrong. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
+      toast.dismiss("project-creation");
+      toast.error("Something went wrong. Please try again.");
       setIsSubmitting(false);
     }
   };
@@ -249,40 +250,71 @@ export default function ProjectCreator() {
   };
 
   return (
-    <div className="space-y-6 sm:space-y-8">
-      {renderStep()}
-      {getValidationMessage() && (
-        <Alert variant="destructive" className="animate-in fade-in">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{getValidationMessage()}</AlertDescription>
-        </Alert>
-      )}
-      <div className="flex justify-between gap-4">
-        <Button
-          variant="outline"
-          onClick={prevStep}
-          disabled={state.step === 1 || isSubmitting}
-          className="w-[120px]"
-        >
-          <ChevronLeft className="h-4 w-4 mr-2" />
-          Back
-        </Button>
-        <Button
-          onClick={handleSubmit}
-          disabled={!canProceed() || isSubmitting}
-          className="w-[120px]"
-        >
-          {isSubmitting ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : state.step === 5 ? (
-            "Create"
-          ) : (
-            <>
-              Continue
-              <ChevronRight className="h-4 w-4 ml-2" />
-            </>
-          )}
-        </Button>
+    <>
+      {/* Add Sonner Toaster component */}
+      <Toaster position="bottom-right" richColors theme="dark" />
+      
+      <div className="mb-6 sm:mb-8">
+        <h1 className="text-3xl sm:text-4xl font-bold mb-4">
+          Create a Volunteering Project
+        </h1>
+        <Progress value={(state.step / 5) * 100} className="h-2" />
+        <div className="grid grid-cols-5 mt-2 text-xs sm:text-sm text-muted-foreground">
+          <span className={cn("text-center sm:text-left truncate", state.step === 1 && "text-primary font-medium")}>
+            Basic Info
+          </span>
+          <span className={cn("text-center sm:text-left truncate", state.step === 2 && "text-primary font-medium")}>
+            Event Type
+          </span>
+          <span className={cn("text-center sm:text-left truncate", state.step === 3 && "text-primary font-medium")}>
+            Schedule
+          </span>
+          <span className={cn("text-center sm:text-left truncate", state.step === 4 && "text-primary font-medium")}>
+            Settings
+          </span>
+          <span className={cn("text-center sm:text-left", state.step === 5 && "text-primary font-medium")}>
+            Finalize
+          </span>
+        </div>
+      </div>
+
+      <div className="space-y-6 sm:space-y-8">
+        {renderStep()}
+
+        {getValidationMessage() && (
+          <Alert variant="destructive" className="animate-in fade-in">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{getValidationMessage()}</AlertDescription>
+          </Alert>
+        )}
+
+        <div className="flex justify-between gap-4">
+          <Button 
+            variant="outline" 
+            onClick={prevStep}
+            disabled={state.step === 1 || isSubmitting}
+            className="w-[120px]"
+          >
+            <ChevronLeft className="h-4 w-4 mr-2" />
+            Back
+          </Button>
+          <Button 
+            onClick={handleSubmit}
+            disabled={!canProceed() || isSubmitting}
+            className="w-[120px]"
+          >
+            {isSubmitting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : state.step === 5 ? (
+              'Create'
+            ) : (
+              <>
+                Continue
+                <ChevronRight className="h-4 w-4 ml-2" />
+              </>
+            )}
+          </Button>
+        </div>
       </div>
 
       {/* Map Dialog for location search */}
@@ -297,17 +329,11 @@ export default function ProjectCreator() {
                 placeholder="Enter location..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") searchLocation();
-                }}
+                onKeyDown={(e) => { if (e.key === 'Enter') searchLocation() }}
                 className="flex-grow"
               />
               <Button onClick={searchLocation} className="ml-2 shrink-0">
-                {isLoading ? (
-                  <Loader2 className="animate-spin h-4 w-4" />
-                ) : (
-                  "Search"
-                )}
+                {isLoading ? <Loader2 className="animate-spin h-4 w-4" /> : 'Search'}
               </Button>
             </div>
             <div className="max-h-64 overflow-y-auto">
@@ -322,9 +348,7 @@ export default function ProjectCreator() {
                   </div>
                 ))
               ) : (
-                <p className="text-sm text-muted-foreground">
-                  No results found.
-                </p>
+                <p className="text-sm text-muted-foreground">No results found.</p>
               )}
             </div>
           </div>
@@ -335,6 +359,6 @@ export default function ProjectCreator() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }
