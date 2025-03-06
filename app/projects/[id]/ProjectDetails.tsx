@@ -16,6 +16,14 @@ import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { signUpForProject } from "./actions";
 import { formatTimeTo12Hour } from "@/lib/utils";
+import Link from "next/link";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { NoAvatar } from "@/components/NoAvatar";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
 
 type Props = {
   project: Project;
@@ -37,6 +45,24 @@ export default function ProjectDetails({
   creator,
 }: Props): React.ReactElement {
   const { toast } = useToast();
+
+  // Handle share button click
+  const handleShare = () => {
+    const url = window.location.href;
+    navigator.clipboard.writeText(url).then(() => {
+      toast({
+        title: "Link copied",
+        description: "Project link copied to clipboard",
+      });
+    }).catch(err => {
+      toast({
+        title: "Copy failed",
+        description: "Could not copy link to clipboard",
+        variant: "destructive",
+      });
+      console.error("Copy failed: ", err);
+    });
+  };
 
   // Handle different schedule types properly
   const getScheduleData = (): ScheduleData => {
@@ -292,7 +318,12 @@ export default function ProjectDetails({
               <span>{project.location}</span>
             </div>
           </div>
-          <Button variant="outline" size="icon" className="self-start">
+          <Button 
+            variant="outline" 
+            size="icon" 
+            className="self-start"
+            onClick={handleShare}
+          >
             <Share2 className="h-4 w-4" />
           </Button>
         </div>
@@ -329,17 +360,62 @@ export default function ProjectDetails({
                   Project Coordinator
                 </h3>
                 <div className="flex items-center gap-3">
-                  <div className="bg-muted w-10 h-10 rounded-full flex items-center justify-center">
-                    {creator?.full_name?.charAt(0) || "A"}
-                  </div>
-                  <div>
-                    <p className="font-medium">
-                      {creator?.full_name || "Anonymous"}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      @{creator?.username || "user"}
-                    </p>
-                  </div>
+                  <HoverCard>
+                    <HoverCardTrigger asChild>
+                      <Link href={`/profile/${creator?.username || ""}`} className="flex items-center gap-3">
+                        <Avatar className="w-10 h-10">
+                          {creator?.avatar_url ? (
+                            <AvatarImage 
+                              src={creator.avatar_url} 
+                              alt={creator?.full_name || "Profile"} 
+                            />
+                          ) : null}
+                          <AvatarFallback className="bg-muted">
+                            <NoAvatar 
+                              fullName={creator?.full_name}
+                              className="text-sm font-medium"
+                            />
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-medium">
+                            {creator?.full_name || "Anonymous"}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            @{creator?.username || "user"}
+                          </p>
+                        </div>
+                      </Link>
+                    </HoverCardTrigger>
+                    <HoverCardContent className="w-80">
+                      <div className="flex justify-between space-x-4">
+                        <Avatar>
+                          {creator?.avatar_url ? (
+                            <AvatarImage src={creator.avatar_url} />
+                          ) : null}
+                          <AvatarFallback className="bg-muted">
+                            <NoAvatar 
+                              fullName={creator?.full_name}
+                              className="text-sm font-medium" 
+                            />
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="space-y-1">
+                          <h4 className="text-sm font-semibold">
+                            {creator?.full_name || "Anonymous"}
+                          </h4>
+                          <p className="text-sm">@{creator?.username || "user"}</p>
+                          <div className="flex items-center pt-2">
+                            <Button asChild variant="ghost" size="sm">
+                              <Link href={`/profile/${creator?.username || ""}`}>
+                                View profile
+                              </Link>
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </HoverCardContent>
+                  </HoverCard>
                 </div>
               </div>
 

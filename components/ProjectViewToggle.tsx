@@ -282,53 +282,57 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                 
                 {/* User info with hover card - no separator */}
                 <div className="mt-auto pt-3">
-                  <HoverCard>
-                    <HoverCardTrigger asChild>
+                    <HoverCard>
+                    
+                      <HoverCardTrigger asChild>
                       <div className="flex items-center gap-2 cursor-pointer">
                         <Avatar className="h-7 w-7">
-                          <AvatarImage
-                            src={project.profiles?.avatar_url}
-                            alt={project.profiles?.full_name || "Creator"}
-                          />
-                          <AvatarFallback>
-                            <NoAvatar fullName={project.profiles?.full_name} />
-                          </AvatarFallback>
+                        <AvatarImage
+                          src={project.profiles?.avatar_url}
+                          alt={project.profiles?.full_name || "Creator"}
+                        />
+                        <AvatarFallback>
+                          <NoAvatar fullName={project.profiles?.full_name} />
+                        </AvatarFallback>
                         </Avatar>
                         <span className="text-sm font-medium truncate">
-                          {project.profiles?.full_name || "Anonymous"}
+                        {project.profiles?.full_name || "Anonymous"}
                         </span>
                       </div>
-                    </HoverCardTrigger>
+                      </HoverCardTrigger>
+                    
                     <HoverCardContent className="w-80">
+                    <Link href={`/profile/${project.profiles?.username || "unknown"}`}>
                       <div className="flex justify-between space-x-4">
-                        <Avatar className="h-10 w-10">
-                          <AvatarImage 
-                            src={project.profiles?.avatar_url}
-                            alt={project.profiles?.full_name || "Creator"}
-                          />
-                          <AvatarFallback>
-                            <NoAvatar fullName={project.profiles?.full_name} />
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="space-y-1 flex-1">
-                          <h4 className="text-sm font-semibold">
-                            {project.profiles?.full_name || "Anonymous"}
-                          </h4>
-                          <p className="text-sm">
-                            @{project.profiles?.username || "unknown"}
-                          </p>
-                          <div className="flex items-center pt-2">
-                            <CalendarDays className="mr-2 h-4 w-4 opacity-70" />
-                            <span className="text-xs text-muted-foreground">
-                              {project.profiles?.created_at ? 
-                                `Joined ${format(new Date(project.profiles.created_at), "MMMM yyyy")}` : 
-                                "New member"}
-                            </span>
-                          </div>
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage 
+                        src={project.profiles?.avatar_url}
+                        alt={project.profiles?.full_name || "Creator"}
+                        />
+                        <AvatarFallback>
+                        <NoAvatar fullName={project.profiles?.full_name} />
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="space-y-1 flex-1">
+                        <h4 className="text-sm font-semibold">
+                        {project.profiles?.full_name || "Anonymous"}
+                        </h4>
+                        <p className="text-sm">
+                        @{project.profiles?.username || "unknown"}
+                        </p>
+                        <div className="flex items-center pt-2">
+                        <CalendarDays className="mr-2 h-4 w-4 opacity-70" />
+                        <span className="text-xs text-muted-foreground">
+                          {project.profiles?.created_at ? 
+                          `Joined ${format(new Date(project.profiles.created_at), "MMMM yyyy")}` : 
+                          "New member"}
+                        </span>
                         </div>
                       </div>
+                      </div>
+                      </Link>
                     </HoverCardContent>
-                  </HoverCard>
+                    </HoverCard>
                 </div>
               </Card>
             </Link>
@@ -405,53 +409,57 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                       </div>
                     </div>
                     <div className="flex items-center gap-3 mt-3">
-                      <HoverCard>
-                        <HoverCardTrigger asChild>
-                          <div className="flex items-center gap-2 cursor-pointer">
-                            <Avatar className="h-7 w-7">
-                              <AvatarImage
-                                src={project.profiles?.avatar_url}
-                                alt={project.profiles?.full_name || "Creator"}
-                              />
-                              <AvatarFallback>
-                                <NoAvatar fullName={project.profiles?.full_name} />
-                              </AvatarFallback>
-                            </Avatar>
-                            <span className="text-sm font-medium">
-                              {project.profiles?.full_name || "Anonymous"}
-                            </span>
-                          </div>
-                        </HoverCardTrigger>
-                        <HoverCardContent className="w-80">
-                          <div className="flex justify-between space-x-4">
-                            <Avatar className="h-10 w-10">
-                              <AvatarImage 
-                                src={project.profiles?.avatar_url}
-                                alt={project.profiles?.full_name || "Creator"}
-                              />
-                              <AvatarFallback>
-                                <NoAvatar fullName={project.profiles?.full_name} />
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="space-y-1 flex-1">
-                              <h4 className="text-sm font-semibold">
-                                {project.profiles?.full_name || "Anonymous"}
-                              </h4>
-                              <p className="text-sm">
-                                @{project.profiles?.username || "unknown"}
-                              </p>
-                              <div className="flex items-center pt-2">
-                                <CalendarDays className="mr-2 h-4 w-4 opacity-70" />
-                                <span className="text-xs text-muted-foreground">
-                                  {project.profiles?.created_at ? 
-                                    `Joined ${format(new Date(project.profiles.created_at), "MMMM yyyy")}` : 
-                                    "New member"}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        </HoverCardContent>
-                      </HoverCard>
+                    <HoverCard>
+                    
+                      <HoverCardTrigger asChild>
+                      <div className="flex items-center gap-2 cursor-pointer">
+                        <Avatar className="h-7 w-7">
+                        <AvatarImage
+                          src={project.profiles?.avatar_url}
+                          alt={project.profiles?.full_name || "Creator"}
+                        />
+                        <AvatarFallback>
+                          <NoAvatar fullName={project.profiles?.full_name} />
+                        </AvatarFallback>
+                        </Avatar>
+                        <span className="text-sm font-medium truncate">
+                        {project.profiles?.full_name || "Anonymous"}
+                        </span>
+                      </div>
+                      </HoverCardTrigger>
+                    
+                    <HoverCardContent className="w-80">
+                    <Link href={`/profile/${project.profiles?.username || "unknown"}`}>
+                      <div className="flex justify-between space-x-4">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage 
+                        src={project.profiles?.avatar_url}
+                        alt={project.profiles?.full_name || "Creator"}
+                        />
+                        <AvatarFallback>
+                        <NoAvatar fullName={project.profiles?.full_name} />
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="space-y-1 flex-1">
+                        <h4 className="text-sm font-semibold">
+                        {project.profiles?.full_name || "Anonymous"}
+                        </h4>
+                        <p className="text-sm">
+                        @{project.profiles?.username || "unknown"}
+                        </p>
+                        <div className="flex items-center pt-2">
+                        <CalendarDays className="mr-2 h-4 w-4 opacity-70" />
+                        <span className="text-xs text-muted-foreground">
+                          {project.profiles?.created_at ? 
+                          `Joined ${format(new Date(project.profiles.created_at), "MMMM yyyy")}` : 
+                          "New member"}
+                        </span>
+                        </div>
+                      </div>
+                      </div>
+                      </Link>
+                    </HoverCardContent>
+                    </HoverCard>
                     </div>
                   </div>
                   <Button 
@@ -525,52 +533,56 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                     </div>
                   </TableCell>
                   <TableCell className="hidden sm:table-cell">
-                    <HoverCard>
+                  <HoverCard>
+                    
                       <HoverCardTrigger asChild>
-                        <div className="flex items-center gap-2 cursor-pointer">
-                          <Avatar className="h-6 w-6">
-                            <AvatarImage
-                              src={project.profiles?.avatar_url}
-                              alt={project.profiles?.full_name || "Creator"}
-                            />
-                            <AvatarFallback>
-                              <NoAvatar fullName={project.profiles?.full_name} />
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="text-sm truncate max-w-[120px]">
-                            {project.profiles?.full_name || "Anonymous"}
-                          </span>
-                        </div>
+                      <div className="flex items-center gap-2 cursor-pointer">
+                        <Avatar className="h-7 w-7">
+                        <AvatarImage
+                          src={project.profiles?.avatar_url}
+                          alt={project.profiles?.full_name || "Creator"}
+                        />
+                        <AvatarFallback>
+                          <NoAvatar fullName={project.profiles?.full_name} />
+                        </AvatarFallback>
+                        </Avatar>
+                        <span className="text-sm font-medium truncate">
+                        {project.profiles?.full_name || "Anonymous"}
+                        </span>
+                      </div>
                       </HoverCardTrigger>
-                      <HoverCardContent className="w-80">
-                        <div className="flex justify-between space-x-4">
-                          <Avatar className="h-10 w-10">
-                            <AvatarImage 
-                              src={project.profiles?.avatar_url}
-                              alt={project.profiles?.full_name || "Creator"}
-                            />
-                            <AvatarFallback>
-                              <NoAvatar fullName={project.profiles?.full_name} />
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="space-y-1 flex-1">
-                            <h4 className="text-sm font-semibold">
-                              {project.profiles?.full_name || "Anonymous"}
-                            </h4>
-                            <p className="text-sm">
-                              @{project.profiles?.username || "unknown"}
-                            </p>
-                            <div className="flex items-center pt-2">
-                              <CalendarDays className="mr-2 h-4 w-4 opacity-70" />
-                              <span className="text-xs text-muted-foreground">
-                                {project.profiles?.created_at ? 
-                                  `Joined ${format(new Date(project.profiles.created_at), "MMMM yyyy")}` : 
-                                  "New member"}
-                              </span>
-                            </div>
-                          </div>
+                    
+                    <HoverCardContent className="w-80">
+                    <Link href={`/profile/${project.profiles?.username || "unknown"}`}>
+                      <div className="flex justify-between space-x-4">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage 
+                        src={project.profiles?.avatar_url}
+                        alt={project.profiles?.full_name || "Creator"}
+                        />
+                        <AvatarFallback>
+                        <NoAvatar fullName={project.profiles?.full_name} />
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="space-y-1 flex-1">
+                        <h4 className="text-sm font-semibold">
+                        {project.profiles?.full_name || "Anonymous"}
+                        </h4>
+                        <p className="text-sm">
+                        @{project.profiles?.username || "unknown"}
+                        </p>
+                        <div className="flex items-center pt-2">
+                        <CalendarDays className="mr-2 h-4 w-4 opacity-70" />
+                        <span className="text-xs text-muted-foreground">
+                          {project.profiles?.created_at ? 
+                          `Joined ${format(new Date(project.profiles.created_at), "MMMM yyyy")}` : 
+                          "New member"}
+                        </span>
                         </div>
-                      </HoverCardContent>
+                      </div>
+                      </div>
+                      </Link>
+                    </HoverCardContent>
                     </HoverCard>
                   </TableCell>
                   <TableCell className="text-center">
