@@ -8,6 +8,7 @@ export type Profile = {
   avatar_url: string | null;
   full_name: string | null;
   username: string | null;
+  created_at: string;
 };
 
 export async function getActiveProjects(limit: number = 20, offset: number = 0): Promise<Project[]> {
@@ -31,7 +32,7 @@ export async function getActiveProjects(limit: number = 20, offset: number = 0):
   // Fetch corresponding profiles
   const { data: profiles, error: profilesError } = await supabase
     .from("profiles")
-    .select("id, avatar_url, full_name, username")
+    .select("id, avatar_url, full_name, username, created_at")
     .in("id", creatorIds);
 
   if (profilesError) {

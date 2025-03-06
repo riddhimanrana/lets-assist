@@ -4,13 +4,13 @@ import { createClient } from "@/utils/supabase/server";
 import { EmailVerificationToast } from "@/components/EmailVerificationToast";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { MapPin } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+// import { MapPin } from "lucide-react";
+// import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { NoAvatar } from "@/components/NoAvatar";
 import { Metadata } from "next";
-import { getActiveProjects } from "./actions";
-import { ProjectViewToggle } from "@/components/ProjectViewToggle";
+// import { getActiveProjects } from "./actions";
+// import { ProjectViewToggle } from "@/components/ProjectViewToggle";
 import { ProjectsInfiniteScroll } from "@/components/ProjectsInfiniteScroll";
 
 export const metadata: Metadata = {

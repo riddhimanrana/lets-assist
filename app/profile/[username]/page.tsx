@@ -7,6 +7,7 @@ import { format } from "date-fns";
 import { notFound } from "next/navigation";
 import { NoAvatar } from "@/components/NoAvatar";
 import { Metadata } from "next";
+import { CalendarIcon } from "lucide-react";
 
 interface Profile {
   username: string;
@@ -75,9 +76,11 @@ export default async function ProfilePage(
           <div className="space-y-4">
             <Separator />
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <h3 className="text-sm text-muted-foreground">Joined</h3>
-                <p>{format(new Date(profile.created_at), "MMMM d, yyyy")}</p>
+              <div className="flex items-center gap-2">
+                <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                <span>
+                  Joined {format(new Date(profile.created_at), "MMMM yyyy")}
+                </span>
               </div>
             </div>
           </div>
