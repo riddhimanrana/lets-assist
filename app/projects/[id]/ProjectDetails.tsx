@@ -11,12 +11,25 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CalendarDays, MapPin, Users, Share2, Clock } from "lucide-react";
+import { 
+  CalendarDays, 
+  MapPin, 
+  Users, 
+  Share2, 
+  Clock, 
+  Image as ImageIcon, 
+  FileText, 
+  Download, 
+  Eye, 
+  File, 
+  FileImage, 
+} from "lucide-react";
 import { format } from "date-fns";
-import { useToast } from "@/hooks/use-toast";
+import { Toaster, toast } from "sonner";
 import { signUpForProject } from "./actions";
-import { formatTimeTo12Hour } from "@/lib/utils";
+import { formatTimeTo12Hour, formatBytes } from "@/lib/utils";
 import Link from "next/link";
+import Image from "next/image"; 
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { NoAvatar } from "@/components/NoAvatar";
 import {
@@ -24,6 +37,15 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
+import { 
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogClose
+} from "@/components/ui/dialog";
+import { useState, useEffect } from "react";
+import FilePreview from "@/components/FilePreview";
 
 type Props = {
   project: Project;
@@ -36,6 +58,32 @@ type ScheduleData =
   | SameDayMultiAreaSchedule
   | undefined;
 
+// File type icon mapping
+const getFileIcon = (type: string) => {
+  if (type.includes('pdf')) return <FileText className="h-5 w-5" />;
+  if (type.includes('image')) return <FileImage className="h-5 w-5" />;
+  if (type.includes('text')) return <FileText className="h-5 w-5" />;
+  if (type.includes('word')) return <FileText className="h-5 w-5" />;
+  return <File className="h-5 w-5" />;
+};
+
+const downloadFile = async (url: string, filename: string) => {
+  try {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    const href = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = href;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(href);
+  } catch (error) {
+    console.error('Download error:', error);
+  }
+};
+
 const formatSpots = (count: number) => {
   return `${count} ${count === 1 ? 'spot' : 'spots'}`;
 };
@@ -44,24 +92,67 @@ export default function ProjectDetails({
   project,
   creator,
 }: Props): React.ReactElement {
-  const { toast } = useToast();
+  const [previewDoc, setPreviewDoc] = useState<string | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewDocName, setPreviewDocName] = useState<string>("Document");
+  const [previewDocType, setPreviewDocType] = useState<string>("");
+
+  // Check for creation message on component mount with increased delay
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const message = sessionStorage.getItem("project_creation_message");
+      const status = sessionStorage.getItem("project_creation_status");
+      
+      if (message) {
+        if (status === "warning") {
+          toast.warning(message);
+        } else {
+          toast.success(message);
+        }
+        
+        // Clear the message from storage
+        sessionStorage.removeItem("project_creation_message");
+        sessionStorage.removeItem("project_creation_status");
+      }
+    }, 100);
+    
+    return () => clearTimeout(timer);
+  }, []);
 
   // Handle share button click
   const handleShare = () => {
     const url = window.location.href;
-    navigator.clipboard.writeText(url).then(() => {
-      toast({
-        title: "Link copied",
-        description: "Project link copied to clipboard",
-      });
-    }).catch(err => {
-      toast({
-        title: "Copy failed",
-        description: "Could not copy link to clipboard",
-        variant: "destructive",
-      });
-      console.error("Copy failed: ", err);
-    });
+    try {
+      navigator.clipboard.writeText(url)
+        .then(() => {
+          setTimeout(() => {
+            toast.success("Project link copied to clipboard", {
+              duration: 3000,
+              id: "clipboard-toast"
+            });
+          }, 100);
+        })
+        .catch(err => {
+          console.error("Copy failed: ", err);
+          toast.error("Could not copy link to clipboard");
+        });
+    } catch (err) {
+      console.error("Copy operation failed:", err);
+      toast.error("Could not copy link to clipboard");
+    }
+  };
+
+  // Function to open document preview
+  const openPreview = (url: string, fileName: string = "Document", fileType: string = "") => {
+    setPreviewDoc(url);
+    setPreviewDocName(fileName);
+    setPreviewDocType(fileType);
+    setPreviewOpen(true);
+  };
+
+  // Function to check if file is previewable
+  const isPreviewable = (type: string) => {
+    return type.includes('pdf') || type.includes('image');
   };
 
   // Handle different schedule types properly
@@ -81,16 +172,9 @@ export default function ProjectDetails({
   const handleSignUp = async (scheduleId: string) => {
     const result = await signUpForProject(project.id, scheduleId);
     if (result.error) {
-      toast({
-        title: "Error",
-        description: result.error,
-        variant: "destructive",
-      });
+      toast.error(result.error);
     } else {
-      toast({
-        title: "Success!",
-        description: "You have successfully signed up for this project.",
-      });
+      toast.success("You have successfully signed up for this project.");
     }
   };
 
@@ -306,120 +390,202 @@ export default function ProjectDetails({
   };
 
   return (
-    <div className="container mx-auto px-4 py-6 max-w-5xl">
-      <div className="mb-6">
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold mb-2">
-              {project.title}
-            </h1>
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <MapPin className="h-4 w-4" />
-              <span>{project.location}</span>
+    <>
+      <Toaster position="bottom-right" richColors theme="dark" />
+      
+      <div className="container mx-auto px-4 py-6 max-w-5xl">
+        <div className="mb-6">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold mb-2">
+                {project.title}
+              </h1>
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <MapPin className="h-4 w-4" />
+                <span>{project.location}</span>
+              </div>
             </div>
+            <Button 
+              variant="outline" 
+              size="icon" 
+              className="self-start"
+              onClick={handleShare}
+            >
+              <Share2 className="h-4 w-4" />
+            </Button>
           </div>
-          <Button 
-            variant="outline" 
-            size="icon" 
-            className="self-start"
-            onClick={handleShare}
-          >
-            <Share2 className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-6">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle>About this Project</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">{project.description}</p>
-              {renderScheduleOverview(project.event_type)}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle>Volunteer Opportunities</CardTitle>
-            </CardHeader>
-            <CardContent>{renderVolunteerOpportunities()}</CardContent>
-          </Card>
         </div>
 
-        <div className="space-y-6">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle>Project Details</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div>
-                <h3 className="text-sm font-medium text-muted-foreground mb-2">
-                  Project Coordinator
-                </h3>
-                <div className="flex items-center gap-3">
-                  <HoverCard>
-                    <HoverCardTrigger asChild>
-                      <Link href={`/profile/${creator?.username || ""}`} className="flex items-center gap-3">
-                        <Avatar className="w-10 h-10">
-                          {creator?.avatar_url ? (
-                            <AvatarImage 
-                              src={creator.avatar_url} 
-                              alt={creator?.full_name || "Profile"} 
-                            />
-                          ) : null}
-                          <AvatarFallback className="bg-muted">
-                            <NoAvatar 
-                              fullName={creator?.full_name}
-                              className="text-sm font-medium"
-                            />
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="font-medium">
-                            {creator?.full_name || "Anonymous"}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            @{creator?.username || "user"}
-                          </p>
-                        </div>
-                      </Link>
-                    </HoverCardTrigger>
-                    <HoverCardContent className="w-80">
-                      <div className="flex justify-between space-x-4">
-                        <Avatar>
-                          {creator?.avatar_url ? (
-                            <AvatarImage src={creator.avatar_url} />
-                          ) : null}
-                          <AvatarFallback className="bg-muted">
-                            <NoAvatar 
-                              fullName={creator?.full_name}
-                              className="text-sm font-medium" 
-                            />
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="space-y-1">
-                          <h4 className="text-sm font-semibold">
-                            {creator?.full_name || "Anonymous"}
-                          </h4>
-                          <p className="text-sm">@{creator?.username || "user"}</p>
-                          <div className="flex items-center pt-2">
-                            <Button asChild variant="ghost" size="sm">
-                              <Link href={`/profile/${creator?.username || ""}`}>
-                                View profile
-                              </Link>
-                            </Button>
+        <div className="grid gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-2 space-y-6">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle>About this Project</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">{project.description}</p>
+                {renderScheduleOverview(project.event_type)}
+              </CardContent>
+            </Card>
+
+            {/* Documents Section - Only show if documents exist */}
+            {project.documents && project.documents.length > 0 && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle>Project Documents</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {project.documents.map((doc, index) => (
+                      <div 
+                        key={index} 
+                        className="flex items-center justify-between p-3 rounded-lg border bg-card/50 hover:bg-card/80 transition-colors"
+                      >
+                        <div className="flex items-center gap-3 overflow-hidden">
+                          <div className="bg-muted p-2 rounded-md flex-shrink-0">
+                            {getFileIcon(doc.type)}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-medium truncate">{doc.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {formatBytes(doc.size)}
+                            </p>
                           </div>
                         </div>
+                        <div className="flex gap-2">
+                          {isPreviewable(doc.type) && (
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => openPreview(doc.url, doc.name, doc.type)}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          )}
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => downloadFile(doc.url, doc.name)}
+                          >
+                            <Download className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
-                    </HoverCardContent>
-                  </HoverCard>
-                </div>
-              </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
-              <div>
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle>Volunteer Opportunities</CardTitle>
+              </CardHeader>
+              <CardContent>{renderVolunteerOpportunities()}</CardContent>
+            </Card>
+          </div>
+
+          <div className="space-y-6">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle>Project Details</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Project Cover Image - Only show if it exists */}
+                {project.cover_image_url && (
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-2">
+                      Project Image
+                    </h3>
+                    <div className="relative mb-4 cursor-pointer" onClick={() => openPreview(project.cover_image_url!, project.title, "image/jpeg")}>
+                      <div className="overflow-hidden rounded-md border">
+                        <Image
+                          src={project.cover_image_url}
+                          alt={project.title}
+                          width={300}
+                          height={180}
+                          className="object-cover w-full aspect-video h-auto hover:scale-105 transition-transform"
+                        />
+                      </div>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="absolute bottom-2 right-2 bg-background/80 backdrop-blur-sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openPreview(project.cover_image_url!, project.title, "image/jpeg");
+                        }}
+                      >
+                        <Eye className="h-4 w-4 mr-1" /> View
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground mb-2">
+                    Project Coordinator
+                  </h3>
+                  <div className="flex items-center gap-3">
+                    <HoverCard>
+                      <HoverCardTrigger asChild>
+                        <Link href={`/profile/${creator?.username || ""}`} className="flex items-center gap-3">
+                          <Avatar className="w-10 h-10">
+                            {creator?.avatar_url ? (
+                              <AvatarImage 
+                                src={creator.avatar_url} 
+                                alt={creator?.full_name || "Profile"} 
+                              />
+                            ) : null}
+                            <AvatarFallback className="bg-muted">
+                              <NoAvatar 
+                                fullName={creator?.full_name}
+                                className="text-sm font-medium"
+                              />
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="font-medium">
+                              {creator?.full_name || "Anonymous"}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              @{creator?.username || "user"}
+                            </p>
+                          </div>
+                        </Link>
+                      </HoverCardTrigger>
+                      <HoverCardContent className="w-80">
+                        <div className="flex justify-between space-x-4">
+                          <Avatar>
+                            {creator?.avatar_url ? (
+                              <AvatarImage src={creator.avatar_url} />
+                            ) : null}
+                            <AvatarFallback className="bg-muted">
+                              <NoAvatar 
+                                fullName={creator?.full_name}
+                                className="text-sm font-medium" 
+                              />
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="space-y-1">
+                            <h4 className="text-sm font-semibold">
+                              {creator?.full_name || "Anonymous"}
+                            </h4>
+                            <p className="text-sm">@{creator?.username || "user"}</p>
+                            <div className="flex items-center pt-2">
+                              <Button asChild variant="ghost" size="sm">
+                                <Link href={`/profile/${creator?.username || ""}`}>
+                                  View profile
+                                </Link>
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </HoverCardContent>
+                    </HoverCard>
+                  </div>
+                </div>
+
                 <h3 className="text-sm font-medium text-muted-foreground mb-2">
                   Check-in Method
                 </h3>
@@ -441,11 +607,19 @@ export default function ProjectDetails({
                       ? "Organizer will check-in volunteers manually"
                       : "System will handle check-ins automatically"}
                 </p>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
-    </div>
+
+      <FilePreview 
+        url={previewDoc || ""}
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        fileName={previewDocName}
+        fileType={previewDocType}
+      />
+    </>
   );
 }

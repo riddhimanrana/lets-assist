@@ -21,7 +21,7 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: "https",
-        hostname: "*.googleusercontent.com",
+        hostname: "**.googleusercontent.com",
         pathname: "/**",
       },
       {
@@ -30,6 +30,11 @@ const nextConfig = {
         pathname: "/**",
       },
     ],
+  },
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '12mb', // Increased from 10MB to 12MB for safety
+    },
   },
 };
 

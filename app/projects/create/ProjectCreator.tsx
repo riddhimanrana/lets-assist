@@ -30,7 +30,7 @@ import { cn } from "@/lib/utils";
 
 // Replace shadcn toast with Sonner
 import { Toaster, toast } from "sonner";
-import { createProject } from "./actions";
+import { createProject, uploadCoverImage, uploadProjectDocument, finalizeProject } from "./actions";
 import { useRouter } from "next/navigation";
 
 interface LocationResult {
@@ -59,6 +59,10 @@ export default function ProjectCreator() {
   } = useEventForm();
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // File handling states
+  const [coverImage, setCoverImage] = useState<File | null>(null);
+  const [documents, setDocuments] = useState<File[]>([]);
 
   // Map Dialog state
   const [mapDialogOpen, setMapDialogOpen] = useState(false);
@@ -69,6 +73,16 @@ export default function ProjectCreator() {
     lat: number;
     lon: number;
   } | null>(null);
+
+  // Function to convert File to base64
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = (error) => reject(error);
+    });
+  };
 
   // Request user location only when Map dialog is open
   useEffect(() => {
@@ -161,40 +175,115 @@ export default function ProjectCreator() {
     return "";
   };
 
-  // Modify submit function to use Sonner toast
+  // Improved function to check file sizes before upload
+  const validateFileSize = (file: File, maxSize: number): boolean => {
+    if (file.size > maxSize) {
+      toast.error(`File ${file.name} exceeds the maximum size limit`);
+      return false;
+    }
+    return true;
+  };
+
+  // Fixed submit function to handle files with better size management
   const handleSubmit = async () => {
     if (state.step !== 5) {
       nextStep();
       return;
     }
+    
     try {
       setIsSubmitting(true);
       
-
+      // Show loading toast - will be dismissed before redirect
+      const loadingToast = toast.loading("Creating your project...");
       
-      // Create form data for the server action
+      // Step 1: Create basic project without files
       const formData = new FormData();
       formData.append("projectData", JSON.stringify(state));
+      
       const result = await createProject(formData);
       
-      // Dismiss the loading toast
-      toast.dismiss("project-creation");
-      
-      if (result.error) {
+      if ("error" in result) {
+        toast.dismiss(loadingToast);
         toast.error(result.error);
         setIsSubmitting(false);
-      } else if (result.id) {
-        // Show success toast and delay redirect
-        toast.success("Project Created Successfully! 🎉");
-        
-        // Delay redirect to allow toast to be seen (5 seconds)
-        setTimeout(() => {
-          router.push(`/projects/${result.id}`);
-        }, 5000);
+        return;
       }
+      
+      const projectId = result.id;
+      let hasErrors = false;
+      
+      // Step 2: Upload cover image if available
+      if (coverImage) {
+        // Check size before attempting upload (5MB limit)
+        if (!validateFileSize(coverImage, 5 * 1024 * 1024)) {
+          hasErrors = true;
+        } else {
+          try {
+            const coverBase64 = await fileToBase64(coverImage);
+            const coverResult = await uploadCoverImage(projectId, coverBase64);
+            if (coverResult.error) {
+              console.error(`Cover image: ${coverResult.error}`);
+              hasErrors = true;
+            }
+          } catch (error) {
+            console.error("Error processing cover image:", error);
+            hasErrors = true;
+          }
+        }
+      }
+      
+      // Step 3: Upload documents one by one with sequential processing
+      if (documents.length > 0) {      
+        for (let i = 0; i < documents.length; i++) {
+          const doc = documents[i];
+          
+          // Update loading message but keep same toast ID
+          toast.loading(`Uploading files (${i+1}/${documents.length})...`, { id: loadingToast });
+          
+          // Check size before attempting upload
+          if (!validateFileSize(doc, 10 * 1024 * 1024)) {
+            hasErrors = true;
+            continue;
+          }
+          
+          try {
+            const docBase64 = await fileToBase64(doc);
+            const uploadResult = await uploadProjectDocument(projectId, docBase64, doc.name, doc.type);
+            
+            // Wait a short delay between uploads to prevent race conditions
+            await new Promise(resolve => setTimeout(resolve, 200));
+            
+            if (uploadResult.error) {
+              console.error(`Document ${doc.name}: ${uploadResult.error}`);
+              hasErrors = true;
+            }
+          } catch (error) {
+            console.error(`Error processing document ${doc.name}:`, error);
+            hasErrors = true;
+          }
+        }
+      }
+      
+      // Step 4: Finalize project
+      await finalizeProject(projectId);
+      
+      // Dismiss any loading toasts - NO SUCCESS TOAST HERE
+      toast.dismiss();
+      
+      // Store success message in sessionStorage before navigating
+      const message = hasErrors 
+        ? "Project created but some files couldn't be uploaded" 
+        : "Project Created Successfully! 🎉";
+      sessionStorage.setItem("project_creation_message", message);
+      sessionStorage.setItem("project_creation_status", hasErrors ? "warning" : "success");
+      
+      // Redirect immediately with no success toast
+      router.push(`/projects/${projectId}`);
+      
     } catch (error) {
       console.error("Error submitting project:", error);
-      toast.dismiss("project-creation");
+      toast.dismiss();
       toast.error("Something went wrong. Please try again.");
       setIsSubmitting(false);
     }
@@ -243,7 +332,13 @@ export default function ProjectCreator() {
           />
         );
       case 5:
-        return <Finalize state={state} />;
+        return (
+          <Finalize 
+            state={state} 
+            setCoverImage={setCoverImage}
+            setDocuments={setDocuments}
+          />
+        );
       default:
         return null;
     }
