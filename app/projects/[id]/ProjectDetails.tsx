@@ -416,8 +416,8 @@ export default function ProjectDetails({
           </div>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-3">
-          <div className="lg:col-span-2 space-y-6">
+        <div className="grid gap-6 lg:grid-cols-5">
+          <div className="lg:col-span-3 space-y-6">
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle>About this Project</CardTitle>
@@ -428,55 +428,6 @@ export default function ProjectDetails({
               </CardContent>
             </Card>
 
-            {/* Documents Section - Only show if documents exist */}
-            {project.documents && project.documents.length > 0 && (
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle>Project Documents</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {project.documents.map((doc, index) => (
-                      <div 
-                        key={index} 
-                        className="flex items-center justify-between p-3 rounded-lg border bg-card/50 hover:bg-card/80 transition-colors"
-                      >
-                        <div className="flex items-center gap-3 overflow-hidden">
-                          <div className="bg-muted p-2 rounded-md flex-shrink-0">
-                            {getFileIcon(doc.type)}
-                          </div>
-                          <div className="min-w-0">
-                            <p className="font-medium truncate">{doc.name}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {formatBytes(doc.size)}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          {isPreviewable(doc.type) && (
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              onClick={() => openPreview(doc.url, doc.name, doc.type)}
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                          )}
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={() => downloadFile(doc.url, doc.name)}
-                          >
-                            <Download className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle>Volunteer Opportunities</CardTitle>
@@ -485,7 +436,7 @@ export default function ProjectDetails({
             </Card>
           </div>
 
-          <div className="space-y-6">
+          <div className="lg:col-span-2 space-y-6">
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle>Project Details</CardTitle>
@@ -497,7 +448,7 @@ export default function ProjectDetails({
                     <h3 className="text-sm font-medium text-muted-foreground mb-2">
                       Project Image
                     </h3>
-                    <div className="relative mb-4 cursor-pointer" onClick={() => openPreview(project.cover_image_url!, project.title, "image/jpeg")}>
+                    <div className="relative mb-4 cursor-pointer max-w-[400px]" onClick={() => openPreview(project.cover_image_url!, project.title, "image/jpeg")}>
                       <div className="overflow-hidden rounded-md border">
                         <Image
                           src={project.cover_image_url}
@@ -609,6 +560,55 @@ export default function ProjectDetails({
                 </p>
               </CardContent>
             </Card>
+
+            {/* Project Documents Section - Moved here from left column */}
+            {project.documents && project.documents.length > 0 && (
+              <Card className="bg-card">
+                <CardHeader className="pb-3">
+                  <CardTitle>Project Documents</CardTitle>
+                </CardHeader>
+                <CardContent className="p-4">
+                  <div className="space-y-3">
+                    {project.documents.map((doc, index) => (
+                      <div 
+                        key={index} 
+                        className="flex items-center justify-between p-3 rounded-lg border bg-background hover:bg-muted/20 transition-colors"
+                      >
+                        <div className="flex items-center gap-3 w-0 flex-1">
+                          <div className="bg-muted p-2 rounded-md flex-shrink-0">
+                            {getFileIcon(doc.type)}
+                          </div>
+                          <div className="min-w-0 w-full overflow-hidden">
+                            <p className="font-medium text-sm truncate">{doc.name}</p>
+                            <p className="text-xs text-muted-foreground">{formatBytes(doc.size)}</p>
+                          </div>
+                        </div>
+                        <div className="flex gap-2 flex-shrink-0 ml-2">
+                          {isPreviewable(doc.type) && (
+                            <Button 
+                              variant="outline" 
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => openPreview(doc.url, doc.name, doc.type)}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          )}
+                          <Button 
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => downloadFile(doc.url, doc.name)}
+                          >
+                            <Download className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       </div>
