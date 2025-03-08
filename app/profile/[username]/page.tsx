@@ -157,7 +157,7 @@ export default async function ProfilePage(
           <div className="text-center p-8 bg-muted/20 rounded-lg">
             <Calendar className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
             <h3 className="text-lg font-medium mb-1">No Projects Yet</h3>
-            <p className="text-muted-foreground">This user hasn't created any projects yet.</p>
+            <p className="text-muted-foreground">This user hasn&apos;t created any projects yet.</p>
           </div>
         )}
       </div>

@@ -180,19 +180,22 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
 }) => {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [initialViewLoaded, setInitialViewLoaded] = useState(false);
 
-  // Load saved view preference on mount
+  // Combined effect for view preference management
   useEffect(() => {
-    const savedView = localStorage.getItem(STORAGE_KEY) as "card" | "list" | "table" | null;
-    if (savedView && savedView !== view) {
-      onViewChange(savedView);
+    if (!initialViewLoaded) {
+      // Load initial preference only once
+      const savedView = localStorage.getItem(STORAGE_KEY) as "card" | "list" | "table" | null;
+      if (savedView && savedView !== view) {
+        onViewChange(savedView);
+      }
+      setInitialViewLoaded(true);
+    } else {
+      // Save preference on subsequent view changes
+      localStorage.setItem(STORAGE_KEY, view);
     }
-  }, []);
-
-  // Save view preference whenever it changes
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, view);
-  }, [view]);
+  }, [view, onViewChange, initialViewLoaded]);
 
   // Handle volunteer sort toggle
   const handleVolunteerSortToggle = () => {

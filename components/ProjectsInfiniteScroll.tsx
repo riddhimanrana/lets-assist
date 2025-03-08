@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import axios from "axios";
 import useSWRInfinite from "swr/infinite";
 import { useInView } from "react-intersection-observer";
@@ -29,7 +29,8 @@ import {
   List,
   Table2,
   CheckCircle2,
-  ClipboardList,
+  ArrowUp,
+  Plus,
   PackageX,
 } from "lucide-react";
 import {
@@ -51,6 +52,7 @@ import { cn } from "@/lib/utils";
 import { format, isAfter, isBefore, isWithinInterval, parseISO } from "date-fns";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import Link from "next/link";
 
 const fetcher = (url: string) => axios.get(url).then((res) => res.data);
 
@@ -169,42 +171,8 @@ export const ProjectsInfiniteScroll: React.FC = () => {
     return targetDate.getTime() === startDate.getTime();
   };
 
-  // Sort projects by volunteer count
-  const sortByVolunteers = (projects: any[], direction: "asc" | "desc" | undefined) => {
-    if (!direction) return projects;
-    
-    return [...projects].sort((a, b) => {
-      const countA = getVolunteerCount(a);
-      const countB = getVolunteerCount(b);
-      
-      if (direction === "desc") {
-        return countB - countA;
-      } else {
-        return countA - countB;
-      }
-    });
-  };
-
-  // Sort projects by date
-  const sortByDate = (projects: any[], direction: "asc" | "desc" | undefined) => {
-    if (!direction) return projects;
-    
-    return [...projects].sort((a, b) => {
-      const dateA = getProjectDate(a);
-      const dateB = getProjectDate(b);
-      
-      if (!dateA || !dateB) return 0;
-      
-      if (direction === "desc") {
-        return dateA.getTime() - dateB.getTime(); // Recent first
-      } else {
-        return dateB.getTime() - dateA.getTime(); // Future first
-      }
-    });
-  };
-
   // Get the earliest date from a project
-  const getProjectDate = (project: any): Date | null => {
+  const getProjectDate = useCallback((project: any): Date | null => {
     try {
       if (project.event_type === "oneTime" && project.schedule?.oneTime?.date) {
         return parseISO(project.schedule.oneTime.date);
@@ -219,7 +187,59 @@ export const ProjectsInfiniteScroll: React.FC = () => {
       console.error("Date parsing error:", e);
     }
     return null;
-  };
+  }, []);
+
+  // Sort projects by volunteer count
+  const sortByVolunteers = useCallback((projects: any[], direction: "asc" | "desc" | undefined) => {
+    if (!direction) return projects;
+    
+    return [...projects].sort((a, b) => {
+      const countA = getVolunteerCount(a);
+      const countB = getVolunteerCount(b);
+      
+      if (direction === "desc") {
+        return countB - countA;
+      } else {
+        return countA - countB;
+      }
+    });
+  }, []);
+
+  // Sort projects by date
+  const sortByDate = useCallback((projects: any[], direction: "asc" | "desc" | undefined) => {
+    // Define getProjectDate within sortByDate to avoid dependency cycle
+    const getProjectDateInternal = (project: any): Date | null => {
+      try {
+        if (project.event_type === "oneTime" && project.schedule?.oneTime?.date) {
+          return parseISO(project.schedule.oneTime.date);
+        } else if (project.event_type === "multiDay" && project.schedule?.multiDay?.length > 0) {
+          // Get the earliest date from multiDay events
+          const dates = project.schedule.multiDay.map((day: any) => parseISO(day.date));
+          return new Date(Math.min(...dates.map((d: Date) => d.getTime())));
+        } else if (project.event_type === "sameDayMultiArea" && project.schedule?.sameDayMultiArea?.date) {
+          return parseISO(project.schedule.sameDayMultiArea.date);
+        }
+      } catch (e) {
+        console.error("Date parsing error:", e);
+      }
+      return null;
+    };
+
+    if (!direction) return projects;
+    
+    return [...projects].sort((a, b) => {
+      const dateA = getProjectDateInternal(a);
+      const dateB = getProjectDateInternal(b);
+      
+      if (!dateA || !dateB) return 0;
+      
+      if (direction === "desc") {
+        return dateA.getTime() - dateB.getTime(); // Recent first
+      } else {
+        return dateB.getTime() - dateA.getTime(); // Future first
+      }
+    });
+  }, []);
 
   // Get volunteer count from a project
   const getVolunteerCount = (project: any): number => {
@@ -229,8 +249,8 @@ export const ProjectsInfiniteScroll: React.FC = () => {
       case "oneTime":
         return project.schedule.oneTime?.volunteers || 0;
       case "multiDay": {
+        let total = 0;  // Initialize total here
         // Sum all volunteers across all days and slots
-        let total = 0;
         if (project.schedule.multiDay) {
           project.schedule.multiDay.forEach((day: any) => {
             if (day.slots) {
@@ -294,7 +314,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
     }
     
     return sorted;
-  }, [filteredProjects, volunteersSort, dateSort]);
+  }, [filteredProjects, volunteersSort, dateSort, sortByVolunteers, sortByDate]);
 
   // Count active filters
   const activeFilterCount = useMemo(() => [
@@ -373,9 +393,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
             variant="outline"
             className="gap-2"
           >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
+            <Loader2 className="h-4 w-4 font-bold animate-spin" />
             Try Again
           </Button>
         </CardFooter>
@@ -559,7 +577,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
               {debouncedSearchTerm && (
                 <Badge variant="outline" className="gap-1">
                   <Search className="h-3 w-3" />
-                  "{debouncedSearchTerm}"
+                  &quot;{debouncedSearchTerm}&quot;
                   <Button 
                     variant="ghost" 
                     size="icon" 
@@ -675,12 +693,10 @@ export const ProjectsInfiniteScroll: React.FC = () => {
               )}
               
               <Button asChild variant={activeFilterCount > 0 ? "outline" : "default"}>
-                <a href="/projects/create" className="gap-2">
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
+                <Link href="/projects/create" className="gap-2">
+                  <Plus className="h-4 w-4" />
                   Create a project
-                </a>
+                </Link>
               </Button>
             </div>
           </CardContent>
@@ -854,7 +870,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
             {debouncedSearchTerm && (
               <Badge variant="outline" className="gap-1">
                 <Search className="h-3 w-3" />
-                "{debouncedSearchTerm}"
+                &quot;{debouncedSearchTerm}&quot;
                 <Button 
                   variant="ghost" 
                   size="icon" 
@@ -975,7 +991,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
         <div className="py-8 text-center">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-muted/40">
             <CheckCircle2 className="h-5 w-5 text-primary" />
-            <span className="font-medium">You've seen all available projects</span>
+            <span className="font-medium">You&apos;ve seen all available projects</span>
           </div>
           
           <div className="mt-6">
@@ -990,9 +1006,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
                 });
               }}
             >
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
-              </svg>
+              <ArrowUp className="h-4 w-4" />
               Back to top
             </Button>
           </div>
