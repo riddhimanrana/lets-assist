@@ -57,7 +57,55 @@ const formatTime = (timeString: string) => {
 };
 
 const formatSpots = (count: number) => {
-  return `${count} ${count === 1 ? 'spot' : 'spots'} available`;
+  return `${count} ${count === 1 ? 'spot' : 'spots'}`;
+};
+
+const formatDateDisplay = (project: any) => {
+  if (!project.event_type || !project.schedule) return "";
+
+  switch (project.event_type) {
+    case "oneTime": {
+      return format(new Date(project.schedule.oneTime.date), "MMM d");
+    }
+    case "multiDay": {
+      const dates = project.schedule.multiDay
+        .map((day: any) => new Date(day.date))
+        .sort((a: Date, b: Date) => a.getTime() - b.getTime());
+      
+      // If dates are in same month
+      const allSameMonth = dates.every(
+        (date: Date) => date.getMonth() === dates[0].getMonth()
+      );
+      
+      if (dates.length <= 3) {
+        if (allSameMonth) {
+          // Format as "Mar 7, 9, 10"
+          return `${format(dates[0], "MMM")} ${dates
+            .map((date: Date) => format(date, "d"))
+            .join(", ")}`;
+        } else {
+          // Format as "Mar 7, Apr 9, 10"
+          return dates
+            .map((date: Date, i: number) => {
+              const prevDate = i > 0 ? dates[i - 1] : null;
+              if (!prevDate || prevDate.getMonth() !== date.getMonth()) {
+                return format(date, "MMM d");
+              }
+              return format(date, "d");
+            })
+            .join(", ");
+        }
+      } else {
+        // For more than 3 dates, show range
+        return `${format(dates[0], "MMM d")} - ${format(dates[dates.length - 1], "MMM d")}`;
+      }
+    }
+    case "sameDayMultiArea": {
+      return format(new Date(project.schedule.sameDayMultiArea.date), "MMM d");
+    }
+    default:
+      return "";
+  }
 };
 
 // Function to get a summary of event schedule for table view
@@ -231,53 +279,14 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                 </div>
                 
                 <div className="flex flex-wrap gap-2 mb-4">
-                  {project.event_type === "oneTime" && project.schedule?.oneTime && (
-                    <>
-                      <Badge variant="outline" className="gap-1">
-                        <Calendar className="h-3 w-3" />
-                        {format(new Date(project.schedule.oneTime.date), "MMM d")}
-                      </Badge>
-                      <Badge variant="outline" className="gap-1">
-                        <Clock className="h-3 w-3" />
-                        {formatTime(project.schedule.oneTime.startTime)}
-                      </Badge>
-                      <Badge variant="outline" className="gap-1">
-                        <Users className="h-3 w-3" />
-                        {formatSpots(project.schedule.oneTime.volunteers)}
-                      </Badge>
-                    </>
-                  )}
-                  
-                  {project.event_type === "multiDay" && project.schedule?.multiDay && (
-                    <>
-                      <Badge variant="outline" className="gap-1">
-                        <CalendarClock className="h-3 w-3" />
-                        {project.schedule.multiDay.length} days
-                      </Badge>
-                      <Badge variant="outline" className="gap-1">
-                        <Users className="h-3 w-3" />
-                        {formatSpots(project.schedule.multiDay.reduce((acc: number, day: any) => {
-                          return acc + (day.slots?.reduce((sum: number, slot: any) => sum + (slot.volunteers || 0), 0) || 0);
-                        }, 0))}
-                      </Badge>
-                    </>
-                  )}
-                  
-                  {project.event_type === "sameDayMultiArea" && project.schedule?.sameDayMultiArea && (
-                    <>
-                      <Badge variant="outline" className="gap-1">
-                        <Calendar className="h-3 w-3" />
-                        {format(new Date(project.schedule.sameDayMultiArea.date), "MMM d")}
-                      </Badge>
-                      <Badge variant="outline" className="gap-1">
-                        <Users className="h-3 w-3" />
-                        {formatSpots(project.schedule.sameDayMultiArea.roles.reduce(
-                          (acc: number, role: any) => acc + (role.volunteers || 0),
-                          0
-                        ))}
-                      </Badge>
-                    </>
-                  )}
+                  <Badge variant="outline" className="gap-1">
+                    <Calendar className="h-3 w-3" />
+                    {formatDateDisplay(project)}
+                  </Badge>
+                  <Badge variant="outline" className="gap-1">
+                    <Users className="h-3 w-3" />
+                    {formatSpots(getVolunteerCount(project))}
+                  </Badge>
                 </div>
                 
                 {/* User info with hover card - no separator */}
@@ -301,9 +310,8 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                       </div>
                       </HoverCardTrigger>
                     
-                    <HoverCardContent className="w-80">
-                    <Link href={`/profile/${project.profiles?.username || "unknown"}`}>
-                      <div className="flex justify-between space-x-4">
+                    <HoverCardContent className="w-auto">
+                      <div className="flex justify-between space-x-4 cursor-pointer" onClick={() => window.location.href=`/profile/${project.profiles?.username || "unknown"}`}>
                       <Avatar className="h-10 w-10">
                         <AvatarImage 
                         src={project.profiles?.avatar_url}
@@ -330,7 +338,6 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                         </div>
                       </div>
                       </div>
-                      </Link>
                     </HoverCardContent>
                     </HoverCard>
                 </div>
@@ -340,132 +347,93 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
         </div>
       )}
 
-      {/* List View - Improved UI */}
+      {/* List View - Improved UI with better mobile support */}
       {view === "list" && (
         <div className="flex flex-col divide-y">
           {projects.map((project: any) => (
             <Link key={project.id} href={`/projects/${project.id}`}>
-              <div className="group py-6 px-4 -mx-4 hover:bg-muted/50 transition-colors">
-                <div className="flex items-start gap-6">
+              <div className="group py-6 px-4 -mx-4 hover:bg-muted/50 transition-colors project-list-item">
+                <div className="flex flex-col md:flex-row md:items-start gap-4 md:gap-6">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-4">
+                    <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3 md:gap-4">
                       <div>
-                        <h3 className="text-lg font-semibold leading-tight mb-1 group-hover:text-primary transition-colors">
+                        <h3 className="text-lg font-semibold leading-tight mb-1 md:mb-1 group-hover:text-primary transition-colors project-title">
                           {project.title}
                         </h3>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
-                          <MapPin className="h-4 w-4" />
-                          <span>{project.location}</span>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2 md:mb-3 project-location">
+                          <MapPin className="h-4 w-4 flex-shrink-0" />
+                          <span className="truncate">{project.location}</span>
                         </div>
                       </div>
-                      <div className="flex items-start gap-2">
-                        {project.event_type === "oneTime" && project.schedule?.oneTime && (
-                          <>
-                            <Badge variant="outline" className="gap-1">
-                              <Calendar className="h-3 w-3" />
-                              {format(new Date(project.schedule.oneTime.date), "MMM d")}
-                            </Badge>
-                            <Badge variant="outline" className="gap-1">
-                              <Clock className="h-3 w-3" />
-                              {formatTime(project.schedule.oneTime.startTime)}
-                            </Badge>
-                            <Badge variant="outline" className="gap-1">
-                              <Users className="h-3 w-3" />
-                              {formatSpots(project.schedule.oneTime.volunteers)}
-                            </Badge>
-                          </>
-                        )}
-                        
-                        {project.event_type === "multiDay" && project.schedule?.multiDay && (
-                          <>
-                            <Badge variant="outline" className="gap-1">
-                              <CalendarClock className="h-3 w-3" />
-                              {project.schedule.multiDay.length} days
-                            </Badge>
-                            <Badge variant="outline" className="gap-1">
-                              <Users className="h-3 w-3" />
-                              {formatSpots(project.schedule.multiDay.reduce((acc: number, day: any) => {
-                                return acc + (day.slots?.reduce((sum: number, slot: any) => sum + (slot.volunteers || 0), 0) || 0);
-                              }, 0))}
-                            </Badge>
-                          </>
-                        )}
-                        
-                        {project.event_type === "sameDayMultiArea" && project.schedule?.sameDayMultiArea && (
-                          <>
-                            <Badge variant="outline" className="gap-1">
-                              <Calendar className="h-3 w-3" />
-                              {format(new Date(project.schedule.sameDayMultiArea.date), "MMM d")}
-                            </Badge>
-                            <Badge variant="outline" className="gap-1">
-                              <Users className="h-3 w-3" />
-                              {formatSpots(project.schedule.sameDayMultiArea.roles.reduce(
-                                (acc: number, role: any) => acc + (role.volunteers || 0),
-                                0
-                              ))}
-                            </Badge>
-                          </>
-                        )}
+                      <div className="flex flex-wrap items-start gap-2 order-1 md:order-none project-badges">
+                        <Badge variant="outline" className="gap-1 py-0.5 text-xs">
+                          <Calendar className="h-3 w-3 md:h-2.5 md:w-2.5 project-badge-icon" />
+                          {formatDateDisplay(project)}
+                        </Badge>
+                        <Badge variant="outline" className="gap-1 py-0.5 text-xs">
+                          <Users className="h-3 w-3 md:h-2.5 md:w-2.5 project-badge-icon" />
+                          {formatSpots(getVolunteerCount(project))}
+                        </Badge>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3 mt-3">
-                    <HoverCard>
-                    
-                      <HoverCardTrigger asChild>
-                      <div className="flex items-center gap-2 cursor-pointer">
-                        <Avatar className="h-7 w-7">
-                        <AvatarImage
-                          src={project.profiles?.avatar_url}
-                          alt={project.profiles?.full_name || "Creator"}
-                        />
-                        <AvatarFallback>
-                          <NoAvatar fullName={project.profiles?.full_name} />
-                        </AvatarFallback>
-                        </Avatar>
-                        <span className="text-sm font-medium truncate">
-                        {project.profiles?.full_name || "Anonymous"}
-                        </span>
-                      </div>
-                      </HoverCardTrigger>
-                    
-                    <HoverCardContent className="w-80">
-                    <Link href={`/profile/${project.profiles?.username || "unknown"}`}>
-                      <div className="flex justify-between space-x-4">
-                      <Avatar className="h-10 w-10">
-                        <AvatarImage 
-                        src={project.profiles?.avatar_url}
-                        alt={project.profiles?.full_name || "Creator"}
-                        />
-                        <AvatarFallback>
-                        <NoAvatar fullName={project.profiles?.full_name} />
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="space-y-1 flex-1">
-                        <h4 className="text-sm font-semibold">
-                        {project.profiles?.full_name || "Anonymous"}
-                        </h4>
-                        <p className="text-sm">
-                        @{project.profiles?.username || "unknown"}
-                        </p>
-                        <div className="flex items-center pt-2">
-                        <CalendarDays className="mr-2 h-4 w-4 opacity-70" />
-                        <span className="text-xs text-muted-foreground">
-                          {project.profiles?.created_at ? 
-                          `Joined ${format(new Date(project.profiles.created_at), "MMMM yyyy")}` : 
-                          "New member"}
-                        </span>
-                        </div>
-                      </div>
-                      </div>
-                      </Link>
-                    </HoverCardContent>
-                    </HoverCard>
+                    <div className="flex items-center gap-3 mt-3 project-avatar">
+                      <HoverCard>
+                        <HoverCardTrigger asChild>
+                          <div className="flex items-center gap-2 cursor-pointer">
+                            <Avatar className="h-7 w-7">
+                              <AvatarImage
+                                src={project.profiles?.avatar_url}
+                                alt={project.profiles?.full_name || "Creator"}
+                              />
+                              <AvatarFallback>
+                                <NoAvatar fullName={project.profiles?.full_name} />
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="text-sm font-medium truncate">
+                              {project.profiles?.full_name || "Anonymous"}
+                            </span>
+                          </div>
+                        </HoverCardTrigger>
+                      
+                        <HoverCardContent className="w-auto">
+                          <div className="flex justify-between space-x-4 cursor-pointer" onClick={(e) => {
+                            e.preventDefault();
+                            window.location.href=`/profile/${project.profiles?.username || "unknown"}`;
+                          }}>
+                            <Avatar className="h-10 w-10">
+                              <AvatarImage 
+                                src={project.profiles?.avatar_url}
+                                alt={project.profiles?.full_name || "Creator"}
+                              />
+                              <AvatarFallback>
+                                <NoAvatar fullName={project.profiles?.full_name} />
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="space-y-1 flex-1">
+                              <h4 className="text-sm font-semibold">
+                                {project.profiles?.full_name || "Anonymous"}
+                              </h4>
+                              <p className="text-sm">
+                                @{project.profiles?.username || "unknown"}
+                              </p>
+                              <div className="flex items-center pt-2">
+                                <CalendarDays className="mr-2 h-4 w-4 opacity-70" />
+                                <span className="text-xs text-muted-foreground">
+                                  {project.profiles?.created_at ? 
+                                  `Joined ${format(new Date(project.profiles.created_at), "MMMM yyyy")}` : 
+                                  "New member"}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </HoverCardContent>
+                      </HoverCard>
                     </div>
                   </div>
                   <Button 
                     variant="ghost" 
                     size="icon"
-                    className="opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="hidden md:flex opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
                   >
                     <ChevronRight className="h-4 w-4" />
                   </Button>
@@ -552,9 +520,8 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                       </div>
                       </HoverCardTrigger>
                     
-                    <HoverCardContent className="w-80">
-                    <Link href={`/profile/${project.profiles?.username || "unknown"}`}>
-                      <div className="flex justify-between space-x-4">
+                    <HoverCardContent className="w-auto">
+                      <div className="flex justify-between space-x-4 cursor-pointer" onClick={() => window.location.href=`/profile/${project.profiles?.username || "unknown"}`}>
                       <Avatar className="h-10 w-10">
                         <AvatarImage 
                         src={project.profiles?.avatar_url}
@@ -581,7 +548,6 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                         </div>
                       </div>
                       </div>
-                      </Link>
                     </HoverCardContent>
                     </HoverCard>
                   </TableCell>

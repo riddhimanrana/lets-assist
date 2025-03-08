@@ -122,23 +122,27 @@ export default function ProjectDetails({
   // Handle share button click
   const handleShare = () => {
     const url = window.location.href;
-    try {
-      navigator.clipboard.writeText(url)
-        .then(() => {
-          setTimeout(() => {
-            toast.success("Project link copied to clipboard", {
-              duration: 3000,
-              id: "clipboard-toast"
-            });
-          }, 100);
+    if (navigator.share && /Mobi/.test(navigator.userAgent)) {
+      navigator
+        .share({
+          title: "Check out this project",
+          url
         })
-        .catch(err => {
-          console.error("Copy failed: ", err);
-          toast.error("Could not copy link to clipboard");
+        .catch((err) => {
+          console.error("Share failed: ", err);
+          toast.error("Could not share link");
         });
-    } catch (err) {
-      console.error("Copy operation failed:", err);
-      toast.error("Could not copy link to clipboard");
+    } else {
+      try {
+        navigator.clipboard.writeText(url).then(() => {
+          toast.success("Project link copied to clipboard", {
+            id: "clipboard-toast"
+          });
+        });
+      } catch (err) {
+        console.error("Copy operation failed:", err);
+        toast.error("Could not copy link to clipboard");
+      }
     }
   };
 
@@ -192,8 +196,7 @@ export default function ProjectDetails({
             </Badge>
             <Badge variant="secondary">
               <Clock className="h-4 w-4 mr-1" />
-              {formatTimeTo12Hour(oneTimeData.startTime)} -{" "}
-              {formatTimeTo12Hour(oneTimeData.endTime)}
+              {formatTimeTo12Hour(oneTimeData.startTime)} - {formatTimeTo12Hour(oneTimeData.endTime)}
             </Badge>
             <Badge variant="outline">
               <Users className="h-4 w-4 mr-1" />
@@ -205,19 +208,22 @@ export default function ProjectDetails({
 
       case "multiDay": {
         const multiDayData = scheduleData as MultiDayScheduleDay[];
+        const firstDay = multiDayData[0];
+        const lastDay = multiDayData[multiDayData.length - 1];
         return (
-          <div className="mt-4">
-            <Badge variant="secondary" className="mb-2">
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Badge variant="secondary">
               <CalendarDays className="h-4 w-4 mr-1" />
-              {multiDayData.length} Day Event
+              {format(new Date(firstDay.date), "MMMM d")} - {format(new Date(lastDay.date), "MMMM d, yyyy")}
             </Badge>
-            <div className="flex flex-wrap gap-2">
-              {multiDayData.map((day, index) => (
-                <Badge key={index} variant="outline">
-                  {format(new Date(day.date), "MMM d")}
-                </Badge>
-              ))}
-            </div>
+            <Badge variant="secondary">
+              <Clock className="h-4 w-4 mr-1" />
+              {multiDayData.length} Days
+            </Badge>
+            <Badge variant="outline">
+              <Users className="h-4 w-4 mr-1" />
+              {formatSpots(multiDayData.reduce((total, day) => total + day.slots.reduce((acc, slot) => acc + slot.volunteers, 0), 0))}
+            </Badge>
           </div>
         );
       }
@@ -225,25 +231,19 @@ export default function ProjectDetails({
       case "sameDayMultiArea": {
         const multiAreaData = scheduleData as SameDayMultiAreaSchedule;
         return (
-          <div className="mt-4 space-y-2">
-            <div className="flex flex-wrap gap-2">
-              <Badge variant="secondary">
-                <CalendarDays className="h-4 w-4 mr-1" />
-                {format(new Date(multiAreaData.date), "MMMM d, yyyy")}
-              </Badge>
-              <Badge variant="secondary">
-                <Clock className="h-4 w-4 mr-1" />
-                {formatTimeTo12Hour(multiAreaData.overallStart)} -{" "}
-                {formatTimeTo12Hour(multiAreaData.overallEnd)}
-              </Badge>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {multiAreaData.roles?.map((role, index) => (
-                <Badge key={index} variant="outline">
-                  {role.name}
-                </Badge>
-              ))}
-            </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Badge variant="secondary">
+              <CalendarDays className="h-4 w-4 mr-1" />
+              {format(new Date(multiAreaData.date), "MMMM d, yyyy")}
+            </Badge>
+            <Badge variant="secondary">
+              <Users className="h-4 w-4 mr-1" />
+              {multiAreaData.roles?.length} Roles
+            </Badge>
+            <Badge variant="outline">
+              <Users className="h-4 w-4 mr-1" />
+              {formatSpots(multiAreaData.roles?.reduce((total, role) => total + role.volunteers, 0) || 0)}
+            </Badge>
           </div>
         );
       }
@@ -395,7 +395,7 @@ export default function ProjectDetails({
       
       <div className="container mx-auto px-4 py-6 max-w-5xl">
         <div className="mb-6">
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
+          <div className="flex items-center justify-between gap-4">
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold mb-2">
                 {project.title}
@@ -477,64 +477,74 @@ export default function ProjectDetails({
                   <h3 className="text-sm font-medium text-muted-foreground mb-2">
                     Project Coordinator
                   </h3>
-                  <div className="flex items-center gap-3">
-                    <HoverCard>
-                      <HoverCardTrigger asChild>
-                        <Link href={`/profile/${creator?.username || ""}`} className="flex items-center gap-3">
-                          <Avatar className="w-10 h-10">
-                            {creator?.avatar_url ? (
-                              <AvatarImage 
-                                src={creator.avatar_url} 
-                                alt={creator?.full_name || "Profile"} 
-                              />
-                            ) : null}
-                            <AvatarFallback className="bg-muted">
-                              <NoAvatar 
-                                fullName={creator?.full_name}
-                                className="text-sm font-medium"
-                              />
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <p className="font-medium">
-                              {creator?.full_name || "Anonymous"}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              @{creator?.username || "user"}
-                            </p>
-                          </div>
-                        </Link>
-                      </HoverCardTrigger>
-                      <HoverCardContent className="w-80">
-                        <div className="flex justify-between space-x-4">
-                          <Avatar>
-                            {creator?.avatar_url ? (
-                              <AvatarImage src={creator.avatar_url} />
-                            ) : null}
-                            <AvatarFallback className="bg-muted">
-                              <NoAvatar 
-                                fullName={creator?.full_name}
-                                className="text-sm font-medium" 
-                              />
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="space-y-1">
-                            <h4 className="text-sm font-semibold">
-                              {creator?.full_name || "Anonymous"}
-                            </h4>
-                            <p className="text-sm">@{creator?.username || "user"}</p>
-                            <div className="flex items-center pt-2">
-                              <Button asChild variant="ghost" size="sm">
-                                <Link href={`/profile/${creator?.username || ""}`}>
-                                  View profile
-                                </Link>
-                              </Button>
-                            </div>
+                  <HoverCard>
+                    <HoverCardTrigger asChild>
+                      <Link href={`/profile/${creator?.username || ""}`} className="flex items-center gap-3">
+                        <Avatar className="h-10 w-10">
+                          {creator?.avatar_url ? (
+                            <AvatarImage 
+                              src={creator.avatar_url}
+                              alt={creator?.full_name || "Creator"}
+                            />
+                          ) : null}
+                          <AvatarFallback className="bg-muted">
+                            <NoAvatar 
+                              fullName={creator?.full_name}
+                              className="text-sm font-medium"
+                            />
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-medium">
+                            {creator?.full_name || "Anonymous"}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            @{creator?.username || "user"}
+                          </p>
+                        </div>
+                      </Link>
+                    </HoverCardTrigger>
+                    <HoverCardContent className="w-auto">
+                      <div 
+                        className="flex justify-between space-x-4 cursor-pointer" 
+                        onClick={(e) => {
+                          e.preventDefault();
+                          window.location.href = `/profile/${creator?.username || ""}`;
+                        }}
+                      >
+                        <Avatar className="h-10 w-10">
+                          {creator?.avatar_url ? (
+                            <AvatarImage 
+                              src={creator.avatar_url}
+                              alt={creator?.full_name || "Creator"}
+                            />
+                          ) : null}
+                          <AvatarFallback className="bg-muted">
+                            <NoAvatar 
+                              fullName={creator?.full_name}
+                              className="text-sm font-medium"
+                            />
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="space-y-1 flex-1">
+                          <h4 className="text-sm font-semibold">
+                            {creator?.full_name || "Anonymous"}
+                          </h4>
+                          <p className="text-sm">
+                            @{creator?.username || "user"}
+                          </p>
+                          <div className="flex items-center pt-2">
+                            <CalendarDays className="mr-2 h-4 w-4 opacity-70" />
+                            <span className="text-xs text-muted-foreground">
+                              {creator?.created_at
+                                ? `Joined ${format(new Date(creator.created_at), "MMMM yyyy")}`
+                                : "New member"}
+                            </span>
                           </div>
                         </div>
-                      </HoverCardContent>
-                    </HoverCard>
-                  </div>
+                      </div>
+                    </HoverCardContent>
+                  </HoverCard>
                 </div>
 
                 <h3 className="text-sm font-medium text-muted-foreground mb-2">

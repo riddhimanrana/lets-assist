@@ -74,37 +74,40 @@ export default function FilePreview({
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
           </div>}
           
-          {isPDF ? (
+            {isPDF ? (
             <iframe 
               src={`${url}#toolbar=0&navpanes=0`} 
-              className="w-full h-full min-h-[60vh] rounded border"
+              className="w-full h-[50vh] sm:h-[80vh] rounded border"
               onLoad={() => setLoading(false)}
               title="PDF Preview"
             />
-          ) : isImage ? (
-            <div className="flex items-center justify-center h-full min-h-[60vh]">
+            ) : isImage ? (
+            <div className="flex items-center justify-center h-full min-h-[50vh] sm:min-h-[80vh] p-2">
               <Image 
-                src={url} 
-                alt="Document preview" 
-                width={1200} 
-                height={800}
-                className="max-w-full max-h-[65vh] object-contain"
-                onLoad={() => setLoading(false)}
+              src={url} 
+              alt="Document preview" 
+              width={1200} 
+              height={800}
+              className="max-w-full max-h-[80vh] object-contain"
+              onLoad={() => setLoading(false)}
               />
             </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-full min-h-[60vh]">
+            ) : (
+            <div className="flex flex-col items-center justify-center h-full min-h-[50vh] sm:min-h-[80vh] p-4">
               <FileText className="h-16 w-16 text-muted-foreground" />
-              <p className="text-muted-foreground mt-4">This file cannot be previewed</p>
+              <p className="text-muted-foreground mt-4 text-center">
+              This file cannot be previewed
+              </p>
               <Button 
-                variant="outline" 
-                className="mt-4"
-                onClick={() => url && downloadFile(url, fileName)}
+              variant="outline" 
+              className="mt-4"
+              onClick={() => url && downloadFile(url, fileName)}
               >
-                <Download className="h-4 w-4 mr-2" />
+              <Download className="h-4 w-4 mr-2" />
+              Download
               </Button>
             </div>
-          )}
+            )}
         </div>
       </DialogContent>
     </Dialog>

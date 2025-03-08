@@ -4,13 +4,10 @@ import { createClient } from "@/utils/supabase/server";
 import { EmailVerificationToast } from "@/components/EmailVerificationToast";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-// import { MapPin } from "lucide-react";
-// import { Badge } from "@/components/ui/badge";
+import { Plus } from "lucide-react"; // Import the Plus icon
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { NoAvatar } from "@/components/NoAvatar";
 import { Metadata } from "next";
-// import { getActiveProjects } from "./actions";
-// import { ProjectViewToggle } from "@/components/ProjectViewToggle";
 import { ProjectsInfiniteScroll } from "@/components/ProjectsInfiniteScroll";
 
 export const metadata: Metadata = {
@@ -29,11 +26,8 @@ export default async function Home() {
     .select("full_name, avatar_url, username")
     .eq("id", user?.id)
     .single();
-  const userName = profileData?.full_name || "JD";
+  const userName = profileData?.full_name || "Anonymous";
   
-  // Remove the initial projects fetch.
-  // const projects = await getActiveProjects();
-
   return (
     <div className="min-h-screen">
       <EmailVerificationToast />
@@ -58,6 +52,7 @@ export default async function Home() {
               size="lg"
               className="font-semibold flex items-center gap-1 w-full md:w-auto"
             >
+              <Plus className="w-4 h-4" /> {/* Add the Plus icon here */}
               Create Project
             </Button>
           </Link>

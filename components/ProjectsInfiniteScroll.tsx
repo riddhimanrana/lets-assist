@@ -60,6 +60,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
   const [eventTypeFilter, setEventTypeFilter] = useState<string | undefined>(undefined);
   const [dateFilter, setDateFilter] = useState<DateRange | undefined>(undefined);
   const [volunteersSort, setVolunteersSort] = useState<"asc" | "desc" | undefined>(undefined);
+  const [dateSort, setDateSort] = useState<"asc" | "desc" | undefined>(undefined);
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [isClientReady, setIsClientReady] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -151,12 +152,21 @@ export const ProjectsInfiniteScroll: React.FC = () => {
   // Check if a date is within a date range
   const isWithinDateRange = (date: Date, dateRange: DateRange) => {
     if (!dateRange.from) return true;
+    
+    const targetDate = new Date(date);
+    targetDate.setHours(0, 0, 0, 0);
+    
+    const startDate = new Date(dateRange.from);
+    startDate.setHours(0, 0, 0, 0);
+    
     if (dateRange.to) {
       const endDate = new Date(dateRange.to);
-      endDate.setHours(23, 59, 59, 999); // Set to end of day
-      return isWithinInterval(date, { start: dateRange.from, end: endDate });
+      endDate.setHours(0, 0, 0, 0);
+      
+      return targetDate >= startDate && targetDate <= endDate;
     }
-    return date.getTime() === dateRange.from.getTime();
+    
+    return targetDate.getTime() === startDate.getTime();
   };
 
   // Sort projects by volunteer count
@@ -173,6 +183,42 @@ export const ProjectsInfiniteScroll: React.FC = () => {
         return countA - countB;
       }
     });
+  };
+
+  // Sort projects by date
+  const sortByDate = (projects: any[], direction: "asc" | "desc" | undefined) => {
+    if (!direction) return projects;
+    
+    return [...projects].sort((a, b) => {
+      const dateA = getProjectDate(a);
+      const dateB = getProjectDate(b);
+      
+      if (!dateA || !dateB) return 0;
+      
+      if (direction === "desc") {
+        return dateA.getTime() - dateB.getTime(); // Recent first
+      } else {
+        return dateB.getTime() - dateA.getTime(); // Future first
+      }
+    });
+  };
+
+  // Get the earliest date from a project
+  const getProjectDate = (project: any): Date | null => {
+    try {
+      if (project.event_type === "oneTime" && project.schedule?.oneTime?.date) {
+        return parseISO(project.schedule.oneTime.date);
+      } else if (project.event_type === "multiDay" && project.schedule?.multiDay?.length > 0) {
+        // Get the earliest date from multiDay events
+        const dates = project.schedule.multiDay.map((day: any) => parseISO(day.date));
+        return new Date(Math.min(...dates.map((d: Date) => d.getTime())));
+      } else if (project.event_type === "sameDayMultiArea" && project.schedule?.sameDayMultiArea?.date) {
+        return parseISO(project.schedule.sameDayMultiArea.date);
+      }
+    } catch (e) {
+      console.error("Date parsing error:", e);
+    }
+    return null;
   };
 
   // Get volunteer count from a project
@@ -236,7 +282,19 @@ export const ProjectsInfiniteScroll: React.FC = () => {
   });
   
   // Apply sorting if needed
-  const sortedProjects = useMemo(() => sortByVolunteers(filteredProjects, volunteersSort), [filteredProjects, volunteersSort]);
+  const sortedProjects = useMemo(() => {
+    let sorted = [...filteredProjects];
+    
+    if (volunteersSort) {
+      sorted = sortByVolunteers(sorted, volunteersSort);
+    }
+    
+    if (dateSort) {
+      sorted = sortByDate(sorted, dateSort);
+    }
+    
+    return sorted;
+  }, [filteredProjects, volunteersSort, dateSort]);
 
   // Count active filters
   const activeFilterCount = useMemo(() => [
@@ -244,7 +302,8 @@ export const ProjectsInfiniteScroll: React.FC = () => {
     eventTypeFilter ? 1 : 0,
     dateFilter?.from ? 1 : 0,
     volunteersSort ? 1 : 0,
-  ].reduce((a, b) => a + b, 0), [debouncedSearchTerm, eventTypeFilter, dateFilter, volunteersSort]);
+    dateSort ? 1 : 0,
+  ].reduce((a, b) => a + b, 0), [debouncedSearchTerm, eventTypeFilter, dateFilter, volunteersSort, dateSort]);
 
   // Clear all filters function
   const clearAllFilters = () => {
@@ -252,6 +311,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
     setEventTypeFilter(undefined);
     setDateFilter(undefined);
     setVolunteersSort(undefined);
+    setDateSort(undefined);
   };
 
   // Loading skeletons
@@ -340,12 +400,12 @@ export const ProjectsInfiniteScroll: React.FC = () => {
               />
             </div>
 
-            <div className="flex items-center gap-2 order-last sm:order-none">
+            <div className="flex items-center gap-2 flex-grow order-last sm:order-none">
               <DateRangePicker
                 value={dateFilter}
                 onChange={setDateFilter}
                 align="end"
-                className="w-[180px]"
+                className="w-full max-w-[180px]"
               />
             </div>
             
@@ -434,10 +494,41 @@ export const ProjectsInfiniteScroll: React.FC = () => {
                   </div>
 
                   <div className="space-y-2">
+                    <label className="text-sm font-medium">Sort by Date</label>
+                    <Select 
+                      value={dateSort ?? "no-sort"} 
+                      onValueChange={(value) => {
+                        setDateSort(value === "no-sort" ? undefined : value as "asc" | "desc");
+                        // Clear volunteer sort when date sort is selected
+                        if (value !== "no-sort") {
+                          setVolunteersSort(undefined);
+                        }
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="No sorting" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="no-sort">No sorting</SelectItem>
+                        <SelectItem value="desc">Most recent first</SelectItem>
+                        <SelectItem value="asc">Future dates first</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <Separator />
+
+                  <div className="space-y-2">
                     <label className="text-sm font-medium">Sort by Volunteers</label>
                     <Select 
                       value={volunteersSort ?? "no-sort"} 
-                      onValueChange={(value) => setVolunteersSort(value === "no-sort" ? undefined : value as "asc" | "desc")}
+                      onValueChange={(value) => {
+                        setVolunteersSort(value === "no-sort" ? undefined : value as "asc" | "desc");
+                        // Clear date sort when volunteer sort is selected
+                        if (value !== "no-sort") {
+                          setDateSort(undefined);
+                        }
+                      }}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="No sorting" />
@@ -501,7 +592,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
                 <Badge variant="outline" className="gap-1">
                   <Calendar className="h-3 w-3" />
                   {dateFilter.to 
-                    ? `${format(dateFilter.from, "MMM d")} - ${format(dateFilter.to, "MMM d")}`
+                    ? `${format(dateFilter.from, "MMM d")} - ${format(new Date(dateFilter.to.getTime() - 24 * 60 * 60 * 1000), "MMM d")}`
                     : `From ${format(dateFilter.from, "MMM d")}`
                   }
                   <Button 
@@ -509,6 +600,21 @@ export const ProjectsInfiniteScroll: React.FC = () => {
                     size="icon" 
                     className="h-3 w-3 ml-1 p-0"
                     onClick={() => setDateFilter(undefined)}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </Badge>
+              )}
+
+              {dateSort && (
+                <Badge variant="outline" className="gap-1">
+                  <Calendar className="h-3 w-3" />
+                  {dateSort === "desc" ? "Most recent first" : "Future dates first"}
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-3 w-3 ml-1 p-0"
+                    onClick={() => setDateSort(undefined)}
                   >
                     <X className="h-3 w-3" />
                   </Button>
@@ -599,14 +705,14 @@ export const ProjectsInfiniteScroll: React.FC = () => {
             />
           </div>
 
-          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-grow">
             <DateRangePicker
               value={dateFilter}
               onChange={setDateFilter}
               align="end"
-              className="w-[180px]"
+              className="w-full max-w-[180px]"
             />
-          </div>
+            </div>
           
           {/* View Toggle */}
           <div className="flex items-center gap-2">
@@ -686,10 +792,39 @@ export const ProjectsInfiniteScroll: React.FC = () => {
                 </div>
 
                 <div className="space-y-2">
+                  <label className="text-sm font-medium">Sort by Date</label>
+                  <Select 
+                    value={dateSort ?? "no-sort"} 
+                    onValueChange={(value) => {
+                      setDateSort(value === "no-sort" ? undefined : value as "asc" | "desc");
+                      // Clear volunteer sort when date sort is selected
+                      if (value !== "no-sort") {
+                        setVolunteersSort(undefined);
+                      }
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="No sorting" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="no-sort">No sorting</SelectItem>
+                      <SelectItem value="desc">Most recent first</SelectItem>
+                      <SelectItem value="asc">Future dates first</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
                   <label className="text-sm font-medium">Sort by Volunteers</label>
                   <Select 
                     value={volunteersSort ?? "no-sort"} 
-                    onValueChange={(value) => setVolunteersSort(value === "no-sort" ? undefined : value as "asc" | "desc")}
+                    onValueChange={(value) => {
+                      setVolunteersSort(value === "no-sort" ? undefined : value as "asc" | "desc");
+                      // Clear date sort when volunteer sort is selected
+                      if (value !== "no-sort") {
+                        setDateSort(undefined);
+                      }
+                    }}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="No sorting" />
@@ -752,7 +887,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
               <Badge variant="outline" className="gap-1">
                 <Calendar className="h-3 w-3" />
                 {dateFilter.to 
-                  ? `${format(dateFilter.from, "MMM d")} - ${format(dateFilter.to, "MMM d")}`
+                  ? `${format(dateFilter.from, "MMM d")} - ${format(new Date(dateFilter.to.getTime() - 24 * 60 * 60 * 1000), "MMM d")}`
                   : `From ${format(dateFilter.from, "MMM d")}`
                 }
                 <Button
@@ -760,6 +895,21 @@ export const ProjectsInfiniteScroll: React.FC = () => {
                   size="icon" 
                   className="h-3 w-3 ml-1 p-0"
                   onClick={() => setDateFilter(undefined)}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </Badge>
+            )}
+
+            {dateSort && (
+              <Badge variant="outline" className="gap-1">
+                <Calendar className="h-3 w-3" />
+                {dateSort === "desc" ? "Most recent first" : "Future dates first"}
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-3 w-3 ml-1 p-0"
+                  onClick={() => setDateSort(undefined)}
                 >
                   <X className="h-3 w-3" />
                 </Button>

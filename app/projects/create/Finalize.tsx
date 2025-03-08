@@ -437,7 +437,12 @@ export default function Finalize({ state, setCoverImage, setDocuments }: Finaliz
                   />
                 </>
               )}
+              
             </div>
+            <div className="flex items-center mt-2 text-xs text-muted-foreground">
+                <AlertTriangle className="h-3 w-3 mr-1" />
+                <span>Cover images are optional, but if you have an image feel free to show it!</span>
+              </div>
           </div>
 
           {/* Supporting Documents Upload */}
@@ -480,7 +485,6 @@ export default function Finalize({ state, setCoverImage, setDocuments }: Finaliz
             
             {localDocuments.length > 0 && (
               <div className="w-full space-y-2 mt-4">
-                <Separator />
                 <p className="text-sm font-medium">Uploaded Documents</p>
                 <div className="space-y-2">
                   {localDocuments.map((doc, index) => (
@@ -527,11 +531,10 @@ export default function Finalize({ state, setCoverImage, setDocuments }: Finaliz
           <h3 className="text-lg font-semibold mb-1">
             {state.basicInfo.title}
           </h3>
-          <div className="flex items-start gap-2 text-muted-foreground">
+          <div className="flex items-start gap-2 text-muted-foreground mb-4">
             <MapPin className="h-4 w-4 mt-0.5 shrink-0" />
             <span className="text-sm">{state.basicInfo.location}</span>
           </div>
-          <Separator className="my-4" />
           <div className="text-sm">{state.basicInfo.description}</div>
         </div>
 

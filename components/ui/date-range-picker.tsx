@@ -29,6 +29,25 @@ export function DateRangePicker({
   className,
   align = "start"
 }: DateRangePickerProps) {
+  // Handle the date range selection by adding a day to the end date
+  const handleSelect = (range: DateRange | undefined) => {
+    if (range?.to) {
+      // Create a new end date and add one day
+      const adjustedEndDate = new Date(range.to);
+      adjustedEndDate.setDate(adjustedEndDate.getDate() + 1);
+      // Create new range with adjusted end date
+      onChange?.({ from: range.from, to: adjustedEndDate });
+    } else {
+      onChange?.(range);
+    }
+  };
+
+  // For display purposes, if we have an end date, subtract one day to show the actual selected date
+  const displayRange = value && value.to ? {
+    from: value.from,
+    to: new Date(new Date(value.to).setDate(value.to.getDate() - 1))
+  } : value;
+
   return (
     <div className={cn("grid gap-2", className)}>
       <Popover>
@@ -43,13 +62,13 @@ export function DateRangePicker({
             )}
           >
             <CalendarIcon className="mr-2 h-4 w-4" />
-            {value?.from ? (
-              value.to ? (
+            {displayRange?.from ? (
+              displayRange.to ? (
                 <>
-                  {format(value.from, "MMM d")} - {format(value.to, "MMM d")}
+                  {format(displayRange.from, "MMM d")} - {format(displayRange.to, "MMM d")}
                 </>
               ) : (
-                format(value.from, "MMM d")
+                format(displayRange.from, "MMM d")
               )
             ) : (
               <span>Pick dates</span>
@@ -60,9 +79,9 @@ export function DateRangePicker({
           <Calendar
             initialFocus
             mode="range"
-            defaultMonth={value?.from}
-            selected={value}
-            onSelect={onChange}
+            defaultMonth={displayRange?.from}
+            selected={displayRange}
+            onSelect={handleSelect}
             numberOfMonths={1}
           />
         </PopoverContent>

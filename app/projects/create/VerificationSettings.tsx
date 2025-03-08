@@ -68,26 +68,29 @@ export default function VerificationSettings({
             <label
               htmlFor="qr-code"
               className={cn(
-                "flex flex-col items-start space-y-3 rounded-lg border p-4 hover:bg-accent cursor-pointer transition-colors",
-                verificationMethod === "qr-code" && "border-primary bg-accent",
+              "flex flex-col items-start space-y-3 rounded-lg border p-4 hover:bg-accent cursor-pointer transition-colors",
+              verificationMethod === "qr-code" && "border-primary bg-accent",
               )}
             >
               <div className="flex w-full justify-between space-x-3">
-                <div className="flex items-center space-x-3">
-                  <RadioGroupItem value="qr-code" id="qr-code" />
-                  <div className="flex items-center space-x-2">
-                    <QrCode className="flex-shrink-0 h-5 w-5 text-primary mt-0.5" />
-                    <span className="font-medium">QR Code Self Check-in</span>
-                  </div>
+              <div className="flex items-center space-x-3">
+                <RadioGroupItem value="qr-code" id="qr-code" />
+                <div className="flex items-center space-x-2">
+                <QrCode className="flex-shrink-0 h-5 w-5 text-primary mt-0.5" />
+                <span className="font-medium">QR Code Self Check-in</span>
                 </div>
-                <Badge variant="secondary" className="pointer-events-none">
-                  Recommended
-                </Badge>
+              </div>
+              <Badge
+                variant="secondary"
+                className="pointer-events-none flex items-center h-6"
+              >
+                Recommended
+              </Badge>
               </div>
               <div className="text-[0.9rem] text-muted-foreground ml-8">
-                Volunteers scan QR code and log in to track their own hours.
-                They can leave anytime, with automatic logout at the scheduled
-                end time. Hours can be adjusted if needed.
+              Volunteers scan QR code and log in to track their own hours.
+              They can leave anytime, with automatic logout at the scheduled
+              end time. Hours can be adjusted if needed.
               </div>
             </label>
 

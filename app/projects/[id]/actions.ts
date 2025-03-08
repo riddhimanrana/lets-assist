@@ -33,10 +33,10 @@ export async function getCreatorProfile(
   try {
     const supabase = await createClient();
 
-    // Fetch creator profile data
+    // Fetch creator profile data with created_at
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("full_name, avatar_url, username")
+      .select("full_name, avatar_url, username, created_at")
       .eq("id", creatorId)
       .single();
 
