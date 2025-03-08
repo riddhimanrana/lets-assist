@@ -28,7 +28,7 @@ import {
   FormMessage,
   FormDescription,
 } from "@/components/ui/form";
-import { Toaster, toast } from "sonner";
+import { toast } from "sonner";
 import { completeOnboarding, removeProfilePicture } from "./actions";
 import type { OnboardingValues } from "./actions";
 import { z } from "zod";
@@ -482,7 +482,6 @@ export default function ProfileClient() {
           </Card>
         </div>
       </div>
-      <Toaster position="bottom-right" theme="dark" richColors />
     </motion.div>
   );
 }

@@ -22,7 +22,7 @@ import {
   FormControl,
   FormMessage,
 } from "@/components/ui/form";
-import { Toaster, toast } from "sonner";
+import { toast } from "sonner";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -225,7 +225,6 @@ export default function LoginClient() {
           </Form>
         </CardContent>
       </Card>
-      <Toaster position="bottom-center" theme="dark" richColors />
     </div>
   );
 }

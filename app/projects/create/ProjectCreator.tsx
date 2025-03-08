@@ -30,7 +30,7 @@ import { Loader2, ChevronLeft, ChevronRight, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // Replace shadcn toast with Sonner
-import { Toaster, toast } from "sonner";
+import { toast } from "sonner";
 import { createProject, uploadCoverImage, uploadProjectDocument, finalizeProject } from "./actions";
 import { useRouter } from "next/navigation";
 
@@ -347,8 +347,6 @@ export default function ProjectCreator() {
 
   return (
     <>
-      {/* Add Sonner Toaster component */}
-      <Toaster position="bottom-right" richColors theme="dark" />
       
       <div className="mb-6 sm:mb-8">
         <h1 className="text-3xl sm:text-4xl font-bold mb-4">

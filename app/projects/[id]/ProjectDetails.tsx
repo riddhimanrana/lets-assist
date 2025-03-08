@@ -31,7 +31,7 @@ import {
   Zap,
 } from "lucide-react";
 import { format } from "date-fns";
-import { Toaster, toast } from "sonner";
+import { toast } from "sonner";
 import { signUpForProject } from "./actions";
 import { formatTimeTo12Hour, formatBytes } from "@/lib/utils";
 import Link from "next/link";
@@ -512,7 +512,6 @@ export default function ProjectDetails({
 
   return (
     <>
-      <Toaster position="bottom-right" richColors theme="dark" />
       
       <div className="container mx-auto px-4 py-6 max-w-5xl">
         <div className="mb-6">

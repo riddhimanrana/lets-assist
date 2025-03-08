@@ -10,6 +10,7 @@ import localFont from "next/font/local";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { PostHogProvider } from "./providers";
+import { Toaster } from "sonner";
 
 const overusedgrotesk = localFont({
   src: "../public/fonts/OverusedGrotesk-VF.woff2",
@@ -78,6 +79,7 @@ export default async function RootLayout({
               {/* Pass server-fetched user to Navbar */}
               <Navbar initialUser={user} />
               <main className="flex-1">{children}</main>
+              <Toaster position="bottom-right" richColors theme="dark" />
               <Footer />
               <SpeedInsights />
             </div>

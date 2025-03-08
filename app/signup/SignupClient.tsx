@@ -23,7 +23,7 @@ import {
   FormControl,
   FormMessage,
 } from "@/components/ui/form";
-import { Toaster, toast } from "sonner";
+import { toast } from "sonner";
 import { useTheme } from "next-themes";
 import { useSearchParams } from "next/navigation";
 
@@ -266,11 +266,6 @@ export default function SignupClient() {
           </Form>
         </CardContent>
       </Card>
-      <Toaster
-        position="bottom-right"
-        theme={theme as "light" | "dark"}
-        richColors
-      />
     </div>
   );
 }
