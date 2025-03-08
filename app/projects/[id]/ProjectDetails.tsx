@@ -125,7 +125,8 @@ export default function ProjectDetails({
     if (navigator.share && /Mobi/.test(navigator.userAgent)) {
       navigator
         .share({
-          title: "Check out this project",
+          title: `${project.title} - Let's Assist`,
+          text: "Check out this project!",
           url
         })
         .catch((err) => {
