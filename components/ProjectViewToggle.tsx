@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { 
@@ -46,6 +46,8 @@ type ProjectViewToggleProps = {
   view: "card" | "list" | "table";
   onViewChange: (view: "card" | "list" | "table") => void;
 };
+
+const STORAGE_KEY = "preferred-project-view";
 
 const formatTime = (timeString: string) => {
   try {
@@ -178,6 +180,19 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
 }) => {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+
+  // Load saved view preference on mount
+  useEffect(() => {
+    const savedView = localStorage.getItem(STORAGE_KEY) as "card" | "list" | "table" | null;
+    if (savedView && savedView !== view) {
+      onViewChange(savedView);
+    }
+  }, []);
+
+  // Save view preference whenever it changes
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, view);
+  }, [view]);
 
   // Handle volunteer sort toggle
   const handleVolunteerSortToggle = () => {

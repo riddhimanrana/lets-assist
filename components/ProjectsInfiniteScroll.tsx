@@ -391,12 +391,12 @@ export const ProjectsInfiniteScroll: React.FC = () => {
           {/* Search and filter controls */}
           <div className="flex flex-wrap items-center gap-3">
             <div className="relative w-full sm:w-auto sm:flex-1 max-w-md">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search projects..."
-                className="pl-8"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search projects..."
+              className="pl-8"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
 
@@ -695,15 +695,15 @@ export const ProjectsInfiniteScroll: React.FC = () => {
       <div className="mb-8">
         {/* Search and filter controls */}
         <div className="flex flex-wrap items-center gap-3">
-          <div className="relative w-full sm:w-auto sm:flex-1 max-w-md">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
+        <div className="relative w-full sm:w-auto sm:flex-1 max-w-md">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
               placeholder="Search projects..."
               className="pl-8"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
+              />
+            </div>
 
             <div className="flex items-center gap-2 flex-grow">
             <DateRangePicker
