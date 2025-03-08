@@ -17,12 +17,18 @@ import {
   Users, 
   Share2, 
   Clock, 
-  Image as ImageIcon, 
   FileText, 
   Download, 
   Eye, 
   File, 
-  FileImage, 
+  FileImage,
+  Lock,
+  UserPlus,
+  LogIn,
+  Loader2,
+  QrCode,
+  UserCheck,
+  Zap,
 } from "lucide-react";
 import { format } from "date-fns";
 import { Toaster, toast } from "sonner";
@@ -42,21 +48,49 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogClose
+  DialogDescription,
+  DialogFooter
 } from "@/components/ui/dialog";
 import { useState, useEffect } from "react";
 import FilePreview from "@/components/FilePreview";
+import { createClient } from "@/utils/supabase/client";
+import { useRouter } from "next/navigation";
+import { Input } from "@/components/ui/input";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 
+// Form schema for anonymous signup
+const anonymousSignupSchema = z.object({
+  name: z.string().min(2, { message: "Name is required" }),
+  email: z.string().email({ message: "Invalid email address" }).optional().or(z.literal("")),
+  phone: z.string().optional().or(z.literal("")),
+});
+
+type AnonymousSignupFormValues = z.infer<typeof anonymousSignupSchema>;
+
+// Define Props type
 type Props = {
   project: Project;
   creator: Profile | null;
 };
 
+// Define ScheduleData type
 type ScheduleData =
   | OneTimeSchedule
   | MultiDayScheduleDay[]
   | SameDayMultiAreaSchedule
   | undefined;
+
+// Define ProjectDocument type
+type ProjectDocument = {
+  name: string;
+  originalName: string;
+  type: string;
+  size: number;
+  url: string;
+};
 
 // File type icon mapping
 const getFileIcon = (type: string) => {
@@ -92,13 +126,38 @@ export default function ProjectDetails({
   project,
   creator,
 }: Props): React.ReactElement {
+  const router = useRouter();
   const [previewDoc, setPreviewDoc] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewDocName, setPreviewDocName] = useState<string>("Document");
   const [previewDocType, setPreviewDocType] = useState<string>("");
+  const [user, setUser] = useState<any>(null);
+  const [authDialogOpen, setAuthDialogOpen] = useState(false);
+  const [anonymousDialogOpen, setAnonymousDialogOpen] = useState(false);
+  const [currentScheduleId, setCurrentScheduleId] = useState<string>("");
+  // Track loading state for individual buttons
+  const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
 
-  // Check for creation message on component mount with increased delay
+  // Anonymous signup form
+  const anonymousForm = useForm<AnonymousSignupFormValues>({
+    resolver: zodResolver(anonymousSignupSchema),
+    defaultValues: {
+      name: "",
+      email: "",
+      phone: "",
+    },
+  });
+
+  // Check for user authentication on component mount
   useEffect(() => {
+    const checkAuth = async () => {
+      const supabase = createClient();
+      const { data } = await supabase.auth.getUser();
+      setUser(data.user);
+    };
+
+    checkAuth();
+    
     const timer = setTimeout(() => {
       const message = sessionStorage.getItem("project_creation_message");
       const status = sessionStorage.getItem("project_creation_status");
@@ -110,7 +169,6 @@ export default function ProjectDetails({
           toast.success(message);
         }
         
-        // Clear the message from storage
         sessionStorage.removeItem("project_creation_message");
         sessionStorage.removeItem("project_creation_status");
       }
@@ -174,13 +232,52 @@ export default function ProjectDetails({
 
   const scheduleData = getScheduleData();
 
-  const handleSignUp = async (scheduleId: string) => {
-    const result = await signUpForProject(project.id, scheduleId);
+  const handleSignUpClick = (scheduleId: string) => {
+    if (!user) {
+      if (project.require_login) {
+        // Only require auth if the project has require_login set to true
+        setCurrentScheduleId(scheduleId);
+        setAuthDialogOpen(true);
+      } else {
+        // If anonymous signups allowed, show dialog for collecting information
+        setCurrentScheduleId(scheduleId);
+        setAnonymousDialogOpen(true);
+      }
+    } else {
+      handleSignUp(scheduleId);
+    }
+  };
+
+  const handleSignUp = async (scheduleId: string, anonymousData?: AnonymousSignupFormValues) => {
+    // Set loading state for this specific button
+    setLoadingStates(prev => ({ ...prev, [scheduleId]: true }));
+    
+    const result = await signUpForProject(project.id, scheduleId, anonymousData);
+    
+    // Clear loading state for this specific button
+    setLoadingStates(prev => ({ ...prev, [scheduleId]: false }));
+    
+    // Close the dialog if it was open
+    setAnonymousDialogOpen(false);
+    
     if (result.error) {
       toast.error(result.error);
     } else {
       toast.success("You have successfully signed up for this project.");
+      // Reset form
+      anonymousForm.reset();
     }
+  };
+
+  const handleAnonymousSubmit = (values: AnonymousSignupFormValues) => {
+    handleSignUp(currentScheduleId, values);
+  };
+  
+  const redirectToAuth = (path: 'login' | 'signup') => {
+    // Store the current URL to redirect back after auth
+    sessionStorage.setItem('redirect_after_auth', window.location.href);
+    // Navigate to login/signup page
+    router.push(`/${path}?redirect=${encodeURIComponent(window.location.pathname)}`);
   };
 
   const renderScheduleOverview = (eventType: EventType) => {
@@ -257,6 +354,7 @@ export default function ProjectDetails({
     switch (project.event_type) {
       case "oneTime": {
         const oneTimeData = scheduleData as OneTimeSchedule;
+        const scheduleId = "oneTime";
         return (
           <Card className="bg-card/50 hover:bg-card/80 transition-colors">
             <CardContent className="p-4">
@@ -280,9 +378,15 @@ export default function ProjectDetails({
                 <Button
                   variant="default"
                   size="sm"
-                  onClick={() => handleSignUp("oneTime")}
+                  onClick={() => handleSignUpClick(scheduleId)}
+                  disabled={loadingStates[scheduleId]}
                 >
-                  Sign Up
+                  {loadingStates[scheduleId] ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Processing...
+                    </>
+                  ) : "Sign Up"}
                 </Button>
               </div>
             </CardContent>
@@ -300,37 +404,44 @@ export default function ProjectDetails({
                   {format(new Date(day.date), "EEEE, MMMM d")}
                 </h3>
                 <div className="space-y-2">
-                  {day.slots.map((slot, slotIndex) => (
-                    <Card
-                      key={slotIndex}
-                      className="bg-card/50 hover:bg-card/80 transition-colors"
-                    >
-                      <CardContent className="p-4">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                          <div className="flex items-center gap-2 text-muted-foreground">
-                            <Clock className="h-3.5 w-3.5" />
-                            <span>
-                              {formatTimeTo12Hour(slot.startTime)} -{" "}
-                              {formatTimeTo12Hour(slot.endTime)}
-                            </span>
-                            <span className="flex items-center ml-2">
-                              <Users className="h-3.5 w-3.5 mr-1" />
-                              {formatSpots(slot.volunteers)}
-                            </span>
+                  {day.slots.map((slot, slotIndex) => {
+                    const scheduleId = `${day.date}-${slotIndex}`;
+                    return (
+                      <Card
+                        key={slotIndex}
+                        className="bg-card/50 hover:bg-card/80 transition-colors"
+                      >
+                        <CardContent className="p-4">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                              <Clock className="h-3.5 w-3.5" />
+                              <span>
+                                {formatTimeTo12Hour(slot.startTime)} -{" "}
+                                {formatTimeTo12Hour(slot.endTime)}
+                              </span>
+                              <span className="flex items-center ml-2">
+                                <Users className="h-3.5 w-3.5 mr-1" />
+                                {formatSpots(slot.volunteers)}
+                              </span>
+                            </div>
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={() => handleSignUpClick(scheduleId)}
+                              disabled={loadingStates[scheduleId]}
+                            >
+                              {loadingStates[scheduleId] ? (
+                                <>
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  Processing...
+                                </>
+                              ) : "Sign Up"}
+                            </Button>
                           </div>
-                          <Button
-                            variant="default"
-                            size="sm"
-                            onClick={() =>
-                              handleSignUp(`${day.date}-${slotIndex}`)
-                            }
-                          >
-                            Sign Up
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
                 </div>
               </div>
             ))}
@@ -346,43 +457,52 @@ export default function ProjectDetails({
               {format(new Date(multiAreaData.date), "EEEE, MMMM d")}
             </h3>
             <div className="grid gap-2">
-              {multiAreaData.roles?.map((role, index) => (
-                <Card
-                  key={index}
-                  className="bg-card/50 hover:bg-card/80 transition-colors"
-                >
-                  <CardContent className="p-4">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-medium text-sm sm:text-base truncate">
-                          {role.name}
-                        </h4>
-                        <div className="flex flex-wrap items-center gap-2 text-muted-foreground mt-1 text-xs sm:text-sm">
-                          <div className="flex items-center">
-                            <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-1 flex-shrink-0" />
-                            <span className="truncate">
-                              {formatTimeTo12Hour(role.startTime)} -{" "}
-                              {formatTimeTo12Hour(role.endTime)}
-                            </span>
-                          </div>
-                          <div className="flex items-center">
-                            <Users className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-1 flex-shrink-0" />
-                            <span>{formatSpots(role.volunteers)}</span>
+              {multiAreaData.roles?.map((role, index) => {
+                const scheduleId = role.name;
+                return (
+                  <Card
+                    key={index}
+                    className="bg-card/50 hover:bg-card/80 transition-colors"
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-medium text-sm sm:text-base truncate">
+                            {role.name}
+                          </h4>
+                          <div className="flex flex-wrap items-center gap-2 text-muted-foreground mt-1 text-xs sm:text-sm">
+                            <div className="flex items-center">
+                              <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-1 flex-shrink-0" />
+                              <span className="truncate">
+                                {formatTimeTo12Hour(role.startTime)} -{" "}
+                                {formatTimeTo12Hour(role.endTime)}
+                              </span>
+                            </div>
+                            <div className="flex items-center">
+                              <Users className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-1 flex-shrink-0" />
+                              <span>{formatSpots(role.volunteers)}</span>
+                            </div>
                           </div>
                         </div>
+                        <Button
+                          variant="default"
+                          size="sm"
+                          className="w-full sm:w-auto mt-2 sm:mt-0"
+                          onClick={() => handleSignUpClick(scheduleId)}
+                          disabled={loadingStates[scheduleId]}
+                        >
+                          {loadingStates[scheduleId] ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Processing...
+                            </>
+                          ) : "Sign Up"}
+                        </Button>
                       </div>
-                      <Button
-                        variant="default"
-                        size="sm"
-                        className="w-full sm:w-auto mt-2 sm:mt-0"
-                        onClick={() => handleSignUp(role.name)}
-                      >
-                        Sign Up
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           </div>
         );
@@ -430,8 +550,14 @@ export default function ProjectDetails({
             </Card>
 
             <Card>
-              <CardHeader className="pb-3">
-                <CardTitle>Volunteer Opportunities</CardTitle>
+              <CardHeader className="pb-3 flex flex-col sm:flex-row items-start sm:items-center justify-between">
+              <CardTitle>Volunteer Opportunities</CardTitle>
+              {project.require_login && (
+                <Badge variant="secondary" className="gap-1 mt-2 sm:mt-0 ml-0 sm:ml-2">
+                <Lock className="h-3 w-3" />
+                Account Required
+                </Badge>
+              )}
               </CardHeader>
               <CardContent>{renderVolunteerOpportunities()}</CardContent>
             </Card>
@@ -548,31 +674,70 @@ export default function ProjectDetails({
                   </HoverCard>
                 </div>
 
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground mb-2">
+                    Sign-up Requirements
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    <Badge
+                      variant={project.require_login ? "secondary" : "outline"}
+                      className="text-xs flex items-center gap-1"
+                    >
+                      {project.require_login ? (
+                        <>
+                          <Lock className="h-3 w-3" />
+                          Account Required
+                        </>
+                      ) : (
+                        <>
+                          <Users className="h-3 w-3" />
+                          Anonymous Sign-ups Allowed
+                        </>
+                      )}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    {project.require_login
+                      ? "Volunteers must create an account to sign up for this event."
+                      : "Anyone can sign up without creating an account (anonymous volunteers)."}
+                  </p>
+                </div>
+                <div>
                 <h3 className="text-sm font-medium text-muted-foreground mb-2">
                   Check-in Method
                 </h3>
                 <div className="flex items-center gap-2">
                   {project.verification_method === "qr-code" && (
-                    <Badge variant="outline">QR Code Check-in</Badge>
+                  <Badge variant="outline" className="text-xs flex items-center gap-1">
+                    <QrCode className="h-3 w-3" />
+                    QR Code Check-in
+                  </Badge>
                   )}
                   {project.verification_method === "manual" && (
-                    <Badge variant="outline">Manual Check-in</Badge>
+                  <Badge variant="outline" className="text-xs flex items-center gap-1">
+                    <UserCheck className="h-3 w-3" />
+                    Manual Check-in
+                  </Badge>
                   )}
                   {project.verification_method === "auto" && (
-                    <Badge variant="outline">Automatic Check-in</Badge>
+                  <Badge variant="outline" className="text-xs flex items-center gap-1">
+                    <Zap className="h-3 w-3" />
+                    Automatic Check-in
+                  </Badge>
                   )}
                 </div>
-                <p className="text-sm text-muted-foreground mt-2">
+                <p className="text-xs text-muted-foreground mt-2">
                   {project.verification_method === "qr-code"
-                    ? "Volunteers will check-in by scanning a QR code"
-                    : project.verification_method === "manual"
-                      ? "Organizer will check-in volunteers manually"
-                      : "System will handle check-ins automatically"}
+                  ? "Volunteers will check-in by scanning a QR code"
+                  : project.verification_method === "manual"
+                    ? "Organizer will check-in volunteers manually"
+                    : "System will handle check-ins automatically"}
                 </p>
+                </div>
               </CardContent>
             </Card>
 
-            {/* Project Documents Section - Moved here from left column */}
+            {/* Project Documents Section */}
             {project.documents && project.documents.length > 0 && (
               <Card className="bg-card">
                 <CardHeader className="pb-3">
@@ -580,7 +745,7 @@ export default function ProjectDetails({
                 </CardHeader>
                 <CardContent className="p-4">
                   <div className="space-y-3">
-                    {project.documents.map((doc, index) => (
+                    {project.documents.map((doc: ProjectDocument, index: number) => (
                       <div 
                         key={index} 
                         className="flex items-center justify-between p-3 rounded-lg border bg-background hover:bg-muted/20 transition-colors"
@@ -631,6 +796,113 @@ export default function ProjectDetails({
         fileName={previewDocName}
         fileType={previewDocType}
       />
+
+      {/* Authentication Dialog */}
+      <Dialog open={authDialogOpen} onOpenChange={setAuthDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Authentication Required</DialogTitle>
+            <DialogDescription>
+              {"This project requires an account to sign up."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="flex flex-col gap-4">
+              <Button 
+                onClick={() => redirectToAuth('login')}
+                className="flex items-center justify-center gap-2"
+              >
+                <LogIn className="h-4 w-4" />
+                Login to Your Account
+              </Button>
+              <Button 
+                onClick={() => redirectToAuth('signup')} 
+                variant="outline"
+                className="flex items-center justify-center gap-2"
+              >
+                <UserPlus className="h-4 w-4" />
+                Create New Account
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Anonymous Signup Dialog */}
+      <Dialog open={anonymousDialogOpen} onOpenChange={setAnonymousDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Quick Sign Up</DialogTitle>
+            <DialogDescription>
+              Please provide your information to sign up for this opportunity.
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...anonymousForm}>
+            <form onSubmit={anonymousForm.handleSubmit(handleAnonymousSubmit)} className="space-y-4 py-4">
+              <FormField
+                control={anonymousForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Full Name*</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter your name" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={anonymousForm.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email (Optional)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="your@email.com" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={anonymousForm.control}
+                name="phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Phone Number (Optional)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="(555) 555-5555" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <DialogFooter className="pt-4">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setAnonymousDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit"
+                  disabled={anonymousForm.formState.isSubmitting}
+                >
+                  {anonymousForm.formState.isSubmitting && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  Sign Up
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

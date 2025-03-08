@@ -51,25 +51,60 @@ export async function getCreatorProfile(
   }
 }
 
-export async function signUpForProject(projectId: string, scheduleId: string) {
+export async function signUpForProject(
+  projectId: string, 
+  scheduleId: string,
+  anonymousData?: { 
+    name: string;
+    email?: string;
+    phone?: string;
+  }
+) {
   try {
     const supabase = await createClient();
+    
+    // First, check if the project requires login
+    const { data: project, error: projectError } = await supabase
+      .from("projects")
+      .select("require_login")
+      .eq("id", projectId)
+      .single();
+    
+    if (projectError) {
+      throw projectError;
+    }
+    
+    // Get current user if available
     const {
       data: { user },
       error: userError,
     } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-      return { error: "You must be logged in to sign up for a project" };
+    
+    // If project requires login and user is not logged in, return an error
+    if (project.require_login && (!user || userError)) {
+      return { error: "This project requires an account to sign up" };
     }
+    
+    // For anonymous signup (no user but project allows it)
+    const userId = user?.id || null;
+    const isAnonymous = !userId;
 
-    // Add your signup logic here
-    // This is just a placeholder, implement according to your needs
+    // Make sure anonymous users provided their name
+    if (isAnonymous && (!anonymousData || !anonymousData.name)) {
+      return { error: "Please provide your name to sign up" };
+    }
+    
+    // Add signup to database
     const { error } = await supabase.from("project_signups").insert({
       project_id: projectId,
-      user_id: user.id,
+      user_id: userId,
       schedule_id: scheduleId,
       status: "pending",
+      is_anonymous: isAnonymous,
+      // Include anonymous user data if provided
+      anonymous_name: isAnonymous ? anonymousData?.name : null,
+      anonymous_email: isAnonymous ? anonymousData?.email : null,
+      anonymous_phone: isAnonymous ? anonymousData?.phone : null,
     });
 
     if (error) throw error;

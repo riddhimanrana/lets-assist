@@ -21,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
+import { Label } from "@/components/ui/label";
 
 // icon components
 import { Loader2, ChevronLeft, ChevronRight, AlertCircle } from "lucide-react";
@@ -417,6 +418,10 @@ export default function ProjectCreator() {
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Search Location</DialogTitle>
+            <Label className="flex items-center text-xs font-medium text-destructive">
+              <AlertCircle className="mr-2 h-4 w-4" />
+              This feature is in early beta and not recommended for use.
+            </Label>
           </DialogHeader>
           <div className="space-y-4">
             <div className="flex">

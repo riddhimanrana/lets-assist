@@ -4,7 +4,8 @@ import { createClient } from "@/utils/supabase/server";
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const next = "/home";
+  const redirectAfterAuth = searchParams.get("redirectAfterAuth");
+  const next = redirectAfterAuth ? new URL(redirectAfterAuth).pathname : "/home";
   const error = searchParams.get("error");
   const error_description = searchParams.get("error_description");
 
@@ -30,10 +31,6 @@ export async function GET(request: Request) {
     if (!error && session) {
       try {
         const { user } = session;
-        // console.log('Full user object:', JSON.stringify(user, null, 2))
-        // console.log('User metadata:', user.user_metadata)
-        // console.log('User identities:', user.identities)
-
         // Check if profile already exists
         const { data: existingProfile } = await supabase
           .from("profiles")
@@ -58,9 +55,6 @@ export async function GET(request: Request) {
             user.user_metadata?.avatar_url ||
             user.user_metadata?.picture;
 
-          // console.log('Google identity data:', identityData)
-          // console.log('Selected avatar URL:', avatarUrl)
-
           // Create profile
           const { error: profileError } = await supabase
             .from("profiles")
@@ -77,19 +71,28 @@ export async function GET(request: Request) {
             console.error("Profile creation error:", profileError);
             throw profileError;
           }
-        } else {
-          // console.log('Found existing profile:', existingProfile)
         }
 
         const forwardedHost = request.headers.get("x-forwarded-host");
         const isLocalEnv = process.env.NODE_ENV === "development";
-
+        
+        // Determine the base URL based on environment
+        let baseUrl;
         if (isLocalEnv) {
-          return NextResponse.redirect(`${origin}${next}`);
+          baseUrl = origin;
         } else if (forwardedHost) {
-          return NextResponse.redirect(`https://${forwardedHost}${next}`);
+          baseUrl = `https://${forwardedHost}`;
         } else {
-          return NextResponse.redirect(`${origin}${next}`);
+          baseUrl = origin;
+        }
+
+        // Construct the full redirect URL without duplicating the origin
+        // Ensure we're using the path portion when the redirectAfterAuth is a full URL
+        let redirectPath = next;
+        if (redirectPath.startsWith('/')) {
+          return NextResponse.redirect(`${baseUrl}${redirectPath}`);
+        } else {
+          return NextResponse.redirect(`${baseUrl}/${redirectPath}`);
         }
       } catch (error) {
         console.error("Error in callback:", error);
