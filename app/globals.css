@@ -80,6 +80,23 @@
   }
 }
 
+/* Add Tippy.js animations */
+@keyframes shift-away {
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+}
+
+.tippy-box[data-animation='shift-away'][data-state='hidden'] {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
 @media (max-width: 768px) {
   .hidden-md {
     display: none;

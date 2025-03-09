@@ -5,10 +5,12 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { RichTextEditor } from "@/components/ui/rich-text-editor";
+import { useState } from "react";
+import { RichTextContent } from "@/components/ui/rich-text-content";
 
 interface BasicInfoProps {
   state: {
@@ -30,6 +32,8 @@ export default function BasicInfo({
   updateBasicInfoAction,
   onMapClickAction,
 }: BasicInfoProps) {
+  const [previewMode, setPreviewMode] = useState(false);
+
   const getCounterColor = (current: number, max: number) => {
     const percentage = (current / max) * 100;
     if (percentage >= 90) return "text-destructive";
@@ -105,26 +109,26 @@ export default function BasicInfo({
         <div className="space-y-2">
           <div className="flex justify-between items-baseline">
             <Label htmlFor="description">Description</Label>
-            <span
-              className={cn(
-                "text-xs transition-colors",
-                getCounterColor(state.basicInfo.description.length, 1000),
-              )}
-            >
-              {state.basicInfo.description.length}/1000
-            </span>
+            <div className="space-x-2">
+              <Button type="button" variant={previewMode ? "outline" : "default"} size="sm" onClick={() => setPreviewMode(false)}>
+                Edit
+              </Button>
+              <Button type="button" variant={!previewMode ? "outline" : "default"} size="sm" onClick={() => setPreviewMode(true)}>
+                Preview
+              </Button>
+            </div>
           </div>
-          <Textarea
-            id="description"
-            placeholder="e.g., Join us for a day of fun and community service..."
-            value={state.basicInfo.description}
-            onChange={(e) => {
-              if (e.target.value.length <= 1000) {
-                updateBasicInfoAction("description", e.target.value);
-              }
-            }}
-            maxLength={1000}
-          />
+          {previewMode ? (
+            <div className="rounded-md border bg-background p-4 shadow-sm">
+              <RichTextContent content={state.basicInfo.description} />
+            </div>
+          ) : (
+            <RichTextEditor
+              content={state.basicInfo.description}
+              onChange={(html) => updateBasicInfoAction("description", html)}
+              maxLength={1000}
+            />
+          )}
         </div>
       </CardContent>
     </Card>

@@ -28,6 +28,7 @@ import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { toast } from "sonner";
+import { RichTextContent } from "@/components/ui/rich-text-content";
 
 // Maximum file sizes
 const MAX_COVER_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -535,7 +536,7 @@ export default function Finalize({ state, setCoverImage, setDocuments }: Finaliz
             <MapPin className="h-4 w-4 mt-0.5 shrink-0" />
             <span className="text-sm">{state.basicInfo.location}</span>
           </div>
-          <div className="text-sm">{state.basicInfo.description}</div>
+          <RichTextContent content={state.basicInfo.description} className="text-sm" />
         </div>
 
         <div className="bg-muted/50 p-4 rounded-lg space-y-4">

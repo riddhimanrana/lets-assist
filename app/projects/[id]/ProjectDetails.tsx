@@ -11,6 +11,8 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { RichTextContent } from "@/components/ui/rich-text-content";
 import { 
   CalendarDays, 
   MapPin, 
@@ -543,7 +545,13 @@ export default function ProjectDetails({
                 <CardTitle>About this Project</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-muted-foreground">{project.description}</p>
+              {/* <div className="rounded-md border bg-background p-4 shadow-sm"> */}
+                <RichTextContent 
+                  content={project.description} 
+                  className="text-muted-foreground text-sm"
+                />
+                {/* </div> */}
+                <Separator className="mt-4"/>
                 {renderScheduleOverview(project.event_type)}
               </CardContent>
             </Card>
@@ -873,7 +881,7 @@ export default function ProjectDetails({
                   <FormItem>
                     <FormLabel>Phone Number (Optional)</FormLabel>
                     <FormControl>
-                      <Input placeholder="(555) 555-5555" {...field} />
+                      <Input placeholder="555-555-5555" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
