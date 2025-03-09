@@ -17,6 +17,7 @@ import {
   Moon,
   Laptop,
   MonitorSmartphone,
+  Loader2,
 } from "lucide-react";
 import { NoAvatar } from "@/components/NoAvatar";
 import { createClient } from "@/utils/supabase/client";
@@ -122,34 +123,37 @@ export default function Navbar({ initialUser }: NavbarProps) {
   const [showBugDialog, setShowBugDialog] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
   const { theme, setTheme } = useTheme();
+  // Add loading state for logout
+  const [isLoggingOut, setIsLoggingOut] = React.useState(false);
 
-  React.useEffect(() => {
-    async function getUserAndProfile() {
-      const supabase = createClient();
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
+  // Extract the getUserAndProfile function to reuse it for error handling
+  const getUserAndProfile = async () => {
+    const supabase = createClient();
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
 
-      if (userError || !user) {
-        setUser(null);
-        setProfile(null);
-        setIsProfileLoading(false);
-        return;
-      }
-
-      setUser(user);
-
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("full_name, avatar_url, username")
-        .eq("id", user.id)
-        .single();
-
-      setProfile(profileData);
+    if (userError || !user) {
+      setUser(null);
+      setProfile(null);
       setIsProfileLoading(false);
+      return;
     }
 
+    setUser(user);
+
+    const { data: profileData } = await supabase
+      .from("profiles")
+      .select("full_name, avatar_url, username")
+      .eq("id", user.id)
+      .single();
+
+    setProfile(profileData);
+    setIsProfileLoading(false);
+  };
+
+  React.useEffect(() => {
     getUserAndProfile();
   }, []);
 
@@ -236,6 +240,36 @@ export default function Navbar({ initialUser }: NavbarProps) {
       </div>
     </div>
   );
+
+  // Handle logout with loading state
+  const handleLogout = async () => {
+    try {
+      setIsLoggingOut(true);
+      
+      // Clear client-side user data first to prevent components from trying to access it
+      // setUser(null);
+      // setProfile(null);
+      
+      const result = await logout();
+      
+      if (result.success) {
+        // Use a small delay before redirecting to ensure state updates are processed
+        setTimeout(() => {
+          window.location.href = "/";
+        }, 100);
+      } else {
+        console.error('Logout failed:', result.error);
+        // Restore user state if logout fails
+        getUserAndProfile();
+        setIsLoggingOut(false);
+      }
+    } catch (error) {
+      console.error('Logout failed:', error);
+      // Restore user state if logout fails
+      getUserAndProfile();
+      setIsLoggingOut(false);
+    }
+  };
 
   return (
     <>
@@ -405,13 +439,15 @@ export default function Navbar({ initialUser }: NavbarProps) {
                     <DropdownMenuSeparator className="my-2" />
                     <DropdownMenuItem
                       className="text-destructive focus:text-destructive py-2.5 cursor-pointer flex justify-between"
-                      onClick={async () => {
-                        setUser(null);
-                        await logout();
-                      }}
+                      onClick={handleLogout}
+                      disabled={isLoggingOut}
                     >
-                      <span>Log Out</span>
-                      <LogOut className="h-4 w-4" />
+                      <span>{isLoggingOut ? "Logging out..." : "Log Out"}</span>
+                      {isLoggingOut ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <LogOut className="h-4 w-4" />
+                      )}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -470,14 +506,15 @@ export default function Navbar({ initialUser }: NavbarProps) {
                     <Button
                       variant="destructive"
                       className="w-full mb-6"
-                      onClick={async () => {
-                        setUser(null);
-                        handleNavigation();
-                        await logout();
-                      }}
+                      onClick={handleLogout}
+                      disabled={isLoggingOut}
                     >
-                      <LogOut className="mr-2 h-4 w-4" />
-                      Log Out
+                      {isLoggingOut ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <LogOut className="mr-2 h-4 w-4" />
+                      )}
+                      {isLoggingOut ? "Logging out..." : "Log Out"}
                     </Button>
 
                     {/* Replace theme selector for logged-in users on mobile */}
