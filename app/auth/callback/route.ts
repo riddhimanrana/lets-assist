@@ -18,7 +18,7 @@ export async function GET(request: Request) {
         `${origin}/login?error=email-password-exists`,
       );
     }
-    return NextResponse.redirect(`${origin}/auth/auth-code-error`);
+    return NextResponse.redirect(`${origin}/error`);
   }
 
   if (code) {
@@ -31,6 +31,7 @@ export async function GET(request: Request) {
     if (!error && session) {
       try {
         const { user } = session;
+
         // Check if profile already exists
         const { data: existingProfile } = await supabase
           .from("profiles")
@@ -55,6 +56,7 @@ export async function GET(request: Request) {
             user.user_metadata?.avatar_url ||
             user.user_metadata?.picture;
 
+
           // Create profile
           const { error: profileError } = await supabase
             .from("profiles")
@@ -71,32 +73,23 @@ export async function GET(request: Request) {
             console.error("Profile creation error:", profileError);
             throw profileError;
           }
+        } else {
         }
 
         const forwardedHost = request.headers.get("x-forwarded-host");
         const isLocalEnv = process.env.NODE_ENV === "development";
         
-        // Determine the base URL based on environment
-        let baseUrl;
+        // Simplify redirect logic to match working version
         if (isLocalEnv) {
-          baseUrl = origin;
+          return NextResponse.redirect(`${origin}${next}`);
         } else if (forwardedHost) {
-          baseUrl = `https://${forwardedHost}`;
+          return NextResponse.redirect(`https://${forwardedHost}${next}`);
         } else {
-          baseUrl = origin;
-        }
-
-        // Construct the full redirect URL without duplicating the origin
-        // Ensure we're using the path portion when the redirectAfterAuth is a full URL
-        let redirectPath = next;
-        if (redirectPath.startsWith('/')) {
-          return NextResponse.redirect(`${baseUrl}${redirectPath}`);
-        } else {
-          return NextResponse.redirect(`${baseUrl}/${redirectPath}`);
+          return NextResponse.redirect(`${origin}${next}`);
         }
       } catch (error) {
         console.error("Error in callback:", error);
-        return NextResponse.redirect(`${origin}/auth/auth-code-error`);
+        return NextResponse.redirect(`${origin}/error`);
       }
     } else {
       console.error("Session error:", error);
@@ -105,9 +98,9 @@ export async function GET(request: Request) {
           `${origin}/login?error=email-password-exists`,
         );
       }
-      return NextResponse.redirect(`${origin}/auth/auth-code-error`);
+      return NextResponse.redirect(`${origin}/error`);
     }
   }
 
-  return NextResponse.redirect(`${origin}/auth/auth-code-error`);
+  return NextResponse.redirect(`${origin}/error`);
 }
