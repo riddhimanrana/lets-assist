@@ -115,3 +115,141 @@ export async function signUpForProject(
     return { error: "Failed to sign up for project" };
   }
 }
+
+export async function deleteProject(projectId: string) {
+  try {
+    const supabase = await createClient();
+    
+    // Get current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      return { error: "Unauthorized" };
+    }
+
+    // Verify project ownership
+    const { data: project } = await supabase
+      .from("projects")
+      .select("creator_id")
+      .eq("id", projectId)
+      .single();
+
+    if (!project || project.creator_id !== user.id) {
+      return { error: "Unauthorized" };
+    }
+
+    // Delete project files first
+    const { data: projectData } = await supabase
+      .from("projects")
+      .select("cover_image_url, documents")
+      .eq("id", projectId)
+      .single();
+
+    if (projectData) {
+      // Delete cover image if it exists
+      if (projectData.cover_image_url?.includes("supabase.co")) {
+        try {
+          const urlParts = new URL(projectData.cover_image_url);
+          const pathParts = urlParts.pathname.split("/");
+          const fileName = pathParts[pathParts.length - 1];
+          if (fileName) {
+            await supabase.storage.from("project-images").remove([fileName]);
+          }
+        } catch (error) {
+          console.error("Error deleting cover image:", error);
+        }
+      }
+
+      // Delete documents if they exist
+      if (projectData.documents?.length > 0) {
+        try {
+          const fileNames = projectData.documents.map((doc: any) => {
+            const urlParts = new URL(doc.url);
+            const pathParts = urlParts.pathname.split("/");
+            return pathParts[pathParts.length - 1];
+          });
+          await supabase.storage.from("project-documents").remove(fileNames);
+        } catch (error) {
+          console.error("Error deleting documents:", error);
+        }
+      }
+    }
+
+    // Delete project signups
+    await supabase
+      .from("project_signups")
+      .delete()
+      .eq("project_id", projectId);
+
+    // Finally delete the project
+    const { error: deleteError } = await supabase
+      .from("projects")
+      .delete()
+      .eq("id", projectId);
+
+    if (deleteError) throw deleteError;
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error deleting project:", error);
+    return { error: "Failed to delete project" };
+  }
+}
+
+export async function updateProject(projectId: string, updates: Partial<Project>) {
+  try {
+    const supabase = await createClient();
+    
+    // Get current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      return { error: "Unauthorized" };
+    }
+
+    // Verify project ownership
+    const { data: project } = await supabase
+      .from("projects")
+      .select("creator_id")
+      .eq("id", projectId)
+      .single();
+
+    if (!project || project.creator_id !== user.id) {
+      return { error: "Unauthorized" };
+    }
+
+    // Update the project
+    const { error: updateError } = await supabase
+      .from("projects")
+      .update(updates)
+      .eq("id", projectId);
+
+    if (updateError) throw updateError;
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error updating project:", error);
+    return { error: "Failed to update project" };
+  }
+}
+
+export async function isProjectCreator(projectId: string) {
+  try {
+    const supabase = await createClient();
+    
+    // Get current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      return false;
+    }
+
+    // Check project ownership
+    const { data: project } = await supabase
+      .from("projects")
+      .select("creator_id")
+      .eq("id", projectId)
+      .single();
+
+    return project?.creator_id === user.id;
+  } catch (error) {
+    return false;
+  }
+}

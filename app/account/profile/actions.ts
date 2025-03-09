@@ -54,7 +54,7 @@ export async function completeOnboarding(formData: FormData) {
         .single();
 
       // Delete old image if it exists and is from Supabase storage
-      if (profile?.avatar_url?.includes("supabase.co")) {
+      if (profile?.avatar_url?.includes("supabase.co")) { // note: when and if i use a custom supabase domain we need to change this
         try {
           const urlParts = new URL(profile.avatar_url);
           const pathParts = urlParts.pathname.split("/");
@@ -140,7 +140,7 @@ export async function removeProfilePicture() {
     .eq("id", user.id)
     .single();
 
-  if (profile?.avatar_url && profile.avatar_url.includes("supabase.co")) {
+  if (profile?.avatar_url && profile.avatar_url.includes("supabase.co")) { // note: when and if i use a custom supabase domain we need to change this
     try {
       // Extract filename from the full URL
       const urlParts = new URL(profile.avatar_url);

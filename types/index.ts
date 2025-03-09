@@ -55,4 +55,5 @@ export interface Project {
   status: "active" | "completed" | "cancelled";
   profiles: Profile;
   created_at: string;
+  cover_image_url?: string | null; // Adding optional modifier based on usage in application
 }

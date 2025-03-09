@@ -162,16 +162,12 @@ export default function Finalize({ state, setCoverImage, setDocuments }: Finaliz
   // File validation helpers
   const validateImage = (file: File): boolean => {
     if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
-      toast.error("Invalid file type", {
-        description: "Please upload a JPEG, JPG, PNG or WebP image"
-      });
+      toast.error("Invalid file type");
       return false;
     }
     
     if (file.size > MAX_COVER_IMAGE_SIZE) {
-      toast.error("File too large", {
-        description: "Cover image must be less than 5MB"
-      });
+      toast.error("File too large. Cover image must be less than 5MB.");
       return false;
     }
     
@@ -180,33 +176,25 @@ export default function Finalize({ state, setCoverImage, setDocuments }: Finaliz
   
   const validateDocument = (file: File, existingFiles: File[] = []): boolean => {
     if (!ALLOWED_DOCUMENT_TYPES.includes(file.type)) {
-      toast.error("Invalid file type", {
-        description: "Please upload a PDF, Word document, text file or image"
-      });
+      toast.error("Invalid file type.");
       return false;
     }
     
     if (file.size > MAX_DOCUMENT_SIZE) {
-      toast.error("File too large", {
-        description: "Each document must be less than 10MB"
-      });
+      toast.error("File too large, each document must be less than 10MB");
       return false;
     }
     
     // Check if adding this file would exceed the total documents size limit
     const currentTotalSize = existingFiles.reduce((sum, doc) => sum + doc.size, 0);
     if (currentTotalSize + file.size > MAX_DOCUMENT_SIZE) {
-      toast.error("Total size limit exceeded", {
-        description: "Total documents size must not exceed 10MB"
-      });
+      toast.error("Total documents size must not exceed 10MB");
       return false;
     }
     
     // Check if adding this file would exceed the max count
     if (existingFiles.length >= MAX_DOCUMENTS_COUNT) {
-      toast.error("Maximum files reached", {
-        description: `You can upload a maximum of ${MAX_DOCUMENTS_COUNT} documents`
-      });
+      toast.error("Maximum files reached. You can upload a maximum of 5 documents");
       return false;
     }
     
@@ -237,9 +225,7 @@ export default function Finalize({ state, setCoverImage, setDocuments }: Finaliz
       
       // Check if adding these files would exceed the max count
       if (localDocuments.length + newFiles.length > MAX_DOCUMENTS_COUNT) {
-        toast.error("Maximum files reached", {
-          description: `You can upload a maximum of ${MAX_DOCUMENTS_COUNT} documents (${MAX_DOCUMENTS_COUNT - localDocuments.length} remaining)`
-        });
+        toast.error("Maximum files reached");
         return;
       }
       
@@ -315,9 +301,7 @@ export default function Finalize({ state, setCoverImage, setDocuments }: Finaliz
       
       // Check if adding these files would exceed the max count
       if (localDocuments.length + newFiles.length > MAX_DOCUMENTS_COUNT) {
-        toast.error("Maximum files reached", {
-          description: `You can upload a maximum of ${MAX_DOCUMENTS_COUNT} documents (${MAX_DOCUMENTS_COUNT - localDocuments.length} remaining)`
-        });
+        toast.error("Maximum files reached");
         return;
       }
       

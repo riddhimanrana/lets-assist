@@ -20,30 +20,33 @@ export function ReportBugDialog({ onOpenChangeAction }: ReportBugDialogProps) {
     <Dialog open={true} onOpenChange={onOpenChangeAction}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Report a Bug</DialogTitle>
-          <div className="text-sm text-muted-foreground">
-            Our bug reporting system is coming soon! For now, please email any
-            issues to:
-            <div className="mt-2">
-              <Link
-                href="mailto:support@lets-assist.com"
-                className="text-primary font-medium"
-              >
-                support@lets-assist.com
-              </Link>
-            </div>
-          </div>
-          <div className="mt-4 text-sm text-muted-foreground">
-            Have a feature request or idea?&nbsp;
-            <Link
-              className="text-primary font-medium"
-              href="https://letsassist.featurebase.app"
-            >
-              Submit it here!
-            </Link>
-          </div>
+          <DialogTitle className="text-xl font-semibold">Report a Bug</DialogTitle>
         </DialogHeader>
-        <DialogFooter>
+        <div className="py-2 space-y-4">
+          <p className="text-sm text-muted-foreground">
+            To report bugs or submit feature requests:
+          </p>
+
+            <Link
+              href="https://letsassist.featurebase.app"
+              className="text-primary text-sm font-medium hover:underline"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              letsassist.featurebase.app
+            </Link>
+          
+          <p className="text-sm text-muted-foreground">
+            Alternatively, email us at{" "}
+            <Link 
+              href="mailto:support@lets-assist.com" 
+              className="text-primary font-medium hover:underline"
+            >
+              support@lets-assist.com
+            </Link>
+          </p>
+        </div>
+        <DialogFooter className="mt-2">
           <Button type="button" onClick={() => onOpenChangeAction(false)}>
             Close
           </Button>

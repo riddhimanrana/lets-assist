@@ -15,6 +15,12 @@ function isProtectedPath(path: string) {
   );
 }
 
+// Function to check if path is for project creator only
+function isProjectCreatorPath(path: string) {
+  const matches = path.match(/^\/projects\/([^\/]+)\/(edit|signups|documents)$/);
+  return matches ? { isCreatorPath: true, projectId: matches[1] } : { isCreatorPath: false, projectId: null };
+}
+
 export async function middleware(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   if (searchParams.get("noRedirect") === "1") {
@@ -26,6 +32,31 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
   const currentPath = request.nextUrl.pathname;
+
+  // Check for project creator routes first
+  const { isCreatorPath, projectId } = isProjectCreatorPath(currentPath);
+  if (isCreatorPath && projectId) {
+    // If not logged in, redirect to login with return URL
+    if (!user) {
+      const loginUrl = new URL('/login', request.url);
+      loginUrl.searchParams.set('redirect', request.nextUrl.pathname);
+      return NextResponse.redirect(loginUrl);
+    }
+
+    // Check if user is the project creator
+    const { data: project } = await supabase
+      .from("projects")
+      .select("creator_id")
+      .eq("id", projectId)
+      .single();
+
+    if (!project || project.creator_id !== user.id) {
+      // If not creator, redirect back to project page
+      return NextResponse.redirect(
+        new URL(`/projects/${projectId}`, request.url)
+      );
+    }
+  }
 
   // Handle /account redirect
   if (currentPath === "/account") {

@@ -62,6 +62,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import CreatorDashboard from "./CreatorDashboard";
 
 // Form schema for anonymous signup
 const anonymousSignupSchema = z.object({
@@ -139,6 +140,7 @@ export default function ProjectDetails({
   const [currentScheduleId, setCurrentScheduleId] = useState<string>("");
   // Track loading state for individual buttons
   const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
+  const [isCreator, setIsCreator] = useState(false);
 
   // Anonymous signup form
   const anonymousForm = useForm<AnonymousSignupFormValues>({
@@ -156,6 +158,10 @@ export default function ProjectDetails({
       const supabase = createClient();
       const { data } = await supabase.auth.getUser();
       setUser(data.user);
+      
+      if (data.user && project.creator_id === data.user.id) {
+        setIsCreator(true);
+      }
     };
 
     checkAuth();
@@ -177,7 +183,7 @@ export default function ProjectDetails({
     }, 100);
     
     return () => clearTimeout(timer);
-  }, []);
+  }, [project.creator_id]);
 
   // Handle share button click
   const handleShare = () => {
@@ -516,6 +522,8 @@ export default function ProjectDetails({
     <>
       
       <div className="container mx-auto px-4 py-6 max-w-5xl">
+        {isCreator && <CreatorDashboard project={project} />}
+        
         <div className="mb-6">
           <div className="flex items-center justify-between gap-4">
             <div>
