@@ -12,6 +12,11 @@ import {
   Bug,
   ChevronDown,
   ChevronUp,
+  Bell,
+  Sun,
+  Moon,
+  Laptop,
+  MonitorSmartphone,
 } from "lucide-react";
 import { NoAvatar } from "@/components/NoAvatar";
 import { createClient } from "@/utils/supabase/client";
@@ -19,7 +24,6 @@ import { User as SupabaseUser } from "@supabase/supabase-js";
 import { logout } from "@/app/logout/actions";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   NavigationMenu,
@@ -44,11 +48,15 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ReportBugDialog } from "@/components/ReportBugDialog";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
+import { NotificationPopover } from "@/components/NotificationPopover";
+import { useTheme } from "next-themes";
 
 interface SectionProps {
   title: string;
@@ -113,6 +121,7 @@ export default function Navbar({ initialUser }: NavbarProps) {
   const [isProfileLoading, setIsProfileLoading] = React.useState(true);
   const [showBugDialog, setShowBugDialog] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
+  const { theme, setTheme } = useTheme();
 
   React.useEffect(() => {
     async function getUserAndProfile() {
@@ -147,6 +156,86 @@ export default function Navbar({ initialUser }: NavbarProps) {
   const handleNavigation = () => {
     setIsSheetOpen(false);
   };
+
+  // Vercel-style theme selector component for dropdown menu
+  const ThemeSelector = () => (
+    <div className="relative flex items-center border rounded-lg p-0.5">
+      <Button
+      variant="ghost"
+      size="icon"
+      className={cn(
+        "relative z-10 h-6 w-6 flex items-center justify-center rounded-md",
+        theme === "light" && "text-primary bg-accent"
+      )}
+      onClick={() => setTheme("light")}
+      >
+      <Sun className="h-3 w-3" />
+      </Button>
+      <Button 
+      variant="ghost"
+      size="icon"
+      className={cn(
+        "relative z-10 h-6 w-6 flex items-center justify-center rounded-md",
+        theme === "dark" && "text-primary bg-accent"
+      )}
+      onClick={() => setTheme("dark")}
+      >
+      <Moon className="h-3 w-3" />
+      </Button>
+      <Button
+      variant="ghost" 
+      size="icon"
+      className={cn(
+        "relative z-10 h-6 w-6 flex items-center justify-center rounded-md",
+        theme === "system" && "text-primary bg-accent"
+      )}
+      onClick={() => setTheme("system")}
+      >
+      <MonitorSmartphone className="h-3 w-3" />
+      </Button>
+    </div>
+  );
+
+  // Mobile version of the theme selector with similar styling
+  const MobileThemeSelector = () => (
+    <div className="space-y-2">
+      <div className="relative flex items-center border rounded-lg space-x-1 p-1">
+        <Button
+          variant="ghost"
+          size="icon"
+          className={cn(
+            "relative z-10 h-8 w-8 flex items-center justify-center rounded-md",
+            theme === "light" && "text-primary bg-accent"
+          )}
+          onClick={() => setTheme("light")}
+        >
+          <Sun className="h-4 w-4" />
+        </Button>
+        <Button 
+          variant="ghost"
+          size="icon"
+          className={cn(
+            "relative z-10 h-8 w-8 flex items-center justify-center rounded-md",
+            theme === "dark" && "text-primary bg-accent"
+          )}
+          onClick={() => setTheme("dark")}
+        >
+          <Moon className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost" 
+          size="icon"
+          className={cn(
+            "relative z-10 h-8 w-8 flex items-center justify-center rounded-md",
+            theme === "system" && "text-primary bg-accent"
+          )}
+          onClick={() => setTheme("system")}
+        >
+          <MonitorSmartphone className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  );
 
   return (
     <>
@@ -230,7 +319,8 @@ export default function Navbar({ initialUser }: NavbarProps) {
           </div>
           <div className="hidden sm:flex items-center space-x-6 ml-auto">
             {user ? (
-              <div className="flex items-center space-x-8">
+              <div className="flex items-center space-x-5 mr-2">
+                <NotificationPopover />
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     {isProfileLoading ? (
@@ -287,6 +377,17 @@ export default function Navbar({ initialUser }: NavbarProps) {
                     </DropdownMenuItem>
 
                     <DropdownMenuSeparator className="my-2" />
+
+                    {/* Replace custom theme selector with new Vercel-style ThemeSelector */}
+                    <div className="px-2 py-0.5 flex justify-between">
+                      <span className="text-sm self-center text-muted-foreground block">
+                        Appearance
+                      </span>
+                      <ThemeSelector />
+                    </div>
+
+                    <DropdownMenuSeparator className="my-2" />
+
                     <DropdownMenuItem
                       className="text-chart-3 focus:text-chart-3 py-2.5 cursor-pointer flex justify-between"
                       onSelect={(e) => {
@@ -323,18 +424,20 @@ export default function Navbar({ initialUser }: NavbarProps) {
                 <Link href="/signup">
                   <Button>Sign Up</Button>
                 </Link>
+                <div className="ml-4">
+                  <ModeToggle />
+                </div>
               </>
             )}
-            <div className="ml-4">
-              <ModeToggle />
-            </div>
           </div>
 
           {/* Mobile Navigation */}
           <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
             <SheetTitle className="hidden"></SheetTitle>
             <div className="sm:hidden flex items-center ml-auto">
-              <ModeToggle />
+              {user && <NotificationPopover />}
+              {/* Show theme toggle for non-logged in users only */}
+              {!user && <ModeToggle />}
             </div>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon" className="md:hidden ml-2">
@@ -376,6 +479,8 @@ export default function Navbar({ initialUser }: NavbarProps) {
                       <LogOut className="mr-2 h-4 w-4" />
                       Log Out
                     </Button>
+
+                    {/* Replace theme selector for logged-in users on mobile */}
                   </>
                 ) : (
                   <div className="grid gap-2 mb-6">
@@ -454,6 +559,8 @@ export default function Navbar({ initialUser }: NavbarProps) {
                         <Settings className="h-4 w-4" />
                       </Link>
                     </Button>
+                    {/* Re-enable MobileNotificationButton now that we're storing notifications */}
+                    {/* <MobileNotificationButton /> */}
                     <Button
                       variant="ghost"
                       className="w-full justify-between text-muted-foreground"
@@ -469,7 +576,13 @@ export default function Navbar({ initialUser }: NavbarProps) {
                 )}
 
                 <Separator className="my-4" />
-
+                <div className="px-2 py-0.5 flex justify-between">
+                <span className="text-sm self-center text-muted-foreground block">
+                Appearance
+                </span>
+                <MobileThemeSelector />
+                </div>
+                <Separator className="my-4" />
                 <div className="space-y-1">
                   <Button
                     variant="ghost"

@@ -11,6 +11,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { PostHogProvider } from "./providers";
 import { ToasterTheme } from "@/components/ToasterTheme";
+import { NotificationListener } from "@/components/NotificationListener";
 
 const overusedgrotesk = localFont({
   src: "../public/fonts/OverusedGrotesk-VF.woff2",
@@ -82,6 +83,8 @@ export default async function RootLayout({
               <ToasterTheme />
               <Footer />
               <SpeedInsights />
+              {/* Always include NotificationListener if user is logged in */}
+              {user && <NotificationListener userId={user.id} />}
             </div>
           </PostHogProvider>
         </ThemeProvider>

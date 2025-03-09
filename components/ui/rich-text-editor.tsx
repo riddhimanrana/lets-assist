@@ -117,7 +117,7 @@ export function RichTextEditor({
         if (!max) return "text-muted-foreground";
         const percentage = (current / max) * 100;
         if (percentage >= 90) return "text-destructive";
-        if (percentage >= 75) return "text-amber-500 dark:text-amber-400";
+        if (percentage >= 75) return "text-chart-6";
         return "text-muted-foreground";
     };
 
