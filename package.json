@@ -85,8 +85,5 @@
   "trustedDependencies": [
     "@vercel/speed-insights",
     "sharp"
-  ],
-  "resolutions": {
-    "punycode": "npm:punycode/"
-  }
+  ]
 }
