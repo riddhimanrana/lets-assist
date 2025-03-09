@@ -5,7 +5,7 @@ import { createClient } from "@/utils/supabase/middleware";
 const PROTECTED_PATHS = ["/admin", "/home", "/projects/create", "/account"];
 
 // Paths that logged-in users shouldn't access
-const RESTRICTED_PATHS_FOR_LOGGED_IN_USERS = ["/", "/login", "/signup"];
+const RESTRICTED_PATHS_FOR_LOGGED_IN_USERS = ["/", "/login", "/signup", "/projects"];
 
 // Function to check if a path requires authentication
 function isProtectedPath(path: string) {
@@ -33,7 +33,24 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
   const currentPath = request.nextUrl.pathname;
 
-  // Check for project creator routes first
+  // Handle /account redirect - must come first as it's a simple path redirect
+  if (currentPath === "/account") {
+    return NextResponse.redirect(new URL("/account/profile", request.url));
+  }
+
+  // Redirect authenticated users trying to access restricted paths
+  if (user && RESTRICTED_PATHS_FOR_LOGGED_IN_USERS.includes(currentPath)) {
+    return NextResponse.redirect(new URL("/home", request.url));
+  }
+
+  // Redirect non-authenticated users trying to access protected paths
+  if (!user && isProtectedPath(currentPath)) {
+    const loginUrl = new URL('/login', request.url);
+    loginUrl.searchParams.set('redirect', request.nextUrl.pathname);
+    return NextResponse.redirect(loginUrl);
+  }
+
+  // Check for project creator routes
   const { isCreatorPath, projectId } = isProjectCreatorPath(currentPath);
   if (isCreatorPath && projectId) {
     // If not logged in, redirect to login with return URL
@@ -56,21 +73,6 @@ export async function middleware(request: NextRequest) {
         new URL(`/projects/${projectId}`, request.url)
       );
     }
-  }
-
-  // Handle /account redirect
-  if (currentPath === "/account") {
-    return NextResponse.redirect(new URL("/account/profile", request.url));
-  }
-
-  // Redirect authenticated users trying to access restricted paths
-  if (user && RESTRICTED_PATHS_FOR_LOGGED_IN_USERS.includes(currentPath)) {
-    return NextResponse.redirect(new URL("/home", request.url));
-  }
-
-  // Redirect non-authenticated users trying to access protected paths
-  if (!user && isProtectedPath(currentPath)) {
-    return NextResponse.redirect(new URL("/login", request.url));
   }
 
   // Allow access to all other paths
