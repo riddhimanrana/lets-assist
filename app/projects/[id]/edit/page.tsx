@@ -3,11 +3,12 @@ import { getProject } from "../actions";
 import EditProjectClient from "./EditProjectClient";
 
 type Props = {
-  params: { id: string };
+  params: Promise<{ id: string }> | { id: string };
 };
 
 export default async function EditProjectPage({ params }: Props) {
-  const { project, error } = await getProject(params.id);
+  const resolvedParams = await params;
+  const { project, error } = await getProject(resolvedParams.id);
 
   if (error || !project) {
     notFound();
