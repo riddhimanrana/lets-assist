@@ -14,7 +14,7 @@ export const OrganizationsSection = () => {
   ];
 
   return (
-    <section className="py-16 sm:py-24 relative">
+    <section id="organizations" className="py-16 sm:py-24 relative">
       {/* Extended background gradient that connects to adjacent components */}
       <div className="absolute inset-0 bg-gradient-to-b from-transparent to-background z-0"></div>
       

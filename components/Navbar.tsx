@@ -83,19 +83,19 @@ const CollapsibleSection = ({
 
 const features = [
   {
-    title: "Personalized Project Matching",
-    href: "/features/feature-1",
-    description: "Smart project recommendations",
+    title: "Track Your Hours with Ease",
+    href: "/#hourtracking",
+    description: "Advanced and accurate tracking methods.",
   },
   {
-    title: "Stay Updated, Stay Involved",
-    href: "/features/feature-2",
-    description: "Real-time updates on projects",
+    title: "Connect with Organizations",
+    href: "/#whyvolunteer",
+    description: "Find organizations that need your help.",
   },
   {
-    title: "Celebrate Your Contributions",
-    href: "/features/feature-3",
-    description: "Certificates, Badges, and more",
+    title: "Team Management",
+    href: "/#organizations",
+    description: "Organizations can create custom management options.",
   },
 ];
 
@@ -166,49 +166,67 @@ export default function Navbar({ initialUser }: NavbarProps) {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-6 ml-auto">
-            <NavigationMenu>
-              <NavigationMenuList>
-                <NavigationMenuItem>
-                  <NavigationMenuTrigger>Features</NavigationMenuTrigger>
-                  <NavigationMenuContent>
-                    <ul className="grid gap-3 p-6 md:w-[400px] lg:w-[500px] lg:grid-cols-[.75fr_1fr]">
-                      <li className="row-span-3">
-                        <NavigationMenuLink asChild>
-                            <Link
-                            className="flex h-full w-full select-none flex-col justify-end rounded-md bg-gradient-to-b from-muted/50 to-muted p-6 no-underline outline-none focus:shadow-md"
-                            href="/"
+            {user ? (
+              <>
+                <Button variant="ghost" asChild>
+                  <Link href="/home">Home</Link>
+                </Button>
+                <Button variant="ghost" asChild>
+                  <Link href="/projects">Active Projects</Link>
+                </Button>
+                <Button variant="ghost" asChild>
+                  <Link href={`/profile/${profile?.username}`}>Volunteering Profile</Link>
+                </Button>
+              </>
+            ) : (
+              <>
+                <NavigationMenu>
+                  <NavigationMenuList>
+                    <NavigationMenuItem>
+                      <NavigationMenuTrigger>Features</NavigationMenuTrigger>
+                      <NavigationMenuContent>
+                        <ul className="grid gap-3 p-6 md:w-[400px] lg:w-[500px] lg:grid-cols-[.75fr_1fr]">
+                          <li className="row-span-3">
+                            <NavigationMenuLink asChild>
+                              <Link
+                                className="flex h-full w-full select-none flex-col justify-end rounded-md bg-gradient-to-b from-muted/50 to-muted p-6 no-underline outline-none focus:shadow-md"
+                                href="/"
+                              >
+                                <Image
+                                  src="/letsassist-logo.png"
+                                  alt="letsassist logo"
+                                  width={30}
+                                  height={30}
+                                />
+                                <div className="mb-2 mt-4 text-lg font-medium">
+                                  letsassist
+                                </div>
+                                <p className="text-sm leading-tight text-muted-foreground">
+                                  Helping communities and volunteers connect
+                                </p>
+                              </Link>
+                            </NavigationMenuLink>
+                          </li>
+                          {features.map((feature) => (
+                            <ListItem
+                              key={feature.title}
+                              title={feature.title}
+                              href={feature.href}
                             >
-                            <Image
-                              src="/letsassist-logo.png"
-                              alt="letsassist logo"
-                              width={30}
-                              height={30}
-                            />
-                            <div className="mb-2 mt-4 text-lg font-medium">
-                              letsassist
-                            </div>
-                            <p className="text-sm leading-tight text-muted-foreground">
-                              Helping communities and volunteers connect
-                            </p>
-                          </Link>
-                        </NavigationMenuLink>
-                      </li>
-                      {features.map((feature) => (
-                        <ListItem
-                          key={feature.title}
-                          title={feature.title}
-                          href={feature.href}
-                        >
-                          {feature.description}
-                        </ListItem>
-                      ))}
-                    </ul>
-                  </NavigationMenuContent>
-                </NavigationMenuItem>
-              </NavigationMenuList>
-            </NavigationMenu>
-            <Button variant="ghost">Volunteering Near Me</Button>
-            <Button variant="ghost">Connected Organizations</Button>
+                              {feature.description}
+                            </ListItem>
+                          ))}
+                        </ul>
+                      </NavigationMenuContent>
+                    </NavigationMenuItem>
+                  </NavigationMenuList>
+                </NavigationMenu>
+                <Button variant="ghost" asChild>
+                  <Link href="/projects">Volunteering Near Me</Link>
+                </Button>
+                <Button variant="ghost">Connected Organizations</Button>
+              </>
+            )}
           </div>
           <div className="hidden sm:flex items-center space-x-6 ml-auto">
             {user ? (
@@ -375,28 +393,51 @@ export default function Navbar({ initialUser }: NavbarProps) {
                 <Separator className="mb-4" />
 
                 <div className="space-y-1">
-                  <Button
-                    variant="ghost"
-                    className="w-full justify-between text-muted-foreground"
-                    asChild
-                    onClick={handleNavigation}
-                  >
-                    <Link href="/">Home</Link>
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    className="w-full justify-between text-muted-foreground"
-                    onClick={handleNavigation}
-                  >
-                    Volunteering Near Me
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    className="w-full justify-between text-muted-foreground"
-                    onClick={handleNavigation}
-                  >
-                    Connected Organizations
-                  </Button>
+                  {user ? (
+                    <>
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-between text-muted-foreground"
+                        asChild
+                        onClick={handleNavigation}
+                      >
+                        <Link href="/home">Home</Link>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-between text-muted-foreground"
+                        asChild
+                        onClick={handleNavigation}
+                      >
+                        <Link href="/projects">My Projects</Link>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-between text-muted-foreground"
+                        asChild
+                        onClick={handleNavigation}
+                      >
+                        <Link href={`/profile/${profile?.username}`}>My Volunteering Profile</Link>
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-between text-muted-foreground"
+                        onClick={handleNavigation}
+                      >
+                        Volunteering Near Me
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-between text-muted-foreground"
+                        onClick={handleNavigation}
+                      >
+                        Connected Organizations
+                      </Button>
+                    </>
+                  )}
                 </div>
 
                 {user && (
