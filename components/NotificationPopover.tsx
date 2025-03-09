@@ -63,8 +63,12 @@ export function NotificationPopover() {
       // Update unread count on page load
       updateUnreadCount();
       
+      // Generate a unique channel name for this component
+      const channelName = `notification-popover-${user.id}-${Date.now()}`;
+      console.log(`Setting up notification badge channel: ${channelName}`);
+      
       const channel = supabase
-        .channel('notification-popover')
+        .channel(channelName)
         .on('postgres_changes', 
           {
             event: '*',
@@ -72,7 +76,8 @@ export function NotificationPopover() {
             table: 'notifications',
             filter: `user_id=eq.${user.id}`
           }, 
-          () => {
+          (payload) => {
+            console.log('Notification badge update event:', payload.eventType);
             if (open) {
               loadNotifications();
             } else {
@@ -80,7 +85,9 @@ export function NotificationPopover() {
             }
           }
         )
-        .subscribe();
+        .subscribe(status => {
+          console.log(`Badge notification channel status: ${status}`);
+        });
         
       return channel;
     };
@@ -91,7 +98,10 @@ export function NotificationPopover() {
     // Cleanup function
     return () => {
       subscriptionPromise.then(channel => {
-        if (channel) supabase.removeChannel(channel);
+        if (channel) {
+          console.log('Removing notification badge channel');
+          supabase.removeChannel(channel);
+        }
       });
     };
   }, [open]);

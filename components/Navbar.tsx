@@ -159,7 +159,7 @@ export default function Navbar({ initialUser }: NavbarProps) {
 
   // Vercel-style theme selector component for dropdown menu
   const ThemeSelector = () => (
-    <div className="relative flex items-center border rounded-lg p-0.5">
+    <div className="relative flex items-center border rounded-lg p-0.5 space-x-1">
       <Button
       variant="ghost"
       size="icon"

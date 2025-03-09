@@ -12,6 +12,7 @@ import { cookies } from "next/headers";
 import { PostHogProvider } from "./providers";
 import { ToasterTheme } from "@/components/ToasterTheme";
 import { NotificationListener } from "@/components/NotificationListener";
+import GlobalNotificationProvider from "@/components/GlobalNotificationProvider";
 
 const overusedgrotesk = localFont({
   src: "../public/fonts/OverusedGrotesk-VF.woff2",
@@ -69,25 +70,27 @@ export default async function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.className} ${overusedgrotesk.variable}`}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <PostHogProvider>
-            <div className="bg-background text-foreground min-h-screen flex flex-col">
-              {/* Pass server-fetched user to Navbar */}
-              <Navbar initialUser={user} />
-              <main className="flex-1">{children}</main>
-              <ToasterTheme />
-              <Footer />
-              <SpeedInsights />
-              {/* Always include NotificationListener if user is logged in */}
-              {user && <NotificationListener userId={user.id} />}
-            </div>
-          </PostHogProvider>
-        </ThemeProvider>
+        <GlobalNotificationProvider>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+          >
+            <PostHogProvider>
+              <div className="bg-background text-foreground min-h-screen flex flex-col">
+                {/* Pass server-fetched user to Navbar */}
+                <Navbar initialUser={user} />
+                <main className="flex-1">{children}</main>
+                <ToasterTheme />
+                <Footer />
+                <SpeedInsights />
+                {/* Remove this duplicate listener - it's already in GlobalNotificationProvider */}
+                {/* {user && <NotificationListener userId={user.id} />} */}
+              </div>
+            </PostHogProvider>
+          </ThemeProvider>
+        </GlobalNotificationProvider>
       </body>
     </html>
   );

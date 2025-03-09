@@ -15,8 +15,11 @@ export interface NotificationData {
   data?: Record<string, any>;
 }
 
+// Keep track of notifications we've created to avoid duplicates
+const createdNotificationIds = new Set<string>();
+
 export const NotificationService = {
-  async createNotification(notification: NotificationData, userId: string, showToast = true) {
+  async createNotification(notification: NotificationData, userId: string, showToast = false) {
     const supabase = createClient();
     
     // Set default severity to 'info' if not specified
@@ -55,7 +58,8 @@ export const NotificationService = {
       
       console.log('Creating new notification for user:', userId);
       
-      // Insert into notifications table
+      // Insert into notifications table without showing toast directly
+      // The real-time listener will handle showing the toast
       const { data, error } = await supabase
         .from('notifications')
         .insert({
@@ -66,38 +70,21 @@ export const NotificationService = {
           severity: notificationWithSeverity.severity,
           action_url: notificationWithSeverity.actionUrl,
           data: notificationWithSeverity.data,
-          displayed: false // Track if notification has been displayed to user
-        });
+          displayed: false // Start as not displayed, let the listener handle it
+        })
+        .select('id')
+        .single();
         
       if (error) {
         console.error('Notification insert error details:', error.message, error.code);
         throw error;
       }
       
-      console.log('Notification created successfully');
+      console.log('Notification created successfully, ID:', data?.id);
       
-      // Show toast if requested
-      if (showToast) {
-        // Use appropriate toast type based on severity
-        const toastMethod = notificationWithSeverity.severity === 'warning' 
-          ? toast.warning 
-          : notificationWithSeverity.severity === 'success'
-            ? toast.success
-            : toast.info;
-            
-        toastMethod(notificationWithSeverity.title, {
-          description: notificationWithSeverity.body,
-          action: notificationWithSeverity.actionUrl ? {
-            label: "View",
-            onClick: () => window.location.href = notificationWithSeverity.actionUrl!
-          } : undefined
-        });
-        
-        // Mark as displayed
-        await this.markAsDisplayed(userId, notificationWithSeverity.type);
-      }
+      // Don't manually show toast here - let the realtime listener handle it
       
-      return { success: true };
+      return { success: true, data };
     } catch (error) {
       console.error('Error creating notification:', error);
       return { error };
