@@ -25,18 +25,25 @@ export default function GlobalNotificationProvider({
       try {
         const { data: { user }, error } = await supabase.auth.getUser();
         if (error) {
-          console.error("Auth error in notification provider:", error);
+          // Ignore error if session missing
+          if (error.message.toLowerCase().includes("auth session missing")) {
+            setUserId(null);
+          } else {
+            console.error("Auth error in notification provider:", error);
+            setUserId(null);
+          }
           return;
         }
-        
         if (user) {
           console.log("Found authenticated user:", user.id);
           setUserId(user.id);
         } else {
           console.log("No authenticated user found");
+          setUserId(null);
         }
-      } catch (error) {
-        console.error("Error in auth check:", error);
+      } catch (err) {
+        console.error("Error in getUserId:", err);
+        setUserId(null);
       }
     };
     

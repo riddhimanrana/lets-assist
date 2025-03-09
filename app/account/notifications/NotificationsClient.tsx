@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle, AlertTriangle, CircleCheck, Bell } from "lucide-react";
+import { AlertCircle, AlertTriangle, CircleCheck } from "lucide-react";
 
 type NotificationSettings = {
   email_notifications: boolean;
@@ -214,66 +214,6 @@ export function NotificationsClient() {
                     {saving ? "Saving Changes..." : "Save Changes"}
                   </Button>
                 </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-        
-        <Card className="border shadow-sm mt-6">
-          <CardHeader className="px-5 py-4 sm:px-6">
-            <CardTitle className="text-xl">Notification History</CardTitle>
-            <CardDescription>
-              View your recent notifications
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="px-5 sm:px-6 py-4">
-            {notificationsLoading ? (
-              <div className="space-y-4">
-                <Skeleton className="h-16 w-full" />
-                <Skeleton className="h-16 w-full" />
-                <Skeleton className="h-16 w-full" />
-              </div>
-            ) : notifications.length > 0 ? (
-              <div className="space-y-4">
-                {notifications.map((notification) => (
-                  <div 
-                    key={notification.id} 
-                    className={`p-4 border rounded-lg ${notification.read ? 'bg-background' : 'bg-accent/30'}`}
-                  >
-                    <div className="flex">
-                      <div className="mr-4 mt-1">
-                        {getNotificationIcon(notification.severity)}
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex justify-between items-start">
-                          <h3 className={`text-sm font-semibold ${!notification.read ? 'font-bold' : ''}`}>
-                            {notification.title}
-                          </h3>
-                          <span className="text-xs text-muted-foreground whitespace-nowrap">
-                            {new Date(notification.created_at).toLocaleDateString()}
-                          </span>
-                        </div>
-                        <p className="text-sm text-muted-foreground mt-1">{notification.body}</p>
-                        {notification.action_url && (
-                          <Button 
-                            variant="link" 
-                            size="sm" 
-                            className="mt-1 h-auto p-0 text-sm"
-                            onClick={() => window.location.href = notification.action_url!}
-                          >
-                            View details
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-12 text-muted-foreground">
-                <Bell className="h-10 w-10 mx-auto mb-4 opacity-20" />
-                <p>No notifications yet</p>
-                <p className="text-sm mt-1">When you receive notifications, they will appear here</p>
               </div>
             )}
           </CardContent>
