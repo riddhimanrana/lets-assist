@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/utils/supabase/middleware";
 
 // Paths that require authentication
-const PROTECTED_PATHS = ["/admin", "/home", "/projects/create", "/account"];
+const PROTECTED_PATHS = ["/home", "/projects/create", "/account"];
 
 // Paths that logged-in users shouldn't access
 const RESTRICTED_PATHS_FOR_LOGGED_IN_USERS = ["/", "/login", "/signup", "/projects"];

@@ -298,7 +298,7 @@ export default function Navbar({ initialUser }: NavbarProps) {
                   <Link href="/projects">Active Projects</Link>
                 </Button>
                 <Button variant="ghost" asChild>
-                  <Link href={`/profile/${profile?.username}`}>Volunteering Profile</Link>
+                  <Link href="/organization">Organizations</Link>
                 </Button>
               </>
             ) : (
@@ -559,7 +559,7 @@ export default function Navbar({ initialUser }: NavbarProps) {
                         asChild
                         onClick={handleNavigation}
                       >
-                        <Link href={`/profile/${profile?.username}`}>My Volunteering Profile</Link>
+                        <Link href= "/organization">Organizations</Link>
                       </Button>
                     </>
                   ) : (
