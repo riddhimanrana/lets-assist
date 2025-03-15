@@ -62,7 +62,7 @@ export function JoinOrganizationDialog() {
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
         <Button variant="outline">
-          <Users className="w-4 h-4 mr-2" />
+          <Users className="w-4 h-4" />
           Join Organization
         </Button>
       </DialogTrigger>
@@ -104,7 +104,7 @@ export function JoinOrganizationDialog() {
             <Button onClick={handleJoinSubmit} disabled={isLoading || joinCode.length !== 6}>
               {isLoading ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin" />
                   Joining...
                 </>
               ) : (

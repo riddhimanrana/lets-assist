@@ -8,6 +8,7 @@ import Link from "next/link";
 import { useState } from "react";
 import JoinCodeDialog from "./JoinCodeDialog";
 import { toast } from "sonner";
+import { JoinOrganizationDialog } from "../JoinOrganizationDialog";
 
 interface OrganizationHeaderProps {
   organization: any;
@@ -165,16 +166,20 @@ export default function OrganizationHeader({
       )}
       
       {userRole === null && (
+        
         <Button 
-        variant="default"
-        size="sm"
-        asChild
-        className="w-full sm:w-auto justify-center"
+          variant="default"
+          size="sm"
+          className="w-full sm:w-auto justify-center"
+          onClick={() => toast.info("Get the join code from an admin and join from the organizations page", {
+            action: {
+              label: "Go to Organizations",
+              onClick: () => window.location.href = "/organization"
+            }
+          })}
         >
-        <Link href={`/organization/join?id=${organization.id}`}>
           <Plus className="h-4 w-4" />
           Join Organization
-        </Link>
         </Button>
       )}
       </div>

@@ -66,7 +66,7 @@ export default async function OrganizationsPage() {
                 <JoinOrganizationDialog />
                 <Button className="w-full sm:w-auto" asChild>
                   <Link href="/organization/create">
-                    <Plus className="w-4 h-4 mr-2" />
+                    <Plus className="w-4 h-4" />
                     Create Organization
                   </Link>
                 </Button>
