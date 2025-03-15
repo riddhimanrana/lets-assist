@@ -4,7 +4,21 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import MembersTab from "./MembersTab";
 import ProjectsTab from "./ProjectsTab";
 import { useState } from "react";
-import { Building2, Calendar, ClipboardList, Users } from "lucide-react";
+import { 
+  LayoutDashboard, 
+  Users, 
+  Folders, 
+  Calendar, 
+  Building2, 
+  Globe,
+  MapPin,
+  ShieldCheck
+} from "lucide-react";
+import { format } from "date-fns";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import Link from "next/link";
 
 interface OrganizationTabsProps {
   organization: any;
@@ -23,81 +37,239 @@ export default function OrganizationTabs({
 }: OrganizationTabsProps) {
   const [activeTab, setActiveTab] = useState("overview");
 
+  // Validate input data
+  if (!Array.isArray(members)) {
+    console.error("OrganizationTabs: members prop is not an array");
+    return <div className="text-red-500">Error: Invalid members data</div>;
+  }
+
+  if (!Array.isArray(projects)) {
+    console.error("OrganizationTabs: projects prop is not an array");
+    return <div className="text-red-500">Error: Invalid projects data</div>;
+  }
+  
+  // Calculate stats
+  const activeProjects = projects.filter(p => p.status === "active").length;
+  const completedProjects = projects.filter(p => p.status === "completed").length;
+  const adminCount = members.filter(m => m.role === "admin").length;
+  const staffCount = members.filter(m => m.role === "staff").length;
+
   return (
-    <Tabs
-      defaultValue="overview"
+    <Tabs 
+      defaultValue="overview" 
       value={activeTab}
       onValueChange={setActiveTab}
       className="w-full"
     >
-      <TabsList className="grid grid-cols-3 md:grid-cols-4 mb-8">
-        <TabsTrigger value="overview" className="flex items-center gap-2">
-          <Building2 className="h-4 w-4" />
-          <span className="hidden sm:inline">Overview</span>
+      <TabsList className="mb-6 bg-card border inline-flex h-10 items-center justify-center rounded-md p-1 text-muted-foreground">
+        <TabsTrigger 
+          value="overview" 
+          className="flex items-center gap-2 data-[state=active]:text-foreground"
+        >
+          <LayoutDashboard className="h-4 w-4" />
+          <span className="text-xs sm:text-sm">Overview</span>
         </TabsTrigger>
-        <TabsTrigger value="members" className="flex items-center gap-2">
+        <TabsTrigger 
+          value="members" 
+          className="flex items-center gap-2 data-[state=active]:text-foreground"
+        >
           <Users className="h-4 w-4" />
-          <span className="hidden sm:inline">Members</span>
-          <span className="bg-muted text-muted-foreground rounded-full px-1.5 py-0.5 text-xs">
-            {members.length}
-          </span>
+          <span className="text-xs sm:text-sm">Members</span>
         </TabsTrigger>
-        <TabsTrigger value="projects" className="flex items-center gap-2">
-          <ClipboardList className="h-4 w-4" />
-          <span className="hidden sm:inline">Projects</span>
-          <span className="bg-muted text-muted-foreground rounded-full px-1.5 py-0.5 text-xs">
-            {projects.length}
-          </span>
-        </TabsTrigger>
-        <TabsTrigger value="events" className="flex items-center gap-2">
-          <Calendar className="h-4 w-4" />
-          <span className="hidden sm:inline">Events</span>
+        <TabsTrigger 
+          value="projects" 
+          className="flex items-center gap-2 data-[state=active]:text-foreground"
+        >
+          <Folders className="h-4 w-4" />
+          <span className="text-xs sm:text-sm">Projects</span>
         </TabsTrigger>
       </TabsList>
       
       <TabsContent value="overview" className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <h3 className="text-xl font-medium mb-3">About {organization.name}</h3>
-            <p className="text-muted-foreground">
-              {organization.description || "No description provided."}
-            </p>
-          </div>
+        <div className="grid gap-6 md:grid-cols-2">
+          <Card>
+            <CardContent className="p-6">
+              <h3 className="text-lg font-semibold mb-4">About</h3>
+              
+              <div className="space-y-4">
+                <div>
+                  <h4 className="text-sm font-medium text-muted-foreground mb-1">Description</h4>
+                  <p className="text-sm">
+                    {organization.description || "No description provided."}
+                  </p>
+                </div>
+                
+                <div className="grid gap-3">
+                  <div className="flex gap-2">
+                    <Building2 className="h-4 w-4 text-muted-foreground mt-0.5" />
+                    <div>
+                      <h4 className="text-sm font-medium">Organization Type</h4>
+                      <p className="text-sm text-muted-foreground capitalize">
+                        {organization.type}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {organization.website && (
+                    <div className="flex gap-2">
+                      <Globe className="h-4 w-4 text-muted-foreground mt-0.5" />
+                      <div>
+                        <h4 className="text-sm font-medium">Website</h4>
+                        <a 
+                          href={organization.website.startsWith('http') ? organization.website : `https://${organization.website}`} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-sm text-primary hover:underline"
+                        >
+                          {organization.website}
+                        </a>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="flex gap-2">
+                    <Calendar className="h-4 w-4 text-muted-foreground mt-0.5" />
+                    <div>
+                      <h4 className="text-sm font-medium">Created</h4>
+                      <p className="text-sm text-muted-foreground">
+                        {format(new Date(organization.created_at), "MMMM d, yyyy")}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
           
-          <div>
-            <h3 className="text-xl font-medium mb-3">Recent Activity</h3>
-            <div className="bg-muted/30 rounded-lg p-6 text-center">
-              <p className="text-muted-foreground">Activity feed coming soon!</p>
-            </div>
-          </div>
+          <Card>
+            <CardContent className="p-6">
+              <h3 className="text-lg font-semibold mb-4">Quick Stats</h3>
+              
+              <div className="grid gap-6 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <h4 className="text-sm font-medium text-muted-foreground">Members</h4>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="bg-muted/40 rounded-lg p-3 text-center">
+                      <p className="text-xl font-semibold">{adminCount}</p>
+                      <p className="text-xs text-muted-foreground">Admins</p>
+                    </div>
+                    <div className="bg-muted/40 rounded-lg p-3 text-center">
+                      <p className="text-xl font-semibold">{staffCount}</p>
+                      <p className="text-xs text-muted-foreground">Staff</p>
+                    </div>
+                    <div className="bg-muted/40 rounded-lg p-3 text-center">
+                      <p className="text-xl font-semibold">{members.length}</p>
+                      <p className="text-xs text-muted-foreground">Total</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <h4 className="text-sm font-medium text-muted-foreground">Projects</h4>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="bg-muted/40 rounded-lg p-3 text-center">
+                      <p className="text-xl font-semibold">{activeProjects}</p>
+                      <p className="text-xs text-muted-foreground">Active</p>
+                    </div>
+                    <div className="bg-muted/40 rounded-lg p-3 text-center">
+                      <p className="text-xl font-semibold">{completedProjects}</p>
+                      <p className="text-xs text-muted-foreground">Completed</p>
+                    </div>
+                    <div className="bg-muted/40 rounded-lg p-3 text-center">
+                      <p className="text-xl font-semibold">{projects.length}</p>
+                      <p className="text-xs text-muted-foreground">Total</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {userRole && projects.length > 0 && (
+                <div className="mt-6">
+                  <Separator className="my-4" />
+                  <h4 className="text-sm font-medium mb-3">Recent Projects</h4>
+                  <div className="space-y-2">
+                    {projects.slice(0, 3).map((project) => (
+                      <Link 
+                        href={`/projects/${project.id}`}
+                        key={project.id}
+                        className="block p-2 rounded-md hover:bg-muted transition-colors"
+                      >
+                        <div className="flex justify-between items-center">
+                          <span className="font-medium truncate">{project.title}</span>
+                          <Badge 
+                            variant={project.status === "active" ? "default" : 
+                                   project.status === "completed" ? "secondary" : "outline"}
+                            className="ml-2 text-xs"
+                          >
+                            {project.status}
+                          </Badge>
+                        </div>
+                        {project.location && (
+                          <div className="flex items-center text-xs text-muted-foreground mt-1">
+                            <MapPin className="h-3 w-3 mr-1" />
+                            <span className="truncate">{project.location}</span>
+                          </div>
+                        )}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
+        
+        {userRole === "admin" && (
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-start gap-4">
+                <div className="p-3 rounded-full bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-500">
+                  <ShieldCheck className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-semibold mb-1">Admin Tools</h3>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    You have admin privileges for this organization.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <Link href={`/organization/${organization.id}/settings`}>
+                      <Badge variant="outline" className="cursor-pointer hover:bg-muted">
+                        Organization Settings
+                      </Badge>
+                    </Link>
+                    <Link href={`/organization/${organization.id}/invite`}>
+                      <Badge variant="outline" className="cursor-pointer hover:bg-muted">
+                        Invite Members
+                      </Badge>
+                    </Link>
+                    <Link href={`/projects/create?org=${organization.id}`}>
+                      <Badge variant="outline" className="cursor-pointer hover:bg-muted">
+                        New Project
+                      </Badge>
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </TabsContent>
       
       <TabsContent value="members">
-        <MembersTab 
-          members={members} 
-          userRole={userRole} 
+        <MembersTab
+          members={members}
+          userRole={userRole}
           organizationId={organization.id}
           currentUserId={currentUserId}
         />
       </TabsContent>
       
       <TabsContent value="projects">
-        <ProjectsTab 
-          projects={projects} 
-          userRole={userRole} 
-          organizationId={organization.id} 
+        <ProjectsTab
+          projects={projects}
+          organizationId={organization.id}
+          userRole={userRole}
         />
-      </TabsContent>
-      
-      <TabsContent value="events">
-        <div className="text-center py-12">
-          <Calendar className="h-12 w-12 mx-auto text-muted-foreground" />
-          <h3 className="mt-4 text-lg font-medium">Events Coming Soon</h3>
-          <p className="text-muted-foreground mt-2">
-            Organization events will be available soon.
-          </p>
-        </div>
       </TabsContent>
     </Tabs>
   );

@@ -50,11 +50,14 @@ export async function checkOrgUsername(username: string): Promise<boolean> {
     return false;
   }
   
-  return !data; // If data is null, username is available
+  return !data;
 }
 
 /**
- * Create a new organization
+ * Create a new organization ensuring the following order:
+ * 1. Insert the organization.
+ * 2. Add the organization admin.
+ * 3. Update organization logoUrl only after the admin is added.
  */
 export async function createOrganization(data: OrganizationCreationData) {
   const supabase = await createClient();
@@ -75,7 +78,7 @@ export async function createOrganization(data: OrganizationCreationData) {
   const joinCode = generateJoinCode();
 
   try {
-    // First, insert the organization to get its ID
+    // 1. Insert the organization and retrieve its ID
     const { data: organization, error: createError } = await supabase
       .from("organizations")
       .insert({
@@ -83,19 +86,34 @@ export async function createOrganization(data: OrganizationCreationData) {
         username: data.username,
         description: data.description || null,
         website: data.website || null,
-        logo_url: null, // We'll update this after upload
         type: data.type,
         join_code: joinCode,
+        logo_url: null,  // initially set to null
         created_by: user.id
       })
       .select("id")
       .single();
 
-    if (createError) throw createError;
+    if (createError || !organization) {
+      throw createError || new Error("Failed to create organization");
+    }
     
+    // 2. Add the creator as an admin
+    const { error: memberError } = await supabase
+      .from("organization_members")
+      .insert({
+        organization_id: organization.id,
+        user_id: user.id,
+        role: "admin"
+      });
+
+    if (memberError) {
+      throw memberError;
+    }
+
     let logoUrl = null;
     
-    // If there's a logo (data URL format), upload it to storage using org ID
+    // 3. Process the logo upload AFTER the organization admin is added
     if (data.logoUrl && data.logoUrl.startsWith('data:')) {
       try {
         // Extract the MIME type and verify it's allowed
@@ -109,13 +127,12 @@ export async function createOrganization(data: OrganizationCreationData) {
         // Extract the base64 content and determine file extension
         const base64Data = data.logoUrl.split(',')[1];
         
-        // Size check (approximate calculation for base64)
-        const approxFileSize = (base64Data.length * 0.75);
+        // Size check (approximate check for base64)
+        const approxFileSize = base64Data.length * 0.75;
         if (approxFileSize > MAX_FILE_SIZE) {
           throw new Error(`File size exceeds the 5MB limit`);
         }
         
-        // Determine file extension from MIME type
         let fileExt;
         if (mimeType === 'image/jpeg' || mimeType === 'image/jpg') {
           fileExt = 'jpg';
@@ -124,52 +141,48 @@ export async function createOrganization(data: OrganizationCreationData) {
         } else if (mimeType === 'image/webp') {
           fileExt = 'webp';
         } else {
-          fileExt = 'jpg'; // Default fallback
+          fileExt = 'jpg';
         }
         
-        // Create a clean filename with just the ID and extension
+        // Create a clean filename using organization id and extension
         const fileName = `${organization.id}.${fileExt}`;
         
-        // Upload to Supabase storage with organization ID as filename
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('organization-logos') // Make sure this bucket exists in Supabase
-          .upload(fileName, 
-                  Buffer.from(base64Data, 'base64'),
-                  { contentType: mimeType, upsert: true });
+        // Upload to Supabase storage (ensure the 'organization-logos' bucket exists)
+        const { error: uploadError } = await supabase.storage
+          .from('organization-logos')
+          .upload(
+            fileName, 
+            Buffer.from(base64Data, 'base64'),
+            { contentType: mimeType, upsert: true }
+          );
         
         if (uploadError) throw uploadError;
         
         // Get the public URL for the uploaded image
-        // This should return a URL with the correct structure including 'public'
         const { data: publicUrlData } = supabase.storage
           .from('organization-logos')
           .getPublicUrl(fileName);
         
         logoUrl = publicUrlData.publicUrl;
+        if (!logoUrl) {
+          throw new Error("Failed to get public URL for the uploaded logo");
+        }
+        console.log("Logo uploaded successfully:", logoUrl);
         
-        // Update the organization with the logo URL
+        // Update the organization with the new logo URL
         const { error: updateError } = await supabase
           .from("organizations")
           .update({ logo_url: logoUrl })
-          .eq("id", organization.id);
-          
-        if (updateError) throw updateError;
+          .eq("id", organization.id)
+          .select("logo_url")
+          .single();
+
+
       } catch (error: any) {
-        console.error("Error uploading organization logo:", error);
-        // Just log the error and continue with organization creation without a logo
+        console.error("Error updating organization logo:", error);
+        // Continue without interrupting organization creation if logo upload fails.
       }
     }
-    
-    // Add the creator as an admin
-    const { error: memberError } = await supabase
-      .from("organization_members")
-      .insert({
-        organization_id: organization.id,
-        user_id: user.id,
-        role: "admin"
-      });
-
-    if (memberError) throw memberError;
     
     // Revalidate the organization pages
     revalidatePath(`/organization/${data.username}`);
@@ -178,7 +191,7 @@ export async function createOrganization(data: OrganizationCreationData) {
     return { 
       success: true, 
       organizationId: organization.id,
-      logoUrl // Return the logo URL for debugging
+      logoUrl
     };
   } catch (error: any) {
     console.error("Error creating organization:", error);
@@ -186,9 +199,6 @@ export async function createOrganization(data: OrganizationCreationData) {
   }
 }
 
-/**
- * Regenerate a join code for an organization
- */
 export async function regenerateJoinCode(organizationId: string) {
   const supabase = await createClient();
   

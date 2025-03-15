@@ -64,15 +64,15 @@ export default function ProjectsTab({
         <h2 className="text-xl font-semibold">Organization Projects</h2>
         
         <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+            <div className="relative w-full sm:w-64">
+            <Search className="absolute left-2 top-1/2 h-4 w-4 text-muted-foreground -translate-y-1/2" />
             <Input
               placeholder="Search projects..."
               className="pl-8"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
-          </div>
+            </div>
           
           {canCreateProjects && (
             <Button asChild>
@@ -92,20 +92,19 @@ export default function ProjectsTab({
         className="w-full"
       >
         <TabsList className="mb-4">
-          <TabsTrigger value="all">
-            All <span className="ml-1 text-xs bg-muted px-1.5 py-0.5 rounded-full">{projects.length}</span>
+          <TabsTrigger className="text-xs sm:text-sm" value="all">
+            All <span className="hidden sm:inline ml-1 text-xs bg-muted px-1.5 py-0.5 rounded-full">{projects.length}</span>
           </TabsTrigger>
-          <TabsTrigger value="active">
-            Active <span className="ml-1 text-xs bg-muted px-1.5 py-0.5 rounded-full">{activeCount}</span>
+          <TabsTrigger className="text-xs sm:text-sm" value="active">
+            Active <span className="hidden sm:inline ml-1 text-xs bg-muted px-1.5 py-0.5 rounded-full">{activeCount}</span>
           </TabsTrigger>
-          <TabsTrigger value="upcoming">
-            Upcoming <span className="ml-1 text-xs bg-muted px-1.5 py-0.5 rounded-full">{upcomingCount}</span>
+          <TabsTrigger className="text-xs sm:text-sm" value="upcoming">
+            Upcoming <span className="hidden sm:inline ml-1 text-xs bg-muted px-1.5 py-0.5 rounded-full">{upcomingCount}</span>
           </TabsTrigger>
-          <TabsTrigger value="completed">
-            Completed <span className="ml-1 text-xs bg-muted px-1.5 py-0.5 rounded-full">{completedCount}</span>
+          <TabsTrigger className="text-xs sm:text-sm" value="completed">
+            Completed <span className="hidden sm:inline ml-1 text-xs bg-muted px-1.5 py-0.5 rounded-full">{completedCount}</span>
           </TabsTrigger>
         </TabsList>
-        
         <TabsContent value={activeTab} className="mt-0">
           {filteredProjects.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

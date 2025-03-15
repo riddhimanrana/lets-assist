@@ -21,7 +21,15 @@ import {
 import { NoAvatar } from "@/components/NoAvatar";
 import { format } from "date-fns";
 import { useEffect, useState } from "react";
-import { ChevronDown, MoreHorizontal, Search, Shield, UserRoundCog, UserRound } from "lucide-react";
+import { 
+  MoreHorizontal, 
+  Search, 
+  Shield, 
+  UserRoundCog, 
+  UserRound,
+  X,
+  Users
+} from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { updateMemberRole, removeMember } from "./actions";
@@ -33,6 +41,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Card } from "@/components/ui/card";
 
 interface MembersTabProps {
   members: any[];
@@ -48,26 +57,40 @@ export default function MembersTab({
   currentUserId,
 }: MembersTabProps) {
   const [searchTerm, setSearchTerm] = useState("");
-  const [filteredMembers, setFilteredMembers] = useState(members);
+  const [filteredMembers, setFilteredMembers] = useState<any[]>([]);
   const [processingMember, setProcessingMember] = useState<string | null>(null);
   const [removingMember, setRemovingMember] = useState<{ id: string; name: string } | null>(null);
 
+ 
+
   // Filter members when search term changes
   useEffect(() => {
+    if (!Array.isArray(members)) {
+      console.error("MembersTab: Cannot filter, 'members' prop is not an array");
+      return;
+    }
+
     if (searchTerm.trim() === "") {
       setFilteredMembers(members);
+      console.log("Filter reset - all members:", members.length);
       return;
     }
 
     const lowercasedFilter = searchTerm.toLowerCase();
     const filtered = members.filter((member) => {
-      const fullName = member.profiles?.full_name?.toLowerCase() || "";
-      const username = member.profiles?.username?.toLowerCase() || "";
+      const fullName = member?.profiles?.full_name?.toLowerCase() || "";
+      const username = member?.profiles?.username?.toLowerCase() || "";
       return fullName.includes(lowercasedFilter) || 
              username.includes(lowercasedFilter);
     });
+    console.log(`Filtered members for "${searchTerm}":`, filtered.length);
     setFilteredMembers(filtered);
   }, [searchTerm, members]);
+
+  // Log filtered members when they change
+  useEffect(() => {
+    console.log("Current filteredMembers state:", filteredMembers);
+  }, [filteredMembers]);
 
   const canManageMembers = userRole === "admin" || userRole === "staff";
   const isAdmin = userRole === "admin";
@@ -126,97 +149,163 @@ export default function MembersTab({
     }
   };
 
+  if (!Array.isArray(members)) {
+    console.error("MembersTab: 'members' prop is not an array:", members);
+    return (
+      <div className="p-4 text-center text-red-500">
+        Error: Invalid members data provided
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row justify-between gap-2">
-        <h2 className="text-xl font-semibold">Organization Members</h2>
-        <div className="relative w-full sm:w-64">
-          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-semibold">
+            Organization Members
+          </h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            {filteredMembers?.length || 0} total members
+          </p>
+        </div>
+        
+        <div className="relative sm:w-auto min-w-64">
+           <div className="relative w-full sm:w-auto sm:flex-1 max-w-md">
+            
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search members..."
-            className="pl-8"
+            className="pl-8 pr-9"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
+          {searchTerm && (
+            <button 
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              onClick={() => setSearchTerm("")}
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+          </div>
         </div>
       </div>
 
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Member</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Joined</TableHead>
-              {canManageMembers && <TableHead className="w-[100px]">Actions</TableHead>}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredMembers.length > 0 ? (
-              filteredMembers.map((member) => (
-                <TableRow key={member.id}>
-                  <TableCell className="flex items-center gap-3">
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage
-                        src={member.profiles?.avatar_url || undefined}
-                        alt={member.profiles?.full_name || ""}
-                      />
-                      <AvatarFallback>
-                        <NoAvatar fullName={member.profiles?.full_name || ""} />
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <Link
-                        href={`/profile/${member.profiles?.username}`}
-                        className="font-medium hover:underline"
-                      >
-                        {member.profiles?.full_name || "Unknown User"}
-                      </Link>
-                      {member.profiles?.username && (
-                        <p className="text-xs text-muted-foreground">
-                          @{member.profiles.username}
-                        </p>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <RoleBadge role={member.role} />
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {format(new Date(member.joined_at), "MMM d, yyyy")}
-                  </TableCell>
-                  {canManageMembers && (
-                    <TableCell>
-                      {/* Check if current user can manage this member */}
-                      {(isAdmin || (userRole === "staff" && member.role === "member")) &&
-                       member.user_id !== currentUserId ? (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild disabled={processingMember === member.id}>
-                            <Button variant="ghost" size="icon">
-                              {processingMember === member.id ? (
-                                <div className="h-4 w-4 animate-spin rounded-full border-2 border-foreground border-t-transparent"></div>
-                              ) : (
-                                <MoreHorizontal className="h-4 w-4" />
+      <Card className="overflow-hidden border rounded-lg">
+        <div className="overflow-x-auto">
+            <Table>
+            <TableHeader>
+                <TableRow>
+                  <TableHead className="min-w-[200px]">Member</TableHead>
+                  <TableHead className="min-w-[100px]">Role</TableHead>
+                  <TableHead className="min-w-[120px]">Joined</TableHead>
+                  {canManageMembers && <TableHead className="min-w-[100px] text-right">Actions</TableHead>}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredMembers && filteredMembers.length > 0 ? (
+                  filteredMembers.map((member) => (
+                    <TableRow key={member.id} className="hover:bg-muted/30">
+                      <TableCell className="py-3 min-w-[200px]">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-9 w-9 flex-shrink-0 border border-border">
+                            <AvatarImage
+                              src={member.profiles?.avatar_url || undefined}
+                              alt={member.profiles?.full_name || ""}
+                            />
+                            <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                              <NoAvatar fullName={member.profiles?.full_name || ""} />
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0">
+                            <Link
+                              href={`/profile/${member.profiles?.username || ''}`}
+                              className="font-medium hover:underline transition-colors block truncate"
+                            >
+                              {member.profiles?.full_name || "Unknown User"}
+                            </Link>
+                            {member.profiles?.username && (
+                              <p className="text-xs text-muted-foreground truncate">
+                                @{member.profiles.username}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="min-w-[100px]">
+                        <RoleBadge role={member.role} />
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground min-w-[120px] whitespace-nowrap">
+                        {member.joined_at ? format(new Date(member.joined_at), "MMM d, yyyy") : "N/A"}
+                      </TableCell>
+                    {canManageMembers && (
+                      <TableCell className="text-right">
+                        {/* Check if current user can manage this member */}
+                        {(isAdmin || (userRole === "staff" && member.role === "member")) &&
+                         member.user_id !== currentUserId ? (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild disabled={processingMember === member.id}>
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                {processingMember === member.id ? (
+                                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-foreground border-t-transparent"></div>
+                                ) : (
+                                  <MoreHorizontal className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48">
+                              <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+                                Change Role
+                              </div>
+                              
+                              {/* Admin can change to any role */}
+                              {isAdmin && (
+                                <>
+                                  <DropdownMenuItem
+                                    className="gap-2"
+                                    onClick={() => handleUpdateRole(
+                                      member.id, 
+                                      member.user_id, 
+                                      member.profiles?.full_name || "Member",
+                                      "admin"
+                                    )}
+                                    disabled={member.role === "admin"}
+                                  >
+                                    <Shield className="h-4 w-4" />
+                                    Make Admin
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    className="gap-2"
+                                    onClick={() => handleUpdateRole(
+                                      member.id, 
+                                      member.user_id, 
+                                      member.profiles?.full_name || "Member",
+                                      "staff"
+                                    )}
+                                    disabled={member.role === "staff"}
+                                  >
+                                    <UserRoundCog className="h-4 w-4" />
+                                    Make Staff
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    className="gap-2"
+                                    onClick={() => handleUpdateRole(
+                                      member.id, 
+                                      member.user_id, 
+                                      member.profiles?.full_name || "Member",
+                                      "member"
+                                    )}
+                                    disabled={member.role === "member"}
+                                  >
+                                    <UserRound className="h-4 w-4" />
+                                    Make Member
+                                  </DropdownMenuItem>
+                                </>
                               )}
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            {/* Admin can change to any role */}
-                            {isAdmin && (
-                              <>
-                                <DropdownMenuItem
-                                  className="gap-2"
-                                  onClick={() => handleUpdateRole(
-                                    member.id, 
-                                    member.user_id, 
-                                    member.profiles?.full_name || "Member",
-                                    "admin"
-                                  )}
-                                  disabled={member.role === "admin"}
-                                >
-                                  <Shield className="h-4 w-4" />
-                                  Make Admin
-                                </DropdownMenuItem>
+                              
+                              {/* Staff can only change regular members */}
+                              {userRole === "staff" && member.role === "member" && (
                                 <DropdownMenuItem
                                   className="gap-2"
                                   onClick={() => handleUpdateRole(
@@ -225,79 +314,70 @@ export default function MembersTab({
                                     member.profiles?.full_name || "Member",
                                     "staff"
                                   )}
-                                  disabled={member.role === "staff"}
                                 >
                                   <UserRoundCog className="h-4 w-4" />
                                   Make Staff
                                 </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  className="gap-2"
-                                  onClick={() => handleUpdateRole(
-                                    member.id, 
-                                    member.user_id, 
-                                    member.profiles?.full_name || "Member",
-                                    "member"
-                                  )}
-                                  disabled={member.role === "member"}
-                                >
-                                  <UserRound className="h-4 w-4" />
-                                  Make Member
-                                </DropdownMenuItem>
-                              </>
-                            )}
-                            
-                            {/* Staff can only change regular members */}
-                            {userRole === "staff" && member.role === "member" && (
+                              )}
+                              
+                              <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+                                Danger Zone
+                              </div>
+                              
                               <DropdownMenuItem
-                                className="gap-2"
-                                onClick={() => handleUpdateRole(
-                                  member.id, 
-                                  member.user_id, 
-                                  member.profiles?.full_name || "Member",
-                                  "staff"
-                                )}
+                                className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                                onClick={() => setRemovingMember({
+                                  id: member.id,
+                                  name: member.profiles?.full_name || "Member"
+                                })}
                               >
-                                <UserRoundCog className="h-4 w-4" />
-                                Make Staff
+                                Remove from Organization
                               </DropdownMenuItem>
-                            )}
-                            
-                            <DropdownMenuItem
-                              className="text-destructive focus:text-destructive focus:bg-destructive/10"
-                              onClick={() => setRemovingMember({
-                                id: member.id,
-                                name: member.profiles?.full_name || "Member"
-                              })}
-                            >
-                              Remove from Organization
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      ) : (
-                        <div className="w-4 h-4"></div>
-                      )}
-                    </TableCell>
-                  )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        ) : (
+                          <div className="w-4 h-4"></div>
+                        )}
+                      </TableCell>
+                    )}
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={canManageMembers ? 4 : 3} className="h-32 text-center">
+                    {searchTerm ? (
+                      <div className="text-muted-foreground">
+                        <p>No members found matching &quot;{searchTerm}&quot;</p>
+                        <Button 
+                          variant="link" 
+                          onClick={() => setSearchTerm("")}
+                          className="mt-2"
+                        >
+                          Clear search
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="py-8">
+                        <div className="flex justify-center mb-4">
+                          <div className="bg-muted/50 h-16 w-16 rounded-full flex items-center justify-center">
+                            <Users className="h-8 w-8 text-muted-foreground" />
+                          </div>
+                        </div>
+                        <p className="text-muted-foreground font-medium text-lg">
+                          No members in this organization
+                        </p>
+                        <p className="text-muted-foreground text-sm mt-1">
+                          Invite members using the organization join code
+                        </p>
+                      </div>
+                    )}
+                  </TableCell>
                 </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={canManageMembers ? 4 : 3} className="h-24 text-center">
-                  {searchTerm ? (
-                    <div className="text-muted-foreground">
-                      No members found matching &quot;{searchTerm}&quot;
-                    </div>
-                  ) : (
-                    <div className="text-muted-foreground">
-                      No members in this organization
-                    </div>
-                  )}
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </Card>
 
       {/* Remove Member Dialog */}
       <Dialog

@@ -83,22 +83,54 @@ export default async function OrganizationPage({ params }: Props): Promise<React
     userRole = memberRecord?.role || null;
   }
 
-  // Get all organization members with their profiles
-  const { data: members } = await supabase
+  console.log("Fetching members for organization ID:", organization.id);
+  
+  // FIXED: First fetch members from organization_members table
+  const { data: membersData, error: membersError } = await supabase
     .from("organization_members")
     .select(`
       id, 
       role, 
       joined_at,
       user_id,
-      profiles:user_id (
-        username,
-        full_name,
-        avatar_url
-      )
+      organization_id
     `)
     .eq("organization_id", organization.id)
     .order("role", { ascending: false });
+  
+  if (membersError) {
+    console.error("Error fetching organization members:", membersError);
+  }
+  
+  // Get the list of user IDs
+  const userIds = membersData?.map(member => member.user_id) || [];
+  
+  // No need to query profiles if there are no members
+  let profilesData: any[] = [];
+  if (userIds.length > 0) {
+    // Then fetch profile data for those users
+    const { data: profiles, error: profilesError } = await supabase
+      .from("profiles")
+      .select("id, username, full_name, avatar_url")
+      .in("id", userIds);
+      
+    if (profilesError) {
+      console.error("Error fetching member profiles:", profilesError);
+    } else {
+      profilesData = profiles || [];
+    }
+  }
+  
+  // Combine the data
+  const formattedMembers = membersData?.map(member => {
+    const profile = profilesData.find(p => p.id === member.user_id) || null;
+    return {
+      ...member,
+      profiles: profile
+    };
+  }) || [];
+  
+  console.log("Members query result:", formattedMembers.length, "members found");
 
   // Get organization projects
   const { data: projects } = await supabase
@@ -108,23 +140,25 @@ export default async function OrganizationPage({ params }: Props): Promise<React
     .order("created_at", { ascending: false });
   
   return (
-    <div className="flex justify-center w-full">
-      <div className="container max-w-6xl py-4 sm:py-8 px-4 sm:px-6">
-        <OrganizationHeader 
-          organization={organization} 
-          userRole={userRole}
-          memberCount={members?.length || 0}
-        />
-        
-        <Separator className="my-6" />
-        
+    <div className="flex flex-col w-full">
+      <div className="w-full absolute bg-gradient-to-br from-primary/15 via-primary/5 to-background/0 min-h-72 before:content-[''] before:absolute before:inset-0 before:bg-gradient-to-b before:from-transparent before:to-background"/>
+      
+      <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 pt-6 sm:pt-10">
+      <OrganizationHeader 
+        organization={organization} 
+        userRole={userRole}
+        memberCount={formattedMembers?.length || 0}
+      />
+      
+      <div className="mt-8 sm:mt-12 bg-card rounded-xl border shadow-sm p-4 sm:p-6">
         <OrganizationTabs 
-          organization={organization}
-          members={members || []}
-          projects={projects || []}
-          userRole={userRole}
-          currentUserId={user?.id}
+        organization={organization}
+        members={formattedMembers}
+        projects={projects || []}
+        userRole={userRole}
+        currentUserId={user?.id}
         />
+      </div>
       </div>
     </div>
   );

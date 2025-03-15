@@ -1,24 +1,13 @@
 "use client";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { 
-  Building2, 
-  CalendarIcon, 
-  ExternalLink, 
-  Users2, 
-  Settings,
-  PencilLine 
-} from "lucide-react";
-import { format } from "date-fns";
-import { useState } from "react";
-import { toast } from "sonner";
-import { useRouter } from "next/navigation";
-import JoinCodeDisplay from "./JoinCodeDisplay";
+import { Badge } from "@/components/ui/badge";
+import { ShareIcon, GlobeIcon, UsersIcon, Plus, Building2 } from "lucide-react";
 import Link from "next/link";
-import LeaveOrganizationDialog from "./LeaveOrganizationDialog";
+import { useState } from "react";
+import JoinCodeDialog from "./JoinCodeDialog";
+import { toast } from "sonner";
 
 interface OrganizationHeaderProps {
   organization: any;
@@ -26,159 +15,149 @@ interface OrganizationHeaderProps {
   memberCount: number;
 }
 
-export default function OrganizationHeader({ 
-  organization, 
+export default function OrganizationHeader({
+  organization,
   userRole,
-  memberCount
+  memberCount,
 }: OrganizationHeaderProps) {
-  const router = useRouter();
-  const [isHovering, setIsHovering] = useState(false);
-  const isMember = !!userRole;
-  const isAdmin = userRole === 'admin';
+  const [showJoinCode, setShowJoinCode] = useState(false);
+  const isAdmin = userRole === "admin";
   
+  const getInitials = (name: string) => {
+    return name
+      ? name.split(' ').map(part => part[0]).join('').toUpperCase().substring(0, 2)
+      : "ORG";
+  };
+
+  const handleShare = () => {
+    if (navigator.share) {
+      navigator.share({
+        title: organization.name,
+        text: organization.description || `Check out ${organization.name} on Let's Assist!`,
+        url: window.location.href,
+      }).catch(err => {
+        console.error('Error sharing:', err);
+        navigator.clipboard.writeText(window.location.href);
+        toast.success('Link copied to clipboard!');
+      });
+    } else {
+      navigator.clipboard.writeText(window.location.href);
+      toast.success('Link copied to clipboard!');
+    }
+  };
+
   return (
-    <>
-      <Card className="overflow-hidden border">
-        <div 
-          className="h-32 md:h-40 bg-muted/30 relative"
-          onMouseEnter={() => userRole === 'admin' && setIsHovering(true)}
-          onMouseLeave={() => setIsHovering(false)}
-        >
-          {/* Admin actions overlay */}
-          {isAdmin && isHovering && (
-            <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
-              <Button 
-                variant="outline" 
-                className="bg-background"
-                asChild
-              >
-                <Link href={`/organization/${organization.username}/edit`}>
-                  <Settings className="w-4 h-4 mr-2" />
-                  Organization Settings
-                </Link>
-              </Button>
-            </div>
-          )}
-        </div>
+    <div className="flex flex-col w-full gap-4">
+      {/* Main container - stacking on mobile, row on desktop */}
+      <div className="flex flex-col items-center sm:flex-row sm:items-start gap-4 sm:gap-6 w-full">
+        {/* Avatar - smaller on mobile */}
+        <Avatar className="h-16 w-16 sm:h-24 sm:w-24 rounded-2xl border-4 border-background shadow-sm flex-shrink-0">
+          <AvatarImage src={organization.logo_url || undefined} alt={organization.name} />
+          <AvatarFallback className="text-base sm:text-xl bg-primary/10 rounded-2xl">
+            {organization.type === 'company' ? 
+              <Building2 className="h-8 w-8 text-primary/60" /> : 
+              getInitials(organization.name)}
+          </AvatarFallback>
+        </Avatar>
         
-        <div className="p-4 md:p-6">
-          <div className="flex flex-col md:flex-row gap-4 md:gap-6 -mt-20 md:-mt-24">
-            <Avatar 
-              className="h-24 w-24 md:h-36 md:w-36 border-4 border-background shadow-md"
-              onMouseEnter={() => userRole === 'admin' && setIsHovering(true)}
-              onMouseLeave={() => setIsHovering(false)}
-            >
-              <AvatarImage src={organization.logo_url || undefined} alt={organization.name} />
-              <AvatarFallback className="bg-muted text-2xl">
-                <Building2 className="h-10 w-10" />
-              </AvatarFallback>
-            </Avatar>
+        {/* Organization details - centered on mobile */}
+        <div className="flex-1 min-w-0 text-center sm:text-left">
+          {/* Organization name and badges */}
+          <div>
+            <h1 className="text-xl sm:text-3xl font-bold tracking-tight line-clamp-2 sm:line-clamp-1">
+              {organization.name}
+            </h1>
             
-            <div className="mt-auto">
-              <div className="flex flex-wrap items-start gap-2 mb-1">
-                <h1 className="text-2xl md:text-3xl font-bold">{organization.name}</h1>
-                {organization.verified && (
-                  <Badge variant="default">Verified</Badge>
-                )}
-                <Badge variant="outline" className="capitalize">
-                  {organization.type}
-                </Badge>
-              </div>
-              <p className="text-muted-foreground text-sm">@{organization.username}</p>
+            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mt-2">
+              <Badge variant="outline" className="capitalize">
+                {organization.type}
+              </Badge>
               
-              <div className="mt-3 md:mt-4">
-                <div className="flex flex-wrap gap-3 md:gap-4 text-sm text-muted-foreground">
-                  {/* Join Date */}
-                  <div className="flex items-center">
-                    <CalendarIcon className="h-4 w-4 mr-1.5" />
-                    <span>Created {format(new Date(organization.created_at), "MMM d, yyyy")}</span>
-                  </div>
-                  
-                  {/* Member Count */}
-                  <div className="flex items-center">
-                    <Users2 className="h-4 w-4 mr-1.5" />
-                    <span>{memberCount} {memberCount === 1 ? 'member' : 'members'}</span>
-                  </div>
-                  
-                  {/* Website (if available) */}
-                  {organization.website && (
-                    <a 
-                      href={organization.website.startsWith('http') ? organization.website : `https://${organization.website}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center hover:underline"
-                    >
-                      <ExternalLink className="h-4 w-4 mr-1.5" />
-                      <span className="truncate max-w-[200px]">
-                        {organization.website.replace(/^https?:\/\//, '')}
-                      </span>
-                    </a>
-                  )}
-                </div>
-                
-                {/* Membership status & actions */}
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {isMember ? (
-                    <>
-                      <Badge variant={userRole === 'admin' ? 'default' : userRole === 'staff' ? 'secondary' : 'outline'}>
-                        {userRole === 'admin' ? 'Admin' : userRole === 'staff' ? 'Staff' : 'Member'}
-                      </Badge>
-                      
-                      {/* Admin actions */}
-                      {isAdmin && (
-                        <>
-                          <Button 
-                            size="sm"
-                            variant="outline"
-                            asChild
-                          >
-                            <Link href={`/organization/${organization.username}/edit`}>
-                              <PencilLine className="h-3.5 w-3.5 mr-1.5" />
-                              Edit Organization
-                            </Link>
-                          </Button>
-                          
-                          {/* Join code (admin only) */}
-                          <JoinCodeDisplay 
-                            organizationId={organization.id} 
-                            joinCode={organization.join_code} 
-                          />
-                        </>
-                      )}
-                      
-                      {/* Leave organization button */}
-                      {isAdmin ? (
-                        <Button 
-                          size="sm"
-                          variant="outline"
-                          asChild
-                        >
-                          <Link href={`/organization/${organization.username}/edit`}>
-                            <Settings className="h-3.5 w-3.5 mr-1.5" />
-                            Settings
-                          </Link>
-                        </Button>
-                      ) : (
-                        <LeaveOrganizationDialog 
-                          organizationId={organization.id}
-                          organizationName={organization.name}
-                        />
-                      )}
-                    </>
-                  ) : null}
-                </div>
-              </div>
+              {organization.username && (
+                <Badge variant="secondary" className="font-mono">
+                  @{organization.username}
+                </Badge>
+              )}
             </div>
           </div>
           
-          {/* Organization description */}
-          {organization.description && (
-            <div className="mt-6 text-muted-foreground">
-              <p>{organization.description}</p>
+          {/* Website and member count - wrap properly on mobile */}
+          <div className="flex flex-wrap justify-center sm:justify-start gap-3 mt-3 items-center text-sm text-muted-foreground">
+            {organization.website && (
+              <a 
+                href={organization.website.startsWith('http') ? organization.website : `https://${organization.website}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 hover:text-foreground transition-colors"
+              >
+                <GlobeIcon className="h-3.5 w-3.5" />
+                <span className="truncate max-w-[150px] sm:max-w-[200px]">
+                  {organization.website.replace(/^https?:\/\/(www\.)?/, '')}
+                </span>
+              </a>
+            )}
+            
+            <div className="flex items-center gap-1">
+              <UsersIcon className="h-3.5 w-3.5" />
+              <span>{memberCount} {memberCount === 1 ? 'Member' : 'Members'}</span>
             </div>
+          </div>
+          
+          {/* Description - more height on mobile with fade out */}
+          {organization.description && (
+            <p className="mt-3 text-sm text-muted-foreground line-clamp-3 sm:line-clamp-none">
+              {organization.description}
+            </p>
           )}
         </div>
-      </Card>
-    </>
+      </div>
+      
+      {/* Action buttons - full width on mobile */}
+      <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto sm:ml-auto">
+        <Button 
+          variant="outline"
+          size="sm"
+          className="w-full sm:w-auto justify-center"
+          onClick={handleShare}
+        >
+          <ShareIcon className="h-4 w-4 mr-2" />
+          Share
+        </Button>
+        
+        {isAdmin && (
+          <Button 
+            variant="default"
+            size="sm"
+            className="w-full sm:w-auto justify-center"
+            onClick={() => setShowJoinCode(true)}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Invite Members
+          </Button>
+        )}
+        
+        {userRole === null && (
+          <Button 
+            variant="default"
+            size="sm"
+            asChild
+            className="w-full sm:w-auto justify-center"
+          >
+            <Link href={`/organization/join?id=${organization.id}`}>
+              <Plus className="h-4 w-4 mr-2" />
+              Join Organization
+            </Link>
+          </Button>
+        )}
+      </div>
+      
+      {showJoinCode && isAdmin && (
+        <JoinCodeDialog 
+          organization={organization} 
+          open={showJoinCode} 
+          onOpenChange={setShowJoinCode} 
+        />
+      )}
+    </div>
   );
 }

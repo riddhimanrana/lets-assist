@@ -4,9 +4,16 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
-import Image from "next/image";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Metadata } from "next";
 import { Plus, Building2, Users2, ExternalLink } from "lucide-react";
 import { JoinOrganizationDialog } from "./JoinOrganizationDialog";
+import { NoAvatar } from "@/components/NoAvatar";
+
+export const metadata: Metadata = {
+  title: "Organizations",
+  description: "Explore and join organizations",
+};
 
 export default async function OrganizationsPage() {
   const supabase = await createClient();
@@ -102,15 +109,14 @@ export default async function OrganizationsPage() {
                 <CardContent className="p-0">
                   <div className="h-20 sm:h-24 bg-gradient-to-r from-primary/40 via-primary/20 to-primary/10 relative">
                     {org.logo_url && (
-                      <div className="absolute bottom-0 left-4 transform translate-y-1/2 rounded-full border-4 border-background overflow-hidden">
-                        <Image 
-                          src={org.logo_url}
-                          alt={org.name}
-                          width={56}
-                          height={56}
-                          className="h-12 w-12 sm:h-14 sm:w-14 object-cover"
-                        />
-                      </div>
+                        <div className="absolute bottom-0 left-4 transform translate-y-1/2">
+                        <Avatar className="h-12 w-12 sm:h-14 sm:w-14 rounded-full border-4 border-background">
+                          <AvatarImage src={org.logo_url} alt={org.name} />
+                          <AvatarFallback>
+                            <NoAvatar fullName={org.name} className="text-base" />
+                          </AvatarFallback>
+                        </Avatar>
+                        </div>
                     )}
                     {!org.logo_url && (
                       <div className="absolute bottom-0 left-4 transform translate-y-1/2 rounded-full bg-muted border-4 border-background h-12 w-12 sm:h-14 sm:w-14 flex items-center justify-center">
