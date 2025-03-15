@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Metadata } from "next";
-import { Plus, Building2, Users2, ExternalLink } from "lucide-react";
+import { Plus, Building2, Users2, ExternalLink, Check, BadgeCheck } from "lucide-react";
 import { JoinOrganizationDialog } from "./JoinOrganizationDialog";
 import { NoAvatar } from "@/components/NoAvatar";
 
@@ -130,9 +130,9 @@ export default async function OrganizationsPage() {
                       <div>
                         <div className="flex items-center gap-2">
                           <h3 className="font-semibold text-base sm:text-lg line-clamp-1">{org.name}</h3>
-                          {org.verified && (
-                            <Badge variant="default" className="text-xs">Verified</Badge>
-                          )}
+                            {org.verified && (
+                            <BadgeCheck className="h-6 w-6" fill="hsl(var(--primary))" stroke="hsl(var(--popover))" strokeWidth={2.5} />
+                            )}
                         </div>
                         <p className="text-xs sm:text-sm text-muted-foreground">@{org.username}</p>
                       </div>
@@ -141,7 +141,7 @@ export default async function OrganizationsPage() {
                       </Badge>
                     </div>
                     
-                    <p className="mt-2 text-xs sm:text-sm line-clamp-2 text-muted-foreground">
+                    <p className="mt-2 text-xs sm:text-sm line-clamp-1 text-muted-foreground">
                       {org.description || "No description provided"}
                     </p>
                   </div>

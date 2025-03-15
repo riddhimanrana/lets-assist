@@ -3,7 +3,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Share2, GlobeIcon, UsersIcon, Plus, Building2 } from "lucide-react";
+import { Share2, GlobeIcon, UsersIcon, Plus, Building2, BadgeCheck } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import JoinCodeDialog from "./JoinCodeDialog";
@@ -88,9 +88,12 @@ export default function OrganizationHeader({
       {/* Organization details - centered on mobile */}
       <div className="flex-1 min-w-0 text-center sm:text-left">
         {/* Organization name and badges */}
-        <div>
-        <h1 className="text-xl sm:text-3xl font-bold tracking-tight line-clamp-2 sm:line-clamp-1">
+        <div className="flex flex-col items-center sm:items-start">
+        <h1 className="flex flex-wrap text-xl sm:text-3xl font-bold tracking-tight">
           {organization.name}
+          {organization.verified && (
+              <BadgeCheck className="sm:h-7 sm:w-7 h-6 w-6 self-center sm:ml-2 ml-1" fill="hsl(var(--primary))" stroke="hsl(var(--popover))" strokeWidth={2.5} />
+          )}
         </h1>
         
         <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mt-2">
@@ -130,7 +133,7 @@ export default function OrganizationHeader({
         
         {/* Description - more height on mobile with fade out */}
         {organization.description && (
-        <p className="mt-3 text-sm text-muted-foreground line-clamp-3 sm:line-clamp-none">
+        <p className="mt-3 text-sm text-muted-foreground line-clamp-1 max-w-[400px]">
           {organization.description}
         </p>
         )}

@@ -20,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
 import { Button } from "@/components/ui/button"; 
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogClose } from "@/components/ui/dialog";
 
 interface OrganizationTabsProps {
   organization: any;
@@ -116,14 +117,14 @@ export default function OrganizationTabs({
                       <Globe className="h-4 w-4 text-muted-foreground mt-0.5" />
                       <div>
                         <h4 className="text-sm font-medium">Website</h4>
-                        <a 
+                        <Link 
                           href={organization.website.startsWith('http') ? organization.website : `https://${organization.website}`} 
                           target="_blank" 
                           rel="noopener noreferrer"
                           className="text-sm text-primary hover:underline"
                         >
                           {organization.website}
-                        </a>
+                        </Link>
                       </div>
                     </div>
                   )}
@@ -238,16 +239,105 @@ export default function OrganizationTabs({
                         Organization Settings
                       </Button>
                     </Link>
-                    <Link href={`/organization/${organization.id}/invite`}>
-                      <Button variant="outline" className="cursor-pointer hover:bg-muted">
-                        Invite Members
-                      </Button>
-                    </Link>
-                    <Link href={`/projects/create?org=${organization.id}`}>
-                      <Button variant="outline" className="cursor-pointer hover:bg-muted">
-                        New Project
-                      </Button>
-                    </Link>
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button variant="outline" className="cursor-pointer hover:bg-muted">
+                          Apply for Verification
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="sm:max-w-2xl">
+                        <DialogHeader>
+                          <DialogTitle className="text-2xl font-bold text-center pb-2">
+                            Organization Verification
+                          </DialogTitle>
+                          <DialogDescription className="text-center text-base">
+                            Get your organization verified to build trust with volunteers and partners
+                          </DialogDescription>
+                        </DialogHeader>
+                        
+                        <div className="mt-4 space-y-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div className="flex items-center gap-3 p-3 border rounded-lg hover:bg-muted/50 cursor-pointer">
+                            <div className="bg-primary/10 p-2 rounded-full">
+                            <Globe className="h-4 w-4 text-primary" />
+                            </div>
+                            <div>
+                            <h3 className="font-medium text-sm">Official Email Verification</h3>
+                            <p className="text-xs text-muted-foreground">Send email from your domain to <span className="text-primary">support@lets-assist.com</span></p>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center gap-3 p-3 border rounded-lg hover:bg-muted/50 cursor-pointer">
+                            <div className="bg-primary/10 p-2 rounded-full">
+                            <Folders className="h-4 w-4 text-primary" />
+                            </div>
+                            <div>
+                            <h3 className="font-medium text-sm">Portfolio Evidence</h3>
+                            <p className="text-xs text-muted-foreground">Submit documentation of previous projects</p>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center gap-3 p-3 border rounded-lg hover:bg-muted/50 cursor-pointer">
+                            <div className="bg-primary/10 p-2 rounded-full">
+                            <Calendar className="h-4 w-4 text-primary" />
+                            </div>
+                            <div>
+                            <h3 className="font-medium text-sm">Activity Records</h3>
+                            <p className="text-xs text-muted-foreground">Provide proof of volunteer hours and initiatives</p>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center gap-3 p-3 border rounded-lg hover:bg-muted/50 cursor-pointer">
+                            <div className="bg-primary/10 p-2 rounded-full">
+                            <ShieldCheck className="h-4 w-4 text-primary" />
+                            </div>
+                            <div>
+                            <h3 className="font-medium text-sm">Legal Documentation</h3>
+                            <p className="text-xs text-muted-foreground">Submit registration certificates or credentials</p>
+                            </div>
+                          </div>
+                          </div>
+                          
+                            <div className="mt-10 flex justify-center">
+                              <div className="space-y-6 max-w-sm mt-6">
+                              <div className="flex items-center gap-4">
+                                <div className="bg-primary/10 p-3 rounded-full h-10 w-10 flex items-center justify-center flex-shrink-0">
+                                <span className="text-primary font-semibold">1</span>
+                                </div>
+                                <div className="text-left">
+                                <p className="text-sm font-medium">Send Email</p>
+                                <p className="text-xs text-muted-foreground">Submit verification materials to <Link href="mailto:support@lets-assist.com" className="text-primary hover:underline">support@lets-assist.com</Link></p>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-4">
+                                <div className="bg-primary/10 p-3 rounded-full h-10 w-10 flex items-center justify-center flex-shrink-0">
+                                <span className="text-primary font-semibold">2</span>
+                                </div>
+                                <div className="text-left">
+                                <p className="text-sm font-medium">Review Process</p>
+                                <p className="text-xs text-muted-foreground">We&apos;ll contact you shortly</p>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-4">
+                                <div className="bg-primary/10 p-3 rounded-full h-10 w-10 flex items-center justify-center flex-shrink-0">
+                                <span className="text-primary font-semibold">3</span>
+                                </div>
+                                <div className="text-left">
+                                <p className="text-sm font-medium">Get Verified</p>
+                                <p className="text-xs text-muted-foreground">Receive verified badge</p>
+                                </div>
+                              </div>
+                              </div>
+                            </div>
+                          </div>
+                        
+                          <DialogClose asChild>
+                            <Button className="ml-auto">Close</Button>
+                          </DialogClose>
+                      </DialogContent>
+                    </Dialog>
                   </div>
                 </div>
               </div>

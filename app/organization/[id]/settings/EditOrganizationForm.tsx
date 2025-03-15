@@ -41,7 +41,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrig
 const USERNAME_MAX_LENGTH = 32;
 const NAME_MAX_LENGTH = 64;
 const WEBSITE_MAX_LENGTH = 100;
-const DESCRIPTION_MAX_LENGTH = 500;
+const DESCRIPTION_MAX_LENGTH = 300;
 const USERNAME_REGEX = /^[a-zA-Z0-9_.-]+$/;
 
 // Form schema
