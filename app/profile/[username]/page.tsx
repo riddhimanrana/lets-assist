@@ -8,8 +8,9 @@ import { format } from "date-fns";
 import { notFound } from "next/navigation";
 import { NoAvatar } from "@/components/NoAvatar";
 import { Metadata } from "next";
-import { CalendarIcon, Calendar, MapPin } from "lucide-react";
+import { CalendarIcon, Calendar, MapPin, BadgeCheck } from "lucide-react";
 import Link from "next/link";
+import { Building2, Shield, UserRoundCog, UserRound } from "lucide-react";
 
 interface Profile {
   id: string;
@@ -28,6 +29,26 @@ interface Project {
   status: "active" | "completed" | "cancelled";
   created_at: string;
   cover_image_url?: string;
+}
+
+interface Organization {
+  id: string;
+  name: string;
+  username: string;
+  type: string;
+  verified: boolean;
+  logo_url: string | null;
+  description: string | null;
+}
+
+interface OrganizationMembership {
+  role: 'admin' | 'staff' | 'member';
+  organizations: Organization;
+}
+
+interface OrganizationResponse {
+  role: 'admin' | 'staff' | 'member';
+  organizations: Organization;
 }
 
 type Props = {
@@ -76,6 +97,30 @@ export default async function ProfilePage(
     .eq("creator_id", profile.id)
     .order("created_at", { ascending: false });
 
+  // Updated organizations fetch with correct typing
+  const { data: userOrganizations } = await supabase
+    .from('organization_members')
+    .select(`
+      role,
+      organizations (
+        id,
+        name,
+        username,
+        type,
+        verified,
+        logo_url,
+        description
+      )
+    `)
+    .eq('user_id', profile.id)
+    .order('role', { ascending: false });
+
+  // Transform the data to match the expected structure
+  const formattedOrganizations: OrganizationMembership[] = userOrganizations?.map((item: any) => ({
+    role: item.role,
+    organizations: item.organizations
+  })) || [];
+
   // Stats calculation
   const activeProjects = projects?.filter(p => p.status === "active").length || 0;
   const completedProjects = projects?.filter(p => p.status === "completed").length || 0;
@@ -118,6 +163,80 @@ export default async function ProfilePage(
             </div>
           </CardContent>
         </Card>
+
+        {/* Organizations Section */}
+        {formattedOrganizations && formattedOrganizations.length > 0 && (
+          <div className="mb-6 sm:mb-8">
+            <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">Organizations</h2>
+            <Separator className="mb-4 sm:mb-6" />
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+              {formattedOrganizations.map((membership: OrganizationMembership) => {
+                const org = membership.organizations;
+                return (
+                  <Link href={`/organization/${org.username}`} key={org.id}>
+                    <Card className="h-full hover:shadow-md transition-shadow">
+                      <CardContent className="p-0">
+                        <div className="h-20 sm:h-24 bg-gradient-to-r from-primary/40 via-primary/20 to-primary/10 relative">
+                          {org.logo_url && (
+                            <div className="absolute bottom-0 left-4 transform translate-y-1/2">
+                              <Avatar className="h-12 w-12 sm:h-14 sm:w-14 rounded-full border-4 border-background">
+                                <AvatarImage src={org.logo_url} alt={org.name} />
+                                <AvatarFallback>
+                                  <NoAvatar fullName={org.name} className="text-base" />
+                                </AvatarFallback>
+                              </Avatar>
+                            </div>
+                          )}
+                          {!org.logo_url && (
+                            <div className="absolute bottom-0 left-4 transform translate-y-1/2 rounded-full bg-muted border-4 border-background h-12 w-12 sm:h-14 sm:w-14 flex items-center justify-center">
+                              <Building2 className="h-5 w-5 sm:h-6 sm:w-6 text-muted-foreground" />
+                            </div>
+                          )}
+                        </div>
+                        
+                        <div className="pt-8 sm:pt-10 px-3 sm:px-4 pb-3">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h3 className="font-semibold text-base sm:text-lg line-clamp-1">{org.name}</h3>
+                                {org.verified && (
+                                  <BadgeCheck className="h-6 w-6" fill="hsl(var(--primary))" stroke="hsl(var(--popover))" strokeWidth={2.5} />
+                                )}
+                              </div>
+                              <p className="text-xs sm:text-sm text-muted-foreground">@{org.username}</p>
+                            </div>
+                            <div className="flex gap-2">
+                              <Badge variant="outline" className="text-xs capitalize">
+                                {org.type}
+                              </Badge>
+                                <Badge 
+                                variant={
+                                  membership.role === "admin" ? "default" : 
+                                  membership.role === "staff" ? "secondary" : "outline"
+                                }
+                                className="text-xs flex items-center gap-1"
+                                >
+                                {membership.role === "admin" && <Shield className="h-3 w-3" />}
+                                {membership.role === "staff" && <UserRoundCog className="h-3 w-3" />}
+                                {membership.role === "member" && <UserRound className="h-3 w-3" />}
+                                {membership.role.charAt(0).toUpperCase() + membership.role.slice(1)}
+                                </Badge>
+                            </div>
+                          </div>
+                          
+                          <p className="mt-2 text-xs sm:text-sm line-clamp-1 text-muted-foreground">
+                            {org.description || "No description provided"}
+                          </p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Projects Section */}
         <div className="mb-6 sm:mb-8">
