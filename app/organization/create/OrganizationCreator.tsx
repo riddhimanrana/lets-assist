@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem, SelectGroup, SelectLabel } from "@/components/ui/select";
 import {
   Form,
   FormControl,
@@ -26,37 +26,68 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import ImageCropper from "@/components/ImageCropper";
 
-// Constants
-const USERNAME_MAX_LENGTH = 32;
-const NAME_MAX_LENGTH = 64;
-const WEBSITE_MAX_LENGTH = 100;
-const DESCRIPTION_MAX_LENGTH = 500;
-const USERNAME_REGEX = /^[a-zA-Z0-9_.-]+$/;
+// Constants for form validation
+const CONSTANTS = {
+  NAME: {
+    MIN: 3,
+    MAX: 64,
+  },
+  USERNAME: {
+    MIN: 3,
+    MAX: 32,
+    REGEX: /^[a-zA-Z0-9_.-]+$/,
+  },
+  WEBSITE: {
+    MAX: 100,
+  },
+  DESCRIPTION: {
+    MIN: 10,
+    MAX: 300,
+  },
+} as const;
 
-// Form schema
+// Form schema with enhanced validation
 const orgCreationSchema = z.object({
   name: z.string()
-    .min(2, "Name must be at least 2 characters")
-    .max(NAME_MAX_LENGTH, `Name cannot exceed ${NAME_MAX_LENGTH} characters`),
+    .min(CONSTANTS.NAME.MIN, `Name must be at least ${CONSTANTS.NAME.MIN} characters`)
+    .max(CONSTANTS.NAME.MAX, `Name cannot exceed ${CONSTANTS.NAME.MAX} characters`)
+    .refine(value => value.trim().length >= CONSTANTS.NAME.MIN, {
+      message: "Name cannot be only whitespace"
+    }),
   
   username: z.string()
-    .min(3, "Username must be at least 3 characters")
-    .max(USERNAME_MAX_LENGTH, `Username cannot exceed ${USERNAME_MAX_LENGTH} characters`)
-    .regex(USERNAME_REGEX, "Username can only contain letters, numbers, underscores, dots and hyphens"),
+    .min(CONSTANTS.USERNAME.MIN, `Username must be at least ${CONSTANTS.USERNAME.MIN} characters`)
+    .max(CONSTANTS.USERNAME.MAX, `Username cannot exceed ${CONSTANTS.USERNAME.MAX} characters`)
+    .regex(CONSTANTS.USERNAME.REGEX, {
+      message: "Username can only contain letters, numbers, underscores, dots and hyphens"
+    })
+    .refine(value => !value.includes(".."), {
+      message: "Username cannot contain consecutive dots"
+    })
+    .refine(value => !value.startsWith(".") && !value.endsWith("."), {
+      message: "Username cannot start or end with a dot"
+    }),
   
   description: z.string()
-    .max(DESCRIPTION_MAX_LENGTH, `Description cannot exceed ${DESCRIPTION_MAX_LENGTH} characters`)
-    .optional(),
+    .min(CONSTANTS.DESCRIPTION.MIN, `Description must be at least ${CONSTANTS.DESCRIPTION.MIN} characters`)
+    .max(CONSTANTS.DESCRIPTION.MAX, `Description cannot exceed ${CONSTANTS.DESCRIPTION.MAX} characters`)
+    .refine(value => value.trim().length >= CONSTANTS.DESCRIPTION.MIN, {
+      message: "Description cannot be only whitespace"
+    }),
   
   website: z.string()
-    .max(WEBSITE_MAX_LENGTH, `Website URL cannot exceed ${WEBSITE_MAX_LENGTH} characters`)
+    .max(CONSTANTS.WEBSITE.MAX, `Website URL cannot exceed ${CONSTANTS.WEBSITE.MAX} characters`)
     .url("Please enter a valid URL")
     .optional()
+    
     .or(z.literal("")),
   
-  type: z.enum(["nonprofit", "school", "company"]),
+  type: z.enum(["nonprofit", "school", "company"], {
+    required_error: "Please select an organization type",
+    invalid_type_error: "Please select a valid organization type",
+  }),
   
-  logoUrl: z.string().optional().nullable(),
+  logoUrl: z.string().nullable().optional(),
 });
 
 type OrganizationFormValues = z.infer<typeof orgCreationSchema>;
@@ -77,10 +108,15 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
       username: "",
       description: "",
       website: "",
-      type: "nonprofit",
+      type: undefined, // Remove default value to force selection
       logoUrl: null,
     },
   });
+
+  // Track character counts
+  const nameLength = form.watch("name")?.length || 0;
+  const usernameLength = form.watch("username")?.length || 0;
+  const descriptionLength = form.watch("description")?.length || 0;
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -188,7 +224,7 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
                     onChange={handleImageUpload}
                   />
                   <p className="text-sm text-muted-foreground mt-2">
-                    Optional. Upload a square logo for your organization.
+                    Optional, but highly recommended. Upload a square logo for your organization.
                   </p>
                 </div>
               </div>
@@ -198,12 +234,22 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
                 name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Organization Name*</FormLabel>
+                    <FormLabel>Organization Name *</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="Enter organization name" maxLength={NAME_MAX_LENGTH} />
+                      <div className="relative">
+                        <Input
+                          {...field}
+                          placeholder="Enter organization name"
+                          maxLength={CONSTANTS.NAME.MAX}
+                          className={field.value && field.value.length < CONSTANTS.NAME.MIN ? "border-destructive" : ""}
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                          {nameLength}/{CONSTANTS.NAME.MAX}
+                        </span>
+                      </div>
                     </FormControl>
                     <FormDescription>
-                      This is your organization&apos;s display name
+                      This will be your organization&apos;s display name (minimum {CONSTANTS.NAME.MIN} characters)
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -215,18 +261,22 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
                 name="username"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Username*</FormLabel>
+                    <FormLabel>Username *</FormLabel>
                     <div className="relative">
                       <FormControl>
                         <Input
                           {...field}
                           placeholder="Enter organization username"
-                          maxLength={USERNAME_MAX_LENGTH}
+                          maxLength={CONSTANTS.USERNAME.MAX}
                           onChange={(e) => {
                             const noSpaces = e.target.value.replace(/\s/g, "");
                             field.onChange(noSpaces);
                           }}
                           onBlur={(e) => {
+                            if (e.target.value.toLowerCase() === "create") {
+                              setUsernameAvailable(false);
+                              return;
+                            }
                             field.onBlur();
                             checkUsernameAvailability(e.target.value);
                           }}
@@ -248,7 +298,7 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
                       )}
                     </div>
                     <FormDescription>
-                      Used in your organization&apos;s URL: letsassist.app/organization/<span className="font-mono">{field.value || "username"}</span>
+                      Used in your organization&apos;s URL (minimum 3 characters): lets-assist.com/organization/<span className="font-mono">{field.value || "username"}</span>
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -260,21 +310,25 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
                 name="description"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Description</FormLabel>
+                    <FormLabel>Description *</FormLabel>
                     <FormControl>
-                      <Textarea
-                        {...field}
-                        placeholder="Describe your organization"
-                        className="resize-none"
-                        rows={4}
-                        maxLength={DESCRIPTION_MAX_LENGTH}
-                      />
+                      <div className="relative">
+                        <Textarea
+                          {...field}
+                          placeholder="Describe your organization"
+                          className={`resize-none ${
+                            field.value && field.value.length < CONSTANTS.DESCRIPTION.MIN ? "border-destructive" : ""
+                          }`}
+                          rows={4}
+                          maxLength={CONSTANTS.DESCRIPTION.MAX}
+                        />
+                        <span className="absolute right-3 bottom-3 text-xs text-muted-foreground">
+                          {descriptionLength}/{CONSTANTS.DESCRIPTION.MAX}
+                        </span>
+                      </div>
                     </FormControl>
-                    <FormDescription className="flex justify-between">
-                      <span>A brief description of your organization</span>
-                      <span className="text-muted-foreground">
-                        {field.value?.length || 0}/{DESCRIPTION_MAX_LENGTH}
-                      </span>
+                    <FormDescription>
+                      Provide a short description of your organization (minimum {CONSTANTS.DESCRIPTION.MIN} characters)
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -294,12 +348,12 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
                           {...field}
                           placeholder="https://your-website.com"
                           className="pl-10"
-                          maxLength={WEBSITE_MAX_LENGTH}
+                          maxLength={CONSTANTS.WEBSITE.MAX}
                         />
                       </FormControl>
                     </div>
                     <FormDescription>
-                      Optional. Include your organization&apos;s website
+                      Optional. Include your organization&apos;s website. Must start with https:// or http://
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -310,34 +364,29 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
                 control={form.control}
                 name="type"
                 render={({ field }) => (
-                  <FormItem className="space-y-3">
-                    <FormLabel>Organization Type*</FormLabel>
-                    <FormControl>
-                      <RadioGroup
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                        className="flex flex-col space-y-1"
-                      >
-                        <FormItem className="flex items-center space-x-3 space-y-0">
-                          <FormControl>
-                            <RadioGroupItem value="nonprofit" />
-                          </FormControl>
-                          <FormLabel className="font-normal">Nonprofit</FormLabel>
-                        </FormItem>
-                        <FormItem className="flex items-center space-x-3 space-y-0">
-                          <FormControl>
-                            <RadioGroupItem value="school" />
-                          </FormControl>
-                          <FormLabel className="font-normal">School</FormLabel>
-                        </FormItem>
-                        <FormItem className="flex items-center space-x-3 space-y-0">
-                          <FormControl>
-                            <RadioGroupItem value="company" />
-                          </FormControl>
-                          <FormLabel className="font-normal">Company</FormLabel>
-                        </FormItem>
-                      </RadioGroup>
-                    </FormControl>
+                  <FormItem>
+                    <FormLabel>Organization Type *</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger className={!field.value ? "text-muted-foreground" : ""}>
+                          <SelectValue placeholder="Select organization type" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectGroup>
+                          <SelectLabel>Type</SelectLabel>
+                          <SelectItem value="nonprofit">Nonprofit Organization</SelectItem>
+                          <SelectItem value="school">Educational Institution</SelectItem>
+                          <SelectItem value="company">Company/Business</SelectItem>
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      Choose the type that best describes your organization
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -346,7 +395,12 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
             <CardFooter>
               <Button 
                 type="submit" 
-                disabled={isCreating || !usernameAvailable}
+                disabled={
+                  isCreating || 
+                  !usernameAvailable || 
+                  !form.formState.isValid ||
+                  Object.keys(form.formState.errors).length > 0
+                }
                 className="ml-auto"
               >
                 {isCreating ? (

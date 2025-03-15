@@ -66,7 +66,11 @@ const config: Config = {
   			inter: [
   				'var(--font-inter)',
   				'sans-serif'
-  			]
+  			],
+			mono: [
+				'var(--font-geistmono)',
+				'sans-serif'
+			]
   		},
   		keyframes: {
   			'accordion-down': {

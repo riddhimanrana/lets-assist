@@ -35,6 +35,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import ImageCropper from "@/components/ImageCropper";
 import Link from "next/link";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 // Constants
 const USERNAME_MAX_LENGTH = 32;
@@ -87,6 +88,7 @@ export default function EditOrganizationForm({ organization, userId }: EditOrgan
   const [descriptionLength, setDescriptionLength] = useState(
     organization.description?.length || 0
   );
+  const [hasChanges, setHasChanges] = useState(false);
   
   // Setup form with initial values from organization
   const form = useForm<OrganizationFormValues>({
@@ -100,6 +102,24 @@ export default function EditOrganizationForm({ organization, userId }: EditOrgan
       logoUrl: organization.logo_url || null,
     },
   });
+
+  const formValues = form.watch();
+  
+  useEffect(() => {
+    const hasFormChanges = Object.keys(formValues).some(key => {
+      const initialValue = organization[key === 'logoUrl' ? 'logo_url' : key];
+      const currentValue = formValues[key as keyof OrganizationFormValues];
+      
+      // Handle empty strings and null values
+      if (!initialValue && !currentValue) return false;
+      if (!initialValue && currentValue === "") return false;
+      if (!currentValue && initialValue === "") return false;
+      
+      return initialValue !== currentValue;
+    });
+    
+    setHasChanges(hasFormChanges);
+  }, [formValues, organization]);
   
   // Check if organization username is still available when changed
   const currentUsername = organization.username;
@@ -340,7 +360,7 @@ export default function EditOrganizationForm({ organization, userId }: EditOrgan
                       )}
                     </div>
                     <FormDescription>
-                      Used in your organization&apos;s URL: letsassist.app/organization/<span className="font-mono">{field.value || "username"}</span>
+                      Used in your organization&apos;s URL: lets-assist.com/organization/<span className="font-mono">{field.value || "username"}</span>
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -386,18 +406,24 @@ export default function EditOrganizationForm({ organization, userId }: EditOrgan
                   <FormItem>
                     <FormLabel>Website</FormLabel>
                     <div className="relative">
-                      <Globe className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <FormControl>
                         <Input
                           {...field}
                           placeholder="https://your-website.com"
                           className="pl-10"
                           maxLength={WEBSITE_MAX_LENGTH}
+                          onBlur={(e) => {
+                            const value = e.target.value.trim();
+                            if (value && !value.startsWith('https://') && !value.startsWith('http://')) {
+                              field.onChange(`https://${value}`);
+                            }
+                          }}
                         />
                       </FormControl>
                     </div>
                     <FormDescription>
-                      Optional. Include your organization&apos;s website
+                      Optional. Must start with https:// or http://
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -408,34 +434,29 @@ export default function EditOrganizationForm({ organization, userId }: EditOrgan
                 control={form.control}
                 name="type"
                 render={({ field }) => (
-                  <FormItem className="space-y-3">
+                  <FormItem>
                     <FormLabel>Organization Type*</FormLabel>
-                    <FormControl>
-                      <RadioGroup
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                        className="flex flex-col space-y-1"
-                      >
-                        <FormItem className="flex items-center space-x-3 space-y-0">
-                          <FormControl>
-                            <RadioGroupItem value="nonprofit" />
-                          </FormControl>
-                          <FormLabel className="font-normal">Nonprofit</FormLabel>
-                        </FormItem>
-                        <FormItem className="flex items-center space-x-3 space-y-0">
-                          <FormControl>
-                            <RadioGroupItem value="school" />
-                          </FormControl>
-                          <FormLabel className="font-normal">School</FormLabel>
-                        </FormItem>
-                        <FormItem className="flex items-center space-x-3 space-y-0">
-                          <FormControl>
-                            <RadioGroupItem value="company" />
-                          </FormControl>
-                          <FormLabel className="font-normal">Company</FormLabel>
-                        </FormItem>
-                      </RadioGroup>
-                    </FormControl>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger className={!field.value ? "text-muted-foreground" : ""}>
+                          <SelectValue placeholder="Select organization type" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectGroup>
+                          <SelectLabel>Type</SelectLabel>
+                          <SelectItem value="nonprofit">Nonprofit Organization</SelectItem>
+                          <SelectItem value="school">Educational Institution</SelectItem>
+                          <SelectItem value="company">Company/Business</SelectItem>
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      Choose the type that best describes your organization
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -443,18 +464,14 @@ export default function EditOrganizationForm({ organization, userId }: EditOrgan
             </CardContent>
             <CardFooter className="flex justify-between">
               <Button
-                type="button" 
-                variant="outline"
-                asChild
-              >
-                <Link href={`/organization/${organization.username}`}>
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Cancel
-                </Link>
-              </Button>
-              <Button 
-                type="submit" 
-                disabled={isSubmitting || !form.formState.isDirty || !usernameAvailable}
+                type="submit"
+                className="ml-auto"
+                disabled={
+                  isSubmitting ||
+                  !hasChanges ||
+                  (formValues.username !== organization.username && !usernameAvailable) ||
+                  !form.formState.isValid
+                }
               >
                 {isSubmitting ? (
                   <>

@@ -28,7 +28,10 @@ import {
   UserRoundCog, 
   UserRound,
   X,
-  Users
+  Users,
+  ArrowUpDown, 
+  ChevronDown, 
+  ChevronUp 
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -42,6 +45,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Card } from "@/components/ui/card";
+
+type SortField = "role" | "joined_at";
+type SortDirection = "asc" | "desc";
+
+interface Sort {
+  field: SortField;
+  direction: SortDirection;
+}
 
 interface MembersTabProps {
   members: any[];
@@ -60,32 +71,47 @@ export default function MembersTab({
   const [filteredMembers, setFilteredMembers] = useState<any[]>([]);
   const [processingMember, setProcessingMember] = useState<string | null>(null);
   const [removingMember, setRemovingMember] = useState<{ id: string; name: string } | null>(null);
+  const [sort, setSort] = useState<Sort>({ field: "role", direction: "asc" });
 
- 
-
-  // Filter members when search term changes
+  // Updated useEffect to handle sorting
   useEffect(() => {
     if (!Array.isArray(members)) {
       console.error("MembersTab: Cannot filter, 'members' prop is not an array");
       return;
     }
 
-    if (searchTerm.trim() === "") {
-      setFilteredMembers(members);
-      console.log("Filter reset - all members:", members.length);
-      return;
+    let result = [...members];
+
+    // Apply search filter
+    if (searchTerm.trim() !== "") {
+      const lowercasedFilter = searchTerm.toLowerCase();
+      result = result.filter((member) => {
+        const fullName = member?.profiles?.full_name?.toLowerCase() || "";
+        const username = member?.profiles?.username?.toLowerCase() || "";
+        return fullName.includes(lowercasedFilter) || 
+               username.includes(lowercasedFilter);
+      });
     }
 
-    const lowercasedFilter = searchTerm.toLowerCase();
-    const filtered = members.filter((member) => {
-      const fullName = member?.profiles?.full_name?.toLowerCase() || "";
-      const username = member?.profiles?.username?.toLowerCase() || "";
-      return fullName.includes(lowercasedFilter) || 
-             username.includes(lowercasedFilter);
+    // Apply sorting
+    result.sort((a, b) => {
+      const direction = sort.direction === "asc" ? 1 : -1;
+      
+      if (sort.field === "role") {
+        // Custom role order: admin > staff > member
+        const roleOrder = { admin: 3, staff: 2, member: 1 };
+        return (roleOrder[a.role as keyof typeof roleOrder] - roleOrder[b.role as keyof typeof roleOrder]) * direction;
+      }
+      
+      if (sort.field === "joined_at") {
+        return (new Date(a.joined_at).getTime() - new Date(b.joined_at).getTime()) * direction;
+      }
+      
+      return 0;
     });
-    console.log(`Filtered members for "${searchTerm}":`, filtered.length);
-    setFilteredMembers(filtered);
-  }, [searchTerm, members]);
+
+    setFilteredMembers(result);
+  }, [searchTerm, members, sort]);
 
   // Log filtered members when they change
   useEffect(() => {
@@ -158,6 +184,25 @@ export default function MembersTab({
     );
   }
 
+  const toggleSort = (field: SortField) => {
+    setSort(current => ({
+      field,
+      direction: 
+        current.field === field && current.direction === "asc" 
+          ? "desc" 
+          : "asc"
+    }));
+  };
+
+  const getSortIcon = (field: SortField) => {
+    if (sort.field !== field) return <ArrowUpDown className="h-4 w-4" />;
+    return sort.direction === "asc" ? (
+      <ChevronUp className="h-4 w-4" />
+    ) : (
+      <ChevronDown className="h-4 w-4" />
+    );
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between gap-3">
@@ -194,61 +239,76 @@ export default function MembersTab({
 
       <Card className="overflow-hidden border rounded-lg">
         <div className="overflow-x-auto">
-            <Table>
+          <Table>
             <TableHeader>
-                <TableRow>
-                  <TableHead className="min-w-[200px]">Member</TableHead>
-                  <TableHead className="min-w-[100px]">Role</TableHead>
-                  <TableHead className="min-w-[120px]">Joined</TableHead>
-                  {canManageMembers && <TableHead className="min-w-[100px] text-right">Actions</TableHead>}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredMembers && filteredMembers.length > 0 ? (
-                  filteredMembers.map((member) => (
-                    <TableRow key={member.id} className="hover:bg-muted/30">
-                      <TableCell className="py-3 min-w-[200px]">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-9 w-9 flex-shrink-0 border border-border">
-                            <AvatarImage
-                              src={member.profiles?.avatar_url || undefined}
-                              alt={member.profiles?.full_name || ""}
-                            />
-                            <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                              <NoAvatar fullName={member.profiles?.full_name || ""} />
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="min-w-0">
-                            <Link
-                              href={`/profile/${member.profiles?.username || ''}`}
-                              className="font-medium hover:underline transition-colors block truncate"
-                            >
-                              {member.profiles?.full_name || "Unknown User"}
-                            </Link>
-                            {member.profiles?.username && (
-                              <p className="text-xs text-muted-foreground truncate">
-                                @{member.profiles.username}
-                              </p>
-                            )}
-                          </div>
+              <TableRow>
+                <TableHead className="min-w-[200px]">Member</TableHead>
+                <TableHead 
+                  className="min-w-[100px] cursor-pointer hover:text-foreground"
+                  onClick={() => toggleSort("role")}
+                >
+                  <div className="flex items-center gap-1">
+                    Role
+                    {getSortIcon("role")}
+                  </div>
+                </TableHead>
+                <TableHead 
+                  className="min-w-[120px] cursor-pointer hover:text-foreground"
+                  onClick={() => toggleSort("joined_at")}
+                >
+                  <div className="flex items-center gap-1">
+                    Joined
+                    {getSortIcon("joined_at")}
+                  </div>
+                </TableHead>
+                {canManageMembers && <TableHead className="min-w-[100px] text-right">Actions</TableHead>}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredMembers && filteredMembers.length > 0 ? (
+                filteredMembers.map((member) => (
+                  <TableRow key={member.id} className="hover:bg-muted/30">
+                    <TableCell className="py-3 min-w-[200px]">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-9 w-9 flex-shrink-0 border border-border">
+                          <AvatarImage
+                            src={member.profiles?.avatar_url || undefined}
+                            alt={member.profiles?.full_name || ""}
+                          />
+                          <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                            <NoAvatar fullName={member.profiles?.full_name || ""} />
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0">
+                          <Link
+                            href={`/profile/${member.profiles?.username || ''}`}
+                            className="font-medium hover:underline transition-colors block truncate"
+                          >
+                            {member.profiles?.full_name || "Unknown User"}
+                          </Link>
+                          {member.profiles?.username && (
+                            <p className="text-xs text-muted-foreground truncate">
+                              @{member.profiles.username}
+                            </p>
+                          )}
                         </div>
-                      </TableCell>
-                      <TableCell className="min-w-[100px]">
-                        <RoleBadge role={member.role} />
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground min-w-[120px] whitespace-nowrap">
-                        {member.joined_at ? format(new Date(member.joined_at), "MMM d, yyyy") : "N/A"}
-                      </TableCell>
+                      </div>
+                    </TableCell>
+                    <TableCell className="min-w-[100px]">
+                      <RoleBadge role={member.role} />
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground min-w-[120px] whitespace-nowrap">
+                      {member.joined_at ? format(new Date(member.joined_at), "MMM d, yyyy") : "N/A"}
+                    </TableCell>
                     {canManageMembers && (
                       <TableCell className="text-right">
-                        {/* Check if current user can manage this member */}
                         {(isAdmin || (userRole === "staff" && member.role === "member")) &&
                          member.user_id !== currentUserId ? (
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild disabled={processingMember === member.id}>
                               <Button variant="ghost" size="icon" className="h-8 w-8">
                                 {processingMember === member.id ? (
-                                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-foreground border-t-transparent"></div>
+                                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-foreground border-t-transparent" />
                                 ) : (
                                   <MoreHorizontal className="h-4 w-4" />
                                 )}
@@ -259,7 +319,7 @@ export default function MembersTab({
                                 Change Role
                               </div>
                               
-                              {/* Admin can change to any role */}
+                              {/* Admin role options */}
                               {isAdmin && (
                                 <>
                                   <DropdownMenuItem
@@ -304,7 +364,7 @@ export default function MembersTab({
                                 </>
                               )}
                               
-                              {/* Staff can only change regular members */}
+                              {/* Staff role options */}
                               {userRole === "staff" && member.role === "member" && (
                                 <DropdownMenuItem
                                   className="gap-2"

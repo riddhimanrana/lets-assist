@@ -19,6 +19,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
+import { Button } from "@/components/ui/button"; 
 
 interface OrganizationTabsProps {
   organization: any;
@@ -40,12 +41,12 @@ export default function OrganizationTabs({
   // Validate input data
   if (!Array.isArray(members)) {
     console.error("OrganizationTabs: members prop is not an array");
-    return <div className="text-red-500">Error: Invalid members data</div>;
+    return <div className="text-destructive">Error: Invalid members data</div>;
   }
 
   if (!Array.isArray(projects)) {
     console.error("OrganizationTabs: projects prop is not an array");
-    return <div className="text-red-500">Error: Invalid projects data</div>;
+    return <div className="text-destructive">Error: Invalid projects data</div>;
   }
   
   // Calculate stats
@@ -223,7 +224,7 @@ export default function OrganizationTabs({
           <Card>
             <CardContent className="p-6">
               <div className="flex items-start gap-4">
-                <div className="p-3 rounded-full bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-500">
+                <div className="p-3 rounded-full bg-chart-6/10 text-chart-6">
                   <ShieldCheck className="h-5 w-5" />
                 </div>
                 <div>
@@ -232,20 +233,20 @@ export default function OrganizationTabs({
                     You have admin privileges for this organization.
                   </p>
                   <div className="flex flex-wrap gap-2">
-                    <Link href={`/organization/${organization.id}/settings`}>
-                      <Badge variant="outline" className="cursor-pointer hover:bg-muted">
+                    <Link href={`/organization/${organization.username}/settings`}>
+                      <Button variant="outline" className="cursor-pointer hover:bg-muted">
                         Organization Settings
-                      </Badge>
+                      </Button>
                     </Link>
                     <Link href={`/organization/${organization.id}/invite`}>
-                      <Badge variant="outline" className="cursor-pointer hover:bg-muted">
+                      <Button variant="outline" className="cursor-pointer hover:bg-muted">
                         Invite Members
-                      </Badge>
+                      </Button>
                     </Link>
                     <Link href={`/projects/create?org=${organization.id}`}>
-                      <Badge variant="outline" className="cursor-pointer hover:bg-muted">
+                      <Button variant="outline" className="cursor-pointer hover:bg-muted">
                         New Project
-                      </Badge>
+                      </Button>
                     </Link>
                   </div>
                 </div>

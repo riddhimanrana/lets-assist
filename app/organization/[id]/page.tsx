@@ -150,7 +150,7 @@ export default async function OrganizationPage({ params }: Props): Promise<React
         memberCount={formattedMembers?.length || 0}
       />
       
-      <div className="mt-8 sm:mt-12 bg-card rounded-xl border shadow-sm p-4 sm:p-6">
+      <div className="mt-8 sm:mt-12 bg-card rounded-xl border shadow-sm p-4 sm:p-6 mb-8">
         <OrganizationTabs 
         organization={organization}
         members={formattedMembers}

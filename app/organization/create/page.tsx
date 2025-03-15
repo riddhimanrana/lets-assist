@@ -2,6 +2,12 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
 import { Separator } from "@/components/ui/separator";
 import OrganizationCreator from "./OrganizationCreator";
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Create Organization",
+  description: "Set up your organization and invite members",
+};
 
 export default async function CreateOrganizationPage() {
   const supabase = await createClient();

@@ -13,6 +13,7 @@ import { PostHogProvider } from "./providers";
 import { ToasterTheme } from "@/components/ToasterTheme";
 import { NotificationListener } from "@/components/NotificationListener";
 import GlobalNotificationProvider from "@/components/GlobalNotificationProvider";
+import { GeistMono } from 'geist/font/mono';
 
 const overusedgrotesk = localFont({
   src: "../public/fonts/OverusedGrotesk-VF.woff2",
@@ -20,10 +21,11 @@ const overusedgrotesk = localFont({
   variable: "--font-overusedgrotesk",
 });
 
+
 const inter = Inter({
   subsets: ["latin"],
+  variable: "--font-sans",
   display: "swap",
-  variable: "--font-inter",
 });
 
 export const metadata: Metadata = {
@@ -69,7 +71,7 @@ export default async function RootLayout({
 
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.className} ${overusedgrotesk.variable}`}>
+      <body className={`${inter.className} ${GeistMono.variable} ${overusedgrotesk.variable}`}>
         <GlobalNotificationProvider>
           <ThemeProvider
             attribute="class"

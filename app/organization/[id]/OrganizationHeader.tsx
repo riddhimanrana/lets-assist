@@ -3,7 +3,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ShareIcon, GlobeIcon, UsersIcon, Plus, Building2 } from "lucide-react";
+import { Share2, GlobeIcon, UsersIcon, Plus, Building2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import JoinCodeDialog from "./JoinCodeDialog";
@@ -29,20 +29,45 @@ export default function OrganizationHeader({
       : "ORG";
   };
 
+  // const handleShare = () => {
+  //   const url = window.location.href;
+  //   if (navigator.share) {
+  //     navigator.share({
+  //       title: organization.name,
+  //       text: organization.description || `Check out ${organization.name} on Let's Assist!`,
+  //       url: window.location.href,
+  //     }).catch(err => {
+  //       console.error('Error sharing:', err);
+  //       navigator.clipboard.writeText(window.location.href);
+  //       toast.success('Link copied to clipboard!');
+  //     });
+  //   } else {
+  //     navigator.clipboard.writeText(window.location.href);
+  //     toast.success('Link copied to clipboard!');
+  //   }
+  // };
   const handleShare = () => {
-    if (navigator.share) {
-      navigator.share({
-        title: organization.name,
-        text: organization.description || `Check out ${organization.name} on Let's Assist!`,
-        url: window.location.href,
-      }).catch(err => {
-        console.error('Error sharing:', err);
-        navigator.clipboard.writeText(window.location.href);
-        toast.success('Link copied to clipboard!');
-      });
+    const url = window.location.href;
+    if (navigator.share && /Mobi/.test(navigator.userAgent)) {
+      navigator
+        .share({
+          title: `${organization.name} - Let's Assist`,
+          text: `Check out ${organization.name} on Let's Assist!`,
+          url
+        })
+        .catch((err) => {
+          console.error("Share failed: ", err);
+          toast.error("Could not share link");
+        });
     } else {
-      navigator.clipboard.writeText(window.location.href);
-      toast.success('Link copied to clipboard!');
+      try {
+        navigator.clipboard.writeText(url).then(() => {
+          toast.success("Link copied to clipboard");
+        });
+      } catch (err) {
+        console.error("Copy operation failed:", err);
+        toast.error("Could not copy link to clipboard");
+      }
     }
   };
 
@@ -120,7 +145,7 @@ export default function OrganizationHeader({
         className="w-full sm:w-auto justify-center"
         onClick={handleShare}
       >
-        <ShareIcon className="h-4 w-4 mr-2" />
+        <Share2 className="h-4 w-4" />
         Share
       </Button>
       
@@ -131,7 +156,7 @@ export default function OrganizationHeader({
         className="w-full sm:w-auto justify-center"
         onClick={() => setShowJoinCode(true)}
         >
-        <Plus className="h-4 w-4 mr-2" />
+        <Plus className="h-4 w-4" />
         Invite Members
         </Button>
       )}
@@ -144,7 +169,7 @@ export default function OrganizationHeader({
         className="w-full sm:w-auto justify-center"
         >
         <Link href={`/organization/join?id=${organization.id}`}>
-          <Plus className="h-4 w-4 mr-2" />
+          <Plus className="h-4 w-4" />
           Join Organization
         </Link>
         </Button>
