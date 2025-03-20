@@ -10,11 +10,12 @@ export const metadata: Metadata = {
 };
 
 interface Props {
-  searchParams: { [key: string]: string | undefined };
+  searchParams: Promise<{ [key: string]: string | undefined }>;
 }
 
-export default async function JoinOrganizationPage({ searchParams }: Props) {
-  const code = searchParams.code;
+export default async function JoinOrganizationPage({ searchParams }: Props): Promise<React.ReactElement> {
+  const search = await searchParams;
+  const code = search.code;
   if (!code) {
     redirect("/organization");
   }

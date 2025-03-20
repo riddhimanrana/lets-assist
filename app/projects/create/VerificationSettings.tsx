@@ -26,15 +26,21 @@ import {
 interface VerificationSettingsProps {
   verificationMethod: VerificationMethod;
   requireLogin: boolean;
+  isOrganization: boolean; // Add this to detect if creating for an organization
+  isPrivate: boolean; // Add this for project visibility
   updateVerificationMethodAction: (method: VerificationMethod) => void;
   updateRequireLoginAction: (requireLogin: boolean) => void;
+  updateIsPrivateAction: (isPrivate: boolean) => void; // Add this action
 }
 
 export default function VerificationSettings({
   verificationMethod,
   requireLogin,
+  isOrganization,
+  isPrivate,
   updateVerificationMethodAction,
   updateRequireLoginAction,
+  updateIsPrivateAction,
 }: VerificationSettingsProps) {
   return (
     <div className="space-y-6">
@@ -227,6 +233,70 @@ export default function VerificationSettings({
           </div>
         </CardContent>
       </Card>
+
+      {/* Only show visibility toggle when creating for an organization */}
+      {isOrganization && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              Project Visibility
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-6 w-6">
+                      <Info className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent className="text-xs font-normal">
+                    <p>
+                      Control who can view this project. Public projects are visible to everyone,
+                      while private projects are only visible to organization members.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-6">
+              <div className="flex items-center justify-between space-x-4">
+                <div className="flex items-center space-x-3">
+                  <div
+                    className={cn(
+                      "p-2 rounded-md",
+                      isPrivate ? "bg-primary/10" : "bg-muted",
+                    )}
+                  >
+                    {isPrivate ? (
+                      <Lock className="h-5 w-5 text-primary" />
+                    ) : (
+                      <Users className="h-5 w-5 text-muted-foreground" />
+                    )}
+                  </div>
+                  <div>
+                    <Label
+                      htmlFor="is-private"
+                      className="text-base font-medium"
+                    >
+                      {isPrivate ? "Private project" : "Public project"}
+                    </Label>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {isPrivate
+                        ? "Only organization members can view this project"
+                        : "Everyone can view this project"}
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  id="is-private"
+                  checked={isPrivate}
+                  onCheckedChange={updateIsPrivateAction}
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

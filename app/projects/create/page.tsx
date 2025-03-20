@@ -19,7 +19,7 @@ export const metadata: Metadata = {
 export default async function CreateProjectPage({ 
   searchParams 
 }: { 
-  searchParams: { org?: string } 
+  searchParams: Promise<{ org?: string }> 
 }) {
   const supabase = await createClient();
   

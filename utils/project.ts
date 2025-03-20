@@ -78,13 +78,13 @@ export const isProjectVisible = (
   userId?: string, 
   userOrganizations?: { organization_id: string; role: string }[]
 ): boolean => {
-  // Public projects are always visible
-  if (project.visibility === "public") {
+  // Public projects (is_private=false) are always visible
+  if (!project.is_private) {
     return true;
   }
 
-  // Organization projects require membership check
-  if (project.visibility === "organization" && project.organization_id) {
+  // Private projects (is_private=true) require organization membership check
+  if (project.is_private && project.organization_id) {
     // Must have user and their organizations to check
     if (!userId || !userOrganizations) {
       return false;

@@ -66,6 +66,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
     updateMultiRoleSchedule,
     updateVerificationMethod,
     updateRequireLogin,
+    updateIsPrivate, // Add the function to update visibility
     removeDay,
     removeSlot,
     removeRole,
@@ -303,6 +304,11 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
     }
   };
 
+  // Function to check if the project is being created for an organization
+  const isOrganizationProject = () => {
+    return !!state.basicInfo.organizationId;
+  };
+
   // Render step based on current state.step
   const renderStep = () => {
     switch (state.step) {
@@ -343,8 +349,11 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
           <VerificationSettings
             verificationMethod={state.verificationMethod}
             requireLogin={state.requireLogin}
+            isOrganization={isOrganizationProject()}
+            isPrivate={state.isPrivate}
             updateVerificationMethodAction={updateVerificationMethod}
             updateRequireLoginAction={updateRequireLogin}
+            updateIsPrivateAction={updateIsPrivate}
           />
         );
       case 5:

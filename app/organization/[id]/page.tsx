@@ -6,7 +6,7 @@ import OrganizationTabs from "./OrganizationTabs";
 import { Separator } from "@/components/ui/separator";
 
 type Props = {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {

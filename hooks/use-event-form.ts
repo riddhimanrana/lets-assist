@@ -42,6 +42,7 @@ export interface EventFormState {
   };
   verificationMethod: VerificationMethod;
   requireLogin: boolean;
+  isPrivate: boolean; // Added property for project visibility
 }
 
 export function useEventForm() {
@@ -55,6 +56,7 @@ export function useEventForm() {
     eventType: "oneTime",
     verificationMethod: "qr-code", // Default to QR code method
     requireLogin: true, // Default to requiring login
+    isPrivate: false, // Default to public
     basicInfo: {
       title: "",
       location: "",
@@ -128,6 +130,10 @@ export function useEventForm() {
 
   const updateRequireLogin = (requireLogin: boolean) => {
     setState((prev) => ({ ...prev, requireLogin }));
+  };
+
+  const updateIsPrivate = (isPrivate: boolean) => {
+    setState((prev) => ({ ...prev, isPrivate }));
   };
 
   const updateBasicInfo = (
@@ -467,6 +473,7 @@ export function useEventForm() {
     setEventType,
     updateVerificationMethod,
     updateRequireLogin,
+    updateIsPrivate, // Added function to update project visibility
     updateBasicInfo,
     addMultiDaySlot,
     addMultiDayEvent,

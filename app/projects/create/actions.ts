@@ -71,6 +71,7 @@ export async function createBasicProject(projectData: any) {
         },
         status: "active",
         organization_id: organizationId || null, // Save organization_id if provided
+        is_private: organizationId ? projectData.isPrivate : false, // Set is_private based on organization and preference
       })
       .select("id")
       .single();

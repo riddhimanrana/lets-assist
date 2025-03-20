@@ -1,9 +1,10 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
-import { canCancelProject, getProjectStatus } from "@/utils/project";
+import { canCancelProject, getProjectStatus, isProjectVisible } from "@/utils/project";
 import { revalidatePath } from "next/cache";
 import { ProjectStatus } from "@/types";
+import { type Profile, type Project } from "@/types";
 
 interface AnonymousSignup {
   name: string;
@@ -14,6 +15,10 @@ interface AnonymousSignup {
 export async function getProject(projectId: string) {
   const supabase = await createClient();
   
+  // Get the current user if logged in
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  // Fetch the project
   const { data: project, error } = await supabase
     .from("projects")
     .select(`
@@ -29,17 +34,38 @@ export async function getProject(projectId: string) {
     `)
     .eq("id", projectId)
     .single();
-
+  
   if (error) {
     console.error("Error fetching project:", error);
     return { error: "Failed to fetch project" };
   }
-
+  
   // Calculate and update the project status
   if (project) {
     project.status = getProjectStatus(project);
-  }
 
+    // Check if the project is private and the user has permission to view it
+    if (project.is_private) {
+      // If it's a private project, check user's organization memberships
+      if (!user) {
+        return { error: "unauthorized", project: null };
+      }
+      
+      // Get user's organization memberships
+      const { data: userOrgs } = await supabase
+        .from("organization_members")
+        .select("organization_id, role")
+        .eq("user_id", user.id);
+      
+      // Check if user is a member of the project's organization
+      const hasAccess = isProjectVisible(project, user.id, userOrgs || []);
+      
+      if (!hasAccess) {
+        return { error: "unauthorized", project: null };
+      }
+    }
+  }
+  
   return { project };
 }
 
@@ -284,4 +310,63 @@ export async function deleteProject(projectId: string) {
   }
 
   return { success: true };
+}
+
+export async function updateProject(projectId: string, updates: Partial<Project>) {
+  try {
+    const supabase = await createClient();
+    
+    // Get current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      return { error: "Unauthorized" };
+    }
+
+    // Verify project ownership
+    const { data: project } = await supabase
+      .from("projects")
+      .select("creator_id")
+      .eq("id", projectId)
+      .single();
+
+    if (!project || project.creator_id !== user.id) {
+      return { error: "Unauthorized" };
+    }
+
+    // Update the project
+    const { error: updateError } = await supabase
+      .from("projects")
+      .update(updates)
+      .eq("id", projectId);
+
+    if (updateError) throw updateError;
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error updating project:", error);
+    return { error: "Failed to update project" };
+  }
+}
+
+export async function isProjectCreator(projectId: string) {
+  try {
+    const supabase = await createClient();
+    
+    // Get current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      return false;
+    }
+
+    // Check project ownership
+    const { data: project } = await supabase
+      .from("projects")
+      .select("creator_id")
+      .eq("id", projectId)
+      .single();
+
+    return project?.creator_id === user.id;
+  } catch (error) {
+    return false;
+  }
 }

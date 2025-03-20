@@ -43,7 +43,6 @@ export interface Profile {
 }
 
 export type ProjectStatus = "upcoming" | "in-progress" | "completed" | "cancelled";
-export type ProjectVisibility = "public" | "organization";
 export type OrganizationRole = "admin" | "staff" | "member";
 
 export interface Organization {
@@ -67,7 +66,7 @@ export interface Project {
   creator_id: string;
   schedule: ProjectSchedule;
   status: ProjectStatus;
-  visibility: ProjectVisibility;
+  is_private: boolean; // Changed from visibility to is_private boolean
   organization_id?: string;
   organization?: Organization;
   created_by_role?: OrganizationRole;

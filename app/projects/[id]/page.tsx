@@ -1,6 +1,7 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getProject, getCreatorProfile } from "./actions";
 import ProjectDetails from "./ProjectDetails";
+import ProjectUnauthorized from "./ProjectUnauthorized";
 import { Metadata } from "next";
 
 type Props = {
@@ -32,6 +33,12 @@ export default async function ProjectPage(
   const { id } = await params;
   const { project, error: projectError } = await getProject(id);
 
+  // Handle unauthorized access to private projects
+  if (projectError === "unauthorized") {
+    return <ProjectUnauthorized projectId={id} />;
+  }
+
+  // Handle project not found
   if (projectError || !project) {
     notFound();
   }

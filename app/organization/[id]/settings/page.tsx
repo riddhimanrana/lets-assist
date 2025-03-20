@@ -18,7 +18,7 @@ import DeleteOrganizationDialog from "./DeleteOrganizationDialog";
 import MemberExporter from "./MemberExporter";
 
 type Props = {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
