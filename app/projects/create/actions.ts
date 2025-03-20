@@ -3,6 +3,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
 import { v4 as uuidv4 } from "uuid";
+import { cookies } from "next/headers";
 
 // File size and type validation constants
 const MAX_COVER_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -32,6 +33,27 @@ export async function createBasicProject(projectData: any) {
     return { error: "You must be logged in to create a project" };
   }
 
+  // Get organization_id from the project data
+  const organizationId = projectData.basicInfo.organizationId;
+
+  // If organization_id is provided, verify the user has permission to create projects
+  if (organizationId) {
+    const { data: orgMember, error: orgError } = await supabase
+      .from("organization_members")
+      .select("role")
+      .eq("organization_id", organizationId)
+      .eq("user_id", user.id)
+      .single();
+
+    if (orgError || !orgMember) {
+      return { error: "You don't have permission to create projects for this organization" };
+    }
+
+    if (orgMember.role !== "admin" && orgMember.role !== "staff") {
+      return { error: "Only organization admins and staff can create projects" };
+    }
+  }
+
   try {
     // Create project in the database
     const { data: project, error: projectError } = await supabase
@@ -48,6 +70,7 @@ export async function createBasicProject(projectData: any) {
           [projectData.eventType]: projectData.schedule[projectData.eventType],
         },
         status: "active",
+        organization_id: organizationId || null, // Save organization_id if provided
       })
       .select("id")
       .single();

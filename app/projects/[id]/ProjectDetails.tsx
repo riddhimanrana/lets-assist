@@ -7,10 +7,15 @@ import {
   SameDayMultiAreaSchedule,
   OneTimeSchedule,
   Profile,
+  Organization,
+  ProjectStatus
 } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { ProjectStatusBadge } from "@/components/ui/status-badge";
+import { CancelProjectDialog } from "@/components/CancelProjectDialog";
 import { Badge } from "@/components/ui/badge";
+import { BadgeCheck } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { RichTextContent } from "@/components/ui/rich-text-content";
 import { 
@@ -34,7 +39,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { signUpForProject } from "./actions";
+import { signUpForProject } from "@/app/projects/[id]/actions";
 import { formatTimeTo12Hour, formatBytes } from "@/lib/utils";
 import Link from "next/link";
 import Image from "next/image"; 
@@ -73,11 +78,76 @@ const anonymousSignupSchema = z.object({
 
 type AnonymousSignupFormValues = z.infer<typeof anonymousSignupSchema>;
 
+// Define ProjectHeaderProps type
+type ProjectHeaderProps = {
+  project: Project;
+  creator: Profile | null;
+  organization?: Organization | null;
+  onShare: () => void;
+};
+
 // Define Props type
 type Props = {
   project: Project;
   creator: Profile | null;
+  organization?: Organization | null;
 };
+
+// Define ProjectHeader component
+function ProjectHeader({ project, creator, organization, onShare }: ProjectHeaderProps) {
+  return (
+    <div className="flex items-start gap-4">
+      <div className="flex-1 min-w-0">
+        <h1 className="text-2xl sm:text-3xl font-bold mb-2">
+          {project.title}
+        </h1>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <MapPin className="h-4 w-4 shrink-0" />
+            <span>{project.location}</span>
+          </div>
+          
+          {/* Creator and Organization Info */}
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <span>by</span>
+            <Link href={`/profile/${creator?.username || ""}`} className="hover:underline">
+              {creator?.full_name || "Anonymous"}
+            </Link>
+            {organization && (
+              <>
+                <span>from</span>
+                <Link 
+                  href={`/organization/${organization.username}`} 
+                  className="hover:underline flex items-center gap-1.5"
+                >
+                  {organization.name}
+                  {organization.verified && (
+                    <BadgeCheck 
+                      className="h-4 w-4" 
+                      fill="hsl(var(--primary))" 
+                      stroke="hsl(var(--background))" 
+                      strokeWidth={2}
+                    />
+                  )}
+                </Link>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+      <div className="flex items-center gap-2 flex-shrink-0">
+        <ProjectStatusBadge status={project.status} className="capitalize" />
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={onShare}
+        >
+          <Share2 className="h-4 w-4 shrink-0" />
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 // Define ScheduleData type
 type ScheduleData =
@@ -367,18 +437,18 @@ export default function ProjectDetails({
           <Card className="bg-card/50 hover:bg-card/80 transition-colors">
             <CardContent className="p-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <h3 className="font-medium text-base">
+                <div className="max-w-[400px]">
+                  <h3 className="font-medium text-base break-words">
                     {format(new Date(oneTimeData.date), "EEEE, MMMM d")}
                   </h3>
                   <div className="flex items-center gap-2 text-muted-foreground mt-1 text-sm">
-                    <Clock className="h-3.5 w-3.5" />
-                    <span>
+                    <Clock className="h-3.5 w-3.5 flex-shrink-0" />
+                    <span className="line-clamp-1">
                       {formatTimeTo12Hour(oneTimeData.startTime)} -{" "}
                       {formatTimeTo12Hour(oneTimeData.endTime)}
                     </span>
                     <span className="flex items-center ml-2">
-                      <Users className="h-3.5 w-3.5 mr-1" />
+                      <Users className="h-3.5 w-3.5 mr-1 flex-shrink-0" />
                       {formatSpots(oneTimeData.volunteers)}
                     </span>
                   </div>
@@ -388,6 +458,7 @@ export default function ProjectDetails({
                   size="sm"
                   onClick={() => handleSignUpClick(scheduleId)}
                   disabled={loadingStates[scheduleId]}
+                  className="flex-shrink-0"
                 >
                   {loadingStates[scheduleId] ? (
                     <>
@@ -408,7 +479,7 @@ export default function ProjectDetails({
           <div className="space-y-3">
             {multiDayData.map((day, index) => (
               <div key={index}>
-                <h3 className="font-medium text-base mb-2">
+                <h3 className="font-medium text-base mb-2 break-words max-w-[400px]">
                   {format(new Date(day.date), "EEEE, MMMM d")}
                 </h3>
                 <div className="space-y-2">
@@ -421,14 +492,14 @@ export default function ProjectDetails({
                       >
                         <CardContent className="p-4">
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                            <div className="flex items-center gap-2 text-muted-foreground">
-                              <Clock className="h-3.5 w-3.5" />
-                              <span>
+                            <div className="flex items-center gap-2 text-muted-foreground max-w-[400px]">
+                              <Clock className="h-3.5 w-3.5 flex-shrink-0" />
+                              <span className="line-clamp-1">
                                 {formatTimeTo12Hour(slot.startTime)} -{" "}
                                 {formatTimeTo12Hour(slot.endTime)}
                               </span>
                               <span className="flex items-center ml-2">
-                                <Users className="h-3.5 w-3.5 mr-1" />
+                                <Users className="h-3.5 w-3.5 mr-1 flex-shrink-0" />
                                 {formatSpots(slot.volunteers)}
                               </span>
                             </div>
@@ -437,6 +508,7 @@ export default function ProjectDetails({
                               size="sm"
                               onClick={() => handleSignUpClick(scheduleId)}
                               disabled={loadingStates[scheduleId]}
+                              className="flex-shrink-0"
                             >
                               {loadingStates[scheduleId] ? (
                                 <>
@@ -461,7 +533,7 @@ export default function ProjectDetails({
         const multiAreaData = scheduleData as SameDayMultiAreaSchedule;
         return (
           <div className="space-y-3">
-            <h3 className="font-medium text-base">
+            <h3 className="font-medium text-base break-words max-w-[400px]">
               {format(new Date(multiAreaData.date), "EEEE, MMMM d")}
             </h3>
             <div className="grid gap-2">
@@ -474,14 +546,14 @@ export default function ProjectDetails({
                   >
                     <CardContent className="p-4">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-medium text-sm sm:text-base truncate">
+                        <div className="flex-1 min-w-0 max-w-[400px]">
+                          <h4 className="font-medium text-sm sm:text-base break-words line-clamp-2">
                             {role.name}
                           </h4>
                           <div className="flex flex-wrap items-center gap-2 text-muted-foreground mt-1 text-xs sm:text-sm">
                             <div className="flex items-center">
                               <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-1 flex-shrink-0" />
-                              <span className="truncate">
+                              <span className="line-clamp-1">
                                 {formatTimeTo12Hour(role.startTime)} -{" "}
                                 {formatTimeTo12Hour(role.endTime)}
                               </span>
@@ -495,7 +567,7 @@ export default function ProjectDetails({
                         <Button
                           variant="default"
                           size="sm"
-                          className="w-full sm:w-auto mt-2 sm:mt-0"
+                          className="w-full sm:w-auto mt-2 sm:mt-0 flex-shrink-0"
                           onClick={() => handleSignUpClick(scheduleId)}
                           disabled={loadingStates[scheduleId]}
                         >
@@ -525,25 +597,12 @@ export default function ProjectDetails({
         {isCreator && <CreatorDashboard project={project} />}
         
         <div className="mb-6">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold mb-2">
-                {project.title}
-              </h1>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <MapPin className="h-4 w-4 shrink-0" />
-                <span>{project.location}</span>
-              </div>
-            </div>
-            <Button
-              variant="outline"
-              size="icon"
-              className="self-start shrink-0"
-              onClick={handleShare}
-            >
-              <Share2 className="h-4 w-4 shrink-0" />
-            </Button>
-          </div>
+          <ProjectHeader 
+            project={project} 
+            creator={creator} 
+            organization={project.organization} 
+            onShare={handleShare} 
+          />
         </div>
 
         <div className="grid gap-6 lg:grid-cols-5">

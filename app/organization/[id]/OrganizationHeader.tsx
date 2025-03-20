@@ -9,6 +9,7 @@ import { useState } from "react";
 import JoinCodeDialog from "./JoinCodeDialog";
 import { toast } from "sonner";
 import { JoinOrganizationDialog } from "../JoinOrganizationDialog";
+import { useRouter } from "next/navigation";
 
 interface OrganizationHeaderProps {
   organization: any;
@@ -23,6 +24,7 @@ export default function OrganizationHeader({
 }: OrganizationHeaderProps) {
   const [showJoinCode, setShowJoinCode] = useState(false);
   const isAdmin = userRole === "admin";
+  const router = useRouter();
   
   const getInitials = (name: string) => {
     return name
@@ -30,23 +32,6 @@ export default function OrganizationHeader({
       : "ORG";
   };
 
-  // const handleShare = () => {
-  //   const url = window.location.href;
-  //   if (navigator.share) {
-  //     navigator.share({
-  //       title: organization.name,
-  //       text: organization.description || `Check out ${organization.name} on Let's Assist!`,
-  //       url: window.location.href,
-  //     }).catch(err => {
-  //       console.error('Error sharing:', err);
-  //       navigator.clipboard.writeText(window.location.href);
-  //       toast.success('Link copied to clipboard!');
-  //     });
-  //   } else {
-  //     navigator.clipboard.writeText(window.location.href);
-  //     toast.success('Link copied to clipboard!');
-  //   }
-  // };
   const handleShare = () => {
     const url = window.location.href;
     if (navigator.share && /Mobi/.test(navigator.userAgent)) {
@@ -71,6 +56,13 @@ export default function OrganizationHeader({
       }
     }
   };
+
+  // Update this function to use URL parameter instead of cookie
+  const handleCreateProject = () => {
+    router.push(`/projects/create?org=${organization.id}`);
+  };
+
+  const canCreateProjects = userRole === "admin" || userRole === "staff";
 
   return (
     <div className="flex flex-col w-full gap-4 relative">
@@ -182,46 +174,14 @@ export default function OrganizationHeader({
           Join Organization
         </Button>
       )}
-      </div>
-      
-      {/* Action buttons - full width on mobile
-      <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto sm:ml-auto">
-        <Button 
-          variant="outline"
-          size="sm"
-          className="w-full sm:w-auto justify-center"
-          onClick={handleShare}
-        >
-          <ShareIcon className="h-4 w-4 mr-2" />
-          Share
+
+      {canCreateProjects && (
+        <Button onClick={handleCreateProject} size="sm" className="gap-1">
+          <Plus className="h-4 w-4" />
+          Create Project
         </Button>
-        
-        {isAdmin && (
-          <Button 
-            variant="default"
-            size="sm"
-            className="w-full sm:w-auto justify-center"
-            onClick={() => setShowJoinCode(true)}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Invite Members
-          </Button>
-        )}
-        
-        {userRole === null && (
-          <Button 
-            variant="default"
-            size="sm"
-            asChild
-            className="w-full sm:w-auto justify-center"
-          >
-            <Link href={`/organization/join?id=${organization.id}`}>
-              <Plus className="h-4 w-4 mr-2" />
-              Join Organization
-            </Link>
-          </Button>
-        )}
-      </div> */}
+      )}
+      </div>
       
       {showJoinCode && isAdmin && (
         <JoinCodeDialog 

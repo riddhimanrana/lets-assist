@@ -1,255 +1,287 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
-import { type Profile, type Project } from "@/types";
+import { canCancelProject, getProjectStatus } from "@/utils/project";
+import { revalidatePath } from "next/cache";
+import { ProjectStatus } from "@/types";
 
-export async function getProject(
-  id: string,
-): Promise<{ project: Project | null; error: string | null }> {
-  try {
-    const supabase = await createClient();
-
-    // Fetch project data
-    const { data: project, error: projectError } = await supabase
-      .from("projects")
-      .select("*")
-      .eq("id", id)
-      .single();
-
-    if (projectError) {
-      throw projectError;
-    }
-
-    return { project: project as Project, error: null };
-  } catch (error) {
-    // console.error('Error fetching project:', error)
-    return { project: null, error: "Failed to fetch project" };
-  }
+interface AnonymousSignup {
+  name: string;
+  email?: string;
+  phone?: string;
 }
 
-export async function getCreatorProfile(
-  creatorId: string,
-): Promise<{ profile: Profile | null; error: string | null }> {
-  try {
-    const supabase = await createClient();
+export async function getProject(projectId: string) {
+  const supabase = await createClient();
+  
+  const { data: project, error } = await supabase
+    .from("projects")
+    .select(`
+      *,
+      organization:organizations (
+        id,
+        name,
+        username,
+        logo_url,
+        verified,
+        type
+      )
+    `)
+    .eq("id", projectId)
+    .single();
 
-    // Fetch creator profile data with created_at
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("full_name, avatar_url, username, created_at")
-      .eq("id", creatorId)
-      .single();
-
-    if (profileError) {
-      throw profileError;
-    }
-
-    return { profile: profile as Profile, error: null };
-  } catch (error) {
-    console.error("Error fetching creator profile:", error);
-    return { profile: null, error: "Failed to fetch creator profile" };
+  if (error) {
+    console.error("Error fetching project:", error);
+    return { error: "Failed to fetch project" };
   }
+
+  // Calculate and update the project status
+  if (project) {
+    project.status = getProjectStatus(project);
+  }
+
+  return { project };
+}
+
+export async function getCreatorProfile(userId: string) {
+  const supabase = await createClient();
+  
+  const { data: profile, error } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", userId)
+    .single();
+
+  if (error) {
+    console.error("Error fetching creator profile:", error);
+    return { error: "Failed to fetch creator profile" };
+  }
+
+  return { profile };
 }
 
 export async function signUpForProject(
-  projectId: string, 
+  projectId: string,
   scheduleId: string,
-  anonymousData?: { 
-    name: string;
-    email?: string;
-    phone?: string;
-  }
+  anonymousData?: AnonymousSignup
 ) {
-  try {
-    const supabase = await createClient();
-    
-    // First, check if the project requires login
-    const { data: project, error: projectError } = await supabase
-      .from("projects")
-      .select("require_login")
-      .eq("id", projectId)
-      .single();
-    
-    if (projectError) {
-      throw projectError;
-    }
-    
-    // Get current user if available
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-    
-    // If project requires login and user is not logged in, return an error
-    if (project.require_login && (!user || userError)) {
-      return { error: "This project requires an account to sign up" };
-    }
-    
-    // For anonymous signup (no user but project allows it)
-    const userId = user?.id || null;
-    const isAnonymous = !userId;
+  const supabase = await createClient();
 
-    // Make sure anonymous users provided their name
-    if (isAnonymous && (!anonymousData || !anonymousData.name)) {
-      return { error: "Please provide your name to sign up" };
-    }
-    
-    // Add signup to database
-    const { error } = await supabase.from("project_signups").insert({
-      project_id: projectId,
-      user_id: userId,
-      schedule_id: scheduleId,
-      status: "pending",
-      is_anonymous: isAnonymous,
-      // Include anonymous user data if provided
-      anonymous_name: isAnonymous ? anonymousData?.name : null,
-      anonymous_email: isAnonymous ? anonymousData?.email : null,
-      anonymous_phone: isAnonymous ? anonymousData?.phone : null,
-    });
+  // Get project details
+  const { project, error: projectError } = await getProject(projectId);
 
-    if (error) throw error;
-
-    return { success: true };
-  } catch (error) {
-    console.error("Error signing up for project:", error);
-    return { error: "Failed to sign up for project" };
+  if (!project || projectError) {
+    return { error: "Project not found" };
   }
+
+  // Check if project is available for signup
+  if (project.status === "cancelled") {
+    return { error: "This project has been cancelled" };
+  }
+
+  if (project.status === "completed") {
+    return { error: "This project has been completed" };
+  }
+
+  // Handle user authentication
+  const { data: { user } } = await supabase.auth.getUser();
+
+  // If project requires login but user isn't logged in
+  if (project.require_login && !user) {
+    return { error: "You must be logged in to sign up for this project" };
+  }
+
+  // Create signup record
+  const signupData = {
+    project_id: projectId,
+    schedule_id: scheduleId,
+    user_id: user?.id,
+    status: "confirmed" as const,
+    ...(anonymousData && {
+      anonymous_name: anonymousData.name,
+      anonymous_email: anonymousData.email,
+      anonymous_phone: anonymousData.phone,
+    }),
+  };
+
+  const { error: signupError } = await supabase
+    .from("project_signups")
+    .insert(signupData);
+
+  if (signupError) {
+    console.error("Error creating signup:", signupError);
+    if (signupError.code === "23505") { // Unique constraint violation
+      return { error: "You have already signed up for this slot" };
+    }
+    return { error: "Failed to sign up. Please try again." };
+  }
+
+  // Revalidate paths
+  revalidatePath(`/projects/${projectId}`);
+  if (project.organization_id) {
+    revalidatePath(`/organization/${project.organization_id}`);
+  }
+  if (user) {
+    revalidatePath(`/profile/${user.id}`);
+  }
+
+  return { success: true };
+}
+
+export async function updateProjectStatus(
+  projectId: string, 
+  newStatus: ProjectStatus,
+  cancellationReason?: string
+) {
+  const supabase = await createClient();
+  
+  // Get current user
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  if (!user || userError) {
+    return { error: "You must be logged in to update project status" };
+  }
+
+  // Verify user has permission to update the project
+  const { project, error: projectError } = await getProject(projectId);
+
+  if (!project || projectError) {
+    return { error: "Project not found" };
+  }
+
+  // Check if user has permission
+  let hasPermission = project.creator_id === user.id;
+  if (project.organization && !hasPermission) {
+    const { data: orgMember } = await supabase
+      .from("organization_members")
+      .select("role")
+      .eq("organization_id", project.organization.id)
+      .eq("user_id", user.id)
+      .single();
+
+    if (orgMember?.role) {
+      hasPermission = ["admin", "staff"].includes(orgMember.role);
+    }
+  }
+
+  if (!hasPermission) {
+    return { error: "You don't have permission to update this project" };
+  }
+
+  // If cancelling, validate cancellation is allowed
+  if (newStatus === "cancelled") {
+    if (!canCancelProject(project)) {
+      return { error: "Project can only be cancelled within 24 hours of start time" };
+    }
+    if (!cancellationReason) {
+      return { error: "Cancellation reason is required" };
+    }
+  }
+
+  // Update project status
+  const updateData: any = { status: newStatus };
+  if (newStatus === "cancelled") {
+    updateData.cancelled_at = new Date().toISOString();
+    updateData.cancellation_reason = cancellationReason;
+  }
+
+  const { error: updateError } = await supabase
+    .from("projects")
+    .update(updateData)
+    .eq("id", projectId);
+
+  if (updateError) {
+    console.error("Error updating project status:", updateError);
+    return { error: "Failed to update project status" };
+  }
+
+  // Revalidate project pages
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath(`/organization/${project.organization?.id}`);
+  revalidatePath('/home');
+
+  return { success: true };
 }
 
 export async function deleteProject(projectId: string) {
-  try {
-    const supabase = await createClient();
-    
-    // Get current user
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return { error: "Unauthorized" };
-    }
+  const supabase = await createClient();
+  
+  // Get current user
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  if (!user || userError) {
+    return { error: "You must be logged in to delete a project" };
+  }
 
-    // Verify project ownership
-    const { data: project } = await supabase
-      .from("projects")
-      .select("creator_id")
-      .eq("id", projectId)
+  // Verify user has permission to delete the project
+  const { project, error: projectError } = await getProject(projectId);
+
+  if (!project || projectError) {
+    return { error: "Project not found" };
+  }
+
+  // Check if user has permission
+  let hasPermission = project.creator_id === user.id;
+  if (project.organization && !hasPermission) {
+    const { data: orgMember } = await supabase
+      .from("organization_members")
+      .select("role")
+      .eq("organization_id", project.organization.id)
+      .eq("user_id", user.id)
       .single();
 
-    if (!project || project.creator_id !== user.id) {
-      return { error: "Unauthorized" };
+    if (orgMember?.role) {
+      hasPermission = orgMember.role === "admin"; // Only admins can delete projects
     }
+  }
 
-    // Delete project files first
-    const { data: projectData } = await supabase
-      .from("projects")
-      .select("cover_image_url, documents")
-      .eq("id", projectId)
-      .single();
+  if (!hasPermission) {
+    return { error: "You don't have permission to delete this project" };
+  }
 
-    if (projectData) {
-      // Delete cover image if it exists
-      if (projectData.cover_image_url?.includes("supabase.co")) {
-        try {
-          const urlParts = new URL(projectData.cover_image_url);
-          const pathParts = urlParts.pathname.split("/");
-          const fileName = pathParts[pathParts.length - 1];
-          if (fileName) {
-            await supabase.storage.from("project-images").remove([fileName]);
-          }
-        } catch (error) {
-          console.error("Error deleting cover image:", error);
-        }
-      }
+  // Delete project documents from storage if they exist
+  if (project.documents?.length > 0) {
+    const { data: storageData, error: storageError } = await supabase.storage
+      .from('project-documents')
+      .list();
 
-      // Delete documents if they exist
-      if (projectData.documents?.length > 0) {
-        try {
-          const fileNames = projectData.documents.map((doc: any) => {
-            const urlParts = new URL(doc.url);
-            const pathParts = urlParts.pathname.split("/");
-            return pathParts[pathParts.length - 1];
-          });
-          await supabase.storage.from("project-documents").remove(fileNames);
-        } catch (error) {
-          console.error("Error deleting documents:", error);
-        }
+    if (storageData) {
+      const projectFiles = storageData.filter(file => 
+        file.name.startsWith(`project_${projectId}`)
+      );
+
+      if (projectFiles.length > 0) {
+        await supabase.storage
+          .from('project-documents')
+          .remove(projectFiles.map(file => file.name));
       }
     }
+  }
 
-    // Delete project signups
-    await supabase
-      .from("project_signups")
-      .delete()
-      .eq("project_id", projectId);
+  // Delete cover image if it exists
+  if (project.cover_image_url) {
+    const fileName = project.cover_image_url.split('/').pop();
+    if (fileName) {
+      await supabase.storage
+        .from('project-images')
+        .remove([fileName]);
+    }
+  }
 
-    // Finally delete the project
-    const { error: deleteError } = await supabase
-      .from("projects")
-      .delete()
-      .eq("id", projectId);
+  // Delete project from database
+  const { error: deleteError } = await supabase
+    .from("projects")
+    .delete()
+    .eq("id", projectId);
 
-    if (deleteError) throw deleteError;
-
-    return { success: true };
-  } catch (error) {
-    console.error("Error deleting project:", error);
+  if (deleteError) {
+    console.error("Error deleting project:", deleteError);
     return { error: "Failed to delete project" };
   }
-}
 
-export async function updateProject(projectId: string, updates: Partial<Project>) {
-  try {
-    const supabase = await createClient();
-    
-    // Get current user
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return { error: "Unauthorized" };
-    }
-
-    // Verify project ownership
-    const { data: project } = await supabase
-      .from("projects")
-      .select("creator_id")
-      .eq("id", projectId)
-      .single();
-
-    if (!project || project.creator_id !== user.id) {
-      return { error: "Unauthorized" };
-    }
-
-    // Update the project
-    const { error: updateError } = await supabase
-      .from("projects")
-      .update(updates)
-      .eq("id", projectId);
-
-    if (updateError) throw updateError;
-
-    return { success: true };
-  } catch (error) {
-    console.error("Error updating project:", error);
-    return { error: "Failed to update project" };
+  // Revalidate paths
+  revalidatePath('/home');
+  if (project.organization) {
+    revalidatePath(`/organization/${project.organization.id}`);
   }
-}
 
-export async function isProjectCreator(projectId: string) {
-  try {
-    const supabase = await createClient();
-    
-    // Get current user
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return false;
-    }
-
-    // Check project ownership
-    const { data: project } = await supabase
-      .from("projects")
-      .select("creator_id")
-      .eq("id", projectId)
-      .single();
-
-    return project?.creator_id === user.id;
-  } catch (error) {
-    return false;
-  }
+  return { success: true };
 }

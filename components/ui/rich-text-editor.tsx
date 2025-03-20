@@ -75,6 +75,7 @@ export function RichTextEditor({
             // Removed manual character count update
             onChange(html);
         },
+        immediatelyRender: false,
         editorProps: {
             attributes: {
                 class: cn(

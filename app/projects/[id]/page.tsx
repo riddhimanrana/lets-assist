@@ -8,12 +8,12 @@ type Props = {
 };
 
 export async function generateMetadata(
-  params: Props,
+  { params }: Props,
 ): Promise<Metadata> {
-  const { id } = await params.params;
-  const { project } = await getProject(id);
+  const { id } = await params;
+  const { project, error } = await getProject(id);
 
-  if (!project) {
+  if (error || !project) {
     return {
       title: "Project Not Found - Let's Assist",
       description: "Project details not available.",
@@ -26,18 +26,21 @@ export async function generateMetadata(
   };
 }
 
-
 export default async function ProjectPage(
-  params: Props,
+  { params }: Props,
 ): Promise<React.ReactElement> {
-  const { id } = await params.params;
+  const { id } = await params;
   const { project, error: projectError } = await getProject(id);
 
   if (projectError || !project) {
     notFound();
   }
 
-  const { profile: creator } = await getCreatorProfile(project.creator_id);
+  const { profile: creator, error: profileError } = await getCreatorProfile(project.creator_id);
 
-  return <ProjectDetails project={project} creator={creator} />;
+  if (profileError) {
+    console.error("Error fetching creator profile:", profileError);
+  }
+
+  return <ProjectDetails project={project} creator={creator || null} />;
 }

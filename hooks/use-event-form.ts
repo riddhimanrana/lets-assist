@@ -4,15 +4,14 @@ import { useState } from "react";
 import { format } from "date-fns";
 import { EventType, VerificationMethod } from "@/types";
 
-interface EventFormState {
+export interface EventFormState {
   step: number;
   eventType: EventType;
-  verificationMethod: VerificationMethod;
-  requireLogin: boolean;
   basicInfo: {
-    title: string; // max 75 chars
-    location: string; // max 100 chars
-    description: string; // max 1000 chars
+    title: string;
+    description: string;
+    location: string;
+    organizationId: string | null; // Ensure this is string | null
   };
   schedule: {
     oneTime: {
@@ -34,13 +33,15 @@ interface EventFormState {
       overallStart: string;
       overallEnd: string;
       roles: Array<{
-        name: string; // max 75 chars
-        volunteers: number;
+        name: string;
         startTime: string;
         endTime: string;
+        volunteers: number;
       }>;
     };
   };
+  verificationMethod: VerificationMethod;
+  requireLogin: boolean;
 }
 
 export function useEventForm() {
@@ -58,6 +59,7 @@ export function useEventForm() {
       title: "",
       location: "",
       description: "",
+      organizationId: null, // Default to null (personal project)
     },
     schedule: {
       oneTime: {

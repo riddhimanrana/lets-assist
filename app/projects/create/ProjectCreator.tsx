@@ -2,6 +2,9 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useEventForm } from "@/hooks/use-event-form";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Building2 } from "lucide-react";
 import BasicInfo from "./BasicInfo";
 import EventType from "./EventType";
 import Schedule from "./Schedule";
@@ -38,7 +41,17 @@ interface LocationResult {
   display_name: string;
 }
 
-export default function ProjectCreator() {
+interface ProjectCreatorProps {
+  initialOrgId?: string;
+  initialOrgOptions?: {
+    id: string;
+    name: string;
+    logo_url?: string | null;
+    role: string;
+  }[];
+}
+
+export default function ProjectCreator({ initialOrgId, initialOrgOptions }: ProjectCreatorProps) {
   const {
     state,
     nextStep,
@@ -299,6 +312,8 @@ export default function ProjectCreator() {
             state={state}
             updateBasicInfoAction={updateBasicInfo}
             onMapClickAction={() => setMapDialogOpen(true)}
+            initialOrgId={initialOrgId}
+            initialOrganizations={initialOrgOptions}
           />
         );
       case 2:
@@ -352,6 +367,7 @@ export default function ProjectCreator() {
         <h1 className="text-3xl sm:text-4xl font-bold mb-4">
           Create a Volunteering Project
         </h1>
+        
         <Progress value={(state.step / 5) * 100} className="h-2" />
         <div className="grid grid-cols-5 mt-2 text-xs sm:text-sm text-muted-foreground">
           <span className={cn("text-center sm:text-left truncate", state.step === 1 && "text-primary font-medium")}>

@@ -1,15 +1,18 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
-import { useEffect, useState } from "react";
 import { CalendarIcon, Clock, MapPin, Plus, Search } from "lucide-react";
 import Link from "next/link";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Image from "next/image";
+import { ProjectStatus } from "@/types";
+import { ProjectStatusBadge } from "@/components/ui/status-badge";
+import { getProjectStatus } from "@/utils/project";
+import { useRouter } from "next/navigation";
 
 interface ProjectsTabProps {
   projects: any[];
@@ -24,11 +27,15 @@ export default function ProjectsTab({
 }: ProjectsTabProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredProjects, setFilteredProjects] = useState(projects);
-  const [activeTab, setActiveTab] = useState("all");
+  const [activeTab, setActiveTab] = useState<ProjectStatus | "all">("all");
+  const router = useRouter();
 
   // Filter projects when search term or active tab changes
   useEffect(() => {
-    let result = projects;
+    let result = projects.map(project => ({
+      ...project,
+      status: getProjectStatus(project)
+    }));
     
     // Filter by status
     if (activeTab !== "all") {
@@ -51,12 +58,18 @@ export default function ProjectsTab({
     setFilteredProjects(result);
   }, [searchTerm, activeTab, projects]);
 
-  // Count projects by status for the tabs
-  const activeCount = projects.filter(p => p.status === "active").length;
-  const completedCount = projects.filter(p => p.status === "completed").length;
-  const upcomingCount = projects.filter(p => p.status === "upcoming").length;
+  // Count projects by status
+  const upcomingCount = projects.filter(p => getProjectStatus(p) === "upcoming").length;
+  const inProgressCount = projects.filter(p => getProjectStatus(p) === "in-progress").length;
+  const completedCount = projects.filter(p => getProjectStatus(p) === "completed").length;
+  const cancelledCount = projects.filter(p => getProjectStatus(p) === "cancelled").length;
 
   const canCreateProjects = userRole === "admin" || userRole === "staff";
+  
+  // Handle navigation to create project with organization context
+  const handleCreateProject = () => {
+    router.push(`/projects/create?org=${organizationId}`);
+  };
   
   return (
     <div className="space-y-4">
@@ -75,11 +88,9 @@ export default function ProjectsTab({
             </div>
           
           {canCreateProjects && (
-            <Button asChild>
-              <Link href={`/projects/create?org=${organizationId}`}>
-                <Plus className="h-4 w-4 mr-1.5" />
-                New Project
-              </Link>
+            <Button onClick={handleCreateProject}>
+              <Plus className="h-4 w-4 mr-1.5" />
+              New Project
             </Button>
           )}
         </div>
@@ -88,21 +99,24 @@ export default function ProjectsTab({
       <Tabs 
         defaultValue="all" 
         value={activeTab}
-        onValueChange={setActiveTab}
+        onValueChange={(value) => setActiveTab(value as ProjectStatus | "all")}
         className="w-full"
       >
         <TabsList className="mb-4">
           <TabsTrigger className="text-xs sm:text-sm" value="all">
             All <span className="hidden sm:inline ml-1 text-xs bg-muted px-1.5 py-0.5 rounded-full">{projects.length}</span>
           </TabsTrigger>
-          <TabsTrigger className="text-xs sm:text-sm" value="active">
-            Active <span className="hidden sm:inline ml-1 text-xs bg-muted px-1.5 py-0.5 rounded-full">{activeCount}</span>
-          </TabsTrigger>
           <TabsTrigger className="text-xs sm:text-sm" value="upcoming">
             Upcoming <span className="hidden sm:inline ml-1 text-xs bg-muted px-1.5 py-0.5 rounded-full">{upcomingCount}</span>
           </TabsTrigger>
+          <TabsTrigger className="text-xs sm:text-sm" value="in-progress">
+            In Progress <span className="hidden sm:inline ml-1 text-xs bg-muted px-1.5 py-0.5 rounded-full">{inProgressCount}</span>
+          </TabsTrigger>
           <TabsTrigger className="text-xs sm:text-sm" value="completed">
             Completed <span className="hidden sm:inline ml-1 text-xs bg-muted px-1.5 py-0.5 rounded-full">{completedCount}</span>
+          </TabsTrigger>
+          <TabsTrigger className="text-xs sm:text-sm" value="cancelled">
+            Cancelled <span className="hidden sm:inline ml-1 text-xs bg-muted px-1.5 py-0.5 rounded-full">{cancelledCount}</span>
           </TabsTrigger>
         </TabsList>
         <TabsContent value={activeTab} className="mt-0">
@@ -122,7 +136,7 @@ export default function ProjectsTab({
                     : `No ${activeTab} projects found`
                 }
               </p>
-              {canCreateProjects && (
+              {canCreateProjects && activeTab !== "cancelled" && (
                 <Button asChild variant="outline" className="mt-4">
                   <Link href={`/projects/create?org=${organizationId}`}>
                     <Plus className="h-4 w-4 mr-1.5" />
@@ -139,6 +153,8 @@ export default function ProjectsTab({
 }
 
 function ProjectCard({ project }: { project: any }) {
+  const currentStatus = getProjectStatus(project);
+
   return (
     <Link href={`/projects/${project.id}`}>
       <Card className="h-full hover:shadow-md transition-shadow overflow-hidden">
@@ -155,7 +171,7 @@ function ProjectCard({ project }: { project: any }) {
         <CardContent className={`p-4 ${!project.cover_image_url ? 'pt-4' : 'pt-4'}`}>
           <div className="flex items-center justify-between mb-2">
             <h3 className="font-medium text-lg line-clamp-1">{project.title}</h3>
-            <ProjectStatusBadge status={project.status} />
+            <ProjectStatusBadge status={currentStatus} />
           </div>
           
           <p className="text-muted-foreground text-sm line-clamp-2 mb-3">
@@ -182,23 +198,17 @@ function ProjectCard({ project }: { project: any }) {
               </div>
             )}
           </div>
+
+          {project.organization && (
+            <div className="mt-3 pt-3 border-t flex items-center gap-2 text-xs text-muted-foreground">
+              <span>Posted by</span>
+              <span className="font-medium">
+                {project.profiles?.full_name || "Anonymous"}
+              </span>
+            </div>
+          )}
         </CardContent>
       </Card>
     </Link>
   );
-}
-
-function ProjectStatusBadge({ status }: { status: string }) {
-  switch (status) {
-    case 'active':
-      return <Badge variant="default">Active</Badge>;
-    case 'upcoming':
-      return <Badge variant="secondary">Upcoming</Badge>;
-    case 'completed':
-      return <Badge variant="outline">Completed</Badge>;
-    case 'cancelled':
-      return <Badge variant="destructive">Cancelled</Badge>;
-    default:
-      return <Badge variant="outline">{status}</Badge>;
-  }
 }

@@ -42,6 +42,20 @@ export interface Profile {
   created_at: string | null;
 }
 
+export type ProjectStatus = "upcoming" | "in-progress" | "completed" | "cancelled";
+export type ProjectVisibility = "public" | "organization";
+export type OrganizationRole = "admin" | "staff" | "member";
+
+export interface Organization {
+  id: string;
+  name: string;
+  username: string;
+  description?: string;
+  logo_url?: string;
+  type: string;
+  verified: boolean;
+}
+
 export interface Project {
   id: string;
   title: string;
@@ -52,8 +66,14 @@ export interface Project {
   require_login: boolean;
   creator_id: string;
   schedule: ProjectSchedule;
-  status: "active" | "completed" | "cancelled";
+  status: ProjectStatus;
+  visibility: ProjectVisibility;
+  organization_id?: string;
+  organization?: Organization;
+  created_by_role?: OrganizationRole;
+  cancelled_at?: string;
+  cancellation_reason?: string;
   profiles: Profile;
   created_at: string;
-  cover_image_url?: string | null; // Adding optional modifier based on usage in application
+  cover_image_url?: string | null;
 }
