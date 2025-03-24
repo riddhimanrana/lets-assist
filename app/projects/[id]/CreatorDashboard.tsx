@@ -123,7 +123,6 @@ export default function CreatorDashboard({ project }: Props) {
               variant="outline"
               className="flex items-center gap-2"
               onClick={() => router.push(`/projects/${project.id}/edit`)}
-              disabled={isCancelled}
             >
               <Edit className="h-4 w-4" />
               Edit Project
@@ -151,7 +150,6 @@ export default function CreatorDashboard({ project }: Props) {
                 variant="default"
                 className="flex items-center gap-2"
                 onClick={() => handleUpdateStatus("completed")}
-                disabled={isUpdatingStatus}
               >
                 <CheckCircle2 className="h-4 w-4" />
                 Mark Complete
@@ -186,13 +184,13 @@ export default function CreatorDashboard({ project }: Props) {
             </Button>
           </div>
 
-          {/* Warning for cancelled projects */}
-          {isCancelled && (
+          {/* Show either the cancellation warning or the general info, but not both */}
+          {isCancelled ? (
             <div className="flex items-start gap-2 rounded-md border border-destructive p-3 bg-destructive/10">
               <AlertTriangle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
               <div className="text-sm text-muted-foreground">
                 <p>
-                  This project has been cancelled. You can still view details and manage existing signups,
+                  This project has been cancelled. You can still edit details and manage existing signups,
                   but new signups are disabled.
                 </p>
                 {project.cancellation_reason && (
@@ -202,19 +200,18 @@ export default function CreatorDashboard({ project }: Props) {
                 )}
               </div>
             </div>
-          )}
-
-          {/* General dashboard info */}
-          <div className="flex items-start gap-2 rounded-md border p-3 bg-muted/50">
-            <AlertCircle className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
-            <div className="text-sm text-muted-foreground">
-              <p>
-                As the project creator, you have full control over this project.
-                You can edit project details, manage volunteer signups, update
-                documents, and more.
-              </p>
+          ) : (
+            <div className="flex items-start gap-2 rounded-md border p-3 bg-muted/50">
+              <AlertCircle className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
+              <div className="text-sm text-muted-foreground">
+                <p>
+                  As the project creator, you have full control over this project.
+                  You can edit project details, manage volunteer signups, update
+                  documents, and more.
+                </p>
+              </div>
             </div>
-          </div>
+          )}
         </CardContent>
       </Card>
 

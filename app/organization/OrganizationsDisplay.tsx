@@ -197,7 +197,7 @@ export default function OrganizationsDisplay({
                     <div className="pt-8 sm:pt-10 px-3 sm:px-4 pb-3">
                       <div className="flex items-start justify-between">
                         <div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1">
                             <h3 className="font-semibold text-base sm:text-lg line-clamp-1">{org.name}</h3>
                             {org.verified && (
                               <BadgeCheck className="h-6 w-6" fill="hsl(var(--primary))" stroke="hsl(var(--popover))" strokeWidth={2.5} />

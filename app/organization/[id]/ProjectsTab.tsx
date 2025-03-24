@@ -158,7 +158,7 @@ function ProjectCard({ project }: { project: any }) {
   return (
     <Link href={`/projects/${project.id}`}>
       <Card className="h-full hover:shadow-md transition-shadow overflow-hidden">
-        {project.cover_image_url && (
+        {/* {project.cover_image_url && (
           <div className="h-32 w-full relative">
             <Image
               src={project.cover_image_url}
@@ -167,7 +167,7 @@ function ProjectCard({ project }: { project: any }) {
               className="object-cover"
             />
           </div>
-        )}
+        )} */}
         <CardContent className={`p-4 ${!project.cover_image_url ? 'pt-4' : 'pt-4'}`}>
           <div className="flex items-center justify-between mb-2">
             <h3 className="font-medium text-lg line-clamp-1">{project.title}</h3>

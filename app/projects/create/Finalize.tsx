@@ -425,7 +425,7 @@ export default function Finalize({ state, setCoverImage, setDocuments }: Finaliz
               
             </div>
             <div className="flex items-center mt-2 text-xs text-muted-foreground">
-                <AlertTriangle className="h-3 w-3 mr-1" />
+                <AlertTriangle className="h-3 w-3 mr-1 flex-shrink-0" />
                 <span>Cover images are optional, but if you have an image feel free to show it!</span>
               </div>
           </div>
@@ -503,7 +503,7 @@ export default function Finalize({ state, setCoverImage, setDocuments }: Finaliz
             
             {!localDocuments.length && (
               <div className="flex items-center mt-2 text-xs text-muted-foreground">
-                <AlertTriangle className="h-3 w-3 mr-1" />
+                <AlertTriangle className="h-3 w-3 mr-1 flex-shrink-0" />
                 <span>Documents are optional but recommended for projects requiring additional information</span>
               </div>
             )}

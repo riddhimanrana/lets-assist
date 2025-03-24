@@ -33,17 +33,17 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
     upcoming: {
       variant: "secondary" as const,
       icon: Clock,
-      className: "bg-blue-500/10 text-blue-500 hover:bg-blue-500/20",
+      className: "bg-chart-3/10 text-chart-3 hover:bg-chart-3/20",
     },
     "in-progress": {
       variant: "default" as const,
       icon: ClockIcon,
-      className: "bg-green-500/10 text-green-500 hover:bg-green-500/20",
+      className: "bg-chart-4/10 text-chart-4 hover:bg-chart-4/20",
     },
     completed: {
-      variant: "outline" as const,
+      variant: "default" as const,
       icon: CheckCircle2,
-      className: "bg-green-500/10 text-green-500 hover:bg-green-500/20",
+      className: "bg-chart-5/10 text-chart-5 hover:bg-chart-5/20",
     },
     cancelled: {
       variant: "destructive" as const,

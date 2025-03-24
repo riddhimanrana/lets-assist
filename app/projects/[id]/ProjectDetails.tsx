@@ -11,6 +11,7 @@ import {
   ProjectStatus
 } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { ProjectStatusBadge } from "@/components/ui/status-badge";
 import { CancelProjectDialog } from "@/components/CancelProjectDialog";
@@ -36,6 +37,8 @@ import {
   QrCode,
   UserCheck,
   Zap,
+  AlertTriangle,
+  Building2,
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -105,33 +108,6 @@ function ProjectHeader({ project, creator, organization, onShare }: ProjectHeade
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <MapPin className="h-4 w-4 shrink-0" />
             <span>{project.location}</span>
-          </div>
-          
-          {/* Creator and Organization Info */}
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span>by</span>
-            <Link href={`/profile/${creator?.username || ""}`} className="hover:underline">
-              {creator?.full_name || "Anonymous"}
-            </Link>
-            {organization && (
-              <>
-                <span>from</span>
-                <Link 
-                  href={`/organization/${organization.username}`} 
-                  className="hover:underline flex items-center gap-1.5"
-                >
-                  {organization.name}
-                  {organization.verified && (
-                    <BadgeCheck 
-                      className="h-4 w-4" 
-                      fill="hsl(var(--primary))" 
-                      stroke="hsl(var(--background))" 
-                      strokeWidth={2}
-                    />
-                  )}
-                </Link>
-              </>
-            )}
           </div>
         </div>
       </div>
@@ -428,6 +404,10 @@ export default function ProjectDetails({
 
   const renderVolunteerOpportunities = () => {
     if (!scheduleData) return null;
+    
+    // Check if project is cancelled to disable all signup buttons
+    const isCancelled = project.status === "cancelled";
+    const buttonDisabledText = isCancelled ? "Project cancelled" : "";
 
     switch (project.event_type) {
       case "oneTime": {
@@ -457,15 +437,16 @@ export default function ProjectDetails({
                   variant="default"
                   size="sm"
                   onClick={() => handleSignUpClick(scheduleId)}
-                  disabled={loadingStates[scheduleId]}
+                  disabled={loadingStates[scheduleId] || isCancelled}
                   className="flex-shrink-0"
+                  title={buttonDisabledText}
                 >
                   {loadingStates[scheduleId] ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Processing...
                     </>
-                  ) : "Sign Up"}
+                  ) : isCancelled ? "Unavailable" : "Sign Up"}
                 </Button>
               </div>
             </CardContent>
@@ -507,15 +488,16 @@ export default function ProjectDetails({
                               variant="default"
                               size="sm"
                               onClick={() => handleSignUpClick(scheduleId)}
-                              disabled={loadingStates[scheduleId]}
+                              disabled={loadingStates[scheduleId] || isCancelled}
                               className="flex-shrink-0"
+                              title={buttonDisabledText}
                             >
                               {loadingStates[scheduleId] ? (
                                 <>
                                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                   Processing...
                                 </>
-                              ) : "Sign Up"}
+                              ) : isCancelled ? "Unavailable" : "Sign Up"}
                             </Button>
                           </div>
                         </CardContent>
@@ -569,14 +551,15 @@ export default function ProjectDetails({
                           size="sm"
                           className="w-full sm:w-auto mt-2 sm:mt-0 flex-shrink-0"
                           onClick={() => handleSignUpClick(scheduleId)}
-                          disabled={loadingStates[scheduleId]}
+                          disabled={loadingStates[scheduleId] || isCancelled}
+                          title={buttonDisabledText}
                         >
                           {loadingStates[scheduleId] ? (
                             <>
                               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                               Processing...
                             </>
-                          ) : "Sign Up"}
+                          ) : isCancelled ? "Unavailable" : "Sign Up"}
                         </Button>
                       </div>
                     </CardContent>
@@ -678,74 +661,171 @@ export default function ProjectDetails({
                   <h3 className="text-sm font-medium text-muted-foreground mb-2">
                     Project Coordinator
                   </h3>
-                  <HoverCard>
-                    <HoverCardTrigger asChild>
-                      <Link href={`/profile/${creator?.username || ""}`} className="flex items-center gap-3">
-                        <Avatar className="h-10 w-10">
-                          {creator?.avatar_url ? (
-                            <AvatarImage 
-                              src={creator.avatar_url}
-                              alt={creator?.full_name || "Creator"}
-                            />
-                          ) : null}
-                          <AvatarFallback className="bg-muted">
-                            <NoAvatar 
-                              fullName={creator?.full_name}
-                              className="text-sm font-medium"
-                            />
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="font-medium">
-                            {creator?.full_name || "Anonymous"}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            @{creator?.username || "user"}
-                          </p>
-                        </div>
-                      </Link>
-                    </HoverCardTrigger>
-                    <HoverCardContent className="w-auto">
-                      <div 
-                        className="flex justify-between space-x-4 cursor-pointer" 
-                        onClick={(e) => {
-                          e.preventDefault();
-                          window.location.href = `/profile/${creator?.username || ""}`;
-                        }}
-                      >
-                        <Avatar className="h-10 w-10">
-                          {creator?.avatar_url ? (
-                            <AvatarImage 
-                              src={creator.avatar_url}
-                              alt={creator?.full_name || "Creator"}
-                            />
-                          ) : null}
-                          <AvatarFallback className="bg-muted">
-                            <NoAvatar 
-                              fullName={creator?.full_name}
-                              className="text-sm font-medium"
-                            />
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="space-y-1 flex-1">
-                          <h4 className="text-sm font-semibold">
-                            {creator?.full_name || "Anonymous"}
-                          </h4>
-                          <p className="text-sm">
-                            @{creator?.username || "user"}
-                          </p>
-                          <div className="flex items-center pt-2">
-                            <CalendarDays className="mr-2 h-4 w-4 opacity-70" />
-                            <span className="text-xs text-muted-foreground">
-                              {creator?.created_at
-                                ? `Joined ${format(new Date(creator.created_at), "MMMM yyyy")}`
-                                : "New member"}
-                            </span>
+                  <div className="space-y-4">
+                    <HoverCard>
+                      <HoverCardTrigger asChild>
+                        <Link href={`/profile/${creator?.username || ""}`} className="flex items-center gap-3">
+                          <Avatar className="h-10 w-10">
+                            {creator?.avatar_url ? (
+                              <AvatarImage 
+                                src={creator.avatar_url}
+                                alt={creator?.full_name || "Creator"}
+                              />
+                            ) : null}
+                            <AvatarFallback className="bg-muted">
+                              <NoAvatar 
+                                fullName={creator?.full_name}
+                                className="text-sm font-medium"
+                              />
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="font-medium">
+                              {creator?.full_name || "Anonymous"}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              @{creator?.username || "user"}
+                            </p>
+                          </div>
+                        </Link>
+                      </HoverCardTrigger>
+                      <HoverCardContent className="w-auto">
+                        <div 
+                          className="flex justify-between space-x-4 cursor-pointer" 
+                          onClick={(e) => {
+                            e.preventDefault();
+                            window.location.href = `/profile/${creator?.username || ""}`;
+                          }}
+                        >
+                          <Avatar className="h-10 w-10">
+                            {creator?.avatar_url ? (
+                              <AvatarImage 
+                                src={creator.avatar_url}
+                                alt={creator?.full_name || "Creator"}
+                              />
+                            ) : null}
+                            <AvatarFallback className="bg-muted">
+                              <NoAvatar 
+                                fullName={creator?.full_name}
+                                className="text-sm font-medium"
+                              />
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="space-y-1 flex-1">
+                            <h4 className="text-sm font-semibold">
+                              {creator?.full_name || "Anonymous"}
+                            </h4>
+                            <p className="text-sm">
+                              @{creator?.username || "user"}
+                            </p>
+                            <div className="flex items-center pt-2">
+                              <CalendarDays className="mr-2 h-4 w-4 opacity-70" />
+                              <span className="text-xs text-muted-foreground">
+                                {creator?.created_at
+                                  ? `Joined ${format(new Date(creator.created_at), "MMMM yyyy")}`
+                                  : "New member"}
+                              </span>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </HoverCardContent>
-                  </HoverCard>
+                      </HoverCardContent>
+                    </HoverCard>
+
+                    {project.organization && (
+                      <>
+                      <div className="flex items-center my-2">
+                <Separator className="shrink" />
+                <span className="px-2 text-xs text-muted-foreground flex items-center">
+                <Building2 className="h-3 w-3 mr-1 flex-shrink-0" /> Organization
+                </span>
+                <Separator className="shrink" />
+            </div>
+                          <HoverCard>
+                            <HoverCardTrigger asChild>
+                              <Link 
+                                href={`/organization/${project.organization.username}`}
+                                className="flex items-center gap-3"
+                              >
+                                <Avatar className="h-9 w-9 border border-muted">
+                                  {project.organization.logo_url ? (
+                                    <AvatarImage 
+                                      src={project.organization.logo_url}
+                                      alt={project.organization.name}
+                                    />
+                                  ) : (
+                                    <AvatarFallback className="bg-muted text-xs">
+                                      {project.organization.name.substring(0, 2).toUpperCase()}
+                                    </AvatarFallback>
+                                  )}
+                                </Avatar>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-1.5">
+                                    <p className="text-sm font-medium">
+                                      {project.organization.name}
+                                    </p>
+                                    {project.organization.verified && (
+                                      <BadgeCheck 
+                                        className="h-4 w-4 text-primary" 
+                                        fill="hsl(var(--primary))"
+                                        stroke="hsl(var(--popover))"
+                                        strokeWidth={2}
+                                      />
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-muted-foreground">
+                                    @{project.organization.username}
+                                  </p>
+                                </div>
+                              </Link>
+                            </HoverCardTrigger>
+                            <HoverCardContent className="w-auto">
+                              <div 
+                                className="flex justify-between space-x-4 cursor-pointer" 
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  window.location.href = `/organization/${project.organization?.username}`;
+                                }}
+                              >
+                                <Avatar className="h-10 w-10 border border-muted">
+                                  {project.organization.logo_url ? (
+                                    <AvatarImage 
+                                      src={project.organization.logo_url}
+                                      alt={project.organization.name}
+                                    />
+                                  ) : (
+                                    <AvatarFallback className="bg-muted text-xs">
+                                      {project.organization.name.substring(0, 2).toUpperCase()}
+                                    </AvatarFallback>
+                                  )}
+                                </Avatar>
+                                <div className="space-y-1 flex-1">
+                                  <h4 className="text-sm font-semibold flex items-center gap-1.5">
+                                    {project.organization.name}
+                                    {project.organization.verified && (
+                                      <BadgeCheck 
+                                        className="h-4 w-4 text-primary" 
+                                        fill="hsl(var(--primary))"
+                                        stroke="hsl(var(--popover))"
+                                        strokeWidth={2}
+                                      />
+                                    )}
+                                  </h4>
+                                  <p className="text-sm">
+                                    @{project.organization.username}
+                                  </p>
+                                  <div className="flex items-center pt-2">
+                                    <Building2 className="mr-2 h-4 w-4 opacity-70" />
+                                    <span className="text-xs text-muted-foreground">
+                                      Organization
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            </HoverCardContent>
+                          </HoverCard>
+                      </>
+                    )}
+                  </div>
                 </div>
 
                 <div>
@@ -861,6 +941,26 @@ export default function ProjectDetails({
             )}
           </div>
         </div>
+        
+        {/* Cancellation Alert - Show to all users when project is cancelled */}
+        {project.status === "cancelled" && (
+          <div className="mt-8 flex items-start gap-2 rounded-md border border-destructive p-4 bg-destructive/10">
+            <AlertTriangle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
+            <div className="text-sm text-muted-foreground">
+              <p className="font-medium text-destructive">
+                This project has been cancelled
+              </p>
+              <p className="mt-1">
+                This project is no longer active. It has been cancelled by the organizer. If you&apos;ve already signed up and have questions, please contact the project coordinator directly.
+              </p>
+              {project.cancellation_reason && (
+                <p className="mt-2">
+                  <span className="font-medium">Reason provided:</span> {project.cancellation_reason}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       <FilePreview 

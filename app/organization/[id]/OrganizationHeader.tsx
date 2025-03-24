@@ -147,13 +147,13 @@ export default function OrganizationHeader({
       
       {isAdmin && (
         <Button 
-        variant="default"
-        size="sm"
-        className="w-full sm:w-auto justify-center"
-        onClick={() => setShowJoinCode(true)}
+          variant="default"
+          size="sm"
+          className="w-full sm:w-auto justify-center"
+          onClick={() => setShowJoinCode(true)}
         >
-        <Plus className="h-4 w-4" />
-        Invite Members
+          <UsersIcon className="h-4 w-4" />
+          Invite Members
         </Button>
       )}
       

@@ -41,7 +41,6 @@ export function CancelProjectDialog({
     try {
       setIsSubmitting(true);
       await onConfirm(reason.trim());
-      toast.success("Project cancelled successfully");
       onClose();
     } catch (error) {
       console.error("Error cancelling project:", error);

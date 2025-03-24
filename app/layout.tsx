@@ -71,7 +71,7 @@ export default async function RootLayout({
 
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.className} ${GeistMono.variable} ${overusedgrotesk.variable}`}>
+      <body className={`${inter.className} ${GeistMono.variable} ${overusedgrotesk.className}`}>
         <GlobalNotificationProvider>
           <ThemeProvider
             attribute="class"

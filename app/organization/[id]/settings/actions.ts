@@ -251,7 +251,10 @@ export async function deleteOrganization(organizationId: string) {
       .delete()
       .eq("id", organizationId);
 
-    if (deleteError) throw deleteError;
+    if (deleteError) {
+      console.error("Error deleting organization from database:", deleteError);
+      throw deleteError;
+    }
     
     // Revalidate paths
     revalidatePath('/organization');
