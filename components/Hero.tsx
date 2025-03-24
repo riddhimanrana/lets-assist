@@ -31,7 +31,7 @@ export const HeroSection = () => {
             transition={{ delay: 0.2, duration: 0.5 }}
             className="w-full max-w-screen-md mx-auto text-center px-2"
           >
-            <h1 className="text-[2.7rem] sm:text-4xl md:text-5xl lg:text-6xl font-black font-sans leading-[1.1] sm:leading-tight">
+            <h1 className="text-[2.7rem] sm:text-4xl md:text-5xl lg:text-6xl font-black font-overusedgrotesk leading-[1.1] sm:leading-tight">
               Give back to your{" "}
               <span className="text-transparent bg-gradient-to-r from-[#4ed247] to-primary bg-clip-text inline-block">
                 community
