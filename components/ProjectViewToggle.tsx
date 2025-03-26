@@ -15,7 +15,8 @@ import {
   ArrowDown,
   ChevronRight,
   CalendarClock,
-  CalendarDays
+  CalendarDays,
+  Map
 } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { NoAvatar } from "@/components/NoAvatar";
@@ -43,8 +44,8 @@ type ProjectViewToggleProps = {
   projects: Project[];
   onVolunteerSortChange?: (sort: "asc" | "desc" | undefined) => void;
   volunteerSort?: "asc" | "desc" | undefined;
-  view: "card" | "list" | "table";
-  onViewChange: (view: "card" | "list" | "table") => void;
+  view: "card" | "list" | "table" | "map";
+  onViewChangeAction: (view: "card" | "list" | "table" | "map") => void;
 };
 
 const STORAGE_KEY = "preferred-project-view";
@@ -176,7 +177,7 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
   onVolunteerSortChange,
   volunteerSort,
   view,
-  onViewChange
+  onViewChangeAction,
 }) => {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -186,16 +187,16 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
   useEffect(() => {
     if (!initialViewLoaded) {
       // Load initial preference only once
-      const savedView = localStorage.getItem(STORAGE_KEY) as "card" | "list" | "table" | null;
+      const savedView = localStorage.getItem(STORAGE_KEY) as "card" | "list" | "table" | "map" | null;
       if (savedView && savedView !== view) {
-        onViewChange(savedView);
+        onViewChangeAction(savedView);
       }
       setInitialViewLoaded(true);
     } else {
       // Save preference on subsequent view changes
       localStorage.setItem(STORAGE_KEY, view);
     }
-  }, [view, onViewChange, initialViewLoaded]);
+  }, [view, onViewChangeAction, initialViewLoaded]);
 
   // Handle volunteer sort toggle
   const handleVolunteerSortToggle = () => {
@@ -587,6 +588,8 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
           </Table>
         </div>
       )}
+      
+      {/* Map view is handled separately in ProjectsMapView component */}
     </div>
   );
 };

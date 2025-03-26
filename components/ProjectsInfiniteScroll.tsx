@@ -32,6 +32,7 @@ import {
   ArrowUp,
   Plus,
   PackageX,
+  Map,
 } from "lucide-react";
 import {
   Card,
@@ -53,6 +54,7 @@ import { format, isAfter, isBefore, isWithinInterval, parseISO } from "date-fns"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
+import { ProjectsMapView } from "@/components/ProjectsMapView";
 
 const fetcher = (url: string) => axios.get(url).then((res) => res.data);
 
@@ -66,7 +68,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [isClientReady, setIsClientReady] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [view, setView] = useState<"card" | "list" | "table">("card");
+  const [view, setView] = useState<"card" | "list" | "table" | "map">("card");
   const [reachedEnd, setReachedEnd] = useState(false);
   
   // Debug local storage issue with hydration
@@ -452,6 +454,14 @@ export const ProjectsInfiniteScroll: React.FC = () => {
               >
                 <Table2 className="h-4 w-4" />
               </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn("h-9 w-9", view === "map" && "bg-muted")}
+                onClick={() => setView("map")}
+              >
+                <Map className="h-4 w-4" />
+              </Button>
             </div>
 
             <Popover open={isFilterOpen} onOpenChange={setIsFilterOpen}>
@@ -756,6 +766,14 @@ export const ProjectsInfiniteScroll: React.FC = () => {
             >
               <Table2 className="h-4 w-4" />
             </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn("h-9 w-9", view === "map" && "bg-muted")}
+              onClick={() => setView("map")}
+            >
+              <Map className="h-4 w-4" />
+            </Button>
           </div>
 
           {/* Filters */}
@@ -962,18 +980,23 @@ export const ProjectsInfiniteScroll: React.FC = () => {
       </div>
 
       {/* Only render when client is ready to avoid hydration mismatch */}
-      {isClientReady && (
+      {isClientReady && view !== "map" && (
         <ProjectViewToggle 
           projects={sortedProjects} 
           onVolunteerSortChange={setVolunteersSort}
           volunteerSort={volunteersSort}
           view={view}
-          onViewChange={(newView) => setView(newView as "card" | "list" | "table")}
+          onViewChangeAction={(newView) => setView(newView as "card" | "list" | "table")}
         />
+      )}
+
+      {/* Map View */}
+      {isClientReady && view === "map" && (
+        <ProjectsMapView projects={sortedProjects} />
       )}
       
       {/* Loading indicator at the bottom */}
-      {!reachedEnd && (
+      {!reachedEnd && view !== "map" && (
         <div className="py-6 flex justify-center" ref={ref}>
           {isLoadingMore ? (
             <div className="flex items-center gap-2">
@@ -987,7 +1010,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
       )}
       
       {/* Show end of results message when we've reached the end */}
-      {reachedEnd && sortedProjects.length > 0 && (
+      {reachedEnd && sortedProjects.length > 0 && view !== "map" && (
         <div className="py-8 text-center">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-muted/40">
             <CheckCircle2 className="h-5 w-5 text-primary" />

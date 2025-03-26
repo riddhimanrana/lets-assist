@@ -14,7 +14,7 @@ const libraries = ["places"]
 
 interface LocationAutocompleteProps {
   value?: LocationData;
-  onChange: (location?: LocationData) => void;
+  onChangeAction: (location?: LocationData) => void;
   maxLength?: number;
   required?: boolean;
   className?: string;
@@ -22,7 +22,7 @@ interface LocationAutocompleteProps {
 
 export default function LocationAutocomplete({ 
   value,
-  onChange,
+  onChangeAction,
   maxLength = 100,
   required = false,
   className 
@@ -150,7 +150,7 @@ export default function LocationAutocomplete({
           }
           
           setInputValue(locationData.text)
-          onChange(locationData)
+          onChangeAction(locationData)
           setQuery("")
           setShowResults(false)
         }
@@ -164,7 +164,7 @@ export default function LocationAutocomplete({
       setInputValue(newValue)
       setQuery(newValue)
       setShowResults(true)
-      onChange(newValue ? { text: newValue, display_name: newValue } : undefined)
+      onChangeAction(newValue ? { text: newValue, display_name: newValue } : undefined)
     }
   }
 
