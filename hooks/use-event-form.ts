@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { format } from "date-fns";
-import { EventType, VerificationMethod } from "@/types";
+import { EventType, VerificationMethod, LocationData } from "@/types";
 
 export interface EventFormState {
   step: number;
@@ -11,6 +11,7 @@ export interface EventFormState {
     title: string;
     description: string;
     location: string;
+    locationData?: LocationData; // Add locationData field
     organizationId: string | null; // Ensure this is string | null
   };
   schedule: {
@@ -60,6 +61,7 @@ export function useEventForm() {
     basicInfo: {
       title: "",
       location: "",
+      locationData: undefined, // Initialize locationData field
       description: "",
       organizationId: null, // Default to null (personal project)
     },
@@ -138,7 +140,7 @@ export function useEventForm() {
 
   const updateBasicInfo = (
     field: keyof EventFormState["basicInfo"],
-    value: string,
+    value: any,
   ) => {
     setState((prev) => {
       // Add character limit validation

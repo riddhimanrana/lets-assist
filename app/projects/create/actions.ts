@@ -62,6 +62,7 @@ export async function createBasicProject(projectData: any) {
         creator_id: user.id,
         title: projectData.basicInfo.title,
         location: projectData.basicInfo.location,
+        location_data: projectData.basicInfo.locationData, // Add locationData field
         description: projectData.basicInfo.description,
         event_type: projectData.eventType,
         verification_method: projectData.verificationMethod,

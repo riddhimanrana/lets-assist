@@ -497,11 +497,11 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                     <div className="max-w-[300px] sm:max-w-none">
                       <div className="font-medium line-clamp-1">{project.title}</div>
                       <div className="text-xs text-muted-foreground sm:hidden flex items-center gap-2 mt-1">
-                        <MapPin className="h-3 w-3" />
+                        <MapPin className="h-3 w-3 flex-shrink-0" />
                         <span className="truncate">{project.location}</span>
                       </div>
                       <div className="text-xs text-muted-foreground sm:hidden flex items-center gap-2 mt-1">
-                        <Calendar className="h-3 w-3" />
+                        <Calendar className="h-3 w-3 flex-shrink-0" />
                         <span className="truncate">{getEventScheduleSummary(project)}</span>
                       </div>
                     </div>

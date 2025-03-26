@@ -8,7 +8,8 @@ import {
   OneTimeSchedule,
   Profile,
   Organization,
-  ProjectStatus
+  ProjectStatus,
+  LocationData
 } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
@@ -19,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { BadgeCheck } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { RichTextContent } from "@/components/ui/rich-text-content";
+import { LocationMapCard } from "@/components/LocationMapCard";
 import { 
   CalendarDays, 
   MapPin, 
@@ -939,6 +941,12 @@ export default function ProjectDetails({
                 </CardContent>
               </Card>
             )}
+
+            {/* Location Map Card */}
+            <LocationMapCard 
+              location={project.location} 
+              locationData={project.location_data} 
+            />
           </div>
         </div>
         

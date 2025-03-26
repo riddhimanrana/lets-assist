@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Check, ChevronsUpDown, Building2, User, MapPin } from "lucide-react";
+import { Check, ChevronsUpDown, Building2, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RichTextContent } from "@/components/ui/rich-text-content";
@@ -24,6 +24,8 @@ import {
 } from "@/components/ui/popover";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { EventFormState } from "@/hooks/use-event-form";
+import LocationAutocomplete from "@/components/ui/location-autocomplete";
+import { LocationData } from "@/types";
 
 interface OrganizationOption {
   id: string;
@@ -35,7 +37,6 @@ interface OrganizationOption {
 interface BasicInfoProps {
   state: EventFormState;
   updateBasicInfoAction: (field: keyof EventFormState["basicInfo"], value: any) => void;
-  onMapClickAction: () => void;
   initialOrgId?: string;
   initialOrganizations?: OrganizationOption[];
 }
@@ -43,7 +44,6 @@ interface BasicInfoProps {
 export default function BasicInfo({ 
   state, 
   updateBasicInfoAction, 
-  onMapClickAction,
   initialOrgId,
   initialOrganizations = []
 }: BasicInfoProps) {
@@ -86,6 +86,17 @@ export default function BasicInfo({
       updateBasicInfoAction("organizationId", orgId);
     }
     setOpen(false);
+  };
+
+  // Update the location handler to save both location text and location data
+  const handleLocationChange = (locationData?: LocationData) => {
+    if (locationData) {
+      updateBasicInfoAction("location", locationData.text);
+      updateBasicInfoAction("locationData", locationData);
+    } else {
+      updateBasicInfoAction("location", "");
+      updateBasicInfoAction("locationData", undefined);
+    }
   };
 
   // Character count helpers
@@ -202,7 +213,7 @@ export default function BasicInfo({
         {/* Project Title */}
         <div className="space-y-2">
           <div className="flex justify-between items-baseline">
-            <Label htmlFor="title">Project Title*</Label>
+            <Label htmlFor="title">Project Title</Label>
             <span
               className={cn(
                 "text-xs transition-colors",
@@ -228,42 +239,18 @@ export default function BasicInfo({
 
         {/* Project Location */}
         <div className="space-y-2">
-          <div className="flex justify-between items-baseline">
-            <Label htmlFor="location">Location*</Label>
-            <span
-              className={cn(
-                "text-xs transition-colors",
-                getCounterColor(state.basicInfo.location?.length || 0, 200)
-              )}
-            >
-              {state.basicInfo.location?.length || 0}/200
-            </span>
-          </div>
-          <div className="flex gap-2">
-            <Input
-              id="location"
-              placeholder="e.g., Room 3201, Riverside Community Center"
-              value={state.basicInfo.location || ""}
-              onChange={(e) => {
-                if (e.target.value.length <= 200) {
-                  updateBasicInfoAction("location", e.target.value);
-                }
-              }}
-              required
-              maxLength={200}
-              className="flex-1"
-            />
-            <Button type="button" variant="outline" onClick={onMapClickAction}>
-              <MapPin className="h-4 w-4 mr-1.5" />
-              Map
-            </Button>
-          </div>
+          <LocationAutocomplete 
+            value={state.basicInfo.locationData}
+            onChange={handleLocationChange}
+            maxLength={100}
+            required
+          />
         </div>
 
         {/* Project Description */}
         <div className="space-y-2">
           <div className="flex justify-between items-baseline">
-            <Label htmlFor="description">Description*</Label>
+            <Label htmlFor="description">Description</Label>
             <div className="space-x-2">
               <Button 
                 type="button" 

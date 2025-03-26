@@ -1,6 +1,16 @@
 export type EventType = "oneTime" | "multiDay" | "sameDayMultiArea";
 export type VerificationMethod = "qr-code" | "auto" | "manual";
 
+// New location type to support coordinates
+export interface LocationData {
+  text: string;
+  coordinates?: {
+    latitude: number;
+    longitude: number;
+  };
+  display_name?: string;
+}
+
 interface BaseScheduleSlot {
   startTime: string;
   endTime: string;
@@ -60,6 +70,7 @@ export interface Project {
   title: string;
   description: string;
   location: string;
+  location_data?: LocationData; // New field for enhanced location data
   event_type: EventType;
   verification_method: VerificationMethod;
   require_login: boolean;

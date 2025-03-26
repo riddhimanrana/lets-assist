@@ -35,7 +35,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { canCancelProject } from "@/utils/project";
 import { CancelProjectDialog } from "@/components/CancelProjectDialog";
-import { ProjectStatusBadge } from "@/components/ui/status-badge";
+// import { ProjectStatusBadge } from "@/components/ui/status-badge";
 
 interface Props {
   project: Project;
@@ -113,7 +113,7 @@ export default function CreatorDashboard({ project }: Props) {
                 Manage your project and track volunteer signups
               </CardDescription>
             </div>
-            <ProjectStatusBadge status={project.status} />
+            {/* <ProjectStatusBadge status={project.status} /> */}
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
