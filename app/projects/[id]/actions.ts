@@ -5,12 +5,10 @@ import { canCancelProject, getProjectStatus, isProjectVisible } from "@/utils/pr
 import { revalidatePath } from "next/cache";
 import { ProjectStatus } from "@/types";
 import { type Profile, type Project } from "@/types";
+import { cookies } from "next/headers";
 
-interface AnonymousSignup {
-  name: string;
-  email?: string;
-  phone?: string;
-}
+import { type AnonymousSignupData, type ProjectSignup, type SignupStatus } from "@/types";
+import { NotificationService } from "@/services/notifications";
 
 export async function getProject(projectId: string) {
   const supabase = await createClient();
@@ -86,72 +84,245 @@ export async function getCreatorProfile(userId: string) {
   return { profile };
 }
 
+async function getSlotDetails(project: Project, scheduleId: string) {
+  if (project.event_type === "oneTime") {
+    return project.schedule.oneTime;
+  } else if (project.event_type === "multiDay") {
+    const [date, slotIndex] = scheduleId.split("-");
+    const day = project.schedule.multiDay?.find(d => d.date === date);
+    return day?.slots[parseInt(slotIndex)];
+  } else if (project.event_type === "sameDayMultiArea") {
+    return project.schedule.sameDayMultiArea?.roles.find(r => r.name === scheduleId);
+  }
+  return null;
+}
+
+async function getCurrentSignups(projectId: string, scheduleId: string): Promise<number> {
+  const supabase = await createClient();
+  
+  const { count } = await supabase
+    .from("project_signups")
+    .select("*", { count: 'exact', head: true })
+    .eq("project_id", projectId)
+    .eq("schedule_id", scheduleId)
+    .eq("status", "confirmed");
+    
+  return count || 0;
+}
+
 export async function signUpForProject(
   projectId: string,
   scheduleId: string,
-  anonymousData?: AnonymousSignup
+  anonymousData?: AnonymousSignupData
 ) {
   const supabase = await createClient();
 
-  // Get project details
-  const { project, error: projectError } = await getProject(projectId);
+  try {
+    // Get project details
+    const { project, error: projectError } = await getProject(projectId);
 
-  if (!project || projectError) {
-    return { error: "Project not found" };
-  }
-
-  // Check if project is available for signup
-  if (project.status === "cancelled") {
-    return { error: "This project has been cancelled" };
-  }
-
-  if (project.status === "completed") {
-    return { error: "This project has been completed" };
-  }
-
-  // Handle user authentication
-  const { data: { user } } = await supabase.auth.getUser();
-
-  // If project requires login but user isn't logged in
-  if (project.require_login && !user) {
-    return { error: "You must be logged in to sign up for this project" };
-  }
-
-  // Create signup record
-  const signupData = {
-    project_id: projectId,
-    schedule_id: scheduleId,
-    user_id: user?.id,
-    status: "confirmed" as const,
-    ...(anonymousData && {
-      anonymous_name: anonymousData.name,
-      anonymous_email: anonymousData.email,
-      anonymous_phone: anonymousData.phone,
-    }),
-  };
-
-  const { error: signupError } = await supabase
-    .from("project_signups")
-    .insert(signupData);
-
-  if (signupError) {
-    console.error("Error creating signup:", signupError);
-    if (signupError.code === "23505") { // Unique constraint violation
-      return { error: "You have already signed up for this slot" };
+    if (!project || projectError) {
+      return { error: "Project not found" };
     }
-    return { error: "Failed to sign up. Please try again." };
-  }
 
-  // Revalidate paths
-  revalidatePath(`/projects/${projectId}`);
-  if (project.organization_id) {
-    revalidatePath(`/organization/${project.organization_id}`);
-  }
-  if (user) {
-    revalidatePath(`/profile/${user.id}`);
-  }
+    // Check if project is available for signup
+    if (project.status === "cancelled") {
+      return { error: "This project has been cancelled" };
+    }
 
-  return { success: true };
+    if (project.status === "completed") {
+      return { error: "This project has been completed" };
+    }
+
+    // Get slot details and validate capacity
+    const slotDetails = await getSlotDetails(project, scheduleId);
+    if (!slotDetails) {
+      return { error: "Invalid schedule slot" };
+    }
+
+    // Check if slot is full
+    const currentSignups = await getCurrentSignups(projectId, scheduleId);
+    if (currentSignups >= slotDetails.volunteers) {
+      return { error: "This slot is full" };
+    }
+
+    // Handle user authentication
+    const { data: { user } } = await supabase.auth.getUser();
+
+    // If project requires login but user isn't logged in
+    if (project.require_login && !user) {
+      return { error: "You must be logged in to sign up for this project" };
+    }
+
+    // Check for existing signup
+    if (user) {
+      const { data: existingSignup } = await supabase
+        .from("project_signups")
+        .select("id")
+        .eq("project_id", projectId)
+        .eq("schedule_id", scheduleId)
+        .eq("user_id", user.id)
+        .eq("status", "confirmed")
+        .maybeSingle();
+
+      if (existingSignup) {
+        return { error: "You have already signed up for this slot" };
+      }
+    }
+
+    // Create signup record
+    const signupData: Omit<ProjectSignup, "id" | "created_at"> = {
+      project_id: projectId,
+      schedule_id: scheduleId,
+      user_id: user?.id,
+      status: "confirmed",
+      ...(anonymousData && {
+        anonymous_name: anonymousData.name,
+        anonymous_email: anonymousData.email,
+        anonymous_phone: anonymousData.phone,
+      }),
+    };
+
+    const { error: signupError } = await supabase
+      .from("project_signups")
+      .insert(signupData);
+
+    if (signupError) {
+      console.error("Error creating signup:", signupError);
+      return { error: "Failed to sign up. Please try again." };
+    }
+
+    // Revalidate paths
+    revalidatePath(`/projects/${projectId}`);
+    if (project.organization_id) {
+      revalidatePath(`/organization/${project.organization_id}`);
+    }
+    if (user) {
+      revalidatePath(`/profile/${user.id}`);
+    }
+
+    // Send notification to project creator
+    const signerName = user 
+      ? (await getCreatorProfile(user.id))?.profile?.full_name || "A user"
+      : anonymousData?.name || "An anonymous user";
+
+    await NotificationService.createNotification({
+      title: "New Volunteer Signup",
+      body: `${signerName} has signed up for your project "${project.title}"`,
+      type: "project_signup",
+      severity: "success",
+      actionUrl: `/projects/${projectId}/signups`,
+      data: { projectId }
+    }, project.creator_id);
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error in signUpForProject:", error);
+    return { error: "An unexpected error occurred" };
+  }
+}
+
+interface NotificationResult {
+  success?: boolean;
+  error?: string;
+}
+
+export async function createRejectionNotification(
+  userId: string,
+  projectId: string,
+  signupId: string
+): Promise<NotificationResult> {
+  "use server";
+  const supabase = await createClient();
+  
+  try {
+    const { error } = await supabase
+      .from("notifications")
+      .insert({
+        user_id: userId,
+        title: "Project Application Update",
+        body: "Your application to volunteer has been rejected",
+        type: "project_rejection",
+        severity: "warning",
+        action_url: `/projects/${projectId}`,
+        data: { projectId, signupId },
+        displayed: false
+      });
+
+    if (error) {
+      console.error("Error creating notification:", error);
+      throw error;
+    }
+
+    return { success: true } as NotificationResult;
+  } catch (error) {
+    console.error("Server notification error:", error);
+    return { error: "Failed to send notification" } as NotificationResult;
+  }
+}
+
+export async function cancelSignup(signupId: string) {
+  const supabase = await createClient();
+  
+  try {
+    // Get current user
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    // Get signup details
+    const { data: signup, error: signupError } = await supabase
+      .from("project_signups")
+      .select("*")
+      .eq("id", signupId)
+      .single();
+      
+    if (signupError || !signup) {
+      return { error: "Signup not found" };
+    }
+    
+    // Verify user has permission (is the user who signed up or project creator)
+    if (user?.id !== signup.user_id) {
+      const { data: project } = await supabase
+        .from("projects")
+        .select("creator_id, organization_id")
+        .eq("id", signup.project_id)
+        .single();
+        
+      const isCreator = project?.creator_id === user?.id;
+      
+      if (!isCreator && project?.organization_id) {
+        const { data: orgMember } = await supabase
+          .from("organization_members")
+          .select("role")
+          .eq("organization_id", project.organization_id)
+          .eq("user_id", user?.id)
+          .single();
+          
+        if (!orgMember || !["admin", "staff"].includes(orgMember.role)) {
+          return { error: "You don't have permission to cancel this signup" };
+        }
+      } else if (!isCreator) {
+        return { error: "You don't have permission to cancel this signup" };
+      }
+    }
+    
+    // Update signup status
+    const { error: updateError } = await supabase
+      .from("project_signups")
+      .update({ status: "cancelled" as SignupStatus })
+      .eq("id", signupId);
+      
+    if (updateError) {
+      throw updateError;
+    }
+    
+    // Revalidate paths
+    revalidatePath(`/projects/${signup.project_id}`);
+    
+    return { success: true };
+  } catch (error) {
+    console.error("Error cancelling signup:", error);
+    return { error: "Failed to cancel signup" };
+  }
 }
 
 export async function updateProjectStatus(

@@ -241,7 +241,7 @@ export default function BasicInfo({
         <div className="space-y-2">
           <LocationAutocomplete 
             value={state.basicInfo.locationData}
-            onChange={handleLocationChange}
+            onChangeAction={handleLocationChange}
             maxLength={100}
             required
           />

@@ -1,18 +1,7 @@
-import { notFound } from "next/navigation";
-import { getProject } from "../actions";
-import ManageSignupsClient from "./SignupsClient";
+import { use } from "react";
+import { SignupsClient } from "./SignupsClient";
 
-type Props = {
-  params: Promise<{ id: string }>;
-};
-
-export default async function ManageSignupsPage({ params }: Props): Promise<React.ReactElement> {
-  const resolvedParams = await params;
-  const { project, error } = await getProject(resolvedParams.id);
-
-  if (error || !project) {
-    notFound();
-  }
-
-  return <ManageSignupsClient project={project} />;
+export default function SignupsPage({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = use(params);
+  return <SignupsClient projectId={resolvedParams.id} />;
 }

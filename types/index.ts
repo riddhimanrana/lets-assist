@@ -1,5 +1,6 @@
 export type EventType = "oneTime" | "multiDay" | "sameDayMultiArea";
 export type VerificationMethod = "qr-code" | "auto" | "manual";
+export type SignupStatus = "confirmed" | "cancelled";
 
 // New location type to support coordinates
 export interface LocationData {
@@ -86,4 +87,27 @@ export interface Project {
   profiles: Profile;
   created_at: string;
   cover_image_url?: string | null;
+}
+
+export interface AnonymousSignupData {
+  name: string;
+  email?: string;
+  phone?: string;
+}
+
+export interface ProjectSignup {
+  id: string;
+  project_id: string;
+  user_id?: string;
+  schedule_id: string;
+  status: SignupStatus;
+  anonymous_name?: string;
+  anonymous_email?: string;
+  anonymous_phone?: string;
+  created_at: string;
+  profiles?: {
+    full_name: string | null;
+    username: string | null;
+    avatar_url: string | null;
+  };
 }

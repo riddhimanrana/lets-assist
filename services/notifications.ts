@@ -1,7 +1,10 @@
 import { createClient } from "@/utils/supabase/client";
 import { toast } from "sonner";
 
-export type NotificationType = 'username_reminder';
+export type NotificationType = 
+  | 'username_reminder'
+  | 'project_signup'
+  | 'project_rejection';
 
 // Add a severity type for notifications
 export type NotificationSeverity = 'info' | 'warning' | 'success';
