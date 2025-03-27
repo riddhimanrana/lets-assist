@@ -79,6 +79,20 @@ export default function Schedule({
   removeSlotAction,
   removeRoleAction,
 }: ScheduleProps) {
+  // Helper function to ensure dates are handled consistently without timezone shifting
+  const formatDateToString = (date: Date | undefined): string => {
+    if (!date) return "";
+    // Create new date with just the year, month, and day components to avoid timezone issues
+    return format(new Date(date.getFullYear(), date.getMonth(), date.getDate()), "yyyy-MM-dd");
+  };
+  
+  // Helper function to parse date string to Date object without timezone shifting
+  const parseStringToDate = (dateString: string): Date | undefined => {
+    if (!dateString) return undefined;
+    const [year, month, day] = dateString.split('-').map(Number);
+    return new Date(year, month - 1, day); // month is 0-indexed in JavaScript Date
+  };
+
   const isTimeRangeInvalid = (startTime: string, endTime: string) => {
     if (!startTime || !endTime) return false;
     const [startHour, startMinute] = startTime.split(":").map(Number);
@@ -86,6 +100,14 @@ export default function Schedule({
     if (endHour < startHour) return true;
     if (endHour === startHour && endMinute <= startMinute) return true;
     return false;
+  };
+
+  // Add a function to disable past dates
+  const isPastDate = (date: Date) => {
+    // Create today's date without time for comparison
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return date < today;
   };
 
   if (state.eventType === "oneTime") {
@@ -117,24 +139,21 @@ export default function Schedule({
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
                       {state.schedule.oneTime.date
-                        ? format(new Date(state.schedule.oneTime.date), "PPP")
+                        ? format(parseStringToDate(state.schedule.oneTime.date) as Date, "PPP")
                         : "Pick a date"}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
                     <Calendar
                       mode="single"
-                      selected={
-                        state.schedule.oneTime.date
-                          ? new Date(state.schedule.oneTime.date)
-                          : undefined
-                      }
-                      onSelect={(date) =>
-                        updateOneTimeScheduleAction(
-                          "date",
-                          date ? format(date, "yyyy-MM-dd") : "",
-                        )
-                      }
+                      selected={parseStringToDate(state.schedule.oneTime.date)}
+                      onSelect={(date) => {
+                        const newDate = formatDateToString(date);
+                        if (newDate !== state.schedule.oneTime.date) {
+                          updateOneTimeScheduleAction("date", newDate);
+                        }
+                      }}
+                      disabled={isPastDate}
                       initialFocus
                     />
                   </PopoverContent>
@@ -242,21 +261,21 @@ export default function Schedule({
                           >
                             <CalendarIcon className="mr-2 h-4 w-4" />
                             {day.date
-                              ? format(new Date(day.date), "PPP")
+                              ? format(parseStringToDate(day.date) as Date, "PPP")
                               : "Pick a date"}
                           </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0" align="start">
                           <Calendar
                             mode="single"
-                            selected={day.date ? new Date(day.date) : undefined}
-                            onSelect={(date) =>
-                              updateMultiDayScheduleAction(
-                                dayIndex,
-                                "date",
-                                date ? format(date, "yyyy-MM-dd") : "",
-                              )
-                            }
+                            selected={parseStringToDate(day.date)}
+                            onSelect={(date) => {
+                              const newDate = formatDateToString(date);
+                              if (newDate !== day.date) {
+                                updateMultiDayScheduleAction(dayIndex, "date", newDate);
+                              }
+                            }}
+                            disabled={isPastDate}
                             initialFocus
                           />
                         </PopoverContent>
@@ -413,7 +432,7 @@ export default function Schedule({
                       <CalendarIcon className="mr-2 h-4 w-4" />
                       {state.schedule.sameDayMultiArea.date
                         ? format(
-                            new Date(state.schedule.sameDayMultiArea.date),
+                            parseStringToDate(state.schedule.sameDayMultiArea.date) as Date,
                             "PPP",
                           )
                         : "Pick a date"}
@@ -422,17 +441,14 @@ export default function Schedule({
                   <PopoverContent className="w-auto p-0" align="start">
                     <Calendar
                       mode="single"
-                      selected={
-                        state.schedule.sameDayMultiArea.date
-                          ? new Date(state.schedule.sameDayMultiArea.date)
-                          : undefined
-                      }
-                      onSelect={(date) =>
-                        updateMultiRoleScheduleAction(
-                          "date",
-                          date ? format(date, "yyyy-MM-dd") : "",
-                        )
-                      }
+                      selected={parseStringToDate(state.schedule.sameDayMultiArea.date)}
+                      onSelect={(date) => {
+                        const newDate = formatDateToString(date);
+                        if (newDate !== state.schedule.sameDayMultiArea.date) {
+                          updateMultiRoleScheduleAction("date", newDate);
+                        }
+                      }}
+                      disabled={isPastDate}
                       initialFocus
                     />
                   </PopoverContent>

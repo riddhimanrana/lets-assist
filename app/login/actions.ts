@@ -8,10 +8,17 @@ const loginSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
-export async function signInWithGoogle() {
+export async function signInWithGoogle(redirectAfterAuth?: string | null) {
   const origin = process.env.NEXT_PUBLIC_SITE_URL || "";
-
   const supabase = await createClient();
+  
+  // Store the redirect URL in the session storage via a search parameter
+  // This will be picked up in the auth callback and stored in session storage
+  let redirectTo = `${origin}/auth/callback`;
+  
+  if (redirectAfterAuth) {
+    redirectTo += `?redirectAfterAuth=${encodeURIComponent(redirectAfterAuth)}`;
+  }
 
   const {
     data: { url },
@@ -24,15 +31,15 @@ export async function signInWithGoogle() {
         prompt: "consent",
         scope: "openid email profile",
       },
-      redirectTo: `${origin}/auth/callback`,
+      redirectTo,
     },
   });
-
+  
   if (error) {
     console.error("Google OAuth error:", error);
     return { error: { server: [error.message] } };
   }
-
+  
   return { url };
 }
 

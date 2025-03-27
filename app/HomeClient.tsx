@@ -7,7 +7,7 @@ import { OrganizationsSection } from "@/components/OrganizationsSection";
 import { CallToAction } from "@/components/CallToAction";
 import { useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { Toaster, toast } from "sonner";
+import { toast } from "sonner";
 import { Suspense } from "react";
 
 function HomeContent() {
@@ -34,7 +34,6 @@ function HomeContent() {
   
   return (
     <main className="flex flex-col min-h-screen overflow-x-hidden">
-      <Toaster position="bottom-right" theme="dark" richColors />
       <HeroSection />
       <Features />
       <StudentSection />

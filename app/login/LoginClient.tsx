@@ -1,6 +1,5 @@
 "use client";
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -23,7 +22,7 @@ import {
   FormControl,
   FormMessage,
 } from "@/components/ui/form";
-import { Toaster, toast } from "sonner";
+import { toast } from "sonner";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -35,6 +34,15 @@ type LoginValues = z.infer<typeof loginSchema>;
 export default function LoginClient() {
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [redirectUrl, setRedirectUrl] = useState<string | null>(null);
+  
+  useEffect(() => {
+    // Check if there's a redirect URL in sessionStorage
+    const storedRedirect = sessionStorage.getItem('redirect_after_auth');
+    if (storedRedirect) {
+      setRedirectUrl(storedRedirect);
+    }
+  }, []);
   
   const form = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
@@ -70,7 +78,13 @@ export default function LoginClient() {
         toast.error("Incorrect email or password.");
       }
     } else if (result.success) {
-      window.location.href = "/home";
+      // If we have a stored redirect URL, use it and clear from storage
+      if (redirectUrl) {
+        sessionStorage.removeItem('redirect_after_auth');
+        window.location.href = redirectUrl;
+      } else {
+        window.location.href = "/home";
+      }
     }
     
     setIsLoading(false);
@@ -79,7 +93,9 @@ export default function LoginClient() {
   const handleGoogleSignIn = async () => {
     try {
       setIsGoogleLoading(true);
-      const result = await signInWithGoogle();
+      
+      // Add redirect URL to Google auth if it exists
+      const result = await signInWithGoogle(redirectUrl);
       
       if (result.error) {
         if (result.error.server?.[0]?.includes("email-password")) {
@@ -108,7 +124,10 @@ export default function LoginClient() {
         <CardHeader>
           <CardTitle className="text-2xl">Login</CardTitle>
           <CardDescription>
-            Enter your email below to login to your account
+            {redirectUrl 
+              ? "Login to continue signing up for the project"
+              : "Enter your email below to login to your account"
+            }
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -195,7 +214,10 @@ export default function LoginClient() {
               </div>
               <div className="mt-4 text-center text-sm">
                 Don&apos;t have an account?{" "}
-                <Link href="/signup" className="underline">
+                <Link 
+                  href={redirectUrl ? `/signup?redirect=${encodeURIComponent(redirectUrl)}` : "/signup"} 
+                  className="underline"
+                >
                   Sign up
                 </Link>
               </div>
@@ -203,7 +225,6 @@ export default function LoginClient() {
           </Form>
         </CardContent>
       </Card>
-      <Toaster position="bottom-center" theme="dark" richColors />
     </div>
   );
 }

@@ -1,5 +1,16 @@
 export type EventType = "oneTime" | "multiDay" | "sameDayMultiArea";
 export type VerificationMethod = "qr-code" | "auto" | "manual";
+export type SignupStatus = "confirmed" | "cancelled";
+
+// New location type to support coordinates
+export interface LocationData {
+  text: string;
+  coordinates?: {
+    latitude: number;
+    longitude: number;
+  };
+  display_name?: string;
+}
 
 interface BaseScheduleSlot {
   startTime: string;
@@ -39,6 +50,20 @@ export interface Profile {
   full_name: string | null;
   avatar_url: string | null;
   username: string | null;
+  created_at: string | null;
+}
+
+export type ProjectStatus = "upcoming" | "in-progress" | "completed" | "cancelled";
+export type OrganizationRole = "admin" | "staff" | "member";
+
+export interface Organization {
+  id: string;
+  name: string;
+  username: string;
+  description?: string;
+  logo_url?: string;
+  type: string;
+  verified: boolean;
 }
 
 export interface Project {
@@ -46,12 +71,43 @@ export interface Project {
   title: string;
   description: string;
   location: string;
+  location_data?: LocationData; // New field for enhanced location data
   event_type: EventType;
   verification_method: VerificationMethod;
   require_login: boolean;
   creator_id: string;
   schedule: ProjectSchedule;
-  status: "active" | "completed" | "cancelled";
+  status: ProjectStatus;
+  is_private: boolean; // Changed from visibility to is_private boolean
+  organization_id?: string;
+  organization?: Organization;
+  created_by_role?: OrganizationRole;
+  cancelled_at?: string;
+  cancellation_reason?: string;
   profiles: Profile;
   created_at: string;
+  cover_image_url?: string | null;
+}
+
+export interface AnonymousSignupData {
+  name: string;
+  email?: string;
+  phone?: string;
+}
+
+export interface ProjectSignup {
+  id: string;
+  project_id: string;
+  user_id?: string;
+  schedule_id: string;
+  status: SignupStatus;
+  anonymous_name?: string;
+  anonymous_email?: string;
+  anonymous_phone?: string;
+  created_at: string;
+  profiles?: {
+    full_name: string | null;
+    username: string | null;
+    avatar_url: string | null;
+  };
 }

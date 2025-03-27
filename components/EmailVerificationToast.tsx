@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { Toaster, toast } from "sonner";
-
+// the only other place that toast are used
 export function EmailVerificationToast() {
   const searchParams = useSearchParams();
 

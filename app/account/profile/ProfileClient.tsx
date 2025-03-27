@@ -28,8 +28,8 @@ import {
   FormMessage,
   FormDescription,
 } from "@/components/ui/form";
-import { Toaster, toast } from "sonner";
-import { completeOnboarding, removeProfilePicture } from "./actions";
+import { toast } from "sonner";
+import { completeOnboarding, removeProfilePicture, updateNameAndUsername } from "./actions";
 import type { OnboardingValues } from "./actions";
 import { z } from "zod";
 import ImageCropper from "@/components/ImageCropper";
@@ -70,7 +70,7 @@ const onboardingSchema = z.object({
       )
       .optional(),
   ),
-  avatarUrl: z.string().optional(),
+  avatarUrl: z.string().nullable().optional(),
 });
 
 interface AvatarProps {
@@ -259,29 +259,40 @@ export default function ProfileClient() {
 
   async function onSubmit(data: OnboardingValues) {
     setIsLoading(true);
-    const formData = new FormData();
-    // Only append defined values
-    if (data.fullName) formData.append("fullName", data.fullName);
-    if (data.username) formData.append("username", data.username);
-    if (data.avatarUrl) formData.append("avatarUrl", data.avatarUrl);
-    const result = await completeOnboarding(formData);
-    if (!result) return;
-    if (result.error) {
-      const errors = result.error;
-      Object.keys(errors).forEach((key) => {
-        form.setError(key as keyof OnboardingValues, {
-          type: "server",
-          message: errors[key as keyof typeof errors]?.[0],
+    
+    try {
+      // Call the new simple function directly with the values
+      const result = await updateNameAndUsername(
+        data.fullName,
+        data.username
+      );
+      
+      if (!result) {
+        toast.error("Failed to update profile. Please try again.");
+        return;
+      }
+      
+      if (result.error) {
+        const errors = result.error;
+        Object.keys(errors).forEach((key) => {
+          form.setError(key as keyof OnboardingValues, {
+            type: "server",
+            message: errors[key as keyof typeof errors]?.[0],
+          });
         });
-      });
-      toast.error("Failed to update profile. Please try again.");
-    } else {
-      toast.success("Profile updated successfully!");
-      setTimeout(() => {
-        window.location.href = "/account/profile";
-      }, 1000);
+        toast.error("Failed to update profile. Please try again.");
+      } else {
+        toast.success("Profile updated successfully!");
+        setTimeout(() => {
+          window.location.href = "/account/profile";
+        }, 1000);
+      }
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      toast.error("An unexpected error occurred. Please try again.");
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   }
 
   const handleRemoveAvatar = async () => {
@@ -482,7 +493,6 @@ export default function ProfileClient() {
           </Card>
         </div>
       </div>
-      <Toaster position="bottom-right" theme="dark" richColors />
     </motion.div>
   );
 }

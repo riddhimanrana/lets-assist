@@ -2,17 +2,17 @@
 
 import { useState } from "react";
 import { format } from "date-fns";
-import { EventType, VerificationMethod } from "@/types";
+import { EventType, VerificationMethod, LocationData } from "@/types";
 
-interface EventFormState {
+export interface EventFormState {
   step: number;
   eventType: EventType;
-  verificationMethod: VerificationMethod;
-  requireLogin: boolean;
   basicInfo: {
-    title: string; // max 75 chars
-    location: string; // max 100 chars
-    description: string; // max 1000 chars
+    title: string;
+    description: string;
+    location: string;
+    locationData?: LocationData; // Add locationData field
+    organizationId: string | null; // Ensure this is string | null
   };
   schedule: {
     oneTime: {
@@ -34,13 +34,16 @@ interface EventFormState {
       overallStart: string;
       overallEnd: string;
       roles: Array<{
-        name: string; // max 75 chars
-        volunteers: number;
+        name: string;
         startTime: string;
         endTime: string;
+        volunteers: number;
       }>;
     };
   };
+  verificationMethod: VerificationMethod;
+  requireLogin: boolean;
+  isPrivate: boolean; // Added property for project visibility
 }
 
 export function useEventForm() {
@@ -54,10 +57,13 @@ export function useEventForm() {
     eventType: "oneTime",
     verificationMethod: "qr-code", // Default to QR code method
     requireLogin: true, // Default to requiring login
+    isPrivate: false, // Default to public
     basicInfo: {
       title: "",
       location: "",
+      locationData: undefined, // Initialize locationData field
       description: "",
+      organizationId: null, // Default to null (personal project)
     },
     schedule: {
       oneTime: {
@@ -128,9 +134,13 @@ export function useEventForm() {
     setState((prev) => ({ ...prev, requireLogin }));
   };
 
+  const updateIsPrivate = (isPrivate: boolean) => {
+    setState((prev) => ({ ...prev, isPrivate }));
+  };
+
   const updateBasicInfo = (
     field: keyof EventFormState["basicInfo"],
-    value: string,
+    value: any,
   ) => {
     setState((prev) => {
       // Add character limit validation
@@ -465,6 +475,7 @@ export function useEventForm() {
     setEventType,
     updateVerificationMethod,
     updateRequireLogin,
+    updateIsPrivate, // Added function to update project visibility
     updateBasicInfo,
     addMultiDaySlot,
     addMultiDayEvent,

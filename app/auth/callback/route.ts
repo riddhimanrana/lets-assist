@@ -4,7 +4,8 @@ import { createClient } from "@/utils/supabase/server";
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const next = "/home";
+  const redirectAfterAuth = searchParams.get("redirectAfterAuth");
+  const next = redirectAfterAuth ? new URL(redirectAfterAuth).pathname : "/home";
   const error = searchParams.get("error");
   const error_description = searchParams.get("error_description");
 
@@ -17,7 +18,7 @@ export async function GET(request: Request) {
         `${origin}/login?error=email-password-exists`,
       );
     }
-    return NextResponse.redirect(`${origin}/auth/auth-code-error`);
+    return NextResponse.redirect(`${origin}/error`);
   }
 
   if (code) {
@@ -30,9 +31,6 @@ export async function GET(request: Request) {
     if (!error && session) {
       try {
         const { user } = session;
-        // console.log('Full user object:', JSON.stringify(user, null, 2))
-        // console.log('User metadata:', user.user_metadata)
-        // console.log('User identities:', user.identities)
 
         // Check if profile already exists
         const { data: existingProfile } = await supabase
@@ -58,8 +56,6 @@ export async function GET(request: Request) {
             user.user_metadata?.avatar_url ||
             user.user_metadata?.picture;
 
-          // console.log('Google identity data:', identityData)
-          // console.log('Selected avatar URL:', avatarUrl)
 
           // Create profile
           const { error: profileError } = await supabase
@@ -78,12 +74,12 @@ export async function GET(request: Request) {
             throw profileError;
           }
         } else {
-          // console.log('Found existing profile:', existingProfile)
         }
 
         const forwardedHost = request.headers.get("x-forwarded-host");
         const isLocalEnv = process.env.NODE_ENV === "development";
-
+        
+        // Simplify redirect logic to match working version
         if (isLocalEnv) {
           return NextResponse.redirect(`${origin}${next}`);
         } else if (forwardedHost) {
@@ -93,7 +89,7 @@ export async function GET(request: Request) {
         }
       } catch (error) {
         console.error("Error in callback:", error);
-        return NextResponse.redirect(`${origin}/auth/auth-code-error`);
+        return NextResponse.redirect(`${origin}/error`);
       }
     } else {
       console.error("Session error:", error);
@@ -102,9 +98,9 @@ export async function GET(request: Request) {
           `${origin}/login?error=email-password-exists`,
         );
       }
-      return NextResponse.redirect(`${origin}/auth/auth-code-error`);
+      return NextResponse.redirect(`${origin}/error`);
     }
   }
 
-  return NextResponse.redirect(`${origin}/auth/auth-code-error`);
+  return NextResponse.redirect(`${origin}/error`);
 }

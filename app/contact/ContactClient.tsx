@@ -60,7 +60,7 @@ export default function ContactClient() {
                     </CardHeader>
                     <CardContent>
                         <Button variant="destructive" className="w-full" asChild>
-                            <Link href="mailto:support@lets-assist.com">Report Bug</Link>
+                            <Link href="https://letsassist.featurebase.app/">Report Bug</Link>
                         </Button>
                     </CardContent>
                 </Card>

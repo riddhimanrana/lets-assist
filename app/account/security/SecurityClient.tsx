@@ -37,11 +37,9 @@ export default function SecurityClient() {
   useEffect(() => {
     const fetchUserEmail = async () => {
       const supabase = createClient();
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (session?.user?.email) {
-        setCurrentEmail(session.user.email);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.email) {
+        setCurrentEmail(user.email);
       }
     };
     fetchUserEmail();

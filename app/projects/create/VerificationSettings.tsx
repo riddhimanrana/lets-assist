@@ -26,15 +26,21 @@ import {
 interface VerificationSettingsProps {
   verificationMethod: VerificationMethod;
   requireLogin: boolean;
+  isOrganization: boolean; // Add this to detect if creating for an organization
+  isPrivate: boolean; // Add this for project visibility
   updateVerificationMethodAction: (method: VerificationMethod) => void;
   updateRequireLoginAction: (requireLogin: boolean) => void;
+  updateIsPrivateAction: (isPrivate: boolean) => void; // Add this action
 }
 
 export default function VerificationSettings({
   verificationMethod,
   requireLogin,
+  isOrganization,
+  isPrivate,
   updateVerificationMethodAction,
   updateRequireLoginAction,
+  updateIsPrivateAction,
 }: VerificationSettingsProps) {
   return (
     <div className="space-y-6">
@@ -68,26 +74,29 @@ export default function VerificationSettings({
             <label
               htmlFor="qr-code"
               className={cn(
-                "flex flex-col items-start space-y-3 rounded-lg border p-4 hover:bg-accent cursor-pointer transition-colors",
-                verificationMethod === "qr-code" && "border-primary bg-accent",
+              "flex flex-col items-start space-y-3 rounded-lg border p-4 hover:bg-accent cursor-pointer transition-colors",
+              verificationMethod === "qr-code" && "border-primary bg-accent",
               )}
             >
               <div className="flex w-full justify-between space-x-3">
-                <div className="flex items-center space-x-3">
-                  <RadioGroupItem value="qr-code" id="qr-code" />
-                  <div className="flex items-center space-x-2">
-                    <QrCode className="flex-shrink-0 h-5 w-5 text-primary mt-0.5" />
-                    <span className="font-medium">QR Code Self Check-in</span>
-                  </div>
+              <div className="flex items-center space-x-3">
+                <RadioGroupItem value="qr-code" id="qr-code" />
+                <div className="flex items-center space-x-2">
+                <QrCode className="flex-shrink-0 h-5 w-5 text-primary mt-0.5" />
+                <span className="font-medium">QR Code Self Check-in</span>
                 </div>
-                <Badge variant="secondary" className="pointer-events-none">
-                  Recommended
-                </Badge>
+              </div>
+              <Badge
+                variant="secondary"
+                className="pointer-events-none flex items-center h-6"
+              >
+                Recommended
+              </Badge>
               </div>
               <div className="text-[0.9rem] text-muted-foreground ml-8">
-                Volunteers scan QR code and log in to track their own hours.
-                They can leave anytime, with automatic logout at the scheduled
-                end time. Hours can be adjusted if needed.
+              Volunteers scan QR code and log in to track their own hours.
+              They can leave anytime, with automatic logout at the scheduled
+              end time. Hours can be adjusted if needed.
               </div>
             </label>
 
@@ -130,10 +139,10 @@ export default function VerificationSettings({
                   </div>
                 </div>
                 <div className="flex items-center space-x-1">
-                  <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                  <AlertTriangle className="h-4 w-4 text-chart-4" />
                   <Badge
                     variant="secondary"
-                    className="pointer-events-none text-yellow-500 bg-yellow-500/10"
+                    className="pointer-events-none text-chart-4 bg-chart-4/10"
                   >
                     Not Recommended
                   </Badge>
@@ -207,17 +216,15 @@ export default function VerificationSettings({
             </div>
 
             {!requireLogin && (
-              <div className="rounded-lg bg-amber-50 dark:bg-amber-950/40 p-4 text-sm border border-amber-200 dark:border-amber-900">
+              <div className="rounded-lg bg-chart-6/10 p-4 text-sm border border-chart-6/40">
                 <div className="flex gap-2">
-                  <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-500 shrink-0 mt-0.5" />
+                  <AlertTriangle className="h-5 w-5 text-chart-6 shrink-0 mt-0.5" />
                   <div>
-                    <p className="font-medium text-amber-800 dark:text-amber-500">
-                      Anonymous sign-ups
-                    </p>
-                    <p className="text-amber-700 dark:text-amber-400 mt-1">
-                      With anonymous sign-ups enabled, volunteers won&apos;t
-                      need to create accounts. This may increase participation
-                      but makes tracking and verification more challenging.
+                    <p className="font-medium text-chart-6">Anonymous sign-ups</p>
+                    <p className="text-chart-4 mt-1">
+                      With anonymous sign-ups enabled, volunteers won&apos;t need to create
+                      accounts. This may increase participation but makes tracking and
+                      verification more challenging.
                     </p>
                   </div>
                 </div>
@@ -226,6 +233,70 @@ export default function VerificationSettings({
           </div>
         </CardContent>
       </Card>
+
+      {/* Only show visibility toggle when creating for an organization */}
+      {isOrganization && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              Project Visibility
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-6 w-6">
+                      <Info className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent className="text-xs font-normal">
+                    <p>
+                      Control who can view this project. Public projects are visible to everyone,
+                      while private projects are only visible to organization members.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-6">
+              <div className="flex items-center justify-between space-x-4">
+                <div className="flex items-center space-x-3">
+                  <div
+                    className={cn(
+                      "p-2 rounded-md",
+                      isPrivate ? "bg-primary/10" : "bg-muted",
+                    )}
+                  >
+                    {isPrivate ? (
+                      <Lock className="h-5 w-5 text-primary" />
+                    ) : (
+                      <Users className="h-5 w-5 text-muted-foreground" />
+                    )}
+                  </div>
+                  <div>
+                    <Label
+                      htmlFor="is-private"
+                      className="text-base font-medium"
+                    >
+                      {isPrivate ? "Private project" : "Public project"}
+                    </Label>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {isPrivate
+                        ? "Only organization members can view this project"
+                        : "Everyone can view this project"}
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  id="is-private"
+                  checked={isPrivate}
+                  onCheckedChange={updateIsPrivateAction}
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

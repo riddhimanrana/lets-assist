@@ -10,6 +10,10 @@ import localFont from "next/font/local";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { PostHogProvider } from "./providers";
+import { ToasterTheme } from "@/components/ToasterTheme";
+import { NotificationListener } from "@/components/NotificationListener";
+import GlobalNotificationProvider from "@/components/GlobalNotificationProvider";
+import { GeistMono } from 'geist/font/mono';
 
 const overusedgrotesk = localFont({
   src: "../public/fonts/OverusedGrotesk-VF.woff2",
@@ -17,10 +21,11 @@ const overusedgrotesk = localFont({
   variable: "--font-overusedgrotesk",
 });
 
+
 const inter = Inter({
   subsets: ["latin"],
+  variable: "--font-sans",
   display: "swap",
-  variable: "--font-inter",
 });
 
 export const metadata: Metadata = {
@@ -66,23 +71,28 @@ export default async function RootLayout({
 
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.className} ${overusedgrotesk.variable}`}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <PostHogProvider>
-            <div className="bg-background text-foreground min-h-screen flex flex-col">
-              {/* Pass server-fetched user to Navbar */}
-              <Navbar initialUser={user} />
-              <main className="flex-1">{children}</main>
-              <Footer />
-              <SpeedInsights />
-            </div>
-          </PostHogProvider>
-        </ThemeProvider>
+      <body className={`${inter.className} ${GeistMono.variable} ${overusedgrotesk.className}`}>
+        <GlobalNotificationProvider>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+          >
+            <PostHogProvider>
+              <div className="bg-background text-foreground min-h-screen flex flex-col">
+                {/* Pass server-fetched user to Navbar */}
+                <Navbar initialUser={user} />
+                <main className="flex-1">{children}</main>
+                <ToasterTheme />
+                <Footer />
+                <SpeedInsights />
+                {/* Remove this duplicate listener - it's already in GlobalNotificationProvider */}
+                {/* {user && <NotificationListener userId={user.id} />} */}
+              </div>
+            </PostHogProvider>
+          </ThemeProvider>
+        </GlobalNotificationProvider>
       </body>
     </html>
   );

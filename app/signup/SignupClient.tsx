@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -23,8 +23,9 @@ import {
   FormControl,
   FormMessage,
 } from "@/components/ui/form";
-import { Toaster, toast } from "sonner";
+import { toast } from "sonner";
 import { useTheme } from "next-themes";
+import { useSearchParams } from "next/navigation";
 
 const signupSchema = z.object({
   fullName: z.string().min(3, "Full name must be at least 3 characters"),
@@ -38,6 +39,24 @@ export default function SignupClient() {
   const { theme } = useTheme();
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [redirectUrl, setRedirectUrl] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  
+  useEffect(() => {
+    // Check for redirect in query params first
+    const redirectParam = searchParams.get('redirect');
+    if (redirectParam) {
+      setRedirectUrl(redirectParam);
+      // Store in sessionStorage for after authentication
+      sessionStorage.setItem('redirect_after_auth', redirectParam);
+    } else {
+      // Check if there's a redirect URL in sessionStorage
+      const storedRedirect = sessionStorage.getItem('redirect_after_auth');
+      if (storedRedirect) {
+        setRedirectUrl(storedRedirect);
+      }
+    }
+  }, [searchParams]);
   
   const form = useForm<SignupValues>({
     resolver: zodResolver(signupSchema),
@@ -52,6 +71,12 @@ export default function SignupClient() {
     setIsLoading(true);
     const formData = new FormData();
     Object.entries(data).forEach(([key, value]) => formData.append(key, value));
+    
+    // Pass redirect URL if available
+    if (redirectUrl) {
+      formData.append('redirectUrl', redirectUrl);
+    }
+    
     const result = await signup(formData);
     
     if (result.error) {
@@ -95,7 +120,8 @@ export default function SignupClient() {
   const handleGoogleSignIn = async () => {
     try {
       setIsGoogleLoading(true);
-      const result = await signInWithGoogle();
+      // Pass the redirect URL to Google sign-in if available
+      const result = await signInWithGoogle(redirectUrl);
       
       if (result.error) {
         if (result.error.server?.[0]?.includes("email-password")) {
@@ -126,7 +152,10 @@ export default function SignupClient() {
             Create an account
           </CardTitle>
           <CardDescription className="text-left">
-            Enter your details below to create your account
+            {redirectUrl 
+              ? "Sign up to continue with your project signup" 
+              : "Enter your details below to create your account"
+            }
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -226,7 +255,10 @@ export default function SignupClient() {
               </Button>
               <div className="mt-4 text-center text-sm">
                 Already have an account?{" "}
-                <Link href="/login" className="underline">
+                <Link 
+                  href={redirectUrl ? `/login?redirect=${encodeURIComponent(redirectUrl)}` : "/login"}
+                  className="underline"
+                >
                   Sign in
                 </Link>
               </div>
@@ -234,11 +266,6 @@ export default function SignupClient() {
           </Form>
         </CardContent>
       </Card>
-      <Toaster
-        position="bottom-right"
-        theme={theme as "light" | "dark"}
-        richColors
-      />
     </div>
   );
 }

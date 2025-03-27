@@ -26,6 +26,10 @@ const sidebarItems = [
     title: "Authentication",
     href: "/account/authentication",
   },
+  {
+    title: "Notifications",
+    href: "/account/notifications",
+  },
 ];
 
 export default function AccountLayout({

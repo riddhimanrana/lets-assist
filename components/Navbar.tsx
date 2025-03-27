@@ -12,6 +12,12 @@ import {
   Bug,
   ChevronDown,
   ChevronUp,
+  Bell,
+  Sun,
+  Moon,
+  Laptop,
+  MonitorSmartphone,
+  Loader2,
 } from "lucide-react";
 import { NoAvatar } from "@/components/NoAvatar";
 import { createClient } from "@/utils/supabase/client";
@@ -19,7 +25,6 @@ import { User as SupabaseUser } from "@supabase/supabase-js";
 import { logout } from "@/app/logout/actions";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   NavigationMenu,
@@ -44,11 +49,15 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ReportBugDialog } from "@/components/ReportBugDialog";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
+import { NotificationPopover } from "@/components/NotificationPopover";
+import { useTheme } from "next-themes";
 
 interface SectionProps {
   title: string;
@@ -83,19 +92,19 @@ const CollapsibleSection = ({
 
 const features = [
   {
-    title: "Personalized Project Matching",
-    href: "/features/feature-1",
-    description: "Smart project recommendations",
+    title: "Track Your Hours with Ease",
+    href: "/#hourtracking",
+    description: "Advanced and accurate tracking methods.",
   },
   {
-    title: "Stay Updated, Stay Involved",
-    href: "/features/feature-2",
-    description: "Real-time updates on projects",
+    title: "Connect with Organizations",
+    href: "/#whyvolunteer",
+    description: "Find organizations that need your help.",
   },
   {
-    title: "Celebrate Your Contributions",
-    href: "/features/feature-3",
-    description: "Certificates, Badges, and more",
+    title: "Team Management",
+    href: "/#organizations",
+    description: "Organizations can create custom management options.",
   },
 ];
 
@@ -113,39 +122,153 @@ export default function Navbar({ initialUser }: NavbarProps) {
   const [isProfileLoading, setIsProfileLoading] = React.useState(true);
   const [showBugDialog, setShowBugDialog] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
+  const { theme, setTheme } = useTheme();
+  // Add loading state for logout
+  const [isLoggingOut, setIsLoggingOut] = React.useState(false);
 
-  React.useEffect(() => {
-    async function getUserAndProfile() {
-      const supabase = createClient();
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
+  // Extract the getUserAndProfile function to reuse it for error handling
+  const getUserAndProfile = async () => {
+    const supabase = createClient();
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
 
-      if (userError || !user) {
-        setUser(null);
-        setProfile(null);
-        setIsProfileLoading(false);
-        return;
-      }
-
-      setUser(user);
-
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("full_name, avatar_url, username")
-        .eq("id", user.id)
-        .single();
-
-      setProfile(profileData);
+    if (userError || !user) {
+      setUser(null);
+      setProfile(null);
       setIsProfileLoading(false);
+      return;
     }
 
+    setUser(user);
+
+    const { data: profileData } = await supabase
+      .from("profiles")
+      .select("full_name, avatar_url, username")
+      .eq("id", user.id)
+      .single();
+
+    setProfile(profileData);
+    setIsProfileLoading(false);
+  };
+
+  React.useEffect(() => {
     getUserAndProfile();
   }, []);
 
   const handleNavigation = () => {
     setIsSheetOpen(false);
+  };
+
+  // Vercel-style theme selector component for dropdown menu
+  const ThemeSelector = () => (
+    <div className="relative flex items-center border rounded-lg p-0.5 space-x-1">
+      <Button
+      variant="ghost"
+      size="icon"
+      className={cn(
+        "relative z-10 h-6 w-6 flex items-center justify-center rounded-md",
+        theme === "light" && "text-primary bg-accent"
+      )}
+      onClick={() => setTheme("light")}
+      >
+      <Sun className="h-3 w-3" />
+      </Button>
+      <Button 
+      variant="ghost"
+      size="icon"
+      className={cn(
+        "relative z-10 h-6 w-6 flex items-center justify-center rounded-md",
+        theme === "dark" && "text-primary bg-accent"
+      )}
+      onClick={() => setTheme("dark")}
+      >
+      <Moon className="h-3 w-3" />
+      </Button>
+      <Button
+      variant="ghost" 
+      size="icon"
+      className={cn(
+        "relative z-10 h-6 w-6 flex items-center justify-center rounded-md",
+        theme === "system" && "text-primary bg-accent"
+      )}
+      onClick={() => setTheme("system")}
+      >
+      <MonitorSmartphone className="h-3 w-3" />
+      </Button>
+    </div>
+  );
+
+  // Mobile version of the theme selector with similar styling
+  const MobileThemeSelector = () => (
+    <div className="space-y-2">
+      <div className="relative flex items-center border rounded-lg space-x-1 p-1">
+        <Button
+          variant="ghost"
+          size="icon"
+          className={cn(
+            "relative z-10 h-8 w-8 flex items-center justify-center rounded-md",
+            theme === "light" && "text-primary bg-accent"
+          )}
+          onClick={() => setTheme("light")}
+        >
+          <Sun className="h-4 w-4" />
+        </Button>
+        <Button 
+          variant="ghost"
+          size="icon"
+          className={cn(
+            "relative z-10 h-8 w-8 flex items-center justify-center rounded-md",
+            theme === "dark" && "text-primary bg-accent"
+          )}
+          onClick={() => setTheme("dark")}
+        >
+          <Moon className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost" 
+          size="icon"
+          className={cn(
+            "relative z-10 h-8 w-8 flex items-center justify-center rounded-md",
+            theme === "system" && "text-primary bg-accent"
+          )}
+          onClick={() => setTheme("system")}
+        >
+          <MonitorSmartphone className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  );
+
+  // Handle logout with loading state
+  const handleLogout = async () => {
+    try {
+      setIsLoggingOut(true);
+      
+      // Clear client-side user data first to prevent components from trying to access it
+      // setUser(null);
+      // setProfile(null);
+      
+      const result = await logout();
+      
+      if (result.success) {
+        // Use a small delay before redirecting to ensure state updates are processed
+        setTimeout(() => {
+          window.location.href = "/";
+        }, 100);
+      } else {
+        console.error('Logout failed:', result.error);
+        // Restore user state if logout fails
+        getUserAndProfile();
+        setIsLoggingOut(false);
+      }
+    } catch (error) {
+      console.error('Logout failed:', error);
+      // Restore user state if logout fails
+      getUserAndProfile();
+      setIsLoggingOut(false);
+    }
   };
 
   return (
@@ -166,53 +289,72 @@ export default function Navbar({ initialUser }: NavbarProps) {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-6 ml-auto">
-            <NavigationMenu>
-              <NavigationMenuList>
-                <NavigationMenuItem>
-                  <NavigationMenuTrigger>Features</NavigationMenuTrigger>
-                  <NavigationMenuContent>
-                    <ul className="grid gap-3 p-6 md:w-[400px] lg:w-[500px] lg:grid-cols-[.75fr_1fr]">
-                      <li className="row-span-3">
-                        <NavigationMenuLink asChild>
-                          <a
-                            className="flex h-full w-full select-none flex-col justify-end rounded-md bg-gradient-to-b from-muted/50 to-muted p-6 no-underline outline-none focus:shadow-md"
-                            href="/"
-                          >
-                            <Image
-                              src="/letsassist-logo.png"
-                              alt="letsassist logo"
-                              width={30}
-                              height={30}
-                            />
-                            <div className="mb-2 mt-4 text-lg font-medium">
-                              letsassist
-                            </div>
-                            <p className="text-sm leading-tight text-muted-foreground">
-                              Helping communities and volunteers connect
-                            </p>
-                          </a>
-                        </NavigationMenuLink>
-                      </li>
-                      {features.map((feature) => (
-                        <ListItem
-                          key={feature.title}
-                          title={feature.title}
-                          href={feature.href}
-                        >
-                          {feature.description}
-                        </ListItem>
-                      ))}
-                    </ul>
-                  </NavigationMenuContent>
-                </NavigationMenuItem>
-              </NavigationMenuList>
-            </NavigationMenu>
-            <Button variant="ghost">Volunteering Near Me</Button>
-            <Button variant="ghost">Connected Organizations</Button>
+            {user ? (
+              <>
+                <Button variant="ghost" asChild>
+                  <Link href="/home">Home</Link>
+                </Button>
+                <Button variant="ghost" asChild>
+                  <Link href="/projects">Active Projects</Link>
+                </Button>
+                <Button variant="ghost" asChild>
+                  <Link href="/organization">Organizations</Link>
+                </Button>
+              </>
+            ) : (
+              <>
+                <NavigationMenu>
+                  <NavigationMenuList>
+                    <NavigationMenuItem>
+                      <NavigationMenuTrigger>Features</NavigationMenuTrigger>
+                      <NavigationMenuContent>
+                        <ul className="grid gap-3 p-6 md:w-[400px] lg:w-[500px] lg:grid-cols-[.75fr_1fr]">
+                          <li className="row-span-3">
+                            <NavigationMenuLink asChild>
+                              <Link
+                                className="flex h-full w-full select-none flex-col justify-end rounded-md bg-gradient-to-b from-muted/50 to-muted p-6 no-underline outline-none focus:shadow-md"
+                                href="/"
+                              >
+                                <Image
+                                  src="/letsassist-logo.png"
+                                  alt="letsassist logo"
+                                  width={30}
+                                  height={30}
+                                />
+                                <div className="mb-2 mt-4 text-lg font-medium">
+                                  letsassist
+                                </div>
+                                <p className="text-sm leading-tight text-muted-foreground">
+                                  Helping communities and volunteers connect
+                                </p>
+                              </Link>
+                            </NavigationMenuLink>
+                          </li>
+                          {features.map((feature) => (
+                            <ListItem
+                              key={feature.title}
+                              title={feature.title}
+                              href={feature.href}
+                            >
+                              {feature.description}
+                            </ListItem>
+                          ))}
+                        </ul>
+                      </NavigationMenuContent>
+                    </NavigationMenuItem>
+                  </NavigationMenuList>
+                </NavigationMenu>
+                <Button variant="ghost" asChild>
+                  <Link href="/projects">Volunteering Near Me</Link>
+                </Button>
+                <Button variant="ghost">Connected Organizations</Button>
+              </>
+            )}
           </div>
           <div className="hidden sm:flex items-center space-x-6 ml-auto">
             {user ? (
-              <div className="flex items-center space-x-8">
+              <div className="flex items-center space-x-5 mr-2">
+                <NotificationPopover />
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     {isProfileLoading ? (
@@ -269,6 +411,17 @@ export default function Navbar({ initialUser }: NavbarProps) {
                     </DropdownMenuItem>
 
                     <DropdownMenuSeparator className="my-2" />
+
+                    {/* Replace custom theme selector with new Vercel-style ThemeSelector */}
+                    <div className="px-2 py-0.5 flex justify-between">
+                      <span className="text-sm self-center text-muted-foreground block">
+                        Appearance
+                      </span>
+                      <ThemeSelector />
+                    </div>
+
+                    <DropdownMenuSeparator className="my-2" />
+
                     <DropdownMenuItem
                       className="text-chart-3 focus:text-chart-3 py-2.5 cursor-pointer flex justify-between"
                       onSelect={(e) => {
@@ -286,13 +439,15 @@ export default function Navbar({ initialUser }: NavbarProps) {
                     <DropdownMenuSeparator className="my-2" />
                     <DropdownMenuItem
                       className="text-destructive focus:text-destructive py-2.5 cursor-pointer flex justify-between"
-                      onClick={async () => {
-                        setUser(null);
-                        await logout();
-                      }}
+                      onClick={handleLogout}
+                      disabled={isLoggingOut}
                     >
-                      <span>Log Out</span>
-                      <LogOut className="h-4 w-4" />
+                      <span>{isLoggingOut ? "Logging out..." : "Log Out"}</span>
+                      {isLoggingOut ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <LogOut className="h-4 w-4" />
+                      )}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -305,18 +460,20 @@ export default function Navbar({ initialUser }: NavbarProps) {
                 <Link href="/signup">
                   <Button>Sign Up</Button>
                 </Link>
+                <div className="ml-4">
+                  <ModeToggle />
+                </div>
               </>
             )}
-            <div className="ml-4">
-              <ModeToggle />
-            </div>
           </div>
 
           {/* Mobile Navigation */}
           <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
             <SheetTitle className="hidden"></SheetTitle>
             <div className="sm:hidden flex items-center ml-auto">
-              <ModeToggle />
+              {user && <NotificationPopover />}
+              {/* Show theme toggle for non-logged in users only */}
+              {!user && <ModeToggle />}
             </div>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon" className="md:hidden ml-2">
@@ -349,15 +506,18 @@ export default function Navbar({ initialUser }: NavbarProps) {
                     <Button
                       variant="destructive"
                       className="w-full mb-6"
-                      onClick={async () => {
-                        setUser(null);
-                        handleNavigation();
-                        await logout();
-                      }}
+                      onClick={handleLogout}
+                      disabled={isLoggingOut}
                     >
-                      <LogOut className="mr-2 h-4 w-4" />
-                      Log Out
+                      {isLoggingOut ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <LogOut className="mr-2 h-4 w-4" />
+                      )}
+                      {isLoggingOut ? "Logging out..." : "Log Out"}
                     </Button>
+
+                    {/* Replace theme selector for logged-in users on mobile */}
                   </>
                 ) : (
                   <div className="grid gap-2 mb-6">
@@ -375,28 +535,51 @@ export default function Navbar({ initialUser }: NavbarProps) {
                 <Separator className="mb-4" />
 
                 <div className="space-y-1">
-                  <Button
-                    variant="ghost"
-                    className="w-full justify-between text-muted-foreground"
-                    asChild
-                    onClick={handleNavigation}
-                  >
-                    <Link href="/">Home</Link>
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    className="w-full justify-between text-muted-foreground"
-                    onClick={handleNavigation}
-                  >
-                    Volunteering Near Me
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    className="w-full justify-between text-muted-foreground"
-                    onClick={handleNavigation}
-                  >
-                    Connected Organizations
-                  </Button>
+                  {user ? (
+                    <>
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-between text-muted-foreground"
+                        asChild
+                        onClick={handleNavigation}
+                      >
+                        <Link href="/home">Home</Link>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-between text-muted-foreground"
+                        asChild
+                        onClick={handleNavigation}
+                      >
+                        <Link href="/projects">My Projects</Link>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-between text-muted-foreground"
+                        asChild
+                        onClick={handleNavigation}
+                      >
+                        <Link href= "/organization">Organizations</Link>
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-between text-muted-foreground"
+                        onClick={handleNavigation}
+                      >
+                        Volunteering Near Me
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-between text-muted-foreground"
+                        onClick={handleNavigation}
+                      >
+                        Connected Organizations
+                      </Button>
+                    </>
+                  )}
                 </div>
 
                 {user && (
@@ -413,6 +596,8 @@ export default function Navbar({ initialUser }: NavbarProps) {
                         <Settings className="h-4 w-4" />
                       </Link>
                     </Button>
+                    {/* Re-enable MobileNotificationButton now that we're storing notifications */}
+                    {/* <MobileNotificationButton /> */}
                     <Button
                       variant="ghost"
                       className="w-full justify-between text-muted-foreground"
@@ -428,7 +613,13 @@ export default function Navbar({ initialUser }: NavbarProps) {
                 )}
 
                 <Separator className="my-4" />
-
+                <div className="px-2 py-0.5 flex justify-between">
+                <span className="text-sm self-center text-muted-foreground block">
+                Appearance
+                </span>
+                <MobileThemeSelector />
+                </div>
+                <Separator className="my-4" />
                 <div className="space-y-1">
                   <Button
                     variant="ghost"

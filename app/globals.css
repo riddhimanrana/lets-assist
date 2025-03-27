@@ -32,6 +32,7 @@
     --chart-3: 220 91% 54%; /* blue */
     --chart-4: 35 77% 49%; /* yellow */
     --chart-5: 109 58% 40%; /* green */
+    --chart-6: 22 99% 52%; /* orange */
   }
 
   .dark {
@@ -63,6 +64,8 @@
     --chart-3: 217 92% 76%; /* blue */
     --chart-4: 41 86% 83%; /* yellow */
     --chart-5: 115 54% 76%; /* green */
+    --chart-6: 23 92% 75%; /* orange */
+    --chart-7: 350 65% 77%; /* maroon */
   }
 }
 
@@ -78,6 +81,23 @@
     box-sizing: border-box;
     font-family: var(--font-inter), sans-serif;
   }
+}
+
+/* Add Tippy.js animations */
+@keyframes shift-away {
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+}
+
+.tippy-box[data-animation='shift-away'][data-state='hidden'] {
+  opacity: 0;
+  transform: translateY(-10px);
 }
 
 @media (max-width: 768px) {
