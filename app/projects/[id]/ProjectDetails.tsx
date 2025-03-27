@@ -39,11 +39,12 @@ import {
   Zap,
   AlertTriangle,
   Building2,
-  BadgeCheck
+  BadgeCheck,
+  XCircle
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { signUpForProject } from "./actions";
+import { signUpForProject, cancelSignup } from "./actions";
 import { formatTimeTo12Hour, formatBytes } from "@/lib/utils";
 import { formatSpots } from "./helpers";
 import { createClient } from "@/utils/supabase/client";
@@ -66,18 +67,24 @@ import FilePreview from "@/components/FilePreview";
 import CreatorDashboard from "./CreatorDashboard";
 import { ProjectSignupForm } from "./ProjectForm";
 
+interface SlotData {
+  remainingSlots: Record<string, number>;
+  userSignups: Record<string, boolean>;
+}
+
 interface Props {
   project: Project;
   creator: Profile | null;
   organization?: Organization | null;
+  initialSlotData: SlotData;
 }
 
-export default function ProjectDetails({ project, creator, organization }: Props) {
+export default function ProjectDetails({ project, creator, organization, initialSlotData }: Props) {
   const router = useRouter();
   const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
   const [isCreator, setIsCreator] = useState(false);
-  const [remainingSlots, setRemainingSlots] = useState<Record<string, number>>({});
-  const [hasSignedUp, setHasSignedUp] = useState<Record<string, boolean>>({});
+  const [remainingSlots, setRemainingSlots] = useState<Record<string, number>>(initialSlotData.remainingSlots);
+  const [hasSignedUp, setHasSignedUp] = useState<Record<string, boolean>>(initialSlotData.userSignups);
   const [user, setUser] = useState<any>(null);
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [anonymousDialogOpen, setAnonymousDialogOpen] = useState(false);
@@ -87,59 +94,27 @@ export default function ProjectDetails({ project, creator, organization }: Props
   const [previewDocName, setPreviewDocName] = useState<string>("Document");
   const [previewDocType, setPreviewDocType] = useState<string>("");
 
-  // Initialize state with utils
+  // Initialize user and creator status
   useEffect(() => {
     const initialize = async () => {
       const supabase = createClient();
-      
-      // Get user and check if creator
       const { data: { user: currentUser } } = await supabase.auth.getUser();
       setUser(currentUser);
       
       if (currentUser && project.creator_id === currentUser.id) {
         setIsCreator(true);
       }
-
-      // Get slot capacities
-      const slotCapacities = getSlotCapacities(project);
-      const slotCounts: Record<string, number> = {};
-      const userSignups: Record<string, boolean> = {};
-
-      // Get current signups
-      const { data: signups } = await supabase
-        .from("project_signups")
-        .select("schedule_id, user_id, status")
-        .eq("project_id", project.id)
-        .eq("status", "confirmed");
-
-      if (signups) {
-        signups.forEach((signup) => {
-          if (!slotCounts[signup.schedule_id]) {
-            slotCounts[signup.schedule_id] = 0;
-          }
-          slotCounts[signup.schedule_id]++;
-
-          if (currentUser && signup.user_id === currentUser.id) {
-            userSignups[signup.schedule_id] = true;
-          }
-        });
-      }
-
-      // Calculate remaining slots
-      const remaining: Record<string, number> = {};
-      Object.keys(slotCapacities).forEach((scheduleId) => {
-        remaining[scheduleId] = slotCapacities[scheduleId] - (slotCounts[scheduleId] || 0);
-      });
-
-      setRemainingSlots(remaining);
-      setHasSignedUp(userSignups);
     };
-
     initialize();
   }, [project]);
 
-  // Handle sign up click
+  // Handle sign up or cancel click
   const handleSignUpClick = (scheduleId: string) => {
+    if (hasSignedUp[scheduleId]) {
+      handleCancelSignup(scheduleId);
+      return;
+    }
+
     if (!isSlotAvailable(project, scheduleId, remainingSlots)) {
       toast.error("This slot is no longer available");
       return;
@@ -158,6 +133,40 @@ export default function ProjectDetails({ project, creator, organization }: Props
     }
 
     handleSignUp(scheduleId);
+  };
+
+  // Cancel signup
+  const handleCancelSignup = async (scheduleId: string) => {
+    try {
+      const { data: signups } = await createClient()
+        .from("project_signups")
+        .select("id")
+        .eq("project_id", project.id)
+        .eq("schedule_id", scheduleId)
+        .eq("user_id", user.id)
+        .eq("status", "confirmed")
+        .single();
+
+      if (!signups?.id) {
+        toast.error("Signup not found");
+        return;
+      }
+
+      const result = await cancelSignup(signups.id);
+      if (result.error) {
+        toast.error(result.error);
+      } else {
+        toast.success("Successfully cancelled signup");
+        setHasSignedUp(prev => ({ ...prev, [scheduleId]: false }));
+        setRemainingSlots(prev => ({ 
+          ...prev, 
+          [scheduleId]: (prev[scheduleId] || 0) + 1 
+        }));
+      }
+    } catch (error) {
+      console.error("Error cancelling signup:", error);
+      toast.error("Failed to cancel signup");
+    }
   };
 
   // Handle signup
@@ -308,14 +317,17 @@ export default function ProjectDetails({ project, creator, organization }: Props
                           </div>
                         </div>
                         <Button
-                          variant="default"
+                          variant={hasSignedUp["oneTime"] ? "secondary" : "default"}
                           size="sm"
                           onClick={() => handleSignUpClick("oneTime")}
-                          disabled={loadingStates["oneTime"] || project.status === "cancelled" || remainingSlots["oneTime"] === 0 || hasSignedUp["oneTime"]}
-                          className="flex-shrink-0"
+                          disabled={loadingStates["oneTime"] || project.status === "cancelled" || (!hasSignedUp["oneTime"] && remainingSlots["oneTime"] === 0)}
+                          className="flex-shrink-0 gap-2"
                         >
                           {hasSignedUp["oneTime"] ? (
-                            "Already Signed Up"
+                            <>
+                              <XCircle className="h-4 w-4" />
+                              Cancel Signup
+                            </>
                           ) : remainingSlots["oneTime"] === 0 ? (
                             "Full"
                           ) : loadingStates["oneTime"] ? (
@@ -326,7 +338,10 @@ export default function ProjectDetails({ project, creator, organization }: Props
                           ) : project.status === "cancelled" ? (
                             "Unavailable"
                           ) : (
-                            "Sign Up"
+                            <>
+                              <UserPlus className="h-4 w-4" />
+                              Sign Up
+                            </>
                           )}
                         </Button>
                       </div>

@@ -233,9 +233,9 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
       );
     }
     return (
-      <Badge variant="secondary" className="gap-1">
-        <Clock className="h-3 w-3" />
-        Pending
+      <Badge className="gap-1">
+        <CheckCircle2 className="h-3 w-3" />
+        Approved
       </Badge>
     );
   };

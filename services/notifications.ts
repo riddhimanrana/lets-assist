@@ -161,7 +161,7 @@ export const NotificationService = {
           const notification = existingNotifications[0];
           if (!notification.displayed) {
             console.log('Existing notification found but not displayed, showing toast');
-            toast.warning("Set Your Custom Username", {
+            toast.info("Set Your Custom Username", {
               description: "Personalize your profile by setting a custom username in your account settings.",
               action: {
                 label: "Go to settings",
@@ -179,7 +179,7 @@ export const NotificationService = {
             title: 'Set Your Custom Username',
             body: 'Personalize your profile by setting a custom username in your account settings.',
             type: 'username_reminder',
-            severity: 'warning', // Set username reminder to warning (amber)
+            severity: 'info', // Set username reminder to info (blue)
             actionUrl: '/account/profile'
           }, userId, true);
         }
