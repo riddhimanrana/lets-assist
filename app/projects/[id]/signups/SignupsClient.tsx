@@ -199,24 +199,48 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
     if (!project) return slotId;
 
     if (project.event_type === "oneTime") {
-      const slot = project.schedule.oneTime;
-      if (!slot) return slotId;
-      return `One-time Event on ${format(new Date(slot.date), "MMMM d, yyyy")} at ${slot.startTime}`;
+      // Handle oneTime events - the scheduleId is simply "oneTime"
+      if (slotId === "oneTime" && project.schedule.oneTime) {
+        // Create date with UTC to prevent timezone offset issues
+        const dateStr = project.schedule.oneTime.date;
+        const [year, month, day] = dateStr.split('-').map(Number);
+        const date = new Date(Date.UTC(year, month - 1, day));
+        return `One-time Event on ${format(date, "MMMM d, yyyy")} at ${project.schedule.oneTime.startTime}`;
+      }
     }
 
     if (project.event_type === "multiDay") {
+      // For multiDay events, the scheduleId format is "date-slotIndex"
       const [date, slotIndex] = slotId.split("-");
       const day = project.schedule.multiDay?.find(d => d.date === date);
-      const slot = day?.slots[parseInt(slotIndex)];
-      if (slot) {
-        return `${format(new Date(date), "MMMM d, yyyy")} at ${slot.startTime}`;
+      
+      if (day && slotIndex !== undefined) {
+        const slotIdx = parseInt(slotIndex, 10);
+        const slot = day.slots[slotIdx];
+        
+        if (slot) {
+          // Create date with UTC to prevent timezone offset issues
+          const [year, month, dayNum] = date.split('-').map(Number);
+          const utcDate = new Date(Date.UTC(year, month - 1, dayNum));
+          return `${format(utcDate, "MMMM d, yyyy")} at ${slot.startTime}`;
+        }
       }
     }
 
     if (project.event_type === "sameDayMultiArea") {
+      // For sameDayMultiArea, the scheduleId is the role name
       const role = project.schedule.sameDayMultiArea?.roles.find(r => r.name === slotId);
+      
       if (role) {
-        return `Role: ${role.name}`;
+        const eventDate = project.schedule.sameDayMultiArea?.date;
+        if (eventDate) {
+          // Create date with UTC to prevent timezone offset issues
+          const [year, month, day] = eventDate.split('-').map(Number);
+          const utcDate = new Date(Date.UTC(year, month - 1, day));
+          return `Role: ${role.name} on ${format(utcDate, "MMMM d, yyyy")}`;
+        } else {
+          return `Role: ${role.name}`;
+        }
       }
     }
 

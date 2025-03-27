@@ -90,9 +90,15 @@ async function getSlotDetails(project: Project, scheduleId: string) {
   } else if (project.event_type === "multiDay") {
     const [date, slotIndex] = scheduleId.split("-");
     const day = project.schedule.multiDay?.find(d => d.date === date);
-    return day?.slots[parseInt(slotIndex)];
+    if (day && slotIndex !== undefined) {
+      const slotIdx = parseInt(slotIndex, 10);
+      if (!isNaN(slotIdx) && day.slots.length > slotIdx) {
+        return day.slots[slotIdx];
+      }
+    }
   } else if (project.event_type === "sameDayMultiArea") {
-    return project.schedule.sameDayMultiArea?.roles.find(r => r.name === scheduleId);
+    const role = project.schedule.sameDayMultiArea?.roles.find(r => r.name === scheduleId);
+    return role;
   }
   return null;
 }

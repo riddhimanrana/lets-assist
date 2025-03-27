@@ -54,6 +54,7 @@
     "@types/ol": "^7.0.0",
     "@types/uuid": "^10.0.0",
     "@vercel/speed-insights": "^1.2.0",
+    "@vis.gl/react-google-maps": "^1.5.2",
     "axios": "^1.8.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

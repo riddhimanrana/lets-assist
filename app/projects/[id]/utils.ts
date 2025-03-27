@@ -1,41 +1,70 @@
-import { Project, EventType } from "@/types";
-
-export function getSlotCapacities(project: Project) {
-  if (project.event_type === "oneTime") {
-    return { "oneTime": project.schedule.oneTime?.volunteers || 0 };
-  } else if (project.event_type === "multiDay") {
-    return project.schedule.multiDay?.reduce((acc, day) => {
-      day.slots.forEach((slot, slotIndex) => {
-        acc[`${day.date}-${slotIndex}`] = slot.volunteers;
-      });
-      return acc;
-    }, {} as Record<string, number>) || {};
-  } else {
-    return project.schedule.sameDayMultiArea?.roles.reduce((acc, role) => {
-      acc[role.name] = role.volunteers;
-      return acc;
-    }, {} as Record<string, number>) || {};
-  }
-}
+import { Project } from "@/types";
 
 export function getSlotDetails(project: Project, scheduleId: string) {
+  if (!project || !scheduleId) return null;
+
   if (project.event_type === "oneTime") {
-    return { ...project.schedule.oneTime, id: "oneTime" };
-  } else if (project.event_type === "multiDay") {
+    if (scheduleId === "oneTime") {
+      return project.schedule.oneTime;
+    }
+  } else if (project.event_type === "multiDay" && project.schedule.multiDay) {
     const [date, slotIndex] = scheduleId.split("-");
-    const day = project.schedule.multiDay?.find(d => d.date === date);
-    const slot = day?.slots[parseInt(slotIndex)];
-    return slot ? { ...slot, id: scheduleId } : null;
-  } else if (project.event_type === "sameDayMultiArea") {
-    const role = project.schedule.sameDayMultiArea?.roles.find(r => r.name === scheduleId);
-    return role ? { ...role, id: scheduleId } : null;
+    const day = project.schedule.multiDay.find(d => d.date === date);
+    
+    if (day && slotIndex !== undefined) {
+      const slotIdx = parseInt(slotIndex, 10);
+      if (!isNaN(slotIdx) && day.slots.length > slotIdx) {
+        return day.slots[slotIdx];
+      }
+    }
+  } else if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
+    const role = project.schedule.sameDayMultiArea.roles.find(r => r.name === scheduleId);
+    if (role) {
+      return role;
+    }
   }
+  
   return null;
 }
 
-export function isSlotAvailable(project: Project, scheduleId: string, remainingSlots: Record<string, number>) {
+export function getSlotCapacities(project: Project): Record<string, number> {
+  const capacities: Record<string, number> = {};
+  
+  if (project.event_type === "oneTime" && project.schedule.oneTime) {
+    capacities["oneTime"] = project.schedule.oneTime.volunteers;
+  } else if (project.event_type === "multiDay" && project.schedule.multiDay) {
+    project.schedule.multiDay.forEach((day, dayIndex) => {
+      day.slots.forEach((slot, slotIndex) => {
+        const scheduleId = `${day.date}-${slotIndex}`;
+        capacities[scheduleId] = slot.volunteers;
+      });
+    });
+  } else if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
+    project.schedule.sameDayMultiArea.roles.forEach(role => {
+      capacities[role.name] = role.volunteers;
+    });
+  }
+  
+  return capacities;
+}
+
+export function isSlotAvailable(
+  project: Project, 
+  scheduleId: string, 
+  remainingSlots: Record<string, number>
+): boolean {
+  // Check if the project is cancelled or completed
   if (project.status === "cancelled" || project.status === "completed") {
     return false;
   }
-  return (remainingSlots[scheduleId] || 0) > 0;
+  
+  // Check if the schedule ID is valid for this project
+  const slotDetails = getSlotDetails(project, scheduleId);
+  if (!slotDetails) {
+    return false;
+  }
+  
+  // Check if there are remaining slots
+  const slotsRemaining = remainingSlots[scheduleId];
+  return slotsRemaining !== undefined && slotsRemaining > 0;
 }

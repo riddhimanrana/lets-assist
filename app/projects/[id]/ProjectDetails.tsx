@@ -20,7 +20,8 @@ import { Separator } from "@/components/ui/separator";
 import { RichTextContent } from "@/components/ui/rich-text-content";
 import { LocationMapCard } from "@/components/LocationMapCard";
 import { 
-  CalendarDays, 
+  CalendarDays,
+  CheckCircle2,
   MapPin, 
   Users, 
   Share2, 
@@ -110,6 +111,12 @@ export default function ProjectDetails({ project, creator, organization, initial
 
   // Handle sign up or cancel click
   const handleSignUpClick = (scheduleId: string) => {
+    // Prevent project creator from signing up
+    if (isCreator) {
+      toast.info("You cannot sign up for your own project");
+      return;
+    }
+
     if (hasSignedUp[scheduleId]) {
       handleCancelSignup(scheduleId);
       return;
@@ -160,7 +167,7 @@ export default function ProjectDetails({ project, creator, organization, initial
         setHasSignedUp(prev => ({ ...prev, [scheduleId]: false }));
         setRemainingSlots(prev => ({ 
           ...prev, 
-          [scheduleId]: (prev[scheduleId] || 0) + 1 
+          [scheduleId]: (prev[scheduleId] || 0) + 1
         }));
       }
     } catch (error) {
@@ -296,23 +303,29 @@ export default function ProjectDetails({ project, creator, organization, initial
                 )}
               </CardHeader>
               <CardContent>
-                {project.event_type === "oneTime" && (
+                {project.event_type === "oneTime" && project.schedule.oneTime && (
                   <Card className="bg-card/50 hover:bg-card/80 transition-colors">
                     <CardContent className="p-4">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div className="max-w-[400px]">
                           <h3 className="font-medium text-base break-words">
-                            {format(new Date(project.schedule.oneTime!.date), "EEEE, MMMM d")}
+                            {(() => {
+                              // Create date with UTC to prevent timezone offset issues
+                              const dateStr = project.schedule.oneTime.date;
+                              const [year, month, day] = dateStr.split('-').map(Number);
+                              const date = new Date(Date.UTC(year, month - 1, day));
+                              return format(date, "EEEE, MMMM d");
+                            })()}
                           </h3>
                           <div className="flex items-center gap-2 text-muted-foreground mt-1 text-sm">
                             <Clock className="h-3.5 w-3.5 flex-shrink-0" />
                             <span className="line-clamp-1">
-                              {formatTimeTo12Hour(project.schedule.oneTime!.startTime)} -{" "}
-                              {formatTimeTo12Hour(project.schedule.oneTime!.endTime)}
+                              {formatTimeTo12Hour(project.schedule.oneTime.startTime)} -{" "}
+                              {formatTimeTo12Hour(project.schedule.oneTime.endTime)}
                             </span>
                             <span className="flex items-center ml-2">
                               <Users className="h-3.5 w-3.5 mr-1 flex-shrink-0" />
-                              {formatSpots(remainingSlots["oneTime"] || project.schedule.oneTime!.volunteers)} remaining
+                              {formatSpots(remainingSlots["oneTime"] ?? project.schedule.oneTime.volunteers)} remaining
                             </span>
                           </div>
                         </div>
@@ -320,10 +333,12 @@ export default function ProjectDetails({ project, creator, organization, initial
                           variant={hasSignedUp["oneTime"] ? "secondary" : "default"}
                           size="sm"
                           onClick={() => handleSignUpClick("oneTime")}
-                          disabled={loadingStates["oneTime"] || project.status === "cancelled" || (!hasSignedUp["oneTime"] && remainingSlots["oneTime"] === 0)}
+                          disabled={isCreator || loadingStates["oneTime"] || project.status === "cancelled" || (!hasSignedUp["oneTime"] && (remainingSlots["oneTime"] === 0))}
                           className="flex-shrink-0 gap-2"
                         >
-                          {hasSignedUp["oneTime"] ? (
+                          {isCreator ? (
+                            "You are the creator"
+                          ) : hasSignedUp["oneTime"] ? (
                             <>
                               <XCircle className="h-4 w-4" />
                               Cancel Signup
@@ -348,6 +363,178 @@ export default function ProjectDetails({ project, creator, organization, initial
                     </CardContent>
                   </Card>
                 )}
+
+                {project.event_type === "multiDay" && project.schedule.multiDay && (
+                  <div className="space-y-3">
+                    {project.schedule.multiDay.map((day, dayIndex) => (
+                      <div key={day.date} className="mb-4">
+                        <h3 className="font-medium mb-2">
+                          {(() => {
+                            // Create date with UTC to prevent timezone offset issues
+                            const dateStr = day.date;
+                            const [year, month, dayNum] = dateStr.split('-').map(Number);
+                            const date = new Date(Date.UTC(year, month - 1, dayNum));
+                            return format(date, "EEEE, MMMM d");
+                          })()}
+                        </h3>
+                        <div className="space-y-2">
+                          {day.slots.map((slot, slotIndex) => {
+                            const scheduleId = `${day.date}-${slotIndex}`;
+                            return (
+                              <Card key={scheduleId} className="bg-card/50 hover:bg-card/80 transition-colors">
+                                <CardContent className="p-4">
+                                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                    <div className="max-w-[400px]">
+                                      <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                                        <Clock className="h-3.5 w-3.5 flex-shrink-0" />
+                                        <span className="line-clamp-1">
+                                          {formatTimeTo12Hour(slot.startTime)} -{" "}
+                                          {formatTimeTo12Hour(slot.endTime)}
+                                        </span>
+                                        <span className="flex items-center ml-2">
+                                          <Users className="h-3.5 w-3.5 mr-1 flex-shrink-0" />
+                                          {formatSpots(remainingSlots[scheduleId] ?? slot.volunteers)} remaining
+                                        </span>
+                                      </div>
+                                    </div>
+                                    <Button
+                                      variant={hasSignedUp[scheduleId] ? "secondary" : "default"}
+                                      size="sm"
+                                      onClick={() => handleSignUpClick(scheduleId)}
+                                      disabled={isCreator || loadingStates[scheduleId] || project.status === "cancelled" || (!hasSignedUp[scheduleId] && (remainingSlots[scheduleId] === 0))}
+                                      className="flex-shrink-0 gap-2"
+                                    >
+                                      {isCreator ? (
+                                        "You are the creator"
+                                      ) : hasSignedUp[scheduleId] ? (
+                                        <>
+                                          <XCircle className="h-4 w-4" />
+                                          Cancel Signup
+                                        </>
+                                      ) : remainingSlots[scheduleId] === 0 ? (
+                                        "Full"
+                                      ) : loadingStates[scheduleId] ? (
+                                        <>
+                                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                          Processing...
+                                        </>
+                                      ) : project.status === "cancelled" ? (
+                                        "Unavailable"
+                                      ) : (
+                                        <>
+                                          <UserPlus className="h-4 w-4" />
+                                          Sign Up
+                                        </>
+                                      )}
+                                    </Button>
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea && (
+                  <div className="space-y-3">
+                    <div className="mb-4">
+                      <h3 className="font-medium mb-2">
+                        {(() => {
+                          // Create date with UTC to prevent timezone offset issues
+                          const dateStr = project.schedule.sameDayMultiArea.date;
+                          const [year, month, day] = dateStr.split('-').map(Number);
+                          const date = new Date(Date.UTC(year, month - 1, day));
+                          return format(date, "EEEE, MMMM d");
+                        })()}
+                      </h3>
+                      <div className="space-y-2">
+                        {project.schedule.sameDayMultiArea.roles.map((role) => (
+                          <Card key={role.name} className="bg-card/50 hover:bg-card/80 transition-colors">
+                            <CardContent className="p-4">
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                <div className="max-w-[400px]">
+                                  <h4 className="font-medium break-words">{role.name}</h4>
+                                  <div className="flex items-center gap-2 text-muted-foreground text-sm mt-1">
+                                    <Clock className="h-3.5 w-3.5 mr-1 flex-shrink-0" />
+                                    <span className="line-clamp-1">
+                                      {formatTimeTo12Hour(role.startTime)} - {formatTimeTo12Hour(role.endTime)}
+                                    </span>
+                                    <span className="flex items-center ml-2">
+                                      <Users className="h-3.5 w-3.5 mr-1 flex-shrink-0" />
+                                      {formatSpots(remainingSlots[role.name] ?? role.volunteers)} remaining
+                                    </span>
+                                  </div>
+                                </div>
+                                <Button
+                                  variant={hasSignedUp[role.name] ? "secondary" : "default"}
+                                  size="sm"
+                                  onClick={() => handleSignUpClick(role.name)}
+                                  disabled={isCreator || loadingStates[role.name] || project.status === "cancelled" || (!hasSignedUp[role.name] && (remainingSlots[role.name] === 0))}
+                                  className="flex-shrink-0 gap-2"
+                                >
+                                  {isCreator ? (
+                                    "You are the creator"
+                                  ) : hasSignedUp[role.name] ? (
+                                    <>
+                                      <XCircle className="h-4 w-4" />
+                                      Cancel Signup
+                                    </>
+                                  ) : remainingSlots[role.name] === 0 ? (
+                                    "Full"
+                                  ) : loadingStates[role.name] ? (
+                                    <>
+                                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                      Processing...
+                                    </>
+                                  ) : project.status === "cancelled" ? (
+                                    "Unavailable"
+                                  ) : (
+                                    <>
+                                      <UserPlus className="h-4 w-4" />
+                                      Sign Up
+                                    </>
+                                  )}
+                                </Button>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Message for cancelled projects */}
+                {project.status === "cancelled" && (
+                  <div className="flex items-start gap-2 rounded-md border border-destructive p-3 bg-destructive/10 mt-4">
+                    <AlertTriangle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
+                    <div className="text-sm text-muted-foreground">
+                      <p>
+                        This project has been cancelled and is no longer accepting signups.
+                      </p>
+                      {project.cancellation_reason && (
+                        <p className="mt-1">
+                          <span className="font-medium">Reason:</span> {project.cancellation_reason}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Message for completed projects */}
+                {project.status === "completed" && (
+                  <div className="flex items-start gap-2 rounded-md border p-3 bg-muted/50 mt-4">
+                    <CheckCircle2 className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
+                    <div className="text-sm text-muted-foreground">
+                      <p>
+                        This project has been completed and is no longer accepting signups.
+                      </p>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -366,7 +553,169 @@ export default function ProjectDetails({ project, creator, organization, initial
                     Project Coordinator
                   </h3>
                   <div className="space-y-4">
-                    {/* Creator info */}
+                    <HoverCard>
+                      <HoverCardTrigger asChild>
+                        <Link href={`/profile/${creator?.username || ""}`} className="flex items-center gap-3">
+                          <Avatar className="h-10 w-10">
+                            {creator?.avatar_url ? (
+                              <AvatarImage 
+                                src={creator.avatar_url}
+                                alt={creator?.full_name || "Creator"}
+                              />
+                            ) : null}
+                            <AvatarFallback className="bg-muted">
+                              <NoAvatar 
+                                fullName={creator?.full_name}
+                                className="text-sm font-medium"
+                              />
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="font-medium">
+                              {creator?.full_name || "Anonymous"}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              @{creator?.username || "user"}
+                            </p>
+                          </div>
+                        </Link>
+                      </HoverCardTrigger>
+                      <HoverCardContent className="w-auto">
+                        <div 
+                          className="flex justify-between space-x-4 cursor-pointer" 
+                          onClick={(e) => {
+                            e.preventDefault();
+                            window.location.href = `/profile/${creator?.username || ""}`;
+                          }}
+                        >
+                          <Avatar className="h-10 w-10">
+                            {creator?.avatar_url ? (
+                              <AvatarImage 
+                                src={creator.avatar_url}
+                                alt={creator?.full_name || "Creator"}
+                              />
+                            ) : null}
+                            <AvatarFallback className="bg-muted">
+                              <NoAvatar 
+                                fullName={creator?.full_name}
+                                className="text-sm font-medium"
+                              />
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="space-y-1 flex-1">
+                            <h4 className="text-sm font-semibold">
+                              {creator?.full_name || "Anonymous"}
+                            </h4>
+                            <p className="text-sm">
+                              @{creator?.username || "user"}
+                            </p>
+                            <div className="flex items-center pt-2">
+                              <CalendarDays className="mr-2 h-4 w-4 opacity-70" />
+                              <span className="text-xs text-muted-foreground">
+                                {creator?.created_at
+                                  ? `Joined ${format(new Date(creator.created_at), "MMMM yyyy")}`
+                                  : "New member"}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </HoverCardContent>
+                    </HoverCard>
+
+                    {project.organization && (
+                      <>
+                      <div className="flex items-center my-2">
+                <Separator className="shrink" />
+                <span className="px-2 text-xs text-muted-foreground flex items-center">
+                <Building2 className="h-4 w-4 mr-1 flex-shrink-0" /> Organization
+                </span>
+                <Separator className="shrink" />
+            </div>
+                          <HoverCard>
+                            <HoverCardTrigger asChild>
+                              <Link 
+                                href={`/organization/${project.organization.username}`}
+                                className="flex items-center gap-3"
+                              >
+                                <Avatar className="h-9 w-9 border border-muted">
+                                  {project.organization.logo_url ? (
+                                    <AvatarImage 
+                                      src={project.organization.logo_url}
+                                      alt={project.organization.name}
+                                    />
+                                  ) : (
+                                    <AvatarFallback className="bg-muted text-xs">
+                                      {project.organization.name.substring(0, 2).toUpperCase()}
+                                    </AvatarFallback>
+                                  )}
+                                </Avatar>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-1.5">
+                                    <p className="text-sm font-medium">
+                                      {project.organization.name}
+                                    </p>
+                                    {project.organization.verified && (
+                                      <BadgeCheck 
+                                        className="h-4 w-4 text-primary" 
+                                        fill="hsl(var(--primary))"
+                                        stroke="hsl(var(--popover))"
+                                        strokeWidth={2}
+                                      />
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-muted-foreground">
+                                    @{project.organization.username}
+                                  </p>
+                                </div>
+                              </Link>
+                            </HoverCardTrigger>
+                            <HoverCardContent className="w-auto">
+                              <div 
+                                className="flex justify-between space-x-4 cursor-pointer" 
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  window.location.href = `/organization/${project.organization?.username}`;
+                                }}
+                              >
+                                <Avatar className="h-10 w-10 border border-muted">
+                                  {project.organization.logo_url ? (
+                                    <AvatarImage 
+                                      src={project.organization.logo_url}
+                                      alt={project.organization.name}
+                                    />
+                                  ) : (
+                                    <AvatarFallback className="bg-muted text-xs">
+                                      {project.organization.name.substring(0, 2).toUpperCase()}
+                                    </AvatarFallback>
+                                  )}
+                                </Avatar>
+                                <div className="space-y-1 flex-1">
+                                  <h4 className="text-sm font-semibold flex items-center gap-1.5">
+                                    {project.organization.name}
+                                    {project.organization.verified && (
+                                      <BadgeCheck 
+                                        className="h-4 w-4 text-primary" 
+                                        fill="hsl(var(--primary))"
+                                        stroke="hsl(var(--popover))"
+                                        strokeWidth={2}
+                                      />
+                                    )}
+                                  </h4>
+                                  <p className="text-sm">
+                                    @{project.organization.username}
+                                  </p>
+                                  <div className="flex items-center pt-2">
+                                    <Building2 className="mr-2 h-4 w-4 opacity-70" />
+                                    <span className="text-xs text-muted-foreground">
+                                      Organization
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            </HoverCardContent>
+                          </HoverCard>
+                      </>
+                    )}
                   </div>
                 </div>
 
