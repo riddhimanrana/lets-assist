@@ -46,6 +46,16 @@ export interface ProjectSchedule {
   sameDayMultiArea?: SameDayMultiAreaSchedule;
 }
 
+
+// Define ProjectDocument type
+export interface ProjectDocument {
+  name: string;
+  originalName: string;
+  type: string;
+  size: number;
+  url: string;
+};
+
 export interface Profile {
   full_name: string | null;
   avatar_url: string | null;

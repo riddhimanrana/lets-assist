@@ -68,43 +68,52 @@ const formatDateDisplay = (project: any) => {
 
   switch (project.event_type) {
     case "oneTime": {
-      return format(new Date(project.schedule.oneTime.date), "MMM d");
+      const dateStr = project.schedule.oneTime?.date;
+      const [year, month, dayNum] = dateStr.split("-").map(Number);
+      const date = new Date(year, month - 1, dayNum);
+      return format(date, "MMM d");
     }
     case "multiDay": {
       const dates = project.schedule.multiDay
-        .map((day: any) => new Date(day.date))
-        .sort((a: Date, b: Date) => a.getTime() - b.getTime());
-      
-      // If dates are in same month
+      .map((day: any) => {
+        const [year, month, dayNum] = day.date.split("-").map(Number);
+        return new Date(year, month - 1, dayNum);
+      })
+      .sort((a: Date, b: Date) => a.getTime() - b.getTime());
+
+      // If dates are in the same month
       const allSameMonth = dates.every(
-        (date: Date) => date.getMonth() === dates[0].getMonth()
+      (date: Date) => date.getMonth() === dates[0].getMonth()
       );
-      
+
       if (dates.length <= 3) {
-        if (allSameMonth) {
-          // Format as "Mar 7, 9, 10"
-          return `${format(dates[0], "MMM")} ${dates
-            .map((date: Date) => format(date, "d"))
-            .join(", ")}`;
-        } else {
-          // Format as "Mar 7, Apr 9, 10"
-          return dates
-            .map((date: Date, i: number) => {
-              const prevDate = i > 0 ? dates[i - 1] : null;
-              if (!prevDate || prevDate.getMonth() !== date.getMonth()) {
-                return format(date, "MMM d");
-              }
-              return format(date, "d");
-            })
-            .join(", ");
-        }
+      if (allSameMonth) {
+        // Format as "Mar 7, 9, 10"
+        return `${format(dates[0], "MMM")} ${dates
+        .map((date: Date) => format(date, "d"))
+        .join(", ")}`;
       } else {
-        // For more than 3 dates, show range
-        return `${format(dates[0], "MMM d")} - ${format(dates[dates.length - 1], "MMM d")}`;
+        // Format as "Mar 7, Apr 9, 10"
+        return dates
+        .map((date: Date, i: number) => {
+          const prevDate = i > 0 ? dates[i - 1] : null;
+          if (!prevDate || prevDate.getMonth() !== date.getMonth()) {
+          return format(date, "MMM d");
+          }
+          return format(date, "d");
+        })
+        .join(", ");
+      }
+      } else {
+      // For more than 3 dates, show range
+      return `${format(dates[0], "MMM d")} - ${format(dates[dates.length - 1], "MMM d")}`;
       }
     }
     case "sameDayMultiArea": {
-      return format(new Date(project.schedule.sameDayMultiArea.date), "MMM d");
+      const dateStr = project.schedule.sameDayMultiArea?.date;
+      const [year, month, dayNum] = dateStr.split("-").map(Number);
+      const date = new Date(year, month - 1, dayNum);
+      return format(date, "MMM d");
     }
     default:
       return "";
@@ -117,17 +126,33 @@ const getEventScheduleSummary = (project: any) => {
 
   switch (project.event_type) {
     case "oneTime": {
-      const date = format(new Date(project.schedule.oneTime.date), "MMM d, yyyy");
+      const dateStr = project.schedule.oneTime?.date
+      const [year, month, dayNum] = dateStr.split("-").map(Number);
+      const dateFormat = new Date(year, month - 1, dayNum);
+      const date = format(dateFormat, "MMM d, yyyy");
       return `${date}, ${formatTime(project.schedule.oneTime.startTime)} - ${formatTime(project.schedule.oneTime.endTime)}`;
     }
     case "multiDay": {
       const days = project.schedule.multiDay.length;
-      const startDate = format(new Date(project.schedule.multiDay[0].date), "MMM d");
-      const endDate = format(new Date(project.schedule.multiDay[days - 1].date), "MMM d");
+      const startDateStr = project.schedule.multiDay[0].date;
+      const endDateStr = project.schedule.multiDay[days - 1].date;
+
+      const [startYear, startMonth, startDayNum] = startDateStr.split("-").map(Number);
+      const [endYear, endMonth, endDayNum] = endDateStr.split("-").map(Number);
+
+      const startDateFormat = new Date(startYear, startMonth - 1, startDayNum);
+      const endDateFormat = new Date(endYear, endMonth - 1, endDayNum);
+
+      const startDate = format(startDateFormat, "MMM d");
+      const endDate = format(endDateFormat, "MMM d");
+
       return `${days} days (${startDate} - ${endDate})`;
     }
     case "sameDayMultiArea": {
-      const date = format(new Date(project.schedule.sameDayMultiArea.date), "MMM d, yyyy");
+      const dateStr = project.schedule.sameDayMultiArea.date
+      const [year, month, dayNum] = dateStr.split("-").map(Number);
+      const dateFormat = new Date(year, month - 1, dayNum);
+      const date = format(dateFormat, "MMM d, yyyy");
       const roles = project.schedule.sameDayMultiArea.roles.length;
       return `${date}, ${roles} roles`;
     }

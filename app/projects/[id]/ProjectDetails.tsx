@@ -10,6 +10,7 @@ import {
   Organization,
   ProjectStatus,
   LocationData,
+  ProjectDocument,
   AnonymousSignupData
 } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -79,6 +80,31 @@ interface Props {
   organization?: Organization | null;
   initialSlotData: SlotData;
 }
+
+const getFileIcon = (type: string) => {
+  if (type.includes('pdf')) return <FileText className="h-5 w-5" />;
+  if (type.includes('image')) return <FileImage className="h-5 w-5" />;
+  if (type.includes('text')) return <FileText className="h-5 w-5" />;
+  if (type.includes('word')) return <FileText className="h-5 w-5" />;
+  return <File className="h-5 w-5" />;
+};
+
+const downloadFile = async (url: string, filename: string) => {
+  try {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    const href = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = href;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(href);
+  } catch (error) {
+    console.error('Download error:', error);
+  }
+};
 
 export default function ProjectDetails({ project, creator, organization, initialSlotData }: Props) {
   const router = useRouter();
@@ -293,14 +319,14 @@ export default function ProjectDetails({ project, creator, organization, initial
 
             {/* Volunteer Opportunities */}
             <Card>
-              <CardHeader className="pb-3 flex flex-col sm:flex-row items-start sm:items-center justify-between">
+              <CardHeader className="pb-3 flex flex-col mb-1 sm:flex-row items-start sm:items-center justify-between">
                 <CardTitle>Volunteer Opportunities</CardTitle>
-                {project.require_login && (
+                {/* {project.require_login && (
                   <Badge variant="secondary" className="gap-1 mt-2 sm:mt-0 ml-0 sm:ml-2">
                     <Lock className="h-3 w-3" />
                     Account Required
                   </Badge>
-                )}
+                )} */}
               </CardHeader>
               <CardContent>
                 {project.event_type === "oneTime" && project.schedule.oneTime && (
@@ -308,15 +334,15 @@ export default function ProjectDetails({ project, creator, organization, initial
                     <CardContent className="p-4">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div className="max-w-[400px]">
-                          <h3 className="font-medium text-base break-words">
+                            <h3 className="font-medium text-base break-words">
                             {(() => {
                               // Create date with UTC to prevent timezone offset issues
                               const dateStr = project.schedule.oneTime.date;
-                              const [year, month, day] = dateStr.split('-').map(Number);
-                              const date = new Date(Date.UTC(year, month - 1, day));
+                              const [year, month, dayNum] = dateStr.split("-").map(Number);
+                              const date = new Date(year, month - 1, dayNum);
                               return format(date, "EEEE, MMMM d");
                             })()}
-                          </h3>
+                            </h3>
                           <div className="flex items-center gap-2 text-muted-foreground mt-1 text-sm">
                             <Clock className="h-3.5 w-3.5 flex-shrink-0" />
                             <span className="line-clamp-1">
@@ -370,10 +396,9 @@ export default function ProjectDetails({ project, creator, organization, initial
                       <div key={day.date} className="mb-4">
                         <h3 className="font-medium mb-2">
                           {(() => {
-                            // Create date with UTC to prevent timezone offset issues
                             const dateStr = day.date;
-                            const [year, month, dayNum] = dateStr.split('-').map(Number);
-                            const date = new Date(Date.UTC(year, month - 1, dayNum));
+                            const [year, month, dayNum] = dateStr.split("-").map(Number);
+                            const date = new Date(year, month - 1, dayNum);
                             return format(date, "EEEE, MMMM d");
                           })()}
                         </h3>
@@ -443,10 +468,9 @@ export default function ProjectDetails({ project, creator, organization, initial
                     <div className="mb-4">
                       <h3 className="font-medium mb-2">
                         {(() => {
-                          // Create date with UTC to prevent timezone offset issues
-                          const dateStr = project.schedule.sameDayMultiArea.date;
-                          const [year, month, day] = dateStr.split('-').map(Number);
-                          const date = new Date(Date.UTC(year, month - 1, day));
+                          const dateStr = project.schedule.sameDayMultiArea.date
+                          const [year, month, dayNum] = dateStr.split("-").map(Number);
+                          const date = new Date(year, month - 1, dayNum);
                           return format(date, "EEEE, MMMM d");
                         })()}
                       </h3>
@@ -547,6 +571,36 @@ export default function ProjectDetails({ project, creator, organization, initial
                 <CardTitle>Project Details</CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
+                {/* Project Cover Image - Only show if it exists */}
+                {project.cover_image_url && (
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-2">
+                      Project Image
+                    </h3>
+                    <div className="relative mb-4 cursor-pointer max-w-[400px]" onClick={() => openPreview(project.cover_image_url!, project.title, "image/jpeg")}>
+                      <div className="overflow-hidden rounded-md border">
+                        <Image
+                          src={project.cover_image_url}
+                          alt={project.title}
+                          width={300}
+                          height={180}
+                          className="object-cover w-full aspect-video h-auto hover:scale-105 transition-transform"
+                        />
+                      </div>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="absolute bottom-2 right-2 bg-background/80 backdrop-blur-sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openPreview(project.cover_image_url!, project.title, "image/jpeg");
+                        }}
+                      >
+                        <Eye className="h-4 w-4 mr-1" /> View
+                      </Button>
+                    </div>
+                  </div>
+                )}
                 {/* Project Coordinator */}
                 <div>
                   <h3 className="text-sm font-medium text-muted-foreground mb-2">
@@ -751,6 +805,54 @@ export default function ProjectDetails({ project, creator, organization, initial
               location={project.location} 
               locationData={project.location_data} 
             />
+            {/* Project Documents Section */}
+            {project.documents && project.documents.length > 0 && (
+              <Card className="bg-card">
+                <CardHeader className="pb-3">
+                  <CardTitle>Project Documents</CardTitle>
+                </CardHeader>
+                <CardContent className="p-4">
+                  <div className="space-y-3">
+                    {project.documents.map((doc: ProjectDocument, index: number) => (
+                      <div 
+                        key={index} 
+                        className="flex items-center justify-between p-3 rounded-lg border bg-background hover:bg-muted/20 transition-colors"
+                      >
+                        <div className="flex items-center gap-3 w-0 flex-1">
+                          <div className="bg-muted p-2 rounded-md flex-shrink-0">
+                            {getFileIcon(doc.type)}
+                          </div>
+                          <div className="min-w-0 w-full overflow-hidden">
+                            <p className="font-medium text-sm truncate">{doc.name}</p>
+                            <p className="text-xs text-muted-foreground">{formatBytes(doc.size)}</p>
+                          </div>
+                        </div>
+                        <div className="flex gap-2 flex-shrink-0 ml-2">
+                          {isPreviewable(doc.type) && (
+                            <Button 
+                              variant="outline" 
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => openPreview(doc.url, doc.name, doc.type)}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          )}
+                          <Button 
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => downloadFile(doc.url, doc.name)}
+                          >
+                            <Download className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       </div>

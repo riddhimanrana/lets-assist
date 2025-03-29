@@ -51,7 +51,7 @@ interface ScheduleProps {
   updateMultiDayScheduleAction: (
     dayIndex: number,
     field: string,
-    value: string,
+    value: string | number,
     slotIndex?: number,
   ) => void;
   updateMultiRoleScheduleAction: (
@@ -364,7 +364,7 @@ export default function Schedule({
                                     updateMultiDayScheduleAction(
                                       dayIndex,
                                       "volunteers",
-                                      e.target.value,
+                                      parseInt(e.target.value),
                                       slotIndex,
                                     )
                                   }
