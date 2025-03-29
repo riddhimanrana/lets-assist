@@ -347,7 +347,9 @@ export default function Navbar({ initialUser }: NavbarProps) {
                 <Button variant="ghost" asChild>
                   <Link href="/projects">Volunteering Near Me</Link>
                 </Button>
-                <Button variant="ghost">Connected Organizations</Button>
+                <Button variant="ghost" asChild>
+                  <Link href="/organization">Connected Organizations</Link>
+                </Button>
               </>
             )}
           </div>
@@ -568,15 +570,17 @@ export default function Navbar({ initialUser }: NavbarProps) {
                         variant="ghost"
                         className="w-full justify-between text-muted-foreground"
                         onClick={handleNavigation}
+                        asChild
                       >
-                        Volunteering Near Me
+                        <Link href="/projects">Volunteering Near Me</Link>
                       </Button>
                       <Button
                         variant="ghost"
                         className="w-full justify-between text-muted-foreground"
                         onClick={handleNavigation}
+                        asChild
                       >
-                        Connected Organizations
+                        <Link href="/organization">Connected Organizations</Link>
                       </Button>
                     </>
                   )}
