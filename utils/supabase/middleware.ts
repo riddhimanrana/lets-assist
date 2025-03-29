@@ -1,12 +1,29 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
 
-export const createClient = (request: NextRequest) => {
-  // Create an unmodified response
-  let response = NextResponse.next({
-    request: {
-      headers: request.headers,
-    },
+// Paths that require authentication
+const PROTECTED_PATHS = ["/home", "/projects/create", "/account"];
+
+// Paths that logged-in users shouldn't access
+const RESTRICTED_PATHS_FOR_LOGGED_IN_USERS = ["/", "/login", "/signup", "/projects"];
+
+// Function to check if a path requires authentication
+function isProtectedPath(path: string) {
+  return PROTECTED_PATHS.some(
+    (protectedPath) =>
+      path === protectedPath || path.startsWith(`${protectedPath}/`),
+  );
+}
+
+// Function to check if path is for project creator only
+function isProjectCreatorPath(path: string) {
+  const matches = path.match(/^\/projects\/([^\/]+)\/(edit|signups|documents)$/);
+  return matches ? { isCreatorPath: true, projectId: matches[1] } : { isCreatorPath: false, projectId: null };
+}
+
+export async function updateSession(request: NextRequest) {
+  let supabaseResponse = NextResponse.next({
+    request,
   });
 
   const supabase = createServerClient(
@@ -15,36 +32,86 @@ export const createClient = (request: NextRequest) => {
     {
       cookies: {
         getAll() {
-          return request.cookies.getAll().map((cookie) => ({
-            name: cookie.name,
-            value: cookie.value,
-          }));
+          return request.cookies.getAll()
         },
-        setAll(
-          cookies: { name: string; value: string; options: CookieOptions }[],
-        ) {
-          cookies.forEach(({ name, value, options }) => {
-            // Update both request and response cookies
-            request.cookies.set({
-              name,
-              value,
-              ...options,
-            });
-            response = NextResponse.next({
-              request: {
-                headers: request.headers,
-              },
-            });
-            response.cookies.set({
-              name,
-              value,
-              ...options,
-            });
-          });
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
+          supabaseResponse = NextResponse.next({
+            request,
+          })
+          cookiesToSet.forEach(({ name, value, options }) =>
+            supabaseResponse.cookies.set(name, value, options)
+          )
         },
       },
-    },
-  );
+    }
+  )
 
-  return { supabase, response };
-};
+  // Check for ?noRedirect=1 query parameter
+  const searchParams = request.nextUrl.searchParams;
+  if (searchParams.get("noRedirect") === "1") {
+    return supabaseResponse; // Skip redirects if requested
+  }
+
+  // Fetch user session
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const currentPath = request.nextUrl.pathname;
+
+  // Handle /account redirect - must come first as it's a simple path redirect
+  if (currentPath === "/account") {
+    return NextResponse.redirect(new URL("/account/profile", request.url));
+  }
+
+  // Redirect authenticated users trying to access restricted paths
+  if (user && RESTRICTED_PATHS_FOR_LOGGED_IN_USERS.includes(currentPath)) {
+    return NextResponse.redirect(new URL("/home", request.url));
+  }
+
+  // Redirect non-authenticated users trying to access protected paths
+  if (!user && isProtectedPath(currentPath)) {
+    const loginUrl = new URL('/login', request.url);
+    loginUrl.searchParams.set('redirect', request.nextUrl.pathname);
+    return NextResponse.redirect(loginUrl);
+  }
+
+  // Check for project creator routes
+  const { isCreatorPath, projectId } = isProjectCreatorPath(currentPath);
+  if (isCreatorPath && projectId) {
+    // If not logged in, redirect to login with return URL
+    if (!user) {
+      const loginUrl = new URL('/login', request.url);
+      loginUrl.searchParams.set('redirect', request.nextUrl.pathname);
+      return NextResponse.redirect(loginUrl);
+    }
+
+    // Check if user is the project creator
+    try {
+      const { data: project, error } = await supabase
+        .from("projects")
+        .select("creator_id")
+        .eq("id", projectId)
+        .single();
+
+      if (error) {
+        console.error("Error fetching project for creator check:", error);
+        // Redirect to a generic error page or home page might be appropriate
+        return NextResponse.redirect(new URL("/home", request.url));
+      }
+
+      if (!project || project.creator_id !== user.id) {
+        // If not creator, redirect back to project page
+        return NextResponse.redirect(
+          new URL(`/projects/${projectId}`, request.url)
+        );
+      }
+    } catch (e) {
+      console.error("Exception during project creator check:", e);
+      return NextResponse.redirect(new URL("/home", request.url));
+    }
+  }
+
+  // If no redirects were triggered, return the response that updates the session cookie
+  return supabaseResponse;
+}

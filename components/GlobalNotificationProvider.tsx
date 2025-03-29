@@ -13,9 +13,6 @@ export default function GlobalNotificationProvider({
   const initRef = useRef(false);
   
   useEffect(() => {
-    // Only run once
-    if (initRef.current) return;
-    initRef.current = true;
     
     console.log('Initializing GlobalNotificationProvider');
     const supabase = createClient();
@@ -68,7 +65,7 @@ export default function GlobalNotificationProvider({
       console.log("Cleaning up auth listener");
       authListener?.subscription.unsubscribe();
     };
-  }, []);
+  }, []); // Empty dependency array is correct as this should only run once
   
   return (
     <>

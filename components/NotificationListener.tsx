@@ -10,8 +10,12 @@ interface NotificationListenerProps {
   userId: string;
 }
 
-// Keep track of notifications we've displayed globally
+// Keep track of notifications we've displayed during the current session
 const displayedNotifications = new Set<string>();
+
+// Maximum number of notifications to process at once
+const MAX_BATCH_SIZE = 10;
+const NOTIFICATION_DELAY = 300; // ms between notifications
 
 export function NotificationListener({ userId }: NotificationListenerProps) {
   const channelRef = useRef<RealtimeChannel | null>(null);
@@ -79,12 +83,14 @@ export function NotificationListener({ userId }: NotificationListenerProps) {
         } else if (notifications?.length) {
           console.log(`Found ${notifications.length} pending notifications to display`);
           
-          // Process notifications with slight delays between them
-          for (let i = 0; i < notifications.length; i++) {
-            // Use setTimeout to stagger notifications
+          // Process notifications in batches with slight delays between them
+          const notificationsToProcess = notifications.slice(0, MAX_BATCH_SIZE);
+          console.log(`Processing ${notificationsToProcess.length} notifications (max batch size: ${MAX_BATCH_SIZE})`);
+          
+          for (let i = 0; i < notificationsToProcess.length; i++) {
             setTimeout(() => {
-              displayNotificationToast(notifications[i]);
-            }, i * 300); // 300ms between notifications
+              displayNotificationToast(notificationsToProcess[i]);
+            }, i * NOTIFICATION_DELAY);
           }
         } else {
           console.log('No pending notifications found');
@@ -101,20 +107,23 @@ export function NotificationListener({ userId }: NotificationListenerProps) {
       }
       
       // Set up realtime subscription with a unique channel name
-      const channelName = `personal-notifications-${userId}-${Date.now()}`;
+      const channelName = `personal-notifications:${userId}`;
       console.log(`Creating realtime channel: ${channelName}`);
       
       // Clean up any existing channel first
       if (channelRef.current) {
-        console.log('Removing existing channel before creating new one');
+        console.log(`Removing existing channel: ${channelRef.current.topic}`);
         await supabase.removeChannel(channelRef.current);
       }
       
-      // Create new channel with clear status logging
+      // Create new channel with clear status logging and error handling
       const channel = supabase
         .channel(channelName)
         .on('system', { event: '*' }, (payload: any) => {
           console.log('Supabase system event:', payload);
+          if (payload.type === 'ERROR') {
+            console.error('Supabase system error:', payload);
+          }
         })
         .on(
           'postgres_changes',
@@ -148,8 +157,14 @@ export function NotificationListener({ userId }: NotificationListenerProps) {
           
           // If the subscription failed, try again after a delay
           if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-            console.log('Subscription failed, will retry in 5 seconds');
-            setTimeout(initialize, 5000);
+          // Using a ref to track retry attempts
+          const retryCount = (channel as any)._retryCount || 0;
+          (channel as any)._retryCount = retryCount + 1;
+          
+          console.log('Subscription failed, will retry with exponential backoff');
+          const backoffDelay = Math.min(5000 * Math.pow(2, retryCount), 30000);
+          console.log(`Retrying in ${backoffDelay}ms (attempt ${retryCount + 1})`);
+          setTimeout(initialize, backoffDelay);
           }
         });
         
