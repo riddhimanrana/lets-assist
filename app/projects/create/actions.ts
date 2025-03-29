@@ -19,8 +19,47 @@ const ALLOWED_DOCUMENT_TYPES = [
   "image/jpg"
 ];
 
+// Helper function to check if date/time is in the past
+const isDateTimeInPast = (date: string, time: string): boolean => {
+  const [hours, minutes] = time.split(':').map(Number);
+  const [year, month, day] = date.split('-').map(Number);
+  
+  const datetime = new Date(year, month - 1, day);
+  datetime.setHours(hours, minutes, 0, 0);
+  
+  return datetime < new Date();
+};
+
 // Create project without files first
 export async function createBasicProject(projectData: any) {
+  // Validate that all dates and times are in the future
+  if (projectData.eventType === "oneTime") {
+    if (isDateTimeInPast(projectData.schedule.oneTime.date, projectData.schedule.oneTime.startTime) ||
+        isDateTimeInPast(projectData.schedule.oneTime.date, projectData.schedule.oneTime.endTime)) {
+      return { error: "Event dates and times must be in the future" };
+    }
+  } else if (projectData.eventType === "multiDay") {
+    for (const day of projectData.schedule.multiDay) {
+      for (const slot of day.slots) {
+        if (isDateTimeInPast(day.date, slot.startTime) ||
+            isDateTimeInPast(day.date, slot.endTime)) {
+          return { error: "Event dates and times must be in the future" };
+        }
+      }
+    }
+  } else if (projectData.eventType === "sameDayMultiArea") {
+    const date = projectData.schedule.sameDayMultiArea.date;
+    if (isDateTimeInPast(date, projectData.schedule.sameDayMultiArea.overallStart) ||
+        isDateTimeInPast(date, projectData.schedule.sameDayMultiArea.overallEnd)) {
+      return { error: "Event dates and times must be in the future" };
+    }
+    for (const role of projectData.schedule.sameDayMultiArea.roles) {
+      if (isDateTimeInPast(date, role.startTime) ||
+          isDateTimeInPast(date, role.endTime)) {
+        return { error: "Event dates and times must be in the future" };
+      }
+    }
+  }
   const supabase = await createClient();
 
   // Get current user

@@ -102,12 +102,24 @@ export default function Schedule({
     return false;
   };
 
-  // Add a function to disable past dates
+  // Add functions to validate dates and times
   const isPastDate = (date: Date) => {
-    // Create today's date without time for comparison
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     return date < today;
+  };
+
+  const isTimeInPast = (date: string, time: string) => {
+    if (!date || !time) return false;
+    
+    const [hours, minutes] = time.split(':').map(Number);
+    const selectedDate = parseStringToDate(date);
+    if (!selectedDate) return false;
+    
+    const datetime = new Date(selectedDate);
+    datetime.setHours(hours, minutes, 0, 0);
+    
+    return datetime < new Date();
   };
 
   if (state.eventType === "oneTime") {
@@ -164,14 +176,18 @@ export default function Schedule({
                 <Input
                   type="number"
                   min="1"
+                  max="1000"
                   className="mt-1.5"
                   value={state.schedule.oneTime.volunteers}
-                  onChange={(e) =>
-                    updateOneTimeScheduleAction(
-                      "volunteers",
-                      parseInt(e.target.value),
-                    )
-                  }
+                  onChange={(e) => {
+                    const value = parseInt(e.target.value);
+                    // if (value <= 2000) {
+                      updateOneTimeScheduleAction(
+                        "volunteers",
+                        value
+                      );
+                    // }
+                  }}
                 />
               </div>
             </div>
@@ -182,10 +198,12 @@ export default function Schedule({
                 onChangeAction={(time: string) =>
                   updateOneTimeScheduleAction("startTime", time)
                 }
-                error={timeRangeInvalid}
+                error={timeRangeInvalid || isTimeInPast(state.schedule.oneTime.date, state.schedule.oneTime.startTime)}
                 errorMessage={
                   timeRangeInvalid
                     ? "Start time must be before end time"
+                    : isTimeInPast(state.schedule.oneTime.date, state.schedule.oneTime.startTime)
+                    ? "Start time must be in the future"
                     : undefined
                 }
               />
@@ -195,10 +213,12 @@ export default function Schedule({
                 onChangeAction={(time: string) =>
                   updateOneTimeScheduleAction("endTime", time)
                 }
-                error={timeRangeInvalid}
+                error={timeRangeInvalid || isTimeInPast(state.schedule.oneTime.date, state.schedule.oneTime.endTime)}
                 errorMessage={
                   timeRangeInvalid
                     ? "End time must be after start time"
+                    : isTimeInPast(state.schedule.oneTime.date, state.schedule.oneTime.endTime)
+                    ? "End time must be in the future"
                     : undefined
                 }
               />
@@ -328,10 +348,12 @@ export default function Schedule({
                                       slotIndex,
                                     )
                                   }
-                                  error={timeRangeInvalid}
+                                  error={timeRangeInvalid || isTimeInPast(day.date, slot.startTime)}
                                   errorMessage={
                                     timeRangeInvalid
                                       ? "Invalid time"
+                                      : isTimeInPast(day.date, slot.startTime)
+                                      ? "Start time must be in the future"
                                       : undefined
                                   }
                                 />
@@ -345,31 +367,40 @@ export default function Schedule({
                                       slotIndex,
                                     )
                                   }
-                                  error={timeRangeInvalid}
+                                  error={timeRangeInvalid || isTimeInPast(day.date, slot.endTime)}
                                   errorMessage={
                                     timeRangeInvalid
                                       ? "Invalid time"
+                                      : isTimeInPast(day.date, slot.endTime)
+                                      ? "End time must be in the future"
                                       : undefined
                                   }
                                 />
                               </div>
                               <div>
                                 <Label className="sr-only">Volunteers</Label>
-                                <Input
-                                  type="number"
-                                  min="1"
-                                  placeholder="# volunteers"
-                                  value={slot.volunteers}
-                                  onChange={(e) =>
-                                    updateMultiDayScheduleAction(
-                                      dayIndex,
-                                      "volunteers",
-                                      parseInt(e.target.value),
-                                      slotIndex,
-                                    )
-                                  }
-                                  className="h-10"
-                                />
+                                <div>
+                                  <Input
+                                    type="number"
+                                    min="1"
+                                    max="1000"
+                                    placeholder="# volunteers"
+                                    value={slot.volunteers}
+                                    onChange={(e) => {
+                                      const value = parseInt(e.target.value);
+                                      // if (value <= 1000) {
+                                        updateMultiDayScheduleAction(
+                                          dayIndex,
+                                          "volunteers",
+                                          value,
+                                          slotIndex,
+                                        );
+                                      // }
+                                    }}
+                                    className="h-10"
+                                  />
+                                  {/* <p className="text-xs text-muted-foreground mt-1">Max 2000 volunteers</p> */}
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -546,9 +577,13 @@ export default function Schedule({
                                   roleIndex,
                                 )
                               }
-                              error={roleTimeInvalid}
+                              error={roleTimeInvalid || isTimeInPast(state.schedule.sameDayMultiArea.date, role.startTime)}
                               errorMessage={
-                                roleTimeInvalid ? "Invalid time" : undefined
+                                roleTimeInvalid 
+                                  ? "Invalid time" 
+                                  : isTimeInPast(state.schedule.sameDayMultiArea.date, role.startTime)
+                                  ? "Start time must be in the future"
+                                  : undefined
                               }
                             />
                             <TimePicker
@@ -560,28 +595,39 @@ export default function Schedule({
                                   roleIndex,
                                 )
                               }
-                              error={roleTimeInvalid}
+                              error={roleTimeInvalid || isTimeInPast(state.schedule.sameDayMultiArea.date, role.endTime)}
                               errorMessage={
-                                roleTimeInvalid ? "Invalid time" : undefined
+                                roleTimeInvalid 
+                                  ? "Invalid time" 
+                                  : isTimeInPast(state.schedule.sameDayMultiArea.date, role.endTime)
+                                  ? "End time must be in the future"
+                                  : undefined
                               }
                             />
                           </div>
                         </div>
                         <div>
                           <Label>Volunteers Needed</Label>
-                          <Input
-                            type="number"
-                            min="1"
-                            className="mt-1.5"
-                            value={role.volunteers}
-                            onChange={(e) =>
-                              updateMultiRoleScheduleAction(
-                                "volunteers",
-                                parseInt(e.target.value),
-                                roleIndex,
-                              )
-                            }
-                          />
+                          <div>
+                            <Input
+                              type="number"
+                              min="1"
+                              max="1000"
+                              className="mt-1.5"
+                              value={role.volunteers}
+                              onChange={(e) => {
+                                const value = parseInt(e.target.value);
+                                // if (value <= 1000) {
+                                  updateMultiRoleScheduleAction(
+                                    "volunteers",
+                                    value,
+                                    roleIndex,
+                                  );
+                                // }
+                              }}
+                            />
+                            {/* <p className="text-xs text-muted-foreground mt-1">Max 2000 volunteers</p> */}
+                          </div>
                         </div>
                       </div>
                     </div>

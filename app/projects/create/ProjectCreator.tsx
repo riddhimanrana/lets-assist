@@ -70,6 +70,19 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
     });
   };
 
+  // Helper function to check if datetime is in the past
+  const isDateTimeInPast = (date: string, time: string): boolean => {
+    if (!date || !time) return false;
+    
+    const [hours, minutes] = time.split(':').map(Number);
+    const [year, month, day] = date.split('-').map(Number);
+    
+    const datetime = new Date(year, month - 1, day);
+    datetime.setHours(hours, minutes, 0, 0);
+    
+    return datetime < new Date();
+  };
+
   const getValidationMessage = () => {
     if (!canProceed()) {
       switch (state.step) {
@@ -77,13 +90,53 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
           return "Please fill in all required fields";
         case 3:
           if (state.eventType === "oneTime") {
-            return "Please select a date, time, and number of volunteers";
+            if (!state.schedule.oneTime.date || !state.schedule.oneTime.startTime || 
+                !state.schedule.oneTime.endTime || !state.schedule.oneTime.volunteers) {
+              return "Please select a date, time, and number of volunteers";
+            }
+            if (isDateTimeInPast(state.schedule.oneTime.date, state.schedule.oneTime.startTime) ||
+                isDateTimeInPast(state.schedule.oneTime.date, state.schedule.oneTime.endTime)) {
+              return "Event dates and times must be in the future";
+            }
           }
           if (state.eventType === "multiDay") {
-            return "Please ensure all days have valid dates, times, and volunteer counts";
+            if (!state.schedule.multiDay.length) {
+              return "Please add at least one day";
+            }
+            for (const day of state.schedule.multiDay) {
+              if (!day.date || !day.slots.length) {
+                return "Please ensure all days have valid dates and time slots";
+              }
+              for (const slot of day.slots) {
+                if (!slot.startTime || !slot.endTime || !slot.volunteers) {
+                  return "Please ensure all time slots have start time, end time, and volunteer count";
+                }
+                if (isDateTimeInPast(day.date, slot.startTime) ||
+                    isDateTimeInPast(day.date, slot.endTime)) {
+                  return "Event dates and times must be in the future";
+                }
+              }
+            }
           }
           if (state.eventType === "sameDayMultiArea") {
-            return "Please ensure all roles have names, valid times, and volunteer counts";
+            if (!state.schedule.sameDayMultiArea.date || 
+                !state.schedule.sameDayMultiArea.overallStart ||
+                !state.schedule.sameDayMultiArea.overallEnd) {
+              return "Please select a date and overall event hours";
+            }
+            if (isDateTimeInPast(state.schedule.sameDayMultiArea.date, state.schedule.sameDayMultiArea.overallStart) ||
+                isDateTimeInPast(state.schedule.sameDayMultiArea.date, state.schedule.sameDayMultiArea.overallEnd)) {
+              return "Event dates and times must be in the future";
+            }
+            for (const role of state.schedule.sameDayMultiArea.roles) {
+              if (!role.name || !role.startTime || !role.endTime || !role.volunteers) {
+                return "Please ensure all roles have names, times, and volunteer counts";
+              }
+              if (isDateTimeInPast(state.schedule.sameDayMultiArea.date, role.startTime) ||
+                  isDateTimeInPast(state.schedule.sameDayMultiArea.date, role.endTime)) {
+                return "Role times must be in the future";
+              }
+            }
           }
         case 4:
           return "Please select a verification method";

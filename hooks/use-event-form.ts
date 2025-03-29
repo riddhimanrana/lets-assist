@@ -11,8 +11,8 @@ export interface EventFormState {
     title: string;
     description: string;
     location: string;
-    locationData?: LocationData; // Add locationData field
-    organizationId: string | null; // Ensure this is string | null
+    locationData?: LocationData;
+    organizationId: string | null;
   };
   schedule: {
     oneTime: {
@@ -43,7 +43,7 @@ export interface EventFormState {
   };
   verificationMethod: VerificationMethod;
   requireLogin: boolean;
-  isPrivate: boolean; // Added property for project visibility
+  isPrivate: boolean;
 }
 
 export function useEventForm() {
@@ -55,15 +55,15 @@ export function useEventForm() {
   const [state, setState] = useState<EventFormState>({
     step: 1,
     eventType: "oneTime",
-    verificationMethod: "qr-code", // Default to QR code method
-    requireLogin: true, // Default to requiring login
-    isPrivate: false, // Default to public
+    verificationMethod: "qr-code",
+    requireLogin: true,
+    isPrivate: false,
     basicInfo: {
       title: "",
       location: "",
-      locationData: undefined, // Initialize locationData field
+      locationData: undefined,
       description: "",
-      organizationId: null, // Default to null (personal project)
+      organizationId: null,
     },
     schedule: {
       oneTime: {
@@ -110,6 +110,18 @@ export function useEventForm() {
     return true;
   };
 
+  const isTimeInPast = (date: string, time: string): boolean => {
+    if (!date || !time) return false;
+    
+    const [hours, minutes] = time.split(':').map(Number);
+    const [year, month, day] = date.split('-').map(Number);
+    
+    const datetime = new Date(year, month - 1, day);
+    datetime.setHours(hours, minutes, 0, 0);
+    
+    return datetime < new Date();
+  };
+
   const nextStep = () => {
     if (state.step < 5 && canProceed()) {
       setState((prev) => ({ ...prev, step: prev.step + 1 }));
@@ -143,7 +155,6 @@ export function useEventForm() {
     value: any,
   ) => {
     setState((prev) => {
-      // Add character limit validation
       if (
         (field === "title" && value.length > 75) ||
         (field === "location" && value.length > 250) ||
@@ -165,7 +176,6 @@ export function useEventForm() {
   const addMultiDaySlot = (dayIndex: number) => {
     setState((prev) => {
       const newMultiDay = [...prev.schedule.multiDay];
-      // Add only one new slot with default times
       newMultiDay[dayIndex] = {
         ...newMultiDay[dayIndex],
         slots: [
@@ -240,12 +250,10 @@ export function useEventForm() {
         [field]: value,
       };
 
-      // Validate time range
       if (
         (field === "startTime" || field === "endTime") &&
         !validateTimeRange(newSchedule.startTime, newSchedule.endTime)
       ) {
-        // If invalid, don't update
         return prev;
       }
 
@@ -262,7 +270,7 @@ export function useEventForm() {
   const updateMultiDaySchedule = (
     dayIndex: number,
     field: string,
-    value: string,
+    value: string | number,
     slotIndex?: number,
   ) => {
     setState((prev) => {
@@ -275,7 +283,6 @@ export function useEventForm() {
           [field]: value,
         };
 
-        // Validate time range for slots
         if (
           (field === "startTime" || field === "endTime") &&
           !validateTimeRange(newSlot.startTime, newSlot.endTime)
@@ -311,7 +318,6 @@ export function useEventForm() {
         const newRoles = [...prev.schedule.sameDayMultiArea.roles];
         const currentRole = newRoles[roleIndex];
 
-        // Add character limit validation for role names
         if (
           field === "name" &&
           typeof value === "string" &&
@@ -325,7 +331,6 @@ export function useEventForm() {
           [field]: value,
         };
 
-        // Validate time range for roles
         if (
           (field === "startTime" || field === "endTime") &&
           !validateTimeRange(newRole.startTime, newRole.endTime)
@@ -346,7 +351,6 @@ export function useEventForm() {
         };
       }
 
-      // Validate overall event time range
       if (
         (field === "overallStart" || field === "overallEnd") &&
         !validateTimeRange(
@@ -426,42 +430,68 @@ export function useEventForm() {
           state.basicInfo.description.trim() !== ""
         );
       case 2:
-        return true; // Event type selection is always valid
+        return true;
       case 3:
         if (state.eventType === "oneTime") {
-          return (
-            state.schedule.oneTime.date &&
-            state.schedule.oneTime.startTime &&
-            state.schedule.oneTime.endTime &&
-            state.schedule.oneTime.volunteers > 0
-          );
+          if (!state.schedule.oneTime.date ||
+              !state.schedule.oneTime.startTime ||
+              !state.schedule.oneTime.endTime ||
+              state.schedule.oneTime.volunteers <= 0) {
+            return false;
+          }
+          // Check if times are in the past
+          if (isTimeInPast(state.schedule.oneTime.date, state.schedule.oneTime.startTime) ||
+              isTimeInPast(state.schedule.oneTime.date, state.schedule.oneTime.endTime)) {
+            return false;
+          }
+          return true;
         }
         if (state.eventType === "multiDay") {
-          return state.schedule.multiDay.every(
-            (day) =>
-              day.date &&
-              day.slots.every(
-                (slot) => slot.startTime && slot.endTime && slot.volunteers > 0,
-              ),
-          );
+          if (state.schedule.multiDay.length === 0) {
+            return false;
+          }
+          return state.schedule.multiDay.every(day => {
+            if (!day.date || day.slots.length === 0) {
+              return false;
+            }
+            return day.slots.every(slot => {
+              if (!slot.startTime || !slot.endTime || slot.volunteers <= 0) {
+                return false;
+              }
+              // Check if times are in the past
+              if (isTimeInPast(day.date, slot.startTime) ||
+                  isTimeInPast(day.date, slot.endTime)) {
+                return false;
+              }
+              return true;
+            });
+          });
         }
         if (state.eventType === "sameDayMultiArea") {
-          return (
-            state.schedule.sameDayMultiArea.date &&
-            state.schedule.sameDayMultiArea.overallStart &&
-            state.schedule.sameDayMultiArea.overallEnd &&
-            state.schedule.sameDayMultiArea.roles.every(
-              (role) =>
-                role.name &&
-                role.startTime &&
-                role.endTime &&
-                role.volunteers > 0,
-            )
-          );
+          if (!state.schedule.sameDayMultiArea.date ||
+              !state.schedule.sameDayMultiArea.overallStart ||
+              !state.schedule.sameDayMultiArea.overallEnd) {
+            return false;
+          }
+          // Check overall times
+          if (isTimeInPast(state.schedule.sameDayMultiArea.date, state.schedule.sameDayMultiArea.overallStart) ||
+              isTimeInPast(state.schedule.sameDayMultiArea.date, state.schedule.sameDayMultiArea.overallEnd)) {
+            return false;
+          }
+          return state.schedule.sameDayMultiArea.roles.every(role => {
+            if (!role.name || !role.startTime || !role.endTime || role.volunteers <= 0) {
+              return false;
+            }
+            // Check role times
+            if (isTimeInPast(state.schedule.sameDayMultiArea.date, role.startTime) ||
+                isTimeInPast(state.schedule.sameDayMultiArea.date, role.endTime)) {
+              return false;
+            }
+            return true;
+          });
         }
         return false;
       case 4:
-        // Require a verification method to be selected
         return !!state.verificationMethod;
       default:
         return true;
@@ -475,7 +505,7 @@ export function useEventForm() {
     setEventType,
     updateVerificationMethod,
     updateRequireLogin,
-    updateIsPrivate, // Added function to update project visibility
+    updateIsPrivate,
     updateBasicInfo,
     addMultiDaySlot,
     addMultiDayEvent,
