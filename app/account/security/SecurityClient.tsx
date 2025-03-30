@@ -126,7 +126,7 @@ export default function SecurityClient() {
         </div>
         <div className="space-y-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card className="h-full">
-            <CardHeader className="px-5 py-4 sm:px-6">
+            <CardHeader className="p-5">
               <CardTitle className="text-xl">Email Address</CardTitle>
               <CardDescription>Change your email address</CardDescription>
             </CardHeader>
@@ -161,11 +161,11 @@ export default function SecurityClient() {
             </CardContent>
           </Card>
           <Card>
-            <CardHeader className="px-5 py-4 sm:px-6">
+            <CardHeader className="p-5">
               <CardTitle className="text-xl">Password</CardTitle>
               <CardDescription>Change your password</CardDescription>
             </CardHeader>
-            <CardContent className="px-5 sm:px-6 py-4">
+            <CardContent className="px-5 py-4">
               <Alert className="mb-4">
                 <AlertDescription>
                   Password changes will be available in a future release.
@@ -206,13 +206,13 @@ export default function SecurityClient() {
           </Card>
         </div>
         <Card className="border-destructive mt-6">
-          <CardHeader className="px-5 py-4 sm:px-6">
+          <CardHeader className="p-5">
             <CardTitle className="text-destructive">Delete Account</CardTitle>
             <CardDescription>
               Permanently delete your account and all associated data
             </CardDescription>
           </CardHeader>
-          <CardContent className="px-5 sm:px-6 py-4">
+          <CardContent className="px-5  py-4">
             <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
               <DialogTrigger asChild>
                 <Button variant="destructive" className="w-full sm:w-auto">

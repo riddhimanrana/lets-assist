@@ -382,7 +382,7 @@ export default function ProfileClient() {
             </p>
           </div>
           <Card className="border shadow-sm">
-            <CardHeader className="px-5 py-4 sm:px-6">
+            <CardHeader className="px-5 py-5 sm:px-6">
               <CardTitle className="text-xl">Profile Picture</CardTitle>
               <CardDescription>
                 Choose a profile picture for your account
@@ -418,7 +418,7 @@ export default function ProfileClient() {
             </CardContent>
           </Card>
           <Card className="border shadow-sm">
-            <CardHeader className="px-5 py-4 sm:px-6">
+            <CardHeader className="p-5">
               <CardTitle className="text-xl">Personal Information</CardTitle>
               <CardDescription>
                 Update your personal details and public profile
