@@ -56,8 +56,7 @@ export async function GET(request: Request) {
             user.user_metadata?.avatar_url ||
             user.user_metadata?.picture;
 
-
-          // Create profile
+          // Create profile with email
           const { error: profileError } = await supabase
             .from("profiles")
             .insert({
@@ -65,6 +64,7 @@ export async function GET(request: Request) {
               full_name: fullName,
               username: `user_${user.id?.slice(0, 8)}`,
               avatar_url: avatarUrl,
+              email: user.email,
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString(),
             });
@@ -74,6 +74,19 @@ export async function GET(request: Request) {
             throw profileError;
           }
         } else {
+          // Update email in case it changed
+          const { error: updateError } = await supabase
+            .from("profiles")
+            .update({ 
+              email: user.email,
+              updated_at: new Date().toISOString()
+            })
+            .eq("id", user.id);
+
+          if (updateError) {
+            console.error("Profile update error:", updateError);
+            throw updateError;
+          }
         }
 
         const forwardedHost = request.headers.get("x-forwarded-host");

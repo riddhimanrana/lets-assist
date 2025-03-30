@@ -31,7 +31,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, XCircle, Clock, ArrowLeft, Loader2 } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, ArrowLeft, Loader2, UserRoundSearch } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
@@ -51,6 +51,8 @@ type Signup = {
   profile?: {
     full_name: string;
     username: string;
+    email: string;
+    phone?: string;
   };
 };
 
@@ -129,7 +131,9 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
         schedule_id,
         profile:profiles!left (
           full_name,
-          username
+          username,
+          email,
+          phone
         )
       `)
       .eq("project_id", projectId)
@@ -279,7 +283,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
 
       <Card className="min-h-[400px] relative">
         {loading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm z-10">
+          <div className="absolute inset-0 flex items-center justify-center z-10">
             <div className="flex flex-col items-center gap-2">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               <span className="text-sm text-muted-foreground">Loading signups...</span>
@@ -294,7 +298,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="relative">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-2.5 top-3 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search by name..."
               className="pl-8"
@@ -312,6 +316,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
+                <TableHead>Type</TableHead>
                 <TableHead>Contact</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -327,10 +332,26 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
                   </TableCell>
                   <TableCell>
                     {signup.user_id ? (
+                      <Button
+                        variant="link"
+                        className="p-0 h-auto"
+                        onClick={() => router.push(`/profile/${signup.profile?.username}`)}
+                      >
+                        Registered User
+                      </Button>
+                    ) : (
+                      <span className="text-muted-foreground">Anonymous</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {signup.user_id ? (
                       <div>
-                        <div className="text-sm text-muted-foreground">
-                          @{signup.profile?.username}
-                        </div>
+                        <div>{signup.profile?.email}</div>
+                        {signup.profile?.phone && (
+                          <div className="text-sm text-muted-foreground">
+                            {signup.profile.phone}
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <div>
@@ -367,7 +388,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
                 <TableRow>
                   <TableCell colSpan={5} className="text-center py-8">
                     <div className="text-muted-foreground">
-                      No signups yet
+                      No signups found for your search criteria.
                     </div>
                   </TableCell>
                 </TableRow>
@@ -378,9 +399,11 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
           ))}
 
           {Object.keys(filteredSignupsBySlot).length === 0 && !loading && (
-            <div className="text-center py-8 text-muted-foreground">
-              No signups match your search
-            </div>
+            <div className="flex flex-col items-center text-muted-foreground space-y-2">
+            <UserRoundSearch className="h-8 w-8 mt-10" />
+            <p className="text-lg font-medium">No signups found</p>
+            <p className="text-sm">Try adjusting your search or check back later.</p>
+          </div>
           )}
         </CardContent>
       </Card>
