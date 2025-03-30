@@ -23,6 +23,7 @@ import {
   Upload,
   FileType,
   AlertTriangle,
+  Building2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
@@ -57,6 +58,7 @@ interface FinalizeProps {
       title: string;
       location: string;
       description: string;
+      organizationId: string | null;
     };
     schedule: {
       oneTime: {
@@ -516,6 +518,16 @@ export default function Finalize({ state, setCoverImage, setDocuments }: Finaliz
           <h3 className="text-lg font-semibold mb-1">
             {state.basicInfo.title}
           </h3>
+          <div className="flex items-center gap-2 text-muted-foreground mb-2">
+            {state.basicInfo.organizationId ? (
+              <Building2 className="h-4 w-4 shrink-0" />
+            ) : (
+              <User className="h-4 w-4 shrink-0" />
+            )}
+            <span className="text-sm">
+              {state.basicInfo.organizationId ? "Published as an organization account" : "Published as a personal project"}
+            </span>
+          </div>
           <div className="flex items-start gap-2 text-muted-foreground mb-4">
             <MapPin className="h-4 w-4 mt-0.5 shrink-0" />
             <span className="text-sm">{state.basicInfo.location}</span>

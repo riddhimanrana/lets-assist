@@ -31,6 +31,11 @@ interface VerificationSettingsProps {
   updateVerificationMethodAction: (method: VerificationMethod) => void;
   updateRequireLoginAction: (requireLogin: boolean) => void;
   updateIsPrivateAction: (isPrivate: boolean) => void; // Add this action
+  errors?: {
+    verificationMethod?: string;
+    requireLogin?: string;
+    isPrivate?: string;
+  };
 }
 
 export default function VerificationSettings({
@@ -41,6 +46,7 @@ export default function VerificationSettings({
   updateVerificationMethodAction,
   updateRequireLoginAction,
   updateIsPrivateAction,
+  errors = {},
 }: VerificationSettingsProps) {
   return (
     <div className="space-y-6">
@@ -76,6 +82,7 @@ export default function VerificationSettings({
               className={cn(
               "flex flex-col items-start space-y-3 rounded-lg border p-4 hover:bg-accent cursor-pointer transition-colors",
               verificationMethod === "qr-code" && "border-primary bg-accent",
+              errors.verificationMethod && "border-destructive",
               )}
             >
               <div className="flex w-full justify-between space-x-3">
@@ -105,6 +112,7 @@ export default function VerificationSettings({
               className={cn(
                 "flex flex-col items-start space-y-3 rounded-lg border p-4 hover:bg-accent cursor-pointer transition-colors",
                 verificationMethod === "manual" && "border-primary bg-accent",
+                errors.verificationMethod && "border-destructive",
               )}
             >
               <div className="flex items-center space-x-3">
@@ -128,6 +136,7 @@ export default function VerificationSettings({
               className={cn(
                 "flex flex-col items-start space-y-3 rounded-lg border p-4 hover:bg-accent cursor-pointer transition-colors",
                 verificationMethod === "auto" && "border-primary bg-accent",
+                errors.verificationMethod && "border-destructive",
               )}
             >
               <div className="flex w-full justify-between space-x-3">
@@ -154,6 +163,13 @@ export default function VerificationSettings({
               </div>
             </label>
           </RadioGroup>
+
+          {errors.verificationMethod && (
+            <div className="text-destructive text-sm flex items-center gap-2 mt-4">
+              <AlertTriangle className="h-4 w-4" />
+              {errors.verificationMethod}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -186,6 +202,7 @@ export default function VerificationSettings({
                   className={cn(
                     "p-2 rounded-md",
                     requireLogin ? "bg-primary/10" : "bg-muted",
+                    errors.requireLogin && "border border-destructive",
                   )}
                 >
                   {requireLogin ? (
@@ -214,6 +231,13 @@ export default function VerificationSettings({
                 onCheckedChange={updateRequireLoginAction}
               />
             </div>
+
+            {errors.requireLogin && (
+              <div className="text-destructive text-sm flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4" />
+                {errors.requireLogin}
+              </div>
+            )}
 
             {!requireLogin && (
               <div className="rounded-lg bg-chart-6/10 p-4 text-sm border border-chart-6/40">
@@ -265,6 +289,7 @@ export default function VerificationSettings({
                     className={cn(
                       "p-2 rounded-md",
                       isPrivate ? "bg-primary/10" : "bg-muted",
+                      errors.isPrivate && "border border-destructive",
                     )}
                   >
                     {isPrivate ? (
@@ -293,6 +318,13 @@ export default function VerificationSettings({
                   onCheckedChange={updateIsPrivateAction}
                 />
               </div>
+
+              {errors.isPrivate && (
+                <div className="text-destructive text-sm flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4" />
+                  {errors.isPrivate}
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

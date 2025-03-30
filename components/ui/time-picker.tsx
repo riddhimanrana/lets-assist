@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Clock } from "lucide-react";
+import { Clock, AlertCircle } from "lucide-react";
 
 interface TimePickerProps {
   value: string;
@@ -24,6 +24,7 @@ interface TimePickerProps {
   label?: string;
   error?: boolean;
   errorMessage?: string;
+  disabled?: boolean;
 }
 
 export function TimePicker({
@@ -32,6 +33,7 @@ export function TimePicker({
   label,
   error,
   errorMessage,
+  disabled = false,
 }: TimePickerProps) {
   const parseTime = (timeString: string) => {
     if (!timeString) return { hour: 9, minute: 0, period: "AM" as const };
@@ -84,16 +86,9 @@ export function TimePicker({
   }, [value]);
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="space-y-2">
       {label && (
-        <div className="flex justify-between items-baseline">
-          <Label>{label}</Label>
-          {error && errorMessage && (
-            <span className="text-xs text-destructive animate-in fade-in">
-              {errorMessage}
-            </span>
-          )}
-        </div>
+        <Label>{label}</Label>
       )}
       <Popover>
         <PopoverTrigger asChild>
@@ -104,7 +99,9 @@ export function TimePicker({
               !value && "text-muted-foreground",
               error && "border-destructive text-destructive",
               error && "hover:border-destructive",
+              disabled && "opacity-50 cursor-not-allowed"
             )}
+            disabled={disabled}
           >
             <Clock
               className={cn("mr-2 h-4 w-4", error && "text-destructive")}
@@ -127,6 +124,7 @@ export function TimePicker({
                   setSelectedHour(newHour);
                   handleTimeChange(newHour, selectedMinute, selectedPeriod);
                 }}
+                disabled={disabled}
               >
                 <SelectTrigger className="h-9">
                   <SelectValue placeholder="Hour" />
@@ -150,6 +148,7 @@ export function TimePicker({
                   setSelectedMinute(newMinute);
                   handleTimeChange(selectedHour, newMinute, selectedPeriod);
                 }}
+                disabled={disabled}
               >
                 <SelectTrigger className="h-9">
                   <SelectValue placeholder="Min" />
@@ -172,6 +171,7 @@ export function TimePicker({
                   setSelectedPeriod(value);
                   handleTimeChange(selectedHour, selectedMinute, value);
                 }}
+                disabled={disabled}
               >
                 <SelectTrigger className="h-9">
                   <SelectValue placeholder="AM/PM" />
@@ -190,6 +190,12 @@ export function TimePicker({
           </div>
         </PopoverContent>
       </Popover>
+      {error && errorMessage && (
+        <div className="text-destructive text-sm flex items-center gap-1.5 mt-1">
+          <AlertCircle className="h-4 w-4 flex-shrink-0" />
+          <span>{errorMessage}</span>
+        </div>
+      )}
     </div>
   );
 }

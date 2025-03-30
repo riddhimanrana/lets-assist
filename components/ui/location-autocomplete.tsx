@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useState, useRef } from "react"
-import { Check, MapPin, Search, Loader2 } from "lucide-react"
+import { Check, MapPin, Search, Loader2, AlertCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -13,19 +13,29 @@ import { LocationData } from "@/types"
 const libraries = ["places"]
 
 interface LocationAutocompleteProps {
+  id?: string;
   value?: LocationData;
   onChangeAction: (location?: LocationData) => void;
   maxLength?: number;
   required?: boolean;
   className?: string;
+  error?: boolean;
+  errorMessage?: string;
+  "aria-invalid"?: boolean;
+  "aria-errormessage"?: string;
 }
 
 export default function LocationAutocomplete({ 
+  id,
   value,
   onChangeAction,
-  maxLength = 100,
+  maxLength = 250,
   required = false,
-  className 
+  className,
+  error = false,
+  errorMessage,
+  "aria-invalid": ariaInvalid,
+  "aria-errormessage": ariaErrorMessage,
 }: LocationAutocompleteProps) {
   const [query, setQuery] = useState("")
   const [inputValue, setInputValue] = useState(value?.text || "")
@@ -164,6 +174,7 @@ export default function LocationAutocomplete({
       setInputValue(newValue)
       setQuery(newValue)
       setShowResults(true)
+      // Update parent state immediately for validation, even if it's just text
       onChangeAction(newValue ? { text: newValue, display_name: newValue } : undefined)
     }
   }
@@ -216,58 +227,41 @@ export default function LocationAutocomplete({
     }
   }, [])
 
-  const getCounterColor = (current: number, max: number) => {
-    const percentage = (current / max) * 100
-    if (percentage >= 90) return "text-destructive"
-    if (percentage >= 75) return "text-yellow-500"
-    return "text-muted-foreground"
-  }
-
   return (
-    <div className={cn("space-y-2", className)} ref={containerRef}>
-      <div className="flex justify-between items-baseline">
-        <Label>Location</Label>
-        <span
+    <div className={cn("relative space-y-1.5", className)} ref={containerRef}>
+      <div className="relative">
+        <Input
+          id={id}
+          placeholder="Search for a location..."
+          value={inputValue}
+          onChange={handleInputChange}
+          onFocus={() => {
+            setShowResults(true)
+            setQuery("") // Clear query on focus to allow re-searching
+          }}
+          onKeyDown={handleKeyDown}
           className={cn(
-            "text-xs transition-colors",
-            getCounterColor(inputValue.length, maxLength)
+            "w-full pl-9",
+            error && "border-destructive"
           )}
-        >
-          {inputValue.length}/{maxLength}
-        </span>
+          maxLength={maxLength}
+          required={required}
+          aria-invalid={ariaInvalid ?? error}
+          aria-errormessage={ariaErrorMessage}
+        />
+        <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+          <Search className="h-4 w-4 text-muted-foreground" />
+        </div>
+        {/* Optional: Keep loading indicator if desired */}
+        {/* {isLoading && ( ... ) } */}
       </div>
       
-      <div className="relative space-y-1.5">
-        <div className="relative">
-          <Input
-            placeholder="Search for a location..."
-            value={inputValue}
-            onChange={handleInputChange}
-            onFocus={() => {
-              setShowResults(true)
-              setQuery("")
-            }}
-            onKeyDown={handleKeyDown}
-            className="w-full pl-9"
-            maxLength={maxLength}
-            required={required}
-          />
-          <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-            <Search className="h-4 w-4 text-muted-foreground" />
-          </div>
-          {/* {isLoading && (
-            <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-            </div>
-          )} */}
-        </div>
-        
-        {showResults && (
-          <div className="absolute left-0 right-0 mt-1 rounded-lg border bg-popover shadow-lg z-50">
-            <Command>
-              <CommandList>
-                <CommandEmpty className="p-3 text-center text-sm">
-                    {query.length < 3 && query.length > 0 ? (
+      {showResults && (
+        <div className="absolute left-0 right-0 mt-1 rounded-lg border bg-popover shadow-lg z-50">
+          <Command>
+            <CommandList>
+              <CommandEmpty className="p-3 text-center text-sm">
+                  {query.length < 3 && query.length > 0 ? (
                     <div className="py-6 text-center flex flex-row justify-center items-center gap-4 px-4">
                       <Search className="h-7 w-7 text-muted-foreground opacity-80 flex-shrink-0" />
                       <div className="text-left">
@@ -292,22 +286,22 @@ export default function LocationAutocomplete({
                       </div>
                     </div>
                     )}
-                </CommandEmpty>
-                <CommandGroup>
-                  {predictions.map((prediction, index) => {
-                    const isCurrentSelection = prediction.place_id === 'current-selection'
-                    return (
-                      <CommandItem
-                        key={prediction.place_id}
-                        value={prediction.place_id}
-                        onSelect={() => handleSelect(prediction)}
-                        className={cn(
-                          "cursor-pointer",
-                          focusedIndex === index && "bg-accent",
-                          isCurrentSelection && "bg-primary/5"
-                        )}
-                      >
-                        <div className="flex items-center w-full">
+              </CommandEmpty>
+              <CommandGroup>
+                {predictions.map((prediction, index) => {
+                  const isCurrentSelection = prediction.place_id === 'current-selection'
+                  return (
+                    <CommandItem
+                      key={prediction.place_id}
+                      value={prediction.place_id}
+                      onSelect={() => handleSelect(prediction)}
+                      className={cn(
+                        "cursor-pointer",
+                        focusedIndex === index && "bg-accent",
+                        isCurrentSelection && "bg-primary/5"
+                      )}
+                    >
+                      <div className="flex items-center w-full">
                           <MapPin className="mr-2 h-4 w-4 text-muted-foreground flex-shrink-0" />
                           <div className="flex-1 truncate">
                             <p className="truncate">{prediction.structured_formatting.main_text}</p>
@@ -319,22 +313,26 @@ export default function LocationAutocomplete({
                             <Check className="ml-2 h-4 w-4 text-primary flex-shrink-0" />
                           )}
                         </div>
-                      </CommandItem>
-                    );
-                  })}
-                </CommandGroup>
-              </CommandList>
-            </Command>
-          </div>
-        )}
-
-        {value?.coordinates && (
+                    </CommandItem>
+                  );
+                })}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </div>
+      )}
+    {value?.coordinates && (
           <div className="flex items-center gap-1.5 text-sm text-primary pl-1">
             <Check className="h-4 w-4 flex-shrink-0" />
             <span className="truncate">Address set: {value.display_name}</span>
           </div>
         )}
-      </div>
+      {error && errorMessage && (
+        <div id={ariaErrorMessage} className="text-destructive text-sm flex items-center gap-1.5 mt-1">
+          <AlertCircle className="h-4 w-4 flex-shrink-0" />
+          <span>{errorMessage}</span>
+        </div>
+      )}
     </div>
   )
 }

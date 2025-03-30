@@ -11,10 +11,11 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Calendar as CalendarIcon } from "lucide-react";
+import { Calendar as CalendarIcon, AlertCircle } from "lucide-react";
 import { TimePicker } from "@/components/ui/time-picker";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { ZodIssue } from "zod";
 // import { VerificationMethod } from "@/types"
 
 interface ScheduleProps {
@@ -65,6 +66,7 @@ interface ScheduleProps {
   removeDayAction: (dayIndex: number) => void;
   removeSlotAction: (dayIndex: number, slotIndex: number) => void;
   removeRoleAction: (roleIndex: number) => void;
+  errors?: ZodIssue[];
 }
 
 export default function Schedule({
@@ -78,6 +80,7 @@ export default function Schedule({
   removeDayAction,
   removeSlotAction,
   removeRoleAction,
+  errors = []
 }: ScheduleProps) {
   // Helper function to ensure dates are handled consistently without timezone shifting
   const formatDateToString = (date: Date | undefined): string => {
@@ -122,11 +125,42 @@ export default function Schedule({
     return datetime < new Date();
   };
 
+  // Get field error from Zod issues
+  const getFieldError = (fieldPath: string): string | undefined => {
+    const error = errors.find(issue => {
+      return issue.path.join('.') === fieldPath ||
+             issue.path.join('.').startsWith(fieldPath + '[') ||
+             issue.path.join('.').startsWith(fieldPath + '.');
+    });
+    return error?.message;
+  };
+
+  // Get array error from Zod issues for nested structures (slots, roles)
+  const getArrayError = (basePath: string, index: number, field: string): string | undefined => {
+    const path = `${basePath}.${index}.${field}`;
+    return getFieldError(path);
+  };
+
+  // For multi-day validation error display
+  const getMultiDayError = (dayIndex: number): string | undefined => {
+    return errors.find(issue => 
+      issue.path[0] === dayIndex || 
+      (Array.isArray(issue.path) && issue.path[0] === dayIndex)
+    )?.message;
+  };
+
   if (state.eventType === "oneTime") {
     const timeRangeInvalid = isTimeRangeInvalid(
       state.schedule.oneTime.startTime,
       state.schedule.oneTime.endTime,
     );
+
+    // Get specific errors for oneTime fields
+    const dateError = getFieldError('date');
+    const startTimeError = getFieldError('startTime');
+    const endTimeError = getFieldError('endTime');
+    const volunteersError = getFieldError('volunteers');
+
     return (
       <Card>
         <CardHeader>
@@ -147,6 +181,7 @@ export default function Schedule({
                       className={cn(
                         "w-full justify-start text-left font-normal mt-1.5",
                         !state.schedule.oneTime.date && "text-muted-foreground",
+                        dateError && "border-destructive",
                       )}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
@@ -170,6 +205,12 @@ export default function Schedule({
                     />
                   </PopoverContent>
                 </Popover>
+                {dateError && (
+                  <div className="text-destructive text-sm flex items-center gap-2 mt-1">
+                    <AlertCircle className="h-4 w-4" />
+                    {dateError}
+                  </div>
+                )}
               </div>
               <div>
                 <Label>Volunteers Needed</Label>
@@ -177,18 +218,25 @@ export default function Schedule({
                   type="number"
                   min="1"
                   max="1000"
-                  className="mt-1.5"
+                  className={cn(
+                    "mt-1.5",
+                    volunteersError && "border-destructive"
+                  )}
                   value={state.schedule.oneTime.volunteers}
                   onChange={(e) => {
                     const value = parseInt(e.target.value);
-                    // if (value <= 2000) {
-                      updateOneTimeScheduleAction(
-                        "volunteers",
-                        value
-                      );
-                    // }
+                    updateOneTimeScheduleAction(
+                      "volunteers",
+                      value
+                    );
                   }}
                 />
+                {volunteersError && (
+                  <div className="text-destructive text-sm flex items-center gap-2 mt-1">
+                    <AlertCircle className="h-4 w-4" />
+                    {volunteersError}
+                  </div>
+                )}
               </div>
             </div>
             <div className="grid sm:grid-cols-2 gap-4">
@@ -198,8 +246,9 @@ export default function Schedule({
                 onChangeAction={(time: string) =>
                   updateOneTimeScheduleAction("startTime", time)
                 }
-                error={timeRangeInvalid || isTimeInPast(state.schedule.oneTime.date, state.schedule.oneTime.startTime)}
+                error={timeRangeInvalid || isTimeInPast(state.schedule.oneTime.date, state.schedule.oneTime.startTime) || !!startTimeError}
                 errorMessage={
+                  startTimeError ? startTimeError :
                   timeRangeInvalid
                     ? "Start time must be before end time"
                     : isTimeInPast(state.schedule.oneTime.date, state.schedule.oneTime.startTime)
@@ -213,8 +262,9 @@ export default function Schedule({
                 onChangeAction={(time: string) =>
                   updateOneTimeScheduleAction("endTime", time)
                 }
-                error={timeRangeInvalid || isTimeInPast(state.schedule.oneTime.date, state.schedule.oneTime.endTime)}
+                error={timeRangeInvalid || isTimeInPast(state.schedule.oneTime.date, state.schedule.oneTime.endTime) || !!endTimeError}
                 errorMessage={
+                  endTimeError ? endTimeError :
                   timeRangeInvalid
                     ? "End time must be after start time"
                     : isTimeInPast(state.schedule.oneTime.date, state.schedule.oneTime.endTime)
@@ -230,6 +280,9 @@ export default function Schedule({
   }
 
   if (state.eventType === "multiDay") {
+    // Get general array error for multiDay
+    const multiDayError = getFieldError('');
+
     return (
       <Card>
         <CardHeader>
@@ -240,6 +293,13 @@ export default function Schedule({
         </CardHeader>
         <CardContent>
           <div className="space-y-6">
+            {multiDayError && (
+              <div className="text-destructive text-sm flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/30 rounded-md">
+                <AlertCircle className="h-4 w-4" />
+                {multiDayError}
+              </div>
+            )}
+
             {state.schedule.multiDay.map(
               (
                 day: {
@@ -251,173 +311,217 @@ export default function Schedule({
                   }[];
                 },
                 dayIndex: number,
-              ) => (
-                <div key={dayIndex} className="p-4 border rounded-lg">
-                  <div className="flex items-center justify-between mb-4">
-                    <Label className="text-base sm:text-lg font-medium">
-                      Day {dayIndex + 1}
-                    </Label>
-                    {dayIndex > 0 && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeDayAction(dayIndex)}
-                        className="h-8 w-8 hover:bg-muted/80"
-                      >
-                        ✕
-                      </Button>
-                    )}
-                  </div>
-                  <div className="space-y-4">
-                    <div>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              "w-full justify-start text-left font-normal",
-                              !day.date && "text-muted-foreground",
-                            )}
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {day.date
-                              ? format(parseStringToDate(day.date) as Date, "PPP")
-                              : "Pick a date"}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={parseStringToDate(day.date)}
-                            onSelect={(date) => {
-                              const newDate = formatDateToString(date);
-                              if (newDate !== day.date) {
-                                updateMultiDayScheduleAction(dayIndex, "date", newDate);
-                              }
-                            }}
-                            disabled={isPastDate}
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
+              ) => {
+                // Get day-specific errors
+                const dayError = getMultiDayError(dayIndex);
+                const dateError = getFieldError(`${dayIndex}.date`);
+                const slotsError = getFieldError(`${dayIndex}.slots`);
+
+                return (
+                  <div key={dayIndex} className={cn(
+                    "p-4 border rounded-lg",
+                    (dayError || dateError || slotsError) && "border-destructive bg-destructive/5"
+                  )}>
+                    <div className="flex items-center justify-between mb-4">
+                      <Label className="text-base sm:text-lg font-medium">
+                        Day {dayIndex + 1}
+                      </Label>
+                      {dayIndex > 0 && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeDayAction(dayIndex)}
+                          className="h-8 w-8 hover:bg-muted/80"
+                        >
+                          ✕
+                        </Button>
+                      )}
                     </div>
-                    {day.slots.map(
-                      (
-                        slot: {
-                          startTime: string;
-                          endTime: string;
-                          volunteers: number;
-                        },
-                        slotIndex: number,
-                      ) => {
-                        const timeRangeInvalid = isTimeRangeInvalid(
-                          slot.startTime,
-                          slot.endTime,
-                        );
-                        return (
-                          <div
-                            key={slotIndex}
-                            className="p-4 bg-muted/50 rounded-lg space-y-4"
-                          >
-                            <div className="flex items-center justify-between">
-                              <Label className="text-sm font-medium">
-                                Time Slot {slotIndex + 1}
-                              </Label>
-                              {slotIndex > 0 && (
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() =>
-                                    removeSlotAction(dayIndex, slotIndex)
-                                  }
-                                  className="h-8 w-8 hover:bg-muted/80"
-                                >
-                                  ✕
-                                </Button>
+
+                    {(dayError || dateError) && (
+                      <div className="text-destructive text-sm flex items-center gap-2 mb-3">
+                        <AlertCircle className="h-4 w-4" />
+                        {dayError || dateError}
+                      </div>
+                    )}
+
+                    <div className="space-y-4">
+                      <div>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className={cn(
+                                "w-full justify-start text-left font-normal",
+                                !day.date && "text-muted-foreground",
+                                dateError && "border-destructive",
                               )}
-                            </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                              <div className="col-span-1 sm:col-span-2 grid grid-cols-2 gap-2">
-                                <TimePicker
-                                  value={slot.startTime}
-                                  onChangeAction={(time: string) =>
-                                    updateMultiDayScheduleAction(
-                                      dayIndex,
-                                      "startTime",
-                                      time,
-                                      slotIndex,
-                                    )
-                                  }
-                                  error={timeRangeInvalid || isTimeInPast(day.date, slot.startTime)}
-                                  errorMessage={
-                                    timeRangeInvalid
-                                      ? "Invalid time"
-                                      : isTimeInPast(day.date, slot.startTime)
-                                      ? "Start time must be in the future"
-                                      : undefined
-                                  }
-                                />
-                                <TimePicker
-                                  value={slot.endTime}
-                                  onChangeAction={(time: string) =>
-                                    updateMultiDayScheduleAction(
-                                      dayIndex,
-                                      "endTime",
-                                      time,
-                                      slotIndex,
-                                    )
-                                  }
-                                  error={timeRangeInvalid || isTimeInPast(day.date, slot.endTime)}
-                                  errorMessage={
-                                    timeRangeInvalid
-                                      ? "Invalid time"
-                                      : isTimeInPast(day.date, slot.endTime)
-                                      ? "End time must be in the future"
-                                      : undefined
-                                  }
-                                />
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {day.date
+                                ? format(parseStringToDate(day.date) as Date, "PPP")
+                                : "Pick a date"}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={parseStringToDate(day.date)}
+                              onSelect={(date) => {
+                                const newDate = formatDateToString(date);
+                                if (newDate !== day.date) {
+                                  updateMultiDayScheduleAction(dayIndex, "date", newDate);
+                                }
+                              }}
+                              disabled={isPastDate}
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+
+                      {slotsError && (
+                        <div className="text-destructive text-sm flex items-center gap-2">
+                          <AlertCircle className="h-4 w-4" />
+                          {slotsError}
+                        </div>
+                      )}
+
+                      {day.slots.map(
+                        (
+                          slot: {
+                            startTime: string;
+                            endTime: string;
+                            volunteers: number;
+                          },
+                          slotIndex: number,
+                        ) => {
+                          const timeRangeInvalid = isTimeRangeInvalid(
+                            slot.startTime,
+                            slot.endTime,
+                          );
+                          
+                          // Get slot-specific errors
+                          const startTimeError = getArrayError(`${dayIndex}.slots`, slotIndex, 'startTime');
+                          const endTimeError = getArrayError(`${dayIndex}.slots`, slotIndex, 'endTime');
+                          const volunteersError = getArrayError(`${dayIndex}.slots`, slotIndex, 'volunteers');
+                          
+                          return (
+                            <div
+                              key={slotIndex}
+                              className={cn(
+                                "p-4 bg-muted/50 rounded-lg space-y-4",
+                                (startTimeError || endTimeError || volunteersError) && "border border-destructive bg-destructive/5"
+                              )}
+                            >
+                              <div className="flex items-center justify-between">
+                                <Label className="text-sm font-medium">
+                                  Time Slot {slotIndex + 1}
+                                </Label>
+                                {slotIndex > 0 && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() =>
+                                      removeSlotAction(dayIndex, slotIndex)
+                                    }
+                                    className="h-8 w-8 hover:bg-muted/80"
+                                  >
+                                    ✕
+                                  </Button>
+                                )}
                               </div>
-                              <div>
-                                <Label className="sr-only">Volunteers</Label>
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                <div className="col-span-1 sm:col-span-2 grid grid-cols-2 gap-2">
+                                  <TimePicker
+                                    value={slot.startTime}
+                                    onChangeAction={(time: string) =>
+                                      updateMultiDayScheduleAction(
+                                        dayIndex,
+                                        "startTime",
+                                        time,
+                                        slotIndex,
+                                      )
+                                    }
+                                    error={timeRangeInvalid || isTimeInPast(day.date, slot.startTime) || !!startTimeError}
+                                    errorMessage={
+                                      startTimeError ? startTimeError :
+                                      timeRangeInvalid
+                                        ? "Invalid time"
+                                        : isTimeInPast(day.date, slot.startTime)
+                                        ? "Start time must be in the future"
+                                        : undefined
+                                    }
+                                  />
+                                  <TimePicker
+                                    value={slot.endTime}
+                                    onChangeAction={(time: string) =>
+                                      updateMultiDayScheduleAction(
+                                        dayIndex,
+                                        "endTime",
+                                        time,
+                                        slotIndex,
+                                      )
+                                    }
+                                    error={timeRangeInvalid || isTimeInPast(day.date, slot.endTime) || !!endTimeError}
+                                    errorMessage={
+                                      endTimeError ? endTimeError :
+                                      timeRangeInvalid
+                                        ? "Invalid time"
+                                        : isTimeInPast(day.date, slot.endTime)
+                                        ? "End time must be in the future"
+                                        : undefined
+                                    }
+                                  />
+                                </div>
                                 <div>
-                                  <Input
-                                    type="number"
-                                    min="1"
-                                    max="1000"
-                                    placeholder="# volunteers"
-                                    value={slot.volunteers}
-                                    onChange={(e) => {
-                                      const value = parseInt(e.target.value);
-                                      // if (value <= 1000) {
+                                  <Label className="sr-only">Volunteers</Label>
+                                  <div>
+                                    <Input
+                                      type="number"
+                                      min="1"
+                                      max="1000"
+                                      placeholder="# volunteers"
+                                      value={slot.volunteers}
+                                      onChange={(e) => {
+                                        const value = parseInt(e.target.value);
                                         updateMultiDayScheduleAction(
                                           dayIndex,
                                           "volunteers",
                                           value,
                                           slotIndex,
                                         );
-                                      // }
-                                    }}
-                                    className="h-10"
-                                  />
-                                  {/* <p className="text-xs text-muted-foreground mt-1">Max 2000 volunteers</p> */}
+                                      }}
+                                      className={cn(
+                                        "h-10",
+                                        volunteersError && "border-destructive"
+                                      )}
+                                    />
+                                    {volunteersError && (
+                                      <div className="text-destructive text-sm flex items-center gap-2 mt-1">
+                                        <AlertCircle className="h-4 w-4" />
+                                        {volunteersError}
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
                             </div>
-                          </div>
-                        );
-                      },
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="w-full"
-                      onClick={() => addMultiDaySlotAction(dayIndex)}
-                    >
-                      + Add Time Slot
-                    </Button>
+                          );
+                        },
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="w-full"
+                        onClick={() => addMultiDaySlotAction(dayIndex)}
+                      >
+                        + Add Time Slot
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              ),
+                );
+              }
             )}
             <Button
               variant="outline"
@@ -433,10 +537,12 @@ export default function Schedule({
   }
 
   if (state.eventType === "sameDayMultiArea") {
-    const overallTimeInvalid = isTimeRangeInvalid(
-      state.schedule.sameDayMultiArea.overallStart,
-      state.schedule.sameDayMultiArea.overallEnd,
-    );
+    // Get errors for sameDayMultiArea fields
+    const dateError = getFieldError('date');
+    const overallStartError = getFieldError('overallStart');
+    const overallEndError = getFieldError('overallEnd');
+    const rolesError = getFieldError('roles');
+
     return (
       <Card>
         <CardHeader>
@@ -458,6 +564,7 @@ export default function Schedule({
                         "w-full justify-start text-left font-normal mt-1.5",
                         !state.schedule.sameDayMultiArea.date &&
                           "text-muted-foreground",
+                        dateError && "border-destructive"
                       )}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
@@ -484,33 +591,48 @@ export default function Schedule({
                     />
                   </PopoverContent>
                 </Popover>
+                {dateError && (
+                  <div className="text-destructive text-sm flex items-center gap-2 mt-1">
+                    <AlertCircle className="h-4 w-4" />
+                    {dateError}
+                  </div>
+                )}
               </div>
               <div>
-                <Label>Overall Event Hours</Label>
+                <Label>Overall Event Hours (Auto-calculated)</Label>
                 <div className="grid grid-cols-2 gap-2 mt-1.5">
                   <TimePicker
                     value={state.schedule.sameDayMultiArea.overallStart}
                     onChangeAction={(time: string) =>
                       updateMultiRoleScheduleAction("overallStart", time)
                     }
-                    error={overallTimeInvalid}
-                    errorMessage={
-                      overallTimeInvalid ? "Invalid time" : undefined
-                    }
+                    error={!!overallStartError}
+                    errorMessage={overallStartError}
+                    disabled={true}
                   />
                   <TimePicker
                     value={state.schedule.sameDayMultiArea.overallEnd}
                     onChangeAction={(time: string) =>
                       updateMultiRoleScheduleAction("overallEnd", time)
                     }
-                    error={overallTimeInvalid}
-                    errorMessage={
-                      overallTimeInvalid ? "Invalid time" : undefined
-                    }
+                    error={!!overallEndError}
+                    errorMessage={overallEndError}
+                    disabled={true}
                   />
                 </div>
+                <p className="text-xs text-muted-foreground mt-1.5">
+                  Overall times auto-adjust by earliest/latest role times.
+                </p>
               </div>
             </div>
+
+            {rolesError && (
+              <div className="text-destructive text-sm flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/30 rounded-md">
+                <AlertCircle className="h-4 w-4" />
+                {rolesError}
+              </div>
+            )}
+
             {state.schedule.sameDayMultiArea.roles.map(
               (
                 role: {
@@ -525,10 +647,21 @@ export default function Schedule({
                   role.startTime,
                   role.endTime,
                 );
+                
+                // Get role-specific errors
+                const nameError = getArrayError('roles', roleIndex, 'name');
+                const startTimeError = getArrayError('roles', roleIndex, 'startTime');
+                const endTimeError = getArrayError('roles', roleIndex, 'endTime');
+                const volunteersError = getArrayError('roles', roleIndex, 'volunteers');
+                const hasRoleErrors = nameError || startTimeError || endTimeError || volunteersError;
+
                 return (
                   <div
                     key={roleIndex}
-                    className="p-4 border rounded-lg space-y-4"
+                    className={cn(
+                      "p-4 border rounded-lg space-y-4",
+                      hasRoleErrors && "border-destructive bg-destructive/5"
+                    )}
                   >
                     <div className="flex items-center justify-between">
                       <Label className="text-base sm:text-lg font-medium">
@@ -563,7 +696,14 @@ export default function Schedule({
                           }
                         }}
                         maxLength={75}
+                        className={nameError ? "border-destructive" : ""}
                       />
+                      {nameError && (
+                        <div className="text-destructive text-sm flex items-center gap-2 mt-1">
+                          <AlertCircle className="h-4 w-4" />
+                          {nameError}
+                        </div>
+                      )}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                           <Label>Time Slot</Label>
@@ -577,8 +717,9 @@ export default function Schedule({
                                   roleIndex,
                                 )
                               }
-                              error={roleTimeInvalid || isTimeInPast(state.schedule.sameDayMultiArea.date, role.startTime)}
+                              error={roleTimeInvalid || isTimeInPast(state.schedule.sameDayMultiArea.date, role.startTime) || !!startTimeError}
                               errorMessage={
+                                startTimeError ? startTimeError :
                                 roleTimeInvalid 
                                   ? "Invalid time" 
                                   : isTimeInPast(state.schedule.sameDayMultiArea.date, role.startTime)
@@ -595,8 +736,9 @@ export default function Schedule({
                                   roleIndex,
                                 )
                               }
-                              error={roleTimeInvalid || isTimeInPast(state.schedule.sameDayMultiArea.date, role.endTime)}
+                              error={roleTimeInvalid || isTimeInPast(state.schedule.sameDayMultiArea.date, role.endTime) || !!endTimeError}
                               errorMessage={
+                                endTimeError ? endTimeError :
                                 roleTimeInvalid 
                                   ? "Invalid time" 
                                   : isTimeInPast(state.schedule.sameDayMultiArea.date, role.endTime)
@@ -613,20 +755,26 @@ export default function Schedule({
                               type="number"
                               min="1"
                               max="1000"
-                              className="mt-1.5"
+                              className={cn(
+                                "mt-1.5",
+                                volunteersError && "border-destructive"
+                              )}
                               value={role.volunteers}
                               onChange={(e) => {
                                 const value = parseInt(e.target.value);
-                                // if (value <= 1000) {
-                                  updateMultiRoleScheduleAction(
-                                    "volunteers",
-                                    value,
-                                    roleIndex,
-                                  );
-                                // }
+                                updateMultiRoleScheduleAction(
+                                  "volunteers",
+                                  value,
+                                  roleIndex,
+                                );
                               }}
                             />
-                            {/* <p className="text-xs text-muted-foreground mt-1">Max 2000 volunteers</p> */}
+                            {volunteersError && (
+                              <div className="text-destructive text-sm flex items-center gap-2 mt-1">
+                                <AlertCircle className="h-4 w-4" />
+                                {volunteersError}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
