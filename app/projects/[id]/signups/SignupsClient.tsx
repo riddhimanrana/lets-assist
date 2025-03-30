@@ -7,6 +7,7 @@ import { createClient } from "@/utils/supabase/client";
 import { Project, EventType } from "@/types";
 import { createRejectionNotification } from "../actions";
 import { format } from "date-fns";
+import Link from "next/link";
 import {
   Card,
   CardContent,
@@ -15,6 +16,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Table,
   TableBody,
@@ -31,7 +33,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, XCircle, Clock, ArrowLeft, Loader2, UserRoundSearch } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { CheckCircle2, XCircle, Clock, ArrowLeft, Loader2, UserRoundSearch, ArrowUpDown, ChevronUp, ChevronDown, Printer } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
@@ -56,6 +59,15 @@ type Signup = {
   };
 };
 
+
+type SortField = "status"; // Add other fields like 'name', 'type', 'contact' if needed
+type SortDirection = "asc" | "desc";
+
+interface Sort {
+  field: SortField;
+  direction: SortDirection;
+}
+
 export function SignupsClient({ projectId }: Props): React.JSX.Element {
   const router = useRouter();
   const [signups, setSignups] = useState<Signup[]>([]);
@@ -63,6 +75,132 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
   const [processingSignups, setProcessingSignups] = useState<Record<string, boolean>>({});
   const [searchTerm, setSearchTerm] = useState("");
   const [project, setProject] = useState<Project | null>(null);
+  const [sort, setSort] = useState<Sort>({ field: "status", direction: "asc" });
+
+  const toggleSort = (field: SortField) => {
+    setSort(current => ({
+      field,
+      direction: 
+        current.field === field && current.direction === "asc" 
+          ? "desc" 
+          : "asc"
+    }));
+  };
+
+  const getSortIcon = (field: SortField) => {
+      if (sort.field !== field) return <ArrowUpDown className="h-4 w-4" />;
+      return sort.direction === "asc" ? (
+        <ChevronUp className="h-4 w-4" />
+      ) : (
+        <ChevronDown className="h-4 w-4" />
+      );
+    };
+
+  // Print volunteers list
+  const printVolunteers = () => {
+    // Create a hidden print-only container if it doesn't exist yet
+    let printContainer = document.getElementById('print-container');
+    if (!printContainer) {
+      printContainer = document.createElement('div');
+      printContainer.id = 'print-container';
+      printContainer.className = 'hidden print:block';
+      document.body.appendChild(printContainer);
+    }
+
+    // Generate HTML content for printing - only approved volunteers
+    const printContent = `
+      <div class="print-content">
+        <style>
+          @media print {
+            /* Hide everything else when printing */
+            body > *:not(#print-container) {
+              display: none !important;
+            }
+            
+            #print-container {
+              display: block !important;
+              width: 100% !important;
+              font-family: Arial, sans-serif;
+              margin: 20px;
+              color: black !important; /* Ensure all text is black */
+            }
+            
+            h1 { font-size: 24px; margin-bottom: 10px; color: black !important; }
+            h2 { font-size: 18px; margin-top: 20px; margin-bottom: 8px; color: black !important; }
+            table { width: 100%; border-collapse: collapse; margin-top: 8px; margin-bottom: 24px; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; color: black !important; }
+            th { background-color: #f2f2f2; color: black !important; }
+            
+            /* Hide the button itself when printing */
+            .no-print { display: none !important; }
+            
+            /* Add page break before each new schedule slot */
+            .page-break { page-break-before: always; }
+          }
+          
+          /* For screen preview (normally hidden) */
+          .print-content {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+          }
+        </style>
+        
+        <div class="header">
+          <h1>Approved Volunteer List - ${project?.title || 'Project'}</h1>
+          <div class="print-date">Printed on: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</div>
+        </div>
+        
+        ${Object.entries(filteredSignupsBySlot).map(([slot, slotSignups]) => {
+          // Filter to only include approved volunteers (status !== 'cancelled')
+          const approvedSignups = slotSignups.filter(signup => signup.status !== 'cancelled');
+          
+          // Only include this slot if it has approved signups
+          return approvedSignups.length > 0 ? `
+            <div class="schedule-slot ${slot !== Object.keys(filteredSignupsBySlot)[0] ? 'page-break' : ''}">
+              <h2>${project && formatScheduleSlot(project, slot)}</h2>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Contact</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${approvedSignups.map(signup => `
+                    <tr>
+                      <td>${signup.user_id ? signup.profile?.full_name : signup.anonymous_name || 'N/A'}</td>
+                      <td>${signup.user_id ? 'Registered User' : 'Anonymous'}</td>
+                      <td>
+                        ${signup.user_id 
+                          ? `${signup.profile?.email || 'N/A'} ${signup.profile?.phone ? '<br>' + signup.profile.phone.replace(/(\d{3})(\d{3})(\d{4})/, "$1-$2-$3") : ''}` 
+                          : `${signup.anonymous_email || 'N/A'} ${signup.anonymous_phone ? '<br>' + signup.anonymous_phone.replace(/(\d{3})(\d{3})(\d{4})/, "$1-$2-$3") : ''}`}
+                      </td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          ` : '';
+        }).join('')}
+        
+        ${Object.entries(filteredSignupsBySlot).every(([_, slotSignups]) => 
+          slotSignups.filter(signup => signup.status !== 'cancelled').length === 0) 
+          ? '<p>No approved volunteers found.</p>' 
+          : ''}
+      </div>
+    `;
+
+    // Set the content and trigger print
+    if (printContainer) {
+      printContainer.innerHTML = printContent;
+      
+      // Give the browser a moment to render the content before printing
+      setTimeout(() => {
+        window.print();
+      }, 100);
+    }
+  };
 
   // Group signups by schedule slot
   const signupsBySlot = useMemo(() => {
@@ -75,24 +213,55 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
     }, {} as Record<string, Signup[]>);
   }, [signups]);
 
-  // Filter signups based on search term
+  // Filter and sort signups based on search term and sort state
   const filteredSignupsBySlot = useMemo(() => {
-    if (!searchTerm) return signupsBySlot;
+    let filtered: Record<string, Signup[]> = {};
 
-    const searchLower = searchTerm.toLowerCase();
-    const filtered: Record<string, Signup[]> = {};
+    // Apply filtering first
+    if (!searchTerm) {
+      filtered = { ...signupsBySlot }; // Clone to avoid modifying original
+    } else {
+      const searchLower = searchTerm.toLowerCase();
+      Object.entries(signupsBySlot).forEach(([slot, slotSignups]) => {
+        const matchingSignups = slotSignups.filter(signup => {
+          const nameMatch = signup.user_id
+            ? signup.profile?.full_name.toLowerCase().includes(searchLower)
+            : signup.anonymous_name?.toLowerCase().includes(searchLower);
+          // Add more fields to search if needed (e.g., email)
+          return nameMatch;
+        });
+        if (matchingSignups.length > 0) {
+          filtered[slot] = matchingSignups;
+        }
+      });
+    }
 
-    Object.entries(signupsBySlot).forEach(([slot, slotSignups]) => {
-      filtered[slot] = slotSignups.filter(signup => {
-        const nameMatch = signup.user_id
-          ? signup.profile?.full_name.toLowerCase().includes(searchLower)
-          : signup.anonymous_name?.toLowerCase().includes(searchLower);
-        return nameMatch;
+    // Apply sorting to each slot's signups
+    Object.keys(filtered).forEach(slot => {
+      filtered[slot].sort((a, b) => {
+        const direction = sort.direction === "asc" ? 1 : -1;
+        
+        if (sort.field === "status") {
+          // Sort logic: 'confirmed' (Approved) comes before 'cancelled' (Rejected) in asc order
+          const statusA = a.status === 'cancelled' ? 1 : 0; // 0 for Approved, 1 for Rejected
+          const statusB = b.status === 'cancelled' ? 1 : 0;
+          return (statusA - statusB) * direction;
+        }
+        
+        // Add sorting for other fields here if needed
+        // Example for name:
+        // if (sort.field === 'name') {
+        //   const nameA = (a.profile?.full_name || a.anonymous_name || '').toLowerCase();
+        //   const nameB = (b.profile?.full_name || b.anonymous_name || '').toLowerCase();
+        //   return nameA.localeCompare(nameB) * direction;
+        // }
+
+        return 0; // Default: no change in order
       });
     });
 
     return filtered;
-  }, [signupsBySlot, searchTerm]);
+  }, [signupsBySlot, searchTerm, sort]);
 
   useEffect(() => {
     loadProject();
@@ -255,14 +424,14 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
     if (status === "cancelled") {
       return (
         <Badge variant="destructive" className="gap-1">
-          <XCircle className="h-3 w-3" />
+          <XCircle className="h-4 w-4" />
           Rejected
         </Badge>
       );
     }
     return (
       <Badge className="gap-1">
-        <CheckCircle2 className="h-3 w-3" />
+        <CheckCircle2 className="h-4 w-4" />
         Approved
       </Badge>
     );
@@ -282,9 +451,10 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
       </div>
 
       <Card className="min-h-[400px] relative">
+      
         {loading && (
           <div className="absolute inset-0 flex items-center justify-center z-10">
-            <div className="flex flex-col items-center gap-2">
+            <div className="flex flex-col items-center gap-2 mt-10">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               <span className="text-sm text-muted-foreground">Loading signups...</span>
             </div>
@@ -293,20 +463,31 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
         <CardHeader>
           <CardTitle>Manage Volunteer Signups</CardTitle>
           <CardDescription>
-            Review and manage volunteer signups
+            Review and manage volunteer signups.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-3 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by name..."
-              className="pl-8"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+          <div className="flex flex-col sm:flex-row gap-3 sm:items-center justify-between">
+            <div className="relative flex-1">
+              <Search className="absolute left-2.5 top-3 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by name..."
+                className="pl-8"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={printVolunteers}
+              disabled={Object.keys(filteredSignupsBySlot).length === 0}
+            >
+              <Printer className="h-4 w-4" />
+              Print Volunteer List
+            </Button>
           </div>
-
+          
           {Object.entries(filteredSignupsBySlot).map(([slot, slotSignups]) => (
             <div key={slot} className="space-y-2">
               <h3 className="font-medium text-sm text-muted-foreground">
@@ -318,7 +499,15 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
                 <TableHead>Name</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Contact</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead 
+                  className="cursor-pointer hover:text-foreground transition-colors"
+                  onClick={() => toggleSort("status")}
+                >
+                  <div className="flex items-center">
+                    Status
+                    {getSortIcon("status")}
+                  </div>
+                </TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -332,32 +521,37 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
                   </TableCell>
                   <TableCell>
                     {signup.user_id ? (
-                      <Button
-                        variant="link"
-                        className="p-0 h-auto"
-                        onClick={() => router.push(`/profile/${signup.profile?.username}`)}
+                      <Link
+                      href={`/profile/${signup.profile?.username}`}
+                      className="text-primary"
                       >
-                        Registered User
-                      </Button>
+                      Registered User
+                      </Link>
                     ) : (
                       <span className="text-muted-foreground">Anonymous</span>
                     )}
                   </TableCell>
                   <TableCell>
                     {signup.user_id ? (
-                      <div>
+                        <div>
                         <div>{signup.profile?.email}</div>
                         {signup.profile?.phone && (
                           <div className="text-sm text-muted-foreground">
-                            {signup.profile.phone}
+                          {signup.profile.phone.replace(
+                            /(\d{3})(\d{3})(\d{4})/,
+                            "$1-$2-$3"
+                          ) || "No phone provided"}
                           </div>
                         )}
-                      </div>
+                        </div>
                     ) : (
                       <div>
                         <div>{signup.anonymous_email || "No email provided"}</div>
                         <div className="text-sm text-muted-foreground">
-                          {signup.anonymous_phone || "No phone provided"}
+                          {signup.anonymous_phone?.replace(
+                            /(\d{3})(\d{3})(\d{4})/,
+                            "$1-$2-$3"
+                          ) || "No phone provided"}
                         </div>
                       </div>
                     )}
