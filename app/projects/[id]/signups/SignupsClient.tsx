@@ -34,7 +34,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { CheckCircle2, XCircle, Clock, ArrowLeft, Loader2, UserRoundSearch, ArrowUpDown, ChevronUp, ChevronDown, Printer } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, ArrowLeft, Loader2, UserRoundSearch, ArrowUpDown, ChevronUp, ChevronDown, Printer, RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
@@ -72,6 +72,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
   const router = useRouter();
   const [signups, setSignups] = useState<Signup[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [processingSignups, setProcessingSignups] = useState<Record<string, boolean>>({});
   const [searchTerm, setSearchTerm] = useState("");
   const [project, setProject] = useState<Project | null>(null);
@@ -245,6 +246,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
   };
 
   const loadSignups = async () => {
+    setRefreshing(true);
     const supabase = createClient();
     
     const { data, error } = await supabase
@@ -271,11 +273,15 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
     if (error) {
       console.error("Error loading signups:", error);
       toast.error("Failed to load signups");
-      return;
+    } else {
+      setSignups(data as unknown as Signup[]);
+      if (refreshing) {
+        toast.success("Signups refreshed successfully");
+      }
     }
-
-    setSignups(data as unknown as Signup[]);
+    
     setLoading(false);
+    setRefreshing(false);
   };
 
   const updateSignupStatus = async (signupId: string, status: "cancelled") => {
@@ -437,15 +443,26 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <Button
-              variant="outline"
-              className="gap-2"
-              onClick={printVolunteers}
-              disabled={Object.keys(filteredSignupsBySlot).length === 0}
-            >
-              <Printer className="h-4 w-4" />
-              Print Volunteer List
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="gap-2"
+                onClick={printVolunteers}
+                disabled={Object.keys(filteredSignupsBySlot).length === 0}
+              >
+                <Printer className="h-4 w-4" />
+                Print Volunteer List
+              </Button>
+              <Button
+                variant="outline"
+                className="gap-2"
+                onClick={loadSignups}
+                disabled={refreshing}
+              >
+                <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+            </div>
           </div>
           
           {Object.entries(filteredSignupsBySlot).map(([slot, slotSignups]) => (
