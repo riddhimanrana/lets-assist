@@ -254,17 +254,30 @@ export async function createRejectionNotification(
   const supabase = await createClient();
   
   try {
+    // Fetch the project title before creating the notification
+    const { data: projectData, error: projectFetchError } = await supabase
+      .from("projects")
+      .select("title")
+      .eq("id", projectId)
+      .single();
+
+    if (projectFetchError || !projectData) {
+      throw new Error("Failed to fetch project title");
+    }
+
+    const projectTitle = projectData.title;
+
     const { error } = await supabase
       .from("notifications")
       .insert({
-        user_id: userId,
-        title: "Project Application Update",
-        body: "Your application to volunteer has been rejected",
-        type: "project_rejection",
-        severity: "warning",
-        action_url: `/projects/${projectId}`,
-        data: { projectId, signupId },
-        displayed: false
+      user_id: userId,
+      title: "Project Status Update",
+      body: `Your signup to volunteer for "${projectTitle}" has been rejected`,
+      type: "project_rejection",
+      severity: "warning",
+      action_url: `/projects/${projectId}`,
+      data: { projectId, signupId },
+      displayed: false
       });
 
     if (error) {

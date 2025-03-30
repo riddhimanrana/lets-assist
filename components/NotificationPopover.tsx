@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
-import { Bell, AlertCircle, AlertTriangle, CircleCheck, Loader2, Check, Settings, RedoIcon } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Bell, AlertCircle, AlertTriangle, CircleCheck, Loader2, Check, Settings } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Drawer,
@@ -39,16 +39,9 @@ export function NotificationPopover() {
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [activeTab, setActiveTab] = useState("unread");
-  const unreadTabRef = useRef<HTMLButtonElement>(null);
-  const allTabRef = useRef<HTMLButtonElement>(null);
   const supabase = createClient();
   const router = useRouter();
   const isMobile = useMediaQuery("(max-width: 768px)");
-  
-  // Separate read and unread notifications
-  const unreadNotifications = notifications.filter(n => !n.read);
-  const readNotifications = notifications.filter(n => n.read);
   
   useEffect(() => {
     if (open) {
@@ -106,6 +99,16 @@ export function NotificationPopover() {
     };
   }, [open]);
 
+  // Auto mark all notifications as read when the popover closes and there are unread notifications
+  useEffect(() => {
+    if (!open && notifications.length > 0) {
+      const unreadNotifications = notifications.filter(n => !n.read);
+      if (unreadNotifications.length > 0) {
+        markAllAsRead();
+      }
+    }
+  }, [open, notifications]);
+
   async function loadNotifications() {
     setLoading(true);
     
@@ -155,14 +158,13 @@ export function NotificationPopover() {
       if (error) throw error;
       
       setNotifications(notifications.map(n => ({ ...n, read: true })));
+      setUnreadCount(0);
     } catch (error) {
       console.error("Error marking all notifications as read:", error);
     }
   }
 
   function handleNotificationClick(notification: Notification) {
-    markAsRead(notification.id);
-    
     if (notification.action_url) {
       router.push(notification.action_url);
       setOpen(false);
@@ -232,7 +234,7 @@ export function NotificationPopover() {
   const renderNotificationItem = (notification: Notification) => (
     <div
       key={notification.id}
-      className="flex flex-col p-4 hover:bg-accent/50 transition-colors cursor-pointer border-b border-border/50" // "last-0" removed for clarity
+      className="flex flex-col p-4 hover:bg-accent/50 transition-colors cursor-pointer border-b border-border/50"
       onClick={() => handleNotificationClick(notification)}
     >
       <div className="flex items-start gap-4">
@@ -242,9 +244,14 @@ export function NotificationPopover() {
             <h5 className={`text-sm line-clamp-1 ${!notification.read ? 'font-medium' : 'font-normal'}`}>
               {notification.title}
             </h5>
-            <span className="text-[10px] text-muted-foreground whitespace-nowrap bg-muted/50 px-1.5 py-0.5 rounded-full">
-              {formatTimeAgo(notification.created_at)}
-            </span>
+            <div className="flex items-center gap-2">
+              {!notification.read && (
+                <div className="h-2 w-2 rounded-full bg-primary"></div>
+              )}
+              <span className="text-[10px] text-muted-foreground whitespace-nowrap bg-muted/50 px-1.5 py-0.5 rounded-full">
+                {formatTimeAgo(notification.created_at)}
+              </span>
+            </div>
           </div>
           <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
             {notification.body}
@@ -255,20 +262,6 @@ export function NotificationPopover() {
               <span className="text-xs text-primary font-medium hover:underline">
                 View details
               </span>
-            )}
-            {!notification.read && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-6 text-xs ml-auto rounded-full hover:bg-primary/10"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  markAsRead(notification.id);
-                }}
-              >
-                <Check className="h-3 w-3 mr-1" />
-                Mark as read
-              </Button>
             )}
           </div>
         </div>
@@ -291,60 +284,7 @@ export function NotificationPopover() {
   // Create a shared content component that works for both Popover and Drawer
   const NotificationsContent = () => (
     <>
-      <div>
-        {/* Tab Header */}
-        <div className="px-3 pt-1.5">
-          <div className="flex justify-between w-full">
-            <div className="flex gap-4">
-              <TabButton 
-                active={activeTab === "unread"}
-                onClick={() => setActiveTab("unread")}
-              >
-                Unread
-                {unreadCount > 0 && (
-                  <Badge variant="secondary" className="ml-1.5 h-5 px-1.5">
-                    {unreadCount}
-                  </Badge>
-                )}
-              </TabButton>
-              
-              <TabButton 
-                active={activeTab === "all"}
-                onClick={() => setActiveTab("all")}
-              >
-                All
-              </TabButton>
-            </div>
-            
-            <div className="flex items-center gap-4">
-              {unreadCount > 0 && (
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="text-xs h-7 px-2" 
-                  onClick={markAllAsRead}
-                >
-                  Mark all as read
-                </Button>
-              )}
-              <Button
-                variant="ghost"
-                className="text-muted-foreground hover:text-foreground p-2 h-7 w-7"
-                onClick={() => {
-                  router.push("/account/notifications");
-                  setOpen(false);
-                }}
-              >
-                <Settings className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </div>
-        
-        {/* Full-width separator */}
-        <div className="h-[2px] w-full bg-border mt-0"></div>
-      </div>
-
+      
       <ScrollArea className={cn("h-[400px]", isMobile && "h-[calc(60vh-80px)]")}>
         {loading ? (
           <div className="flex flex-col justify-center items-center py-16">
@@ -356,12 +296,6 @@ export function NotificationPopover() {
             </div>
             <p className="text-xs text-muted-foreground mt-4">Loading notifications...</p>
           </div>
-        ) : activeTab === "unread" ? (
-          unreadNotifications.length > 0 ? (
-            unreadNotifications.map(renderNotificationItem)
-          ) : (
-            renderEmptyState()
-          )
         ) : notifications.length > 0 ? (
           notifications.map(renderNotificationItem)
         ) : (
@@ -392,7 +326,20 @@ export function NotificationPopover() {
         </DrawerTrigger>
         <DrawerContent>
           <DrawerHeader className="px-0 pt-0">
-            <DrawerTitle className="sr-only">Notifications</DrawerTitle>
+            <div className="px-4 py-3 flex justify-between items-center">
+              <DrawerTitle className="font-medium">Notifications</DrawerTitle>
+              <Button
+                variant="ghost"
+                className="text-muted-foreground hover:text-foreground p-2 h-7 w-7"
+                onClick={() => {
+                  router.push("/account/notifications");
+                  setOpen(false);
+                }}
+              >
+                <Settings className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="h-[1px] w-full bg-border"></div>
           </DrawerHeader>
           <div className="pb-6">
             <NotificationsContent />
@@ -408,37 +355,28 @@ export function NotificationPopover() {
         {NotificationButton}
       </PopoverTrigger>
       <PopoverContent align="end" className="w-[360px] p-0">
+      <div>
+        {/* Simple Header */}
+        <div className="px-4 py-3 flex justify-between items-center">
+          <h3 className="text-sm font-medium">Notifications</h3>
+          <Button
+            variant="ghost"
+            className="text-muted-foreground hover:text-foreground p-2 h-7 w-7"
+            onClick={() => {
+              router.push("/account/notifications");
+              setOpen(false);
+            }}
+          >
+            <Settings className="h-4 w-4" />
+          </Button>
+        </div>
+        
+        {/* Full-width separator */}
+        <div className="h-[1px] w-full bg-border"></div>
+      </div>
+
         <NotificationsContent />
       </PopoverContent>
     </Popover>
-  );
-}
-
-// New TabButton component with integrated underline
-function TabButton({ 
-  active, 
-  onClick, 
-  children 
-}: { 
-  active: boolean; 
-  onClick: () => void; 
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      className={cn(
-        "relative py-2 px-3 text-sm transition-colors",
-        active 
-          ? "font-medium text-foreground" 
-          : "text-muted-foreground hover:text-foreground"
-      )}
-      onClick={onClick}
-    >
-      {children}
-      {/* Underline that only appears when active */}
-      {active && (
-        <div className="absolute bottom-[-2px] left-0 w-full h-[2px] bg-primary"></div>
-      )}
-    </button>
   );
 }
