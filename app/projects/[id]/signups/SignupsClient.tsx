@@ -110,84 +110,44 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
     // Generate HTML content for printing - only approved volunteers
     const printContent = `
       <div class="print-content">
-        <style>
-          @media print {
-            /* Hide everything else when printing */
-            body > *:not(#print-container) {
-              display: none !important;
-            }
-            
-            #print-container {
-              display: block !important;
-              width: 100% !important;
-              font-family: Arial, sans-serif;
-              margin: 20px;
-              color: black !important; /* Ensure all text is black */
-            }
-            
-            h1 { font-size: 24px; margin-bottom: 10px; color: black !important; }
-            h2 { font-size: 18px; margin-top: 20px; margin-bottom: 8px; color: black !important; }
-            table { width: 100%; border-collapse: collapse; margin-top: 8px; margin-bottom: 24px; }
-            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; color: black !important; }
-            th { background-color: #f2f2f2; color: black !important; }
-            
-            /* Hide the button itself when printing */
-            .no-print { display: none !important; }
-            
-            /* Add page break before each new schedule slot */
-            .page-break { page-break-before: always; }
-          }
-          
-          /* For screen preview (normally hidden) */
-          .print-content {
-            font-family: Arial, sans-serif;
-            padding: 20px;
-          }
-        </style>
-        
-        <div class="header">
-          <h1>Approved Volunteer List - ${project?.title || 'Project'}</h1>
-          <div class="print-date">Printed on: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</div>
+      <style>
+        @media print {
+        body > *:not(#print-container) { display: none !important; }
+        #print-container { display: block !important; font-family: Arial, sans-serif; margin: 10px; color: black !important; }
+        h1 { font-size: 18px; margin-bottom: 5px; }
+        h2 { font-size: 14px; margin: 10px 0 5px; }
+        table { width: 100%; border-collapse: collapse; margin: 5px 0; }
+        th, td { border: 1px solid #ddd; padding: 4px; font-size: 12px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .no-print { display: none !important; }
+        .page-break { page-break-before: always; }
+        }
+      </style>
+      <h1>Approved Volunteers - ${project?.title || 'Project'}</h1>
+      <div>Printed: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</div>
+      ${Object.entries(filteredSignupsBySlot).map(([slot, slotSignups]) => {
+        const approved = slotSignups.filter(s => s.status !== 'cancelled');
+        return approved.length > 0 ? `
+        <div class="schedule-slot ${slot !== Object.keys(filteredSignupsBySlot)[0] ? 'page-break' : ''}">
+          <h2>${project && formatScheduleSlot(project, slot)}</h2>
+          <table>
+          <thead><tr><th>Name</th><th>Type</th><th>Contact</th></tr></thead>
+          <tbody>
+            ${approved.map(s => `
+            <tr>
+              <td>${s.user_id ? s.profile?.full_name : s.anonymous_name || 'N/A'}</td>
+              <td>${s.user_id ? 'Registered' : 'Anonymous'}</td>
+              <td>${s.user_id 
+              ? `${s.profile?.email || 'N/A'} ${s.profile?.phone ? '<br>' + s.profile.phone.replace(/(\\d{3})(\\d{3})(\\d{4})/, "$1-$2-$3") : ''}` 
+              : `${s.anonymous_email || 'N/A'} ${s.anonymous_phone ? '<br>' + s.anonymous_phone.replace(/(\\d{3})(\\d{3})(\\d{4})/, "$1-$2-$3") : ''}`}</td>
+            </tr>
+            `).join('')}
+          </tbody>
+          </table>
         </div>
-        
-        ${Object.entries(filteredSignupsBySlot).map(([slot, slotSignups]) => {
-          // Filter to only include approved volunteers (status !== 'cancelled')
-          const approvedSignups = slotSignups.filter(signup => signup.status !== 'cancelled');
-          
-          // Only include this slot if it has approved signups
-          return approvedSignups.length > 0 ? `
-            <div class="schedule-slot ${slot !== Object.keys(filteredSignupsBySlot)[0] ? 'page-break' : ''}">
-              <h2>${project && formatScheduleSlot(project, slot)}</h2>
-              <table>
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>Type</th>
-                    <th>Contact</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${approvedSignups.map(signup => `
-                    <tr>
-                      <td>${signup.user_id ? signup.profile?.full_name : signup.anonymous_name || 'N/A'}</td>
-                      <td>${signup.user_id ? 'Registered User' : 'Anonymous'}</td>
-                      <td>
-                        ${signup.user_id 
-                          ? `${signup.profile?.email || 'N/A'} ${signup.profile?.phone ? '<br>' + signup.profile.phone.replace(/(\d{3})(\d{3})(\d{4})/, "$1-$2-$3") : ''}` 
-                          : `${signup.anonymous_email || 'N/A'} ${signup.anonymous_phone ? '<br>' + signup.anonymous_phone.replace(/(\d{3})(\d{3})(\d{4})/, "$1-$2-$3") : ''}`}
-                      </td>
-                    </tr>
-                  `).join('')}
-                </tbody>
-              </table>
-            </div>
-          ` : '';
-        }).join('')}
-        
-        ${Object.entries(filteredSignupsBySlot).every(([_, slotSignups]) => 
-          slotSignups.filter(signup => signup.status !== 'cancelled').length === 0) 
-          ? '<p>No approved volunteers found.</p>' 
-          : ''}
+        ` : '';
+      }).join('')}
+      ${Object.entries(filteredSignupsBySlot).every(([_, slotSignups]) => slotSignups.filter(s => s.status !== 'cancelled').length === 0) ? '<p>No approved volunteers found.</p>' : ''}
       </div>
     `;
 
