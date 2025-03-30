@@ -10,6 +10,30 @@ import { cookies } from "next/headers";
 import { type AnonymousSignupData, type ProjectSignup, type SignupStatus } from "@/types";
 import { NotificationService } from "@/services/notifications";
 
+export async function isProjectCreator(projectId: string) {
+  try {
+    const supabase = await createClient();
+    
+    // Get current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      return false;
+    }
+
+    // Check project ownership
+    const { data: project } = await supabase
+      .from("projects")
+      .select("creator_id")
+      .eq("id", projectId)
+      .single();
+
+    return project?.creator_id === user.id;
+  } catch (error) {
+    return false;
+  }
+}
+
+
 export async function getProject(projectId: string) {
   const supabase = await createClient();
   
@@ -227,7 +251,7 @@ export async function signUpForProject(
     await NotificationService.createNotification({
       title: "New Volunteer Signup",
       body: `${signerName} has signed up for your project "${project.title}"${scheduleDetails}`,
-      type: "project_signup",
+      type: "project_updates",
       severity: "success",
       actionUrl: `/projects/${projectId}/signups`,
       data: { projectId }
@@ -267,28 +291,20 @@ export async function createRejectionNotification(
 
     const projectTitle = projectData.title;
 
-    const { error } = await supabase
-      .from("notifications")
-      .insert({
-      user_id: userId,
+    // Create notification directly
+    await NotificationService.createNotification({
       title: "Project Status Update",
       body: `Your signup to volunteer for "${projectTitle}" has been rejected`,
-      type: "project_rejection",
+      type: "project_updates",
       severity: "warning",
-      action_url: `/projects/${projectId}`,
-      data: { projectId, signupId },
-      displayed: false
-      });
+      actionUrl: `/projects/${projectId}`,
+      data: { projectId, signupId }
+    }, userId);
 
-    if (error) {
-      console.error("Error creating notification:", error);
-      throw error;
-    }
-
-    return { success: true } as NotificationResult;
+    return { success: true };
   } catch (error) {
     console.error("Server notification error:", error);
-    return { error: "Failed to send notification" } as NotificationResult;
+    return { error: "Failed to send notification" };
   }
 }
 
@@ -550,25 +566,3 @@ export async function updateProject(projectId: string, updates: Partial<Project>
   }
 }
 
-export async function isProjectCreator(projectId: string) {
-  try {
-    const supabase = await createClient();
-    
-    // Get current user
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return false;
-    }
-
-    // Check project ownership
-    const { data: project } = await supabase
-      .from("projects")
-      .select("creator_id")
-      .eq("id", projectId)
-      .single();
-
-    return project?.creator_id === user.id;
-  } catch (error) {
-    return false;
-  }
-}
