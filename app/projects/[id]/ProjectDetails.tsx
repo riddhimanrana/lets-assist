@@ -81,6 +81,7 @@ interface Props {
   organization?: Organization | null;
   initialSlotData: SlotData;
   initialIsCreator: boolean;
+  initialUser: any;
 }
 
 const getFileIcon = (type: string) => {
@@ -108,13 +109,13 @@ const downloadFile = async (url: string, filename: string) => {
   }
 };
 
-export default function ProjectDetails({ project, creator, organization, initialSlotData, initialIsCreator }: Props) {
+export default function ProjectDetails({ project, creator, organization, initialSlotData, initialIsCreator, initialUser }: Props) {
   const router = useRouter();
   const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
   const [isCreator, setIsCreator] = useState(initialIsCreator);
   const [remainingSlots, setRemainingSlots] = useState<Record<string, number>>(initialSlotData.remainingSlots);
   const [hasSignedUp, setHasSignedUp] = useState<Record<string, boolean>>(initialSlotData.userSignups);
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState(initialUser);
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [anonymousDialogOpen, setAnonymousDialogOpen] = useState(false);
   const [currentScheduleId, setCurrentScheduleId] = useState<string>("");

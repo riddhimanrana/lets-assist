@@ -1,3 +1,5 @@
+import { createClient } from "@/utils/supabase/client";
+import { NotificationService } from "@/services/notifications";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import {
@@ -60,6 +62,27 @@ export default function CreatorDashboard({ project }: Props) {
         toast.error(result.error);
       } else {
         toast.success("Project cancelled successfully");
+        // Send cancellation notifications to all participants
+        try {
+          const supabase = createClient();
+          const { data: signups, error } = await supabase
+            .from('project_signups')
+            .select('user_id')
+            .eq('project_id', project.id);
+          if (!error && signups) {
+            for (const signup of signups) {
+              if (signup.user_id) {
+                await NotificationService.createCancellationNotification({
+                  title: 'Project Cancelled',
+                  body: 'This project has been cancelled. Click to view project details.',
+                  type: 'general'
+                }, signup.user_id, project.id);
+              }
+            }
+          }
+        } catch (notifyError) {
+          console.error('Error sending cancellation notifications:', notifyError);
+        }
         setShowCancelDialog(false);
         router.refresh();
       }

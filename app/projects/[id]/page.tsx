@@ -122,5 +122,6 @@ export default async function ProjectPage(
     creator={creator || null} 
     initialSlotData={slotData}
     initialIsCreator={initialIsCreator}
+    initialUser={user}
   />;
 }

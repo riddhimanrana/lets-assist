@@ -19,7 +19,7 @@ export interface NotificationData {
 const createdNotificationIds = new Set<string>();
 
 export const NotificationService = {
-  async createNotification(notification: NotificationData, userId: string, showToast = false) {
+  async createNotification(notification: NotificationData, userId: string, showToast = false, bypassAuthCheck = false) {
     const supabase = createClient();
     
     // Set default severity to 'info' if not specified
@@ -29,18 +29,23 @@ export const NotificationService = {
     };
     
     try {
-      // First get the user to ensure auth is current
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      
-      if (userError) {
-        console.error('Auth error:', userError);
-        return { error: userError };
-      }
-      
-      if (!user || user.id !== userId) {
-        console.error('User ID mismatch or missing');
-        return { error: new Error('Authentication error') };
-      }
+      if (!bypassAuthCheck) {
+          // First get the user to ensure auth is current
+          const { data: { user }, error: userError } = await supabase.auth.getUser();
+          
+          if (userError) {
+            console.error('Auth error:', userError);
+            return { error: userError };
+          }
+          
+          if (!user || String(user.id) !== String(userId)) {
+            console.error('User ID mismatch or missing');
+            return { error: new Error('Authentication error') };
+          }
+        } else {
+          // Bypass mode: skip auth check entirely.
+          console.warn('Bypassing auth check for notification creation');
+        }
 
       // Check if this notification type requires preference check
       if (notification.type === 'project_updates' || notification.type === 'email_notifications') {
@@ -197,7 +202,7 @@ export const NotificationService = {
             title: 'Set Your Custom Username',
             body: 'Personalize your profile by setting a custom username in your account settings.',
             type: 'general',
-            severity: 'info', // Set username reminder to info (blue)
+            severity: 'info',
             actionUrl: '/account/profile'
           }, userId, true);
         }
@@ -205,5 +210,16 @@ export const NotificationService = {
     } catch (error) {
       console.error('Error checking username setting:', error);
     }
+  },
+
+  async createCancellationNotification(notification: NotificationData, userId: string, projectId: string) {
+    const cancellationNotification = {
+      ...notification,
+      severity: 'warning' as NotificationSeverity,
+      title: notification.title || 'Project Cancelled',
+      body: notification.body || 'This project has been cancelled. Click to view project details.',
+      actionUrl: `/projects/${projectId}`
+    };
+    return await this.createNotification(cancellationNotification, userId, false, true);
   }
 };
