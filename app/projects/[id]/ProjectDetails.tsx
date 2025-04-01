@@ -51,6 +51,7 @@ import { formatTimeTo12Hour, formatBytes } from "@/lib/utils";
 import { formatSpots } from "./helpers";
 import { createClient } from "@/utils/supabase/client";
 import { getSlotCapacities, getSlotDetails, isSlotAvailable } from "./utils";
+import { getProjectStatus } from "@/utils/project"; // Import the getProjectStatus utility
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -120,6 +121,8 @@ export default function ProjectDetails({ project, creator, organization, initial
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewDocName, setPreviewDocName] = useState<string>("Document");
   const [previewDocType, setPreviewDocType] = useState<string>("");
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  console.log(project)
 
   // Initialize user and creator status
   useEffect(() => {
@@ -128,15 +131,56 @@ export default function ProjectDetails({ project, creator, organization, initial
       const { data: { user: currentUser } } = await supabase.auth.getUser();
       setUser(currentUser);
       
-      if (currentUser && project.creator_id === currentUser.id) {
-        setIsCreator(true);
+      const userIsCreator = !!currentUser && project.creator_id === currentUser.id;
+      setIsCreator(userIsCreator);
+      
+      // Check if the project's status needs to be updated (only for creators)
+      // console.log(project);
+      if (userIsCreator && project.status !== "cancelled") {
+        const calculatedStatus = getProjectStatus(project);
+        console.log(`Calculated status: ${calculatedStatus}`);
+        console.log(`Current status: ${project.status}`);
+        
+        // If the calculated status is different from the current status, update it
+        if (calculatedStatus !== project.status) {
+          console.log(`Status mismatch detected: Current: ${project.status}, Calculated: ${calculatedStatus}`);
+          updateProjectStatus(calculatedStatus);
+        }
       }
     };
     initialize();
   }, [project]);
 
+  // Function to update project status in the database
+  const updateProjectStatus = async (newStatus: ProjectStatus) => {
+    if (isUpdatingStatus) return;
+    
+    try {
+      setIsUpdatingStatus(true);
+      const supabase = createClient();
+      const { error } = await supabase
+        .from('projects')
+        .update({ status: newStatus })
+        .eq('id', project.id);
+        
+      if (error) {
+        console.error("Failed to update project status:", error);
+      } else {
+        console.log(`Project status updated from ${project.status} to ${newStatus}`);
+        // Update the local project object to reflect the new status
+        // project.status = newStatus;
+        // Refresh the page to show updated status
+        router.refresh();
+      }
+    } catch (error) {
+      console.error("Error updating project status:", error);
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
   // Handle sign up or cancel click
-  const handleSignUpClick = (scheduleId: string) => {
+  const handleSignUpClick = async (scheduleId: string) => {
     // Prevent project creator from signing up
     if (isCreator) {
       toast.info("You cannot sign up for your own project");
@@ -218,7 +262,7 @@ export default function ProjectDetails({ project, creator, organization, initial
       setHasSignedUp(prev => ({ ...prev, [scheduleId]: true }));
       setRemainingSlots(prev => ({ 
         ...prev, 
-        [scheduleId]: (prev[scheduleId] || 0) - 1 
+        [scheduleId]: Math.max(0, (prev[scheduleId] || 0) - 1)
       }));
     }
   };

@@ -33,9 +33,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { canCancelProject } from "@/utils/project";
+import { canCancelProject, canDeleteProject } from "@/utils/project";
 import { CancelProjectDialog } from "@/components/CancelProjectDialog";
-// import { ProjectStatusBadge } from "@/components/ui/status-badge";
+import { NotificationService } from "@/services/notifications";
+import { createClient } from "@/utils/supabase/client";
 
 interface Props {
   project: Project;
@@ -47,6 +48,34 @@ export default function CreatorDashboard({ project }: Props) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+
+  const notifySignups = async (reason: string) => {
+    const supabase = createClient();
+    
+    // Get all signups for this project
+    const { data: signups } = await supabase
+      .from('project_signups')
+      .select('user_id')
+      .eq('project_id', project.id)
+      .eq('status', 'confirmed');
+
+    if (signups) {
+      // Notify each signed up user
+      for (const signup of signups) {
+        await NotificationService.createNotification({
+          title: "Project Cancelled",
+          body: `The project "${project.title}" has been cancelled. ${reason ? `Reason: ${reason}` : ''}`,
+          type: 'project_updates',
+          severity: 'warning',
+          actionUrl: `/projects/${project.id}`,
+          data: {
+            projectId: project.id,
+            projectTitle: project.title
+          }
+        }, signup.user_id);
+      }
+    }
+  };
 
   const handleUpdateStatus = async (newStatus: ProjectStatus) => {
     setIsUpdatingStatus(true);
@@ -71,6 +100,7 @@ export default function CreatorDashboard({ project }: Props) {
       if (result.error) {
         toast.error(result.error);
       } else {
+        await notifySignups(reason);
         toast.success("Project cancelled successfully");
         setShowCancelDialog(false);
         router.refresh();
@@ -81,6 +111,12 @@ export default function CreatorDashboard({ project }: Props) {
   };
 
   const handleDeleteProject = async () => {
+    if (!canDeleteProject(project)) {
+      toast.error("Projects can only be deleted more than 24 hours before they start or 48 hours after they end");
+      setShowDeleteDialog(false);
+      return;
+    }
+
     setIsDeleting(true);
     try {
       const result = await deleteProject(project.id);
@@ -98,6 +134,7 @@ export default function CreatorDashboard({ project }: Props) {
     }
   };
 
+  const canDelete = canDeleteProject(project);
   const canCancel = canCancelProject(project);
   const isCompleted = project.status === "completed";
   const isCancelled = project.status === "cancelled";
@@ -113,7 +150,6 @@ export default function CreatorDashboard({ project }: Props) {
                 Manage your project and track volunteer signups
               </CardDescription>
             </div>
-            {/* <ProjectStatusBadge status={project.status} /> */}
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -173,7 +209,7 @@ export default function CreatorDashboard({ project }: Props) {
               variant="destructive"
               className="flex items-center gap-2"
               onClick={() => setShowDeleteDialog(true)}
-              disabled={isDeleting}
+              disabled={isDeleting || !canDelete}
             >
               {isDeleting ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -209,6 +245,12 @@ export default function CreatorDashboard({ project }: Props) {
                   You can edit project details, manage volunteer signups, update
                   documents, and more.
                 </p>
+                {!canDelete && (
+                  <p className="mt-2 text-yellow-600">
+                    <AlertTriangle className="h-4 w-4 inline mr-1" />
+                    Project deletion is only available more than 24 hours before the start or 48 hours after completion.
+                  </p>
+                )}
               </div>
             </div>
           )}

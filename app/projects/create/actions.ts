@@ -109,7 +109,7 @@ export async function createBasicProject(projectData: any) {
         schedule: {
           [projectData.eventType]: projectData.schedule[projectData.eventType],
         },
-        status: "active",
+        status: "upcoming",
         organization_id: organizationId || null, // Save organization_id if provided
         is_private: organizationId ? projectData.isPrivate : false, // Set is_private based on organization and preference
       })
