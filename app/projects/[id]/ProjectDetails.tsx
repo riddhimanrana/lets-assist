@@ -80,6 +80,7 @@ interface Props {
   creator: Profile | null;
   organization?: Organization | null;
   initialSlotData: SlotData;
+  initialIsCreator: boolean;
 }
 
 const getFileIcon = (type: string) => {
@@ -107,10 +108,10 @@ const downloadFile = async (url: string, filename: string) => {
   }
 };
 
-export default function ProjectDetails({ project, creator, organization, initialSlotData }: Props) {
+export default function ProjectDetails({ project, creator, organization, initialSlotData, initialIsCreator }: Props) {
   const router = useRouter();
   const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
-  const [isCreator, setIsCreator] = useState(false);
+  const [isCreator, setIsCreator] = useState(initialIsCreator);
   const [remainingSlots, setRemainingSlots] = useState<Record<string, number>>(initialSlotData.remainingSlots);
   const [hasSignedUp, setHasSignedUp] = useState<Record<string, boolean>>(initialSlotData.userSignups);
   const [user, setUser] = useState<any>(null);
@@ -124,33 +125,7 @@ export default function ProjectDetails({ project, creator, organization, initial
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   console.log(project)
 
-  // Initialize user and creator status
-  useEffect(() => {
-    const initialize = async () => {
-      const supabase = createClient();
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
-      setUser(currentUser);
-      
-      const userIsCreator = !!currentUser && project.creator_id === currentUser.id;
-      setIsCreator(userIsCreator);
-      
-      // Check if the project's status needs to be updated (only for creators)
-      // console.log(project);
-      if (userIsCreator && project.status !== "cancelled") {
-        const calculatedStatus = getProjectStatus(project);
-        console.log(`Calculated status: ${calculatedStatus}`);
-        console.log(`Current status: ${project.status}`);
-        
-        // If the calculated status is different from the current status, update it
-        if (calculatedStatus !== project.status) {
-          console.log(`Status mismatch detected: Current: ${project.status}, Calculated: ${calculatedStatus}`);
-          updateProjectStatus(calculatedStatus);
-        }
-      }
-    };
-    initialize();
-  }, [project]);
-
+  
   // Function to update project status in the database
   const updateProjectStatus = async (newStatus: ProjectStatus) => {
     if (isUpdatingStatus) return;
