@@ -104,24 +104,24 @@ export default function CreatorDashboard({ project }: Props) {
   const isCancelled = project.status === "cancelled";
 
   return (
-    <div className="space-y-6 mb-4">
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-4 sm:space-y-6 mb-4 px-2 sm:px-0">
+      <Card className="overflow-hidden">
+        <CardHeader className="px-4 py-4 sm:py-6 sm:px-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4">
             <div className="space-y-1">
-              <CardTitle>Creator Dashboard</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-xl sm:text-2xl">Creator Dashboard</CardTitle>
+              <CardDescription className="text-sm sm:text-base">
                 Manage your project and track volunteer signups
               </CardDescription>
             </div>
           </div>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex flex-wrap gap-3">
+        <CardContent className="space-y-4 px-4 sm:px-6">
+          <div className="grid grid-cols-1 sm:flex sm:flex-wrap gap-2 sm:gap-3">
             {/* Project Actions */}
             <Button
               variant="outline"
-              className="flex items-center gap-2"
+              className="w-full sm:w-auto flex items-center justify-center gap-2"
               onClick={() => router.push(`/projects/${project.id}/edit`)}
             >
               <Edit className="h-4 w-4" />
@@ -129,7 +129,7 @@ export default function CreatorDashboard({ project }: Props) {
             </Button>
             <Button
               variant="outline"
-              className="flex items-center gap-2"
+              className="w-full sm:w-auto flex items-center justify-center gap-2"
               onClick={() => router.push(`/projects/${project.id}/signups`)}
             >
               <Users className="h-4 w-4" />
@@ -137,7 +137,7 @@ export default function CreatorDashboard({ project }: Props) {
             </Button>
             <Button
               variant="outline"
-              className="flex items-center gap-2"
+              className="w-full sm:w-auto flex items-center justify-center gap-2"
               onClick={() => router.push(`/projects/${project.id}/documents`)}
             >
               <FileEdit className="h-4 w-4" />
@@ -147,7 +147,7 @@ export default function CreatorDashboard({ project }: Props) {
             {!isCancelled && (
               <Button
                 variant="destructive"
-                className="flex items-center gap-2"
+                className="w-full sm:w-auto flex items-center justify-center gap-2"
                 onClick={() => setShowCancelDialog(true)}
                 disabled={!canCancel}
               >
@@ -156,14 +156,13 @@ export default function CreatorDashboard({ project }: Props) {
               </Button>
             )}
 
-            {/* Delete Project */}
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <span>
+                  <span className="w-full sm:w-auto">
                     <Button
                       variant="destructive"
-                      className="flex items-center gap-2"
+                      className="w-full sm:w-auto flex items-center justify-center gap-2"
                       onClick={() => setShowDeleteDialog(true)}
                       disabled={isDeleting || !canDelete || isInDeletionRestrictionPeriod}
                     >
@@ -177,19 +176,18 @@ export default function CreatorDashboard({ project }: Props) {
                   </span>
                 </TooltipTrigger>
                 {isInDeletionRestrictionPeriod && (
-                  <TooltipContent>
-                    <p>Projects cannot be deleted during the 72-hour window around the event<br/>(24 hours before until 48 hours after)</p>
+                  <TooltipContent className="max-w-[250px] text-center p-2">
+                    <p>Projects cannot be deleted during the 72-hour window around the event</p>
                   </TooltipContent>
                 )}
               </Tooltip>
             </TooltipProvider>
           </div>
 
-          {/* Show either the cancellation warning or the general info */}
           {isCancelled ? (
-            <div className="flex items-start gap-2 rounded-md border border-destructive p-3 bg-destructive/10">
-              <AlertTriangle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
-              <div className="text-sm text-muted-foreground">
+            <div className="flex flex-col sm:flex-row items-start gap-2 rounded-md border border-destructive p-3 sm:p-4 bg-destructive/10">
+              <AlertTriangle className="h-5 w-5 text-destructive flex-shrink-0" />
+              <div className="text-sm text-muted-foreground space-y-2">
                 <p>
                   This project has been cancelled. You can still edit details and manage existing signups,
                   but new signups are disabled. If this was a mistake, please contact <Link className="text-chart-3" href="mailto:support@lets-assist.com">support@lets-assist.com</Link>
@@ -202,9 +200,9 @@ export default function CreatorDashboard({ project }: Props) {
               </div>
             </div>
           ) : (
-            <div className="flex items-start gap-2 rounded-md border p-3 bg-muted/50">
-              <AlertCircle className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
-              <div className="text-sm text-muted-foreground">
+            <div className="flex flex-col sm:flex-row items-start gap-2 rounded-md border p-3 sm:p-4 bg-muted/50">
+              <AlertCircle className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+              <div className="text-sm text-muted-foreground space-y-2">
                 <p>
                   As the project creator, you have full control over this project.
                   You can edit project details, manage volunteer signups, update
@@ -212,7 +210,7 @@ export default function CreatorDashboard({ project }: Props) {
                 </p>
                 {isInDeletionRestrictionPeriod && (
                   <div className="mt-2 flex items-center text-chart-6">
-                    <AlertTriangle className="h-4 w-4inline mr-1" />
+                    <AlertTriangle className="h-4 w-4 inline mr-1 flex-shrink-0" />
                     <span className="inline">
                       Project deletion is restricted during the 72-hour window around the event (24 hours before until 48 hours after).
                     </span>
@@ -226,20 +224,20 @@ export default function CreatorDashboard({ project }: Props) {
 
       {/* Delete Dialog */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>
+        <AlertDialogContent className="max-w-[95vw] sm:max-w-[425px]">
+          <AlertDialogHeader className="space-y-3">
+            <AlertDialogTitle className="text-lg sm:text-xl">Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription className="text-sm sm:text-base">
               This action cannot be undone. This will permanently delete your
               project and remove all data associated with it, including volunteer
               signups and documents.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2 sm:gap-3">
+            <AlertDialogCancel className="w-full sm:w-auto mt-0">Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteProject}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="w-full sm:w-auto bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {isDeleting ? (
                 <>
