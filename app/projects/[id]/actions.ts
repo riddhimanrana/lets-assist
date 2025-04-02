@@ -230,31 +230,31 @@ export async function signUpForProject(
       revalidatePath(`/profile/${user.id}`);
     }
 
-    // Send notification to project creator
-    const signerName = user 
-      ? (await getCreatorProfile(user.id))?.profile?.full_name || "A user"
-      : anonymousData?.name || "An anonymous user";
+    // // Send notification to project creator
+    // const signerName = user 
+    //   ? (await getCreatorProfile(user.id))?.profile?.full_name || "A user"
+    //   : anonymousData?.name || "An anonymous user";
 
-    let scheduleDetails = "";
-    if (project.event_type === "oneTime" && project.schedule.oneTime) {
-      const date = new Date(project.schedule.oneTime.date);
-      const formattedDate = date.toLocaleDateString('en-US', { 
-        month: 'long', 
-        day: 'numeric',
-        year: 'numeric'
-      });
-      const formattedTime = `${project.schedule.oneTime.startTime} - ${project.schedule.oneTime.endTime}`;
-      scheduleDetails = ` for ${formattedDate} at ${formattedTime}`;
-    }
+    // let scheduleDetails = "";
+    // if (project.event_type === "oneTime" && project.schedule.oneTime) {
+    //   const date = new Date(project.schedule.oneTime.date);
+    //   const formattedDate = date.toLocaleDateString('en-US', { 
+    //     month: 'long', 
+    //     day: 'numeric',
+    //     year: 'numeric'
+    //   });
+    //   const formattedTime = `${project.schedule.oneTime.startTime} - ${project.schedule.oneTime.endTime}`;
+    //   scheduleDetails = ` for ${formattedDate} at ${formattedTime}`;
+    // }
 
-    await NotificationService.createNotification({
-      title: "New Volunteer Signup",
-      body: `${signerName} has signed up for your project "${project.title}"${scheduleDetails}`,
-      type: "project_updates",
-      severity: "success",
-      actionUrl: `/projects/${projectId}/signups`,
-      data: { projectId }
-    }, project.creator_id);
+    // await NotificationService.createNotification({
+    //   title: "New Volunteer Signup",
+    //   body: `${signerName} has signed up for your project "${project.title}"${scheduleDetails}`,
+    //   type: "project_updates",
+    //   severity: "success",
+    //   actionUrl: `/projects/${projectId}/signups`,
+    //   data: { projectId }
+    // }, project.creator_id);
 
     return { success: true };
   } catch (error) {

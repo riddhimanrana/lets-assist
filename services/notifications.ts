@@ -29,14 +29,6 @@ export const NotificationService = {
     };
     
     try {
-      // First get the user to ensure auth is current
-      // const { data: { user }, error: userError } = await supabase.auth.getUser();
-      
-      // if (userError) {
-      //   console.error('Auth error:', userError);
-      //   return { error: userError };
-      // }
-      
       if (notification.type === 'project_updates' || notification.type === 'email_notifications' || notification.type === 'general') {
         // Define NotificationPreferences type inline for query result
         interface NotificationPreferences {
