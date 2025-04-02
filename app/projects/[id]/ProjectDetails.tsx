@@ -175,6 +175,28 @@ export default function ProjectDetails({ project, creator, organization, initial
     checkAndUpdateStatus();
   }, [isCreator, project, isUpdatingStatus]);
 
+  // Realtime status update using setInterval
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      // Re-calculate project status
+      const newCalculatedStatus = getProjectStatus(project);
+      
+      // Update the calculated status state if it has changed
+      if (newCalculatedStatus !== calculatedStatus) {
+        setCalculatedStatus(newCalculatedStatus);
+        console.log("Status updated via setInterval:", newCalculatedStatus);
+
+        // If user is the project creator, update the status in the database
+        if (isCreator) {
+          updateProjectStatus(newCalculatedStatus);
+        }
+      }
+    }, 60000); // Update every 60 seconds (adjust as needed)
+
+    // Clear interval on component unmount
+    return () => clearInterval(intervalId);
+  }, [project, isCreator, calculatedStatus]);
+
   // Function to update project status in the database
   const updateProjectStatus = async (newStatus: ProjectStatus) => {
     if (isUpdatingStatus) return;
