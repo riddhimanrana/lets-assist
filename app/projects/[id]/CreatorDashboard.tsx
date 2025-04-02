@@ -69,17 +69,17 @@ export default function CreatorDashboard({ project }: Props) {
             .from('project_signups')
             .select('user_id')
             .eq('project_id', project.id);
-          if (!error && signups) {
+            if (!error && signups) {
             for (const signup of signups) {
               if (signup.user_id) {
-                await NotificationService.createCancellationNotification({
-                  title: 'Project Cancelled',
-                  body: 'This project has been cancelled. Click to view project details.',
-                  type: 'general'
-                }, signup.user_id, project.id);
+              await NotificationService.createCancellationNotification({
+                title: `Project Status Update`,
+                body: `The project "${project.title}" has been cancelled. Click to view project details.`,
+                type: 'general'
+              }, signup.user_id, project.id);
               }
             }
-          }
+            }
         } catch (notifyError) {
           console.error('Error sending cancellation notifications:', notifyError);
         }
