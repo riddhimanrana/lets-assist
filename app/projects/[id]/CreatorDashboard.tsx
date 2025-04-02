@@ -73,7 +73,7 @@ export default function CreatorDashboard({ project }: Props) {
             for (const signup of signups) {
               if (signup.user_id) {
               await NotificationService.createNotification({
-                title: `Project Status Update`,
+                title: `Project Cancelled`,
                 body: `The project "${project.title}" which you signed up for has been cancelled.`,
                 type: 'project_updates',
                 actionUrl: `/projects/${project.id}`,

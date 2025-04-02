@@ -69,12 +69,12 @@ export function CancelProjectDialog({
             {canCancel ? (
               "This action cannot be undone. The project will be marked as cancelled and participants will be notified."
             ) : (
-              <div className="flex items-start gap-2 text-destructive mt-1">
+              <span className="flex items-start gap-2 text-destructive mt-1">
                 <AlertTriangle className="h-5 w-5 flex-shrink-0" />
                 <span>
                   Projects can only be cancelled within 24 hours of their start time.
                 </span>
-              </div>
+              </span>
             )}
           </DialogDescription>
         </DialogHeader>
