@@ -19,7 +19,7 @@ export interface NotificationData {
 const createdNotificationIds = new Set<string>();
 
 export const NotificationService = {
-  async createNotification(notification: NotificationData, userId: string, showToast = false, bypassAuthCheck = false) {
+  async createNotification(notification: NotificationData, userId: string, showToast = false) {
     const supabase = createClient();
     
     // Set default severity to 'info' if not specified
@@ -29,32 +29,29 @@ export const NotificationService = {
     };
     
     try {
-      if (!bypassAuthCheck) {
-          // First get the user to ensure auth is current
-          const { data: { user }, error: userError } = await supabase.auth.getUser();
-          
-          if (userError) {
-            console.error('Auth error:', userError);
-            return { error: userError };
-          }
-          
-          if (!user || String(user.id) !== String(userId)) {
-            console.error('User ID mismatch or missing');
-            return { error: new Error('Authentication error') };
-          }
-        } else {
-          // Bypass mode: skip auth check entirely.
-          console.warn('Bypassing auth check for notification creation');
+      // First get the user to ensure auth is current
+      // const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      // if (userError) {
+      //   console.error('Auth error:', userError);
+      //   return { error: userError };
+      // }
+      
+      if (notification.type === 'project_updates' || notification.type === 'email_notifications' || notification.type === 'general') {
+        // Define NotificationPreferences type inline for query result
+        interface NotificationPreferences {
+          email_notifications: boolean;
+          project_updates: boolean;
+          general?: boolean;
+          [key: string]: any;
         }
-
-      // Check if this notification type requires preference check
-      if (notification.type === 'project_updates' || notification.type === 'email_notifications') {
-        // Get user's notification preferences
+        // Get user's notification preferences as a single object
         const { data: preferences, error: prefsError } = await supabase
           .from('notification_settings')
           .select('*')
           .eq('user_id', userId)
-          .single();
+          .single<NotificationPreferences>();
+        console.log('Notification preferences:', preferences);
           
         if (prefsError && prefsError.code !== 'PGRST116') { // PGRST116 means "no rows returned"
           console.error('Error fetching notification settings:', prefsError);
@@ -67,6 +64,13 @@ export const NotificationService = {
           return { success: false, skipped: true };
         }
       }
+
+      // if (!user || user?.id !== userId) {
+      //   console.log(user?.id)
+      //   console.log(userId)
+      //   console.error('User ID mismatch or missing');
+      //   return { error: new Error('Authentication error') };
+      // }
       
       // First check if this notification already exists
       const { data: existingNotifications } = await supabase
@@ -98,15 +102,13 @@ export const NotificationService = {
           data: notificationWithSeverity.data,
           displayed: false // Start as not displayed, let the listener handle it
         })
-        .select('id')
-        .single();
         
       if (error) {
         console.error('Notification insert error details:', error.message, error.code);
         throw error;
       }
       
-      console.log('Notification created successfully, ID:', data?.id);
+      console.log('Notification created successfully, ID:', userId);
       
       // Don't manually show toast here - let the realtime listener handle it
       
@@ -220,6 +222,6 @@ export const NotificationService = {
       body: notification.body || 'This project has been cancelled. Click to view project details.',
       actionUrl: `/projects/${projectId}`
     };
-    return await this.createNotification(cancellationNotification, userId, false, true);
+    return await this.createNotification(cancellationNotification, userId, false);
   }
 };

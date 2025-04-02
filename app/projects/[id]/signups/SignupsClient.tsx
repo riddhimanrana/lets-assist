@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { Project, EventType } from "@/types";
+import { NotificationService } from "@/services/notifications";
 import { createRejectionNotification } from "../actions";
 import { format } from "date-fns";
 import Link from "next/link";
@@ -77,6 +78,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
   const [searchTerm, setSearchTerm] = useState("");
   const [project, setProject] = useState<Project | null>(null);
   const [sort, setSort] = useState<Sort>({ field: "status", direction: "asc" });
+  
 
   const toggleSort = (field: SortField) => {
     setSort(current => ({
@@ -310,16 +312,25 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
         throw new Error("Failed to update signup status");
       }
 
-      // Send notification if user is registered
+      // Send notification if user is registered - directly from client
       if (signup.user_id) {
-        const result = await createRejectionNotification(
-          signup.user_id,
-          projectId,
-          signupId
-        );
-        
-        if (result.error) {
-          console.error("Error sending notification:", result.error);
+        // Get project title for the notification
+        const { data: projectData } = await supabase
+          .from("projects")
+          .select("title")
+          .eq("id", projectId)
+          .single();
+          
+        if (projectData) {
+          // Create notification directly using NotificationService
+          await NotificationService.createNotification({
+            title: "Project Status Update",
+            body: `Your signup to volunteer for "${projectData.title}" has been rejected`,
+            type: "project_updates",
+            severity: "warning",
+            actionUrl: `/projects/${projectId}`,
+            data: { projectId, signupId }
+          }, signup.user_id);
         }
       }
 

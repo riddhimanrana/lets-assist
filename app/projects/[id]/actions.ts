@@ -33,7 +33,6 @@ export async function isProjectCreator(projectId: string) {
   }
 }
 
-
 export async function getProject(projectId: string) {
   const supabase = await createClient();
   
