@@ -211,7 +211,7 @@ export function NotificationsClient() {
                         General
                       </Label>
                       <p className="text-sm text-muted-foreground">
-                        General System Notifications about login items and other such stuff.
+                        General system notifications about login items and other such stuff.
                       </p>
                     </div>
                     <Switch

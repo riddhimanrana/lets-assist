@@ -205,15 +205,4 @@ export const NotificationService = {
       console.error('Error checking username setting:', error);
     }
   },
-
-  async createCancellationNotification(notification: NotificationData, userId: string, projectId: string) {
-    const cancellationNotification = {
-      ...notification,
-      severity: 'warning' as NotificationSeverity,
-      title: notification.title || 'Project Cancelled',
-      body: notification.body || 'This project has been cancelled. Click to view project details.',
-      actionUrl: `/projects/${projectId}`
-    };
-    return await this.createNotification(cancellationNotification, userId, false);
-  }
 };
