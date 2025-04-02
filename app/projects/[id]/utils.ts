@@ -1,4 +1,4 @@
-import { Project } from "@/types";
+import { Project, ProjectStatus } from "@/types";
 
 export function getSlotDetails(project: Project, scheduleId: string) {
   if (!project || !scheduleId) return null;
@@ -51,10 +51,14 @@ export function getSlotCapacities(project: Project): Record<string, number> {
 export function isSlotAvailable(
   project: Project, 
   scheduleId: string, 
-  remainingSlots: Record<string, number>
+  remainingSlots: Record<string, number>,
+  clientStatus?: ProjectStatus // Add optional parameter to override project.status
 ): boolean {
+  // Use client-provided status if available, otherwise use project.status
+  const effectiveStatus = clientStatus || project.status;
+  
   // Check if the project is cancelled or completed
-  if (project.status === "cancelled" || project.status === "completed") {
+  if (effectiveStatus === "cancelled" || effectiveStatus === "completed") {
     return false;
   }
   

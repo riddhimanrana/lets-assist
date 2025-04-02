@@ -31,7 +31,7 @@ export const CallToAction = () => {
           <h2 className="text-3xl md:text-4xl font-bold bg-clip-text">
             Who will you help today?
           </h2>
-                    <p className="text-lg text-muted-foreground">
+                    <p className="text-sm sm:text-base text-muted-foreground">
             Every small act of kindness creates ripples of change in our
             community. Start your volunteering journey today.
           </p>

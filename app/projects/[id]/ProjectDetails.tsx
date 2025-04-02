@@ -124,9 +124,57 @@ export default function ProjectDetails({ project, creator, organization, initial
   const [previewDocName, setPreviewDocName] = useState<string>("Document");
   const [previewDocType, setPreviewDocType] = useState<string>("");
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
-  console.log(project)
-
   
+  // Add state to track calculated status
+  const [calculatedStatus, setCalculatedStatus] = useState<ProjectStatus>(
+    getProjectStatus(project)
+  );
+
+  // Update automatic status check for project creators
+  useEffect(() => {
+    async function checkAndUpdateStatus() {
+      if (isCreator && !isUpdatingStatus) {
+        try {
+          // First, get the current status directly from the database
+          const supabase = createClient();
+          const { data: currentProjectData, error: fetchError } = await supabase
+            .from('projects')
+            .select('status')
+            .eq('id', project.id)
+            .single();
+            
+          if (fetchError) {
+            console.error("Error fetching current project status:", fetchError);
+            return;
+          }
+          
+          // Calculate what the status should be based on project data
+          const newCalculatedStatus = getProjectStatus(project);
+          const databaseStatus = currentProjectData?.status as ProjectStatus;
+          
+          // Update the calculated status state
+          setCalculatedStatus(newCalculatedStatus);
+          
+          console.log(`Calculated status: ${newCalculatedStatus}`);
+          console.log(`Database status: ${databaseStatus}`);
+          
+          // If the calculated status is different from the database status, update it
+          if (newCalculatedStatus !== databaseStatus) {
+            console.log(`Status mismatch: database=${databaseStatus}, calculated=${newCalculatedStatus}`);
+            updateProjectStatus(newCalculatedStatus);
+          }
+        } catch (error) {
+          console.error("Error in status check:", error);
+        }
+      } else {
+        // Even for non-creators, we still want to calculate the correct status for UI
+        setCalculatedStatus(getProjectStatus(project));
+      }
+    }
+    
+    checkAndUpdateStatus();
+  }, [isCreator, project, isUpdatingStatus]);
+
   // Function to update project status in the database
   const updateProjectStatus = async (newStatus: ProjectStatus) => {
     if (isUpdatingStatus) return;
@@ -134,6 +182,8 @@ export default function ProjectDetails({ project, creator, organization, initial
     try {
       setIsUpdatingStatus(true);
       const supabase = createClient();
+      
+      // First update the status in the database
       const { error } = await supabase
         .from('projects')
         .update({ status: newStatus })
@@ -143,10 +193,21 @@ export default function ProjectDetails({ project, creator, organization, initial
         console.error("Failed to update project status:", error);
       } else {
         console.log(`Project status updated from ${project.status} to ${newStatus}`);
-        // Update the local project object to reflect the new status
-        // project.status = newStatus;
-        // Refresh the page to show updated status
-        router.refresh();
+        
+        // Then immediately fetch the updated project data
+        // const { data: updatedProject, error: fetchError } = await supabase
+        //   .from('projects')
+        //   .select('*')
+        //   .eq('id', project.id)
+        //   .single();
+          
+        // if (fetchError) {
+        //   console.error("Failed to fetch updated project data:", fetchError);
+        // } else if (updatedProject) {
+        //   // Directly modify the project object to reflect the new status
+        //   project.status = updatedProject.status;
+        //   console.log("Project data refreshed with status:", project.status);
+        // }
       }
     } catch (error) {
       console.error("Error updating project status:", error);
@@ -168,7 +229,8 @@ export default function ProjectDetails({ project, creator, organization, initial
       return;
     }
 
-    if (!isSlotAvailable(project, scheduleId, remainingSlots)) {
+    // Use calculatedStatus instead of project.status
+    if (!isSlotAvailable(project, scheduleId, remainingSlots, calculatedStatus)) {
       toast.error("This slot is no longer available");
       return;
     }
@@ -308,7 +370,8 @@ export default function ProjectDetails({ project, creator, organization, initial
               </div>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
-              <ProjectStatusBadge status={project.status} className="capitalize" />
+              {/* Use calculatedStatus instead of project.status */}
+              <ProjectStatusBadge status={calculatedStatus} className="capitalize" />
               <Button
                 variant="outline"
                 size="icon"
@@ -379,7 +442,7 @@ export default function ProjectDetails({ project, creator, organization, initial
                           variant={hasSignedUp["oneTime"] ? "secondary" : "default"}
                           size="sm"
                           onClick={() => handleSignUpClick("oneTime")}
-                          disabled={isCreator || loadingStates["oneTime"] || project.status === "cancelled" || (!hasSignedUp["oneTime"] && (remainingSlots["oneTime"] === 0))}
+                          disabled={isCreator || loadingStates["oneTime"] || calculatedStatus === "cancelled" || (!hasSignedUp["oneTime"] && (remainingSlots["oneTime"] === 0))}
                           className="flex-shrink-0 gap-2"
                         >
                           {isCreator ? (
@@ -396,7 +459,7 @@ export default function ProjectDetails({ project, creator, organization, initial
                               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                               Processing...
                             </>
-                          ) : project.status === "cancelled" ? (
+                          ) : calculatedStatus === "cancelled" ? (
                             "Unavailable"
                           ) : (
                             <>
@@ -552,7 +615,7 @@ export default function ProjectDetails({ project, creator, organization, initial
                 )}
 
                 {/* Message for cancelled projects */}
-                {project.status === "cancelled" && (
+                {calculatedStatus === "cancelled" && (
                   <div className="flex items-start gap-2 rounded-md border border-destructive p-3 bg-destructive/10 mt-4">
                     <AlertTriangle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
                     <div className="text-sm text-muted-foreground">
@@ -569,7 +632,7 @@ export default function ProjectDetails({ project, creator, organization, initial
                 )}
 
                 {/* Message for completed projects */}
-                {project.status === "completed" && (
+                {calculatedStatus === "completed" && (
                   <div className="flex items-start gap-2 rounded-md border p-3 bg-muted/50 mt-4">
                     <CheckCircle2 className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
                     <div className="text-sm text-muted-foreground">

@@ -63,8 +63,8 @@ export async function getProject(projectId: string) {
   
   // Calculate and update the project status
   if (project) {
-    project.status = getProjectStatus(project);
 
+    
     // Check if the project is private and the user has permission to view it
     if (project.is_private) {
       // If it's a private project, check user's organization memberships

@@ -17,7 +17,7 @@ export const HeroSection = () => {
         >
           <Badge
             variant="outline"
-            className="text-xs sm:text-sm py-1.5 sm:py-2"
+            className="text-xs sm:text-sm py-2 sm:py-2"
           >
             <span className="mr-2 text-primary">
               <Badge>New</Badge>
