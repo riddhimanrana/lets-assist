@@ -14,6 +14,7 @@ import { AlertCircle, AlertTriangle, CircleCheck } from "lucide-react";
 type NotificationSettings = {
   email_notifications: boolean;
   project_updates: boolean;
+  general: boolean;
 };
 
 type Notification = {
@@ -55,15 +56,15 @@ export function NotificationsClient() {
         const { data, error } = await supabase
           .from("notification_settings")
           .select("*")
-          .single();
+          .eq("user_id", (await supabase.auth.getUser()).data.user?.id);
 
         if (error) {
           console.error("Error loading notification settings:", error);
           return;
         }
 
-        setSettings(data);
-        setOriginalSettings(data);
+        setSettings(data[0]);
+        setOriginalSettings(data[0]);
       } catch (error) {
         console.error("Failed to load notification settings", error);
       } finally {
@@ -201,6 +202,22 @@ export function NotificationsClient() {
                       id="project-updates"
                       checked={settings.project_updates}
                       onCheckedChange={(checked) => handleChange("project_updates", checked)}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between border p-4 rounded-md">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="general" className="text-base">
+                        General
+                      </Label>
+                      <p className="text-sm text-muted-foreground">
+                        General System Notifications about login items and other such stuff.
+                      </p>
+                    </div>
+                    <Switch
+                      id="general"
+                      checked={settings.general}
+                      onCheckedChange={(checked) => handleChange("general", checked)}
                     />
                   </div>
                 </div>
