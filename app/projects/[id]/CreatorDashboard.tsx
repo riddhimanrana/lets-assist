@@ -227,9 +227,10 @@ export default function CreatorDashboard({ project }: Props) {
             </div>
           ) : (
             <div className="flex flex-col sm:flex-row items-start gap-2 rounded-md border p-3 sm:p-4 bg-muted/50">
-              <AlertCircle className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+              
               <div className="text-sm text-muted-foreground space-y-2">
-                <p>
+              <AlertCircle className="h-5 w-5 mr-2 text-muted-foreground inline flex-shrink-0" />
+                <p className="inline">
                   As the project creator, you have full control over this project.
                   You can edit project details, manage volunteer signups, update
                   documents, and more.
