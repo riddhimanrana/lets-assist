@@ -13,7 +13,7 @@ export type Profile = {
 };
 
 export async function getActiveProjects(
-  limit: number = 20, 
+  limit: number = 21, 
   offset: number = 0,
   status?: ProjectStatus,
   organizationId?: string

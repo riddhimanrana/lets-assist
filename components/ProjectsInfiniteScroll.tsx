@@ -55,6 +55,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
 import { ProjectsMapView } from "@/components/ProjectsMapView";
+import { getProjectStatus } from "@/utils/project";
 
 const fetcher = (url: string) => axios.get(url).then((res) => res.data);
 
@@ -86,7 +87,8 @@ export const ProjectsInfiniteScroll: React.FC = () => {
   }, [searchTerm]);
 
   const { data, error, size, setSize, isLoading, isValidating } = useSWRInfinite(
-    (index) => `/api/projects?limit=${limit}&offset=${index * limit}`,
+    // Update the key function to include status parameter
+    (index) => `/api/projects?limit=${limit}&offset=${index * limit}&status=upcoming`,
     fetcher,
     {
       revalidateFirstPage: false,
@@ -279,6 +281,30 @@ export const ProjectsInfiniteScroll: React.FC = () => {
     }
   };
 
+  // New function to get remaining spots
+  const getRemainingSpots = (project: any): number => {
+    // Get total spots
+    const totalSpots = getVolunteerCount(project);
+    
+    // Calculate filled spots based on project type
+    let filledSpots = 0;
+    
+    if (project.signups && Array.isArray(project.signups)) {
+      // Count confirmed signups only
+      filledSpots = project.signups.filter((signup: any) => 
+        signup.status === "confirmed"
+      ).length;
+    } else if (project.slots_filled) {
+      // If project has a direct slots_filled count
+      filledSpots = project.slots_filled;
+    } else if (project.registrations && Array.isArray(project.registrations)) {
+      // Alternative signup structure
+      filledSpots = project.registrations.length;
+    }
+    
+    return Math.max(0, totalSpots - filledSpots);
+  };
+
   // Get all projects and apply client-side filtering
   const allProjects = data ? ([] as any[]).concat(...data) : [];
   
@@ -290,7 +316,6 @@ export const ProjectsInfiniteScroll: React.FC = () => {
       : true;
       
     // Event type filter
-    // Change this to properly handle the "all" value vs undefined
     const matchesEventType = eventTypeFilter 
       ? eventTypeFilter === "all"
         ? true
@@ -299,8 +324,11 @@ export const ProjectsInfiniteScroll: React.FC = () => {
     
     // Date filter
     const matchesDateRange = isProjectInDateRange(project, dateFilter);
+    
+    // Only filter for remaining spots - server is already filtering for status
+    const hasRemainingSpots = getRemainingSpots(project) > 0;
       
-    return matchesSearch && matchesEventType && matchesDateRange;
+    return matchesSearch && matchesEventType && matchesDateRange && hasRemainingSpots;
   });
   
   // Apply sorting if needed
