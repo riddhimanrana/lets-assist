@@ -379,19 +379,19 @@ export default function ProjectDetails({ project, creator, organization, initial
         
         {/* Project Header */}
         <div className="mb-6">
-          <div className="flex items-start gap-4">
-            <div className="flex-1 min-w-0">
-              <h1 className="text-2xl sm:text-3xl font-bold mb-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:gap-4">
+            <div className="flex-1 min-w-0 order-1 sm:order-none">
+              <h1 className="text-2xl sm:text-3xl font-bold mb-1.5">
                 {project.title}
               </h1>
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mb-2 sm:mb-0">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <MapPin className="h-4 w-4 shrink-0" />
                   <span>{project.location}</span>
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="flex items-center gap-2 mb-1 sm:mb-0 flex-shrink-0 order-0 sm:order-none justify-between w-full sm:w-auto">
               {/* Use calculatedStatus instead of project.status */}
               <ProjectStatusBadge status={calculatedStatus} className="capitalize" />
               <Button
@@ -437,27 +437,47 @@ export default function ProjectDetails({ project, creator, organization, initial
                 {project.event_type === "oneTime" && project.schedule.oneTime && (
                   <Card className="bg-card/50 hover:bg-card/80 transition-colors">
                     <CardContent className="p-4">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div className="max-w-[400px]">
-                            <h3 className="font-medium text-base break-words">
-                            {(() => {
-                              // Create date with UTC to prevent timezone offset issues
-                              const dateStr = project.schedule.oneTime.date;
-                              const [year, month, dayNum] = dateStr.split("-").map(Number);
-                              const date = new Date(year, month - 1, dayNum);
-                              return format(date, "EEEE, MMMM d");
-                            })()}
-                            </h3>
-                          <div className="flex items-center gap-2 text-muted-foreground mt-1 text-sm">
-                            <Clock className="h-3.5 w-3.5 flex-shrink-0" />
-                            <span className="line-clamp-1">
-                              {formatTimeTo12Hour(project.schedule.oneTime.startTime)} -{" "}
-                              {formatTimeTo12Hour(project.schedule.oneTime.endTime)}
+                          <h3 className="font-medium text-base break-words">
+                          {(() => {
+                          // Create date with UTC to prevent timezone offset issues
+                          const dateStr = project.schedule.oneTime.date;
+                          const [year, month, dayNum] = dateStr.split("-").map(Number);
+                          const date = new Date(year, month - 1, dayNum);
+                          return format(date, "EEEE, MMMM d");
+                          })()}
+                          </h3>
+                          <div className="mt-1.5 text-muted-foreground text-sm space-y-1.5">
+                          <div className="flex items-center gap-1.5">
+                            <Clock className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground/70" />
+                            <span>
+                            {formatTimeTo12Hour(project.schedule.oneTime.startTime)} -{" "}
+                            {formatTimeTo12Hour(project.schedule.oneTime.endTime)}
                             </span>
-                            <span className="flex items-center ml-2">
-                              <Users className="h-3.5 w-3.5 mr-1 flex-shrink-0" />
-                              {formatSpots(remainingSlots["oneTime"] ?? project.schedule.oneTime.volunteers)} remaining
+                          </div>
+                          
+                          <div className="flex items-center">
+                            <div className="flex items-center gap-1.5">
+                            <Users className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground/70" />
+                            <span className="font-medium">
+                              {remainingSlots["oneTime"] ?? project.schedule.oneTime.volunteers}
+                              <span className="font-normal"> of </span>
+                              {project.schedule.oneTime.volunteers}
+                              <span className="font-normal"> spots available</span>
                             </span>
+                            </div>
+                            
+                            {/* Visual indicator for spots */}
+                            <div className="ml-2 h-1.5 bg-muted rounded-full w-16 overflow-hidden hidden sm:block">
+                            <div 
+                              className={`h-full ${remainingSlots["oneTime"] === 0 ? 'bg-destructive/70' : 'bg-primary/70'}`}
+                              style={{ 
+                              width: `${Math.max(0, Math.min(100, ((remainingSlots["oneTime"] ?? project.schedule.oneTime.volunteers) / project.schedule.oneTime.volunteers) * 100))}%` 
+                              }}
+                            />
+                            </div>
+                          </div>
                           </div>
                         </div>
                         <Button
@@ -515,16 +535,35 @@ export default function ProjectDetails({ project, creator, organization, initial
                                 <CardContent className="p-4">
                                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                                     <div className="max-w-[400px]">
-                                      <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                                        <Clock className="h-3.5 w-3.5 flex-shrink-0" />
-                                        <span className="line-clamp-1">
-                                          {formatTimeTo12Hour(slot.startTime)} -{" "}
-                                          {formatTimeTo12Hour(slot.endTime)}
-                                        </span>
-                                        <span className="flex items-center ml-2">
-                                          <Users className="h-3.5 w-3.5 mr-1 flex-shrink-0" />
-                                          {formatSpots(remainingSlots[scheduleId] ?? slot.volunteers)} remaining
-                                        </span>
+                                      <div className="flex flex-col space-y-2">
+                                        <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                                          <Clock className="h-3.5 w-3.5 flex-shrink-0" />
+                                          <span className="line-clamp-1">
+                                            {formatTimeTo12Hour(slot.startTime)} -{" "}
+                                            {formatTimeTo12Hour(slot.endTime)}
+                                          </span>
+                                        </div>
+                                        <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                                          <Users className="h-3.5 w-3.5 flex-shrink-0" />
+                                          <div className="flex items-center gap-1.5">
+                                            <span className="font-medium">
+                                              {remainingSlots[scheduleId] ?? slot.volunteers}
+                                              <span className="font-normal"> of </span>
+                                              {slot.volunteers}
+                                            </span>
+                                            <span className="font-normal">spots available</span>
+                                          </div>
+                                          
+                                          {/* Visual indicator for spots */}
+                                          <div className="ml-2 h-1.5 bg-muted rounded-full w-16 overflow-hidden hidden sm:block">
+                                            <div 
+                                              className={`h-full ${remainingSlots[scheduleId] === 0 ? 'bg-destructive/70' : 'bg-primary/70'}`}
+                                              style={{ 
+                                                width: `${Math.max(0, Math.min(100, ((remainingSlots[scheduleId] ?? slot.volunteers) / slot.volunteers) * 100))}%` 
+                                              }}
+                                            />
+                                          </div>
+                                        </div>
                                       </div>
                                     </div>
                                     <Button
