@@ -236,7 +236,7 @@ export default function CreatorDashboard({ project }: Props) {
                 </p>
                 {isInDeletionRestrictionPeriod && (
                   <div className="mt-2 flex items-center text-chart-6">
-                    <AlertTriangle className="h-4 w-4 inline mr-1 flex-shrink-0" />
+                    <AlertTriangle className="h-4 w-4 inline mr-2 flex-shrink-0" />
                     <span className="inline">
                       Project deletion is restricted during the 72-hour window around the event (24 hours before until 48 hours after).
                     </span>

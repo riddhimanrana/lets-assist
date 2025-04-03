@@ -471,7 +471,7 @@ export default function ProjectDetails({ project, creator, organization, initial
                             {/* Visual indicator for spots */}
                             <div className="ml-2 h-1.5 bg-muted rounded-full w-16 overflow-hidden hidden sm:block">
                             <div 
-                              className={`h-full ${remainingSlots["oneTime"] === 0 ? 'bg-destructive/70' : 'bg-primary/70'}`}
+                              className={`h-full ${remainingSlots["oneTime"] === 0 ? 'bg-destructive/80' : 'bg-primary/80'}`}
                               style={{ 
                               width: `${Math.max(0, Math.min(100, ((remainingSlots["oneTime"] ?? project.schedule.oneTime.volunteers) / project.schedule.oneTime.volunteers) * 100))}%` 
                               }}
