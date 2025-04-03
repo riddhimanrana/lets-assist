@@ -275,24 +275,24 @@ export function ProjectsMapView({ projects, className }: ProjectsMapViewProps) {
             position={getProjectPosition(selectedProject)!}
             onCloseClick={() => setSelectedProject(null)}
           >
-            <div className="max-w-[300px]">
-              <h4 className="font-medium mb-1">{selectedProject.title}</h4>
+            <div className="max-w-[300px] text-black">
+              <h4 className="font-semibold mb-1 text-lg">{selectedProject.title}</h4>
               <div className="flex items-center gap-1 mb-2">
-                <MapPin className="h-3 w-3 text-muted-foreground" />
-                <span className="text-xs text-muted-foreground">{selectedProject.location}</span>
+                <MapPin className="h-3 w-3" />
+                <span className="text-xs">{selectedProject.location}</span>
               </div>
-              <div className="flex flex-wrap gap-1 mb-3">
-                <Badge variant="outline" className="gap-1 text-xs">
+              <div className="flex flex-wrap gap-1 mb-3 text-black">
+                <Badge variant="outline" className="gap-1 text-xs text-black">
                   <Calendar className="h-3 w-3" />
                   {formatDateDisplay(selectedProject)}
                 </Badge>
-                <Badge variant="outline" className="gap-1 text-xs">
+                <Badge variant="outline" className="gap-1 text-xs text-black">
                   <Users className="h-3 w-3" />
                   {formatSpots(getVolunteerCount(selectedProject))}
                 </Badge>
               </div>
               <Link href={`/projects/${selectedProject.id}`}>
-                <Button size="sm" className="w-full">View Details</Button>
+                <Button size="sm" className="w-full bg-green-600 hover:bg-green-600/90 text-white">View Details</Button>
               </Link>
             </div>
           </InfoWindow>
@@ -303,7 +303,7 @@ export function ProjectsMapView({ projects, className }: ProjectsMapViewProps) {
       <Button 
         onClick={getUserLocation}
         disabled={isLocating}
-        className="absolute bottom-4 left-4 gap-2 shadow-md"
+        className="absolute bottom-4 left-4 gap-2 shadow-md bg-green-600 hover:bg-green-600/90 text-white"
       >
         {isLocating ? (
           <>
