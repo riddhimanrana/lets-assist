@@ -51,6 +51,7 @@ type ProjectViewToggleProps = {
   onViewChangeAction: (view: "card" | "list" | "table" | "map") => void;
 };
 
+
 const STORAGE_KEY = "preferred-project-view";
 
 const formatTime = (timeString: string) => {
@@ -202,26 +203,12 @@ const getVolunteerCount = (project: any) => {
 
 // New function to get remaining spots
 const getRemainingSpots = (project: any) => {
-  // Get total spots
   const totalSpots = getVolunteerCount(project);
   
-  // Calculate filled spots based on project type
-  let filledSpots = 0;
+  // Use confirmed_signups from server
+  const confirmedCount = project.total_confirmed || 0;
   
-  if (project.signups && Array.isArray(project.signups)) {
-    // Count confirmed signups only
-    filledSpots = project.signups.filter((signup: any) => 
-      signup.status === "confirmed"
-    ).length;
-  } else if (project.slots_filled) {
-    // If project has a direct slots_filled count
-    filledSpots = project.slots_filled;
-  } else if (project.registrations && Array.isArray(project.registrations)) {
-    // Alternative signup structure
-    filledSpots = project.registrations.length;
-  }
-  
-  return Math.max(0, totalSpots - filledSpots);
+  return Math.max(0, totalSpots - confirmedCount);
 };
 
 // Function to check if project has upcoming status
