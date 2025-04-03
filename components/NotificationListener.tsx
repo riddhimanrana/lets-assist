@@ -10,36 +10,32 @@ interface NotificationListenerProps {
   userId: string;
 }
 
-// Keep track of notifications we've displayed during the current session
 const displayedNotifications = new Set<string>();
-
-// Maximum number of notifications to process at once
 const MAX_BATCH_SIZE = 10;
-const NOTIFICATION_DELAY = 300; // ms between notifications
+const NOTIFICATION_DELAY = 300;
+const MAX_RETRIES = 3; // Maximum number of retry attempts
+const MAX_BACKOFF_DELAY = 30000; // Maximum delay between retries (30 seconds)
 
 export function NotificationListener({ userId }: NotificationListenerProps) {
   const channelRef = useRef<RealtimeChannel | null>(null);
   const initializedRef = useRef(false);
-  
-  // Function to display a notification toast
+  const retryCountRef = useRef(0);
+  const unmountedRef = useRef(false);
+
+  // Modified displayNotificationToast to check if component is still mounted
   const displayNotificationToast = async (notification: any) => {
-    // Don't show the same notification twice
-    if (displayedNotifications.has(notification.id)) {
-      console.log(`Already displayed notification ${notification.id}, skipping`);
-      return;
-    }
-    
+    if (unmountedRef.current) return;
+    if (displayedNotifications.has(notification.id)) return;
+
     console.log('Displaying notification toast:', notification.title);
     displayedNotifications.add(notification.id);
-    
-    // Choose toast type based on severity
+
     const toastMethod = notification.severity === 'warning' 
       ? toast.warning 
       : notification.severity === 'success'
         ? toast.success
         : toast.info;
-        
-    // Show toast
+
     toastMethod(notification.title, {
       description: notification.body,
       action: notification.action_url ? {
@@ -47,8 +43,7 @@ export function NotificationListener({ userId }: NotificationListenerProps) {
         onClick: () => window.location.href = notification.action_url
       } : undefined
     });
-    
-    // Mark as displayed in database
+
     const supabase = createClient();
     try {
       await supabase
@@ -59,132 +54,117 @@ export function NotificationListener({ userId }: NotificationListenerProps) {
       console.error('Error marking notification as displayed:', error);
     }
   };
-  
+
   useEffect(() => {
     if (!userId || initializedRef.current) return;
     initializedRef.current = true;
-    
-    console.log(`Initializing NotificationListener for user ${userId}`);
-    
+    unmountedRef.current = false;
+    retryCountRef.current = 0;
+
     const initialize = async () => {
+      if (retryCountRef.current >= MAX_RETRIES) {
+        console.log('Max retry attempts reached, stopping notification service');
+        return;
+      }
+
       const supabase = createClient();
-      
-      // First, check for any un-displayed notifications
+
       try {
+        const { error: connError } = await supabase.from('notifications').select('count', { count: 'exact' }).limit(1);
+        if (connError) {
+          console.error('Connection test failed:', connError);
+          throw connError;
+        }
+
         const { data: notifications, error } = await supabase
           .from('notifications')
           .select('*')
           .eq('user_id', userId)
           .eq('displayed', false)
-          .order('created_at', { ascending: true });
-          
-        if (error) {
-          console.error('Error fetching notifications:', error);
-        } else if (notifications?.length) {
-          console.log(`Found ${notifications.length} pending notifications to display`);
-          
-          // Process notifications in batches with slight delays between them
-          const notificationsToProcess = notifications.slice(0, MAX_BATCH_SIZE);
-          console.log(`Processing ${notificationsToProcess.length} notifications (max batch size: ${MAX_BATCH_SIZE})`);
-          
-          for (let i = 0; i < notificationsToProcess.length; i++) {
+          .order('created_at', { ascending: true })
+          .limit(MAX_BATCH_SIZE);
+
+        if (error) throw error;
+
+        if (!unmountedRef.current && notifications?.length) {
+          for (let i = 0; i < notifications.length; i++) {
+            if (unmountedRef.current) break;
             setTimeout(() => {
-              displayNotificationToast(notificationsToProcess[i]);
+              if (!unmountedRef.current) {
+                displayNotificationToast(notifications[i]);
+              }
             }, i * NOTIFICATION_DELAY);
           }
-        } else {
-          console.log('No pending notifications found');
         }
-      } catch (error) {
-        console.error('Error checking existing notifications:', error);
-      }
-      
-      // Custom username check
-      try {
-        await NotificationService.checkUsernameSetting(userId);
-      } catch (error) {
-        console.error('Error in username check:', error);
-      }
-      
-      // Set up realtime subscription with a unique channel name
-      const channelName = `personal-notifications:${userId}`;
-      console.log(`Creating realtime channel: ${channelName}`);
-      
-      // Clean up any existing channel first
-      if (channelRef.current) {
-        console.log(`Removing existing channel: ${channelRef.current.topic}`);
-        await supabase.removeChannel(channelRef.current);
-      }
-      
-      // Create new channel with clear status logging and error handling
-      const channel = supabase
-        .channel(channelName)
-        .on('system', { event: '*' }, (payload: any) => {
-          console.log('Supabase system event:', payload);
-          if (payload.type === 'ERROR') {
-            console.error('Supabase system error:', payload);
-          }
-        })
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT', 
-            schema: 'public',
-            table: 'notifications',
-            filter: `user_id=eq.${userId}`
-          },
-          async (payload) => {
-            console.log('REALTIME: New notification inserted!', payload);
-            if (payload.new) {
-              await displayNotificationToast(payload.new);
-            }
-          }
-        )
-        .on(
-          'postgres_changes',
-          {
-            event: 'UPDATE',
-            schema: 'public', 
-            table: 'notifications',
-            filter: `user_id=eq.${userId}`
-          }, 
-          (payload) => {
-            console.log('Notification updated:', payload);
-          }
-        )
-        .subscribe(status => {
-          console.log(`Channel ${channelName} status:`, status);
-          
-          // If the subscription failed, try again after a delay
-          if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-          // Using a ref to track retry attempts
-          const retryCount = (channel as any)._retryCount || 0;
-          (channel as any)._retryCount = retryCount + 1;
-          
-          console.log('Subscription failed, will retry with exponential backoff');
-          const backoffDelay = Math.min(5000 * Math.pow(2, retryCount), 30000);
-          console.log(`Retrying in ${backoffDelay}ms (attempt ${retryCount + 1})`);
-          setTimeout(initialize, backoffDelay);
-          }
-        });
+
+        const channelName = `personal-notifications:${userId}`;
         
-      // Store the channel reference for cleanup
-      channelRef.current = channel;
+        if (channelRef.current) {
+          await supabase.removeChannel(channelRef.current);
+        }
+
+        const channel = supabase
+          .channel(channelName)
+          .on('postgres_changes', 
+            {
+              event: 'INSERT',
+              schema: 'public',
+              table: 'notifications',
+              filter: `user_id=eq.${userId}`
+            },
+            payload => {
+              if (!unmountedRef.current && payload.new) {
+                displayNotificationToast(payload.new);
+              }
+            }
+          )
+          .subscribe(status => {
+            if (unmountedRef.current) return;
+
+            if (status === 'SUBSCRIBED') {
+              console.log('Successfully subscribed to notifications');
+              retryCountRef.current = 0;
+            }
+            else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+              console.log(`Subscription failed (attempt ${retryCountRef.current + 1}/${MAX_RETRIES})`);
+              
+              if (channelRef.current) {
+                supabase.removeChannel(channelRef.current);
+                channelRef.current = null;
+              }
+
+              if (retryCountRef.current < MAX_RETRIES && !unmountedRef.current) {
+                retryCountRef.current++;
+                const backoffDelay = Math.min(1000 * Math.pow(2, retryCountRef.current), MAX_BACKOFF_DELAY);
+                console.log(`Retrying in ${backoffDelay}ms`);
+                setTimeout(initialize, backoffDelay);
+              }
+            }
+          });
+
+        channelRef.current = channel;
+
+      } catch (error) {
+        console.error('Error in notification initialization:', error);
+        if (!unmountedRef.current && retryCountRef.current < MAX_RETRIES) {
+          retryCountRef.current++;
+          const backoffDelay = Math.min(1000 * Math.pow(2, retryCountRef.current), MAX_BACKOFF_DELAY);
+          setTimeout(initialize, backoffDelay);
+        }
+      }
     };
-    
-    // Start the initialization
+
     initialize();
-    
-    // Cleanup function
+
     return () => {
+      unmountedRef.current = true;
       const supabase = createClient();
       if (channelRef.current) {
-        console.log('Cleaning up notification channel');
         supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
       }
     };
   }, [userId]);
-  
-  // Must return a React element, even if just null, to make it a valid React component
+
   return null;
 }
