@@ -377,18 +377,18 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
           <div className="mt-auto pt-3">
             <HoverCard>
               <HoverCardTrigger asChild>
-                <div className="flex items-center gap-3">
-            <Avatar className="h-9 w-9 border border-muted">
+              <div className="flex items-center gap-2 cursor-pointer">
+              <Avatar className="h-7 w-7">
               <AvatarImage
                 src={getCreatorAvatarUrl(project)}
                 alt={getProjectCreator(project)}
               />
               <AvatarFallback>
-                <NoAvatar fullName={getProjectCreator(project)} />
+                <NoAvatar fullName={getProjectCreator(project)} className="text-sm"/>
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium">
+              <p className="text-sm font-medium truncate">
                 {getProjectCreator(project)}
               </p>
               {/* <p className="text-xs text-muted-foreground">
@@ -492,11 +492,11 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                       </div>
                       <div className="flex flex-wrap items-start gap-2 order-1 md:order-none project-badges">
                         <Badge variant="outline" className="gap-1 py-0.5 text-xs">
-                          <Calendar className="h-3 w-3 md:h-2.5 md:w-2.5 project-badge-icon" />
+                          <Calendar className="h-3 w-3 md:h-2.5 md:w-2.5 project-badge-icon flex-shrink-0" />
                           {formatDateDisplay(project)}
                         </Badge>
                         <Badge variant="outline" className="gap-1 py-0.5 text-xs">
-                          <Users className="h-3 w-3 md:h-2.5 md:w-2.5 project-badge-icon" />
+                          <Users className="h-3 w-3 md:h-2.5 md:w-2.5 project-badge-icon flex-shrink-0" />
                           {formatSpots(getRemainingSpots(project))}
                         </Badge>
                       </div>
@@ -511,7 +511,7 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                                 alt={getProjectCreator(project)}
                               />
                               <AvatarFallback>
-                                <NoAvatar fullName={getProjectCreator(project)} />
+                                <NoAvatar fullName={getProjectCreator(project)} className="text-sm"/>
                               </AvatarFallback>
                             </Avatar>
                             <span className="text-sm font-medium truncate">

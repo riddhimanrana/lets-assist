@@ -303,7 +303,7 @@ export function ProjectsMapView({ projects, className }: ProjectsMapViewProps) {
       <Button 
         onClick={getUserLocation}
         disabled={isLocating}
-        className="absolute bottom-4 left-4 gap-2 shadow-md bg-green-600 hover:bg-green-600/90 text-white"
+        className="absolute bottom-4 left-4 gap-2 shadow-md bg-gray-800 hover:bg-gray-700 text-white"
       >
         {isLocating ? (
           <>
