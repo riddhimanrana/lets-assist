@@ -21,6 +21,7 @@ import {
   CalendarDays,
   Map
 } from "lucide-react";
+import { ProjectsMapView } from "@/components/ProjectsMapView";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { NoAvatar } from "@/components/NoAvatar";
 import { Badge } from "@/components/ui/badge";
@@ -43,16 +44,19 @@ import {
 
 type Project = any;
 
+const STORAGE_KEY = "preferred-project-view";
+const VALID_VIEWS = ["card", "list", "table", "map"] as const;
+
+type ValidView = typeof VALID_VIEWS[number];
+
+// Update the type definition to include "map"
 type ProjectViewToggleProps = {
   projects: Project[];
   onVolunteerSortChange?: (sort: "asc" | "desc" | undefined) => void;
   volunteerSort?: "asc" | "desc" | undefined;
-  view: "card" | "list" | "table" | "map";
-  onViewChangeAction: (view: "card" | "list" | "table" | "map") => void;
+  view: ValidView;
+  onViewChangeAction: (view: ValidView) => void;
 };
-
-
-const STORAGE_KEY = "preferred-project-view";
 
 const formatTime = (timeString: string) => {
   try {
@@ -248,17 +252,15 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [initialViewLoaded, setInitialViewLoaded] = useState(false);
 
-  // Combined effect for view preference management
+  // Update the effect to properly handle view persistence
   useEffect(() => {
     if (!initialViewLoaded) {
-      // Load initial preference only once
-      const savedView = localStorage.getItem(STORAGE_KEY) as "card" | "list" | "table" | "map" | null;
-      if (savedView && savedView !== view) {
-        onViewChangeAction(savedView);
+      const savedView = localStorage.getItem(STORAGE_KEY);
+      if (savedView && VALID_VIEWS.includes(savedView as ValidView)) {
+        onViewChangeAction(savedView as ValidView);
       }
       setInitialViewLoaded(true);
     } else {
-      // Save preference on subsequent view changes
       localStorage.setItem(STORAGE_KEY, view);
     }
   }, [view, onViewChangeAction, initialViewLoaded]);
@@ -712,7 +714,11 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
         </div>
       )}
       
-      {/* Map view is handled separately in ProjectsMapView component */}
+      {view === "map" && (
+        <div className="w-full h-[500px]">
+          <ProjectsMapView initialProjects={filteredProjects} />
+        </div>
+      )}
     </div>
   );
 };
