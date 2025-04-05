@@ -26,6 +26,8 @@ import { useRouter } from "next/navigation";
 import { leaveOrganization } from "../actions";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { ProjectStatusBadge } from "@/components/ui/status-badge";
+import { getProjectStatus } from "@/utils/project";
 
 interface OrganizationTabsProps {
   organization: any;
@@ -139,8 +141,8 @@ export default function OrganizationTabs({
   }
   
   // Calculate stats
-  const activeProjects = projects.filter(p => p.status === "active").length;
-  const completedProjects = projects.filter(p => p.status === "completed").length;
+  const upcomingProjects = projects.filter(p => getProjectStatus(p) === "upcoming").length;
+  const completedProjects = projects.filter(p => getProjectStatus(p) === "completed").length;
   const adminCount = members.filter(m => m.role === "admin").length;
   const staffCount = members.filter(m => m.role === "staff").length;
 
@@ -258,8 +260,8 @@ export default function OrganizationTabs({
                   <h4 className="text-sm font-medium text-muted-foreground">Projects</h4>
                   <div className="grid grid-cols-3 gap-2">
                     <div className="bg-muted/40 rounded-lg p-3 text-center">
-                      <p className="text-xl font-semibold">{activeProjects}</p>
-                      <p className="text-xs text-muted-foreground">Active</p>
+                      <p className="text-xl font-semibold">{upcomingProjects}</p>
+                      <p className="text-xs text-muted-foreground">Upcoming</p>
                     </div>
                     <div className="bg-muted/40 rounded-lg p-3 text-center">
                       <p className="text-xl font-semibold">{completedProjects}</p>
@@ -273,7 +275,7 @@ export default function OrganizationTabs({
                 </div>
               </div>
               
-              {userRole && projects.length > 0 && (
+              {projects.length > 0 && (
                 <div className="mt-6">
                   <Separator className="my-4" />
                   <h4 className="text-sm font-medium mb-3">Recent Projects</h4>
@@ -286,13 +288,7 @@ export default function OrganizationTabs({
                       >
                         <div className="flex justify-between items-center">
                           <span className="font-medium truncate">{project.title}</span>
-                          <Badge 
-                            variant={project.status === "active" ? "default" : 
-                                   project.status === "completed" ? "secondary" : "outline"}
-                            className="ml-2 text-xs"
-                          >
-                            {project.status}
-                          </Badge>
+                          <ProjectStatusBadge status={getProjectStatus(project)} className="ml-2" />
                         </div>
                         {project.location && (
                           <div className="flex items-center text-xs text-muted-foreground mt-1">
