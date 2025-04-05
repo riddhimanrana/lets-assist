@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { GoogleMap, Marker, InfoWindow, useLoadScript } from "@react-google-maps/api";
+import { useTheme } from "next-themes"; // Import useTheme
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"; 
@@ -33,6 +34,7 @@ interface ProjectsMapViewProps {
 }
 
 export function ProjectsMapView({ projects, className }: ProjectsMapViewProps) {
+  const { theme } = useTheme(); // Get the current theme
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [userLocation, setUserLocation] = useState<google.maps.LatLngLiteral | null>(null);
   const [selectedProject, setSelectedProject] = useState<any | null>(null);
@@ -233,10 +235,7 @@ export function ProjectsMapView({ projects, className }: ProjectsMapViewProps) {
           mapTypeControl: true,
           zoomControl: true,
           mapTypeId: google.maps.MapTypeId.ROADMAP,
-          mapTypeControlOptions: {
-            style: google.maps.MapTypeControlStyle.DROPDOWN_MENU,
-            position: google.maps.ControlPosition.TOP_RIGHT
-          }
+          mapId: 'e54dd2f307297bcd'
         }}
       >
         {/* Show user location marker */}
