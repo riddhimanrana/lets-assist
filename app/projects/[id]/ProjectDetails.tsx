@@ -253,6 +253,10 @@ export default function ProjectDetails({ project, creator, organization, initial
 
     // Use calculatedStatus instead of project.status
     if (!isSlotAvailable(project, scheduleId, remainingSlots, calculatedStatus)) {
+      console.log(project)
+      console.log(scheduleId)
+      console.log(remainingSlots)
+      console.log(calculatedStatus)
       toast.error("This slot is no longer available");
       return;
     }
@@ -570,7 +574,7 @@ export default function ProjectDetails({ project, creator, organization, initial
                                       variant={hasSignedUp[scheduleId] ? "secondary" : "default"}
                                       size="sm"
                                       onClick={() => handleSignUpClick(scheduleId)}
-                                      disabled={isCreator || loadingStates[scheduleId] || project.status === "cancelled" || (!hasSignedUp[scheduleId] && (remainingSlots[scheduleId] === 0))}
+                                      disabled={isCreator || loadingStates[scheduleId] || calculatedStatus === "cancelled" || (!hasSignedUp[scheduleId] && (remainingSlots[scheduleId] === 0))}
                                       className="flex-shrink-0 gap-2"
                                     >
                                       {isCreator ? (
@@ -587,7 +591,7 @@ export default function ProjectDetails({ project, creator, organization, initial
                                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                           Processing...
                                         </>
-                                      ) : project.status === "cancelled" ? (
+                                      ) : calculatedStatus === "cancelled" ? (
                                         "Unavailable"
                                       ) : (
                                         <>

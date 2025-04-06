@@ -1,16 +1,13 @@
 "use client"
 
 import * as React from "react"
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { Check, MapPin, Search, Loader2, AlertCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from "@/components/ui/command"
-import { useLoadScript } from "@react-google-maps/api"
+import { APIProvider, useApiIsLoaded } from "@vis.gl/react-google-maps"
 import { LocationData } from "@/types"
-
-const libraries = ["places"]
 
 interface LocationAutocompleteProps {
   id?: string;
@@ -25,7 +22,7 @@ interface LocationAutocompleteProps {
   "aria-errormessage"?: string;
 }
 
-export default function LocationAutocomplete({ 
+function LocationAutocompleteContent({
   id,
   value,
   onChangeAction,
@@ -49,14 +46,11 @@ export default function LocationAutocomplete({
   const searchDebounceRef = useRef<NodeJS.Timeout | undefined>(undefined)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  // Load Google Maps script
-  const { isLoaded } = useLoadScript({
-    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
-    libraries: libraries as any,
-  })
+  // Check if the API is loaded using vis.gl hook
+  const isLoaded = useApiIsLoaded();
 
-  // Initialize services when script is loaded
-  React.useEffect(() => {
+  // Initialize services when API is loaded
+  useEffect(() => {
     if (isLoaded && !autocompleteService.current) {
       autocompleteService.current = new google.maps.places.AutocompleteService()
       
@@ -68,12 +62,12 @@ export default function LocationAutocomplete({
   }, [isLoaded])
 
   // Update input value when value prop changes
-  React.useEffect(() => {
+  useEffect(() => {
     setInputValue(value?.text || "")
   }, [value])
 
   // Search for predictions or show current selection when input is focused
-  React.useEffect(() => {
+  useEffect(() => {
     if (!isLoaded || !autocompleteService.current) return
     
     if (!query.trim()) {
@@ -209,12 +203,12 @@ export default function LocationAutocomplete({
   }
 
   // Reset focused index when predictions change
-  React.useEffect(() => {
+  useEffect(() => {
     setFocusedIndex(-1)
   }, [predictions])
 
   // Click outside handler
-  React.useEffect(() => {
+  useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         setShowResults(false)
@@ -226,6 +220,25 @@ export default function LocationAutocomplete({
       document.removeEventListener('mousedown', handleClickOutside)
     }
   }, [])
+
+  // Show loading state when API is not yet loaded
+  if (!isLoaded) {
+    return (
+      <div className={cn("relative space-y-1.5", className)}>
+        <div className="relative">
+          <Input
+            id={id}
+            placeholder="Loading location search..."
+            disabled
+            className="w-full pl-9"
+          />
+          <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+            <Loader2 className="h-4 w-4 text-muted-foreground animate-spin" />
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className={cn("relative space-y-1.5", className)} ref={containerRef}>
@@ -252,8 +265,6 @@ export default function LocationAutocomplete({
         <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
           <Search className="h-4 w-4 text-muted-foreground" />
         </div>
-        {/* Optional: Keep loading indicator if desired */}
-        {/* {isLoading && ( ... ) } */}
       </div>
       
       {showResults && (
@@ -334,6 +345,15 @@ export default function LocationAutocomplete({
         </div>
       )}
     </div>
+  )
+}
+
+// Main export component that wraps the content with APIProvider
+export default function LocationAutocomplete(props: LocationAutocompleteProps) {
+  return (
+    <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ""}>
+      <LocationAutocompleteContent {...props} />
+    </APIProvider>
   )
 }
 

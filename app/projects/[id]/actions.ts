@@ -107,18 +107,30 @@ export async function getCreatorProfile(userId: string) {
   return { profile };
 }
 
-async function getSlotDetails(project: Project, scheduleId: string) {
+// Fix: Remove async keyword as this function doesn't perform async operations
+function getSlotDetails(project: Project, scheduleId: string) {
   if (project.event_type === "oneTime") {
     return project.schedule.oneTime;
   } else if (project.event_type === "multiDay") {
-    const [date, slotIndex] = scheduleId.split("-");
-    const day = project.schedule.multiDay?.find(d => d.date === date);
-    if (day && slotIndex !== undefined) {
-      const slotIdx = parseInt(slotIndex, 10);
-      if (!isNaN(slotIdx) && day.slots.length > slotIdx) {
-        return day.slots[slotIdx];
-      }
+    const [date, slotIndexStr] = scheduleId.split("-");
+    if (!date || slotIndexStr === undefined) {
+      console.error("Invalid scheduleId format for multiDay event:", scheduleId);
+      return null;
     }
+    
+    const day = project.schedule.multiDay?.find(d => d.date === date);
+    if (!day) {
+      console.error("Day not found for multiDay event:", { date, scheduleId });
+      return null;
+    }
+    
+    const slotIndex = parseInt(slotIndexStr, 10);
+    if (isNaN(slotIndex) || slotIndex < 0 || slotIndex >= day.slots.length) {
+      console.error("Invalid slot index for multiDay event:", { slotIndexStr, slotIndex, slotsLength: day.slots.length });
+      return null;
+    }
+    
+    return day.slots[slotIndex];
   } else if (project.event_type === "sameDayMultiArea") {
     const role = project.schedule.sameDayMultiArea?.roles.find(r => r.name === scheduleId);
     return role;
@@ -163,9 +175,10 @@ export async function signUpForProject(
       return { error: "This project has been completed" };
     }
 
-    // Get slot details and validate capacity
-    const slotDetails = await getSlotDetails(project, scheduleId);
+    // Fix: Don't await getSlotDetails since it's no longer async
+    const slotDetails = getSlotDetails(project, scheduleId);
     if (!slotDetails) {
+      console.error("Invalid schedule slot:", { scheduleId, projectId });
       return { error: "Invalid schedule slot" };
     }
 
