@@ -445,9 +445,10 @@ export default function ProjectDetails({ project, creator, organization, initial
                         <div className="max-w-[400px]">
                           <h3 className="font-medium text-base break-words">
                           {(() => {
-                          // Create date with UTC to prevent timezone offset issues
+                          // Create date with no timezone offset issues
                           const dateStr = project.schedule.oneTime.date;
                           const [year, month, dayNum] = dateStr.split("-").map(Number);
+                          // Use Date to correctly handle timezones
                           const date = new Date(year, month - 1, dayNum);
                           return format(date, "EEEE, MMMM d");
                           })()}
@@ -527,6 +528,7 @@ export default function ProjectDetails({ project, creator, organization, initial
                           {(() => {
                             const dateStr = day.date;
                             const [year, month, dayNum] = dateStr.split("-").map(Number);
+                            // Use Date to correctly handle timezones
                             const date = new Date(year, month - 1, dayNum);
                             return format(date, "EEEE, MMMM d");
                           })()}
@@ -618,6 +620,7 @@ export default function ProjectDetails({ project, creator, organization, initial
                         {(() => {
                           const dateStr = project.schedule.sameDayMultiArea.date
                           const [year, month, dayNum] = dateStr.split("-").map(Number);
+                          // Use Date to correctly handle timezones
                           const date = new Date(year, month - 1, dayNum);
                           return format(date, "EEEE, MMMM d");
                         })()}

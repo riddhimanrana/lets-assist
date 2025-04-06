@@ -40,26 +40,63 @@ function LocationAutocompleteContent({
   const [isLoading, setIsLoading] = useState(false)
   const [predictions, setPredictions] = useState<google.maps.places.AutocompletePrediction[]>([])
   const [focusedIndex, setFocusedIndex] = useState(-1)
+  const [placesApiReady, setPlacesApiReady] = useState(false)
   
   const autocompleteService = useRef<google.maps.places.AutocompleteService | null>(null)
   const placesService = useRef<google.maps.places.PlacesService | null>(null)
   const searchDebounceRef = useRef<NodeJS.Timeout | undefined>(undefined)
   const containerRef = useRef<HTMLDivElement>(null)
+  const placesInitAttempts = useRef(0)
 
   // Check if the API is loaded using vis.gl hook
   const isLoaded = useApiIsLoaded();
 
   // Initialize services when API is loaded
   useEffect(() => {
-    if (isLoaded && !autocompleteService.current) {
-      autocompleteService.current = new google.maps.places.AutocompleteService()
-      
-      const attributionNode = document.createElement('div')
-      attributionNode.style.display = 'none'
-      document.body.appendChild(attributionNode)
-      placesService.current = new google.maps.places.PlacesService(attributionNode)
+    // Don't proceed if API isn't loaded at all
+    if (!isLoaded) return;
+    
+    // If services are already initialized, nothing to do
+    if (autocompleteService.current && placesService.current) {
+      setPlacesApiReady(true);
+      return;
     }
-  }, [isLoaded])
+
+    // Check if Places library is available
+    if (typeof google !== 'undefined' && google.maps && google.maps.places) {
+      try {
+        // Initialize services
+        autocompleteService.current = new google.maps.places.AutocompleteService();
+        
+        const attributionNode = document.createElement('div');
+        attributionNode.style.display = 'none';
+        document.body.appendChild(attributionNode);
+        placesService.current = new google.maps.places.PlacesService(attributionNode);
+        
+        setPlacesApiReady(true);
+        console.log('Places API initialized successfully');
+      } catch (error) {
+        console.error('Error initializing Places services:', error);
+        setPlacesApiReady(false);
+      }
+    } else {
+      // Places library not available yet, retry with exponential backoff
+      // if we haven't tried too many times already
+      if (placesInitAttempts.current < 5) {
+        placesInitAttempts.current += 1;
+        const delay = Math.pow(2, placesInitAttempts.current) * 100;
+        
+        console.log(`Places API not available yet. Retrying in ${delay}ms (attempt ${placesInitAttempts.current})`);
+        
+        setTimeout(() => {
+          // Force re-run of this effect
+          setPlacesApiReady(prev => prev);
+        }, delay);
+      } else {
+        console.error('Failed to load Places API after multiple attempts');
+      }
+    }
+  }, [isLoaded, placesApiReady]);
 
   // Update input value when value prop changes
   useEffect(() => {
@@ -68,7 +105,7 @@ function LocationAutocompleteContent({
 
   // Search for predictions or show current selection when input is focused
   useEffect(() => {
-    if (!isLoaded || !autocompleteService.current) return
+    if (!isLoaded || !placesApiReady || !autocompleteService.current) return;
     
     if (!query.trim()) {
       // If no query but we have a selected value, create a single prediction for it
@@ -124,7 +161,7 @@ function LocationAutocompleteContent({
         clearTimeout(searchDebounceRef.current)
       }
     }
-  }, [query, isLoaded, value])
+  }, [query, isLoaded, value, placesApiReady])
 
   const handleSelect = (prediction: google.maps.places.AutocompletePrediction) => {
     // If selecting the current selection, just close the dropdown
@@ -221,8 +258,8 @@ function LocationAutocompleteContent({
     }
   }, [])
 
-  // Show loading state when API is not yet loaded
-  if (!isLoaded) {
+  // Show loading state when API is not yet loaded or Places API is initializing
+  if (!isLoaded || !placesApiReady) {
     return (
       <div className={cn("relative space-y-1.5", className)}>
         <div className="relative">
@@ -351,7 +388,10 @@ function LocationAutocompleteContent({
 // Main export component that wraps the content with APIProvider
 export default function LocationAutocomplete(props: LocationAutocompleteProps) {
   return (
-    <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ""}>
+    <APIProvider 
+      apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ""} 
+      libraries={['places']}
+    >
       <LocationAutocompleteContent {...props} />
     </APIProvider>
   )

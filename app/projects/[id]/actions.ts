@@ -109,32 +109,43 @@ export async function getCreatorProfile(userId: string) {
 
 // Fix: Remove async keyword as this function doesn't perform async operations
 function getSlotDetails(project: Project, scheduleId: string) {
+  console.log("Server: Getting slot details for", { scheduleId, projectType: project.event_type });
+  
   if (project.event_type === "oneTime") {
     return project.schedule.oneTime;
   } else if (project.event_type === "multiDay") {
-    const [date, slotIndexStr] = scheduleId.split("-");
-    if (!date || slotIndexStr === undefined) {
-      console.error("Invalid scheduleId format for multiDay event:", scheduleId);
+    // Improved parsing for multi-day schedules
+    const parts = scheduleId.split("-");
+    if (parts.length >= 2) {
+      const slotIndexStr = parts.pop(); // Get last element (slot index)
+      const date = parts.join("-"); // Rejoin the rest as the date
+      
+      console.log("Server: Parsing multiDay scheduleId:", { date, slotIndexStr });
+      
+      const day = project.schedule.multiDay?.find(d => d.date === date);
+      if (!day) {
+        console.error("Server: Day not found for multiDay event:", { date, scheduleId });
+        return null;
+      }
+      
+      const slotIndex = parseInt(slotIndexStr!, 10);
+      if (isNaN(slotIndex) || slotIndex < 0 || slotIndex >= day.slots.length) {
+        console.error("Server: Invalid slot index for multiDay event:", { 
+          slotIndexStr, slotIndex, slotsLength: day.slots.length 
+        });
+        return null;
+      }
+      
+      return day.slots[slotIndex];
+    } else {
+      console.error("Server: Invalid multiDay scheduleId format:", scheduleId);
       return null;
     }
-    
-    const day = project.schedule.multiDay?.find(d => d.date === date);
-    if (!day) {
-      console.error("Day not found for multiDay event:", { date, scheduleId });
-      return null;
-    }
-    
-    const slotIndex = parseInt(slotIndexStr, 10);
-    if (isNaN(slotIndex) || slotIndex < 0 || slotIndex >= day.slots.length) {
-      console.error("Invalid slot index for multiDay event:", { slotIndexStr, slotIndex, slotsLength: day.slots.length });
-      return null;
-    }
-    
-    return day.slots[slotIndex];
   } else if (project.event_type === "sameDayMultiArea") {
     const role = project.schedule.sameDayMultiArea?.roles.find(r => r.name === scheduleId);
     return role;
   }
+  
   return null;
 }
 
@@ -159,6 +170,8 @@ export async function signUpForProject(
   const supabase = await createClient();
 
   try {
+    console.log("Starting signup process:", { projectId, scheduleId });
+    
     // Get project details
     const { project, error: projectError } = await getProject(projectId);
 
@@ -184,6 +197,8 @@ export async function signUpForProject(
 
     // Check if slot is full
     const currentSignups = await getCurrentSignups(projectId, scheduleId);
+    console.log("Current signups:", { currentSignups, maxVolunteers: slotDetails.volunteers });
+    
     if (currentSignups >= slotDetails.volunteers) {
       return { error: "This slot is full" };
     }

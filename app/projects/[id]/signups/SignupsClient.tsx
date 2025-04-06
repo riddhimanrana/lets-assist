@@ -123,7 +123,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
         th, td { border: 1px solid #ddd; padding: 4px; font-size: 12px; text-align: left; }
         th { background-color: #f2f2f2; }
         .no-print { display: none !important; }
-        .page-break { page-break-before: always; }
+        /* Removed page-break class */
         }
       </style>
       <h1>Approved Volunteers - ${project?.title || 'Project'}</h1>
@@ -131,10 +131,10 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
       ${Object.entries(filteredSignupsBySlot).map(([slot, slotSignups]) => {
         const approved = slotSignups.filter(s => s.status !== 'cancelled');
         return approved.length > 0 ? `
-        <div class="schedule-slot ${slot !== Object.keys(filteredSignupsBySlot)[0] ? 'page-break' : ''}">
+        <div class="schedule-slot">
           <h2>${project && formatScheduleSlot(project, slot)}</h2>
           <table>
-          <thead><tr><th>Name</th><th>Type</th><th>Contact</th></tr></thead>
+          <thead><tr><th>Name</th><th>Type</th><th>Contact</thead>
           <tbody>
             ${approved.map(s => `
             <tr>
@@ -215,7 +215,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
         // Example for name:
         // if (sort.field === 'name') {
         //   const nameA = (a.profile?.full_name || a.anonymous_name || '').toLowerCase();
-        //   const nameB = (b.profile?.full_name || b.anonymous_name || '').toLowerCase();
+        //   const nameB = (b.profile?.full_name || a.anonymous_name || '').toLowerCase();
         //   return nameA.localeCompare(nameB) * direction;
         // }
 
@@ -345,38 +345,55 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
     }
   };
 
+  const formatTimeTo12Hour = (time: string) => {
+    const [hours, minutes] = time.split(':').map(Number);
+    const period = hours >= 12 ? 'PM' : 'AM';
+    const adjustedHours = hours % 12 || 12;
+    return `${adjustedHours}:${minutes.toString().padStart(2, '0')} ${period}`;
+  };
+
   const formatScheduleSlot = (project: Project, slotId: string) => {
     if (!project) return slotId;
-
+  
     if (project.event_type === "oneTime") {
       // Handle oneTime events - the scheduleId is simply "oneTime"
       if (slotId === "oneTime" && project.schedule.oneTime) {
-        // Create date with UTC to prevent timezone offset issues
+        // Create date with no timezone offset issues
         const dateStr = project.schedule.oneTime.date;
         const [year, month, day] = dateStr.split('-').map(Number);
-        const date = new Date(Date.UTC(year, month - 1, day));
-        return `One-time Event on ${format(date, "MMMM d, yyyy")} at ${project.schedule.oneTime.startTime}`;
+        const date = new Date(year, month - 1, day);
+        return `${format(date, "MMMM d, yyyy")} from ${formatTimeTo12Hour(project.schedule.oneTime.startTime)} to ${formatTimeTo12Hour(project.schedule.oneTime.endTime)}`;
       }
     }
-
+  
     if (project.event_type === "multiDay") {
       // For multiDay events, the scheduleId format is "date-slotIndex"
-      const [date, slotIndex] = slotId.split("-");
-      const day = project.schedule.multiDay?.find(d => d.date === date);
+      const parts = slotId.split("-");
       
-      if (day && slotIndex !== undefined) {
-        const slotIdx = parseInt(slotIndex, 10);
-        const slot = day.slots[slotIdx];
+      // Make sure we have at least 2 parts (date and slotIndex)
+      if (parts.length >= 2) {
+        // Last part is the slot index
+        const slotIndex = parts.pop();
+        // Everything else is the date (in case the date has hyphens)
+        const date = parts.join("-");
         
-        if (slot) {
-          // Create date with UTC to prevent timezone offset issues
-          const [year, month, dayNum] = date.split('-').map(Number);
-          const utcDate = new Date(Date.UTC(year, month - 1, dayNum));
-          return `${format(utcDate, "MMMM d, yyyy")} at ${slot.startTime}`;
+        const day = project.schedule.multiDay?.find(d => d.date === date);
+        
+        if (day && slotIndex !== undefined) {
+          const slotIdx = parseInt(slotIndex, 10);
+          const slot = day.slots[slotIdx];
+          
+          if (slot) {
+            // Create date with no timezone offset issues
+            const [year, month, dayNum] = date.split('-').map(Number);
+            // Use Date to correctly handle timezones
+            const utcDate = new Date(year, month - 1, dayNum);
+            return `${format(utcDate, "EEEE, MMMM d, yyyy")} from ${formatTimeTo12Hour(slot.startTime)} to ${formatTimeTo12Hour(slot.endTime)}`;
+          }
         }
       }
     }
-
+  
     if (project.event_type === "sameDayMultiArea") {
       // For sameDayMultiArea, the scheduleId is the role name
       const role = project.schedule.sameDayMultiArea?.roles.find(r => r.name === slotId);
@@ -384,16 +401,17 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
       if (role) {
         const eventDate = project.schedule.sameDayMultiArea?.date;
         if (eventDate) {
-          // Create date with UTC to prevent timezone offset issues
+          // Create date with no timezone offset issues
           const [year, month, day] = eventDate.split('-').map(Number);
-          const utcDate = new Date(Date.UTC(year, month - 1, day));
-          return `Role: ${role.name} on ${format(utcDate, "MMMM d, yyyy")}`;
+          // Use Date to correctly handle timezones
+          const utcDate = new Date(year, month - 1, day);
+          return `${format(utcDate, "EEEE, MMMM d, yyyy")} - Role: ${role.name} (${formatTimeTo12Hour(role.startTime)} to ${formatTimeTo12Hour(role.endTime)})`;
         } else {
-          return `Role: ${role.name}`;
+          return `Role: ${role.name} (${formatTimeTo12Hour(role.startTime)} to ${formatTimeTo12Hour(role.endTime)})`;
         }
       }
     }
-
+  
     return slotId;
   };
 
