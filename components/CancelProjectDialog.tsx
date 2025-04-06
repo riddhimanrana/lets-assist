@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { XOctagon, AlertTriangle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Project } from "@/types";
+import { cn } from "@/lib/utils";
 import { canCancelProject } from "@/utils/project";
 
 interface CancelProjectDialogProps {
@@ -29,6 +30,7 @@ export function CancelProjectDialog({
 }: CancelProjectDialogProps) {
   const [reason, setReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const CHARACTER_LIMIT = 350; // Define the character limit
 
   const canCancel = canCancelProject(project);
 
@@ -55,6 +57,14 @@ export function CancelProjectDialog({
       setReason("");
       onClose();
     }
+  };
+
+  // Character count helpers
+  const getCounterColor = (current: number, max: number) => {
+    const percentage = (current / max) * 100;
+    if (percentage >= 90) return "text-destructive";
+    if (percentage >= 75) return "text-chart-6";
+    return "text-muted-foreground";
   };
 
   return (
@@ -85,11 +95,23 @@ export function CancelProjectDialog({
             <Textarea
               placeholder="Please provide a reason for cancelling this project..."
               value={reason}
-              onChange={(e) => setReason(e.target.value)}
+              onChange={(e) => {
+                if (e.target.value.length <= CHARACTER_LIMIT) {
+                  setReason(e.target.value);
+                }
+              }}
               className="resize-none"
               rows={4}
               disabled={!canCancel || isSubmitting}
             />
+            <span
+              className={cn(
+                "text-xs transition-colors float-right",
+                getCounterColor(reason.length, CHARACTER_LIMIT)
+              )}
+            >
+              {reason.length}/{CHARACTER_LIMIT}
+            </span>
           </div>
         </div>
 
@@ -104,7 +126,7 @@ export function CancelProjectDialog({
           <Button
             variant="destructive"
             onClick={handleConfirm}
-            disabled={!canCancel || isSubmitting || !reason.trim()}
+            disabled={!canCancel || isSubmitting || !reason.trim() || reason.length > CHARACTER_LIMIT}
           >
             {isSubmitting ? (
               <>
