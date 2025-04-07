@@ -70,7 +70,7 @@ interface ProjectWithCreator extends Project {
   signup_schedule_id?: string;
 }
 
-export default async function ActiveProjectsPage() {
+export default async function UserProjects() {
   const supabase = await createClient();
 
   // Check if user is authenticated

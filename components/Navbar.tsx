@@ -295,7 +295,7 @@ export default function Navbar({ initialUser }: NavbarProps) {
                   <Link href="/home">Home</Link>
                 </Button>
                 <Button variant="ghost" asChild>
-                  <Link href="/projects/active">My Projects</Link>
+                  <Link href="/projects">My Projects</Link>
                 </Button>
                 <Button variant="ghost" asChild>
                   <Link href="/organization">Organizations</Link>
@@ -553,7 +553,7 @@ export default function Navbar({ initialUser }: NavbarProps) {
                         asChild
                         onClick={handleNavigation}
                       >
-                        <Link href="/projects/active">My Projects</Link>
+                        <Link href="/projects">My Projects</Link>
                       </Button>
                       <Button
                         variant="ghost"

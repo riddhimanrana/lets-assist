@@ -5,7 +5,7 @@ import { type NextRequest, NextResponse } from "next/server";
 const PROTECTED_PATHS = ["/home", "/projects/create", "/account"];
 
 // Paths that logged-in users shouldn't access
-const RESTRICTED_PATHS_FOR_LOGGED_IN_USERS = ["/", "/login", "/signup", "/projects"];
+const RESTRICTED_PATHS_FOR_LOGGED_IN_USERS = ["/", "/login", "/signup"];
 
 // Function to check if a path requires authentication
 function isProtectedPath(path: string) {
@@ -59,7 +59,8 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
   const currentPath = request.nextUrl.pathname;
 
-  // Handle /account redirect - must come first as it's a simple path redirect
+
+// Handle /account redirect - must come first as it's a simple path redirect
   if (currentPath === "/account") {
     return NextResponse.redirect(new URL("/account/profile", request.url));
   }
