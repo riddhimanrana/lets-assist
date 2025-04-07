@@ -14,11 +14,6 @@ import { redirect } from "next/navigation";
 import { Metadata } from "next";
 import type { Project } from "@/types";
 
-export const metadata: Metadata = {
-  title: "Active Projects | Let&apos;s Assist",
-  description: "Manage projects you&apos;ve signed up for and projects you&apos;ve created.",
-};
-
 // Formats the date display for different project types
 function formatDateDisplay(project: any) {
   if (!project.event_type || !project.schedule) return "";
@@ -198,7 +193,7 @@ export default async function UserProjects() {
 
   return (
     <main className="mx-auto px-4 sm:px-8 lg:px-12 py-8 min-h-screen">
-      <h1 className="text-2xl sm:text-3xl font-bold mb-2">My Projects</h1>
+      <h1 className="text-3xl font-bold mb-2">My Projects</h1>
       <p className="text-muted-foreground mb-5">
         Projects you&apos;ve signed up for and projects you&apos;ve created.
       </p>
@@ -245,12 +240,12 @@ export default async function UserProjects() {
                           <span className="truncate">{project.location}</span>
                         </div>
                         
-                        {project.event_type === "oneTime" && (
+                        {/* {project.event_type === "oneTime" && (
                           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                             <Clock className="h-3 w-3" />
                             <span>{formatTime(project.schedule?.oneTime?.startTime || "")} - {formatTime(project.schedule?.oneTime?.endTime || "")}</span>
                           </div>
-                        )}
+                        )} */}
                         
                         <div className="flex items-center gap-2">
                           <Avatar className="h-6 w-6">
@@ -299,12 +294,12 @@ export default async function UserProjects() {
                             <span className="truncate">{project.location}</span>
                           </div>
                           
-                          {project.event_type === "oneTime" && (
+                          {/* {project.event_type === "oneTime" && (
                             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                               <Clock className="h-3 w-3" />
                               <span>{formatTime(project.schedule?.oneTime?.startTime || "")} - {formatTime(project.schedule?.oneTime?.endTime || "")}</span>
                             </div>
-                          )}
+                          )} */}
                           
                           <div className="flex items-center gap-2">
                             <Avatar className="h-6 w-6">
@@ -422,12 +417,12 @@ export default async function UserProjects() {
                           <span className="truncate">{project.location}</span>
                         </div>
                         
-                        {project.event_type === "oneTime" && (
+                        {/* {project.event_type === "oneTime" && (
                           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                             <Clock className="h-3 w-3" />
                             <span>{formatTime(project.schedule?.oneTime?.startTime)} - {formatTime(project.schedule?.oneTime?.endTime)}</span>
                           </div>
-                        )}
+                        )} */}
                       </CardContent>
                       <CardFooter className="p-4 pt-3">
                         <Button variant="default" size="sm" asChild className="w-full">
@@ -463,12 +458,12 @@ export default async function UserProjects() {
                             <span className="truncate">{project.location}</span>
                           </div>
                           
-                          {project.event_type === "oneTime" && (
+                          {/* {project.event_type === "oneTime" && (
                             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                               <Clock className="h-3 w-3" />
                               <span>{formatTime(project.schedule?.oneTime?.startTime)} - {formatTime(project.schedule?.oneTime?.endTime)}</span>
                             </div>
-                          )}
+                          )} */}
                         </CardContent>
                         <CardFooter className="p-4 pt-3">
                           <Button variant="default" size="sm" asChild className="w-full">

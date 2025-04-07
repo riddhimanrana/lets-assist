@@ -81,7 +81,7 @@ export default function OrganizationsDisplay({
         {/* Header section */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Organizations</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Organizations</h1>
             <p className="text-sm sm:text-base text-muted-foreground mt-1">
               Join or create organizations to collaborate on projects
             </p>

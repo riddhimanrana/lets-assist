@@ -15,7 +15,7 @@ export async function generateMetadata(): Promise<Metadata> {
     } = await getUserData(); // (/Users/riddhiman.rana/Desktop/Coding/lets-assist/app/projects/page.tsx, line 12)
     if (user) {
         return {
-            title: "Your Projects",
+            title: "My Projects",
             description: "Manage and view your volunteer projects.",
         };
     } else {
