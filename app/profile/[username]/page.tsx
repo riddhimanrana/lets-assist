@@ -161,11 +161,11 @@ export default async function ProfilePage(
                   src={profile.avatar_url || undefined}
                   alt={profile.full_name}
                 />
-                <AvatarFallback className="text-xl sm:text-2xl">
-                  <NoAvatar fullName={profile?.full_name} />
+                <AvatarFallback className="sm:text-2xl">
+                  <NoAvatar fullName={profile?.full_name} className="text-2xl sm:text-3xl"/>
                 </AvatarFallback>
               </Avatar>
-                <div className="pt-2 sm:pt-16 flex flex-col justify-center">
+                <div className="sm:pt-16 flex flex-col justify-center">
                 <h1 className="text-xl sm:text-2xl font-bold">{profile.full_name}</h1>
                 <p className="text-muted-foreground text-xs">@{profile.username}</p>
                 </div>
