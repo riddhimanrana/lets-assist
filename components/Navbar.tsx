@@ -278,7 +278,7 @@ export default function Navbar({ initialUser }: NavbarProps) {
           <Link href="/">
             <div className="flex items-center space-x-2">
               <Image
-                src="/letsassist-logo.png"
+                src="/logo.png"
                 alt="letsassist logo"
                 width={30}
                 height={30}
@@ -316,7 +316,7 @@ export default function Navbar({ initialUser }: NavbarProps) {
                                 href="/"
                               >
                                 <Image
-                                  src="/letsassist-logo.png"
+                                  src="/logo.png"
                                   alt="letsassist logo"
                                   width={30}
                                   height={30}

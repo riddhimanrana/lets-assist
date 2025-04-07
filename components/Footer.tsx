@@ -12,7 +12,7 @@ export function Footer() {
           {/* Left aligned logo */}
           <div className="flex justify-start ml-3">
             <Image
-              src="/letsassist-logo.png"
+              src="/logo.png"
               alt="letsassist Logo"
               width={40}
               height={40}
@@ -93,7 +93,7 @@ export function Footer() {
           <div className="flex items-center space-x-3">
             {/* Already left aligned */}
             <Image
-              src="/letsassist-logo.png"
+              src="/logo.png"
               alt="letsassist Logo"
               width={32}
               height={32}
