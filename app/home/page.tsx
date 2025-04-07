@@ -31,7 +31,7 @@ export default async function Home() {
   return (
     <div className="min-h-screen">
       <EmailVerificationToast />
-      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="mx-auto px-4 sm:px-8 lg:px-12 py-8">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
           <div className="flex items-center gap-3">
             <Avatar className="w-10 h-10">

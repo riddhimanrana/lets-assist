@@ -76,7 +76,7 @@ export default function OrganizationsDisplay({
   }, [organizations, search, sortBy]);
 
   return (
-    <div className="flex flex-col items-center px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+    <div className="mx-auto px-4 sm:px-8 lg:px-12 py-8">
       <div className="w-full max-w-7xl space-y-4 sm:space-y-8">
         {/* Header section */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
