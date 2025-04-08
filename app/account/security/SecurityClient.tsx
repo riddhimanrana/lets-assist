@@ -1,6 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -12,6 +15,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  Form,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage,
+} from "@/components/ui/form";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -22,9 +33,26 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-import { deleteAccount } from "./actions";
+import { deleteAccount, updatePasswordAction, updateEmailAction } from "./actions";
 import { createClient } from "@/utils/supabase/client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+
+const updatePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Current password is required"),
+    newPassword: z.string().min(8, "Password must be at least 8 characters"),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: "New passwords don't match",
+    path: ["confirmPassword"],
+  });
+type UpdatePasswordValues = z.infer<typeof updatePasswordSchema>;
+
+const updateEmailSchema = z.object({
+  newEmail: z.string().email("Please enter a valid email address"),
+});
+type UpdateEmailValues = z.infer<typeof updateEmailSchema>;
 
 export default function SecurityClient() {
   const [isDeleting, setIsDeleting] = useState(false);
@@ -33,6 +61,24 @@ export default function SecurityClient() {
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [countdownInterval, setCountdownInterval] = useState<NodeJS.Timeout | null>(null);
   const [currentEmail, setCurrentEmail] = useState("");
+  const [isPasswordLoading, setIsPasswordLoading] = useState(false);
+  const [isEmailLoading, setIsEmailLoading] = useState(false);
+
+  const passwordForm = useForm<UpdatePasswordValues>({
+    resolver: zodResolver(updatePasswordSchema),
+    defaultValues: {
+      currentPassword: "",
+      newPassword: "",
+      confirmPassword: "",
+    },
+  });
+
+  const emailForm = useForm<UpdateEmailValues>({
+    resolver: zodResolver(updateEmailSchema),
+    defaultValues: {
+      newEmail: "",
+    },
+  });
 
   useEffect(() => {
     const fetchUserEmail = async () => {
@@ -45,14 +91,63 @@ export default function SecurityClient() {
     fetchUserEmail();
   }, []);
 
-  const handleEmailChange = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    // Functionality coming in future release
+  const handleEmailChange = async (data: UpdateEmailValues) => {
+    setIsEmailLoading(true);
+    const formData = new FormData();
+    formData.append("newEmail", data.newEmail);
+
+    const result = await updateEmailAction(formData);
+
+    if (result.error) {
+      if (result.error.server) {
+        toast.error(result.error.server[0]);
+      }
+      if (result.error.newEmail) {
+        emailForm.setError("newEmail", { type: "server", message: result.error.newEmail[0] });
+      }
+    } else if (result.success) {
+      toast.success(result.message || "Email update initiated successfully!");
+      emailForm.reset();
+    }
+    setIsEmailLoading(false);
   };
 
-  const handlePasswordChange = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    // Functionality coming in future release
+  const handlePasswordChange = async (data: UpdatePasswordValues) => {
+    setIsPasswordLoading(true);
+    const formData = new FormData();
+    formData.append("currentPassword", data.currentPassword);
+    formData.append("newPassword", data.newPassword);
+    formData.append("confirmPassword", data.confirmPassword);
+
+    const result = await updatePasswordAction(formData);
+
+    if (result.error) {
+      if (result.error.server) {
+        toast.error(result.error.server[0]);
+      }
+      if (result.error.currentPassword) {
+        passwordForm.setError("currentPassword", { 
+          type: "server", 
+          message: result.error.currentPassword[0] 
+        });
+      }
+      if (result.error.newPassword) {
+        passwordForm.setError("newPassword", { 
+          type: "server", 
+          message: result.error.newPassword[0] 
+        });
+      }
+      if (result.error.confirmPassword) {
+        passwordForm.setError("confirmPassword", { 
+          type: "server", 
+          message: result.error.confirmPassword[0] 
+        });
+      }
+    } else if (result.success) {
+      toast.success("Password updated successfully!");
+      passwordForm.reset();
+    }
+    setIsPasswordLoading(false);
   };
 
   const handleDeleteAccount = async () => {
@@ -63,7 +158,6 @@ export default function SecurityClient() {
     
     try {
       setIsDeleting(true);
-      // Start countdown
       let count = 5;
       setCountdown(count);
       const interval = setInterval(() => {
@@ -76,17 +170,14 @@ export default function SecurityClient() {
       }, 1000);
       setCountdownInterval(interval);
       
-      // Wait for 5 seconds
       await new Promise((resolve) => setTimeout(resolve, 5000));
       
       if (count === 0) {
         const result = await deleteAccount();
         if (result.success) {
           toast.success("Account successfully deleted");
-          // Clear any stored auth state
           localStorage.clear();
           sessionStorage.clear();
-          // Force navigation to home page with bypass parameter
           window.location.href = "/?deleted=true&noRedirect=1";
         }
       }
@@ -131,33 +222,40 @@ export default function SecurityClient() {
               <CardDescription>Change your email address</CardDescription>
             </CardHeader>
             <CardContent className="px-5 sm:px-6 py-4">
-              <Alert className="mb-4">
-                <AlertDescription>
-                  Email changes will be available in a future release.
-                </AlertDescription>
-              </Alert>
-              <form onSubmit={handleEmailChange} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="current-email">Current Email</Label>
-                  <Input
-                    id="current-email"
-                    type="email"
-                    value={currentEmail}
-                    disabled
+              <Form {...emailForm}>
+                <form onSubmit={emailForm.handleSubmit(handleEmailChange)} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="current-email">Current Email</Label>
+                    <Input
+                      id="current-email"
+                      type="email"
+                      value={currentEmail}
+                      disabled
+                      readOnly
+                    />
+                  </div>
+                  <FormField
+                    control={emailForm.control}
+                    name="newEmail"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>New Email</FormLabel>
+                        <FormControl>
+                          <Input type="email" placeholder="Enter new email" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="new-email">New Email</Label>
-                  <Input id="new-email" type="email" required disabled />
-                </div>
-                <Button
-                  type="submit"
-                  disabled={true}
-                  className="w-full sm:w-auto"
-                >
-                  Coming Soon
-                </Button>
-              </form>
+                  <Button
+                    type="submit"
+                    disabled={isEmailLoading}
+                    className="w-full sm:w-auto"
+                  >
+                    {isEmailLoading ? "Updating..." : "Update Email"}
+                  </Button>
+                </form>
+              </Form>
             </CardContent>
           </Card>
           <Card>
@@ -166,42 +264,56 @@ export default function SecurityClient() {
               <CardDescription>Change your password</CardDescription>
             </CardHeader>
             <CardContent className="px-5 py-4">
-              <Alert className="mb-4">
-                <AlertDescription>
-                  Password changes will be available in a future release.
-                </AlertDescription>
-              </Alert>
-              <form onSubmit={handlePasswordChange} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="current-password">Current Password</Label>
-                  <Input
-                    id="current-password"
-                    type="password"
-                    required
-                    disabled
+              <Form {...passwordForm}>
+                <form onSubmit={passwordForm.handleSubmit(handlePasswordChange)} className="space-y-4">
+                  <FormField
+                    control={passwordForm.control}
+                    name="currentPassword"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Current Password</FormLabel>
+                        <FormControl>
+                          <Input type="password" placeholder="Enter current password" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="new-password">New Password</Label>
-                  <Input id="new-password" type="password" required disabled />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="confirm-password">Confirm New Password</Label>
-                  <Input
-                    id="confirm-password"
-                    type="password"
-                    required
-                    disabled
+                  <FormField
+                    control={passwordForm.control}
+                    name="newPassword"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>New Password</FormLabel>
+                        <FormControl>
+                          <Input type="password" placeholder="Enter new password" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
-                </div>
-                <Button
-                  type="submit"
-                  disabled={true}
-                  className="w-full sm:w-auto"
-                >
-                  Coming Soon
-                </Button>
-              </form>
+                  <FormField
+                    control={passwordForm.control}
+                    name="confirmPassword"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Confirm New Password</FormLabel>
+                        <FormControl>
+                          <Input type="password" placeholder="Confirm new password" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <Button
+                    type="submit"
+                    disabled={isPasswordLoading}
+                    className="w-full sm:w-auto"
+                  >
+                    {isPasswordLoading ? "Updating..." : "Update Password"}
+                  </Button>
+                </form>
+              </Form>
             </CardContent>
           </Card>
         </div>
