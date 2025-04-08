@@ -64,7 +64,6 @@ export default function ResetPasswordForm({ token }: ResetPasswordFormProps) {
       const result = await updatePassword(formData);
 
       if (result.error) {
-        // Handle specific error cases
         if (result.error.server) {
           toast.error(result.error.server[0]);
         }
@@ -76,7 +75,7 @@ export default function ResetPasswordForm({ token }: ResetPasswordFormProps) {
         }
       } else if (result.success) {
         toast.success(
-          "Your password has been reset successfully. Please log in with your new password.", 
+          "Your password has been reset successfully. Please log in with your new password.",
           { duration: 5000 }
         );
         router.push("/login");

@@ -15,7 +15,7 @@ export default function ErrorClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const message =
-    searchParams.get("message") || "There was a problem signing you in.";
+    searchParams.get("message") ||"There was a problem with the link.";
     
   return (
     <div className="min-h-screen flex items-center justify-center">

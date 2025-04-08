@@ -12,11 +12,16 @@ export default async function ResetPasswordTokenPage({
 }: {
   params: { token: string };
 }) {
+  // Await params before accessing token
+  const awaitedParams = await params;
+  const token = awaitedParams.token;
+
   // No session check or token validation here
   // Token will be validated during password update
-  if (!params.token) {
+  if (!token) {
     redirect("/reset-password");
   }
 
-  return <ResetPasswordForm token={params.token} />;
+  // Pass only the token to the form component
+  return <ResetPasswordForm token={token} />;
 }

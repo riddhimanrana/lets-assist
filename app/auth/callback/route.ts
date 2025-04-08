@@ -11,6 +11,7 @@ export async function GET(request: Request) {
 
   // For password reset flow
   if (code && type === "recovery") {
+    // Simply redirect to the reset password page with the code (token)
     return NextResponse.redirect(
       `${origin}/reset-password/${code}`
     );

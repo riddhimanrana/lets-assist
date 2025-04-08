@@ -22,5 +22,9 @@ export default async function ResetPasswordPage({
     redirect('/reset-password');
   }
 
-  return <ResetPasswordClient error={searchParams.error} />;
+  // Explicitly read the search param before passing it
+  const search = await searchParams;
+  const error = search.error;
+
+  return <ResetPasswordClient error={error} />;
 }
