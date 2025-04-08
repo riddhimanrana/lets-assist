@@ -5,7 +5,7 @@ import { type NextRequest, NextResponse } from "next/server";
 const PROTECTED_PATHS = ["/home", "/projects/create", "/account"];
 
 // Paths that logged-in users shouldn't access
-const RESTRICTED_PATHS_FOR_LOGGED_IN_USERS = ["/", "/login", "/signup"];
+const RESTRICTED_PATHS_FOR_LOGGED_IN_USERS = ["/", "/login", "/signup", "/reset-password"];
 
 // Function to check if a path requires authentication
 function isProtectedPath(path: string) {
@@ -63,6 +63,21 @@ export async function updateSession(request: NextRequest) {
 // Handle /account redirect - must come first as it's a simple path redirect
   if (currentPath === "/account") {
     return NextResponse.redirect(new URL("/account/profile", request.url));
+  }
+
+  // Handle reset password paths specially
+  if (currentPath.startsWith("/reset-password")) {
+    // Always clear any existing session for reset password flow
+    if (user) {
+      await supabase.auth.signOut();
+      // Create a new response to clear cookies
+      const response = NextResponse.redirect(request.url);
+      response.cookies.delete('sb-access-token');
+      response.cookies.delete('sb-refresh-token');
+      return response;
+    }
+    // Let them continue to the reset password flow
+    return supabaseResponse;
   }
 
   // Redirect authenticated users trying to access restricted paths

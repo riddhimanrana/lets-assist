@@ -4,12 +4,19 @@ import { createClient } from "@/utils/supabase/server";
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
+  const type = searchParams.get("type");
   const redirectAfterAuth = searchParams.get("redirectAfterAuth");
-  const next = redirectAfterAuth ? new URL(redirectAfterAuth).pathname : "/home";
   const error = searchParams.get("error");
   const error_description = searchParams.get("error_description");
 
-  // Handle OAuth errors
+  // For password reset flow
+  if (code && type === "recovery") {
+    return NextResponse.redirect(
+      `${origin}/reset-password/${code}`
+    );
+  }
+
+  // Handle errors for all flows
   if (error) {
     console.error("OAuth error:", error, error_description);
     // Check if the error is due to existing email-password account
@@ -21,12 +28,13 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${origin}/error`);
   }
 
-  if (code) {
+  // Normal OAuth flow
+  if (!error && code) {
     const supabase = await createClient();
     const {
       data: { session },
       error,
-    } = await supabase.auth.exchangeCodeForSession(code);
+    } = await supabase.auth.exchangeCodeForSession(code || '');
 
     if (!error && session) {
       try {
@@ -89,16 +97,17 @@ export async function GET(request: Request) {
           }
         }
 
+        // Determine redirect path
+        const redirectTo = redirectAfterAuth ? new URL(redirectAfterAuth).pathname : "/home";
         const forwardedHost = request.headers.get("x-forwarded-host");
-        const isLocalEnv = process.env.NODE_ENV === "development";
         
-        // Simplify redirect logic to match working version
-        if (isLocalEnv) {
-          return NextResponse.redirect(`${origin}${next}`);
+        // Handle redirect based on environment
+        if (process.env.NODE_ENV === "development") {
+          return NextResponse.redirect(`${origin}${redirectTo}`);
         } else if (forwardedHost) {
-          return NextResponse.redirect(`https://${forwardedHost}${next}`);
+          return NextResponse.redirect(`https://${forwardedHost}${redirectTo}`);
         } else {
-          return NextResponse.redirect(`${origin}${next}`);
+          return NextResponse.redirect(`${origin}${redirectTo}`);
         }
       } catch (error) {
         console.error("Error in callback:", error);

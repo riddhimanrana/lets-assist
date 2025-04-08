@@ -4,31 +4,46 @@ import { z } from "zod";
 import { createClient } from "@/utils/supabase/server";
 
 const resetPasswordSchema = z.object({
-  password: z.string().min(8, "Password must be at least 8 characters"),
+  email: z.string().email("Please enter a valid email address"),
 });
 
-export async function resetPassword(formData: FormData) {
+type ErrorResponse = {
+  server?: string[];
+  email?: string[];
+};
+
+export async function requestPasswordReset(formData: FormData) {
   const validatedFields = resetPasswordSchema.safeParse({
-    password: formData.get("password"),
+    email: formData.get("email"),
   });
 
   if (!validatedFields.success) {
-    return { error: validatedFields.error.flatten().fieldErrors };
+    return { error: validatedFields.error.flatten().fieldErrors as ErrorResponse };
   }
 
   const supabase = await createClient();
 
   try {
-    const { error } = await supabase.auth.updateUser({
-      password: validatedFields.data.password,
-    });
+    // Send password reset email
+    const { error } = await supabase.auth.resetPasswordForEmail(
+      validatedFields.data.email,
+      {
+        // Redirect to auth callback which will handle verification and token exchange
+        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback?type=recovery`,
+      }
+    );
 
     if (error) {
-      return { error: { server: [error.message] } };
+      // Don't expose if email exists or not for security
+      // Just return success even if email doesn't exist
+      console.error("Password reset error:", error);
     }
 
+    // Always return success to not leak email existence
     return { success: true };
   } catch (error) {
-    return { error: { server: [(error as Error).message] } };
+    console.error("Password reset error:", error);
+    // Still return success to not leak email existence
+    return { success: true };
   }
 }
