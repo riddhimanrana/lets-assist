@@ -95,7 +95,7 @@ export default function ResetPasswordClient({ error }: ResetPasswordClientProps)
                 Try another email
               </Button>
               <Link href="/login">
-                <Button variant="link" className="w-full">
+                  <Button variant="link" className="w-full">
                   Back to login
                 </Button>
               </Link>
