@@ -35,7 +35,7 @@ function LocationAutocompleteContent({
   "aria-errormessage": ariaErrorMessage,
 }: LocationAutocompleteProps) {
   const [query, setQuery] = useState("")
-  const [inputValue, setInputValue] = useState(value?.text || "")
+  const [inputValue, setInputValue] = useState("") // Initialize with empty string instead of undefined
   const [showResults, setShowResults] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [predictions, setPredictions] = useState<google.maps.places.AutocompletePrediction[]>([])
@@ -98,10 +98,10 @@ function LocationAutocompleteContent({
     }
   }, [isLoaded, placesApiReady]);
 
-  // Update input value when value prop changes
+  // Update input value when value prop changes, ensuring it's never undefined
   useEffect(() => {
     setInputValue(value?.text || "")
-  }, [value])
+  }, [value?.text]) // Only depend on value.text
 
   // Search for predictions or show current selection when input is focused
   useEffect(() => {
@@ -200,12 +200,13 @@ function LocationAutocompleteContent({
   }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = e.target.value
-    if (newValue.length <= maxLength) {
-      setInputValue(newValue)
-      setQuery(newValue)
-      setShowResults(true)
-      // Update parent state immediately for validation, even if it's just text
+    const newValue = e.target.value.slice(0, maxLength) // Enforce maxLength
+    setInputValue(newValue)
+    setQuery(newValue)
+    setShowResults(true)
+    
+    // Only call onChangeAction if the value actually changed
+    if (newValue !== value?.text) {
       onChangeAction(newValue ? { text: newValue, display_name: newValue } : undefined)
     }
   }
@@ -283,7 +284,7 @@ function LocationAutocompleteContent({
         <Input
           id={id}
           placeholder="Search for a location..."
-          value={inputValue}
+          value={inputValue} // This will now always be a string
           onChange={handleInputChange}
           onFocus={() => {
             setShowResults(true)

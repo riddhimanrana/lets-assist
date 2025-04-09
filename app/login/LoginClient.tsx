@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -31,19 +31,14 @@ const loginSchema = z.object({
 
 type LoginValues = z.infer<typeof loginSchema>;
 
-export default function LoginClient() {
+interface LoginClientProps {
+  redirectPath?: string;
+}
+
+export default function LoginClient({ redirectPath }: LoginClientProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-  const [redirectUrl, setRedirectUrl] = useState<string | null>(null);
-  
-  useEffect(() => {
-    // Check if there's a redirect URL in sessionStorage
-    const storedRedirect = sessionStorage.getItem('redirect_after_auth');
-    if (storedRedirect) {
-      setRedirectUrl(storedRedirect);
-    }
-  }, []);
-  
+
   const form = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -57,7 +52,7 @@ export default function LoginClient() {
     const formData = new FormData();
     Object.entries(data).forEach(([key, value]) => formData.append(key, value));
     const result = await login(formData);
-    
+
     if (result.error) {
       const errors = result.error;
       Object.keys(errors).forEach((key) => {
@@ -68,8 +63,7 @@ export default function LoginClient() {
           });
         }
       });
-      
-      // Check if error message indicates email-only account
+
       if ("server" in errors && errors.server?.[0]?.includes("provider")) {
         toast.error(
           "This email is registered with password. Please sign in with email and password.",
@@ -78,25 +72,18 @@ export default function LoginClient() {
         toast.error("Incorrect email or password.");
       }
     } else if (result.success) {
-      // If we have a stored redirect URL, use it and clear from storage
-      if (redirectUrl) {
-        sessionStorage.removeItem('redirect_after_auth');
-        window.location.href = redirectUrl;
-      } else {
-        window.location.href = "/home";
-      }
+      window.location.href = redirectPath ? decodeURIComponent(redirectPath) : "/home";
     }
-    
+
     setIsLoading(false);
   }
 
   const handleGoogleSignIn = async () => {
     try {
       setIsGoogleLoading(true);
-      
-      // Add redirect URL to Google auth if it exists
-      const result = await signInWithGoogle(redirectUrl);
-      
+
+      const result = await signInWithGoogle(redirectPath ? decodeURIComponent(redirectPath) : null);
+
       if (result.error) {
         if (result.error.server?.[0]?.includes("email-password")) {
           toast.error(
@@ -107,7 +94,7 @@ export default function LoginClient() {
         }
         return;
       }
-      
+
       if (result.url) {
         window.location.href = result.url;
       }
@@ -124,8 +111,8 @@ export default function LoginClient() {
         <CardHeader>
           <CardTitle className="text-2xl">Login</CardTitle>
           <CardDescription>
-            {redirectUrl 
-              ? "Login to continue signing up for the project"
+            {redirectPath 
+              ? "Login to continue to the requested page"
               : "Enter your email below to login to your account"
             }
           </CardDescription>
@@ -215,7 +202,7 @@ export default function LoginClient() {
               <div className="mt-4 text-center text-sm">
                 Don&apos;t have an account?{" "}
                 <Link 
-                  href={redirectUrl ? `/signup?redirect=${encodeURIComponent(redirectUrl)}` : "/signup"} 
+                  href={redirectPath ? `/signup?redirect=${redirectPath}` : "/signup"} 
                   className="underline"
                 >
                   Sign up

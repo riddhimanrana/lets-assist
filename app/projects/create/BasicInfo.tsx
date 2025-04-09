@@ -232,7 +232,7 @@ export default function BasicInfo({
           <Input
             id="title"
             placeholder="e.g., Santa Cruz Beach Cleanup"
-            value={state.basicInfo.title || ""}
+            value={state.basicInfo.title ?? ''} // Ensure value is never undefined
             onChange={(e) => {
               if (e.target.value.length <= 125) {
                 updateBasicInfoAction("title", e.target.value);
@@ -294,12 +294,12 @@ export default function BasicInfo({
           
           {previewMode ? (
             <div className="rounded-md border text-sm bg-background p-4 shadow-sm">
-              <RichTextContent content={state.basicInfo.description || ""} />
+              <RichTextContent content={state.basicInfo.description ?? ''} />
             </div>
           ) : (
             <div className="space-y-1">
               <RichTextEditor
-                content={state.basicInfo.description || ""}
+                content={state.basicInfo.description ?? ''}
                 onChange={(html) => updateBasicInfoAction("description", html)}
                 maxLength={1000}
                 className={errors.description ? "border-destructive" : ""}
