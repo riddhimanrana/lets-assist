@@ -50,7 +50,20 @@ const updatePasswordSchema = z
 type UpdatePasswordValues = z.infer<typeof updatePasswordSchema>;
 
 const updateEmailSchema = z.object({
-  newEmail: z.string().email("Please enter a valid email address"),
+  newEmail: z
+    .string()
+    .min(1, "Email is required")
+    .email("Must be a valid email address")
+    .regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, "Must be a valid email format")
+    .refine((email) => email.includes("@"), "Email must contain @ symbol"),
+  confirmEmail: z
+    .string()
+    .min(1, "Please confirm your email")
+    .email("Must be a valid email address")
+    .regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, "Must be a valid email format"),
+}).refine((data) => data.newEmail === data.confirmEmail, {
+  message: "Email addresses don't match",
+  path: ["confirmEmail"],
 });
 type UpdateEmailValues = z.infer<typeof updateEmailSchema>;
 
@@ -77,6 +90,7 @@ export default function SecurityClient() {
     resolver: zodResolver(updateEmailSchema),
     defaultValues: {
       newEmail: "",
+      confirmEmail: "",
     },
   });
 
@@ -95,6 +109,7 @@ export default function SecurityClient() {
     setIsEmailLoading(true);
     const formData = new FormData();
     formData.append("newEmail", data.newEmail);
+    formData.append("confirmEmail", data.confirmEmail);
 
     const result = await updateEmailAction(formData);
 
@@ -104,6 +119,9 @@ export default function SecurityClient() {
       }
       if (result.error.newEmail) {
         emailForm.setError("newEmail", { type: "server", message: result.error.newEmail[0] });
+      }
+      if (result.error.confirmEmail) {
+        emailForm.setError("confirmEmail", { type: "server", message: result.error.confirmEmail[0] });
       }
     } else if (result.success) {
       toast.success(result.message || "Email update initiated successfully!");
@@ -215,116 +233,131 @@ export default function SecurityClient() {
             Manage your email, password, and account security
           </p>
         </div>
-        <div className="space-y-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card className="h-full">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+          <Card className="flex flex-col h-full">
             <CardHeader className="p-5">
               <CardTitle className="text-xl">Email Address</CardTitle>
               <CardDescription>Change your email address</CardDescription>
             </CardHeader>
-            <CardContent className="px-5 sm:px-6 py-4">
+            <CardContent className="flex-1 p-5">
               <Form {...emailForm}>
-                <form onSubmit={emailForm.handleSubmit(handleEmailChange)} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="current-email">Current Email</Label>
-                    <Input
-                      id="current-email"
-                      type="email"
-                      value={currentEmail}
-                      disabled
-                      readOnly
-                    />
-                  </div>
-                  <FormField
-                    control={emailForm.control}
-                    name="newEmail"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>New Email</FormLabel>
-                        <FormControl>
-                          <Input type="email" placeholder="Enter new email" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <Button
-                    type="submit"
-                    disabled={isEmailLoading}
-                    className="w-full sm:w-auto"
-                  >
-                    {isEmailLoading ? "Updating..." : "Update Email"}
-                  </Button>
-                </form>
+          <form onSubmit={emailForm.handleSubmit(handleEmailChange)} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="current-email">Current Email</Label>
+              <Input
+                id="current-email"
+                type="email"
+                value={currentEmail}
+                disabled
+                readOnly
+              />
+            </div>
+            <FormField
+              control={emailForm.control}
+              name="newEmail"
+              render={({ field }) => (
+                <FormItem>
+            <FormLabel>New Email</FormLabel>
+            <FormControl>
+              <Input type="email" placeholder="Enter new email" {...field} />
+            </FormControl>
+            <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={emailForm.control}
+              name="confirmEmail"
+              render={({ field }) => (
+                <FormItem>
+            <FormLabel>Confirm New Email</FormLabel>
+            <FormControl>
+              <Input type="email" placeholder="Confirm new email" {...field} />
+            </FormControl>
+            <FormMessage />
+                </FormItem>
+              )}
+            />
+            <Button
+              type="submit"
+              disabled={isEmailLoading}
+              className="w-full sm:w-auto"
+            >
+              {isEmailLoading ? "Updating..." : "Update Email"}
+            </Button>
+          </form>
               </Form>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="flex flex-col h-full">
             <CardHeader className="p-5">
               <CardTitle className="text-xl">Password</CardTitle>
               <CardDescription>Change your password</CardDescription>
             </CardHeader>
-            <CardContent className="px-5 py-4">
+            <CardContent className="flex-1 p-5">
               <Form {...passwordForm}>
-                <form onSubmit={passwordForm.handleSubmit(handlePasswordChange)} className="space-y-4">
-                  <FormField
-                    control={passwordForm.control}
-                    name="currentPassword"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Current Password</FormLabel>
-                        <FormControl>
-                          <Input type="password" placeholder="Enter current password" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={passwordForm.control}
-                    name="newPassword"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>New Password</FormLabel>
-                        <FormControl>
-                          <Input type="password" placeholder="Enter new password" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={passwordForm.control}
-                    name="confirmPassword"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Confirm New Password</FormLabel>
-                        <FormControl>
-                          <Input type="password" placeholder="Confirm new password" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <Button
-                    type="submit"
-                    disabled={isPasswordLoading}
-                    className="w-full sm:w-auto"
-                  >
-                    {isPasswordLoading ? "Updating..." : "Update Password"}
-                  </Button>
-                </form>
+          <form onSubmit={passwordForm.handleSubmit(handlePasswordChange)} className="space-y-4">
+            <div className="space-y-2">
+              <FormField
+                control={passwordForm.control}
+                name="currentPassword"
+                render={({ field }) => (
+            <FormItem>
+              <FormLabel>Current Password</FormLabel>
+              <FormControl>
+                <Input type="password" placeholder="Enter current password" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+                )}
+              />
+            </div>
+            <FormField
+              control={passwordForm.control}
+              name="newPassword"
+              render={({ field }) => (
+                <FormItem>
+            <FormLabel>New Password</FormLabel>
+            <FormControl>
+              <Input type="password" placeholder="Enter new password" {...field} />
+            </FormControl>
+            <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={passwordForm.control}
+              name="confirmPassword"
+              render={({ field }) => (
+                <FormItem>
+            <FormLabel>Confirm New Password</FormLabel>
+            <FormControl>
+              <Input type="password" placeholder="Confirm new password" {...field} />
+            </FormControl>
+            <FormMessage />
+                </FormItem>
+              )}
+            />
+            <Button
+              type="submit"
+              disabled={isPasswordLoading}
+              className="w-full sm:w-auto"
+            >
+              {isPasswordLoading ? "Updating..." : "Update Password"}
+            </Button>
+          </form>
               </Form>
             </CardContent>
           </Card>
         </div>
         <Card className="border-destructive mt-6">
-          <CardHeader className="p-5">
+          <CardHeader className="p-6">
             <CardTitle className="text-destructive">Delete Account</CardTitle>
             <CardDescription>
               Permanently delete your account and all associated data
             </CardDescription>
           </CardHeader>
-          <CardContent className="px-5  py-4">
+          <CardContent className="p-6">
             <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
               <DialogTrigger asChild>
                 <Button variant="destructive" className="w-full sm:w-auto">
