@@ -6,7 +6,7 @@ import { Search } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { Project, EventType } from "@/types";
 import { NotificationService } from "@/services/notifications";
-import { createRejectionNotification } from "../actions";
+import { createRejectionNotification, togglePauseSignups } from "../actions";
 import { format } from "date-fns";
 import Link from "next/link";
 import {
@@ -35,9 +35,11 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { CheckCircle2, XCircle, Clock, ArrowLeft, Loader2, UserRoundSearch, ArrowUpDown, ChevronUp, ChevronDown, Printer, RefreshCw } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, ArrowLeft, Loader2, UserRoundSearch, ArrowUpDown, ChevronUp, ChevronDown, Printer, RefreshCw, Pause, Play } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 interface Props {
   projectId: string;
@@ -60,7 +62,6 @@ type Signup = {
   };
 };
 
-
 type SortField = "status"; // Add other fields like 'name', 'type', 'contact' if needed
 type SortDirection = "asc" | "desc";
 
@@ -78,7 +79,8 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
   const [searchTerm, setSearchTerm] = useState("");
   const [project, setProject] = useState<Project | null>(null);
   const [sort, setSort] = useState<Sort>({ field: "status", direction: "asc" });
-  
+  const [isPausingSignups, setIsPausingSignups] = useState(false);
+  const [pausedSignups, setPausedSignups] = useState(false);
 
   const toggleSort = (field: SortField) => {
     setSort(current => ({
@@ -245,6 +247,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
     }
 
     setProject(project as Project);
+    setPausedSignups(project.pause_signups || false);
   };
 
   const loadSignups = async () => {
@@ -342,6 +345,32 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
       toast.error(error instanceof Error ? error.message : "Failed to update signup");
     } finally {
       setProcessingSignups(prev => ({ ...prev, [signupId]: false }));
+    }
+  };
+
+  const togglePause = async () => {
+    if (!project) return;
+    
+    try {
+      setIsPausingSignups(true);
+      const newPauseState = !pausedSignups;
+      
+      const result = await togglePauseSignups(projectId, newPauseState);
+      
+      if (result.error) {
+        toast.error(result.error);
+        return;
+      }
+      
+      setPausedSignups(newPauseState);
+      toast.success(newPauseState 
+        ? "Signups have been paused" 
+        : "Signups have been resumed");
+    } catch (error) {
+      console.error("Error toggling pause state:", error);
+      toast.error("Failed to update signup status");
+    } finally {
+      setIsPausingSignups(false);
     }
   };
 
@@ -456,10 +485,38 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
           </div>
         )}
         <CardHeader>
-          <CardTitle>Manage Volunteer Signups</CardTitle>
-          <CardDescription>
-            Review and manage volunteer signups.
-          </CardDescription>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <CardTitle>Manage Volunteer Signups</CardTitle>
+              <CardDescription>
+                Review and manage volunteer signups.
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="pause-signups"
+                  checked={pausedSignups}
+                  onCheckedChange={togglePause}
+                  disabled={isPausingSignups}
+                />
+                <Label htmlFor="pause-signups" className="flex items-center gap-2 cursor-pointer">
+                  {pausedSignups ? (
+                    <>
+                      <Pause className="h-4 w-4 text-chart-4" />
+                      <span>Signups Paused</span>
+                    </>
+                  ) : (
+                    <>
+                      <Play className="h-4 w-4 text-chart-5" />
+                      <span>Accepting Signups</span>
+                    </>
+                  )}
+                  {isPausingSignups && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
+                </Label>
+              </div>
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="flex flex-col sm:flex-row gap-3 sm:items-center justify-between">
@@ -493,6 +550,18 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
               </Button>
             </div>
           </div>
+          
+          {project?.pause_signups && (
+            <Alert className="bg-chart-4/15 border-chart-4/50 mb-4">
+            <Pause className="h-4 w-4 text-chart-4" />
+            <AlertTitle className="text-chart-4/90">
+              Signups are currently paused
+            </AlertTitle>
+            <AlertDescription className="text-chart-4">
+            New volunteer signups are disabled. Toggle the switch above to resume accepting volunteers.
+            </AlertDescription>
+          </Alert>
+          )}
           
           {Object.entries(filteredSignupsBySlot).map(([slot, slotSignups]) => (
             <div key={slot} className="space-y-2">

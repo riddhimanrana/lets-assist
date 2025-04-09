@@ -92,6 +92,7 @@ export interface Project {
   is_private: boolean; // Changed from visibility to is_private boolean
   organization_id?: string;
   organization?: Organization;
+  pause_signups: boolean;
   created_by_role?: OrganizationRole;
   cancelled_at?: string;
   cancellation_reason?: string;

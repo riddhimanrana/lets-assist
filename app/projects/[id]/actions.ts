@@ -162,6 +162,39 @@ async function getCurrentSignups(projectId: string, scheduleId: string): Promise
   return count || 0;
 }
 
+export async function togglePauseSignups(projectId: string, pauseState: boolean) {
+  const supabase = await createClient();
+  
+  try {
+    // Check if user has permission
+    const isAllowed = await isProjectCreator(projectId);
+    
+    if (!isAllowed) {
+      return { error: "You don't have permission to modify this project" };
+    }
+    
+    // Update the pause state
+    const { error } = await supabase
+      .from("projects")
+      .update({ pause_signups: pauseState })
+      .eq("id", projectId);
+      
+    if (error) {
+      console.error("Error updating pause state:", error);
+      return { error: "Failed to update signup status" };
+    }
+    
+    // Revalidate paths to refresh data
+    revalidatePath(`/projects/${projectId}`);
+    revalidatePath(`/projects/${projectId}/signups`);
+    
+    return { success: true };
+  } catch (error) {
+    console.error("Error toggling pause state:", error);
+    return { error: "An unexpected error occurred" };
+  }
+}
+
 export async function signUpForProject(
   projectId: string,
   scheduleId: string,
@@ -177,6 +210,11 @@ export async function signUpForProject(
 
     if (!project || projectError) {
       return { error: "Project not found" };
+    }
+
+    // Check if signups are paused
+    if (project.pause_signups) {
+      return { error: "Signups for this project are temporarily paused by the organizer" };
     }
 
     // Check if project is available for signup
@@ -257,32 +295,6 @@ export async function signUpForProject(
     if (user) {
       revalidatePath(`/profile/${user.id}`);
     }
-
-    // // Send notification to project creator
-    // const signerName = user 
-    //   ? (await getCreatorProfile(user.id))?.profile?.full_name || "A user"
-    //   : anonymousData?.name || "An anonymous user";
-
-    // let scheduleDetails = "";
-    // if (project.event_type === "oneTime" && project.schedule.oneTime) {
-    //   const date = new Date(project.schedule.oneTime.date);
-    //   const formattedDate = date.toLocaleDateString('en-US', { 
-    //     month: 'long', 
-    //     day: 'numeric',
-    //     year: 'numeric'
-    //   });
-    //   const formattedTime = `${project.schedule.oneTime.startTime} - ${project.schedule.oneTime.endTime}`;
-    //   scheduleDetails = ` for ${formattedDate} at ${formattedTime}`;
-    // }
-
-    // await NotificationService.createNotification({
-    //   title: "New Volunteer Signup",
-    //   body: `${signerName} has signed up for your project "${project.title}"${scheduleDetails}`,
-    //   type: "project_updates",
-    //   severity: "success",
-    //   actionUrl: `/projects/${projectId}/signups`,
-    //   data: { projectId }
-    // }, project.creator_id);
 
     return { success: true };
   } catch (error) {

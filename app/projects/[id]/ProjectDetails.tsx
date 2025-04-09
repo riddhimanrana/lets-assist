@@ -43,7 +43,8 @@ import {
   Building2,
   BadgeCheck,
   XCircle,
-  Mail
+  Mail,
+  Pause,
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -70,6 +71,7 @@ import { NoAvatar } from "@/components/NoAvatar";
 import FilePreview from "@/components/FilePreview";
 import CreatorDashboard from "./CreatorDashboard";
 import { ProjectSignupForm } from "./ProjectForm";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 interface SlotData {
   remainingSlots: Record<string, number>;
@@ -252,6 +254,12 @@ export default function ProjectDetails({ project, creator, organization, initial
       return;
     }
 
+    // Check if signups are paused
+    if (project.pause_signups) {
+      toast.error("Signups for this project are temporarily paused by the organizer");
+      return;
+    }
+
     // Use calculatedStatus instead of project.status
     if (!isSlotAvailable(project, scheduleId, remainingSlots, calculatedStatus)) {
       console.log(project)
@@ -431,14 +439,20 @@ export default function ProjectDetails({ project, creator, organization, initial
             <Card>
               <CardHeader className="pb-3 flex flex-col mb-1 sm:flex-row items-start sm:items-center justify-between">
                 <CardTitle>Volunteer Opportunities</CardTitle>
-                {/* {project.require_login && (
-                  <Badge variant="secondary" className="gap-1 mt-2 sm:mt-0 ml-0 sm:ml-2">
-                    <Lock className="h-3 w-3" />
-                    Account Required
-                  </Badge>
-                )} */}
               </CardHeader>
               <CardContent>
+                {project.pause_signups && (
+                  <Alert className="bg-chart-4/15 border-chart-4/50 mb-4">
+                  <Pause className="h-4 w-4 text-chart-4" />
+                  <AlertTitle className="text-chart-4/90">
+                    Signups are currently paused
+                  </AlertTitle>
+                  <AlertDescription className="text-chart-4">
+                  The project organizer has temporarily paused new volunteer signups. Please check back later or contact the organizer.
+                  </AlertDescription>
+                </Alert>
+                )}
+                
                 {project.event_type === "oneTime" && project.schedule.oneTime && (
                   <Card className="bg-card/50 hover:bg-card/80 transition-colors">
                     <CardContent className="p-4">
