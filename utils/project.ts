@@ -1,5 +1,5 @@
 import { Project, ProjectStatus } from "@/types";
-import { differenceInHours, parseISO, isAfter, isBefore } from "date-fns";
+import { differenceInHours, parseISO, isAfter, isBefore, isEqual, set } from "date-fns";
 
 export const getProjectEventDate = (project: Project): Date => {
   switch (project.event_type) {
@@ -36,28 +36,128 @@ export const getProjectEndDate = (project: Project): Date => {
   }
 };
 
+// Get the earliest start time for any project type
+export const getProjectStartDateTime = (project: Project): Date => {
+  const now = new Date();
+  
+  switch (project.event_type) {
+    case "oneTime": {
+      const date = parseISO(project.schedule.oneTime!.date);
+      const [hours, minutes] = project.schedule.oneTime!.startTime.split(':').map(Number);
+      return new Date(date.setHours(hours, minutes));
+    }
+    case "multiDay": {
+      // Find the earliest start time across all days and slots
+      let earliestDateTime: Date | null = null;
+      
+      project.schedule.multiDay!.forEach(day => {
+        const dayDate = parseISO(day.date);
+        
+        day.slots.forEach(slot => {
+          const [hours, minutes] = slot.startTime.split(':').map(Number);
+          const slotStartTime = new Date(dayDate);
+          slotStartTime.setHours(hours, minutes, 0, 0);
+          
+          if (!earliestDateTime || slotStartTime < earliestDateTime) {
+            earliestDateTime = slotStartTime;
+          }
+        });
+      });
+      
+      return earliestDateTime!;
+    }
+    case "sameDayMultiArea": {
+      const date = parseISO(project.schedule.sameDayMultiArea!.date);
+      const [hours, minutes] = project.schedule.sameDayMultiArea!.overallStart.split(':').map(Number);
+      return new Date(date.setHours(hours, minutes));
+    }
+    default:
+      throw new Error("Invalid event type");
+  }
+};
+
+// Get the latest end time for any project type
+export const getProjectEndDateTime = (project: Project): Date => {
+  switch (project.event_type) {
+    case "oneTime": {
+      const date = parseISO(project.schedule.oneTime!.date);
+      const [hours, minutes] = project.schedule.oneTime!.endTime.split(':').map(Number);
+      return new Date(date.setHours(hours, minutes));
+    }
+    case "multiDay": {
+      // Find the latest end time across all days and slots
+      let latestDateTime: Date | null = null;
+      
+      project.schedule.multiDay!.forEach(day => {
+        const dayDate = parseISO(day.date);
+        
+        day.slots.forEach(slot => {
+          const [hours, minutes] = slot.endTime.split(':').map(Number);
+          const slotEndTime = new Date(dayDate);
+          slotEndTime.setHours(hours, minutes, 0, 0);
+          
+          if (!latestDateTime || slotEndTime > latestDateTime) {
+            latestDateTime = slotEndTime;
+          }
+        });
+      });
+      
+      return latestDateTime!;
+    }
+    case "sameDayMultiArea": {
+      const date = parseISO(project.schedule.sameDayMultiArea!.date);
+      const [hours, minutes] = project.schedule.sameDayMultiArea!.overallEnd.split(':').map(Number);
+      return new Date(date.setHours(hours, minutes));
+    }
+    default:
+      throw new Error("Invalid event type");
+  }
+};
+
 export const getProjectStatus = (project: Project): ProjectStatus => {
-  // If project is already marked as completed or cancelled, return that status
-  if (project.status === "completed" || project.status === "cancelled") {
-    return project.status;
+  // If project is explicitly marked as cancelled, respect that status
+  if (project.status === "cancelled") {
+    return "cancelled";
   }
 
   const now = new Date();
-  const startDate = getProjectEventDate(project);
-  const endDate = getProjectEndDate(project);
+  const startDateTime = getProjectStartDateTime(project);
+  const endDateTime = getProjectEndDateTime(project);
 
-  // Check if the project is in progress
-  if (isAfter(now, startDate) && isBefore(now, endDate)) {
-    return "in-progress";
-  }
-
-  // If the project has ended but not marked as completed
-  if (isAfter(now, endDate)) {
+  // Check if the project is completed (after end time)
+  if (isAfter(now, endDateTime)) {
     return "completed";
   }
 
-  // If none of the above, the project hasn't started yet
+  // Check if the project is in progress (between start and end time)
+  if (isAfter(now, startDateTime) && isBefore(now, endDateTime) || isEqual(now, startDateTime)) {
+    return "in-progress";
+  }
+
+  // If none of the above, the project is upcoming
   return "upcoming";
+};
+
+export const canDeleteProject = (project: Project): boolean => {
+  const now = new Date();
+  const startDateTime = getProjectStartDateTime(project);
+  const endDateTime = getProjectEndDateTime(project);
+  
+  const hoursUntilStart = differenceInHours(startDateTime, now);
+  const hoursAfterEnd = differenceInHours(now, endDateTime);
+  
+  // For cancelled projects, use the same 72-hour window rule
+  // Either more than 24 hours before start OR more than 48 hours after end
+  if (project.status === "cancelled") {
+    return hoursUntilStart > 24 || hoursAfterEnd > 48;
+  }
+  
+  // For active projects, same 72-hour window rule applies
+  if (hoursUntilStart <= 24 || (hoursAfterEnd >= 0 && hoursAfterEnd <= 48)) {
+    return false;
+  }
+
+  return true;
 };
 
 export const canCancelProject = (project: Project): boolean => {
@@ -66,11 +166,12 @@ export const canCancelProject = (project: Project): boolean => {
     return false;
   }
 
-  const eventDate = getProjectEventDate(project);
-  const hours = differenceInHours(eventDate, new Date());
+  const now = new Date();
+  const startDateTime = getProjectStartDateTime(project);
+  const hoursUntilStart = differenceInHours(startDateTime, now);
   
-  // Can only cancel if within 24 hours of event
-  return hours <= 24;
+  // Can cancel up until the event starts
+  return hoursUntilStart >= 0;
 };
 
 export const isProjectVisible = (
@@ -126,43 +227,6 @@ export const canManageProject = (
   }
 
   return false;
-};
-
-// Add StatusBadgeConfig helper function for consistent status badge appearance
-export const getStatusBadgeConfig = (status: string) => {
-  const statusConfig: Record<string, {
-    variant: "default" | "secondary" | "destructive" | "outline";
-    icon: any;
-    className: string;
-  }> = {
-    upcoming: {
-      variant: "secondary" as const,
-      icon: "Clock",
-      className: "bg-blue-500/10 text-blue-500 hover:bg-blue-500/20",
-    },
-    "in-progress": {
-      variant: "default" as const,
-      icon: "ClockIcon",
-      className: "bg-green-500/10 text-green-500 hover:bg-green-500/20",
-    },
-    completed: {
-      variant: "outline" as const,
-      icon: "CheckCircle2",
-      className: "bg-green-500/10 text-green-500 hover:bg-green-500/20",
-    },
-    cancelled: {
-      variant: "destructive" as const,
-      icon: "XCircle",
-      className: "bg-destructive/10 text-destructive hover:bg-destructive/20",
-    },
-  };
-
-  // Use the config for the status if it exists, otherwise use default
-  return statusConfig[status] || {
-    variant: "outline" as const,
-    icon: "AlertCircle",
-    className: "bg-muted/50 text-muted-foreground hover:bg-muted",
-  };
 };
 
 // Format status text for display (e.g., "in-progress" → "In progress")

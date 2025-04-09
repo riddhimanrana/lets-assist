@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Check, ChevronsUpDown, Building2, User } from "lucide-react";
+import { Check, ChevronsUpDown, Building2, User, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RichTextContent } from "@/components/ui/rich-text-content";
@@ -39,13 +39,19 @@ interface BasicInfoProps {
   updateBasicInfoAction: (field: keyof EventFormState["basicInfo"], value: any) => void;
   initialOrgId?: string;
   initialOrganizations?: OrganizationOption[];
+  errors?: {
+    title?: string;
+    location?: string;
+    description?: string;
+  };
 }
 
 export default function BasicInfo({ 
   state, 
   updateBasicInfoAction, 
   initialOrgId,
-  initialOrganizations = []
+  initialOrganizations = [],
+  errors = {}
 }: BasicInfoProps) {
   const [open, setOpen] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
@@ -217,33 +223,48 @@ export default function BasicInfo({
             <span
               className={cn(
                 "text-xs transition-colors",
-                getCounterColor(state.basicInfo.title?.length || 0, 75)
+                getCounterColor(state.basicInfo.title?.length || 0, 125)
               )}
             >
-              {state.basicInfo.title?.length || 0}/75
+              {state.basicInfo.title?.length || 0}/125
             </span>
           </div>
           <Input
             id="title"
             placeholder="e.g., Santa Cruz Beach Cleanup"
-            value={state.basicInfo.title || ""}
+            value={state.basicInfo.title ?? ''} // Ensure value is never undefined
             onChange={(e) => {
-              if (e.target.value.length <= 75) {
+              if (e.target.value.length <= 125) {
                 updateBasicInfoAction("title", e.target.value);
               }
             }}
-            maxLength={75}
+            maxLength={125}
             required
+            className={errors.title ? "border-destructive" : ""}
+            aria-invalid={!!errors.title}
+            aria-errormessage={errors.title ? "title-error" : undefined}
           />
+          {errors.title && (
+            <div id="title-error" className="text-destructive text-sm flex items-center gap-2 mt-1">
+              <AlertCircle className="h-4 w-4" />
+              {errors.title}
+            </div>
+          )}
         </div>
 
-        {/* Project Location */}
+        {/* Project Location - Simplified */}
         <div className="space-y-2">
+          <Label htmlFor="location">Project Location</Label> {/* Added external Label */} 
           <LocationAutocomplete 
+            id="location" // Pass id
             value={state.basicInfo.locationData}
             onChangeAction={handleLocationChange}
-            maxLength={100}
+            maxLength={250}
             required
+            error={!!errors.location} // Pass boolean error state
+            errorMessage={errors.location} // Pass error message
+            aria-invalid={!!errors.location} // Pass aria-invalid
+            aria-errormessage={errors.location ? "location-error" : undefined} // Pass aria-errormessage
           />
         </div>
 
@@ -272,15 +293,24 @@ export default function BasicInfo({
           </div>
           
           {previewMode ? (
-            <div className="rounded-md border bg-background p-4 shadow-sm">
-              <RichTextContent content={state.basicInfo.description || ""} />
+            <div className="rounded-md border text-sm bg-background p-4 shadow-sm">
+              <RichTextContent content={state.basicInfo.description ?? ''} />
             </div>
           ) : (
-            <RichTextEditor
-              content={state.basicInfo.description || ""}
-              onChange={(html) => updateBasicInfoAction("description", html)}
-              maxLength={1000}
-            />
+            <div className="space-y-1">
+              <RichTextEditor
+                content={state.basicInfo.description ?? ''}
+                onChange={(html) => updateBasicInfoAction("description", html)}
+                maxLength={1000}
+                className={errors.description ? "border-destructive" : ""}
+              />
+              {errors.description && (
+                <div className="text-destructive text-sm flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4" />
+                  {errors.description}
+                </div>
+              )}
+            </div>
           )}
         </div>
       </CardContent>

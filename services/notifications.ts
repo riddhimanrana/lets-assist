@@ -1,10 +1,7 @@
 import { createClient } from "@/utils/supabase/client";
 import { toast } from "sonner";
 
-export type NotificationType = 
-  | 'username_reminder'
-  | 'project_signup'
-  | 'project_rejection';
+export type NotificationType = 'email_notifications' | 'project_updates' | 'general'
 
 // Add a severity type for notifications
 export type NotificationSeverity = 'info' | 'warning' | 'success';
@@ -32,18 +29,40 @@ export const NotificationService = {
     };
     
     try {
-      // First get the user to ensure auth is current
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      
-      if (userError) {
-        console.error('Auth error:', userError);
-        return { error: userError };
+      if (notification.type === 'project_updates' || notification.type === 'email_notifications' || notification.type === 'general') {
+        // Define NotificationPreferences type inline for query result
+        interface NotificationPreferences {
+          email_notifications: boolean;
+          project_updates: boolean;
+          general?: boolean;
+          [key: string]: any;
+        }
+        // Get user's notification preferences as a single object
+        const { data: preferences, error: prefsError } = await supabase
+          .from('notification_settings')
+          .select('*')
+          .eq('user_id', userId)
+          .single<NotificationPreferences>();
+        console.log('Notification preferences:', preferences);
+          
+        if (prefsError && prefsError.code !== 'PGRST116') { // PGRST116 means "no rows returned"
+          console.error('Error fetching notification settings:', prefsError);
+          return { error: prefsError };
+        }
+
+        // If user has disabled this notification type, don't create notification
+        if (preferences?.[notification.type] === false) {
+          console.log(`User has disabled ${notification.type} notifications, skipping`);
+          return { success: false, skipped: true };
+        }
       }
-      
-      if (!user || user.id !== userId) {
-        console.error('User ID mismatch or missing');
-        return { error: new Error('Authentication error') };
-      }
+
+      // if (!user || user?.id !== userId) {
+      //   console.log(user?.id)
+      //   console.log(userId)
+      //   console.error('User ID mismatch or missing');
+      //   return { error: new Error('Authentication error') };
+      // }
       
       // First check if this notification already exists
       const { data: existingNotifications } = await supabase
@@ -75,15 +94,13 @@ export const NotificationService = {
           data: notificationWithSeverity.data,
           displayed: false // Start as not displayed, let the listener handle it
         })
-        .select('id')
-        .single();
         
       if (error) {
         console.error('Notification insert error details:', error.message, error.code);
         throw error;
       }
       
-      console.log('Notification created successfully, ID:', data?.id);
+      console.log('Notification created successfully, ID:', userId);
       
       // Don't manually show toast here - let the realtime listener handle it
       
@@ -148,7 +165,7 @@ export const NotificationService = {
           .from('notifications')
           .select('id, displayed')
           .eq('user_id', userId)
-          .eq('type', 'username_reminder')
+          .eq('type', 'general')
           .limit(1);
           
         if (notifError) {
@@ -170,7 +187,7 @@ export const NotificationService = {
             });
             
             // Mark as displayed
-            await this.markAsDisplayed(userId, 'username_reminder');
+            await this.markAsDisplayed(userId, 'general');
           }
         } else {
           // No notification exists, create one with toast
@@ -178,8 +195,8 @@ export const NotificationService = {
           await this.createNotification({
             title: 'Set Your Custom Username',
             body: 'Personalize your profile by setting a custom username in your account settings.',
-            type: 'username_reminder',
-            severity: 'info', // Set username reminder to info (blue)
+            type: 'general',
+            severity: 'info',
             actionUrl: '/account/profile'
           }, userId, true);
         }
@@ -187,5 +204,5 @@ export const NotificationService = {
     } catch (error) {
       console.error('Error checking username setting:', error);
     }
-  }
+  },
 };

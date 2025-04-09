@@ -4,12 +4,20 @@ import { createClient } from "@/utils/supabase/server";
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
+  const type = searchParams.get("type");
   const redirectAfterAuth = searchParams.get("redirectAfterAuth");
-  const next = redirectAfterAuth ? new URL(redirectAfterAuth).pathname : "/home";
   const error = searchParams.get("error");
   const error_description = searchParams.get("error_description");
 
-  // Handle OAuth errors
+  // For password reset flow
+  if (code && type === "recovery") {
+    // Simply redirect to the reset password page with the code (token)
+    return NextResponse.redirect(
+      `${origin}/reset-password/${code}`
+    );
+  }
+
+  // Handle errors for all flows
   if (error) {
     console.error("OAuth error:", error, error_description);
     // Check if the error is due to existing email-password account
@@ -21,12 +29,13 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${origin}/error`);
   }
 
-  if (code) {
+  // Normal OAuth flow
+  if (!error && code) {
     const supabase = await createClient();
     const {
       data: { session },
       error,
-    } = await supabase.auth.exchangeCodeForSession(code);
+    } = await supabase.auth.exchangeCodeForSession(code || '');
 
     if (!error && session) {
       try {
@@ -51,13 +60,12 @@ export async function GET(request: Request) {
 
           // Try to get the highest quality avatar URL available
           const avatarUrl =
-            identityData?.avatar_url?.replace("=s96-c", "=s400-c") || // Upgrade Google avatar size
-            identityData?.picture?.replace("=s96-c", "=s400-c") ||
+            identityData?.avatar_url?.
+            identityData?.picture?.
             user.user_metadata?.avatar_url ||
             user.user_metadata?.picture;
 
-
-          // Create profile
+          // Create profile with email
           const { error: profileError } = await supabase
             .from("profiles")
             .insert({
@@ -65,6 +73,7 @@ export async function GET(request: Request) {
               full_name: fullName,
               username: `user_${user.id?.slice(0, 8)}`,
               avatar_url: avatarUrl,
+              email: user.email,
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString(),
             });
@@ -74,18 +83,32 @@ export async function GET(request: Request) {
             throw profileError;
           }
         } else {
+          // Update email in case it changed
+          const { error: updateError } = await supabase
+            .from("profiles")
+            .update({ 
+              email: user.email,
+              updated_at: new Date().toISOString()
+            })
+            .eq("id", user.id);
+
+          if (updateError) {
+            console.error("Profile update error:", updateError);
+            throw updateError;
+          }
         }
 
+        // Determine redirect path
+        const redirectTo = redirectAfterAuth ? new URL(redirectAfterAuth).pathname : "/home";
         const forwardedHost = request.headers.get("x-forwarded-host");
-        const isLocalEnv = process.env.NODE_ENV === "development";
         
-        // Simplify redirect logic to match working version
-        if (isLocalEnv) {
-          return NextResponse.redirect(`${origin}${next}`);
+        // Handle redirect based on environment
+        if (process.env.NODE_ENV === "development") {
+          return NextResponse.redirect(`${origin}${redirectTo}`);
         } else if (forwardedHost) {
-          return NextResponse.redirect(`https://${forwardedHost}${next}`);
+          return NextResponse.redirect(`https://${forwardedHost}${redirectTo}`);
         } else {
-          return NextResponse.redirect(`${origin}${next}`);
+          return NextResponse.redirect(`${origin}${redirectTo}`);
         }
       } catch (error) {
         console.error("Error in callback:", error);

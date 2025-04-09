@@ -16,7 +16,7 @@ import { DialogFooter } from "@/components/ui/dialog";
 
 const formSchema = z.object({
   name: z.string().min(2, { message: "Name is required" }),
-  email: z.string().email({ message: "Invalid email address" }).optional().or(z.literal("")),
+  email: z.string().email({ message: "Invalid email address" }),
   phone: z.string().optional().or(z.literal("")),
 });
 
@@ -46,7 +46,7 @@ export function ProjectSignupForm({ onSubmit, onCancel, isSubmitting }: ProjectF
           name="name"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Full Name*</FormLabel>
+              <FormLabel>Full Name</FormLabel>
               <FormControl>
                 <Input placeholder="Enter your name" {...field} />
               </FormControl>
@@ -60,7 +60,7 @@ export function ProjectSignupForm({ onSubmit, onCancel, isSubmitting }: ProjectF
           name="email"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Email (Optional)</FormLabel>
+              <FormLabel>Email</FormLabel>
               <FormControl>
                 <Input placeholder="your@email.com" {...field} />
               </FormControl>
@@ -84,13 +84,7 @@ export function ProjectSignupForm({ onSubmit, onCancel, isSubmitting }: ProjectF
         />
         
         <DialogFooter>
-          <Button 
-            type="button" 
-            variant="outline" 
-            onClick={onCancel}
-          >
-            Cancel
-          </Button>
+          
           <Button 
             type="submit"
             disabled={isSubmitting}

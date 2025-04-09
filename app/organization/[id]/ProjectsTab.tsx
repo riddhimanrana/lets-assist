@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
-import { CalendarIcon, Clock, MapPin, Plus, Search } from "lucide-react";
+import { CalendarIcon, Clock, MapPin, Plus, Search, Calendar, CheckCircle2, AlertCircle, Clock3, LayoutGrid } from "lucide-react";
 import Link from "next/link";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Image from "next/image";
@@ -103,20 +103,25 @@ export default function ProjectsTab({
         className="w-full"
       >
         <TabsList className="mb-4">
-          <TabsTrigger className="text-xs sm:text-sm" value="all">
-            All <span className="hidden sm:inline ml-1 text-xs bg-muted px-1.5 py-0.5 rounded-full">{projects.length}</span>
+          <TabsTrigger value="all" className="flex items-center space-x-1.5">
+            <LayoutGrid className="h-4 w-4" />
+            <span className="hidden sm:block">All</span>
           </TabsTrigger>
-          <TabsTrigger className="text-xs sm:text-sm" value="upcoming">
-            Upcoming <span className="hidden sm:inline ml-1 text-xs bg-muted px-1.5 py-0.5 rounded-full">{upcomingCount}</span>
+          <TabsTrigger value="upcoming" className="flex items-center space-x-1.5">
+            <Calendar className="h-4 w-4" />
+            <span className="hidden sm:block">Upcoming</span>
           </TabsTrigger>
-          <TabsTrigger className="text-xs sm:text-sm" value="in-progress">
-            In Progress <span className="hidden sm:inline ml-1 text-xs bg-muted px-1.5 py-0.5 rounded-full">{inProgressCount}</span>
+          <TabsTrigger value="in-progress" className="flex items-center space-x-1.5">
+            <Clock3 className="h-4 w-4" />
+            <span className="hidden sm:block">In Progress</span>
           </TabsTrigger>
-          <TabsTrigger className="text-xs sm:text-sm" value="completed">
-            Completed <span className="hidden sm:inline ml-1 text-xs bg-muted px-1.5 py-0.5 rounded-full">{completedCount}</span>
+          <TabsTrigger value="completed" className="flex items-center space-x-1.5">
+            <CheckCircle2 className="h-4 w-4" />
+            <span className="hidden sm:block">Completed</span>
           </TabsTrigger>
-          <TabsTrigger className="text-xs sm:text-sm" value="cancelled">
-            Cancelled <span className="hidden sm:inline ml-1 text-xs bg-muted px-1.5 py-0.5 rounded-full">{cancelledCount}</span>
+          <TabsTrigger value="cancelled" className="flex items-center space-x-1.5">
+            <AlertCircle className="h-4 w-4" />
+            <span className="hidden sm:block">Cancelled</span>
           </TabsTrigger>
         </TabsList>
         <TabsContent value={activeTab} className="mt-0">

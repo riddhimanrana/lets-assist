@@ -8,9 +8,10 @@ import { format } from "date-fns";
 import { notFound } from "next/navigation";
 import { NoAvatar } from "@/components/NoAvatar";
 import { Metadata } from "next";
-import { CalendarIcon, Calendar, MapPin, BadgeCheck } from "lucide-react";
+import { CalendarIcon, Calendar, MapPin, BadgeCheck, Users } from "lucide-react";
 import Link from "next/link";
-import { Building2, Shield, UserRoundCog, UserRound, Heart, Users } from "lucide-react";
+import { Shield, UserRoundCog, UserRound } from "lucide-react";
+import { ProjectStatusBadge } from "@/components/ui/status-badge";
 
 interface Profile {
   id: string;
@@ -26,7 +27,7 @@ interface Project {
   description: string;
   location: string;
   event_type: string;
-  status: "active" | "completed" | "cancelled";
+  status: "upcoming" | "in-progress" | "completed" | "cancelled";
   created_at: string;
   cover_image_url?: string;
 }
@@ -91,11 +92,29 @@ export default async function ProfilePage(
   }
 
   // Fetch projects created by this user
-  const { data: projects } = await supabase
+  const { data: createdProjects } = await supabase
     .from("projects")
     .select("*")
     .eq("creator_id", profile.id)
     .order("created_at", { ascending: false });
+
+  // Fetch projects this user has attended/signed up for
+  const { data: attendedProjectIds } = await supabase
+    .from('project_signups')
+    .select('project_id')
+    .eq('user_id', profile.id);
+
+  let attendedProjects: Project[] = [];
+  if (attendedProjectIds && attendedProjectIds.length > 0) {
+    const projectIds = attendedProjectIds.map(item => item.project_id);
+    const { data: fetchedProjects } = await supabase
+      .from("projects")
+      .select("*")
+      .in("id", projectIds)
+      .order("created_at", { ascending: false });
+    
+    attendedProjects = fetchedProjects || [];
+  }
 
   // Updated organizations fetch with correct typing
   const { data: userOrganizations } = await supabase
@@ -122,9 +141,12 @@ export default async function ProfilePage(
   })) || [];
 
   // Stats calculation
-  const activeProjects = projects?.filter(p => p.status === "active").length || 0;
-  const completedProjects = projects?.filter(p => p.status === "completed").length || 0;
-  const totalProjects = projects?.length || 0;
+  const upcomingCreatedProjects = createdProjects?.filter(p => p.status === "upcoming").length || 0;
+  const completedCreatedProjects = createdProjects?.filter(p => p.status === "completed").length || 0;
+  const totalCreatedProjects = createdProjects?.length || 0;
+  
+  const totalAttendedProjects = attendedProjects?.length || 0;
+  const totalProjects = totalCreatedProjects + totalAttendedProjects;
 
   return (
     <div className="flex justify-center w-full">
@@ -139,11 +161,11 @@ export default async function ProfilePage(
                   src={profile.avatar_url || undefined}
                   alt={profile.full_name}
                 />
-                <AvatarFallback className="text-xl sm:text-2xl">
-                  <NoAvatar fullName={profile?.full_name} />
+                <AvatarFallback className="sm:text-2xl">
+                  <NoAvatar fullName={profile?.full_name} className="text-2xl sm:text-3xl"/>
                 </AvatarFallback>
               </Avatar>
-                <div className="pt-2 sm:pt-16 flex flex-col justify-center">
+                <div className="sm:pt-16 flex flex-col justify-center">
                 <h1 className="text-xl sm:text-2xl font-bold">{profile.full_name}</h1>
                 <p className="text-muted-foreground text-xs">@{profile.username}</p>
                 </div>
@@ -152,9 +174,10 @@ export default async function ProfilePage(
           <CardContent className="px-4 sm:px-6 pt-2 pb-4">
             <div className="flex flex-col sm:flex-row justify-between gap-4 sm:gap-3">
               <div className="flex gap-2 flex-wrap">
-                <Badge variant="secondary">{activeProjects} Active Projects</Badge>
-                <Badge variant="outline">{completedProjects} Completed</Badge>
+              <Badge variant="secondary">{totalAttendedProjects} Projects Attended</Badge>
+                <Badge variant="outline">{completedCreatedProjects} Projects Created</Badge>
                 <Badge variant="outline">{totalProjects} Total</Badge>
+                
               </div>
               <div className="flex items-center text-xs text-muted-foreground">
                 <CalendarIcon className="h-3 w-3 mr-1.5" />
@@ -237,31 +260,30 @@ export default async function ProfilePage(
           </div>
         )}
 
-        {/* Projects Section */}
+        {/* Created Projects Section */}
         <div className="mb-6 sm:mb-8">
-          <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">Projects</h2>
+          <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">Created Projects</h2>
           <Separator className="mb-4 sm:mb-6" />
           
-          {projects && projects.length > 0 ? (
+          {createdProjects && createdProjects.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-              {projects.map((project) => (
+              {createdProjects.map((project) => (
                 <Link key={project.id} href={`/projects/${project.id}`}>
-                <Card className="h-full hover:shadow-md transition-shadow cursor-pointer" key={project.id}>
+                <Card className="h-full hover:shadow-md transition-shadow cursor-pointer">
                   <CardContent className="p-3 sm:p-4">
                   <div className="flex justify-between items-start gap-2 mb-2">
                     <h3 className="font-semibold text-base sm:text-lg line-clamp-1">{project.title}</h3>
-                    <Badge 
-                    variant={project.status === "active" ? "default" : project.status === "completed" ? "secondary" : "destructive"}
-                    className="ml-auto flex-shrink-0 text-xs"
-                    >
-                    {project.status.charAt(0).toUpperCase() + project.status.slice(1)}
-                    </Badge>
+                    <ProjectStatusBadge 
+                      status={project.status}
+                      size="sm"
+                      className="ml-auto flex-shrink-0"
+                    />
                   </div>
                   <p className="text-muted-foreground text-xs sm:text-sm mb-2 sm:mb-3 line-clamp-2">
                     {project.description.replace(/<[^>]*>/g, '')}
                   </p>
                   <div className="flex items-center text-xs text-muted-foreground">
-                    <MapPin className="h-3 w-3 mr-1" />
+                    <MapPin className="h-3 w-3 mr-1 flex-shrink-0" />
                     <span className="truncate">{project.location}</span>
                   </div>
                   <div className="flex items-center mt-1.5 sm:mt-2 text-xs text-muted-foreground">
@@ -276,8 +298,52 @@ export default async function ProfilePage(
           ) : (
             <div className="text-center p-8 bg-muted/20 rounded-lg">
               <Calendar className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="text-lg font-medium mb-1">No Projects Yet</h3>
+              <h3 className="text-lg font-medium mb-1">No Created Projects</h3>
               <p className="text-muted-foreground">This user hasn&apos;t created any projects yet.</p>
+            </div>
+          )}
+        </div>
+
+        {/* Attended Projects Section */}
+        <div className="mb-6 sm:mb-8">
+          <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">Attended Projects</h2>
+          <Separator className="mb-4 sm:mb-6" />
+          
+          {attendedProjects && attendedProjects.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+              {attendedProjects.map((project) => (
+                <Link key={project.id} href={`/projects/${project.id}`}>
+                <Card className="h-full hover:shadow-md transition-shadow cursor-pointer">
+                  <CardContent className="p-3 sm:p-4">
+                  <div className="flex justify-between items-start gap-2 mb-2">
+                    <h3 className="font-semibold text-base sm:text-lg line-clamp-1">{project.title}</h3>
+                    <ProjectStatusBadge 
+                      status={project.status}
+                      size="sm"
+                      className="ml-auto flex-shrink-0"
+                    />
+                  </div>
+                  <p className="text-muted-foreground text-xs sm:text-sm mb-2 sm:mb-3 line-clamp-2">
+                    {project.description.replace(/<[^>]*>/g, '')}
+                  </p>
+                  <div className="flex items-center text-xs text-muted-foreground">
+                    <MapPin className="h-3 w-3 mr-1 flex-shrink-0" />
+                    <span className="truncate">{project.location}</span>
+                  </div>
+                  <div className="flex items-center mt-1.5 sm:mt-2 text-xs text-muted-foreground">
+                    <Users className="h-3 w-3 mr-1" />
+                    <span>Attended</span>
+                  </div>
+                  </CardContent>
+                </Card>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center p-8 bg-muted/20 rounded-lg">
+              <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+              <h3 className="text-lg font-medium mb-1">No Attended Projects</h3>
+              <p className="text-muted-foreground">This user hasn&apos;t attended any projects yet.</p>
             </div>
           )}
         </div>

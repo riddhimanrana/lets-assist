@@ -1,6 +1,6 @@
 "use server";
 import { createClient } from "@/utils/supabase/server";
-import type { Project, ProjectStatus, Organization } from "@/types";
+import type { Project, ProjectStatus, Organization, ProjectSignup } from "@/types";
 import { getProjectStatus } from "@/utils/project";
 
 // Define the Profile type with an id property
@@ -13,20 +13,22 @@ export type Profile = {
 };
 
 export async function getActiveProjects(
-  limit: number = 20, 
+  limit: number = 21, 
   offset: number = 0,
   status?: ProjectStatus,
   organizationId?: string
 ): Promise<Project[]> {
   const supabase = await createClient();
 
-  // Get current user for visibility checks
-  const { data: { user } } = await supabase.auth.getUser();
-
-  // Build initial query
+  // First get all projects
   let query = supabase
     .from("projects")
-    .select("*");
+    .select(`
+      *
+    `);
+
+  // Get current user for visibility checks
+  const { data: { user } } = await supabase.auth.getUser();
 
   // Apply status filter if specified
   if (status) {
@@ -71,6 +73,35 @@ export async function getActiveProjects(
     return [];
   }
 
+  // Get confirmed signups for all projects in a single query
+  const { data: confirmedSignups } = await supabase
+    .from("project_signups")
+    .select(`
+      project_id,
+      schedule_id
+    `)
+    .eq("status", "confirmed")
+    .in("project_id", projects.map(p => p.id));
+
+  // Process projects and add signup counts
+  const processedProjects = projects.map(project => {
+    // Get confirmed signups for this project
+    const projectSignups = confirmedSignups?.filter(s => s.project_id === project.id) || [];
+    
+    // Count signups by schedule_id
+    const signupsBySchedule = projectSignups.reduce((acc: Record<string, number>, signup) => {
+      const scheduleId = signup.schedule_id || 'default';
+      acc[scheduleId] = (acc[scheduleId] || 0) + 1;
+      return acc;
+    }, {});
+
+    return {
+      ...project,
+      confirmed_signups: signupsBySchedule,
+      total_confirmed: projectSignups.length
+    };
+  });
+
   // Extract unique creator IDs and organization IDs from the projects
   const creatorIds = Array.from(new Set(projects.map(p => p.creator_id)));
   const orgIds = Array.from(new Set(projects.map(p => p.organization_id).filter(Boolean)));
@@ -112,7 +143,7 @@ export async function getActiveProjects(
   }, {});
 
   // Merge profile and organization data into each project
-  return projects.map(project => ({
+  return processedProjects.map(project => ({
     ...project,
     profiles: profilesMap[project.creator_id] || null,
     organization: project.organization_id ? orgsMap[project.organization_id] || null : null,

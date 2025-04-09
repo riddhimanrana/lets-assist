@@ -37,3 +37,7 @@ next-env.d.ts
 
 #supabase
 /supabase
+
+# github/vscode settings
+/.github
+/.vscode

@@ -10,6 +10,29 @@ import { cookies } from "next/headers";
 import { type AnonymousSignupData, type ProjectSignup, type SignupStatus } from "@/types";
 import { NotificationService } from "@/services/notifications";
 
+export async function isProjectCreator(projectId: string) {
+  try {
+    const supabase = await createClient();
+    
+    // Get current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      return false;
+    }
+
+    // Check project ownership
+    const { data: project } = await supabase
+      .from("projects")
+      .select("creator_id")
+      .eq("id", projectId)
+      .single();
+
+    return project?.creator_id === user.id;
+  } catch (error) {
+    return false;
+  }
+}
+
 export async function getProject(projectId: string) {
   const supabase = await createClient();
   
@@ -40,8 +63,8 @@ export async function getProject(projectId: string) {
   
   // Calculate and update the project status
   if (project) {
-    project.status = getProjectStatus(project);
 
+    
     // Check if the project is private and the user has permission to view it
     if (project.is_private) {
       // If it's a private project, check user's organization memberships
@@ -84,22 +107,45 @@ export async function getCreatorProfile(userId: string) {
   return { profile };
 }
 
-async function getSlotDetails(project: Project, scheduleId: string) {
+// Fix: Remove async keyword as this function doesn't perform async operations
+function getSlotDetails(project: Project, scheduleId: string) {
+  console.log("Server: Getting slot details for", { scheduleId, projectType: project.event_type });
+  
   if (project.event_type === "oneTime") {
     return project.schedule.oneTime;
   } else if (project.event_type === "multiDay") {
-    const [date, slotIndex] = scheduleId.split("-");
-    const day = project.schedule.multiDay?.find(d => d.date === date);
-    if (day && slotIndex !== undefined) {
-      const slotIdx = parseInt(slotIndex, 10);
-      if (!isNaN(slotIdx) && day.slots.length > slotIdx) {
-        return day.slots[slotIdx];
+    // Improved parsing for multi-day schedules
+    const parts = scheduleId.split("-");
+    if (parts.length >= 2) {
+      const slotIndexStr = parts.pop(); // Get last element (slot index)
+      const date = parts.join("-"); // Rejoin the rest as the date
+      
+      console.log("Server: Parsing multiDay scheduleId:", { date, slotIndexStr });
+      
+      const day = project.schedule.multiDay?.find(d => d.date === date);
+      if (!day) {
+        console.error("Server: Day not found for multiDay event:", { date, scheduleId });
+        return null;
       }
+      
+      const slotIndex = parseInt(slotIndexStr!, 10);
+      if (isNaN(slotIndex) || slotIndex < 0 || slotIndex >= day.slots.length) {
+        console.error("Server: Invalid slot index for multiDay event:", { 
+          slotIndexStr, slotIndex, slotsLength: day.slots.length 
+        });
+        return null;
+      }
+      
+      return day.slots[slotIndex];
+    } else {
+      console.error("Server: Invalid multiDay scheduleId format:", scheduleId);
+      return null;
     }
   } else if (project.event_type === "sameDayMultiArea") {
     const role = project.schedule.sameDayMultiArea?.roles.find(r => r.name === scheduleId);
     return role;
   }
+  
   return null;
 }
 
@@ -124,6 +170,8 @@ export async function signUpForProject(
   const supabase = await createClient();
 
   try {
+    console.log("Starting signup process:", { projectId, scheduleId });
+    
     // Get project details
     const { project, error: projectError } = await getProject(projectId);
 
@@ -140,14 +188,17 @@ export async function signUpForProject(
       return { error: "This project has been completed" };
     }
 
-    // Get slot details and validate capacity
-    const slotDetails = await getSlotDetails(project, scheduleId);
+    // Fix: Don't await getSlotDetails since it's no longer async
+    const slotDetails = getSlotDetails(project, scheduleId);
     if (!slotDetails) {
+      console.error("Invalid schedule slot:", { scheduleId, projectId });
       return { error: "Invalid schedule slot" };
     }
 
     // Check if slot is full
     const currentSignups = await getCurrentSignups(projectId, scheduleId);
+    console.log("Current signups:", { currentSignups, maxVolunteers: slotDetails.volunteers });
+    
     if (currentSignups >= slotDetails.volunteers) {
       return { error: "This slot is full" };
     }
@@ -207,31 +258,31 @@ export async function signUpForProject(
       revalidatePath(`/profile/${user.id}`);
     }
 
-    // Send notification to project creator
-    const signerName = user 
-      ? (await getCreatorProfile(user.id))?.profile?.full_name || "A user"
-      : anonymousData?.name || "An anonymous user";
+    // // Send notification to project creator
+    // const signerName = user 
+    //   ? (await getCreatorProfile(user.id))?.profile?.full_name || "A user"
+    //   : anonymousData?.name || "An anonymous user";
 
-    let scheduleDetails = "";
-    if (project.event_type === "oneTime" && project.schedule.oneTime) {
-      const date = new Date(project.schedule.oneTime.date);
-      const formattedDate = date.toLocaleDateString('en-US', { 
-        month: 'long', 
-        day: 'numeric',
-        year: 'numeric'
-      });
-      const formattedTime = `${project.schedule.oneTime.startTime} - ${project.schedule.oneTime.endTime}`;
-      scheduleDetails = ` for ${formattedDate} at ${formattedTime}`;
-    }
+    // let scheduleDetails = "";
+    // if (project.event_type === "oneTime" && project.schedule.oneTime) {
+    //   const date = new Date(project.schedule.oneTime.date);
+    //   const formattedDate = date.toLocaleDateString('en-US', { 
+    //     month: 'long', 
+    //     day: 'numeric',
+    //     year: 'numeric'
+    //   });
+    //   const formattedTime = `${project.schedule.oneTime.startTime} - ${project.schedule.oneTime.endTime}`;
+    //   scheduleDetails = ` for ${formattedDate} at ${formattedTime}`;
+    // }
 
-    await NotificationService.createNotification({
-      title: "New Volunteer Signup",
-      body: `${signerName} has signed up for your project "${project.title}"${scheduleDetails}`,
-      type: "project_signup",
-      severity: "success",
-      actionUrl: `/projects/${projectId}/signups`,
-      data: { projectId }
-    }, project.creator_id);
+    // await NotificationService.createNotification({
+    //   title: "New Volunteer Signup",
+    //   body: `${signerName} has signed up for your project "${project.title}"${scheduleDetails}`,
+    //   type: "project_updates",
+    //   severity: "success",
+    //   actionUrl: `/projects/${projectId}/signups`,
+    //   data: { projectId }
+    // }, project.creator_id);
 
     return { success: true };
   } catch (error) {
@@ -254,28 +305,33 @@ export async function createRejectionNotification(
   const supabase = await createClient();
   
   try {
-    const { error } = await supabase
-      .from("notifications")
-      .insert({
-        user_id: userId,
-        title: "Project Application Update",
-        body: "Your application to volunteer has been rejected",
-        type: "project_rejection",
-        severity: "warning",
-        action_url: `/projects/${projectId}`,
-        data: { projectId, signupId },
-        displayed: false
-      });
+    // Fetch the project title before creating the notification
+    const { data: projectData, error: projectFetchError } = await supabase
+      .from("projects")
+      .select("title")
+      .eq("id", projectId)
+      .single();
 
-    if (error) {
-      console.error("Error creating notification:", error);
-      throw error;
+    if (projectFetchError || !projectData) {
+      throw new Error("Failed to fetch project title");
     }
 
-    return { success: true } as NotificationResult;
+    const projectTitle = projectData.title;
+
+    // Create notification directly
+    await NotificationService.createNotification({
+      title: "Project Status Update",
+      body: `Your signup to volunteer for "${projectTitle}" has been rejected`,
+      type: "project_updates",
+      severity: "warning",
+      actionUrl: `/projects/${projectId}`,
+      data: { projectId, signupId }
+    }, userId);
+
+    return { success: true };
   } catch (error) {
     console.error("Server notification error:", error);
-    return { error: "Failed to send notification" } as NotificationResult;
+    return { error: "Failed to send notification" };
   }
 }
 
@@ -537,25 +593,3 @@ export async function updateProject(projectId: string, updates: Partial<Project>
   }
 }
 
-export async function isProjectCreator(projectId: string) {
-  try {
-    const supabase = await createClient();
-    
-    // Get current user
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return false;
-    }
-
-    // Check project ownership
-    const { data: project } = await supabase
-      .from("projects")
-      .select("creator_id")
-      .eq("id", projectId)
-      .single();
-
-    return project?.creator_id === user.id;
-  } catch (error) {
-    return false;
-  }
-}

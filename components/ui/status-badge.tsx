@@ -9,19 +9,13 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ProjectStatus } from "@/types";
+import { formatStatusText } from "@/utils/project";
 
 interface StatusBadgeProps extends Omit<BadgeProps, "variant"> {
   status: ProjectStatus;
   showIcon?: boolean;
   className?: string;
 }
-
-// Default config if status is not recognized
-const defaultConfig = {
-  variant: "outline" as const,
-  icon: AlertCircle,
-  className: "bg-muted/50 text-muted-foreground hover:bg-muted",
-};
 
 export const StatusBadge: React.FC<StatusBadgeProps> = ({
   status,
@@ -51,13 +45,16 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
       className: "bg-destructive/10 text-destructive hover:bg-destructive/20",
     },
   };
-
+  const defaultConfig = {
+    variant: "default" as const,
+    icon: AlertCircle,
+    className: "bg-gray-200 text-gray-600",
+  };
   // Use the config for the status if it exists, otherwise use default
   const config = statusConfig[status] || defaultConfig;
   const Icon = config.icon;
-
-  // Ensure status is a valid string for display
-  const displayStatus = status ? status.charAt(0).toUpperCase() + status.slice(1).replace("-", " ") : "Unknown";
+  // Format status for display
+  const displayStatus = formatStatusText(status);
 
   return (
     <Badge

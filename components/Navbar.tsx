@@ -278,7 +278,7 @@ export default function Navbar({ initialUser }: NavbarProps) {
           <Link href="/">
             <div className="flex items-center space-x-2">
               <Image
-                src="/letsassist-logo.png"
+                src="/logo.png"
                 alt="letsassist logo"
                 width={30}
                 height={30}
@@ -295,7 +295,7 @@ export default function Navbar({ initialUser }: NavbarProps) {
                   <Link href="/home">Home</Link>
                 </Button>
                 <Button variant="ghost" asChild>
-                  <Link href="/projects">Active Projects</Link>
+                  <Link href="/projects">My Projects</Link>
                 </Button>
                 <Button variant="ghost" asChild>
                   <Link href="/organization">Organizations</Link>
@@ -316,7 +316,7 @@ export default function Navbar({ initialUser }: NavbarProps) {
                                 href="/"
                               >
                                 <Image
-                                  src="/letsassist-logo.png"
+                                  src="/logo.png"
                                   alt="letsassist logo"
                                   width={30}
                                   height={30}
@@ -347,7 +347,9 @@ export default function Navbar({ initialUser }: NavbarProps) {
                 <Button variant="ghost" asChild>
                   <Link href="/projects">Volunteering Near Me</Link>
                 </Button>
-                <Button variant="ghost">Connected Organizations</Button>
+                <Button variant="ghost" asChild>
+                  <Link href="/organization">Connected Organizations</Link>
+                </Button>
               </>
             )}
           </div>
@@ -568,15 +570,17 @@ export default function Navbar({ initialUser }: NavbarProps) {
                         variant="ghost"
                         className="w-full justify-between text-muted-foreground"
                         onClick={handleNavigation}
+                        asChild
                       >
-                        Volunteering Near Me
+                        <Link href="/projects">Volunteering Near Me</Link>
                       </Button>
                       <Button
                         variant="ghost"
                         className="w-full justify-between text-muted-foreground"
                         onClick={handleNavigation}
+                        asChild
                       >
-                        Connected Organizations
+                        <Link href="/organization">Connected Organizations</Link>
                       </Button>
                     </>
                   )}

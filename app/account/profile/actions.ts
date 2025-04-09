@@ -13,6 +13,7 @@ const onboardingSchema = z.object({
     .min(3, "Username must be at least 3 characters")
     .optional(),
   avatarUrl: z.union([z.string(), z.null()]).optional(),
+  phoneNumber: z.string().optional(), // Add phoneNumber here
 });
 
 export type OnboardingValues = z.infer<typeof onboardingSchema>;
@@ -255,7 +256,7 @@ export async function removeProfilePicture() {
 }
 
 // Extremely simple function with no avatar handling at all
-export async function updateNameAndUsername(fullName?: string, username?: string) {
+export async function updateNameAndUsername(fullName?: string, username?: string, phoneNumber?: string) { // Add phoneNumber parameter
   const supabase = await createClient();
   const userId = (await supabase.auth.getUser()).data.user?.id;
 
@@ -272,10 +273,15 @@ export async function updateNameAndUsername(fullName?: string, username?: string
     return { error: { username: ["Username must be at least 3 characters"] } };
   }
 
+  if (phoneNumber && phoneNumber.length !== 10) {
+      return { error: { phoneNumber: ["Phone number must be exactly 10 digits"] } };
+  }
+
   // Create a simple update object
   const updateFields: {
     full_name?: string;
     username?: string;
+    phone?: string; // Add phone number field
     updated_at: string;
   } = {
     updated_at: new Date().toISOString(),
@@ -283,6 +289,9 @@ export async function updateNameAndUsername(fullName?: string, username?: string
   
   if (fullName !== undefined) updateFields.full_name = fullName;
   if (username !== undefined) updateFields.username = username;
+  // Add phone number only if it's provided (it's optional)
+  if (phoneNumber !== undefined) updateFields.phone = phoneNumber;
+
 
   // Perform the update
   const { error: updateError } = await supabase
@@ -292,6 +301,10 @@ export async function updateNameAndUsername(fullName?: string, username?: string
 
   if (updateError) {
     console.log(updateError);
+    // Check for unique constraint violation on username
+    if (updateError.code === '23505' && updateError.message.includes('profiles_username_key')) {
+      return { error: { username: ["Username already taken"] } };
+    }
     return { error: { server: ["Failed to update profile"] } };
   }
   

@@ -1,6 +1,6 @@
 "use client";
 
-import { Project } from "@/types";
+import { Project, LocationData } from "@/types";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
@@ -36,9 +36,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { toast } from "sonner";
 import { updateProject } from "../actions";
+import LocationAutocomplete from "@/components/ui/location-autocomplete";
 
 // Constants for character limits
-const TITLE_LIMIT = 75;
+const TITLE_LIMIT = 125;
 const LOCATION_LIMIT = 200;
 const DESCRIPTION_LIMIT = 1000;
 
@@ -57,6 +58,14 @@ const formSchema = z.object({
   location: z.string()
     .min(1, "Location is required")
     .max(LOCATION_LIMIT, `Location must be less than ${LOCATION_LIMIT} characters`),
+  location_data: z.object({
+    text: z.string(),
+    display_name: z.string().optional(),
+    coordinates: z.object({
+      latitude: z.number(),
+      longitude: z.number()
+    }).optional()
+  }).optional(),
   require_login: z.boolean(),
   verification_method: z.enum(["qr-code", "manual", "auto"]),
 });
@@ -90,6 +99,10 @@ export default function EditProjectClient({ project }: Props) {
       title: project.title,
       description: project.description,
       location: project.location,
+      location_data: project.location_data || {
+        text: project.location,
+        display_name: project.location
+      },
       require_login: project.require_login,
       verification_method: project.verification_method,
     },
@@ -103,6 +116,7 @@ export default function EditProjectClient({ project }: Props) {
         formValues.title !== project.title ||
         formValues.description !== project.description ||
         formValues.location !== project.location ||
+        JSON.stringify(formValues.location_data) !== JSON.stringify(project.location_data) ||
         formValues.require_login !== project.require_login ||
         formValues.verification_method !== project.verification_method;
       
@@ -222,14 +236,27 @@ export default function EditProjectClient({ project }: Props) {
                       </span>
                     </div>
                     <FormControl>
-                      <Input 
-                        placeholder="Enter project location" 
-                        {...field} 
-                        onChange={e => {
-                          field.onChange(e);
-                          setLocationChars(e.target.value.length);
+                      <LocationAutocomplete
+                        id="location"
+                        value={form.getValues().location_data}
+                        onChangeAction={(location_data) => {
+                          if (location_data) {
+                            // Update both the location field and location_data
+                            field.onChange(location_data.text);
+                            form.setValue("location_data", location_data);
+                            setLocationChars(location_data.text.length);
+                          } else {
+                            field.onChange("");
+                            form.setValue("location_data", undefined);
+                            setLocationChars(0);
+                          }
                         }}
                         maxLength={LOCATION_LIMIT}
+                        required
+                        error={!!form.formState.errors.location}
+                        errorMessage={form.formState.errors.location?.message?.toString()}
+                        aria-invalid={!!form.formState.errors.location}
+                        aria-errormessage={form.formState.errors.location ? "location-error" : undefined}
                       />
                     </FormControl>
                     <FormMessage />

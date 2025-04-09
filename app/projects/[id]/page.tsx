@@ -113,10 +113,15 @@ export default async function ProjectPage(
 
   // Get slot data
   const slotData = await getSlotData(id);
+  const supabaseClient = await createClient();
+  const { data: { user } } = await supabaseClient.auth.getUser();
+  const initialIsCreator = !!user && project.creator_id === user.id;
   
   return <ProjectDetails 
     project={project} 
     creator={creator || null} 
     initialSlotData={slotData}
-  />;
+    initialIsCreator={initialIsCreator}
+    initialUser={user}
+  />
 }

@@ -40,9 +40,11 @@ import { motion } from "framer-motion";
 // Constants for character limits
 const NAME_MAX_LENGTH = 64;
 const USERNAME_MAX_LENGTH = 32;
+const PHONE_LENGTH = 10; // For raw digits
 const USERNAME_REGEX = /^[a-zA-Z0-9_.-]+$/;
+const PHONE_REGEX = /^\d{3}-\d{3}-\d{4}$/; // Format XXX-XXX-XXXX
 
-// Modified schema with character limits and validation
+// Moified schema with character limits and validation
 const onboardingSchema = z.object({
   fullName: z.preprocess(
     (val) => (typeof val === "string" && val.trim() === "" ? undefined : val),
@@ -71,6 +73,20 @@ const onboardingSchema = z.object({
       .optional(),
   ),
   avatarUrl: z.string().nullable().optional(),
+  phoneNumber: z.preprocess(
+    (val) => (typeof val === "string" && val.trim() === "" ? undefined : val),
+    z.string()
+      .refine(
+        (val) => !val || PHONE_REGEX.test(val),
+        "Phone number must be in format XXX-XXX-XXXX"
+      )
+      .transform((val) => {
+        if (!val) return undefined;
+        // Remove all non-digit characters before storing
+        return val.replace(/\D/g, "");
+      })
+      .optional()
+  ),
 });
 
 interface AvatarProps {
@@ -195,10 +211,12 @@ export default function ProfileClient() {
     fullName: "",
     username: "",
     avatarUrl: undefined,
+    phoneNumber: undefined,
   });
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [nameLength, setNameLength] = useState(0);
   const [usernameLength, setUsernameLength] = useState(0);
+  const [phoneNumberLength, setPhoneNumberLength] = useState(0); // Add state for phone number length
 
   useEffect(() => {
     async function fetchUserProfile() {
@@ -209,18 +227,25 @@ export default function ProfileClient() {
         } = await supabase.auth.getUser();
         const { data: profileData } = await supabase
           .from("profiles")
-          .select("full_name, avatar_url, username")
+          .select("full_name, avatar_url, username, phone") // Fetch phone
           .eq("id", user?.id)
           .single();
         if (profileData) {
+          // Format phone number for display (XXX-XXX-XXXX)
+          const formattedPhoneNumber = profileData.phone
+            ? `${profileData.phone.substring(0, 3)}-${profileData.phone.substring(3, 6)}-${profileData.phone.substring(6, 10)}`
+            : undefined;
+
           setDefaultValues({
             fullName: profileData.full_name,
             username: profileData.username,
             avatarUrl: profileData.avatar_url,
+            phoneNumber: formattedPhoneNumber, // Set formatted phone number
           });
           // Initialize character counts
           setNameLength(profileData.full_name?.length || 0);
           setUsernameLength(profileData.username?.length || 0);
+          setPhoneNumberLength(profileData.phone?.length || 0); // Set phone number length (raw digits)
         }
       } catch (error) {
         console.error("Error fetching user profile:", error);
@@ -257,32 +282,62 @@ export default function ProfileClient() {
     return USERNAME_REGEX.test(username);
   }
 
+  // Helper function to format phone number input
+  const formatPhoneNumber = (value: string): string => {
+    if (!value) return value;
+    const phoneNumber = value.replace(/[^\d]/g, ""); // Allow only digits
+    const phoneNumberLength = phoneNumber.length;
+
+    if (phoneNumberLength < 4) return phoneNumber;
+    if (phoneNumberLength < 7) {
+      return `${phoneNumber.slice(0, 3)}-${phoneNumber.slice(3)}`;
+    }
+    return `${phoneNumber.slice(0, 3)}-${phoneNumber.slice(3, 6)}-${phoneNumber.slice(6, 10)}`;
+  };
+
+
   async function onSubmit(data: OnboardingValues) {
     setIsLoading(true);
     
     try {
-      // Call the new simple function directly with the values
+      // Call the updated function with name, username, and phone number
       const result = await updateNameAndUsername(
         data.fullName,
-        data.username
+        data.username,
+        data.phoneNumber // Pass the transformed (digits only) phone number
       );
       
       if (!result) {
         toast.error("Failed to update profile. Please try again.");
+        setIsLoading(false); // Ensure loading state is reset
         return;
       }
       
       if (result.error) {
         const errors = result.error;
         Object.keys(errors).forEach((key) => {
-          form.setError(key as keyof OnboardingValues, {
-            type: "server",
-            message: errors[key as keyof typeof errors]?.[0],
-          });
+          // Map server error keys back to form field names if necessary
+          const formKey = key === 'server' ? 'root.serverError' : key as keyof OnboardingValues;
+          // Check if the key exists in the form before setting error
+          if (formKey in form.getValues() || formKey === 'root.serverError' || formKey === 'phoneNumber') {
+             form.setError(formKey as any, { // Use 'any' temporarily if type mapping is complex
+               type: "server",
+               message: errors[key as keyof typeof errors]?.[0],
+             });
+          } else {
+             // Handle unexpected error keys, maybe log them or show a generic error
+             console.warn(`Unexpected error key from server: ${key}`);
+             form.setError('root.serverError', {
+                type: "server",
+                message: "An unexpected validation error occurred."
+             });
+          }
         });
-        toast.error("Failed to update profile. Please try again.");
+        toast.error("Failed to update profile. Please check the errors.");
       } else {
         toast.success("Profile updated successfully!");
+        // Optionally reset form dirty state if needed
+        // form.reset({}, { keepValues: true }); 
         setTimeout(() => {
           window.location.href = "/account/profile";
         }, 1000);
@@ -327,7 +382,7 @@ export default function ProfileClient() {
             </p>
           </div>
           <Card className="border shadow-sm">
-            <CardHeader className="px-5 py-4 sm:px-6">
+            <CardHeader className="px-5 py-5 sm:px-6">
               <CardTitle className="text-xl">Profile Picture</CardTitle>
               <CardDescription>
                 Choose a profile picture for your account
@@ -363,7 +418,7 @@ export default function ProfileClient() {
             </CardContent>
           </Card>
           <Card className="border shadow-sm">
-            <CardHeader className="px-5 py-4 sm:px-6">
+            <CardHeader className="p-5">
               <CardTitle className="text-xl">Personal Information</CardTitle>
               <CardDescription>
                 Update your personal details and public profile
@@ -374,6 +429,7 @@ export default function ProfileClient() {
                 <div className="space-y-6">
                   <Skeleton className="h-10 w-full" />
                   <Skeleton className="h-10 w-full" />
+                  <Skeleton className="h-10 w-full" /> {/* Skeleton for Phone */}
                 </div>
               ) : (
                 <Form {...form}>
@@ -471,6 +527,40 @@ export default function ProfileClient() {
                             <FormDescription className="flex items-center gap-1.5">
                               Only letters, numbers, underscores, dots, and
                               hyphens allowed
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="phoneNumber"
+                        render={({ field }) => (
+                          <FormItem>
+                            <div className="flex justify-between items-center">
+                              <FormLabel>Phone Number (Optional)</FormLabel>
+                               <span
+                                className={`text-xs ${phoneNumberLength > PHONE_LENGTH ? "text-destructive font-semibold" : "text-muted-foreground"}`}
+                              >
+                                {phoneNumberLength}/{PHONE_LENGTH}
+                              </span>
+                            </div>
+                            <FormControl>
+                              <Input
+                                type="tel" // Use tel type for better mobile UX
+                                placeholder="XXX-XXX-XXXX"
+                                {...field}
+                                value={field.value || ""} // Ensure value is controlled
+                                onChange={(e) => {
+                                  const formatted = formatPhoneNumber(e.target.value);
+                                  field.onChange(formatted); // Update form with formatted value
+                                  setPhoneNumberLength(formatted.replace(/-/g, "").length); // Update length count (digits only)
+                                }}
+                                maxLength={12} // Max length for XXX-XXX-XXXX format
+                              />
+                            </FormControl>
+                            <FormDescription>
+                              Enter your 10-digit phone number. This will be used for contact when signing up/creating projects.
                             </FormDescription>
                             <FormMessage />
                           </FormItem>

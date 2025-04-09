@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
+import { getProjectStatus } from "@/utils/project";
 import { 
   MapPin, 
   Calendar, 
@@ -14,10 +15,13 @@ import {
   ArrowUp,
   ArrowDown,
   ChevronRight,
+  Building2,
+  BadgeCheck,
   CalendarClock,
   CalendarDays,
   Map
 } from "lucide-react";
+import { ProjectsMapView } from "@/components/ProjectsMapView";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { NoAvatar } from "@/components/NoAvatar";
 import { Badge } from "@/components/ui/badge";
@@ -40,15 +44,19 @@ import {
 
 type Project = any;
 
+const STORAGE_KEY = "preferred-project-view";
+const VALID_VIEWS = ["card", "list", "table", "map"] as const;
+
+type ValidView = typeof VALID_VIEWS[number];
+
+// Update the type definition to include "map"
 type ProjectViewToggleProps = {
   projects: Project[];
   onVolunteerSortChange?: (sort: "asc" | "desc" | undefined) => void;
   volunteerSort?: "asc" | "desc" | undefined;
-  view: "card" | "list" | "table" | "map";
-  onViewChangeAction: (view: "card" | "list" | "table" | "map") => void;
+  view: ValidView;
+  onViewChangeAction: (view: ValidView) => void;
 };
-
-const STORAGE_KEY = "preferred-project-view";
 
 const formatTime = (timeString: string) => {
   try {
@@ -60,7 +68,7 @@ const formatTime = (timeString: string) => {
 };
 
 const formatSpots = (count: number) => {
-  return `${count} ${count === 1 ? 'spot' : 'spots'}`;
+  return `${count} ${count === 1 ? 'spot' : 'spots'} left`;
 };
 
 const formatDateDisplay = (project: any) => {
@@ -68,43 +76,52 @@ const formatDateDisplay = (project: any) => {
 
   switch (project.event_type) {
     case "oneTime": {
-      return format(new Date(project.schedule.oneTime.date), "MMM d");
+      const dateStr = project.schedule.oneTime?.date;
+      const [year, month, dayNum] = dateStr.split("-").map(Number);
+      const date = new Date(year, month - 1, dayNum);
+      return format(date, "MMM d");
     }
     case "multiDay": {
       const dates = project.schedule.multiDay
-        .map((day: any) => new Date(day.date))
-        .sort((a: Date, b: Date) => a.getTime() - b.getTime());
-      
-      // If dates are in same month
+      .map((day: any) => {
+        const [year, month, dayNum] = day.date.split("-").map(Number);
+        return new Date(year, month - 1, dayNum);
+      })
+      .sort((a: Date, b: Date) => a.getTime() - b.getTime());
+
+      // If dates are in the same month
       const allSameMonth = dates.every(
-        (date: Date) => date.getMonth() === dates[0].getMonth()
+      (date: Date) => date.getMonth() === dates[0].getMonth()
       );
-      
+
       if (dates.length <= 3) {
-        if (allSameMonth) {
-          // Format as "Mar 7, 9, 10"
-          return `${format(dates[0], "MMM")} ${dates
-            .map((date: Date) => format(date, "d"))
-            .join(", ")}`;
-        } else {
-          // Format as "Mar 7, Apr 9, 10"
-          return dates
-            .map((date: Date, i: number) => {
-              const prevDate = i > 0 ? dates[i - 1] : null;
-              if (!prevDate || prevDate.getMonth() !== date.getMonth()) {
-                return format(date, "MMM d");
-              }
-              return format(date, "d");
-            })
-            .join(", ");
-        }
+      if (allSameMonth) {
+        // Format as "Mar 7, 9, 10"
+        return `${format(dates[0], "MMM")} ${dates
+        .map((date: Date) => format(date, "d"))
+        .join(", ")}`;
       } else {
-        // For more than 3 dates, show range
-        return `${format(dates[0], "MMM d")} - ${format(dates[dates.length - 1], "MMM d")}`;
+        // Format as "Mar 7, Apr 9, 10"
+        return dates
+        .map((date: Date, i: number) => {
+          const prevDate = i > 0 ? dates[i - 1] : null;
+          if (!prevDate || prevDate.getMonth() !== date.getMonth()) {
+          return format(date, "MMM d");
+          }
+          return format(date, "d");
+        })
+        .join(", ");
+      }
+      } else {
+      // For more than 3 dates, show range
+      return `${format(dates[0], "MMM d")} - ${format(dates[dates.length - 1], "MMM d")}`;
       }
     }
     case "sameDayMultiArea": {
-      return format(new Date(project.schedule.sameDayMultiArea.date), "MMM d");
+      const dateStr = project.schedule.sameDayMultiArea?.date;
+      const [year, month, dayNum] = dateStr.split("-").map(Number);
+      const date = new Date(year, month - 1, dayNum);
+      return format(date, "MMM d");
     }
     default:
       return "";
@@ -117,17 +134,33 @@ const getEventScheduleSummary = (project: any) => {
 
   switch (project.event_type) {
     case "oneTime": {
-      const date = format(new Date(project.schedule.oneTime.date), "MMM d, yyyy");
+      const dateStr = project.schedule.oneTime?.date
+      const [year, month, dayNum] = dateStr.split("-").map(Number);
+      const dateFormat = new Date(year, month - 1, dayNum);
+      const date = format(dateFormat, "MMM d, yyyy");
       return `${date}, ${formatTime(project.schedule.oneTime.startTime)} - ${formatTime(project.schedule.oneTime.endTime)}`;
     }
     case "multiDay": {
       const days = project.schedule.multiDay.length;
-      const startDate = format(new Date(project.schedule.multiDay[0].date), "MMM d");
-      const endDate = format(new Date(project.schedule.multiDay[days - 1].date), "MMM d");
+      const startDateStr = project.schedule.multiDay[0].date;
+      const endDateStr = project.schedule.multiDay[days - 1].date;
+
+      const [startYear, startMonth, startDayNum] = startDateStr.split("-").map(Number);
+      const [endYear, endMonth, endDayNum] = endDateStr.split("-").map(Number);
+
+      const startDateFormat = new Date(startYear, startMonth - 1, startDayNum);
+      const endDateFormat = new Date(endYear, endMonth - 1, endDayNum);
+
+      const startDate = format(startDateFormat, "MMM d");
+      const endDate = format(endDateFormat, "MMM d");
+
       return `${days} days (${startDate} - ${endDate})`;
     }
     case "sameDayMultiArea": {
-      const date = format(new Date(project.schedule.sameDayMultiArea.date), "MMM d, yyyy");
+      const dateStr = project.schedule.sameDayMultiArea.date
+      const [year, month, dayNum] = dateStr.split("-").map(Number);
+      const dateFormat = new Date(year, month - 1, dayNum);
+      const date = format(dateFormat, "MMM d, yyyy");
       const roles = project.schedule.sameDayMultiArea.roles.length;
       return `${date}, ${roles} roles`;
     }
@@ -136,7 +169,7 @@ const getEventScheduleSummary = (project: any) => {
   }
 };
 
-// Function to get volunteer count from project
+// Get volunteer count from project (total spots)
 const getVolunteerCount = (project: any) => {
   if (!project.event_type || !project.schedule) return 0;
 
@@ -172,6 +205,42 @@ const getVolunteerCount = (project: any) => {
   }
 };
 
+// New function to get remaining spots
+const getRemainingSpots = (project: any) => {
+  const totalSpots = getVolunteerCount(project);
+  
+  // Use confirmed_signups from server
+  const confirmedCount = project.total_confirmed || 0;
+  
+  return Math.max(0, totalSpots - confirmedCount);
+};
+
+// Function to check if project has upcoming status
+const isUpcomingProject = (project: any) => {
+  return project.status === "upcoming" || getProjectStatus(project) === "upcoming";
+};
+
+// Function to get project organization or creator name
+const getProjectCreator = (project: any) => {
+  if (project.organization) {
+    return project.organization.name || "Organization";
+  } else if (project.organization_id && project.organizations) {
+    // Alternative structure where the organization info is in 'organizations'
+    return project.organizations.name || "Organization";
+  }
+  return project.profiles?.full_name || "Anonymous";
+};
+
+// Function to get project creator's avatar URL
+const getCreatorAvatarUrl = (project: any) => {
+  if (project.organization) {
+    return project.organization.logo_url;
+  } else if (project.organization_id && project.organizations) {
+    return project.organizations.logo_url;
+  }
+  return project.profiles?.avatar_url;
+};
+
 export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
   projects,
   onVolunteerSortChange,
@@ -183,17 +252,15 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [initialViewLoaded, setInitialViewLoaded] = useState(false);
 
-  // Combined effect for view preference management
+  // Update the effect to properly handle view persistence
   useEffect(() => {
     if (!initialViewLoaded) {
-      // Load initial preference only once
-      const savedView = localStorage.getItem(STORAGE_KEY) as "card" | "list" | "table" | "map" | null;
-      if (savedView && savedView !== view) {
-        onViewChangeAction(savedView);
+      const savedView = localStorage.getItem(STORAGE_KEY);
+      if (savedView && VALID_VIEWS.includes(savedView as ValidView)) {
+        onViewChangeAction(savedView as ValidView);
       }
       setInitialViewLoaded(true);
     } else {
-      // Save preference on subsequent view changes
       localStorage.setItem(STORAGE_KEY, view);
     }
   }, [view, onViewChangeAction, initialViewLoaded]);
@@ -217,7 +284,12 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
     setIsSheetOpen(true);
   };
 
-  // Update EventInfo to only show spots
+  // Filter projects - only show upcoming projects with available spots
+  const filteredProjects = projects.filter(project => 
+    isUpcomingProject(project) && getRemainingSpots(project) > 0
+  );
+
+  // Update EventInfo to show remaining spots
   const EventInfo = ({ project }: { project: any }) => {
     if (!project.event_type || !project.schedule) return null;
 
@@ -236,15 +308,13 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
               </Badge>
               <Badge variant="outline" className="gap-1">
                 <Users className="h-3 w-3" />
-                {formatSpots(project.schedule.oneTime.volunteers)}
+                {formatSpots(getRemainingSpots(project))}
               </Badge>
             </>
           );
         case "multiDay":
           const days = project.schedule.multiDay.length;
-          const totalSpots = project.schedule.multiDay.reduce((acc: number, day: any) => {
-            return acc + (day.slots?.reduce((sum: number, slot: any) => sum + (slot.volunteers || 0), 0) || 0);
-          }, 0);
+          const remainingSpots = getRemainingSpots(project);
           return (
             <>
               <Badge variant="outline" className="gap-1">
@@ -254,15 +324,12 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
               </Badge>
               <Badge variant="outline" className="gap-1">
                 <Users className="h-3 w-3" />
-                {formatSpots(totalSpots)}
+                {formatSpots(remainingSpots)}
               </Badge>
             </>
           );
         case "sameDayMultiArea":
-          const totalVolunteers = project.schedule.sameDayMultiArea.roles.reduce(
-            (acc: number, role: any) => acc + (role.volunteers || 0),
-            0
-          );
+          const remainingVolunteers = getRemainingSpots(project);
           return (
             <>
               <Badge variant="outline" className="gap-1">
@@ -271,7 +338,7 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
               </Badge>
               <Badge variant="outline" className="gap-1">
                 <Users className="h-3 w-3" />
-                {formatSpots(totalVolunteers)}
+                {formatSpots(remainingVolunteers)}
               </Badge>
             </>
           );
@@ -288,88 +355,129 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
       {/* Card View - Cleaner with hover cards */}
       {view === "card" && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {projects.map((project: any) => (
+          {filteredProjects.map((project: any) => (
             <Link key={project.id} href={`/projects/${project.id}`}>
               <Card className="p-6 hover:shadow-lg transition-all cursor-pointer h-full flex flex-col">
-                <h3 className="text-xl font-semibold mb-2 line-clamp-1">{project.title}</h3>
-                <div className="flex items-center gap-2 mb-4">
-                  <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                  <span className="text-sm text-muted-foreground truncate">{project.location}</span>
+          <h3 className="text-xl font-semibold mb-2 line-clamp-1">{project.title}</h3>
+          <div className="flex items-center gap-2 mb-4">
+            <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            <span className="text-sm text-muted-foreground truncate">{project.location}</span>
+          </div>
+          
+          <div className="flex flex-wrap gap-2 mb-4">
+            <Badge variant="outline" className="gap-1">
+              <Calendar className="h-3 w-3" />
+              {formatDateDisplay(project)}
+            </Badge>
+            <Badge variant="outline" className="gap-1">
+              <Users className="h-3 w-3" />
+              {formatSpots(getRemainingSpots(project))}
+            </Badge>
+          </div>
+          
+          {/* User info with hover card - updated to show organization if available */}
+          <div className="mt-auto pt-3">
+            <HoverCard>
+              <HoverCardTrigger asChild>
+              <div className="flex items-center gap-2 cursor-pointer">
+              <Avatar className="h-7 w-7">
+              <AvatarImage
+                src={getCreatorAvatarUrl(project)}
+                alt={getProjectCreator(project)}
+              />
+              <AvatarFallback>
+                <NoAvatar fullName={getProjectCreator(project)} className="text-sm"/>
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate">
+                {getProjectCreator(project)}
+              </p>
+              {/* <p className="text-xs text-muted-foreground">
+                {project.organization_id ? 
+                  (project.organization?.type || project.organizations?.type || "Organization") : 
+                  `@${project.profiles?.username || "unknown"}`}
+              </p> */}
+            </div>
                 </div>
-                
-                <div className="flex flex-wrap gap-2 mb-4">
-                  <Badge variant="outline" className="gap-1">
-                    <Calendar className="h-3 w-3" />
-                    {formatDateDisplay(project)}
-                  </Badge>
-                  <Badge variant="outline" className="gap-1">
-                    <Users className="h-3 w-3" />
-                    {formatSpots(getVolunteerCount(project))}
-                  </Badge>
-                </div>
-                
-                {/* User info with hover card - no separator */}
-                <div className="mt-auto pt-3">
-                    <HoverCard>
-                    
-                      <HoverCardTrigger asChild>
-                      <div className="flex items-center gap-2 cursor-pointer">
-                        <Avatar className="h-7 w-7">
-                        <AvatarImage
-                          src={project.profiles?.avatar_url}
-                          alt={project.profiles?.full_name || "Creator"}
-                        />
-                        <AvatarFallback>
-                          <NoAvatar fullName={project.profiles?.full_name} />
-                        </AvatarFallback>
-                        </Avatar>
-                        <span className="text-sm font-medium truncate">
-                        {project.profiles?.full_name || "Anonymous"}
+              </HoverCardTrigger>
+              <HoverCardContent className="w-auto">
+                <div className="flex justify-between space-x-4 cursor-pointer" onClick={(e) => {
+            e.preventDefault();
+            if (project.organization_id) {
+              window.location.href = `/organization/${project.organization?.username || project.organizations?.username || project.organization_id}`;
+            } else {
+              window.location.href = `/profile/${project.profiles?.username || "unknown"}`;
+            }
+                }}>
+            <Avatar className="h-10 w-10">
+              <AvatarImage 
+                src={getCreatorAvatarUrl(project)}
+                alt={getProjectCreator(project)}
+              />
+              <AvatarFallback>
+                <NoAvatar fullName={getProjectCreator(project)} />
+              </AvatarFallback>
+            </Avatar>
+            <div className="space-y-1 flex-1">
+              <h4 className="text-sm font-semibold">
+                {getProjectCreator(project)}
+              </h4>
+              <p className="text-xs text-muted-foreground">
+                {project.organization_id ? (
+                  (() => {
+                    const orgType =
+                      project.organization?.type || project.organizations?.type || "Organization";
+                    const normalizedType =
+                      orgType.toLowerCase() === "company" ? "Company" : orgType;
+                    const icon =
+                      orgType.toLowerCase() === "company" ? (
+                        <Building2 className="h-4 w-4 opacity-70" />
+                      ) : (
+                        <BadgeCheck className="h-4 w-4 opacity-70" />
+                      );
+
+                    return (
+                      <div className="flex items-center">
+                        <span>
+                          @{project.organization?.username || project.organizations?.username || "unknown"}
+                          <span className="flex pt-2">
+                          {icon}
+                          <span className="ml-2">{normalizedType}</span>
+                          </span>
                         </span>
                       </div>
-                      </HoverCardTrigger>
-                    
-                    <HoverCardContent className="w-auto">
-                      <div className="flex justify-between space-x-4 cursor-pointer" onClick={() => window.location.href=`/profile/${project.profiles?.username || "unknown"}`}>
-                      <Avatar className="h-10 w-10">
-                        <AvatarImage 
-                        src={project.profiles?.avatar_url}
-                        alt={project.profiles?.full_name || "Creator"}
-                        />
-                        <AvatarFallback>
-                        <NoAvatar fullName={project.profiles?.full_name} />
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="space-y-1 flex-1">
-                        <h4 className="text-sm font-semibold">
-                        {project.profiles?.full_name || "Anonymous"}
-                        </h4>
-                        <p className="text-sm">
-                        @{project.profiles?.username || "unknown"}
-                        </p>
-                        <div className="flex items-center pt-2">
-                        <CalendarDays className="mr-2 h-4 w-4 opacity-70" />
-                        <span className="text-xs text-muted-foreground">
-                          {project.profiles?.created_at ? 
-                          `Joined ${format(new Date(project.profiles.created_at), "MMMM yyyy")}` : 
-                          "New member"}
-                        </span>
-                        </div>
-                      </div>
-                      </div>
-                    </HoverCardContent>
-                    </HoverCard>
+                    );
+                  })()
+                ) : (
+                  `@${project.profiles?.username || "unknown"}`
+                )}
+              </p>
+              {!project.organization_id && (
+                <div className="flex items-center pt-2">
+                  <CalendarDays className="mr-2 h-4 w-4 opacity-70" />
+                  <span className="text-xs text-muted-foreground">
+              {project.profiles?.created_at ? 
+                `Joined ${format(new Date(project.profiles.created_at), "MMMM yyyy")}` : 
+                "New member"}
+                  </span>
                 </div>
+              )}
+            </div>
+                </div>
+              </HoverCardContent>
+            </HoverCard>
+          </div>
               </Card>
             </Link>
           ))}
         </div>
       )}
 
-      {/* List View - Improved UI with better mobile support */}
+      {/* List View - Updated with remaining spots and organization name */}
       {view === "list" && (
         <div className="flex flex-col divide-y">
-          {projects.map((project: any) => (
+          {filteredProjects.map((project: any) => (
             <Link key={project.id} href={`/projects/${project.id}`}>
               <div className="group py-6 px-4 -mx-4 hover:bg-muted/50 transition-colors project-list-item">
                 <div className="flex flex-col md:flex-row md:items-start gap-4 md:gap-6">
@@ -386,12 +494,12 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                       </div>
                       <div className="flex flex-wrap items-start gap-2 order-1 md:order-none project-badges">
                         <Badge variant="outline" className="gap-1 py-0.5 text-xs">
-                          <Calendar className="h-3 w-3 md:h-2.5 md:w-2.5 project-badge-icon" />
+                          <Calendar className="h-3 w-3 md:h-2.5 md:w-2.5 project-badge-icon flex-shrink-0" />
                           {formatDateDisplay(project)}
                         </Badge>
                         <Badge variant="outline" className="gap-1 py-0.5 text-xs">
-                          <Users className="h-3 w-3 md:h-2.5 md:w-2.5 project-badge-icon" />
-                          {formatSpots(getVolunteerCount(project))}
+                          <Users className="h-3 w-3 md:h-2.5 md:w-2.5 project-badge-icon flex-shrink-0" />
+                          {formatSpots(getRemainingSpots(project))}
                         </Badge>
                       </div>
                     </div>
@@ -401,15 +509,15 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                           <div className="flex items-center gap-2 cursor-pointer">
                             <Avatar className="h-7 w-7">
                               <AvatarImage
-                                src={project.profiles?.avatar_url}
-                                alt={project.profiles?.full_name || "Creator"}
+                                src={getCreatorAvatarUrl(project)}
+                                alt={getProjectCreator(project)}
                               />
                               <AvatarFallback>
-                                <NoAvatar fullName={project.profiles?.full_name} />
+                                <NoAvatar fullName={getProjectCreator(project)} className="text-sm"/>
                               </AvatarFallback>
                             </Avatar>
                             <span className="text-sm font-medium truncate">
-                              {project.profiles?.full_name || "Anonymous"}
+                              {getProjectCreator(project)}
                             </span>
                           </div>
                         </HoverCardTrigger>
@@ -417,32 +525,40 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                         <HoverCardContent className="w-auto">
                           <div className="flex justify-between space-x-4 cursor-pointer" onClick={(e) => {
                             e.preventDefault();
-                            window.location.href=`/profile/${project.profiles?.username || "unknown"}`;
+                            if (project.organization_id) {
+                              window.location.href=`/organization/${project.organization?.username || project.organizations?.username || project.organization_id}`;
+                            } else {
+                              window.location.href=`/profile/${project.profiles?.username || "unknown"}`;
+                            }
                           }}>
                             <Avatar className="h-10 w-10">
                               <AvatarImage 
-                                src={project.profiles?.avatar_url}
-                                alt={project.profiles?.full_name || "Creator"}
+                                src={getCreatorAvatarUrl(project)}
+                                alt={getProjectCreator(project)}
                               />
                               <AvatarFallback>
-                                <NoAvatar fullName={project.profiles?.full_name} />
+                                <NoAvatar fullName={getProjectCreator(project)} />
                               </AvatarFallback>
                             </Avatar>
                             <div className="space-y-1 flex-1">
                               <h4 className="text-sm font-semibold">
-                                {project.profiles?.full_name || "Anonymous"}
+                                {getProjectCreator(project)}
                               </h4>
                               <p className="text-sm">
-                                @{project.profiles?.username || "unknown"}
+                                {project.organization_id ? 
+                                  (project.organization?.type || project.organizations?.type || "Organization") : 
+                                  `@${project.profiles?.username || "unknown"}`}
                               </p>
-                              <div className="flex items-center pt-2">
-                                <CalendarDays className="mr-2 h-4 w-4 opacity-70" />
-                                <span className="text-xs text-muted-foreground">
-                                  {project.profiles?.created_at ? 
-                                  `Joined ${format(new Date(project.profiles.created_at), "MMMM yyyy")}` : 
-                                  "New member"}
-                                </span>
-                              </div>
+                              {!project.organization_id && (
+                                <div className="flex items-center pt-2">
+                                  <CalendarDays className="mr-2 h-4 w-4 opacity-70" />
+                                  <span className="text-xs text-muted-foreground">
+                                    {project.profiles?.created_at ? 
+                                    `Joined ${format(new Date(project.profiles.created_at), "MMMM yyyy")}` : 
+                                    "New member"}
+                                  </span>
+                                </div>
+                              )}
                             </div>
                           </div>
                         </HoverCardContent>
@@ -463,7 +579,7 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
         </div>
       )}
 
-      {/* Table View - Now with responsive design */}
+      {/* Table View - Updated for remaining spots and organization name */}
       {view === "table" && (
         <div className="border rounded-lg overflow-hidden">
           <Table>
@@ -481,8 +597,8 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                   onClick={handleVolunteerSortToggle}
                 >
                   <div className="flex items-center justify-center gap-1">
-                    <span className="hidden sm:inline">Volunteers</span>
-                    <span className="sm:hidden">Vol.</span>
+                    <span className="hidden sm:inline">Spots Left</span>
+                    <span className="sm:hidden">Spots</span>
                     {!volunteerSort && <ArrowUpDown className="h-3.5 w-3.5" />}
                     {volunteerSort === "desc" && <ArrowDown className="h-3.5 w-3.5" />}
                     {volunteerSort === "asc" && <ArrowUp className="h-3.5 w-3.5" />}
@@ -492,7 +608,7 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {projects.map((project: any) => (
+              {filteredProjects.map((project: any) => (
                 <TableRow key={project.id}>
                   <TableCell>
                     <div className="max-w-[300px] sm:max-w-none">
@@ -520,61 +636,70 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                     </div>
                   </TableCell>
                   <TableCell className="hidden sm:table-cell">
-                  <HoverCard>
-                    
+                    <HoverCard>
                       <HoverCardTrigger asChild>
-                      <div className="flex items-center gap-2 cursor-pointer">
-                        <Avatar className="h-7 w-7">
-                        <AvatarImage
-                          src={project.profiles?.avatar_url}
-                          alt={project.profiles?.full_name || "Creator"}
-                        />
-                        <AvatarFallback>
-                          <NoAvatar fullName={project.profiles?.full_name} />
-                        </AvatarFallback>
-                        </Avatar>
-                        <span className="text-sm font-medium truncate">
-                        {project.profiles?.full_name || "Anonymous"}
-                        </span>
-                      </div>
+                        <div className="flex items-center gap-2 cursor-pointer">
+                          <Avatar className="h-7 w-7">
+                            <AvatarImage
+                              src={getCreatorAvatarUrl(project)}
+                              alt={getProjectCreator(project)}
+                            />
+                            <AvatarFallback>
+                              <NoAvatar fullName={getProjectCreator(project)} />
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="text-sm font-medium truncate">
+                            {getProjectCreator(project)}
+                          </span>
+                        </div>
                       </HoverCardTrigger>
                     
-                    <HoverCardContent className="w-auto">
-                      <div className="flex justify-between space-x-4 cursor-pointer" onClick={() => window.location.href=`/profile/${project.profiles?.username || "unknown"}`}>
-                      <Avatar className="h-10 w-10">
-                        <AvatarImage 
-                        src={project.profiles?.avatar_url}
-                        alt={project.profiles?.full_name || "Creator"}
-                        />
-                        <AvatarFallback>
-                        <NoAvatar fullName={project.profiles?.full_name} />
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="space-y-1 flex-1">
-                        <h4 className="text-sm font-semibold">
-                        {project.profiles?.full_name || "Anonymous"}
-                        </h4>
-                        <p className="text-sm">
-                        @{project.profiles?.username || "unknown"}
-                        </p>
-                        <div className="flex items-center pt-2">
-                        <CalendarDays className="mr-2 h-4 w-4 opacity-70" />
-                        <span className="text-xs text-muted-foreground">
-                          {project.profiles?.created_at ? 
-                          `Joined ${format(new Date(project.profiles.created_at), "MMMM yyyy")}` : 
-                          "New member"}
-                        </span>
+                      <HoverCardContent className="w-auto">
+                        <div className="flex justify-between space-x-4 cursor-pointer" onClick={() => {
+                          if (project.organization_id) {
+                            window.location.href=`/organization/${project.organization?.username || project.organizations?.username || project.organization_id}`;
+                          } else {
+                            window.location.href=`/profile/${project.profiles?.username || "unknown"}`;
+                          }
+                        }}>
+                          <Avatar className="h-10 w-10">
+                            <AvatarImage 
+                              src={getCreatorAvatarUrl(project)}
+                              alt={getProjectCreator(project)}
+                            />
+                            <AvatarFallback>
+                              <NoAvatar fullName={getProjectCreator(project)} />
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="space-y-1 flex-1">
+                            <h4 className="text-sm font-semibold">
+                              {getProjectCreator(project)}
+                            </h4>
+                            <p className="text-sm">
+                              {project.organization_id ? 
+                                (project.organization?.type || project.organizations?.type || "Organization") : 
+                                `@${project.profiles?.username || "unknown"}`}
+                            </p>
+                            {!project.organization_id && (
+                              <div className="flex items-center pt-2">
+                                <CalendarDays className="mr-2 h-4 w-4 opacity-70" />
+                                <span className="text-xs text-muted-foreground">
+                                  {project.profiles?.created_at ? 
+                                  `Joined ${format(new Date(project.profiles.created_at), "MMMM yyyy")}` : 
+                                  "New member"}
+                                </span>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                      </div>
-                    </HoverCardContent>
+                      </HoverCardContent>
                     </HoverCard>
                   </TableCell>
                   <TableCell className="text-center">
                     <Badge variant={volunteerSort ? "secondary" : "outline"} className="gap-1">
                       <Users className="h-3 w-3" />
-                      <span className="hidden sm:inline">{formatSpots(getVolunteerCount(project))}</span>
-                      <span className="sm:hidden">{getVolunteerCount(project)}</span>
+                      <span className="hidden sm:inline">{formatSpots(getRemainingSpots(project))}</span>
+                      <span className="sm:hidden">{getRemainingSpots(project)}</span>
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
@@ -589,7 +714,11 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
         </div>
       )}
       
-      {/* Map view is handled separately in ProjectsMapView component */}
+      {view === "map" && (
+        <div className="w-full h-[500px]">
+          <ProjectsMapView initialProjects={filteredProjects} />
+        </div>
+      )}
     </div>
   );
 };

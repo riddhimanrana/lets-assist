@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { XOctagon, AlertTriangle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Project } from "@/types";
+import { cn } from "@/lib/utils";
 import { canCancelProject } from "@/utils/project";
 
 interface CancelProjectDialogProps {
@@ -29,6 +30,7 @@ export function CancelProjectDialog({
 }: CancelProjectDialogProps) {
   const [reason, setReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const CHARACTER_LIMIT = 350; // Define the character limit
 
   const canCancel = canCancelProject(project);
 
@@ -57,6 +59,14 @@ export function CancelProjectDialog({
     }
   };
 
+  // Character count helpers
+  const getCounterColor = (current: number, max: number) => {
+    const percentage = (current / max) * 100;
+    if (percentage >= 90) return "text-destructive";
+    if (percentage >= 75) return "text-chart-6";
+    return "text-muted-foreground";
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[425px]">
@@ -69,12 +79,12 @@ export function CancelProjectDialog({
             {canCancel ? (
               "This action cannot be undone. The project will be marked as cancelled and participants will be notified."
             ) : (
-              <div className="flex items-start gap-2 text-destructive mt-1">
+              <span className="flex items-start gap-2 text-destructive mt-1">
                 <AlertTriangle className="h-5 w-5 flex-shrink-0" />
                 <span>
                   Projects can only be cancelled within 24 hours of their start time.
                 </span>
-              </div>
+              </span>
             )}
           </DialogDescription>
         </DialogHeader>
@@ -85,11 +95,23 @@ export function CancelProjectDialog({
             <Textarea
               placeholder="Please provide a reason for cancelling this project..."
               value={reason}
-              onChange={(e) => setReason(e.target.value)}
+              onChange={(e) => {
+                if (e.target.value.length <= CHARACTER_LIMIT) {
+                  setReason(e.target.value);
+                }
+              }}
               className="resize-none"
               rows={4}
               disabled={!canCancel || isSubmitting}
             />
+            <span
+              className={cn(
+                "text-xs transition-colors float-right",
+                getCounterColor(reason.length, CHARACTER_LIMIT)
+              )}
+            >
+              {reason.length}/{CHARACTER_LIMIT}
+            </span>
           </div>
         </div>
 
@@ -104,7 +126,7 @@ export function CancelProjectDialog({
           <Button
             variant="destructive"
             onClick={handleConfirm}
-            disabled={!canCancel || isSubmitting || !reason.trim()}
+            disabled={!canCancel || isSubmitting || !reason.trim() || reason.length > CHARACTER_LIMIT}
           >
             {isSubmitting ? (
               <>

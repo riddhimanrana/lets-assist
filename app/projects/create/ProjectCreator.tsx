@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useEventForm } from "@/hooks/use-event-form";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -21,6 +21,17 @@ import { toast } from "sonner";
 import { createProject, uploadCoverImage, uploadProjectDocument, finalizeProject } from "./actions";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+// Import Zod schemas
+import { 
+  basicInfoSchema, 
+  oneTimeSchema, 
+  multiDaySchema, 
+  multiRoleSchema, 
+  verificationSettingsSchema
+} from "@/schemas/event-form-schema";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
 
 interface ProjectCreatorProps {
   initialOrgId?: string;
@@ -51,15 +62,66 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
     removeDay,
     removeSlot,
     removeRole,
-    canProceed,
   } = useEventForm();
+  
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   // File handling states
   const [coverImage, setCoverImage] = useState<File | null>(null);
   const [documents, setDocuments] = useState<File[]>([]);
+  
+  // Form validation states
+  const [basicInfoErrors, setBasicInfoErrors] = useState<z.ZodIssue[]>([]);
+  const [scheduleErrors, setScheduleErrors] = useState<z.ZodIssue[]>([]);
+  const [verificationErrors, setVerificationErrors] = useState<z.ZodIssue[]>([]);
+  
+  // Validation tracking - only validate after continue is clicked
+  const [validationAttempted, setValidationAttempted] = useState(false);
 
+  // Clear errors when a field is updated
+  const handleBasicInfoUpdate = (field: string, value: any) => {
+    // Clear errors related to this field
+    if (validationAttempted) {
+      setBasicInfoErrors(prev => prev.filter(error => !error.path.includes(field)));
+    }
+    updateBasicInfo(field, value);
+  };
+
+  const handleOneTimeScheduleUpdate = (field: string, value: any) => {
+    // Clear errors related to this field
+    if (validationAttempted) {
+      setScheduleErrors(prev => prev.filter(error => !error.path.includes(field)));
+    }
+    updateOneTimeSchedule(field, value);
+  };
+
+  const handleMultiDayScheduleUpdate = (dayIndex: number, field: string, value: any, slotIndex?: number) => {
+    // Clear errors related to this field/slot
+    if (validationAttempted) {
+      setScheduleErrors(prev => prev.filter(error => {
+        if (slotIndex !== undefined) {
+          return !(error.path[0] === dayIndex && error.path[2] === slotIndex && error.path.includes(field));
+        }
+        return !(error.path[0] === dayIndex && error.path.includes(field));
+      }));
+    }
+    updateMultiDaySchedule(dayIndex, field, value, slotIndex);
+  };
+
+  const handleMultiRoleScheduleUpdate = (field: string, value: any, roleIndex?: number) => {
+    // Clear errors related to this field/role
+    if (validationAttempted) {
+      setScheduleErrors(prev => prev.filter(error => {
+        if (roleIndex !== undefined) {
+          return !(error.path[0] === 'roles' && error.path[1] === roleIndex && error.path.includes(field));
+        }
+        return !error.path.includes(field);
+      }));
+    }
+    updateMultiRoleSchedule(field, value, roleIndex);
+  };
+  
   // Function to convert File to base64
   const fileToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -70,44 +132,122 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
     });
   };
 
-  const getValidationMessage = () => {
-    if (!canProceed()) {
-      switch (state.step) {
-        case 1:
-          return "Please fill in all required fields";
-        case 3:
+  // Validate current step with Zod
+  const validateCurrentStep = (): boolean => {
+    try {
+      switch(state.step) {
+        case 1: // Basic Info
+          basicInfoSchema.parse(state.basicInfo);
+          setBasicInfoErrors([]);
+          return true;
+        
+        case 2: // Event Type
+          // No validation needed for event type selection
+          return true;
+        
+        case 3: // Schedule
           if (state.eventType === "oneTime") {
-            return "Please select a date, time, and number of volunteers";
+            oneTimeSchema.parse(state.schedule.oneTime);
+          } else if (state.eventType === "multiDay") {
+            multiDaySchema.parse(state.schedule.multiDay);
+          } else if (state.eventType === "sameDayMultiArea") {
+            multiRoleSchema.parse(state.schedule.sameDayMultiArea);
           }
-          if (state.eventType === "multiDay") {
-            return "Please ensure all days have valid dates, times, and volunteer counts";
-          }
-          if (state.eventType === "sameDayMultiArea") {
-            return "Please ensure all roles have names, valid times, and volunteer counts";
-          }
-        case 4:
-          return "Please select a verification method";
+          setScheduleErrors([]);
+          return true;
+        
+        case 4: // Verification Settings
+          verificationSettingsSchema.parse({
+            verificationMethod: state.verificationMethod,
+            requireLogin: state.requireLogin,
+            isPrivate: state.isPrivate
+          });
+          setVerificationErrors([]);
+          return true;
+          
+        case 5: // Finalize
+          // No validation needed for files
+          return true;
+          
         default:
-          return "";
+          return false;
       }
-    }
-    return "";
-  };
-
-  // Improved function to check file sizes before upload
-  const validateFileSize = (file: File, maxSize: number): boolean => {
-    if (file.size > maxSize) {
-      toast.error(`File ${file.name} exceeds the maximum size limit`);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        // Store errors according to the current step
+        switch(state.step) {
+          case 1:
+            setBasicInfoErrors(error.issues);
+            break;
+          case 3:
+            setScheduleErrors(error.issues);
+            break;
+          case 4:
+            setVerificationErrors(error.issues);
+            break;
+        }
+        // Mark validation as attempted so errors will show
+        setValidationAttempted(true);
+      }
       return false;
     }
-    return true;
   };
 
-  // Fixed submit function to handle files with better size management
+  // Get field error from Zod issues
+  const getFieldError = (fieldPath: string, issues: z.ZodIssue[]): string | undefined => {
+    if (!validationAttempted) return undefined;
+    
+    const error = issues.find(issue => {
+      // Match exact field or field in array (e.g., "roles.0.name")
+      return issue.path.join('.') === fieldPath ||
+             issue.path.join('.').startsWith(fieldPath + '[') ||
+             issue.path.join('.').startsWith(fieldPath + '.');
+    });
+    return error?.message;
+  };
+
+  // Handler for continuing to next step
+  const handleNextStep = () => {
+    // Validate current step before proceeding
+    const isValid = validateCurrentStep();
+    
+    if (isValid || state.step === 5) {
+      nextStep();
+      // Reset validation attempted since we're moving to a new step
+      setValidationAttempted(false);
+    }
+  };
+
   const handleSubmit = async () => {
     if (state.step !== 5) {
-      nextStep();
+      handleNextStep();
       return;
+    }
+    
+    // Final validation of all steps before submission
+    try {
+      basicInfoSchema.parse(state.basicInfo);
+      
+      if (state.eventType === "oneTime") {
+        oneTimeSchema.parse(state.schedule.oneTime);
+      } else if (state.eventType === "multiDay") {
+        multiDaySchema.parse(state.schedule.multiDay);
+      } else if (state.eventType === "sameDayMultiArea") {
+        multiRoleSchema.parse(state.schedule.sameDayMultiArea);
+      }
+      
+      verificationSettingsSchema.parse({
+        verificationMethod: state.verificationMethod,
+        requireLogin: state.requireLogin,
+        isPrivate: state.isPrivate
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        setValidationAttempted(true);
+        // Show a toast with general error message
+        toast.error("Please fix all validation errors before submitting");
+        return;
+      }
     }
     
     try {
@@ -213,6 +353,15 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
     return !!state.basicInfo.organizationId;
   };
 
+  // Improved function to check file sizes before upload
+  const validateFileSize = (file: File, maxSize: number): boolean => {
+    if (file.size > maxSize) {
+      toast.error(`File ${file.name} exceeds the maximum size limit`);
+      return false;
+    }
+    return true;
+  };
+
   // Render step based on current state.step
   const renderStep = () => {
     switch (state.step) {
@@ -220,9 +369,14 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
         return (
           <BasicInfo
             state={state}
-            updateBasicInfoAction={updateBasicInfo}
+            updateBasicInfoAction={handleBasicInfoUpdate}
             initialOrgId={initialOrgId}
             initialOrganizations={initialOrgOptions}
+            errors={{
+              title: getFieldError("title", basicInfoErrors),
+              location: getFieldError("location", basicInfoErrors),
+              description: getFieldError("description", basicInfoErrors)
+            }}
           />
         );
       case 2:
@@ -236,15 +390,16 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
         return (
           <Schedule
             state={state}
-            updateOneTimeScheduleAction={updateOneTimeSchedule}
-            updateMultiDayScheduleAction={updateMultiDaySchedule}
-            updateMultiRoleScheduleAction={updateMultiRoleSchedule}
+            updateOneTimeScheduleAction={handleOneTimeScheduleUpdate}
+            updateMultiDayScheduleAction={handleMultiDayScheduleUpdate}
+            updateMultiRoleScheduleAction={handleMultiRoleScheduleUpdate}
             addMultiDaySlotAction={addMultiDaySlot}
             addMultiDayEventAction={addMultiDayEvent}
             addRoleAction={addRole}
             removeDayAction={removeDay}
             removeSlotAction={removeSlot}
             removeRoleAction={removeRole}
+            errors={validationAttempted ? scheduleErrors : []}
           />
         );
       case 4:
@@ -254,9 +409,27 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
             requireLogin={state.requireLogin}
             isOrganization={isOrganizationProject()}
             isPrivate={state.isPrivate}
-            updateVerificationMethodAction={updateVerificationMethod}
-            updateRequireLoginAction={updateRequireLogin}
-            updateIsPrivateAction={updateIsPrivate}
+            updateVerificationMethodAction={(method) => {
+              if (validationAttempted) {
+                setVerificationErrors(prev => prev.filter(error => !error.path.includes('verificationMethod')));
+              }
+              updateVerificationMethod(method);
+            }}
+            updateRequireLoginAction={(value) => {
+              if (validationAttempted) {
+                setVerificationErrors(prev => prev.filter(error => !error.path.includes('requireLogin')));
+              }
+              updateRequireLogin(value);
+            }}
+            updateIsPrivateAction={(value) => {
+              if (validationAttempted) {
+                setVerificationErrors(prev => prev.filter(error => !error.path.includes('isPrivate')));
+              }
+              updateIsPrivate(value);
+            }}
+            errors={{
+              verificationMethod: getFieldError("verificationMethod", verificationErrors)
+            }}
           />
         );
       case 5:
@@ -300,12 +473,6 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
       </div>
       <div className="space-y-6 sm:space-y-8">
         {renderStep()}
-        {getValidationMessage() && (
-          <Alert variant="destructive" className="animate-in fade-in">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{getValidationMessage()}</AlertDescription>
-          </Alert>
-        )}
         <div className="flex justify-between gap-4">
           <Button 
             variant="outline" 
@@ -318,7 +485,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
           </Button>
           <Button 
             onClick={handleSubmit}
-            disabled={!canProceed() || isSubmitting}
+            disabled={isSubmitting}
             className="w-[120px]"
           >
             {isSubmitting ? (

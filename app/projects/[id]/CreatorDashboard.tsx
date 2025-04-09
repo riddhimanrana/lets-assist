@@ -1,4 +1,7 @@
+import { createClient } from "@/utils/supabase/client";
+import { NotificationService } from "@/services/notifications";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 import {
   Card,
   CardContent,
@@ -6,7 +9,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Project, ProjectStatus } from "@/types";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Project } from "@/types";
 import { 
   Edit,
   Trash2,
@@ -14,9 +23,7 @@ import {
   Loader2,
   Users,
   FileEdit,
-  CheckCircle2,
   XCircle,
-  Clock,
   AlertTriangle
 } from "lucide-react";
 import { useState } from "react";
@@ -33,9 +40,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { canCancelProject } from "@/utils/project";
+import { canCancelProject, canDeleteProject } from "@/utils/project";
 import { CancelProjectDialog } from "@/components/CancelProjectDialog";
-// import { ProjectStatusBadge } from "@/components/ui/status-badge";
+import { differenceInHours } from "date-fns";
+import { getProjectStartDateTime, getProjectEndDateTime } from "@/utils/project";
 
 interface Props {
   project: Project;
@@ -46,24 +54,6 @@ export default function CreatorDashboard({ project }: Props) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
-  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
-
-  const handleUpdateStatus = async (newStatus: ProjectStatus) => {
-    setIsUpdatingStatus(true);
-    try {
-      const result = await updateProjectStatus(project.id, newStatus);
-      if (result.error) {
-        toast.error(result.error);
-      } else {
-        toast.success(`Project marked as ${newStatus}`);
-        router.refresh();
-      }
-    } catch (error) {
-      toast.error("Failed to update project status");
-    } finally {
-      setIsUpdatingStatus(false);
-    }
-  };
 
   const handleCancelProject = async (reason: string) => {
     try {
@@ -72,6 +62,30 @@ export default function CreatorDashboard({ project }: Props) {
         toast.error(result.error);
       } else {
         toast.success("Project cancelled successfully");
+        // Send cancellation notifications to all participants
+        try {
+          const supabase = createClient();
+          const { data: signups, error } = await supabase
+            .from('project_signups')
+            .select('user_id')
+            .eq('project_id', project.id);
+            if (!error && signups) {
+            for (const signup of signups) {
+              if (signup.user_id) {
+              await NotificationService.createNotification({
+                title: `Project Cancelled`,
+                body: `The project "${project.title}" which you signed up for has been cancelled.`,
+                type: 'project_updates',
+                actionUrl: `/projects/${project.id}`,
+                data: { projectId: project.id, signupId: signup.user_id },
+                severity: 'warning',
+              }, signup.user_id);
+              }
+            }
+            }
+        } catch (notifyError) {
+          console.error('Error sending cancellation notifications:', notifyError);
+        }
         setShowCancelDialog(false);
         router.refresh();
       }
@@ -81,6 +95,12 @@ export default function CreatorDashboard({ project }: Props) {
   };
 
   const handleDeleteProject = async () => {
+    if (!canDeleteProject(project)) {
+      toast.error("Projects cannot be deleted 24 hours before start until 48 hours after end");
+      setShowDeleteDialog(false);
+      return;
+    }
+
     setIsDeleting(true);
     try {
       const result = await deleteProject(project.id);
@@ -88,7 +108,7 @@ export default function CreatorDashboard({ project }: Props) {
         toast.error(result.error);
       } else {
         toast.success("Project deleted successfully");
-        router.push("/home"); // Redirect to home after deletion
+        router.push("/home");
       }
     } catch (error) {
       toast.error("Failed to delete project");
@@ -98,30 +118,36 @@ export default function CreatorDashboard({ project }: Props) {
     }
   };
 
+  const now = new Date();
+  const startDateTime = getProjectStartDateTime(project);
+  const endDateTime = getProjectEndDateTime(project);
+  const hoursUntilStart = differenceInHours(startDateTime, now);
+  const hoursAfterEnd = differenceInHours(now, endDateTime);
+  
+  const isInDeletionRestrictionPeriod = hoursUntilStart <= 24 && hoursAfterEnd <= 48;
+  const canDelete = canDeleteProject(project);
   const canCancel = canCancelProject(project);
-  const isCompleted = project.status === "completed";
   const isCancelled = project.status === "cancelled";
 
   return (
-    <div className="space-y-6 mb-4">
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-4 sm:space-y-6 mb-4 px-2 sm:px-0">
+      <Card className="overflow-hidden">
+        <CardHeader className="px-4 py-4 sm:py-6 sm:px-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4">
             <div className="space-y-1">
-              <CardTitle>Creator Dashboard</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-xl sm:text-2xl">Creator Dashboard</CardTitle>
+              <CardDescription className="text-sm sm:text-base">
                 Manage your project and track volunteer signups
               </CardDescription>
             </div>
-            {/* <ProjectStatusBadge status={project.status} /> */}
           </div>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex flex-wrap gap-3">
+        <CardContent className="space-y-4 px-4 sm:px-6">
+          <div className="grid grid-cols-1 sm:flex sm:flex-wrap gap-2 sm:gap-3">
             {/* Project Actions */}
             <Button
               variant="outline"
-              className="flex items-center gap-2"
+              className="w-full sm:w-auto flex items-center justify-center gap-2"
               onClick={() => router.push(`/projects/${project.id}/edit`)}
             >
               <Edit className="h-4 w-4" />
@@ -129,7 +155,7 @@ export default function CreatorDashboard({ project }: Props) {
             </Button>
             <Button
               variant="outline"
-              className="flex items-center gap-2"
+              className="w-full sm:w-auto flex items-center justify-center gap-2"
               onClick={() => router.push(`/projects/${project.id}/signups`)}
             >
               <Users className="h-4 w-4" />
@@ -137,61 +163,60 @@ export default function CreatorDashboard({ project }: Props) {
             </Button>
             <Button
               variant="outline"
-              className="flex items-center gap-2"
+              className="w-full sm:w-auto flex items-center justify-center gap-2"
               onClick={() => router.push(`/projects/${project.id}/documents`)}
             >
               <FileEdit className="h-4 w-4" />
               Manage Files
             </Button>
 
-            {/* Status Actions */}
-            {!isCompleted && !isCancelled && (
-              <Button
-                variant="default"
-                className="flex items-center gap-2"
-                onClick={() => handleUpdateStatus("completed")}
-              >
-                <CheckCircle2 className="h-4 w-4" />
-                Mark Complete
-              </Button>
-            )}
-
             {!isCancelled && (
               <Button
                 variant="destructive"
-                className="flex items-center gap-2"
+                className="w-full sm:w-auto flex items-center justify-center gap-2"
                 onClick={() => setShowCancelDialog(true)}
-                disabled={isUpdatingStatus || !canCancel}
+                disabled={!canCancel}
               >
                 <XCircle className="h-4 w-4" />
                 Cancel Project
               </Button>
             )}
 
-            {/* Delete Project */}
-            <Button
-              variant="destructive"
-              className="flex items-center gap-2"
-              onClick={() => setShowDeleteDialog(true)}
-              disabled={isDeleting}
-            >
-              {isDeleting ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Trash2 className="h-4 w-4" />
-              )}
-              Delete Project
-            </Button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="w-full sm:w-auto">
+                    <Button
+                      variant="destructive"
+                      className="w-full sm:w-auto flex items-center justify-center gap-2"
+                      onClick={() => setShowDeleteDialog(true)}
+                      disabled={isDeleting || !canDelete || isInDeletionRestrictionPeriod}
+                    >
+                      {isDeleting ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
+                      Delete Project
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                {isInDeletionRestrictionPeriod && (
+                  <TooltipContent className="max-w-[250px] text-center p-2">
+                    <p>Projects cannot be deleted during the 72-hour window around the event</p>
+                  </TooltipContent>
+                )}
+              </Tooltip>
+            </TooltipProvider>
           </div>
 
-          {/* Show either the cancellation warning or the general info, but not both */}
           {isCancelled ? (
-            <div className="flex items-start gap-2 rounded-md border border-destructive p-3 bg-destructive/10">
-              <AlertTriangle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
-              <div className="text-sm text-muted-foreground">
+            <div className="flex flex-col sm:flex-row items-start gap-2 rounded-md border border-destructive p-3 sm:p-4 bg-destructive/10">
+              <AlertTriangle className="h-5 w-5 text-destructive flex-shrink-0" />
+              <div className="text-sm text-muted-foreground space-y-2">
                 <p>
                   This project has been cancelled. You can still edit details and manage existing signups,
-                  but new signups are disabled.
+                  but new signups are disabled. If this was a mistake, please contact <Link className="text-chart-3" href="mailto:support@lets-assist.com">support@lets-assist.com</Link>
                 </p>
                 {project.cancellation_reason && (
                   <p className="mt-1">
@@ -201,14 +226,23 @@ export default function CreatorDashboard({ project }: Props) {
               </div>
             </div>
           ) : (
-            <div className="flex items-start gap-2 rounded-md border p-3 bg-muted/50">
-              <AlertCircle className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
-              <div className="text-sm text-muted-foreground">
-                <p>
+            <div className="flex flex-col sm:flex-row items-start gap-2 rounded-md border p-3 sm:p-4 bg-muted/50">
+              
+              <div className="text-sm text-muted-foreground space-y-2">
+              <AlertCircle className="h-5 w-5 mr-2 text-muted-foreground inline flex-shrink-0" />
+                <p className="inline">
                   As the project creator, you have full control over this project.
                   You can edit project details, manage volunteer signups, update
                   documents, and more.
                 </p>
+                {isInDeletionRestrictionPeriod && (
+                  <div className="mt-2 flex items-center text-chart-6">
+                    <AlertTriangle className="h-4 w-4 inline mr-2 flex-shrink-0" />
+                    <span className="inline">
+                      Project deletion is restricted during the 72-hour window around the event (24 hours before until 48 hours after).
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -217,20 +251,20 @@ export default function CreatorDashboard({ project }: Props) {
 
       {/* Delete Dialog */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>
+        <AlertDialogContent className="max-w-[95vw] sm:max-w-[425px]">
+          <AlertDialogHeader className="space-y-3">
+            <AlertDialogTitle className="text-lg sm:text-xl">Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription className="text-sm sm:text-base">
               This action cannot be undone. This will permanently delete your
               project and remove all data associated with it, including volunteer
               signups and documents.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2 sm:gap-3">
+            <AlertDialogCancel className="w-full sm:w-auto mt-0">Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteProject}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="w-full sm:w-auto bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {isDeleting ? (
                 <>

@@ -1,18 +1,69 @@
 "use client";
 
-import { useState } from "react";
-import { format } from "date-fns";
-import { EventType, VerificationMethod, LocationData } from "@/types";
+import { useReducer, Reducer } from 'react';
+import { EventType, VerificationMethod } from '@/types';
+
+// --- Helper Functions --- 
+
+// Helper to convert HH:MM time string to minutes since midnight
+const timeToMinutes = (timeStr: string): number => {
+  if (!timeStr || !timeStr.includes(':')) return -1; // Return invalid value if format is wrong
+  const [hours, minutes] = timeStr.split(':').map(Number);
+  if (isNaN(hours) || isNaN(minutes)) return -1;
+  return hours * 60 + minutes;
+};
+
+// Helper to convert minutes since midnight back to HH:MM string
+const minutesToTime = (minutes: number): string => {
+  if (minutes < 0 || minutes >= 24 * 60) return "00:00"; // Handle invalid input
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+};
+
+// Helper to calculate overall start/end times based on roles
+const calculateOverallTimes = (roles: EventFormState['schedule']['sameDayMultiArea']['roles']) => {
+  if (!roles || roles.length === 0) {
+    return { overallStart: '09:00', overallEnd: '17:00' }; // Default if no roles
+  }
+
+  let minStart = Infinity;
+  let maxEnd = -Infinity;
+
+  roles.forEach(role => {
+    const startMins = timeToMinutes(role.startTime);
+    const endMins = timeToMinutes(role.endTime);
+
+    if (startMins !== -1 && startMins < minStart) {
+      minStart = startMins;
+    }
+    if (endMins !== -1 && endMins > maxEnd) {
+      maxEnd = endMins;
+    }
+  });
+
+  // If no valid times found, return default
+  if (minStart === Infinity || maxEnd === -Infinity) {
+    return { overallStart: '09:00', overallEnd: '17:00' };
+  }
+
+  return {
+    overallStart: minutesToTime(minStart),
+    overallEnd: minutesToTime(maxEnd),
+  };
+};
+
+// --- State Interface and Action Types --- 
 
 export interface EventFormState {
   step: number;
   eventType: EventType;
   basicInfo: {
     title: string;
-    description: string;
     location: string;
-    locationData?: LocationData; // Add locationData field
-    organizationId: string | null; // Ensure this is string | null
+    locationData?: any;
+    description: string;
+    organizationId: string | null;
   };
   schedule: {
     oneTime: {
@@ -21,471 +72,433 @@ export interface EventFormState {
       endTime: string;
       volunteers: number;
     };
-    multiDay: Array<{
+    multiDay: {
       date: string;
-      slots: Array<{
+      slots: {
         startTime: string;
         endTime: string;
         volunteers: number;
-      }>;
-    }>;
+      }[];
+    }[];
     sameDayMultiArea: {
       date: string;
       overallStart: string;
       overallEnd: string;
-      roles: Array<{
+      roles: {
         name: string;
         startTime: string;
         endTime: string;
         volunteers: number;
-      }>;
+      }[];
     };
   };
   verificationMethod: VerificationMethod;
   requireLogin: boolean;
-  isPrivate: boolean; // Added property for project visibility
+  isPrivate: boolean;
 }
 
-export function useEventForm() {
-  const formatInitialDate = () => {
-    const today = new Date();
-    return format(today, "yyyy-MM-dd");
-  };
+type EventFormAction =
+  | { type: 'NEXT_STEP' }
+  | { type: 'PREV_STEP' }
+  | { type: 'SET_EVENT_TYPE'; payload: EventType }
+  | { type: 'UPDATE_BASIC_INFO'; payload: { field: string; value: any } }
+  | { type: 'UPDATE_ONE_TIME_SCHEDULE'; payload: { field: string; value: any } }
+  | {
+      type: 'UPDATE_MULTI_DAY_SCHEDULE';
+      payload: { dayIndex: number; field: string; value: any; slotIndex?: number };
+    }
+  | {
+      type: 'UPDATE_MULTI_ROLE_SCHEDULE';
+      payload: { field: string; value: any; roleIndex?: number };
+    }
+  | { type: 'ADD_MULTI_DAY_SLOT'; payload: { dayIndex: number } }
+  | { type: 'ADD_MULTI_DAY_EVENT' }
+  | { type: 'ADD_ROLE' }
+  | { type: 'UPDATE_VERIFICATION_METHOD'; payload: VerificationMethod }
+  | { type: 'UPDATE_REQUIRE_LOGIN'; payload: boolean }
+  | { type: 'UPDATE_IS_PRIVATE'; payload: boolean }
+  | { type: 'REMOVE_DAY'; payload: { dayIndex: number } }
+  | { type: 'REMOVE_SLOT'; payload: { dayIndex: number; slotIndex: number } }
+  | { type: 'REMOVE_ROLE'; payload: { roleIndex: number } };
 
-  const [state, setState] = useState<EventFormState>({
-    step: 1,
-    eventType: "oneTime",
-    verificationMethod: "qr-code", // Default to QR code method
-    requireLogin: true, // Default to requiring login
-    isPrivate: false, // Default to public
-    basicInfo: {
-      title: "",
-      location: "",
-      locationData: undefined, // Initialize locationData field
-      description: "",
-      organizationId: null, // Default to null (personal project)
+const defaultMultiRoleEvent = {
+  name: '',
+  startTime: '14:00',
+  endTime: '16:00',
+  volunteers: 2,
+};
+
+const defaultMultiDaySlot = {
+  startTime: '09:00',
+  endTime: '17:00',
+  volunteers: 2,
+};
+
+const initialState: EventFormState = {
+  step: 1,
+  eventType: 'oneTime',
+  basicInfo: {
+    title: '',
+    location: '',
+    locationData: undefined,
+    description: '',
+    organizationId: undefined as unknown as string | null,
+  },
+  schedule: {
+    oneTime: {
+      date: '',
+      startTime: '09:00',
+      endTime: '17:00',
+      volunteers: 2,
     },
-    schedule: {
-      oneTime: {
-        date: formatInitialDate(),
-        startTime: "09:00",
-        endTime: "17:00",
-        volunteers: 1,
+    multiDay: [
+      {
+        date: '',
+        slots: [
+          {
+            startTime: '09:00',
+            endTime: '17:00',
+            volunteers: 2,
+          },
+        ],
       },
-      multiDay: [
+    ],
+    sameDayMultiArea: {
+      date: '',
+      overallStart: '09:00',
+      overallEnd: '17:00',
+      roles: [
         {
-          date: formatInitialDate(),
-          slots: [
-            {
-              startTime: "09:00",
-              endTime: "17:00",
-              volunteers: 1,
-            },
-          ],
+          name: '',
+          startTime: '09:00',
+          endTime: '17:00',
+          volunteers: 2,
         },
       ],
-      sameDayMultiArea: {
-        date: formatInitialDate(),
-        overallStart: "09:00",
-        overallEnd: "17:00",
-        roles: [
-          {
-            name: "",
-            volunteers: 1,
-            startTime: "09:00",
-            endTime: "17:00",
-          },
-        ],
-      },
     },
-  });
+  },
+  verificationMethod: 'qr-code',
+  requireLogin: true,
+  isPrivate: false,
+};
 
-  const validateTimeRange = (startTime: string, endTime: string) => {
-    if (!startTime || !endTime) return true;
-    const [startHour, startMinute] = startTime.split(":").map(Number);
-    const [endHour, endMinute] = endTime.split(":").map(Number);
+const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
+  state,
+  action,
+) => {
+  switch (action.type) {
+    case 'NEXT_STEP':
+      return {
+        ...state,
+        step: state.step + 1,
+      };
+    case 'PREV_STEP':
+      return {
+        ...state,
+        step: state.step - 1,
+      };
+    case 'SET_EVENT_TYPE':
+      return {
+        ...state,
+        eventType: action.payload,
+      };
+    case 'UPDATE_BASIC_INFO':
+      return {
+        ...state,
+        basicInfo: {
+          ...state.basicInfo,
+          [action.payload.field]: action.payload.value,
+        },
+      };
+    case 'UPDATE_ONE_TIME_SCHEDULE':
+      return {
+        ...state,
+        schedule: {
+          ...state.schedule,
+          oneTime: {
+            ...state.schedule.oneTime,
+            [action.payload.field]: action.payload.value,
+          },
+        },
+      };
+    case 'UPDATE_MULTI_DAY_SCHEDULE': {
+      const { dayIndex, field, value, slotIndex } = action.payload;
+      const updatedMultiDay = [...state.schedule.multiDay];
 
-    if (endHour < startHour) return false;
-    if (endHour === startHour && endMinute <= startMinute) return false;
-    return true;
-  };
+      // Deep clone to avoid mutation
+      const updatedDay = { ...updatedMultiDay[dayIndex] };
 
-  const nextStep = () => {
-    if (state.step < 5 && canProceed()) {
-      setState((prev) => ({ ...prev, step: prev.step + 1 }));
+      if (slotIndex !== undefined) {
+        // Update a slot field
+        const updatedSlots = [...updatedDay.slots];
+        updatedSlots[slotIndex] = {
+          ...updatedSlots[slotIndex],
+          [field]: value,
+        };
+        updatedDay.slots = updatedSlots;
+      } else {
+        // Update a day field directly
+        updatedDay[field as keyof typeof updatedDay] = value;
+      }
+
+      updatedMultiDay[dayIndex] = updatedDay;
+
+      return {
+        ...state,
+        schedule: {
+          ...state.schedule,
+          multiDay: updatedMultiDay,
+        },
+      };
     }
-  };
+    case 'UPDATE_MULTI_ROLE_SCHEDULE': {
+      const { field, value, roleIndex } = action.payload;
+      let updatedRoles = [...state.schedule.sameDayMultiArea.roles];
+      let updatedSameDayMultiArea = { ...state.schedule.sameDayMultiArea };
 
-  const prevStep = () => {
-    if (state.step > 1) {
-      setState((prev) => ({ ...prev, step: prev.step - 1 }));
-    }
-  };
+      if (roleIndex !== undefined) {
+        // Update a specific role
+        updatedRoles[roleIndex] = {
+          ...updatedRoles[roleIndex],
+          [field]: value,
+        };
+        updatedSameDayMultiArea.roles = updatedRoles;
 
-  const setEventType = (type: EventType) => {
-    setState((prev) => ({ ...prev, eventType: type }));
-  };
-
-  const updateVerificationMethod = (method: VerificationMethod) => {
-    setState((prev) => ({ ...prev, verificationMethod: method }));
-  };
-
-  const updateRequireLogin = (requireLogin: boolean) => {
-    setState((prev) => ({ ...prev, requireLogin }));
-  };
-
-  const updateIsPrivate = (isPrivate: boolean) => {
-    setState((prev) => ({ ...prev, isPrivate }));
-  };
-
-  const updateBasicInfo = (
-    field: keyof EventFormState["basicInfo"],
-    value: any,
-  ) => {
-    setState((prev) => {
-      // Add character limit validation
-      if (
-        (field === "title" && value.length > 75) ||
-        (field === "location" && value.length > 250) ||
-        (field === "description" && value.length > 1000)
-      ) {
-        return prev;
+        // Recalculate overall times if a role's time changed
+        if (field === 'startTime' || field === 'endTime') {
+          const { overallStart, overallEnd } = calculateOverallTimes(updatedRoles);
+          updatedSameDayMultiArea.overallStart = overallStart;
+          updatedSameDayMultiArea.overallEnd = overallEnd;
+        }
+      } else {
+        // Update a day-level field (like overallStart, overallEnd, date)
+        updatedSameDayMultiArea = {
+          ...updatedSameDayMultiArea,
+          [field]: value,
+        };
       }
 
       return {
-        ...prev,
-        basicInfo: {
-          ...prev.basicInfo,
-          [field]: value,
-        },
-      };
-    });
-  };
-
-  const addMultiDaySlot = (dayIndex: number) => {
-    setState((prev) => {
-      const newMultiDay = [...prev.schedule.multiDay];
-      // Add only one new slot with default times
-      newMultiDay[dayIndex] = {
-        ...newMultiDay[dayIndex],
-        slots: [
-          ...newMultiDay[dayIndex].slots,
-          {
-            startTime: "09:00",
-            endTime: "17:00",
-            volunteers: 1,
-          },
-        ],
-      };
-      return {
-        ...prev,
+        ...state,
         schedule: {
-          ...prev.schedule,
-          multiDay: newMultiDay,
+          ...state.schedule,
+          sameDayMultiArea: updatedSameDayMultiArea,
         },
       };
-    });
-  };
+    }
+    case 'ADD_MULTI_DAY_SLOT': {
+      const { dayIndex } = action.payload;
+      const updatedMultiDay = [...state.schedule.multiDay];
+      // Deep clone day to avoid mutation
+      const updatedDay = { ...updatedMultiDay[dayIndex] };
+      // Add a new slot to this day
+      updatedDay.slots = [...updatedDay.slots, { ...defaultMultiDaySlot }];
+      // Update the day in the array
+      updatedMultiDay[dayIndex] = updatedDay;
 
-  const addMultiDayEvent = () => {
-    setState((prev) => ({
-      ...prev,
-      schedule: {
-        ...prev.schedule,
-        multiDay: [
-          ...prev.schedule.multiDay,
-          {
-            date: "",
-            slots: [
-              {
-                startTime: "",
-                endTime: "",
-                volunteers: 1,
-              },
-            ],
-          },
-        ],
-      },
-    }));
-  };
-
-  const addRole = () => {
-    setState((prev) => ({
-      ...prev,
-      schedule: {
-        ...prev.schedule,
-        sameDayMultiArea: {
-          ...prev.schedule.sameDayMultiArea,
-          roles: [
-            ...prev.schedule.sameDayMultiArea.roles,
+      return {
+        ...state,
+        schedule: {
+          ...state.schedule,
+          multiDay: updatedMultiDay,
+        },
+      };
+    }
+    case 'ADD_MULTI_DAY_EVENT': {
+      return {
+        ...state,
+        schedule: {
+          ...state.schedule,
+          multiDay: [
+            ...state.schedule.multiDay,
             {
-              name: "",
-              volunteers: 1,
-              startTime: "",
-              endTime: "",
+              date: '',
+              slots: [{ ...defaultMultiDaySlot }],
             },
           ],
         },
-      },
-    }));
-  };
-
-  const updateOneTimeSchedule = (
-    field: keyof EventFormState["schedule"]["oneTime"],
-    value: string | number,
-  ) => {
-    setState((prev) => {
-      const newSchedule = {
-        ...prev.schedule.oneTime,
-        [field]: value,
       };
-
-      // Validate time range
-      if (
-        (field === "startTime" || field === "endTime") &&
-        !validateTimeRange(newSchedule.startTime, newSchedule.endTime)
-      ) {
-        // If invalid, don't update
-        return prev;
-      }
+    }
+    case 'ADD_ROLE': {
+      const updatedRoles = [
+        ...state.schedule.sameDayMultiArea.roles,
+        { ...defaultMultiRoleEvent },
+      ];
+      // Recalculate overall times after adding a role
+      const { overallStart, overallEnd } = calculateOverallTimes(updatedRoles);
 
       return {
-        ...prev,
+        ...state,
         schedule: {
-          ...prev.schedule,
-          oneTime: newSchedule,
+          ...state.schedule,
+          sameDayMultiArea: {
+            ...state.schedule.sameDayMultiArea,
+            roles: updatedRoles,
+            overallStart, // Update overall times
+            overallEnd,   // Update overall times
+          },
         },
       };
-    });
-  };
+    }
+    case 'UPDATE_VERIFICATION_METHOD': {
+      return {
+        ...state,
+        verificationMethod: action.payload,
+      };
+    }
+    case 'UPDATE_REQUIRE_LOGIN': {
+      return {
+        ...state,
+        requireLogin: action.payload,
+      };
+    }
+    case 'UPDATE_IS_PRIVATE': {
+      return {
+        ...state,
+        isPrivate: action.payload,
+      };
+    }
+    case 'REMOVE_DAY': {
+      const { dayIndex } = action.payload;
+      // Make a copy of the multi-day array
+      const updatedMultiDay = [...state.schedule.multiDay];
+      // Remove the day at the specified index
+      updatedMultiDay.splice(dayIndex, 1);
+      
+      return {
+        ...state,
+        schedule: {
+          ...state.schedule,
+          multiDay: updatedMultiDay,
+        },
+      };
+    }
+    case 'REMOVE_SLOT': {
+      const { dayIndex, slotIndex } = action.payload;
+      // Make a deep copy to avoid mutations
+      const updatedMultiDay = [...state.schedule.multiDay];
+      const updatedDay = { ...updatedMultiDay[dayIndex] };
+      const updatedSlots = [...updatedDay.slots];
+      
+      // Remove the slot at the specified index
+      updatedSlots.splice(slotIndex, 1);
+      updatedDay.slots = updatedSlots;
+      updatedMultiDay[dayIndex] = updatedDay;
+      
+      return {
+        ...state,
+        schedule: {
+          ...state.schedule,
+          multiDay: updatedMultiDay,
+        },
+      };
+    }
+    case 'REMOVE_ROLE': {
+      const { roleIndex } = action.payload;
+      const updatedRoles = [...state.schedule.sameDayMultiArea.roles];
+      updatedRoles.splice(roleIndex, 1);
+      
+      // Recalculate overall times after removing a role
+      const { overallStart, overallEnd } = calculateOverallTimes(updatedRoles);
+      
+      return {
+        ...state,
+        schedule: {
+          ...state.schedule,
+          sameDayMultiArea: {
+            ...state.schedule.sameDayMultiArea,
+            roles: updatedRoles,
+            overallStart, // Update overall times
+            overallEnd,   // Update overall times
+          },
+        },
+      };
+    }
+    default:
+      return state;
+  }
+};
 
+// --- Hook Export --- 
+
+export const useEventForm = () => {
+  const [state, dispatch] = useReducer(eventFormReducer, initialState);
+
+  const nextStep = () => dispatch({ type: 'NEXT_STEP' });
+  const prevStep = () => dispatch({ type: 'PREV_STEP' });
+  
+  const setEventType = (eventType: EventType) =>
+    dispatch({ type: 'SET_EVENT_TYPE', payload: eventType });
+  
+  const updateBasicInfo = (field: string, value: any) =>
+    dispatch({ type: 'UPDATE_BASIC_INFO', payload: { field, value } });
+  
+  const updateOneTimeSchedule = (field: string, value: any) =>
+    dispatch({ type: 'UPDATE_ONE_TIME_SCHEDULE', payload: { field, value } });
+  
   const updateMultiDaySchedule = (
     dayIndex: number,
     field: string,
-    value: string,
+    value: any,
     slotIndex?: number,
-  ) => {
-    setState((prev) => {
-      const newMultiDay = [...prev.schedule.multiDay];
-
-      if (slotIndex !== undefined) {
-        const currentSlot = newMultiDay[dayIndex].slots[slotIndex];
-        const newSlot = {
-          ...currentSlot,
-          [field]: value,
-        };
-
-        // Validate time range for slots
-        if (
-          (field === "startTime" || field === "endTime") &&
-          !validateTimeRange(newSlot.startTime, newSlot.endTime)
-        ) {
-          return prev;
-        }
-
-        newMultiDay[dayIndex].slots[slotIndex] = newSlot;
-      } else {
-        newMultiDay[dayIndex] = {
-          ...newMultiDay[dayIndex],
-          [field]: value,
-        };
-      }
-
-      return {
-        ...prev,
-        schedule: {
-          ...prev.schedule,
-          multiDay: newMultiDay,
-        },
-      };
+  ) =>
+    dispatch({
+      type: 'UPDATE_MULTI_DAY_SCHEDULE',
+      payload: { dayIndex, field, value, slotIndex },
     });
-  };
-
+  
   const updateMultiRoleSchedule = (
     field: string,
-    value: string | number,
+    value: any,
     roleIndex?: number,
-  ) => {
-    setState((prev) => {
-      if (roleIndex !== undefined) {
-        const newRoles = [...prev.schedule.sameDayMultiArea.roles];
-        const currentRole = newRoles[roleIndex];
-
-        // Add character limit validation for role names
-        if (
-          field === "name" &&
-          typeof value === "string" &&
-          value.length > 75
-        ) {
-          return prev;
-        }
-
-        const newRole = {
-          ...currentRole,
-          [field]: value,
-        };
-
-        // Validate time range for roles
-        if (
-          (field === "startTime" || field === "endTime") &&
-          !validateTimeRange(newRole.startTime, newRole.endTime)
-        ) {
-          return prev;
-        }
-
-        newRoles[roleIndex] = newRole;
-        return {
-          ...prev,
-          schedule: {
-            ...prev.schedule,
-            sameDayMultiArea: {
-              ...prev.schedule.sameDayMultiArea,
-              roles: newRoles,
-            },
-          },
-        };
-      }
-
-      // Validate overall event time range
-      if (
-        (field === "overallStart" || field === "overallEnd") &&
-        !validateTimeRange(
-          field === "overallStart"
-            ? (value as string)
-            : prev.schedule.sameDayMultiArea.overallStart,
-          field === "overallEnd"
-            ? (value as string)
-            : prev.schedule.sameDayMultiArea.overallEnd,
-        )
-      ) {
-        return prev;
-      }
-
-      return {
-        ...prev,
-        schedule: {
-          ...prev.schedule,
-          sameDayMultiArea: {
-            ...prev.schedule.sameDayMultiArea,
-            [field]: value,
-          },
-        },
-      };
+  ) =>
+    dispatch({
+      type: 'UPDATE_MULTI_ROLE_SCHEDULE',
+      payload: { field, value, roleIndex },
     });
-  };
-
-  const removeDay = (dayIndex: number) => {
-    setState((prev) => ({
-      ...prev,
-      schedule: {
-        ...prev.schedule,
-        multiDay: prev.schedule.multiDay.filter(
-          (_, index) => index !== dayIndex,
-        ),
-      },
-    }));
-  };
-
-  const removeSlot = (dayIndex: number, slotIndex: number) => {
-    setState((prev) => {
-      const newMultiDay = [...prev.schedule.multiDay];
-      newMultiDay[dayIndex].slots = newMultiDay[dayIndex].slots.filter(
-        (_, index) => index !== slotIndex,
-      );
-      return {
-        ...prev,
-        schedule: {
-          ...prev.schedule,
-          multiDay: newMultiDay,
-        },
-      };
-    });
-  };
-
-  const removeRole = (roleIndex: number) => {
-    setState((prev) => ({
-      ...prev,
-      schedule: {
-        ...prev.schedule,
-        sameDayMultiArea: {
-          ...prev.schedule.sameDayMultiArea,
-          roles: prev.schedule.sameDayMultiArea.roles.filter(
-            (_, index) => index !== roleIndex,
-          ),
-        },
-      },
-    }));
-  };
-
-  const canProceed = () => {
-    switch (state.step) {
-      case 1:
-        return (
-          state.basicInfo.title.trim() !== "" &&
-          state.basicInfo.location.trim() !== "" &&
-          state.basicInfo.description.trim() !== ""
-        );
-      case 2:
-        return true; // Event type selection is always valid
-      case 3:
-        if (state.eventType === "oneTime") {
-          return (
-            state.schedule.oneTime.date &&
-            state.schedule.oneTime.startTime &&
-            state.schedule.oneTime.endTime &&
-            state.schedule.oneTime.volunteers > 0
-          );
-        }
-        if (state.eventType === "multiDay") {
-          return state.schedule.multiDay.every(
-            (day) =>
-              day.date &&
-              day.slots.every(
-                (slot) => slot.startTime && slot.endTime && slot.volunteers > 0,
-              ),
-          );
-        }
-        if (state.eventType === "sameDayMultiArea") {
-          return (
-            state.schedule.sameDayMultiArea.date &&
-            state.schedule.sameDayMultiArea.overallStart &&
-            state.schedule.sameDayMultiArea.overallEnd &&
-            state.schedule.sameDayMultiArea.roles.every(
-              (role) =>
-                role.name &&
-                role.startTime &&
-                role.endTime &&
-                role.volunteers > 0,
-            )
-          );
-        }
-        return false;
-      case 4:
-        // Require a verification method to be selected
-        return !!state.verificationMethod;
-      default:
-        return true;
-    }
-  };
+  
+  const addMultiDaySlot = (dayIndex: number) =>
+    dispatch({ type: 'ADD_MULTI_DAY_SLOT', payload: { dayIndex } });
+  
+  const addMultiDayEvent = () => dispatch({ type: 'ADD_MULTI_DAY_EVENT' });
+  
+  const addRole = () => dispatch({ type: 'ADD_ROLE' });
+  
+  const updateVerificationMethod = (method: VerificationMethod) =>
+    dispatch({ type: 'UPDATE_VERIFICATION_METHOD', payload: method });
+  
+  const updateRequireLogin = (requireLogin: boolean) =>
+    dispatch({ type: 'UPDATE_REQUIRE_LOGIN', payload: requireLogin });
+  
+  const updateIsPrivate = (isPrivate: boolean) =>
+    dispatch({ type: 'UPDATE_IS_PRIVATE', payload: isPrivate });
+  
+  const removeDay = (dayIndex: number) =>
+    dispatch({ type: 'REMOVE_DAY', payload: { dayIndex } });
+  
+  const removeSlot = (dayIndex: number, slotIndex: number) =>
+    dispatch({ type: 'REMOVE_SLOT', payload: { dayIndex, slotIndex } });
+  
+  const removeRole = (roleIndex: number) =>
+    dispatch({ type: 'REMOVE_ROLE', payload: { roleIndex } });
 
   return {
     state,
     nextStep,
     prevStep,
     setEventType,
-    updateVerificationMethod,
-    updateRequireLogin,
-    updateIsPrivate, // Added function to update project visibility
     updateBasicInfo,
-    addMultiDaySlot,
-    addMultiDayEvent,
-    addRole,
     updateOneTimeSchedule,
     updateMultiDaySchedule,
     updateMultiRoleSchedule,
+    addMultiDaySlot,
+    addMultiDayEvent,
+    addRole,
+    updateVerificationMethod,
+    updateRequireLogin,
+    updateIsPrivate,
     removeDay,
     removeSlot,
     removeRole,
-    canProceed,
   };
-}
+};

@@ -13,7 +13,8 @@ import { AlertCircle, AlertTriangle, CircleCheck } from "lucide-react";
 
 type NotificationSettings = {
   email_notifications: boolean;
-  login_reminders: boolean;
+  project_updates: boolean;
+  general: boolean;
 };
 
 type Notification = {
@@ -55,15 +56,15 @@ export function NotificationsClient() {
         const { data, error } = await supabase
           .from("notification_settings")
           .select("*")
-          .single();
+          .eq("user_id", (await supabase.auth.getUser()).data.user?.id);
 
         if (error) {
           console.error("Error loading notification settings:", error);
           return;
         }
 
-        setSettings(data);
-        setOriginalSettings(data);
+        setSettings(data[0]);
+        setOriginalSettings(data[0]);
       } catch (error) {
         console.error("Failed to load notification settings", error);
       } finally {
@@ -133,7 +134,7 @@ export function NotificationsClient() {
     originalSettings &&
     settings &&
     (settings.email_notifications !== originalSettings.email_notifications ||
-      settings.login_reminders !== originalSettings.login_reminders);
+      settings.project_updates !== originalSettings.project_updates);
 
   return (
     <motion.div
@@ -152,7 +153,7 @@ export function NotificationsClient() {
         </div>
 
         <Card className="border shadow-sm">
-          <CardHeader className="px-5 py-4 sm:px-6">
+          <CardHeader className="px-5 py-5 sm:px-6">
             <CardTitle className="text-xl">Notification Preferences</CardTitle>
             <CardDescription>
               Choose which notifications you&apos;d like to receive
@@ -172,7 +173,7 @@ export function NotificationsClient() {
             ) : (
               <div className="space-y-6">
                 <div className="space-y-5">
-                  <div className="flex items-center justify-between bg-muted/30 p-3 rounded-md">
+                  <div className="flex items-center justify-between border p-4 rounded-md">
                     <div className="space-y-0.5">
                       <Label htmlFor="email-notifications" className="text-base">
                         Email Notifications
@@ -188,19 +189,35 @@ export function NotificationsClient() {
                     />
                   </div>
                   
-                  <div className="flex items-center justify-between bg-muted/30 p-3 rounded-md">
+                  <div className="flex items-center justify-between border p-4 rounded-md">
                     <div className="space-y-0.5">
-                      <Label htmlFor="login-reminders" className="text-base">
-                        Login Reminders
+                      <Label htmlFor="project-updates" className="text-base">
+                        Project Updates
                       </Label>
                       <p className="text-sm text-muted-foreground">
-                        Receive helpful reminders about account setup when you log in
+                        Receive helpful notifications about project updates and changes (may also send over email)
                       </p>
                     </div>
                     <Switch
-                      id="login-reminders"
-                      checked={settings.login_reminders}
-                      onCheckedChange={(checked) => handleChange("login_reminders", checked)}
+                      id="project-updates"
+                      checked={settings.project_updates}
+                      onCheckedChange={(checked) => handleChange("project_updates", checked)}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between border p-4 rounded-md">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="general" className="text-base">
+                        General
+                      </Label>
+                      <p className="text-sm text-muted-foreground">
+                        General system notifications about login items and other such stuff.
+                      </p>
+                    </div>
+                    <Switch
+                      id="general"
+                      checked={settings.general}
+                      onCheckedChange={(checked) => handleChange("general", checked)}
                     />
                   </div>
                 </div>
