@@ -18,17 +18,27 @@ export const metadata: Metadata = {
   description: "Your email has been successfully verified.",
 };
 
+// Define the PageProps type that follows Next.js App Router standards
+type VerificationSearchParams = {
+  type?: string;
+  token?: string;
+  error_description?: string;
+  error?: string;
+};
+
+type PageProps = {
+  searchParams: Promise<VerificationSearchParams>;
+};
+
 export default async function VerificationSuccessPage({
   searchParams,
-}: {
-  searchParams: { type?: string; token?: string; error_description?: string; error?: string };
-}) {
-  // Get the search parameters
-  const search = await searchParams;
-  const type = search.type || "";
-  const token = search.token; // Extract token if present
-  const errorDescription = search.error_description;
-  const errorCode = search.error;
+}: PageProps) {
+  // Await the search parameters to resolve the promise
+  const resolvedSearchParams = await searchParams;
+  const type = resolvedSearchParams.type || "";
+  const token = resolvedSearchParams.token; // Extract token if present
+  const errorDescription = resolvedSearchParams.error_description;
+  const errorCode = resolvedSearchParams.error;
   
   // Error variables
   let hasError = false;

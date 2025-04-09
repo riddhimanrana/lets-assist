@@ -7,14 +7,16 @@ export const metadata: Metadata = {
   description: "Set a new password for your Let's Assist account.",
 };
 
+type Props = {
+  params: Promise<{ token: string }>;
+};
+
 export default async function ResetPasswordTokenPage({
   params,
-}: {
-  params: { token: string };
-}) {
+}: Props) {
   // Await params before accessing token
   const awaitedParams = await params;
-  const token = awaitedParams.token;
+  const { token } = awaitedParams;
 
   // No session check or token validation here
   // Token will be validated during password update

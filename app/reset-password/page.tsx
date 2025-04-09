@@ -8,11 +8,14 @@ export const metadata: Metadata = {
   description: "Reset your Let's Assist password.",
 };
 
+
+type Props = {
+  searchParams: Promise<{ token?: string; error?: string }>;
+};
+
 export default async function ResetPasswordPage({
   searchParams,
-}: {
-  searchParams: { token?: string; error?: string };
-}) {
+}: Props) {
   const supabase = await createClient();
 
   // If user is authenticated, sign them out
