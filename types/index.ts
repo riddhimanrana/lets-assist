@@ -1,6 +1,6 @@
 export type EventType = "oneTime" | "multiDay" | "sameDayMultiArea";
 export type VerificationMethod = "qr-code" | "auto" | "manual";
-export type SignupStatus = "confirmed" | "cancelled";
+export type SignupStatus = "approved" | "rejected" | "pending";
 
 // New location type to support coordinates
 export interface LocationData {

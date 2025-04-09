@@ -294,7 +294,7 @@ export default function ProjectDetails({ project, creator, organization, initial
         .eq("project_id", project.id)
         .eq("schedule_id", scheduleId)
         .eq("user_id", user.id)
-        .eq("status", "confirmed")
+        .eq("status", "approved")
         .single();
 
       if (!signups?.id) {

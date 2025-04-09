@@ -109,7 +109,7 @@ export default async function UserProjects() {
       )
     `)
     .eq("user_id", user.id)
-    .not("status", "eq", "cancelled")
+    .not("status", "eq", "rejected")
     .order("created_at", { ascending: false });
 
   if (signupsError) {
@@ -405,7 +405,7 @@ export default async function UserProjects() {
                       <CardHeader className="p-4 pb-0 space-y-1.5">
                         <div className="flex justify-between items-start gap-2">
                           <Badge variant="outline" className="text-xs">
-                            {(project.project_signups || []).filter((s: any) => s.status === "confirmed").length} volunteers
+                            {(project.project_signups || []).filter((s: any) => s.status === "approved").length} volunteers
                           </Badge>
                           <Badge variant="outline" className="text-xs">{formatDateDisplay(project)}</Badge>
                         </div>
@@ -446,7 +446,7 @@ export default async function UserProjects() {
                         <CardHeader className="p-4 pb-0 space-y-1.5">
                           <div className="flex justify-between items-start gap-2">
                             <Badge variant="outline" className="text-xs">
-                              {(project.project_signups || []).filter((s: any) => s.status === "confirmed").length} volunteers
+                              {(project.project_signups || []).filter((s: any) => s.status === "approved").length} volunteers
                             </Badge>
                             <Badge variant="outline" className="text-xs">{formatDateDisplay(project)}</Badge>
                           </div>
@@ -499,7 +499,7 @@ export default async function UserProjects() {
                           </div>
                           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                             <Users className="h-3 w-3" />
-                            <span>{(project.project_signups || []).filter((s: any) => s.status === "confirmed").length} volunteers participated</span>
+                            <span>{(project.project_signups || []).filter((s: any) => s.status === "approved").length} volunteers participated</span>
                           </div>
                         </CardContent>
                         <CardFooter className="p-4 pt-3">

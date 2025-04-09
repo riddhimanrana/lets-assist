@@ -48,7 +48,7 @@ interface Props {
 type Signup = {
   id: string;
   created_at: string;
-  status: "pending" | "cancelled";
+  status: "pending" | "rejected" | "approved";
   user_id: string | null;
   anonymous_name: string | null;
   anonymous_email: string | null;
@@ -131,7 +131,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
       <h1>Approved Volunteers - ${project?.title || 'Project'}</h1>
       <div>Printed: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</div>
       ${Object.entries(filteredSignupsBySlot).map(([slot, slotSignups]) => {
-        const approved = slotSignups.filter(s => s.status !== 'cancelled');
+        const approved = slotSignups.filter(s => s.status !== "rejected");
         return approved.length > 0 ? `
         <div class="schedule-slot">
           <h2>${project && formatScheduleSlot(project, slot)}</h2>
@@ -152,7 +152,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
         </div>
         ` : '';
       }).join('')}
-      ${Object.entries(filteredSignupsBySlot).every(([_, slotSignups]) => slotSignups.filter(s => s.status !== 'cancelled').length === 0) ? '<p>No approved volunteers found.</p>' : ''}
+      ${Object.entries(filteredSignupsBySlot).every(([_, slotSignups]) => slotSignups.filter(s => s.status !== 'rejected').length === 0) ? '<p>No approved volunteers found.</p>' : ''}
       </div>
     `;
 
@@ -208,8 +208,8 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
         
         if (sort.field === "status") {
           // Sort logic: 'confirmed' (Approved) comes before 'cancelled' (Rejected) in asc order
-          const statusA = a.status === 'cancelled' ? 1 : 0; // 0 for Approved, 1 for Rejected
-          const statusB = b.status === 'cancelled' ? 1 : 0;
+          const statusA = a.status === 'rejected' ? 1 : 0; // 0 for Approved, 1 for Rejected
+          const statusB = b.status === 'rejected' ? 1 : 0;
           return (statusA - statusB) * direction;
         }
         
@@ -277,6 +277,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
 
     if (error) {
       console.error("Error loading signups:", error);
+      console.log(error)
       toast.error("Failed to load signups");
     } else {
       setSignups(data as unknown as Signup[]);
@@ -289,7 +290,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
     setRefreshing(false);
   };
 
-  const updateSignupStatus = async (signupId: string, status: "cancelled") => {
+  const updateSignupStatus = async (signupId: string, status: "rejected") => {
     try {
       setProcessingSignups(prev => ({ ...prev, [signupId]: true }));
       const supabase = createClient();
@@ -445,7 +446,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
   };
 
   const getStatusBadge = (status: string) => {
-    if (status === "cancelled") {
+    if (status === "rejected") {
       return (
         <Badge variant="destructive" className="gap-1">
           <XCircle className="h-4 w-4" />
@@ -636,10 +637,10 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
                     <Button
                       variant="destructive"
                       size="sm"
-                      onClick={() => updateSignupStatus(signup.id, "cancelled")}
-                      disabled={signup.status === "cancelled" || processingSignups[signup.id]}
+                      onClick={() => updateSignupStatus(signup.id, "rejected")}
+                      disabled={signup.status === "rejected" || processingSignups[signup.id]}
                     >
-                      {signup.status === "cancelled" ? (
+                      {signup.status === "rejected" ? (
                         "Rejected"
                       ) : processingSignups[signup.id] ? (
                         <>

@@ -157,7 +157,7 @@ async function getCurrentSignups(projectId: string, scheduleId: string): Promise
     .select("*", { count: 'exact', head: true })
     .eq("project_id", projectId)
     .eq("schedule_id", scheduleId)
-    .eq("status", "confirmed");
+    .eq("status", "approved");
     
   return count || 0;
 }
@@ -257,7 +257,7 @@ export async function signUpForProject(
         .eq("project_id", projectId)
         .eq("schedule_id", scheduleId)
         .eq("user_id", user.id)
-        .eq("status", "confirmed")
+        .eq("status", "approved")
         .maybeSingle();
 
       if (existingSignup) {
@@ -270,7 +270,7 @@ export async function signUpForProject(
       project_id: projectId,
       schedule_id: scheduleId,
       user_id: user?.id,
-      status: "confirmed",
+      status: "approved",
       ...(anonymousData && {
         anonymous_name: anonymousData.name,
         anonymous_email: anonymousData.email,
@@ -394,7 +394,7 @@ export async function cancelSignup(signupId: string) {
     // Update signup status
     const { error: updateError } = await supabase
       .from("project_signups")
-      .update({ status: "cancelled" as SignupStatus })
+      .update({ status: "rejected" as SignupStatus })
       .eq("id", signupId);
       
     if (updateError) {

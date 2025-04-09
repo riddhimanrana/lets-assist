@@ -80,7 +80,7 @@ export async function getActiveProjects(
       project_id,
       schedule_id
     `)
-    .eq("status", "confirmed")
+    .eq("status", "approved")
     .in("project_id", projects.map(p => p.id));
 
   // Process projects and add signup counts

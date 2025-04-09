@@ -31,7 +31,7 @@ async function getSlotData(projectId: string): Promise<SlotData> {
     .from("project_signups")
     .select("schedule_id, user_id")
     .eq("project_id", projectId)
-    .eq("status", "confirmed") as { data: ProjectSignup[] | null };
+    .eq("status", "approved") as { data: ProjectSignup[] | null };
   
   // Get project to calculate capacities
   const { data: project } = await supabase
