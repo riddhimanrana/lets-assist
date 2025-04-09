@@ -490,7 +490,11 @@ export default function ProjectDetails({ project, creator, organization, initial
                           variant={hasSignedUp["oneTime"] ? "secondary" : "default"}
                           size="sm"
                           onClick={() => handleSignUpClick("oneTime")}
-                          disabled={isCreator || loadingStates["oneTime"] || calculatedStatus === "cancelled" || (!hasSignedUp["oneTime"] && (remainingSlots["oneTime"] === 0))}
+                          disabled={isCreator || loadingStates["oneTime"] || 
+                            calculatedStatus === "cancelled" || 
+                            calculatedStatus === "completed" || 
+                            calculatedStatus === "in-progress" || 
+                            (!hasSignedUp["oneTime"] && (remainingSlots["oneTime"] === 0))}
                           className="flex-shrink-0 gap-2"
                         >
                           {isCreator ? (
@@ -577,7 +581,11 @@ export default function ProjectDetails({ project, creator, organization, initial
                                       variant={hasSignedUp[scheduleId] ? "secondary" : "default"}
                                       size="sm"
                                       onClick={() => handleSignUpClick(scheduleId)}
-                                      disabled={isCreator || loadingStates[scheduleId] || calculatedStatus === "cancelled" || (!hasSignedUp[scheduleId] && (remainingSlots[scheduleId] === 0))}
+                                      disabled={isCreator || loadingStates[scheduleId] || 
+                                        calculatedStatus === "cancelled" || 
+                                        calculatedStatus === "completed" || 
+                                        calculatedStatus === "in-progress" || 
+                                        (!hasSignedUp[scheduleId] && (remainingSlots[scheduleId] === 0))}
                                       className="flex-shrink-0 gap-2"
                                     >
                                       {isCreator ? (
@@ -648,7 +656,11 @@ export default function ProjectDetails({ project, creator, organization, initial
                                   variant={hasSignedUp[role.name] ? "secondary" : "default"}
                                   size="sm"
                                   onClick={() => handleSignUpClick(role.name)}
-                                  disabled={isCreator || loadingStates[role.name] || project.status === "cancelled" || (!hasSignedUp[role.name] && (remainingSlots[role.name] === 0))}
+                                  disabled={isCreator || loadingStates[role.name] || 
+                                    calculatedStatus === "cancelled" || 
+                                    calculatedStatus === "completed" || 
+                                    calculatedStatus === "in-progress" || 
+                                    (!hasSignedUp[role.name] && (remainingSlots[role.name] === 0))}
                                   className="flex-shrink-0 gap-2"
                                 >
                                   {isCreator ? (
