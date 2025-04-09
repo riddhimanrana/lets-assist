@@ -42,7 +42,8 @@ import {
   AlertTriangle,
   Building2,
   BadgeCheck,
-  XCircle
+  XCircle,
+  Mail
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -923,6 +924,32 @@ export default function ProjectDetails({ project, creator, organization, initial
                     )}
                   </div>
                 </div>
+
+                {/* Contact Information */}
+                {creator?.email && (
+                  <div>
+                  <h3 className="text-sm font-medium text-muted-foreground mb-2">
+                    Contact Information
+                  </h3>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-1 text-sm">
+                    <span>{creator.email}</span>
+                    </div>
+                    <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      window.location.href = `mailto:${creator.email}?subject=Regarding project: ${project.title}`;
+                      toast.success("Opening email client");
+                    }}
+                    className="mt-1 flex items-center gap-2"
+                    >
+                    <Mail className="h-4 w-4" />
+                    Contact Project Coordinator
+                    </Button>
+                  </div>
+                  </div>
+                )}
 
                 {/* Sign-up Requirements */}
                 <div>
