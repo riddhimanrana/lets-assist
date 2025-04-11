@@ -4,11 +4,143 @@ import { createClient } from "@/utils/supabase/server";
 import { canCancelProject, getProjectStatus, isProjectVisible } from "@/utils/project";
 import { revalidatePath } from "next/cache";
 import { ProjectStatus } from "@/types";
-import { type Profile, type Project } from "@/types";
+// Make sure AnonymousSignup is imported from the correct types definition
+import { type Profile, type Project, type AnonymousSignupData, type ProjectSignup, type SignupStatus, type AnonymousSignup } from "@/types";
 import { cookies } from "next/headers";
+// Import crypto for token generation
+import crypto from 'crypto';
+// Import Resend
+import { Resend } from 'resend';
+// Remove the import for the email template component
+// import AnonymousSignupConfirmationEmail from '@/emails/AnonymousSignupConfirmationEmail';
 
-import { type AnonymousSignupData, type ProjectSignup, type SignupStatus } from "@/types";
 import { NotificationService } from "@/services/notifications";
+
+// Instantiate Resend with your API key
+const resend = new Resend(process.env.RESEND_API_KEY);
+// Define your site URL (replace with environment variable ideally)
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+
+// Function to generate the HTML email content
+const generateConfirmationEmailHtml = (
+  confirmationUrl: string,
+  projectName: string,
+  userName: string
+): string => {
+  return `
+  <!DOCTYPE html>
+  <html lang="en">
+  <head>
+      <meta charset="UTF-8">
+      <title>Confirm Your Signup</title>
+      <style>
+          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+          * {
+              margin: 0;
+              padding: 0;
+              font-family: 'Inter', 'Arial', sans-serif;
+          }
+          body {
+              background-color: #f9f9f9;
+              color: #333;
+              line-height: 1.6;
+          }
+          .email-container {
+              background-color: #ffffff;
+              overflow: hidden;
+          }
+          .email-body {
+              padding: 32px 24px;
+              background-color: #ffffff;
+          }
+          h1 {
+              color: #222;
+              font-size: 28px;
+              font-weight: 700;
+              margin-bottom: 20px;
+              letter-spacing: -0.02em;
+          }
+          p {
+              color: #555;
+              font-size: 16px;
+              margin-bottom: 20px;
+          }
+          .confirm-button {
+              display: inline-block;
+              background-color: #16a34a;
+              color: #fff !important;
+              text-decoration: none;
+              padding: 12px 32px;
+              border-radius: 6px;
+              font-weight: 600;
+              font-size: 14px;
+              margin: 24px 0;
+              transition: background-color 0.2s ease;
+              box-shadow: 0 4px 8px rgba(22, 163, 74, 0.15);
+              text-align: center;
+          }
+          .confirm-button:hover {
+              background-color: #15803d;
+          }
+          .email-footer {
+              padding: 20px 24px;
+              text-align: center;
+              font-size: 14px;
+              color: #777;
+              background-color: #f9fafb;
+              border-top: 1px solid #f0f0f0;
+          }
+          .help-text {
+              font-size: 14px;
+              color: #777;
+          }
+          .alternative-link {
+              word-break: break-all;
+              color: #16a34a;
+              text-decoration: none;
+              font-weight: 500;
+              font-size: 13px;
+          }
+          .getting-started {
+              margin-top: 28px;
+              padding-top: 16px;
+              border-top: 1px solid #f0f0f0;
+              font-size: 15px;
+          }
+      </style>
+  </head>
+  <body>
+      <div class="email-container">
+          <div class="email-body">
+              <h1>You're Almost In!</h1>
+              <p>Hi ${userName},</p>
+              <p>Thanks for signing up to volunteer for <strong>${projectName}</strong>! Please confirm your email address to complete your signup.</p>
+              
+              <div style="text-align: center;">
+                  <a href="${confirmationUrl}" class="confirm-button">Confirm Your Signup</a>
+              </div>
+              
+              <p class="help-text">Having trouble with the button? You can also use this link:</p>
+              <p><a href="${confirmationUrl}" style="color:#16a34a" class="alternative-link">${confirmationUrl}</a></p>
+              
+              <div class="getting-started">
+                  <p>If you did not sign up for this project on Let's Assist, you can safely ignore this email.</p>
+              </div>
+          </div>
+          <div class="email-footer">
+              <p>&copy; ${new Date().getFullYear()} Let&apos;s Assist, LLC. All rights reserved.</p>
+              <p>Questions? Contact us at <a href="mailto:support@lets-assist.com" style="color: #16a34a; font-weight: 500;">support@lets-assist.com</a></p>
+          </div>
+      </div>
+  </body>
+  </html>
+  `;
+};
+
+
+
+// ...existing code...
 
 export async function isProjectCreator(projectId: string) {
   try {
@@ -201,10 +333,11 @@ export async function signUpForProject(
   anonymousData?: AnonymousSignupData
 ) {
   const supabase = await createClient();
+  const isAnonymous = !!anonymousData;
 
   try {
-    console.log("Starting signup process:", { projectId, scheduleId });
-    
+    console.log("Starting signup process:", { projectId, scheduleId, isAnonymous });
+
     // Get project details
     const { project, error: projectError } = await getProject(projectId);
 
@@ -233,10 +366,10 @@ export async function signUpForProject(
       return { error: "Invalid schedule slot" };
     }
 
-    // Check if slot is full
+    // Check if slot is full (only count 'approved' signups towards capacity)
     const currentSignups = await getCurrentSignups(projectId, scheduleId);
     console.log("Current signups:", { currentSignups, maxVolunteers: slotDetails.volunteers });
-    
+
     if (currentSignups >= slotDetails.volunteers) {
       return { error: "This slot is full" };
     }
@@ -249,46 +382,236 @@ export async function signUpForProject(
       return { error: "You must be logged in to sign up for this project" };
     }
 
-    // Check for existing signup
-    if (user) {
-      const { data: existingSignup } = await supabase
-        .from("project_signups")
-        .select("id")
-        .eq("project_id", projectId)
-        .eq("schedule_id", scheduleId)
-        .eq("user_id", user.id)
-        .eq("status", "approved")
+    // --- Check for existing signups ---
+    if (user) { // Logged-in user check
+      try {
+        // First, check if user was previously rejected for this project
+        const { data: previousRejection } = await supabase
+          .from("project_signups")
+          .select("id")
+          .eq("project_id", projectId)
+          .eq("schedule_id", scheduleId)
+          .eq("user_id", user.id)
+          .eq("status", "rejected")
+          .maybeSingle();
+          
+        if (previousRejection) {
+          return { error: "You have been rejected for this project and cannot sign up again." };
+        }
+        
+        const { data: existingSignup } = await supabase
+          .from("project_signups")
+          .select("id")
+          .eq("project_id", projectId)
+          .eq("schedule_id", scheduleId)
+          .eq("user_id", user.id)
+          .in("status", ["approved", "pending"]) // Check for approved or pending
+          .maybeSingle();
+
+        if (existingSignup) {
+          return { error: "You have already signed up for this slot" };
+        }
+
+        // Create project signup record for logged-in user (status 'approved')
+        const signupData: Omit<ProjectSignup, "id" | "created_at"> = {
+          project_id: projectId,
+          schedule_id: scheduleId,
+          user_id: user.id,
+          status: "approved", // Logged-in users are approved by default
+          anonymous_id: null,
+        };
+
+        const { error: signupError } = await supabase
+          .from("project_signups")
+          .insert(signupData);
+
+        if (signupError) {
+          console.error("Error creating signup for registered user:", signupError);
+          return { error: "Failed to sign up. Please try again." };
+        }
+        
+        // Explicitly log success for debugging
+        console.log("Successfully created signup for registered user:", {
+          userId: user.id,
+          projectId,
+          scheduleId
+        });
+
+      } catch (error) {
+        console.error("Error in user signup process:", error);
+        return { error: "An error occurred during signup" };
+      }
+    } else if (isAnonymous && anonymousData) { // Anonymous user check
+      // First, check if a registered Let's Assist account exists with this email
+      const { data: existingProfile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, email')
+        .eq('email', anonymousData.email?.toLowerCase())
         .maybeSingle();
 
-      if (existingSignup) {
-        return { error: "You have already signed up for this slot" };
+      if (existingProfile) {
+        return { error: "This email is associated with an existing Let's Assist account. Please log in to sign up for this project." };
       }
+      if (profileError) {
+        console.error("Error checking for existing profile:", profileError);
+        return { error: "An error occurred while checking email availability." };
+      }
+
+      // Check for an existing anonymous signup for this specific slot with this email for any status
+      const emailToCheck = (anonymousData.email ?? "").toLowerCase();
+console.log("Checking for existing anonymous signup with email:", emailToCheck);
+
+      // Attempt to retrieve an existing anonymous signup record for the project and email
+      const { data: existingAnonSignup } = await supabase
+        .from('project_signups')
+        .select('id, status, anonymous_signup:anonymous_signups!project_signups_anonymous_id_fkey(id, email)')
+        .eq('project_id', projectId)
+        .eq('schedule_id', scheduleId)
+        .not('anonymous_id', 'is', null)
+        .eq('anonymous_signup.email', emailToCheck)
+        .limit(1)
+        .maybeSingle();
+      
+      const signupStatus = existingAnonSignup?.status;
+      
+      if (signupStatus) {
+        if (signupStatus === "pending") {
+          return { error: "An unconfirmed signup with this email already exists for this slot. Please check your email." };
+        } else if (signupStatus === "approved") {
+          return { error: "This email has already signed up and confirmed for this slot." };
+        } else if (signupStatus === "rejected") {
+          return { error: "This email has been rejected by the project coordinator. Contact them for more details." };
+        }
+      }
+
+      // Proceed to create new anonymous signup records
+      let anonymousSignupId: string | null = null;
+      let confirmationToken: string | null = null;
+
+      // Check if a registered account exists with this email using listUsers
+      const { data: userResponse, error: listUsersError } = await supabase.auth.admin.listUsers();
+      const registeredUser = userResponse?.users?.find((u) => u.email === (anonymousData.email || "")) || null;
+      if (registeredUser) {
+        return { error: "This email is associated with an existing Let's Assist account. Please log in to sign up." };
+      }
+
+      confirmationToken = crypto.randomUUID();
+      const anonSignupData: Omit<AnonymousSignup, "id" | "created_at" | "signup_id" | "confirmed_at"> = {
+        project_id: projectId,
+        email: anonymousData.email ?? "",
+        name: anonymousData.name,
+        phone_number: anonymousData.phone || null,
+        token: confirmationToken,
+      };
+
+      console.log("Inserting anonSignupData:", anonSignupData);
+      const { data: insertedAnonSignup, error: anonInsertError } = await supabase
+        .from("anonymous_signups")
+        .insert(anonSignupData)
+        .select("id")
+        .single();
+
+      if (anonInsertError || !insertedAnonSignup) {
+        console.error("Error creating anonymous signup record:", anonInsertError);
+        return { error: "Failed to initiate anonymous signup. Please try again." };
+      }
+      anonymousSignupId = insertedAnonSignup.id;
+      console.log("Anonymous Signup ID:", anonymousSignupId);
+
+      const projectSignupData: Omit<ProjectSignup, "id" | "created_at"> = {
+        project_id: projectId,
+        schedule_id: scheduleId,
+        user_id: null,
+        status: "pending", // Anonymous signups start as pending
+        anonymous_id: anonymousSignupId,
+      };
+
+      const { data: insertedProjectSignup, error: projectSignupInsertError } = await supabase
+        .from("project_signups")
+        .insert(projectSignupData)
+        .select("id")
+        .single();
+
+      if (projectSignupInsertError || !insertedProjectSignup) {
+        console.error("Error creating project signup record for anonymous:", projectSignupInsertError);
+        await supabase.from("anonymous_signups").delete().eq("id", anonymousSignupId);
+        return { error: "Failed to complete signup. Please try again." };
+      }
+
+      const { error: anonUpdateError } = await supabase
+        .from("anonymous_signups")
+        .update({ signup_id: insertedProjectSignup.id })
+        .eq("id", anonymousSignupId);
+
+      if (anonUpdateError) {
+        console.error("Failed to update anonymous signup with project signup ID:", anonUpdateError);
+        return { error: "Signup partially completed, but encountered an issue. Please contact support." };
+      }
+
+      const { data: verifyUpdate, error: verifyError } = await supabase
+        .from("anonymous_signups")
+        .select("id, signup_id")
+        .eq("id", anonymousSignupId)
+        .single();
+
+      if (verifyError || !verifyUpdate || verifyUpdate.signup_id !== insertedProjectSignup.id) {
+        console.error("Failed to verify anonymous signup update");
+        return { error: "Signup partially completed, but encountered an issue. Please contact support." };
+      }
+
+      if (anonymousData.email && confirmationToken && anonymousSignupId) {
+        const confirmationUrl = `${siteUrl}/anonymous/${anonymousSignupId}/confirm?token=${confirmationToken}`;
+        try {
+          const emailHtml = generateConfirmationEmailHtml(
+            confirmationUrl,
+            project.title,
+            anonymousData.name
+          );
+
+          const { data, error: emailError } = await resend.emails.send({
+            from: "Let's Assist <projects@notifications.lets-assist.com>",
+            to: [anonymousData.email],
+            subject: `Confirm your signup for ${project.title}`,
+            html: emailHtml,
+          });
+
+          if (emailError) {
+            console.error("Resend error:", emailError);
+          } else {
+            console.log("Confirmation email sent successfully:", data);
+          }
+        } catch (error) {
+          console.error("Error sending confirmation email:", error);
+        }
+      } else {
+        console.warn("Could not send confirmation email: Missing email, token, or anonymousSignupId.");
+      }
+    } else if (user) {
+      // Create project signup record for logged-in user (status 'approved')
+      const signupData: Omit<ProjectSignup, "id" | "created_at"> = {
+        project_id: projectId,
+        schedule_id: scheduleId,
+        user_id: (user as { id: string }).id,
+        status: "approved", // Logged-in users are approved by default
+        anonymous_id: null,
+      };
+
+      const { error: signupError } = await supabase
+        .from("project_signups")
+        .insert(signupData);
+
+      if (signupError) {
+        console.error("Error creating signup for registered user:", signupError);
+        return { error: "Failed to sign up. Please try again." };
+      }
+    } else {
+      // Should not happen if require_login logic is correct, but handle defensively
+      return { error: "Cannot sign up without user login or anonymous details." };
     }
 
-    // Create signup record
-    const signupData: Omit<ProjectSignup, "id" | "created_at"> = {
-      project_id: projectId,
-      schedule_id: scheduleId,
-      user_id: user?.id,
-      status: "approved",
-      ...(anonymousData && {
-        anonymous_name: anonymousData.name,
-        anonymous_email: anonymousData.email,
-        anonymous_phone: anonymousData.phone,
-      }),
-    };
-
-    const { error: signupError } = await supabase
-      .from("project_signups")
-      .insert(signupData);
-
-    if (signupError) {
-      console.error("Error creating signup:", signupError);
-      return { error: "Failed to sign up. Please try again." };
-    }
-
-    // Revalidate paths
+    // --- Revalidate paths ---
     revalidatePath(`/projects/${projectId}`);
+    revalidatePath(`/projects/${projectId}/signups`); // Revalidate signups page too
     if (project.organization_id) {
       revalidatePath(`/organization/${project.organization_id}`);
     }
@@ -296,10 +619,73 @@ export async function signUpForProject(
       revalidatePath(`/profile/${user.id}`);
     }
 
-    return { success: true };
+    // --- Return success ---
+    return { success: true, needsConfirmation: isAnonymous };
   } catch (error) {
     console.error("Error in signUpForProject:", error);
-    return { error: "An unexpected error occurred" };
+    return { error: "An unexpected error occurred during signup." };
+  }
+}
+
+// Add this new function to unreject a signup
+export async function unrejectSignup(signupId: string) {
+  const supabase = await createClient();
+
+  try {
+    // Get current user
+    const { data: { user } } = await supabase.auth.getUser();
+
+    // Get signup details
+    const { data: signup, error: signupError } = await supabase
+      .from("project_signups")
+      .select("*, project:projects(creator_id, organization_id)")
+      .eq("id", signupId)
+      .single();
+
+    if (signupError || !signup) {
+      return { error: "Signup not found" };
+    }
+
+    // Permission check: Only project creator or org admin/staff can unreject
+    let hasPermission = false;
+    if (user) {
+      if (signup.project?.creator_id === user.id) {
+        hasPermission = true;
+      } else if (signup.project?.organization_id) {
+        const { data: orgMember } = await supabase
+          .from("organization_members")
+          .select("role")
+          .eq("organization_id", signup.project.organization_id)
+          .eq("user_id", user.id)
+          .single();
+        if (orgMember && ["admin", "staff"].includes(orgMember.role)) {
+          hasPermission = true;
+        }
+      }
+    }
+
+    if (!hasPermission) {
+      return { error: "You don't have permission to unreject this signup" };
+    }
+
+    // Update signup status to 'approved'
+    const { error: updateError } = await supabase
+      .from("project_signups")
+      .update({ status: "approved" as SignupStatus })
+      .eq("id", signupId);
+
+    if (updateError) {
+      throw updateError;
+    }
+
+    // Revalidate paths
+    revalidatePath(`/projects/${signup.project_id}`);
+    revalidatePath(`/projects/${signup.project_id}/signups`);
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error unrejecting signup:", error);
+    return { error: "Failed to unreject signup" };
   }
 }
 
@@ -349,61 +735,79 @@ export async function createRejectionNotification(
 
 export async function cancelSignup(signupId: string) {
   const supabase = await createClient();
-  
+
   try {
     // Get current user
     const { data: { user } } = await supabase.auth.getUser();
-    
-    // Get signup details
+
+    // Get signup details, including anonymous_id
     const { data: signup, error: signupError } = await supabase
       .from("project_signups")
-      .select("*")
+      .select("*") // Fetch all signup details without join alias
       .eq("id", signupId)
-      .single();
-      
+      .maybeSingle();
+    
+
     if (signupError || !signup) {
       return { error: "Signup not found" };
     }
-    
-    // Verify user has permission (is the user who signed up or project creator)
-    if (user?.id !== signup.user_id) {
-      const { data: project } = await supabase
-        .from("projects")
-        .select("creator_id, organization_id")
-        .eq("id", signup.project_id)
-        .single();
-        
-      const isCreator = project?.creator_id === user?.id;
-      
-      if (!isCreator && project?.organization_id) {
-        const { data: orgMember } = await supabase
-          .from("organization_members")
-          .select("role")
-          .eq("organization_id", project.organization_id)
-          .eq("user_id", user?.id)
+
+    // Permission check: User who signed up OR project creator/org admin/staff
+    let hasPermission = false;
+    if (user) {
+      if (signup.user_id === user.id) {
+        hasPermission = true;
+      } else {
+        // Check if user is creator or org admin/staff
+        const { data: project } = await supabase
+          .from("projects")
+          .select("creator_id, organization_id")
+          .eq("id", signup.project_id)
           .single();
-          
-        if (!orgMember || !["admin", "staff"].includes(orgMember.role)) {
-          return { error: "You don't have permission to cancel this signup" };
+
+        if (project?.creator_id === user.id) {
+          hasPermission = true;
+        } else if (project?.organization_id) {
+          const { data: orgMember } = await supabase
+            .from("organization_members")
+            .select("role")
+            .eq("organization_id", project.organization_id)
+            .eq("user_id", user.id)
+            .single();
+          if (orgMember && ["admin", "staff"].includes(orgMember.role)) {
+            hasPermission = true;
+          }
         }
-      } else if (!isCreator) {
-        return { error: "You don't have permission to cancel this signup" };
       }
+    } else {
+      // How can an unauthenticated user cancel?
+      // Maybe via a link sent to the anonymous email? Requires a token mechanism.
+      // For now, only logged-in users can cancel via the UI.
+      return { error: "Authentication required to cancel signup." };
     }
-    
-    // Update signup status
-    const { error: updateError } = await supabase
+
+    if (!hasPermission) {
+      return { error: "You don't have permission to cancel this signup" };
+    }
+
+      const { error: deleteError } = await supabase
       .from("project_signups")
-      .update({ status: "rejected" as SignupStatus })
+      .delete()
       .eq("id", signupId);
-      
-    if (updateError) {
-      throw updateError;
-    }
-    
+
+      if (deleteError) {
+      console.error("Failed to delete signup:", deleteError);
+      } else {
+      console.log("Signup record deleted successfully.");
+      }
+
+    // Optional: If it was an anonymous signup, maybe update the anonymous_signups table too?
+    // e.g., mark it as cancelled? Depends on desired behavior.
+
     // Revalidate paths
     revalidatePath(`/projects/${signup.project_id}`);
-    
+    revalidatePath(`/projects/${signup.project_id}/signups`);
+
     return { success: true };
   } catch (error) {
     console.error("Error cancelling signup:", error);

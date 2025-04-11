@@ -4,9 +4,10 @@ import React, { useEffect, useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
-import { Project, EventType } from "@/types";
+// Import AnonymousSignup type
+import { Project, EventType, AnonymousSignup } from "@/types"; 
 import { NotificationService } from "@/services/notifications";
-import { createRejectionNotification, togglePauseSignups } from "../actions";
+import { createRejectionNotification, togglePauseSignups, unrejectSignup } from "../actions";
 import { format } from "date-fns";
 import Link from "next/link";
 import {
@@ -35,7 +36,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { CheckCircle2, XCircle, Clock, ArrowLeft, Loader2, UserRoundSearch, ArrowUpDown, ChevronUp, ChevronDown, Printer, RefreshCw, Pause, Play } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, ArrowLeft, Loader2, UserRoundSearch, ArrowUpDown, ChevronUp, ChevronDown, Printer, RefreshCw, Pause, Play, UserCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
@@ -45,20 +46,26 @@ interface Props {
   projectId: string;
 }
 
+// Update Signup type to reflect new structure
 type Signup = {
   id: string;
   created_at: string;
   status: "pending" | "rejected" | "approved";
   user_id: string | null;
-  anonymous_name: string | null;
-  anonymous_email: string | null;
-  anonymous_phone: string | null;
+  anonymous_id: string | null; // FK to anonymous_signups
   schedule_id: string;
-  profile?: {
+  profile?: { // Data from profiles table (if user_id exists)
     full_name: string;
     username: string;
     email: string;
     phone?: string;
+  };
+  anonymous_signup?: { // Data from anonymous_signups table (if anonymous_id exists)
+    id: string;
+    name: string;
+    email: string;
+    phone_number?: string | null;
+    confirmed_at?: string | null;
   };
 };
 
@@ -81,6 +88,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
   const [sort, setSort] = useState<Sort>({ field: "status", direction: "asc" });
   const [isPausingSignups, setIsPausingSignups] = useState(false);
   const [pausedSignups, setPausedSignups] = useState(false);
+  const [unrejectingSignups, setUnrejectingSignups] = useState<Record<string, boolean>>({});
 
   const toggleSort = (field: SortField) => {
     setSort(current => ({
@@ -101,7 +109,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
       );
     };
 
-  // Print volunteers list
+  // Print volunteers list - Updated to use new structure
   const printVolunteers = () => {
     // Create a hidden print-only container if it doesn't exist yet
     let printContainer = document.getElementById('print-container');
@@ -131,28 +139,37 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
       <h1>Approved Volunteers - ${project?.title || 'Project'}</h1>
       <div>Printed: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</div>
       ${Object.entries(filteredSignupsBySlot).map(([slot, slotSignups]) => {
-        const approved = slotSignups.filter(s => s.status !== "rejected");
+        // Filter for approved or pending (if pending should be printed)
+        const approved = slotSignups.filter(s => s.status === "approved" || s.status === "pending"); 
         return approved.length > 0 ? `
         <div class="schedule-slot">
           <h2>${project && formatScheduleSlot(project, slot)}</h2>
           <table>
-          <thead><tr><th>Name</th><th>Type</th><th>Contact</thead>
+          <thead><tr><th>Name</th><th>Type</th><th>Contact</th><th>Status</th></thead>
           <tbody>
-            ${approved.map(s => `
-            <tr>
-              <td>${s.user_id ? s.profile?.full_name : s.anonymous_name || 'N/A'}</td>
-              <td>${s.user_id ? 'Registered' : 'Anonymous'}</td>
-              <td>${s.user_id 
-              ? `${s.profile?.email || 'N/A'} ${s.profile?.phone ? '<br>' + s.profile.phone.replace(/(\\d{3})(\\d{3})(\\d{4})/, "$1-$2-$3") : ''}` 
-              : `${s.anonymous_email || 'N/A'} ${s.anonymous_phone ? '<br>' + s.anonymous_phone.replace(/(\\d{3})(\\d{3})(\\d{4})/, "$1-$2-$3") : ''}`}</td>
-            </tr>
-            `).join('')}
+            ${approved.map(s => {
+              const isRegistered = !!s.user_id;
+              const name = isRegistered ? s.profile?.full_name : s.anonymous_signup?.name;
+              const email = isRegistered ? s.profile?.email : s.anonymous_signup?.email;
+              const phone = isRegistered ? s.profile?.phone : s.anonymous_signup?.phone_number;
+              const type = isRegistered ? 'Registered' : 'Anonymous';
+              const statusText = s.status === 'pending' ? 'Pending Confirmation' : 'Approved'; // Add status
+
+              return `
+              <tr>
+                <td>${name || 'N/A'}</td>
+                <td>${type}</td>
+                <td>${email || 'N/A'} ${phone ? '<br>' + phone.replace(/(\\d{3})(\\d{3})(\\d{4})/, "$1-$2-$3") : ''}</td>
+                <td>${statusText}</td> 
+              </tr>
+              `;
+            }).join('')}
           </tbody>
           </table>
         </div>
         ` : '';
       }).join('')}
-      ${Object.entries(filteredSignupsBySlot).every(([_, slotSignups]) => slotSignups.filter(s => s.status !== 'rejected').length === 0) ? '<p>No approved volunteers found.</p>' : ''}
+      ${Object.entries(filteredSignupsBySlot).every(([_, slotSignups]) => slotSignups.filter(s => s.status === 'approved' || s.status === 'pending').length === 0) ? '<p>No approved or pending volunteers found.</p>' : ''}
       </div>
     `;
 
@@ -178,7 +195,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
     }, {} as Record<string, Signup[]>);
   }, [signups]);
 
-  // Filter and sort signups based on search term and sort state
+  // Filter and sort signups based on search term and sort state - Updated for new structure
   const filteredSignupsBySlot = useMemo(() => {
     let filtered: Record<string, Signup[]> = {};
 
@@ -191,9 +208,12 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
         const matchingSignups = slotSignups.filter(signup => {
           const nameMatch = signup.user_id
             ? signup.profile?.full_name.toLowerCase().includes(searchLower)
-            : signup.anonymous_name?.toLowerCase().includes(searchLower);
-          // Add more fields to search if needed (e.g., email)
-          return nameMatch;
+            : signup.anonymous_signup?.name?.toLowerCase().includes(searchLower); // Check anonymous name
+          const emailMatch = signup.user_id
+            ? signup.profile?.email.toLowerCase().includes(searchLower)
+            : signup.anonymous_signup?.email?.toLowerCase().includes(searchLower); // Check anonymous email
+          // Add phone search if needed
+          return nameMatch || emailMatch;
         });
         if (matchingSignups.length > 0) {
           filtered[slot] = matchingSignups;
@@ -207,17 +227,18 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
         const direction = sort.direction === "asc" ? 1 : -1;
         
         if (sort.field === "status") {
-          // Sort logic: 'confirmed' (Approved) comes before 'cancelled' (Rejected) in asc order
-          const statusA = a.status === 'rejected' ? 1 : 0; // 0 for Approved, 1 for Rejected
-          const statusB = b.status === 'rejected' ? 1 : 0;
+          // Sort logic: 'pending' < 'approved' < 'rejected'
+          const statusOrder = { pending: 0, approved: 1, rejected: 2 };
+          const statusA = statusOrder[a.status];
+          const statusB = statusOrder[b.status];
           return (statusA - statusB) * direction;
         }
         
         // Add sorting for other fields here if needed
         // Example for name:
         // if (sort.field === 'name') {
-        //   const nameA = (a.profile?.full_name || a.anonymous_name || '').toLowerCase();
-        //   const nameB = (b.profile?.full_name || a.anonymous_name || '').toLowerCase();
+        //   const nameA = (a.profile?.full_name || a.anonymous_signup?.name || '').toLowerCase();
+        //   const nameB = (b.profile?.full_name || a.anonymous_signup?.name || '').toLowerCase();
         //   return nameA.localeCompare(nameB) * direction;
         // }
 
@@ -250,6 +271,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
     setPausedSignups(project.pause_signups || false);
   };
 
+  // Update Supabase query to join anonymous_signups
   const loadSignups = async () => {
     setRefreshing(true);
     const supabase = createClient();
@@ -257,20 +279,25 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
     const { data, error } = await supabase
       .from("project_signups")
       .select(`
+      id,
+      created_at,
+      status,
+      user_id,
+      anonymous_id, 
+      schedule_id,
+      profile:profiles!left (
+        full_name,
+        username,
+        email,
+        phone
+      ),
+      anonymous_signup:anonymous_signups!project_signups_anonymous_id_fkey ( 
         id,
-        created_at,
-        status,
-        user_id,
-        anonymous_name,
-        anonymous_email,
-        anonymous_phone,
-        schedule_id,
-        profile:profiles!left (
-          full_name,
-          username,
-          email,
-          phone
-        )
+        name,
+        email,
+        phone_number,
+        confirmed_at
+      )
       `)
       .eq("project_id", projectId)
       .order("created_at", { ascending: false });
@@ -346,6 +373,27 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
       toast.error(error instanceof Error ? error.message : "Failed to update signup");
     } finally {
       setProcessingSignups(prev => ({ ...prev, [signupId]: false }));
+    }
+  };
+
+  const handleUnreject = async (signupId: string) => {
+    try {
+      setUnrejectingSignups(prev => ({ ...prev, [signupId]: true }));
+      
+      const result = await unrejectSignup(signupId);
+      
+      if (result.error) {
+        throw new Error(result.error);
+      }
+      
+      // Refresh the signups list
+      await loadSignups();
+      toast.success("Signup approved successfully");
+    } catch (error) {
+      console.error("Error unrejecting signup:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to unreject signup");
+    } finally {
+      setUnrejectingSignups(prev => ({ ...prev, [signupId]: false }));
     }
   };
 
@@ -445,7 +493,8 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
     return slotId;
   };
 
-  const getStatusBadge = (status: string) => {
+  // Update status badge logic
+  const getStatusBadge = (status: Signup['status'], confirmed_at?: string | null) => {
     if (status === "rejected") {
       return (
         <Badge variant="destructive" className="gap-1">
@@ -454,6 +503,15 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
         </Badge>
       );
     }
+    if (status === "pending") {
+      return (
+        <Badge variant="secondary" className="gap-1">
+          <Clock className="h-4 w-4" />
+          Pending
+        </Badge>
+      );
+    }
+    // Approved status
     return (
       <Badge className="gap-1">
         <CheckCircle2 className="h-4 w-4" />
@@ -588,72 +646,90 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {slotSignups.map((signup) => (
-                <TableRow key={signup.id}>
-                  <TableCell className="font-medium">
-                    {signup.user_id 
-                      ? signup.profile?.full_name 
-                      : signup.anonymous_name}
-                  </TableCell>
-                  <TableCell>
-                    {signup.user_id ? (
-                      <Link
-                      href={`/profile/${signup.profile?.username}`}
-                      className="text-primary"
-                      >
-                      Registered User
-                      </Link>
-                    ) : (
-                      <span className="text-muted-foreground">Anonymous</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {signup.user_id ? (
-                        <div>
-                        <div>{signup.profile?.email}</div>
-                        {signup.profile?.phone && (
+              {slotSignups.map((signup) => {
+                // Determine user type and data source
+                const isRegistered = !!signup.user_id;
+                const name = isRegistered ? signup.profile?.full_name : signup.anonymous_signup?.name;
+                const email = isRegistered ? signup.profile?.email : signup.anonymous_signup?.email;
+                const phone = isRegistered ? signup.profile?.phone : signup.anonymous_signup?.phone_number;
+                const username = isRegistered ? signup.profile?.username : null;
+                const confirmed_at = signup.anonymous_signup?.confirmed_at;
+
+                return (
+                  <TableRow key={signup.id}>
+                    <TableCell className="font-medium">
+                      {name || 'N/A'}
+                    </TableCell>
+                    <TableCell>
+                      {isRegistered ? (
+                        <Link
+                          href={`/profile/${username}`}
+                          className="text-primary hover:underline"
+                        >
+                          Registered User
+                        </Link>
+                      ) : (
+                        <span className="text-muted-foreground">Anonymous</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <div>
+                        <div>{email || "No email"}</div>
+                        {phone && (
                           <div className="text-sm text-muted-foreground">
-                          {signup.profile.phone.replace(
-                            /(\d{3})(\d{3})(\d{4})/,
-                            "$1-$2-$3"
-                          ) || "No phone provided"}
+                            {phone.replace(
+                              /(\d{3})(\d{3})(\d{4})/,
+                              "$1-$2-$3"
+                            ) || "No phone"}
                           </div>
                         )}
-                        </div>
-                    ) : (
-                      <div>
-                        <div>{signup.anonymous_email || "No email provided"}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {signup.anonymous_phone?.replace(
-                            /(\d{3})(\d{3})(\d{4})/,
-                            "$1-$2-$3"
-                          ) || "No phone provided"}
-                        </div>
                       </div>
-                    )}
-                  </TableCell>
-                  <TableCell>{getStatusBadge(signup.status)}</TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => updateSignupStatus(signup.id, "rejected")}
-                      disabled={signup.status === "rejected" || processingSignups[signup.id]}
-                    >
+                    </TableCell>
+                    <TableCell>{getStatusBadge(signup.status, confirmed_at)}</TableCell>
+                    <TableCell className="text-right">
                       {signup.status === "rejected" ? (
-                        "Rejected"
-                      ) : processingSignups[signup.id] ? (
-                        <>
-                          <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                          <span className="inline-block">Rejecting...</span>
-                        </>
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleUnreject(signup.id)}
+                            disabled={unrejectingSignups[signup.id]}
+                            className="bg-primary/10 border-primary/30 text-primary hover:bg-primary/20"
+                          >
+                            {unrejectingSignups[signup.id] ? (
+                              <>
+                                <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                                <span className="inline-block">Approving...</span>
+                              </>
+                            ) : (
+                              <>
+                                <UserCheck className="h-3.5 w-3.5 mr-1.5" />
+                                <span className="inline-block">Unreject</span>
+                              </>
+                            )}
+                          </Button>
+                        </div>
                       ) : (
-                        "Reject"
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => updateSignupStatus(signup.id, "rejected")}
+                          disabled={processingSignups[signup.id]}
+                        >
+                          {processingSignups[signup.id] ? (
+                            <>
+                              <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                              <span className="inline-block">Rejecting...</span>
+                            </>
+                          ) : (
+                            "Reject"
+                          )}
+                        </Button>
                       )}
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
               {!loading && slotSignups.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center py-8">

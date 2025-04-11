@@ -47,11 +47,27 @@ function LocationAutocompleteContent({
   const searchDebounceRef = useRef<NodeJS.Timeout | undefined>(undefined)
   const containerRef = useRef<HTMLDivElement>(null)
   const placesInitAttempts = useRef(0)
+  const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Check if the API is loaded using vis.gl hook
   const isLoaded = useApiIsLoaded();
 
-  // Initialize services when API is loaded
+  // Update input value when value prop changes, ensuring it's never undefined
+  useEffect(() => {
+    setInputValue(value?.text || "")
+  }, [value])
+
+  // Initialize services when API is loaded - improved retry mechanism
+  useEffect(() => {
+    // Cleanup function to clear any pending timeouts
+    return () => {
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
+        retryTimeoutRef.current = null;
+      }
+    };
+  }, []);
+
   useEffect(() => {
     // Don't proceed if API isn't loaded at all
     if (!isLoaded) return;
@@ -62,46 +78,62 @@ function LocationAutocompleteContent({
       return;
     }
 
-    // Check if Places library is available
-    if (typeof google !== 'undefined' && google.maps && google.maps.places) {
-      try {
-        // Initialize services
-        autocompleteService.current = new google.maps.places.AutocompleteService();
-        
-        const attributionNode = document.createElement('div');
-        attributionNode.style.display = 'none';
-        document.body.appendChild(attributionNode);
-        placesService.current = new google.maps.places.PlacesService(attributionNode);
-        
-        setPlacesApiReady(true);
-        console.log('Places API initialized successfully');
-      } catch (error) {
-        console.error('Error initializing Places services:', error);
-        setPlacesApiReady(false);
+    const initializePlacesAPI = () => {
+      // Check if Places library is available
+      if (typeof google !== 'undefined' && google.maps && google.maps.places) {
+        try {
+          // Initialize services
+          autocompleteService.current = new google.maps.places.AutocompleteService();
+          
+          const attributionNode = document.createElement('div');
+          attributionNode.style.display = 'none';
+          document.body.appendChild(attributionNode);
+          placesService.current = new google.maps.places.PlacesService(attributionNode);
+          
+          setPlacesApiReady(true);
+          console.log('Places API initialized successfully');
+        } catch (error) {
+          console.error('Error initializing Places services:', error);
+          setPlacesApiReady(false);
+          scheduleRetry();
+        }
+      } else {
+        scheduleRetry();
       }
-    } else {
+    };
+
+    const scheduleRetry = () => {
+      // Clear any existing timeout
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
+      }
+
       // Places library not available yet, retry with exponential backoff
-      // if we haven't tried too many times already
       if (placesInitAttempts.current < 5) {
         placesInitAttempts.current += 1;
         const delay = Math.pow(2, placesInitAttempts.current) * 100;
         
         console.log(`Places API not available yet. Retrying in ${delay}ms (attempt ${placesInitAttempts.current})`);
         
-        setTimeout(() => {
-          // Force re-run of this effect
-          setPlacesApiReady(prev => prev);
+        retryTimeoutRef.current = setTimeout(() => {
+          initializePlacesAPI();
         }, delay);
       } else {
         console.error('Failed to load Places API after multiple attempts');
       }
-    }
-  }, [isLoaded, placesApiReady]);
+    };
 
-  // Update input value when value prop changes, ensuring it's never undefined
-  useEffect(() => {
-    setInputValue(value?.text || "")
-  }, [value?.text]) // Only depend on value.text
+    // Start initialization process
+    initializePlacesAPI();
+
+    // Cleanup
+    return () => {
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
+        retryTimeoutRef.current = null;
+      }
+    };
+  }, [isLoaded]);
 
   // Search for predictions or show current selection when input is focused
   useEffect(() => {
@@ -268,6 +300,7 @@ function LocationAutocompleteContent({
             id={id}
             placeholder="Loading location search..."
             disabled
+            value="" // Explicitly set value to empty string when loading
             className="w-full pl-9"
           />
           <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
