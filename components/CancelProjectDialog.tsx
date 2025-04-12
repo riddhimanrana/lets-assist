@@ -77,7 +77,7 @@ export function CancelProjectDialog({
           </div>
           <DialogDescription>
             {canCancel ? (
-              "This action cannot be undone. The project will be marked as cancelled and participants will be notified."
+              "This action cannot be undone. The project will be marked as cancelled and participants(who have a Let's Assist account) will be notified. Anonymous participants will not be notified."
             ) : (
               <span className="flex items-start gap-2 text-destructive mt-1">
                 <AlertTriangle className="h-5 w-5 flex-shrink-0" />

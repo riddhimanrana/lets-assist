@@ -75,7 +75,7 @@ export default async function AnonymousSignupPage({ params }: PageProps): Promis
   // Check if the project is cancelled
   const isProjectCancelled = project.status === 'cancelled';
 
-  const { name, email, phone_number, confirmed_at } = signupData;
+  const { name, email, phone_number, confirmed_at, created_at } = signupData;
   const { status, schedule_id, id: project_signup_id } = projectSignup;
 
   // Pass all the necessary data to the client component, including IDs needed for deletion
@@ -86,6 +86,7 @@ export default async function AnonymousSignupPage({ params }: PageProps): Promis
       email={email}
       phone_number={phone_number}
       confirmed_at={confirmed_at}
+      created_at={created_at}
       status={status}
       schedule_id={schedule_id}
       project={project as Project}
