@@ -172,8 +172,7 @@ export default function CreatorDashboard({ project }: Props) {
 
             {!isCancelled && (
               <Button
-                variant="destructive"
-                className="w-full sm:w-auto flex items-center justify-center gap-2"
+                className="w-full sm:w-auto flex items-center justify-center gap-2 bg-chart-4 hover:bg-chart-4/90"
                 onClick={() => setShowCancelDialog(true)}
                 disabled={!canCancel}
               >
@@ -216,7 +215,7 @@ export default function CreatorDashboard({ project }: Props) {
               <div className="text-sm text-muted-foreground space-y-2">
                 <p>
                   This project has been cancelled. You can still edit details and manage existing signups,
-                  but new signups are disabled. If this was a mistake, please contact <Link className="text-chart-3" href="mailto:support@lets-assist.com">support@lets-assist.com</Link>
+                  but new signups are disabled and this project has been shut off. If this was a mistake, please contact <Link className="text-chart-3" href="mailto:support@lets-assist.com">support@lets-assist.com</Link>
                 </p>
                 {project.cancellation_reason && (
                   <p className="mt-1">
@@ -254,10 +253,10 @@ export default function CreatorDashboard({ project }: Props) {
         <AlertDialogContent className="max-w-[95vw] sm:max-w-[425px]">
           <AlertDialogHeader className="space-y-3">
             <AlertDialogTitle className="text-lg sm:text-xl">Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription className="text-sm sm:text-base">
+            <AlertDialogDescription className="text-sm">
               This action cannot be undone. This will permanently delete your
               project and remove all data associated with it, including volunteer
-              signups and documents.
+              signups and documents. If you need to cancel or reschedule, we recommend you cancel the project instead.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col sm:flex-row gap-2 sm:gap-3">
