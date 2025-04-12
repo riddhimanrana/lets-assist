@@ -3,11 +3,11 @@ import { notFound } from "next/navigation";
 import { Project } from "@/types";
 import AnonymousSignupClient from "./AnonymousSignupClient";
 
-export default async function AnonymousSignupPage({ 
-  params 
-}: { 
-  params: { id: string } 
-}) {
+interface PageProps {
+  params: Promise<{ id: string}>
+}
+
+export default async function AnonymousSignupPage({ params }: PageProps): Promise<React.ReactElement> {
   // First, access the ID from params
   const param = await params;
   const signupId = param.id;

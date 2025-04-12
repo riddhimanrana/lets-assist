@@ -104,15 +104,15 @@ async function performConfirmation(anonymousSignupId: string, token: string): Pr
 }
 
 
-export default async function ConfirmationPage({
-  params,
-  searchParams,
-}: {
-  params: { id: string };
-  searchParams: { [key: string]: string | string[] | undefined };
-}) {
-  const anonymousSignupId = params.id;
-  const token = searchParams?.token as string | undefined;
+interface PageProps {
+  params: Promise<{ id: string }>;
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
+}
+
+export default async function ConfirmationPage({ params, searchParams }: PageProps): Promise<React.ReactElement>{
+  const { id: anonymousSignupId } = await params;
+  const resolvedSearchParams = await searchParams;
+  const token = resolvedSearchParams?.token as string | undefined;
 
   let confirmationResult: { status: ConfirmationStatus; message?: string } = { status: "processing" };
 

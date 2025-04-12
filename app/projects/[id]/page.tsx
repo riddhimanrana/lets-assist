@@ -10,15 +10,15 @@ import { Project } from "@/types"; // Assuming Project type is imported
 
 // Define the props type for the page component
 interface PageProps {
-  params: { id: string };
-  searchParams?: { [key: string]: string | string[] | undefined };
+  params: Promise<{ id: string }>;
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
 export default async function ProjectPage({ params }: PageProps): Promise<React.ReactElement> {
   const supabase = await createClient();
 
   // Destructure id from params
-  const { id } = params;
+  const { id } = await params;
 
   // Get the project data
   const { project, error: projectError } = await getProject(id);
