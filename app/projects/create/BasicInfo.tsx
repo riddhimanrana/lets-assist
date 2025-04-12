@@ -301,7 +301,7 @@ export default function BasicInfo({
               <RichTextEditor
                 content={state.basicInfo.description ?? ''}
                 onChange={(html) => updateBasicInfoAction("description", html)}
-                maxLength={1000}
+                maxLength={2000}
                 className={errors.description ? "border-destructive" : ""}
               />
               {errors.description && (

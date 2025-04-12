@@ -149,9 +149,6 @@ export function ProjectSignupForm({ onSubmit, onCancel, isSubmitting }: ProjectF
                 />
               </FormControl>
               {/* Add FormDescription */}
-              <FormDescription>
-                Enter your 10-digit phone number.
-              </FormDescription>
               <FormMessage />
             </FormItem>
           )}

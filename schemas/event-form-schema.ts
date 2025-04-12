@@ -24,10 +24,10 @@ const timeToMinutes = (timeStr: string): number => {
 
 // Basic Info Schema
 export const basicInfoSchema = z.object({
-  title: z.string().min(1, "Title is required").max(75, "Title cannot exceed 75 characters"),
+  title: z.string().min(1, "Title is required").max(125, "Title cannot exceed 125 characters"),
   location: z.string().min(1, "Location is required").max(250, "Location cannot exceed 250 characters"),
   locationData: z.any().optional(),
-  description: z.string().min(1, "Description is required").max(1000, "Description cannot exceed 1000 characters"),
+  description: z.string().min(1, "Description is required").max(2000, "Description cannot exceed 2000 characters"),
   organizationId: z.string().nullable(),
 });
 

@@ -41,7 +41,7 @@ import LocationAutocomplete from "@/components/ui/location-autocomplete";
 // Constants for character limits
 const TITLE_LIMIT = 125;
 const LOCATION_LIMIT = 200;
-const DESCRIPTION_LIMIT = 1000;
+const DESCRIPTION_LIMIT = 2000;
 
 interface Props {
   project: Project;
