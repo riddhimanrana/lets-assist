@@ -369,7 +369,7 @@ export default function AnonymousSignupClient({
           {autoDeletionDate && (
             <Alert className="bg-muted/50 border-muted">
               <Clock className="h-4 w-4" />
-              <AlertTitle className="text-sm font-medium">Data Retention Notice</AlertTitle>
+              <AlertTitle className="font-medium">Data Retention Notice</AlertTitle>
                 <AlertDescription className="text-xs text-muted-foreground">
                 This signup record will be automatically deleted on {format(autoDeletionDate, "MMMM d, yyyy")}&nbsp;(30 days after the project date). Save this page if you need to keep a record of your participation.
                 </AlertDescription>
