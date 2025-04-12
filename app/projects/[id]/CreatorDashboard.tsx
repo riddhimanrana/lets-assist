@@ -170,18 +170,7 @@ export default function CreatorDashboard({ project }: Props) {
               Manage Files
             </Button>
 
-            {!isCancelled && (
-              <Button
-                className="w-full sm:w-auto flex items-center justify-center gap-2 bg-chart-4 hover:bg-chart-4/90"
-                onClick={() => setShowCancelDialog(true)}
-                disabled={!canCancel}
-              >
-                <XCircle className="h-4 w-4" />
-                Cancel Project
-              </Button>
-            )}
-
-            <TooltipProvider>
+            {/* <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span className="w-full sm:w-auto">
@@ -206,7 +195,7 @@ export default function CreatorDashboard({ project }: Props) {
                   </TooltipContent>
                 )}
               </Tooltip>
-            </TooltipProvider>
+            </TooltipProvider> */}
           </div>
 
           {isCancelled ? (
