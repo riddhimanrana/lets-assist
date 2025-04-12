@@ -1,98 +1,26 @@
-import { notFound, redirect } from "next/navigation";
-import { getProject, getCreatorProfile } from "./actions";
-import ProjectDetails from "./ProjectDetails";
-import ProjectUnauthorized from "./ProjectUnauthorized";
-import { Metadata } from "next";
 import { createClient } from "@/utils/supabase/server";
+import { cookies } from "next/headers";
+import { getProject, getCreatorProfile } from "./actions";
+import { redirect, notFound } from "next/navigation";
+import ProjectDetails from "./ProjectDetails";
 import { getSlotCapacities } from "./utils";
+import { getProjectStatus } from "@/utils/project";
+import ProjectUnauthorized from "./ProjectUnauthorized";
+import { Project } from "@/types"; // Assuming Project type is imported
 
-interface SlotData {
-  remainingSlots: Record<string, number>;
-  userSignups: Record<string, boolean>;
-}
-
-interface ProjectSignup {
-  schedule_id: string;
-  user_id: string;
-}
-
+// Define the props type for the page component
 interface PageProps {
   params: Promise<{ id: string }>;
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
-async function getSlotData(projectId: string): Promise<SlotData> {
+export default async function ProjectPage({ params }: PageProps): Promise<React.ReactElement> {
   const supabase = await createClient();
-  
-  // Get current user
-  const { data: { user } } = await supabase.auth.getUser();
-  
-  // Get project signups
-  const { data: signups } = await supabase
-    .from("project_signups")
-    .select("schedule_id, user_id")
-    .eq("project_id", projectId)
-    .eq("status", "confirmed") as { data: ProjectSignup[] | null };
-  
-  // Get project to calculate capacities
-  const { data: project } = await supabase
-    .from("projects")
-    .select("*")
-    .eq("id", projectId)
-    .single();
-  
-  if (!project) {
-    return { remainingSlots: {}, userSignups: {} };
-  }
-  
-  const slotCapacities = getSlotCapacities(project);
-  const slotCounts: Record<string, number> = {};
-  const userSignups: Record<string, boolean> = {};
-  
-  if (signups) {
-    signups.forEach((signup: ProjectSignup) => {
-      if (!slotCounts[signup.schedule_id]) {
-        slotCounts[signup.schedule_id] = 0;
-      }
-      slotCounts[signup.schedule_id]++;
-      
-      if (user && signup.user_id === user.id) {
-        userSignups[signup.schedule_id] = true;
-      }
-    });
-  }
-  
-  // Calculate remaining slots
-  const remainingSlots: Record<string, number> = {};
-  Object.keys(slotCapacities).forEach((scheduleId) => {
-    remainingSlots[scheduleId] = slotCapacities[scheduleId] - (slotCounts[scheduleId] || 0);
-  });
-  
-  return { remainingSlots, userSignups };
-}
 
-export async function generateMetadata(
-  { params }: PageProps,
-): Promise<Metadata> {
+  // Destructure id from params
   const { id } = await params;
-  const { project, error } = await getProject(id);
 
-  if (error || !project) {
-    return {
-      title: "Project Not Found - Let's Assist",
-      description: "Project details not available.",
-    };
-  }
-
-  return {
-    title: `${project.title} - Let's Assist`,
-    description: project.description,
-  };
-}
-
-export default async function ProjectPage(
-  { params }: PageProps,
-): Promise<React.ReactElement> {
-  const { id } = await params;
+  // Get the project data
   const { project, error: projectError } = await getProject(id);
 
   // Handle unauthorized access to private projects
@@ -106,22 +34,81 @@ export default async function ProjectPage(
   }
 
   const { profile: creator, error: profileError } = await getCreatorProfile(project.creator_id);
-
   if (profileError) {
     console.error("Error fetching creator profile:", profileError);
   }
+  if (!creator) {
+    notFound();
+  }
 
-  // Get slot data
-  const slotData = await getSlotData(id);
-  const supabaseClient = await createClient();
-  const { data: { user } } = await supabaseClient.auth.getUser();
-  const initialIsCreator = !!user && project.creator_id === user.id;
-  
-  return <ProjectDetails 
-    project={project} 
-    creator={creator || null} 
-    initialSlotData={slotData}
-    initialIsCreator={initialIsCreator}
-    initialUser={user}
-  />
+  // Check if current user is the project creator
+  const { data: { user } } = await supabase.auth.getUser();
+  const isCreator = user?.id === project.creator_id;
+
+  // Get organization if exists
+  let organization = null;
+  if (project.organization_id) {
+    const { data: org } = await supabase
+      .from("organizations")
+      .select("*")
+      .eq("id", project.organization_id)
+      .single();
+    organization = org;
+  }
+
+  // Get remaining slots for each schedule
+  // Pass supabase client and project id to the updated function
+  const slotCapacities = await getSlotCapacities(project, supabase, id);
+
+  // Get user's existing signups
+  const userSignups: Record<string, boolean> = {};
+  if (user) {
+    const { data: signups } = await supabase
+      .from("project_signups")
+      .select("schedule_id")
+      .eq("project_id", project.id)
+      .eq("user_id", user.id)
+      .eq("status", "approved");
+
+    if (signups) {
+      signups.forEach((signup: { schedule_id: string }) => {
+        userSignups[signup.schedule_id] = true;
+      });
+    }
+  }
+
+  // Get user's rejected slots
+  const rejectedSlots: Record<string, boolean> = {};
+  if (user) {
+    const { data: rejections } = await supabase
+      .from("project_signups")
+      .select("schedule_id")
+      .eq("project_id", project.id)
+      .eq("user_id", user.id)
+      .eq("status", "rejected");
+
+    if (rejections) {
+      rejections.forEach((rejection: { schedule_id: string }) => {
+        rejectedSlots[rejection.schedule_id] = true;
+      });
+    }
+  }
+
+  // Format initial data for the client component
+  const initialSlotData = {
+    remainingSlots: slotCapacities,
+    userSignups: userSignups,
+    rejectedSlots: rejectedSlots,  // Include rejected slots in initial data
+  };
+
+  return (
+    <ProjectDetails
+      project={project}
+      creator={creator}
+      organization={organization}
+      initialSlotData={initialSlotData}
+      initialIsCreator={isCreator}
+      initialUser={user}
+    />
+  );
 }

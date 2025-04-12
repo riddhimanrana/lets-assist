@@ -1,6 +1,6 @@
 export type EventType = "oneTime" | "multiDay" | "sameDayMultiArea";
 export type VerificationMethod = "qr-code" | "auto" | "manual";
-export type SignupStatus = "confirmed" | "cancelled";
+export type SignupStatus = "approved" | "rejected" | "pending";
 
 // New location type to support coordinates
 export interface LocationData {
@@ -92,6 +92,7 @@ export interface Project {
   is_private: boolean; // Changed from visibility to is_private boolean
   organization_id?: string;
   organization?: Organization;
+  pause_signups: boolean;
   created_by_role?: OrganizationRole;
   cancelled_at?: string;
   cancellation_reason?: string;
@@ -109,9 +110,10 @@ export interface AnonymousSignupData {
 export interface ProjectSignup {
   id: string;
   project_id: string;
-  user_id?: string;
+  user_id?: string | null;
   schedule_id: string;
   status: SignupStatus;
+  anonymous_id?: string | null; // Add anonymous_id based on usage in actions.ts
   anonymous_name?: string;
   anonymous_email?: string;
   anonymous_phone?: string;
@@ -121,4 +123,29 @@ export interface ProjectSignup {
     username: string | null;
     avatar_url: string | null;
   };
+  // Add the nested anonymous_signup structure if needed elsewhere,
+  // but for the query result type, keep it separate.
+}
+
+// Add this new interface
+export interface ExistingAnonymousSignupQueryResult {
+  id: string;
+  signup_id: string | null; // signup_id from anonymous_signups table
+  signup: { // The nested object from project_signups
+    status: SignupStatus;
+    schedule_id: string;
+  }
+}
+
+// Add AnonymousSignup type if it's missing or incomplete
+export interface AnonymousSignup {
+    id: string;
+    project_id: string;
+    email: string;
+    name: string;
+    phone_number?: string | null;
+    token: string;
+    confirmed_at?: string | null;
+    created_at: string;
+    signup_id: string | null; // Foreign key to project_signups
 }

@@ -43,7 +43,9 @@ import {
   Building2,
   BadgeCheck,
   XCircle,
-  Mail
+  Mail,
+  Pause,
+  MailCheck,
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -70,10 +72,12 @@ import { NoAvatar } from "@/components/NoAvatar";
 import FilePreview from "@/components/FilePreview";
 import CreatorDashboard from "./CreatorDashboard";
 import { ProjectSignupForm } from "./ProjectForm";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 interface SlotData {
   remainingSlots: Record<string, number>;
   userSignups: Record<string, boolean>;
+  rejectedSlots: Record<string, boolean>;  // Add this property to track rejected slots
 }
 
 interface Props {
@@ -126,10 +130,76 @@ export default function ProjectDetails({ project, creator, organization, initial
   const [previewDocType, setPreviewDocType] = useState<string>("");
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   
+  // Initialize rejectedSlots from props instead of empty object
+  const [rejectedSlots, setRejectedSlots] = useState<Record<string, boolean>>(initialSlotData.rejectedSlots || {});
+  
+  // Add state for the confirmation alert
+  const [showConfirmationAlert, setShowConfirmationAlert] = useState(false);
+  
   // Add state to track calculated status
   const [calculatedStatus, setCalculatedStatus] = useState<ProjectStatus>(
     getProjectStatus(project)
   );
+
+  const [userRejected, setUserRejected] = useState<boolean>(false);
+  
+  // Add effect to check if user has been previously rejected
+  useEffect(() => {
+    async function checkPreviousRejection() {
+      if (user) {
+        const supabase = createClient();
+        // Check if the user has been rejected for this project
+        const { data, error } = await supabase
+          .from("project_signups")
+          .select("id")
+          .eq("project_id", project.id)
+          .eq("user_id", user.id)
+          .eq("status", "rejected")
+          .limit(1);
+          
+        if (data && data.length > 0) {
+          setUserRejected(true);
+        }
+      }
+    }
+    
+    checkPreviousRejection();
+  }, [user, project.id]);
+
+  // Add effect to check if user has been previously rejected - updating to track per slot
+  useEffect(() => {
+    async function checkPreviousRejections() {
+      if (user) {
+        const supabase = createClient();
+        
+        // Query for all rejected signups for this user and project
+        const { data, error } = await supabase
+          .from("project_signups")
+          .select("id, schedule_id")  // Now also select schedule_id
+          .eq("project_id", project.id)
+          .eq("user_id", user.id)
+          .eq("status", "rejected");
+          
+        if (error) {
+          console.error("Error checking for rejections:", error);
+          return;
+        }
+        
+        if (data && data.length > 0) {
+          // Create a record of rejected slots
+          const rejections: Record<string, boolean> = {};
+          data.forEach(rejection => {
+            rejections[rejection.schedule_id] = true;
+          });
+          
+          // Update state with rejected slots
+          setRejectedSlots(rejections);
+        }
+      }
+    }
+    
+    checkPreviousRejections();
+  }, [user, project.id]);
 
   // Update automatic status check for project creators
   useEffect(() => {
@@ -246,9 +316,21 @@ export default function ProjectDetails({ project, creator, organization, initial
       toast.info("You cannot sign up for your own project");
       return;
     }
+    
+    // Check if this specific slot has been rejected
+    if (rejectedSlots[scheduleId]) {
+      toast.error("You have been rejected for this slot and cannot sign up again.");
+      return;
+    }
 
     if (hasSignedUp[scheduleId]) {
       handleCancelSignup(scheduleId);
+      return;
+    }
+
+    // Check if signups are paused
+    if (project.pause_signups) {
+      toast.error("Signups for this project are temporarily paused by the organizer");
       return;
     }
 
@@ -286,7 +368,7 @@ export default function ProjectDetails({ project, creator, organization, initial
         .eq("project_id", project.id)
         .eq("schedule_id", scheduleId)
         .eq("user_id", user.id)
-        .eq("status", "confirmed")
+        .eq("status", "approved")
         .single();
 
       if (!signups?.id) {
@@ -314,21 +396,45 @@ export default function ProjectDetails({ project, creator, organization, initial
   // Handle signup
   const handleSignUp = async (scheduleId: string, anonymousData?: AnonymousSignupData) => {
     setLoadingStates(prev => ({ ...prev, [scheduleId]: true }));
-    
-    const result = await signUpForProject(project.id, scheduleId, anonymousData);
-    
-    setLoadingStates(prev => ({ ...prev, [scheduleId]: false }));
-    setAnonymousDialogOpen(false);
-    
-    if (result.error) {
-      toast.error(result.error);
-    } else {
-      toast.success("Successfully signed up!");
-      setHasSignedUp(prev => ({ ...prev, [scheduleId]: true }));
-      setRemainingSlots(prev => ({ 
-        ...prev, 
-        [scheduleId]: Math.max(0, (prev[scheduleId] || 0) - 1)
-      }));
+    // Reset alert state on new signup attempt
+    setShowConfirmationAlert(false);
+
+    try {
+      const result = await signUpForProject(project.id, scheduleId, anonymousData);
+
+      if (result.error) {
+        toast.error(result.error);
+      } else if (result.success) {
+        if (result.needsConfirmation) {
+          // Show the persistent alert
+          setShowConfirmationAlert(true);
+          // Also show a toast as immediate feedback
+          toast.success("Signup initiated!", {
+            description: "Please check your email to confirm your spot.",
+            duration: 5000,
+          });
+          // No UI state change here yet for slots/signup status
+        } else {
+          // Standard success toast for registered users
+          toast.success("Successfully signed up!");
+          
+          // Update local state to reflect the successful signup
+          setHasSignedUp(prev => ({ ...prev, [scheduleId]: true }));
+          setRemainingSlots(prev => ({
+            ...prev,
+            [scheduleId]: Math.max(0, (prev[scheduleId] || 0) - 1)
+          }));
+          
+          // Force a refresh of the page data to ensure we're in sync with the server
+          router.refresh();
+        }
+      }
+    } catch (error) {
+      console.error("Error in signup process:", error);
+      toast.error("An unexpected error occurred. Please try again.");
+    } finally {
+      setLoadingStates(prev => ({ ...prev, [scheduleId]: false }));
+      setAnonymousDialogOpen(false); // Close anonymous dialog regardless of outcome
     }
   };
 
@@ -377,11 +483,102 @@ export default function ProjectDetails({ project, creator, organization, initial
     return type.includes('pdf') || type.includes('image');
   };
 
+  const renderSignupButton = (scheduleId: string) => {
+    if (isCreator) {
+      return "You are the creator";
+    }
+    
+    // Check if this particular slot is rejected
+    if (rejectedSlots[scheduleId]) {
+      return (
+        <HoverCard>
+          <HoverCardTrigger asChild>
+            <span className="flex items-center gap-1.5">
+              <XCircle className="h-4 w-4" />
+              Rejected
+            </span>
+          </HoverCardTrigger>
+          <HoverCardContent className="w-80 p-3">
+            <p className="text-sm">
+              Your signup for this slot has been rejected by the project coordinator. 
+              Please contact them directly if you have questions.
+            </p>
+            {creator?.email && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-2 w-full text-xs"
+                onClick={() => {
+                  window.location.href = `mailto:${creator.email}?subject=Regarding rejected signup for: ${project.title}`;
+                }}
+              >
+                <Mail className="h-3.5 w-3.5 mr-1.5" />
+                Contact Project Coordinator
+              </Button>
+            )}
+          </HoverCardContent>
+        </HoverCard>
+      );
+    }
+    
+    if (hasSignedUp[scheduleId]) {
+      return (
+        <>
+          <XCircle className="h-4 w-4" />
+          Cancel Signup
+        </>
+      );
+    }
+    
+    if (remainingSlots[scheduleId] === 0) {
+      return "Full";
+    }
+    
+    if (loadingStates[scheduleId]) {
+      return (
+        <>
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          Processing...
+        </>
+      );
+    }
+    
+    if (calculatedStatus === "cancelled") {
+      return "Unavailable";
+    }
+    
+    return (
+      <>
+        <UserPlus className="h-4 w-4" />
+        Sign Up
+      </>
+    );
+  };
+
   return (
     <>
       <div className="container mx-auto px-4 py-6 max-w-5xl">
         {isCreator && <CreatorDashboard project={project} />}
-        
+        {showConfirmationAlert && (
+          <Alert className="mb-6 border-primary/70 bg-primary/10">
+          <MailCheck className="h-5 w-5 text-primary" />
+          <AlertTitle className="font-semibold text-primary">
+            Check Your Email
+          </AlertTitle>
+          <AlertDescription className="text-primary">
+            We&apos;ve sent a confirmation link to your email address. Please click the link to finalize your signup for this project.
+          </AlertDescription>
+          {/* Optional: Dismiss button */}
+          {/* <Button 
+            variant="ghost" 
+            size="sm" 
+            className="absolute top-2 right-2 text-chart-5 hover:bg-chart-5/10" 
+            onClick={() => setShowConfirmationAlert(false)}>
+              X
+          </Button> */}
+        </Alert>
+        )}
+
         {/* Project Header */}
         <div className="mb-6">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:gap-4">
@@ -431,14 +628,20 @@ export default function ProjectDetails({ project, creator, organization, initial
             <Card>
               <CardHeader className="pb-3 flex flex-col mb-1 sm:flex-row items-start sm:items-center justify-between">
                 <CardTitle>Volunteer Opportunities</CardTitle>
-                {/* {project.require_login && (
-                  <Badge variant="secondary" className="gap-1 mt-2 sm:mt-0 ml-0 sm:ml-2">
-                    <Lock className="h-3 w-3" />
-                    Account Required
-                  </Badge>
-                )} */}
               </CardHeader>
               <CardContent>
+                {project.pause_signups && (
+                  <Alert className="bg-chart-4/15 border-chart-4/50 mb-4">
+                  <Pause className="h-4 w-4 text-chart-4" />
+                  <AlertTitle className="text-chart-4/90">
+                    Signups are currently paused
+                  </AlertTitle>
+                  <AlertDescription className="text-chart-4">
+                  The project organizer has temporarily paused new volunteer signups. Please check back later or contact the organizer.
+                  </AlertDescription>
+                </Alert>
+                )}
+                
                 {project.event_type === "oneTime" && project.schedule.oneTime && (
                   <Card className="bg-card/50 hover:bg-card/80 transition-colors">
                     <CardContent className="p-4">
@@ -475,50 +678,30 @@ export default function ProjectDetails({ project, creator, organization, initial
                             </div>
                             
                             {/* Visual indicator for spots */}
-                            <div className="ml-2 h-1.5 bg-muted rounded-full w-16 overflow-hidden hidden sm:block">
+                            {/* <div className="ml-2 h-1.5 bg-muted rounded-full w-16 overflow-hidden hidden sm:block">
                             <div 
                               className={`h-full ${remainingSlots["oneTime"] === 0 ? 'bg-destructive/80' : 'bg-primary/80'}`}
                               style={{ 
                               width: `${Math.max(0, Math.min(100, ((remainingSlots["oneTime"] ?? project.schedule.oneTime.volunteers) / project.schedule.oneTime.volunteers) * 100))}%` 
                               }}
                             />
-                            </div>
+                            </div> */}
                           </div>
                           </div>
                         </div>
                         <Button
-                          variant={hasSignedUp["oneTime"] ? "secondary" : "default"}
+                          variant={hasSignedUp["oneTime"] ? "secondary" : rejectedSlots["oneTime"] ? "destructive" : "default"}
                           size="sm"
                           onClick={() => handleSignUpClick("oneTime")}
                           disabled={isCreator || loadingStates["oneTime"] || 
                             calculatedStatus === "cancelled" || 
                             calculatedStatus === "completed" || 
                             calculatedStatus === "in-progress" || 
+                            rejectedSlots["oneTime"] || // Changed from userRejected
                             (!hasSignedUp["oneTime"] && (remainingSlots["oneTime"] === 0))}
                           className="flex-shrink-0 gap-2"
                         >
-                          {isCreator ? (
-                            "You are the creator"
-                          ) : hasSignedUp["oneTime"] ? (
-                            <>
-                              <XCircle className="h-4 w-4" />
-                              Cancel Signup
-                            </>
-                          ) : remainingSlots["oneTime"] === 0 ? (
-                            "Full"
-                          ) : loadingStates["oneTime"] ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Processing...
-                            </>
-                          ) : calculatedStatus === "cancelled" ? (
-                            "Unavailable"
-                          ) : (
-                            <>
-                              <UserPlus className="h-4 w-4" />
-                              Sign Up
-                            </>
-                          )}
+                          {renderSignupButton("oneTime")}
                         </Button>
                       </div>
                     </CardContent>
@@ -566,50 +749,30 @@ export default function ProjectDetails({ project, creator, organization, initial
                                           </div>
                                           
                                           {/* Visual indicator for spots */}
-                                          <div className="ml-2 h-1.5 bg-muted rounded-full w-16 overflow-hidden hidden sm:block">
+                                          {/* <div className="ml-2 h-1.5 bg-muted rounded-full w-16 overflow-hidden hidden sm:block">
                                             <div 
                                               className={`h-full ${remainingSlots[scheduleId] === 0 ? 'bg-destructive/70' : 'bg-primary/70'}`}
                                               style={{ 
                                                 width: `${Math.max(0, Math.min(100, ((remainingSlots[scheduleId] ?? slot.volunteers) / slot.volunteers) * 100))}%` 
                                               }}
                                             />
-                                          </div>
+                                          </div> */}
                                         </div>
                                       </div>
                                     </div>
                                     <Button
-                                      variant={hasSignedUp[scheduleId] ? "secondary" : "default"}
+                                      variant={hasSignedUp[scheduleId] ? "secondary" : rejectedSlots[scheduleId] ? "destructive" : "default"}
                                       size="sm"
                                       onClick={() => handleSignUpClick(scheduleId)}
                                       disabled={isCreator || loadingStates[scheduleId] || 
                                         calculatedStatus === "cancelled" || 
                                         calculatedStatus === "completed" || 
                                         calculatedStatus === "in-progress" || 
+                                        rejectedSlots[scheduleId] || // Changed from userRejected
                                         (!hasSignedUp[scheduleId] && (remainingSlots[scheduleId] === 0))}
                                       className="flex-shrink-0 gap-2"
                                     >
-                                      {isCreator ? (
-                                        "You are the creator"
-                                      ) : hasSignedUp[scheduleId] ? (
-                                        <>
-                                          <XCircle className="h-4 w-4" />
-                                          Cancel Signup
-                                        </>
-                                      ) : remainingSlots[scheduleId] === 0 ? (
-                                        "Full"
-                                      ) : loadingStates[scheduleId] ? (
-                                        <>
-                                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                          Processing...
-                                        </>
-                                      ) : calculatedStatus === "cancelled" ? (
-                                        "Unavailable"
-                                      ) : (
-                                        <>
-                                          <UserPlus className="h-4 w-4" />
-                                          Sign Up
-                                        </>
-                                      )}
+                                      {renderSignupButton(scheduleId)}
                                     </Button>
                                   </div>
                                 </CardContent>
@@ -641,50 +804,49 @@ export default function ProjectDetails({ project, creator, organization, initial
                               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                                 <div className="max-w-[400px]">
                                   <h4 className="font-medium break-words">{role.name}</h4>
-                                  <div className="flex items-center gap-2 text-muted-foreground text-sm mt-1">
-                                    <Clock className="h-3.5 w-3.5 mr-1 flex-shrink-0" />
-                                    <span className="line-clamp-1">
-                                      {formatTimeTo12Hour(role.startTime)} - {formatTimeTo12Hour(role.endTime)}
-                                    </span>
-                                    <span className="flex items-center ml-2">
-                                      <Users className="h-3.5 w-3.5 mr-1 flex-shrink-0" />
-                                      {formatSpots(remainingSlots[role.name] ?? role.volunteers)} remaining
-                                    </span>
+                                  <div className="flex flex-col space-y-2 mt-1">
+                                    <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                                      <Clock className="h-3.5 w-3.5 flex-shrink-0" />
+                                      <span className="line-clamp-1">
+                                        {formatTimeTo12Hour(role.startTime)} - {formatTimeTo12Hour(role.endTime)}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center">
+                                      <div className="flex items-center gap-1.5">
+                                        <Users className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground/70" />
+                                        <span className="font-medium text-sm text-muted-foreground">
+                                          {remainingSlots[role.name] ?? role.volunteers}
+                                          <span className="font-normal"> of </span>
+                                          {role.volunteers}
+                                          <span className="font-normal"> spots available</span>
+                                        </span>
+                                      </div>
+                                      
+                                      {/* Visual indicator for spots */}
+                                      {/* <div className="ml-2 h-1.5 bg-muted rounded-full w-16 overflow-hidden hidden sm:block">
+                                        <div 
+                                          className={`h-full ${remainingSlots[role.name] === 0 ? 'bg-destructive/70' : 'bg-primary/70'}`}
+                                          style={{ 
+                                            width: `${Math.max(0, Math.min(100, ((remainingSlots[role.name] ?? role.volunteers) / role.volunteers) * 100))}%` 
+                                          }}
+                                        />
+                                      </div> */}
+                                    </div>
                                   </div>
                                 </div>
                                 <Button
-                                  variant={hasSignedUp[role.name] ? "secondary" : "default"}
+                                  variant={hasSignedUp[role.name] ? "secondary" : rejectedSlots[role.name] ? "destructive" : "default"}
                                   size="sm"
                                   onClick={() => handleSignUpClick(role.name)}
                                   disabled={isCreator || loadingStates[role.name] || 
                                     calculatedStatus === "cancelled" || 
                                     calculatedStatus === "completed" || 
                                     calculatedStatus === "in-progress" || 
+                                    rejectedSlots[role.name] || 
                                     (!hasSignedUp[role.name] && (remainingSlots[role.name] === 0))}
                                   className="flex-shrink-0 gap-2"
                                 >
-                                  {isCreator ? (
-                                    "You are the creator"
-                                  ) : hasSignedUp[role.name] ? (
-                                    <>
-                                      <XCircle className="h-4 w-4" />
-                                      Cancel Signup
-                                    </>
-                                  ) : remainingSlots[role.name] === 0 ? (
-                                    "Full"
-                                  ) : loadingStates[role.name] ? (
-                                    <>
-                                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                      Processing...
-                                    </>
-                                  ) : project.status === "cancelled" ? (
-                                    "Unavailable"
-                                  ) : (
-                                    <>
-                                      <UserPlus className="h-4 w-4" />
-                                      Sign Up
-                                    </>
-                                  )}
+                                  {renderSignupButton(role.name)}
                                 </Button>
                               </div>
                             </CardContent>
@@ -1084,7 +1246,7 @@ export default function ProjectDetails({ project, creator, organization, initial
           <DialogHeader>
             <DialogTitle>Quick Sign Up</DialogTitle>
             <DialogDescription>
-              Please provide your information to sign up for this opportunity.
+              Please provide your information to sign up. You&apos;ll receive an email to confirm your spot.
             </DialogDescription>
           </DialogHeader>
           <ProjectSignupForm

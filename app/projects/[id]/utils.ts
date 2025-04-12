@@ -1,4 +1,5 @@
 import { Project, ProjectStatus } from "@/types";
+import { SupabaseClient } from "@supabase/supabase-js"; // Import SupabaseClient
 
 export function getSlotDetails(project: Project, scheduleId: string) {
   if (!project || !scheduleId) {
@@ -47,25 +48,62 @@ export function getSlotDetails(project: Project, scheduleId: string) {
   return null;
 }
 
-export function getSlotCapacities(project: Project): Record<string, number> {
-  const capacities: Record<string, number> = {};
+// Updated function signature to be async and accept supabase client + projectId
+export async function getSlotCapacities(
+  project: Project, 
+  supabase: SupabaseClient, // Add Supabase client parameter
+  projectId: string // Add projectId parameter
+): Promise<Record<string, number>> { // Return a Promise
+  const totalCapacities: Record<string, number> = {};
   
+  // Calculate total capacities based on project schedule (same logic as before)
   if (project.event_type === "oneTime" && project.schedule.oneTime) {
-    capacities["oneTime"] = project.schedule.oneTime.volunteers;
+    totalCapacities["oneTime"] = project.schedule.oneTime.volunteers;
   } else if (project.event_type === "multiDay" && project.schedule.multiDay) {
     project.schedule.multiDay.forEach((day) => {
       day.slots.forEach((slot, slotIndex) => {
         const scheduleId = `${day.date}-${slotIndex}`;
-        capacities[scheduleId] = slot.volunteers;
+        totalCapacities[scheduleId] = slot.volunteers;
       });
     });
   } else if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
     project.schedule.sameDayMultiArea.roles.forEach(role => {
-      capacities[role.name] = role.volunteers;
+      totalCapacities[role.name] = role.volunteers;
     });
   }
+
+  // Fetch approved signups for this project
+  const { data: signups, error } = await supabase
+    .from("project_signups")
+    .select("schedule_id")
+    .eq("project_id", projectId)
+    .eq("status", "approved");
+
+  if (error) {
+    console.error("Error fetching signups:", error);
+    // Return total capacities as a fallback in case of error? Or throw?
+    // For now, let's return total, but ideally handle this error better.
+    return totalCapacities; 
+  }
+
+  // Count signups per schedule ID
+  const signupCounts: Record<string, number> = {};
+  if (signups) {
+    signups.forEach((signup: { schedule_id: string }) => {
+      signupCounts[signup.schedule_id] = (signupCounts[signup.schedule_id] || 0) + 1;
+    });
+  }
+
+  // Calculate remaining capacities
+  const remainingCapacities: Record<string, number> = {};
+  for (const scheduleId in totalCapacities) {
+    const total = totalCapacities[scheduleId];
+    const count = signupCounts[scheduleId] || 0;
+    remainingCapacities[scheduleId] = Math.max(0, total - count); // Ensure it doesn't go below 0
+  }
   
-  return capacities;
+  console.log("Calculated Remaining Capacities:", remainingCapacities); // Added for debugging
+  return remainingCapacities;
 }
 
 export function isSlotAvailable(
