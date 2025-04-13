@@ -54,8 +54,8 @@ import { formatTimeTo12Hour, formatBytes } from "@/lib/utils";
 import { formatSpots } from "./helpers";
 import { createClient } from "@/utils/supabase/client";
 import { getSlotCapacities, getSlotDetails, isSlotAvailable } from "./utils";
-import { getProjectStatus } from "@/utils/project"; // Import the getProjectStatus utility
-import { useState, useEffect } from "react";
+import { getProjectStatus, getProjectStartDateTime, getProjectEndDateTime } from "@/utils/project"; // Import the getProjectStatus utility and date utils
+import { useState, useEffect, useCallback } from "react"; // Add useCallback
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -201,82 +201,14 @@ export default function ProjectDetails({ project, creator, organization, initial
     checkPreviousRejections();
   }, [user, project.id]);
 
-  // Update automatic status check for project creators
-  useEffect(() => {
-    async function checkAndUpdateStatus() {
-      if (isCreator && !isUpdatingStatus) {
-        try {
-          // First, get the current status directly from the database
-          const supabase = createClient();
-          const { data: currentProjectData, error: fetchError } = await supabase
-            .from('projects')
-            .select('status')
-            .eq('id', project.id)
-            .single();
-            
-          if (fetchError) {
-            console.error("Error fetching current project status:", fetchError);
-            return;
-          }
-          
-          // Calculate what the status should be based on project data
-          const newCalculatedStatus = getProjectStatus(project);
-          const databaseStatus = currentProjectData?.status as ProjectStatus;
-          
-          // Update the calculated status state
-          setCalculatedStatus(newCalculatedStatus);
-          
-          console.log(`Calculated status: ${newCalculatedStatus}`);
-          console.log(`Database status: ${databaseStatus}`);
-          
-          // If the calculated status is different from the database status, update it
-          if (newCalculatedStatus !== databaseStatus) {
-            console.log(`Status mismatch: database=${databaseStatus}, calculated=${newCalculatedStatus}`);
-            updateProjectStatus(newCalculatedStatus);
-          }
-        } catch (error) {
-          console.error("Error in status check:", error);
-        }
-      } else {
-        // Even for non-creators, we still want to calculate the correct status for UI
-        setCalculatedStatus(getProjectStatus(project));
-      }
-    }
-    
-    checkAndUpdateStatus();
-  }, [isCreator, project, isUpdatingStatus]);
-
-  // Realtime status update using setInterval
-  useEffect(() => {
-    const intervalId = setInterval(() => {
-      // Re-calculate project status
-      const newCalculatedStatus = getProjectStatus(project);
-      
-      // Update the calculated status state if it has changed
-      if (newCalculatedStatus !== calculatedStatus) {
-        setCalculatedStatus(newCalculatedStatus);
-        console.log("Status updated via setInterval:", newCalculatedStatus);
-
-        // If user is the project creator, update the status in the database
-        if (isCreator) {
-          updateProjectStatus(newCalculatedStatus);
-        }
-      }
-    }, 60000); // Update every 60 seconds (adjust as needed)
-
-    // Clear interval on component unmount
-    return () => clearInterval(intervalId);
-  }, [project, isCreator, calculatedStatus]);
-
-  // Function to update project status in the database
-  const updateProjectStatus = async (newStatus: ProjectStatus) => {
+  // Move updateProjectStatusInDB outside useCallback to break circular dependency
+  const updateProjectStatusInDB = async (newStatus: ProjectStatus) => {
     if (isUpdatingStatus) return;
     
     try {
       setIsUpdatingStatus(true);
       const supabase = createClient();
       
-      // First update the status in the database
       const { error } = await supabase
         .from('projects')
         .update({ status: newStatus })
@@ -285,22 +217,7 @@ export default function ProjectDetails({ project, creator, organization, initial
       if (error) {
         console.error("Failed to update project status:", error);
       } else {
-        console.log(`Project status updated from ${project.status} to ${newStatus}`);
-        
-        // Then immediately fetch the updated project data
-        // const { data: updatedProject, error: fetchError } = await supabase
-        //   .from('projects')
-        //   .select('*')
-        //   .eq('id', project.id)
-        //   .single();
-          
-        // if (fetchError) {
-        //   console.error("Failed to fetch updated project data:", fetchError);
-        // } else if (updatedProject) {
-        //   // Directly modify the project object to reflect the new status
-        //   project.status = updatedProject.status;
-        //   console.log("Project data refreshed with status:", project.status);
-        // }
+        console.log(`Project status updated in DB to ${newStatus}`);
       }
     } catch (error) {
       console.error("Error updating project status:", error);
@@ -308,6 +225,64 @@ export default function ProjectDetails({ project, creator, organization, initial
       setIsUpdatingStatus(false);
     }
   };
+
+  // Modify status check effect to avoid unnecessary updates
+  useEffect(() => {
+    const newCalculatedStatus = getProjectStatus(project);
+    
+    // Only update if status actually changed
+    setCalculatedStatus(prevStatus => {
+      if (newCalculatedStatus !== prevStatus) {
+        console.log(`Calculated status updated: ${newCalculatedStatus}`);
+        return newCalculatedStatus;
+      }
+      return prevStatus;
+    });
+
+    // Only update DB if we're the creator and status differs
+    if (isCreator && !isUpdatingStatus && newCalculatedStatus !== project.status) {
+      console.log(`Status mismatch detected: prop=${project.status}, calculated=${newCalculatedStatus}`);
+      updateProjectStatusInDB(newCalculatedStatus);
+    }
+  }, [
+    isCreator,
+    project.id,
+    project.status,
+    project.schedule,
+    project.created_at,
+    project.cancelled_at,
+    isUpdatingStatus
+  ]); // Remove updateProjectStatusInDB from dependencies
+
+  // Modify interval effect to be more selective about updates
+  useEffect(() => {
+    const checkStatus = () => {
+      const newStatus = getProjectStatus(project);
+      
+      setCalculatedStatus(prevStatus => {
+        if (newStatus !== prevStatus) {
+          console.log("Status updated via interval:", newStatus);
+          
+          if (isCreator && !isUpdatingStatus && newStatus !== project.status) {
+            updateProjectStatusInDB(newStatus);
+          }
+          return newStatus;
+        }
+        return prevStatus;
+      });
+    };
+
+    const intervalId = setInterval(checkStatus, 60000);
+    return () => clearInterval(intervalId);
+  }, [
+    project.id,
+    project.status,
+    project.schedule,
+    project.created_at,
+    project.cancelled_at,
+    isCreator,
+    isUpdatingStatus
+  ]); // Remove function dependency
 
   // Handle sign up or cancel click
   const handleSignUpClick = async (scheduleId: string) => {

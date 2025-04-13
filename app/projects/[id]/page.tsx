@@ -8,7 +8,6 @@ import { getProjectStatus } from "@/utils/project";
 import ProjectUnauthorized from "./ProjectUnauthorized";
 import { Project } from "@/types"; // Assuming Project type is imported
 
-// Define the props type for the page component
 interface PageProps {
   params: Promise<{ id: string }>;
   searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;

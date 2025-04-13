@@ -24,7 +24,8 @@ import {
   Users,
   FileEdit,
   XCircle,
-  AlertTriangle
+  AlertTriangle,
+  CalendarClock // Add this import for the timeline icon
 } from "lucide-react";
 import { useState } from "react";
 import { deleteProject, updateProjectStatus } from "./actions";
@@ -44,6 +45,7 @@ import { canCancelProject, canDeleteProject } from "@/utils/project";
 import { CancelProjectDialog } from "@/components/CancelProjectDialog";
 import { differenceInHours } from "date-fns";
 import { getProjectStartDateTime, getProjectEndDateTime } from "@/utils/project";
+import ProjectTimeline from "./ProjectTimeline"; // Import the ProjectTimeline component
 
 interface Props {
   project: Project;
@@ -54,6 +56,7 @@ export default function CreatorDashboard({ project }: Props) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [timelineOpen, setTimelineOpen] = useState(false); // Add state for timeline modal
 
   const handleCancelProject = async (reason: string) => {
     try {
@@ -169,6 +172,16 @@ export default function CreatorDashboard({ project }: Props) {
               <FileEdit className="h-4 w-4" />
               Manage Files
             </Button>
+            
+            {/* Add Timeline Button */}
+            {/* <Button
+              variant="outline"
+              className="w-full sm:w-auto flex items-center justify-center gap-2"
+              onClick={() => setTimelineOpen(true)}
+            >
+              <CalendarClock className="h-4 w-4" />
+              View Timeline
+            </Button> */}
 
             {/* <TooltipProvider>
               <Tooltip>
@@ -273,6 +286,13 @@ export default function CreatorDashboard({ project }: Props) {
         isOpen={showCancelDialog}
         onClose={() => setShowCancelDialog(false)}
         onConfirm={handleCancelProject}
+      />
+
+      {/* Add the ProjectTimeline component */}
+      <ProjectTimeline 
+        project={project} 
+        open={timelineOpen} 
+        onOpenAction={setTimelineOpen} 
       />
     </div>
   );
