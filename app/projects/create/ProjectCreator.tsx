@@ -79,6 +79,13 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
   // Validation tracking - only validate after continue is clicked
   const [validationAttempted, setValidationAttempted] = useState(false);
 
+  const [hasProfanity, setHasProfanity] = useState<boolean>(false);
+  
+  // Add handler to update profanity state
+  const handleProfanityResult = (hasIssues: boolean) => {
+    setHasProfanity(hasIssues);
+  };
+
   // Clear errors when a field is updated
   const handleBasicInfoUpdate = (field: string, value: any) => {
     // Clear errors related to this field
@@ -221,6 +228,12 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
   const handleSubmit = async () => {
     if (state.step !== 5) {
       handleNextStep();
+      return;
+    }
+    
+    // Check for profanity before allowing submission
+    if (hasProfanity) {
+      toast.error("Please fix the flagged content before creating your project");
       return;
     }
     
@@ -436,8 +449,9 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
         return (
           <Finalize 
             state={state} 
-            setCoverImage={setCoverImage}
-            setDocuments={setDocuments}
+            setCoverImageAction={setCoverImage} // Updated prop name
+            setDocumentsAction={setDocuments}   // Updated prop name
+            onProfanityChange={handleProfanityResult}
           />
         );
       default:

@@ -10,6 +10,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from "@/components/ui/card";
 import {
   Form,
@@ -30,18 +31,47 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Loader2,
+  Trash2,
+  XCircle
+} from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { toast } from "sonner";
-import { updateProject } from "../actions";
+import { updateProject, deleteProject, updateProjectStatus } from "../actions";
 import LocationAutocomplete from "@/components/ui/location-autocomplete";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { CancelProjectDialog } from "@/components/CancelProjectDialog";
+import { canCancelProject, canDeleteProject } from "@/utils/project";
+import { getProjectStartDateTime, getProjectEndDateTime } from "@/utils/project";
+import { differenceInHours } from "date-fns";
+import { createClient } from "@/utils/supabase/client";
+import { NotificationService } from "@/services/notifications";
+import Link from "next/link";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 // Constants for character limits
 const TITLE_LIMIT = 125;
 const LOCATION_LIMIT = 200;
-const DESCRIPTION_LIMIT = 1000;
+const DESCRIPTION_LIMIT = 2000;
 
 interface Props {
   project: Project;
@@ -78,6 +108,11 @@ export default function EditProjectClient({ project }: Props) {
   const [titleChars, setTitleChars] = useState(project.title.length);
   const [locationChars, setLocationChars] = useState(project.location.length);
   const [hasChanges, setHasChanges] = useState(false);
+  
+  // Add state for cancel/delete dialogs
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
 
   const getCounterColor = (current: number, max: number) => {
     const percentage = (current / max) * 100;
@@ -148,6 +183,83 @@ export default function EditProjectClient({ project }: Props) {
     form.getValues().title?.trim() && 
     form.getValues().location?.trim() && 
     !isHTMLEmpty(form.getValues().description || '');
+
+  // Add handlers for cancel and delete project
+  const handleCancelProject = async (reason: string) => {
+    try {
+      const result = await updateProjectStatus(project.id, "cancelled", reason);
+      if (result.error) {
+        toast.error(result.error);
+      } else {
+        toast.success("Project cancelled successfully");
+        // Send cancellation notifications to all participants
+        try {
+          const supabase = createClient();
+          const { data: signups, error } = await supabase
+            .from('project_signups')
+            .select('user_id')
+            .eq('project_id', project.id);
+            if (!error && signups) {
+            for (const signup of signups) {
+              if (signup.user_id) {
+              await NotificationService.createNotification({
+                title: `Project Cancelled`,
+                body: `The project "${project.title}" which you signed up for has been cancelled.`,
+                type: 'project_updates',
+                actionUrl: `/projects/${project.id}`,
+                data: { projectId: project.id, signupId: signup.user_id },
+                severity: 'warning',
+              }, signup.user_id);
+              }
+            }
+            }
+        } catch (notifyError) {
+          console.error('Error sending cancellation notifications:', notifyError);
+        }
+        setShowCancelDialog(false);
+        router.push(`/projects/${project.id}`);
+        router.refresh();
+      }
+    } catch (error) {
+      toast.error("Failed to cancel project");
+    }
+  };
+
+  const handleDeleteProject = async () => {
+    if (!canDeleteProject(project)) {
+      toast.error("Projects cannot be deleted 24 hours before start until 48 hours after end");
+      setShowDeleteDialog(false);
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      const result = await deleteProject(project.id);
+      if (result.error) {
+        toast.error(result.error);
+      } else {
+        toast.success("Project deleted successfully");
+        router.push("/home");
+      }
+    } catch (error) {
+      toast.error("Failed to delete project");
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteDialog(false);
+    }
+  };
+
+  // Calculate time values for deletion restrictions
+  const now = new Date();
+  const startDateTime = getProjectStartDateTime(project);
+  const endDateTime = getProjectEndDateTime(project);
+  const hoursUntilStart = differenceInHours(startDateTime, now);
+  const hoursAfterEnd = differenceInHours(now, endDateTime);
+  
+  const isInDeletionRestrictionPeriod = hoursUntilStart <= 24 && hoursAfterEnd <= 48;
+  const canDelete = canDeleteProject(project);
+  const canCancel = canCancelProject(project);
+  const isCancelled = project.status === "cancelled";
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-3xl">
@@ -330,7 +442,131 @@ export default function EditProjectClient({ project }: Props) {
             </form>
           </Form>
         </CardContent>
+
+        {/* Add Danger Zone section */}
+        <CardFooter className="flex flex-col border-t pt-6">
+          <div className="w-full">
+            <h3 className="text-lg font-medium text-destructive mb-2">Danger Zone</h3>
+            <p className="text-sm text-muted-foreground mb-6">
+              These actions can&apos;t be undone. Please proceed with caution.
+            </p>
+            
+            {/* Project status notification */}
+            {isCancelled && (
+              <div className="mb-6 flex items-start gap-3 p-4 rounded-md border border-destructive bg-destructive/10">
+                <AlertTriangle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
+                <div className="text-sm text-muted-foreground">
+                  <p className="font-medium text-foreground mb-1">This project has been cancelled</p>
+                  <p>
+                    You can still edit details, but new signups are disabled and the project is marked as cancelled.
+                    If this was a mistake, please contact <Link className="text-chart-3 hover:underline" href="mailto:support@lets-assist.com">support@lets-assist.com</Link>
+                  </p>
+                  {project.cancellation_reason && (
+                    <p className="mt-2 font-medium">
+                      Reason: <span className="font-normal">{project.cancellation_reason}</span>
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Cancel Project Button */}
+              {!isCancelled && (
+                <div className="p-4 border rounded-lg bg-muted/30">
+                  <h4 className="font-medium mb-2 flex items-center">
+                    <XCircle className="h-4 w-4 mr-2 text-chart-4" />
+                    Cancel Project
+                  </h4>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Cancels the project and notifies all signed-up volunteers. The project remains in the system but is marked as cancelled.
+                  </p>
+                  <Button 
+                    onClick={() => setShowCancelDialog(true)}
+                    disabled={!canCancel}
+                    className="w-full bg-chart-4 hover:bg-chart-4/90"
+                  >
+                    Cancel Project
+                  </Button>
+                </div>
+              )}
+
+              {/* Delete Project Button */}
+              <div className="p-4 border rounded-lg bg-muted/30">
+                <h4 className="font-medium mb-2 flex items-center">
+                  <Trash2 className="h-4 w-4 mr-2 text-destructive" />
+                  Delete Project
+                </h4>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Permanently removes this project and all associated data. This action cannot be undone.
+                </p>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div>
+                        <Button 
+                          variant="destructive"
+                          onClick={() => setShowDeleteDialog(true)}
+                          disabled={isDeleting || !canDelete}
+                          className="w-full"
+                        >
+                          {isDeleting ? (
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          ) : null}
+                          Delete Project
+                        </Button>
+                      </div>
+                    </TooltipTrigger>
+                    {isInDeletionRestrictionPeriod && (
+                      <TooltipContent className="max-w-[250px] text-center p-2">
+                        <p>Projects cannot be deleted during the 72-hour window around the event</p>
+                      </TooltipContent>
+                    )}
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+            </div>
+          </div>
+        </CardFooter>
       </Card>
+
+      {/* Delete Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent className="max-w-[95vw] sm:max-w-[425px]">
+          <AlertDialogHeader className="space-y-3">
+            <AlertDialogTitle className="text-lg sm:text-xl">Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription className="text-sm">
+              This action cannot be undone. This will permanently delete your
+              project and remove all data associated with it, including volunteer
+              signups and documents. If you need to cancel or reschedule, we recommend you cancel the project instead.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2 sm:gap-3">
+            <AlertDialogCancel className="w-full sm:w-auto mt-0">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteProject}
+              className="w-full sm:w-auto bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete Project"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Cancel Project Dialog */}
+      <CancelProjectDialog
+        project={project}
+        isOpen={showCancelDialog}
+        onClose={() => setShowCancelDialog(false)}
+        onConfirm={handleCancelProject}
+      />
     </div>
   );
 }
