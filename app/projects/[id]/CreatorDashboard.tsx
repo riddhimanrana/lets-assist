@@ -25,7 +25,8 @@ import {
   FileEdit,
   XCircle,
   AlertTriangle,
-  CalendarClock // Add this import for the timeline icon
+  CalendarClock,
+  QrCode // Add this import for the QR code icon
 } from "lucide-react";
 import { useState } from "react";
 import { deleteProject, updateProjectStatus } from "./actions";
@@ -45,7 +46,8 @@ import { canCancelProject, canDeleteProject } from "@/utils/project";
 import { CancelProjectDialog } from "@/components/CancelProjectDialog";
 import { differenceInHours } from "date-fns";
 import { getProjectStartDateTime, getProjectEndDateTime } from "@/utils/project";
-import ProjectTimeline from "./ProjectTimeline"; // Import the ProjectTimeline component
+import ProjectTimeline from "./ProjectTimeline";
+import { ProjectQRCodeModal } from "./ProjectQRCodeModal"; // Import the new QR code modal component
 
 interface Props {
   project: Project;
@@ -56,7 +58,8 @@ export default function CreatorDashboard({ project }: Props) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
-  const [timelineOpen, setTimelineOpen] = useState(false); // Add state for timeline modal
+  const [timelineOpen, setTimelineOpen] = useState(false);
+  const [qrCodeOpen, setQrCodeOpen] = useState(false); // Add state for QR code modal
 
   const handleCancelProject = async (reason: string) => {
     try {
@@ -173,7 +176,17 @@ export default function CreatorDashboard({ project }: Props) {
               Manage Files
             </Button>
             
-            {/* Add Timeline Button */}
+            {/* Add QR Code Button */}
+            <Button
+              variant="outline"
+              className="w-full sm:w-auto flex items-center justify-center gap-2"
+              onClick={() => setQrCodeOpen(true)}
+            >
+              <QrCode className="h-4 w-4" />
+              QR Check-In
+            </Button>
+            
+            {/* Timeline Button */}
             {/* <Button
               variant="outline"
               className="w-full sm:w-auto flex items-center justify-center gap-2"
@@ -288,11 +301,18 @@ export default function CreatorDashboard({ project }: Props) {
         onConfirm={handleCancelProject}
       />
 
-      {/* Add the ProjectTimeline component */}
+      {/* Project Timeline */}
       <ProjectTimeline 
         project={project} 
         open={timelineOpen} 
         onOpenAction={setTimelineOpen} 
+      />
+      
+      {/* Add QR Code Modal */}
+      <ProjectQRCodeModal
+        project={project}
+        open={qrCodeOpen}
+        onOpenChange={setQrCodeOpen}
       />
     </div>
   );
