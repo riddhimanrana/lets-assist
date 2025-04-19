@@ -1,5 +1,5 @@
 export type EventType = "oneTime" | "multiDay" | "sameDayMultiArea";
-export type VerificationMethod = "qr-code" | "auto" | "manual";
+export type VerificationMethod = "qr-code" | "auto" | "manual" | "signup-only";
 export type SignupStatus = "approved" | "rejected" | "pending";
 
 // New location type to support coordinates

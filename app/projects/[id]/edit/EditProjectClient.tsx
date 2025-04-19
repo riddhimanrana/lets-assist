@@ -97,7 +97,7 @@ const formSchema = z.object({
     }).optional()
   }).optional(),
   require_login: z.boolean(),
-  verification_method: z.enum(["qr-code", "manual", "auto"]),
+  verification_method: z.enum(["qr-code", "manual", "auto", "signup-only"]),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -416,6 +416,7 @@ export default function EditProjectClient({ project }: Props) {
                         <SelectItem value="qr-code">QR Code Check-in</SelectItem>
                         <SelectItem value="manual">Manual Check-in</SelectItem>
                         <SelectItem value="auto">Automatic Check-in</SelectItem>
+                        <SelectItem value="signup-only">Sign-up Only (No Hour Tracking)</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />

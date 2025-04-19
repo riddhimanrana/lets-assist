@@ -207,7 +207,7 @@ export const multiRoleSchema = z.object({
 
 // Verification Settings Schema
 export const verificationSettingsSchema = z.object({
-  verificationMethod: z.enum(["qr-code", "manual", "auto"] as const),
+  verificationMethod: z.enum(["qr-code", "manual", "auto", "signup-only"] as const),
   requireLogin: z.boolean(),
   isPrivate: z.boolean(),
 });
@@ -221,7 +221,7 @@ export const eventFormSchema = z.object({
     multiDay: multiDaySchema,
     sameDayMultiArea: multiRoleSchema,
   }),
-  verificationMethod: z.enum(["qr-code", "manual", "auto"] as const),
+  verificationMethod: z.enum(["qr-code", "manual", "auto", "signup-only"] as const),
   requireLogin: z.boolean(),
   isPrivate: z.boolean(),
 });
