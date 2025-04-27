@@ -28,7 +28,12 @@ import {
   CalendarClock,
   QrCode,
   UserCheck, // Add UserCheck icon for attendance
-  Zap // Add Zap icon for automatic check-in
+  Zap, // Add Zap icon for automatic check-in
+  // --- ADDED ---
+  Pause, 
+  Printer, 
+  Info 
+  // --- END ADDED ---
 } from "lucide-react";
 import { useState, useMemo } from "react";
 import { deleteProject, updateProjectStatus } from "./actions";
@@ -44,9 +49,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+// --- ADDED ---
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"; 
+// --- END ADDED ---
 import { canCancelProject, canDeleteProject } from "@/utils/project";
 import { CancelProjectDialog } from "@/components/CancelProjectDialog";
-import { differenceInHours, addHours, isBefore } from "date-fns";
+import { differenceInHours, addHours, isBefore, isAfter } from "date-fns"; // Added isAfter
 import { getProjectStartDateTime, getProjectEndDateTime } from "@/utils/project";
 import ProjectTimeline from "./ProjectTimeline";
 import { ProjectQRCodeModal } from "./ProjectQRCodeModal"; 
@@ -136,6 +144,12 @@ export default function CreatorDashboard({ project }: Props) {
   const canDelete = canDeleteProject(project);
   const canCancel = canCancelProject(project);
   const isCancelled = project.status === "cancelled";
+
+  // --- ADDED: Calculate phases for signup-only alerts ---
+  const isStartingSoon = hoursUntilStart <= 24 && isBefore(now, startDateTime); // Within 24 hours but not started
+  const isInProgress = isAfter(now, startDateTime) && isBefore(now, endDateTime);
+  const isCompleted = isAfter(now, endDateTime);
+  // --- END ADDED ---
   
   // Check if attendance management is available (2 hours before event)
   const isAttendanceAvailable = useMemo(() => {
@@ -363,6 +377,52 @@ export default function CreatorDashboard({ project }: Props) {
               </Tooltip>
             </TooltipProvider> */}
           </div>
+
+          {/* --- ADDED: Conditional Alerts for Signup-Only Projects --- */}
+          {project.verification_method === 'signup-only' && !isCancelled && (
+            <>
+              {isStartingSoon && (
+                <Alert variant="default" className="border-chart-3/50 bg-chart-3/10 mt-4">
+                  <Info className="h-4 w-4 text-chart-3" />
+                  <AlertTitle className="text-chart-3">Event Starting Soon!</AlertTitle>
+                  <AlertDescription>
+                    Your signup-only event starts within 24 hours. Consider pausing signups if you&apos;re no longer accepting volunteers. You can also view or print the current signup list from the Manage Signups page.
+                    <div className="mt-3 flex gap-2">
+                      <Button variant="outline" size="sm" asChild>
+                        <Link href={`/projects/${project.id}/signups`}>
+                          <Pause className="h-4 w-4 mr-1.5" /> Pause/View Signups
+                        </Link>
+                      </Button>
+                       <Button variant="outline" size="sm" asChild>
+                         <Link href={`/projects/${project.id}/signups`}>
+                           <Printer className="h-4 w-4 mr-1.5" /> Print List
+                         </Link>
+                       </Button>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              )}
+              {isInProgress && (
+                <Alert variant="default" className="border-chart-4/50 bg-chart-4/10 mt-4">
+                  <Info className="h-4 w-4 text-chart-4" />
+                  <AlertTitle className="text-chart-4">Event In Progress</AlertTitle>
+                  <AlertDescription>
+                    Your signup-only event is currently ongoing based on the scheduled time.
+                  </AlertDescription>
+                </Alert>
+              )}
+              {isCompleted && (
+                <Alert variant="default" className="border-chart-5/50 bg-chart-5/10 mt-4">
+                  <Info className="h-4 w-4 text-chart-5" />
+                  <AlertTitle className="text-chart-5">Event Completed</AlertTitle>
+                  <AlertDescription>
+                    Your signup-only event has completed. You can still manage signups and view details.
+                  </AlertDescription>
+                </Alert>
+              )}
+            </>
+          )}
+          {/* --- END ADDED --- */}
 
           {isCancelled ? (
             <div className="flex flex-col sm:flex-row items-start gap-2 rounded-md border border-destructive p-3 sm:p-4 bg-destructive/10">

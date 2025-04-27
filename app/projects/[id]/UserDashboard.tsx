@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { getSlotDetails } from "@/utils/project";
-import { getProjectStartDateTime, getProjectEndDateTime } from "@/utils/project";
+import { getProjectStartDateTime, getProjectEndDateTime } from "@/utils/project"; 
 import { formatTimeTo12Hour } from "@/lib/utils";
 import {
   differenceInHours,
@@ -20,7 +20,7 @@ import {
   formatDistanceToNowStrict,
   parse,
 } from "date-fns";
-import { Clock, CheckCircle, AlertTriangle, Camera, Hourglass, CalendarCheck, Info, ExternalLink } from "lucide-react";
+import { Clock, CheckCircle, AlertTriangle, Camera, Hourglass, CalendarCheck, Info, ExternalLink, CheckCircle2 } from "lucide-react"; 
 import Link from "next/link";
 import { useRouter } from "next/navigation"; // Import useRouter
 import { QRCodeScannerModal } from "@/components/QRCodeScannerModal"; // Import the new component
@@ -66,7 +66,6 @@ export default function UserDashboard({ project, user, signups }: Props) {
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
   const [selectedScheduleForScan, setSelectedScheduleForScan] = useState<string | null>(null);
 
-
   // Update 'now' state every minute for countdowns
   useEffect(() => {
     const intervalId = setInterval(() => {
@@ -74,6 +73,20 @@ export default function UserDashboard({ project, user, signups }: Props) {
     }, 60000); // Update every 60 seconds
     return () => clearInterval(intervalId);
   }, []);
+
+  // --- ADDED: Calculate overall project phase for signup-only alerts ---
+  const projectStartDateTime = useMemo(() => getProjectStartDateTime(project), [project]);
+  const projectEndDateTime = useMemo(() => getProjectEndDateTime(project), [project]);
+  const isSignupOnly = project.verification_method === 'signup-only';
+  const isProjectStartingSoon = useMemo(() => {
+    const hoursUntilStart = differenceInHours(projectStartDateTime, now);
+    return hoursUntilStart <= 24 && isBefore(now, projectStartDateTime);
+  }, [projectStartDateTime, now]);
+  const isProjectProgressing = useMemo(() => {
+    return isAfter(now, projectStartDateTime) && isBefore(now, projectEndDateTime);
+  }, [projectStartDateTime, projectEndDateTime, now]);
+  const isProjectCompleted = useMemo(() => isAfter(now, projectEndDateTime), [projectEndDateTime, now]);
+  // --- END ADDED ---
 
   // --- Process Each Signup ---
   const signupStatuses = useMemo(() => {
@@ -209,14 +222,58 @@ export default function UserDashboard({ project, user, signups }: Props) {
     return null;
   }
 
+  // --- MODIFIED: Render general signup-only alerts first ---
+  const renderGeneralSignupOnlyAlert = () => {
+    if (!isSignupOnly || project.status === 'cancelled') return null;
+
+    if (isProjectStartingSoon) {
+      return (
+        <Alert variant="default" className="mb-6 border-chart-3/50 bg-chart-3/10">
+          <Info className="h-4 w-4 text-chart-3" />
+          <AlertTitle className="text-chart-3">Event Starting Soon!</AlertTitle>
+          <AlertDescription>
+            The signup-only event &quot;{project.title}&quot; is scheduled to start within 24 hours.
+          </AlertDescription>
+        </Alert>
+      );
+    }
+    if (isProjectProgressing) {
+      return (
+        <Alert variant="default" className="mb-6 border-chart-4/50 bg-chart-4/10">
+          <Clock className="h-4 w-4 text-chart-4" />
+          <AlertTitle className="text-chart-4">Event in Progress</AlertTitle>
+          <AlertDescription>
+            The signup-only event &quot;{project.title}&quot; is currently in progress.
+          </AlertDescription>
+        </Alert>
+      );
+    }
+    if (isProjectCompleted) {
+      return (
+        <Alert variant="default" className="mb-6 border-chart-5/50 bg-chart-5/10">
+          <CheckCircle2 className="h-4 w-4 text-chart-5" />
+          <AlertTitle className="text-chart-5">Event Completed</AlertTitle>
+          <AlertDescription>
+            The signup-only event &quot;{project.title}&quot; has finished based on its schedule.      </AlertDescription>
+        </Alert>
+      );
+    }
+
+    return null;
+  };
+  // --- END MODIFIED ---
+
   if (!signupStatuses || signupStatuses.length === 0) {
-    // Optional: Show a message if no relevant signups found
-    // return <Alert variant="default" className="mb-6"><Info className="h-4 w-4" /><AlertDescription>No current or upcoming approved/attended sessions found.</AlertDescription></Alert>;
-    return null; // Render nothing if no relevant signups
+    // Render general alerts even if no specific signup cards are shown
+    return <div className="space-y-4 mb-6">{renderGeneralSignupOnlyAlert()}</div>;
   }
 
   return (
     <div className="space-y-4 mb-6">
+      {/* --- ADDED: Render general signup-only alert --- */}
+      {renderGeneralSignupOnlyAlert()}
+      {/* --- END ADDED --- */}
+
       {signupStatuses.map((status) => {
         if (!status) return null; // Should not happen due to filter, but good practice
 
@@ -359,6 +416,11 @@ export default function UserDashboard({ project, user, signups }: Props) {
 
           // 3. Reminder State (Triggered by approved status + time window)
           case 'reminder':
+            // --- ADDED: Skip reminder card if general 'starting soon' alert is shown for signup-only ---
+            if (isSignupOnly && isProjectStartingSoon) {
+              return null;
+            }
+            // --- END ADDED ---
             return (
               <Card key={status.signup.id} className="mb-6 border-chart-3/30 bg-chart-3/5">
                 <CardHeader>
