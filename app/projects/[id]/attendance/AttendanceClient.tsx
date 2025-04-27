@@ -4,6 +4,7 @@ import React, { useEffect, useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Search, ArrowLeft, Clock, CheckCircle, Printer, RefreshCw, ArrowUpDown, ChevronUp, ChevronDown, Loader2, UserRoundCheck, CalendarClock, AlertCircle } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Project } from "@/types";
 import { format, parseISO, addHours, isBefore } from "date-fns";
 import Link from "next/link";
@@ -474,11 +475,37 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
               <div>
                 <CardTitle>Attendance Records</CardTitle>
                 <CardDescription>
-                  View and track check-ins for your project.
+                  {project?.verification_method === 'manual' 
+                    ? "Check in volunteers and manage attendee records" 
+                    : project?.verification_method === 'auto'
+                    ? "View volunteer attendance (check-ins are automatic)"
+                    : project?.verification_method === 'signup-only'
+                    ? "View volunteer attendance records"
+                    : "View and track check-ins for your project"}
                 </CardDescription>
               </div>
             </div>
           </CardHeader>
+          
+          {/* Display explanatory message for automatic or signup-only methods */}
+          {(project?.verification_method === 'auto' || project?.verification_method === 'signup-only') && (
+            <div className="mx-6 mb-4">
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>
+                  {project?.verification_method === 'auto' 
+                    ? "Automatic Check-in Enabled" 
+                    : "Sign-up Only Project"}
+                </AlertTitle>
+                <AlertDescription>
+                  {project?.verification_method === 'auto'
+                    ? "Volunteers will be automatically checked in at their scheduled start time. Manual check-in is not required."
+                    : "This project is configured for sign-up tracking only. No check-in functionality is available."}
+                </AlertDescription>
+              </Alert>
+            </div>
+          )}
+
           <CardContent className="space-y-6">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center justify-between">
               {/* Search input always full width on mobile */}
@@ -611,9 +638,9 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
                             <Button
                               size="sm"
                               onClick={() => handleManualCheckIn(record.id)}
-                              disabled={!!record.check_in_time}
+                              disabled={!!record.check_in_time || project?.verification_method === 'auto' || project?.verification_method === 'signup-only'}
                               className={cn(
-                                record.check_in_time && "opacity-50 cursor-not-allowed"
+                                (record.check_in_time || project?.verification_method === 'auto' || project?.verification_method === 'signup-only') && "opacity-50 cursor-not-allowed"
                               )}
                             >
                               Check in

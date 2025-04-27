@@ -1157,7 +1157,7 @@ export default function ProjectDetails({
                   <h3 className="text-sm font-medium text-muted-foreground mb-2">
                     Sign-up Requirements
                   </h3>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <Badge
                       variant={project.require_login ? "secondary" : "outline"}
                       className="text-xs flex items-center gap-1"
@@ -1171,6 +1171,34 @@ export default function ProjectDetails({
                         <>
                           <Users className="h-3 w-3" />
                           Anonymous Sign-ups Allowed
+                        </>
+                      )}
+                    </Badge>
+                    
+                    {/* Add verification method badge */}
+                    <Badge 
+                      variant="outline"
+                      className="text-xs flex items-center gap-1"
+                    >
+                      {project.verification_method === 'qr-code' ? (
+                        <>
+                          <QrCode className="h-3 w-3" />
+                          QR Code Check-in
+                        </>
+                      ) : project.verification_method === 'manual' ? (
+                        <>
+                          <UserCheck className="h-3 w-3" />
+                          Manual Check-in
+                        </>
+                      ) : project.verification_method === 'auto' ? (
+                        <>
+                          <Zap className="h-3 w-3" />
+                          Automatic Check-in
+                        </>
+                      ) : (
+                        <>
+                          <Users className="h-3 w-3" />
+                          Sign-up Only
                         </>
                       )}
                     </Badge>

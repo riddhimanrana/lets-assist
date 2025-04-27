@@ -204,6 +204,11 @@ export default function UserDashboard({ project, user, signups }: Props) {
 
   // --- Render Logic ---
 
+  // Don't show any signup statuses if the project is cancelled
+  if (project.status === 'cancelled') {
+    return null;
+  }
+
   if (!signupStatuses || signupStatuses.length === 0) {
     // Optional: Show a message if no relevant signups found
     // return <Alert variant="default" className="mb-6"><Info className="h-4 w-4" /><AlertDescription>No current or upcoming approved/attended sessions found.</AlertDescription></Alert>;
@@ -287,32 +292,66 @@ export default function UserDashboard({ project, user, signups }: Props) {
 
           // 2. Check-in Available State (Triggered by approved status + time window)
           case 'checkInOpen':
-            // Remove the checkInUrl constant, it's no longer directly used by the button
-            // const checkInUrl = `/attend/${project.id}?scheduleId=${status.signup.schedule_id}`;
+            // Don't show check-in info for cancelled projects or sign-up only projects
+            if (project.status === 'cancelled' || project.verification_method === 'signup-only') {
+              return null;
+            }
+            
+            // Get check-in information text based on verification method
+            let checkInInfoText;
+            let buttonContent = null;
+            let alertTitle = 'Check-in is open!';
+            
+            switch(project.verification_method) {
+              case 'qr-code':
+                alertTitle = 'Check-in is open!';
+                checkInInfoText = `Check-in for your session ${sessionDisplayName} starting at ${formatTimeTo12Hour(status.slotDetails.startTime)} is now available. Scan the QR code provided by the organizer to check in.`;
+                buttonContent = (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    aria-label={`Open camera to scan QR code for session ${sessionDisplayName}`}
+                    onClick={() => {
+                      setSelectedScheduleForScan(status.signup.schedule_id);
+                      setIsCameraModalOpen(true);
+                    }}
+                  >
+                    <Camera className="h-4 w-4 mr-1.5" />
+                    Scan QR Code
+                  </Button>
+                );
+                break;
+              
+              case 'manual':
+                alertTitle = 'Check-in Required';
+                checkInInfoText = `Check-in for your session ${sessionDisplayName} starting at ${formatTimeTo12Hour(status.slotDetails.startTime)} needs to be done in person. Please find the project organizer when you arrive at the venue.`;
+                break;
+              
+              case 'auto':
+                alertTitle = 'Upcoming Session';
+                checkInInfoText = `Check-in for your session ${sessionDisplayName} starting at ${formatTimeTo12Hour(status.slotDetails.startTime)} will happen automatically at the start time. No action is required from you.`;
+                break;
+              
+              default:
+                checkInInfoText = `Check-in for your session ${sessionDisplayName} starting at ${formatTimeTo12Hour(status.slotDetails.startTime)} is now available.`;
+            }
+            
             return (
               <Alert key={status.signup.id} variant="default" className="mb-6 border-primary/40 bg-primary/5">
                 <div className="flex items-center gap-2">
-                        <Hourglass className="h-5 w-5 text-primary flex-shrink-0" />
-                        <CardTitle className="font-semibold text-lg">Check-in is open!</CardTitle>
-                    </div>
+                  <Hourglass className="h-5 w-5 text-primary flex-shrink-0" />
+                  <CardTitle className="font-semibold text-lg">
+                    {alertTitle}
+                  </CardTitle>
+                </div>
                 <AlertDescription className="text-muted-foreground mt-2">
                   <>
-                    Check-in for your session <span className="font-medium"><>{sessionDisplayName}</></span> starting at <span className="font-medium">{formatTimeTo12Hour(status.slotDetails.startTime)}</span> is now available. Scan the QR code provided by the organizer to check in.
-                    <div className="mt-3 flex gap-2">
-                      {/* Modified Button: Removed asChild and Link, added onClick */}
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        aria-label={`Open camera to scan QR code for session ${sessionDisplayName}`}
-                        onClick={() => {
-                          setSelectedScheduleForScan(status.signup.schedule_id); // Store which schedule we're scanning for
-                          setIsCameraModalOpen(true); // Open the modal
-                        }}
-                      >
-                        <Camera className="h-4 w-4 mr-1.5" />
-                        Scan QR Code {/* Updated Button Text */}
-                      </Button>
-                    </div>
+                    {checkInInfoText}
+                    {buttonContent && (
+                      <div className="mt-3 flex gap-2">
+                        {buttonContent}
+                      </div>
+                    )}
                   </>
                 </AlertDescription>
               </Alert>
@@ -360,16 +399,18 @@ export default function UserDashboard({ project, user, signups }: Props) {
         }
       })}
 
-      {/* Replace placeholder Dialog with the actual QRCodeScannerModal */}
-      <QRCodeScannerModal
-        isOpen={isCameraModalOpen}
-        onClose={() => {
-            setIsCameraModalOpen(false);
-            setSelectedScheduleForScan(null); // Clear selected schedule on close
-        }}
-        projectId={project.id}
-        expectedScheduleId={selectedScheduleForScan}
-      />
+      {/* Replace placeholder Dialog with the actual QRCodeScannerModal - only render for QR code verification method */}
+      {project.verification_method === 'qr-code' && (
+        <QRCodeScannerModal
+          isOpen={isCameraModalOpen}
+          onClose={() => {
+              setIsCameraModalOpen(false);
+              setSelectedScheduleForScan(null); // Clear selected schedule on close
+          }}
+          projectId={project.id}
+          expectedScheduleId={selectedScheduleForScan}
+        />
+      )}
     </div>
   );
 }

@@ -27,7 +27,8 @@ import {
   AlertTriangle,
   CalendarClock,
   QrCode,
-  UserCheck // Add UserCheck icon for attendance
+  UserCheck, // Add UserCheck icon for attendance
+  Zap // Add Zap icon for automatic check-in
 } from "lucide-react";
 import { useState, useMemo } from "react";
 import { deleteProject, updateProjectStatus } from "./actions";
@@ -276,56 +277,64 @@ export default function CreatorDashboard({ project }: Props) {
               Manage Files
             </Button>
             
-            {/* Add QR Code Button */}
-            <Button
-              variant="outline"
-              className="w-full sm:w-auto flex items-center justify-center gap-2 bg-chart-4/30 hover:bg-chart-4/20 border-chart-4/60"
-              onClick={() => setQrCodeOpen(true)}
-            >
-              <QrCode className="h-4 w-4" />
-              QR Check-In
-            </Button>
+            {/* Add QR Code Button - only for QR code verification */}
+            {project.verification_method === 'qr-code' && (
+              <Button
+                variant="outline"
+                className="w-full sm:w-auto flex items-center justify-center gap-2 bg-chart-4/30 hover:bg-chart-4/20 border-chart-4/60"
+                onClick={() => setQrCodeOpen(true)}
+              >
+                <QrCode className="h-4 w-4" />
+                QR Check-In
+              </Button>
+            )}
             
-            {/* Update Attendance Button with availability tooltip */}
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="w-full sm:w-auto">
-                    <Button
-                      variant="outline"
-                      className={`w-full sm:w-auto flex items-center justify-center gap-2 ${
-                        isAttendanceAvailable 
-                          ? "bg-chart-5/30 hover:bg-chart-5/20 border-chart-5/60" 
-                          : "opacity-70"
-                      }`}
-                      onClick={() => router.push(`/projects/${project.id}/attendance`)}
-                      disabled={!isAttendanceAvailable}
-                    >
-                      <UserCheck className="h-4 w-4" />
-                      Manage Attendance
-                    </Button>
-                  </span>
-                </TooltipTrigger>
-                {!isAttendanceAvailable && (
-                  <TooltipContent className="max-w-[250px] p-2">
-                    <p>Attendance management will be available 2 hours before the event starts</p>
-                    {timeUntilAttendanceOpens && (
-                      <p className="text-xs mt-1">{timeUntilAttendanceOpens}</p>
-                    )}
-                  </TooltipContent>
-                )}
-              </Tooltip>
-            </TooltipProvider>
+            {/* Attendance Button - for QR code and manual methods */}
+            {(project.verification_method === 'qr-code' || project.verification_method === 'manual') && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="w-full sm:w-auto">
+                      <Button
+                        variant="outline"
+                        className={`w-full sm:w-auto flex items-center justify-center gap-2 ${
+                          isAttendanceAvailable 
+                            ? "bg-chart-5/30 hover:bg-chart-5/20 border-chart-5/60" 
+                            : "opacity-70"
+                        }`}
+                        onClick={() => router.push(`/projects/${project.id}/attendance`)}
+                        disabled={!isAttendanceAvailable}
+                      >
+                        <UserCheck className="h-4 w-4" />
+                        {project.verification_method === 'manual' ? 'Check-in Volunteers' : 'Manage Attendance'}
+                      </Button>
+                    </span>
+                  </TooltipTrigger>
+                  {!isAttendanceAvailable && (
+                    <TooltipContent className="max-w-[250px] p-2">
+                      <p>Attendance management will be available 2 hours before the event starts</p>
+                      {timeUntilAttendanceOpens && (
+                        <p className="text-xs mt-1">{timeUntilAttendanceOpens}</p>
+                      )}
+                    </TooltipContent>
+                  )}
+                </Tooltip>
+              </TooltipProvider>
+            )}
             
-            {/* Timeline Button */}
-            {/* <Button
-              variant="outline"
-              className="w-full sm:w-auto flex items-center justify-center gap-2"
-              onClick={() => setTimelineOpen(true)}
-            >
-              <CalendarClock className="h-4 w-4" />
-              View Timeline
-            </Button> */}
+            {/* Visual indicator for automatic check-in */}
+            {project.verification_method === 'auto' && (
+              <div className="w-full sm:w-auto">
+                <Button
+                  variant="outline"
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 opacity-70 cursor-default"
+                  disabled
+                >
+                  <Zap className="h-4 w-4" />
+                  Automatic Check-in Enabled
+                </Button>
+              </div>
+            )}
 
             {/* <TooltipProvider>
               <Tooltip>
@@ -439,12 +448,14 @@ export default function CreatorDashboard({ project }: Props) {
         onOpenAction={setTimelineOpen} 
       />
       
-      {/* Add QR Code Modal */}
-      <ProjectQRCodeModal
-        project={project}
-        open={qrCodeOpen}
-        onOpenChange={setQrCodeOpen}
-      />
+      {/* Add QR Code Modal - only for qr code method */}
+      {project.verification_method === 'qr-code' && (
+        <ProjectQRCodeModal
+          project={project}
+          open={qrCodeOpen}
+          onOpenChange={setQrCodeOpen}
+        />
+      )}
     </div>
   );
 }

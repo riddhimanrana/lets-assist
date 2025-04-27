@@ -1,4 +1,3 @@
-// filepath: /Users/riddhiman.rana/Desktop/Coding/lets-assist/app/projects/[id]/CreatorAttendanceModal.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -7,13 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Check, CheckCircle, Clock, Loader2, Mail, Search, UserCheck } from "lucide-react";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Check, CheckCircle, Clock, Loader2, Mail, Search, UserCheck, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { createClient } from "@/utils/supabase/client";
-import { checkInParticipant } from "@/app/projects/[id]/actions"; // Keep this path as it's relative to the app root
+import { checkInParticipant } from "@/app/projects/[id]/actions";
+import { Project } from "@/types";
 
 interface Participant {
   id: string;
@@ -29,13 +29,13 @@ interface Participant {
 interface CreatorAttendanceModalProps {
   projectId: string;
   open: boolean;
-  onOpenChange: (open: boolean) => void;
+  onOpenChangeAction: (open: boolean) => void; // Renamed to comply with Server Action naming
 }
 
 export default function CreatorAttendanceModal({ 
   projectId, 
   open, 
-  onOpenChange 
+  onOpenChangeAction 
 }: CreatorAttendanceModalProps) {
   const [loading, setLoading] = useState(true);
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -43,6 +43,27 @@ export default function CreatorAttendanceModal({
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("all");
   const [processingIds, setProcessingIds] = useState<string[]>([]);
+  const [projectData, setProjectData] = useState<Project | null>(null);
+
+  // Add effect to fetch project data for verification method
+  useEffect(() => {
+    const fetchProjectData = async () => {
+      if (open) {
+        const supabase = createClient();
+        const { data, error } = await supabase
+          .from("projects")
+          .select("*")
+          .eq("id", projectId)
+          .single();
+          
+        if (!error && data) {
+          setProjectData(data as Project);
+        }
+      }
+    };
+    
+    fetchProjectData();
+  }, [open, projectId]);
 
   // Fetch participants when modal opens
   useEffect(() => {
@@ -182,13 +203,33 @@ export default function CreatorAttendanceModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChangeAction}>
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl flex items-center gap-2">
             <UserCheck className="h-5 w-5" />
-            Manage Attendance
+            {projectData?.verification_method === 'manual' 
+              ? "Check-in Volunteers" 
+              : "Manage Attendance"}
           </DialogTitle>
+          {projectData?.verification_method === 'auto' && (
+            <Alert className="mt-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Automatic Check-in</AlertTitle>
+              <AlertDescription>
+                This project uses automatic check-in. Volunteers will be checked in automatically at their session start time.
+              </AlertDescription>
+            </Alert>
+          )}
+          {projectData?.verification_method === 'signup-only' && (
+            <Alert className="mt-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Sign-up Only Project</AlertTitle>
+              <AlertDescription>
+                This project is set up for sign-up tracking only and does not use check-in functionality.
+              </AlertDescription>
+            </Alert>
+          )}
         </DialogHeader>
         
         <div className="space-y-4">
@@ -278,7 +319,9 @@ export default function CreatorAttendanceModal({
                           )}
                         </TableCell>
                         <TableCell>
-                          {!participant.check_in_time && (
+                          {!participant.check_in_time && 
+                          projectData?.verification_method !== 'auto' && 
+                          projectData?.verification_method !== 'signup-only' && (
                             <Button
                               size="sm"
                               variant="outline"
