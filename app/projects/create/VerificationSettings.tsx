@@ -13,6 +13,7 @@ import {
   Info,
   Users,
   Lock,
+  Clipboard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { VerificationMethod } from "@/types";
@@ -160,6 +161,30 @@ export default function VerificationSettings({
               <div className="text-[0.9rem] text-muted-foreground ml-8">
                 System automatically logs attendance for the full scheduled
                 time. Least accurate for attendance tracking.
+              </div>
+            </label>
+
+            {/* Add the new signup-only option */}
+            <label
+              htmlFor="signup-only"
+              className={cn(
+                "flex flex-col items-start space-y-3 rounded-lg border p-4 hover:bg-accent cursor-pointer transition-colors",
+                verificationMethod === "signup-only" && "border-primary bg-accent",
+                errors.verificationMethod && "border-destructive",
+              )}
+            >
+              <div className="flex items-center space-x-3">
+                <RadioGroupItem value="signup-only" id="signup-only" />
+                <div className="flex items-center space-x-2">
+                  <Clipboard className="flex-shrink-0 h-5 w-5 text-primary mt-0.5" />
+                  <span className="font-medium">
+                    Sign-up Only (No Hour Tracking)
+                  </span>
+                </div>
+              </div>
+              <div className="text-[0.9rem] text-muted-foreground ml-8">
+                Simplest option that only collects volunteer signups without tracking hours.
+                Perfect for events where you just need a headcount or when attendance is tracked separately.
               </div>
             </label>
           </RadioGroup>

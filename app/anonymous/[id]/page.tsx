@@ -28,6 +28,7 @@ export default async function AnonymousSignupPage({ params }: PageProps): Promis
         id,
         status,
         schedule_id,
+        check_in_time,
         project:projects(*)
       )
     `)
@@ -76,8 +77,9 @@ export default async function AnonymousSignupPage({ params }: PageProps): Promis
   const isProjectCancelled = project.status === 'cancelled';
 
   const { name, email, phone_number, confirmed_at, created_at } = signupData;
-  const { status, schedule_id, id: project_signup_id } = projectSignup;
-
+  // Destructure check_in_time from projectSignup
+  const { status, schedule_id, id: project_signup_id, check_in_time } = projectSignup;
+  console.log("Anonymous signup data:", signupData);
   // Pass all the necessary data to the client component, including IDs needed for deletion
   return (
     <AnonymousSignupClient
@@ -92,6 +94,7 @@ export default async function AnonymousSignupPage({ params }: PageProps): Promis
       project={project as Project}
       project_signup_id={project_signup_id}
       isProjectCancelled={isProjectCancelled} // Pass the cancelled status
+      check_in_time={check_in_time} // <-- Pass check_in_time
     />
   );
 }

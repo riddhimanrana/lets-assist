@@ -144,6 +144,17 @@ export const multiRoleSchema = z.object({
         message: "End time must be after start time for all roles",
         path: ["roles"], // Apply error to the roles array itself
       }
+    )
+    .refine( // Add this refinement for unique role names
+      (roles) => {
+        const names = roles.map(role => role.name.trim().toLowerCase());
+        const uniqueNames = new Set(names);
+        return names.length === uniqueNames.size;
+      },
+      {
+        message: "Role names must be unique",
+        path: ["roles"], // Apply error to the roles array itself
+      }
     ),
 }).refine(
   (data) => {
@@ -207,7 +218,7 @@ export const multiRoleSchema = z.object({
 
 // Verification Settings Schema
 export const verificationSettingsSchema = z.object({
-  verificationMethod: z.enum(["qr-code", "manual", "auto"] as const),
+  verificationMethod: z.enum(["qr-code", "manual", "auto", "signup-only"] as const),
   requireLogin: z.boolean(),
   isPrivate: z.boolean(),
 });
@@ -221,7 +232,7 @@ export const eventFormSchema = z.object({
     multiDay: multiDaySchema,
     sameDayMultiArea: multiRoleSchema,
   }),
-  verificationMethod: z.enum(["qr-code", "manual", "auto"] as const),
+  verificationMethod: z.enum(["qr-code", "manual", "auto", "signup-only"] as const),
   requireLogin: z.boolean(),
   isPrivate: z.boolean(),
 });

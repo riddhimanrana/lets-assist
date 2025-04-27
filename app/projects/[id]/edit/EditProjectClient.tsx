@@ -97,7 +97,7 @@ const formSchema = z.object({
     }).optional()
   }).optional(),
   require_login: z.boolean(),
-  verification_method: z.enum(["qr-code", "manual", "auto"]),
+  verification_method: z.enum(["qr-code", "manual", "auto", "signup-only"]),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -408,14 +408,43 @@ export default function EditProjectClient({ project }: Props) {
                       defaultValue={field.value}
                     >
                       <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select verification method" />
-                        </SelectTrigger>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select verification method" />
+                      </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="qr-code">QR Code Check-in</SelectItem>
-                        <SelectItem value="manual">Manual Check-in</SelectItem>
-                        <SelectItem value="auto">Automatic Check-in</SelectItem>
+                      <SelectItem value="qr-code">
+                        <div className="flex flex-col group">
+                        <span>QR Code Check-in</span>
+                        <span className="text-xs text-muted-foreground hidden group-hover:block group-focus:block">
+                          Volunteers scan a QR code at the event to check in
+                        </span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="manual">
+                        <div className="flex flex-col group">
+                        <span>Manual Check-in</span>
+                        <span className="text-xs text-muted-foreground hidden group-hover:block group-focus:block">
+                          Project coordinators manually check in volunteers from the attendance page
+                        </span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="auto">
+                        <div className="flex flex-col group">
+                        <span>Automatic Check-in</span>
+                        <span className="text-xs text-muted-foreground hidden group-hover:block group-focus:block">
+                          System automatically checks in volunteers at their scheduled time
+                        </span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="signup-only">
+                        <div className="flex flex-col group">
+                        <span>Sign-up Only</span>
+                        <span className="text-xs text-muted-foreground hidden group-hover:block group-focus:block">
+                          No check-in process, only tracks who signed up
+                        </span>
+                        </div>
+                      </SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />

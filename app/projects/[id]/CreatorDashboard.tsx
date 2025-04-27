@@ -25,9 +25,19 @@ import {
   FileEdit,
   XCircle,
   AlertTriangle,
-  CalendarClock // Add this import for the timeline icon
+  CalendarClock,
+  QrCode,
+  UserCheck, // Add UserCheck icon for attendance
+  Zap, // Add Zap icon for automatic check-in
+  // --- ADDED ---
+  Pause, 
+  Printer, 
+  Info,
+  Hourglass, 
+  CheckCircle2 
+  // --- END ADDED ---
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { deleteProject, updateProjectStatus } from "./actions";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -41,11 +51,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+// --- ADDED ---
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"; 
+// --- END ADDED ---
 import { canCancelProject, canDeleteProject } from "@/utils/project";
 import { CancelProjectDialog } from "@/components/CancelProjectDialog";
-import { differenceInHours } from "date-fns";
+import { differenceInHours, addHours, isBefore, isAfter } from "date-fns"; // Added isAfter
 import { getProjectStartDateTime, getProjectEndDateTime } from "@/utils/project";
-import ProjectTimeline from "./ProjectTimeline"; // Import the ProjectTimeline component
+import ProjectTimeline from "./ProjectTimeline";
+import { ProjectQRCodeModal } from "./ProjectQRCodeModal"; 
 
 interface Props {
   project: Project;
@@ -56,7 +70,8 @@ export default function CreatorDashboard({ project }: Props) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
-  const [timelineOpen, setTimelineOpen] = useState(false); // Add state for timeline modal
+  const [timelineOpen, setTimelineOpen] = useState(false);
+  const [qrCodeOpen, setQrCodeOpen] = useState(false);
 
   const handleCancelProject = async (reason: string) => {
     try {
@@ -132,6 +147,113 @@ export default function CreatorDashboard({ project }: Props) {
   const canCancel = canCancelProject(project);
   const isCancelled = project.status === "cancelled";
 
+  // --- Phases ---
+  const isStartingSoon = hoursUntilStart <= 24 && isBefore(now, startDateTime); // Within 24 hours but not started
+  const isInProgress = isAfter(now, startDateTime) && isBefore(now, endDateTime);
+  const isCompleted = isAfter(now, endDateTime);
+  // --- ADDED: Check-in specific phase ---
+  const isCheckInOpen = hoursUntilStart <= 2 && isBefore(now, endDateTime); // Within 2 hours before start until end
+  // --- END ADDED ---
+  
+  // Check if attendance management is available (2 hours before event)
+  const isAttendanceAvailable = useMemo(() => {
+    // Handle different event types
+    if (project.event_type === "oneTime" && project.schedule.oneTime) {
+      const { date, startTime } = project.schedule.oneTime;
+      const [year, month, day] = date.split('-').map(Number);
+      const [hours, minutes] = startTime.split(':').map(Number);
+      
+      const sessionStart = new Date(year, month - 1, day, hours, minutes);
+      const attendanceOpenTime = addHours(sessionStart, -2);
+      
+      return !isBefore(now, attendanceOpenTime);
+    } 
+    else if (project.event_type === "multiDay" && project.schedule.multiDay) {
+      // Check if any session is within 2 hours of starting
+      return project.schedule.multiDay.some(day => {
+        const [year, month, dayNum] = day.date.split('-').map(Number);
+        
+        return day.slots.some(slot => {
+          const [hours, minutes] = slot.startTime.split(':').map(Number);
+          const sessionStart = new Date(year, month - 1, dayNum, hours, minutes);
+          const attendanceOpenTime = addHours(sessionStart, -2);
+          
+          return !isBefore(now, attendanceOpenTime);
+        });
+      });
+    }
+    else if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
+      const { date, roles } = project.schedule.sameDayMultiArea;
+      const [year, month, day] = date.split('-').map(Number);
+      
+      return roles.some(role => {
+        const [hours, minutes] = role.startTime.split(':').map(Number);
+        const sessionStart = new Date(year, month - 1, day, hours, minutes);
+        const attendanceOpenTime = addHours(sessionStart, -2);
+        
+        return !isBefore(now, attendanceOpenTime);
+      });
+    }
+    
+    return false;
+  }, [project]);
+  
+  // Calculate time until attendance opens for tooltip
+  const timeUntilAttendanceOpens = useMemo(() => {
+    if (isAttendanceAvailable) return null;
+    
+    let earliestSessionTime: Date | null = null;
+    
+    if (project.event_type === "oneTime" && project.schedule.oneTime) {
+      const { date, startTime } = project.schedule.oneTime;
+      const [year, month, day] = date.split('-').map(Number);
+      const [hours, minutes] = startTime.split(':').map(Number);
+      
+      earliestSessionTime = new Date(year, month - 1, day, hours, minutes);
+    } 
+    else if (project.event_type === "multiDay" && project.schedule.multiDay) {
+      project.schedule.multiDay.forEach(day => {
+        const [year, month, dayNum] = day.date.split('-').map(Number);
+        
+        day.slots.forEach(slot => {
+          const [hours, minutes] = slot.startTime.split(':').map(Number);
+          const sessionStart = new Date(year, month - 1, dayNum, hours, minutes);
+          
+          if (!earliestSessionTime || isBefore(sessionStart, earliestSessionTime)) {
+            earliestSessionTime = sessionStart;
+          }
+        });
+      });
+    }
+    else if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
+      const { date, roles } = project.schedule.sameDayMultiArea;
+      const [year, month, day] = date.split('-').map(Number);
+      
+      roles.forEach(role => {
+        const [hours, minutes] = role.startTime.split(':').map(Number);
+        const sessionStart = new Date(year, month - 1, day, hours, minutes);
+        
+        if (!earliestSessionTime || isBefore(sessionStart, earliestSessionTime)) {
+          earliestSessionTime = sessionStart;
+        }
+      });
+    }
+    
+    if (earliestSessionTime) {
+      const openTime = addHours(earliestSessionTime, -2);
+      const diffMs = openTime.getTime() - now.getTime();
+      
+      if (diffMs > 0) {
+        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+        const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+        
+        return `${diffHours}h ${diffMinutes}m before event starts`;
+      }
+    }
+    
+    return "Not yet available";
+  }, [project, isAttendanceAvailable]);
+
   return (
     <div className="space-y-4 sm:space-y-6 mb-4 px-2 sm:px-0">
       <Card className="overflow-hidden">
@@ -173,15 +295,64 @@ export default function CreatorDashboard({ project }: Props) {
               Manage Files
             </Button>
             
-            {/* Add Timeline Button */}
-            {/* <Button
-              variant="outline"
-              className="w-full sm:w-auto flex items-center justify-center gap-2"
-              onClick={() => setTimelineOpen(true)}
-            >
-              <CalendarClock className="h-4 w-4" />
-              View Timeline
-            </Button> */}
+            {/* Add QR Code Button - only for QR code verification */}
+            {/* {project.verification_method === 'qr-code' && (
+              <Button
+                variant="outline"
+                className="w-full sm:w-auto flex items-center justify-center gap-2 bg-chart-4/30 hover:bg-chart-4/20 border-chart-4/60"
+                onClick={() => setQrCodeOpen(true)}
+              >
+                <QrCode className="h-4 w-4" />
+                QR Check-In
+              </Button>
+            )} */}
+            
+            {/* Attendance Button - for QR code and manual methods */}
+            {/* {(project.verification_method === 'qr-code' || project.verification_method === 'manual') && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="w-full sm:w-auto">
+                      <Button
+                        variant="outline"
+                        className={`w-full sm:w-auto flex items-center justify-center gap-2 ${
+                          isAttendanceAvailable 
+                            ? "bg-chart-5/30 hover:bg-chart-5/20 border-chart-5/60" 
+                            : "opacity-70"
+                        }`}
+                        onClick={() => router.push(`/projects/${project.id}/attendance`)}
+                        disabled={!isAttendanceAvailable}
+                      >
+                        <UserCheck className="h-4 w-4" />
+                        {project.verification_method === 'manual' ? 'Check-in Volunteers' : 'Manage Attendance'}
+                      </Button>
+                    </span>
+                  </TooltipTrigger>
+                  {!isAttendanceAvailable && (
+                    <TooltipContent className="max-w-[250px] p-2">
+                      <p>Attendance management will be available 2 hours before the event starts</p>
+                      {timeUntilAttendanceOpens && (
+                        <p className="text-xs mt-1">{timeUntilAttendanceOpens}</p>
+                      )}
+                    </TooltipContent>
+                  )}
+                </Tooltip>
+              </TooltipProvider>
+            )} */}
+            
+            {/* Visual indicator for automatic check-in */}
+            {/* {project.verification_method === 'auto' && (
+              <div className="w-full sm:w-auto">
+                <Button
+                  variant="outline"
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 opacity-70 cursor-default"
+                  disabled
+                >
+                  <Zap className="h-4 w-4" />
+                  Automatic Check-in Enabled
+                </Button>
+              </div>
+            )} */}
 
             {/* <TooltipProvider>
               <Tooltip>
@@ -210,6 +381,161 @@ export default function CreatorDashboard({ project }: Props) {
               </Tooltip>
             </TooltipProvider> */}
           </div>
+
+          {/* --- ADDED: Conditional Alerts for Signup-Only Projects --- */}
+          {project.verification_method === 'signup-only' && !isCancelled && (
+            <>
+              {isStartingSoon && (
+                <Alert variant="default" className="border-chart-3/50 bg-chart-3/10 mt-4">
+                  <Info className="h-4 w-4 text-chart-3" />
+                  <AlertTitle className="text-chart-3">Event Starting Soon!</AlertTitle>
+                  <AlertDescription>
+                    Your signup-only event starts within 24 hours. Consider pausing signups if you&apos;re no longer accepting volunteers. You can also view or print the current signup list from the Manage Signups page.
+                    <div className="mt-3 flex gap-2">
+                      <Button variant="outline" size="sm" asChild>
+                        <Link href={`/projects/${project.id}/signups`}>
+                          <Pause className="h-4 w-4 mr-1.5" /> Pause/View Signups
+                        </Link>
+                      </Button>
+                       <Button variant="outline" size="sm" asChild>
+                         <Link href={`/projects/${project.id}/signups`}>
+                           <Printer className="h-4 w-4 mr-1.5" /> Print List
+                         </Link>
+                       </Button>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              )}
+              {isInProgress && (
+                <Alert variant="default" className="border-chart-4/50 bg-chart-4/10 mt-4">
+                  <Info className="h-4 w-4 text-chart-4" />
+                  <AlertTitle className="text-chart-4">Event In Progress</AlertTitle>
+                  <AlertDescription>
+                    Your signup-only event is currently ongoing based on the scheduled time.
+                  </AlertDescription>
+                </Alert>
+              )}
+              {isCompleted && (
+                <Alert variant="default" className="border-chart-5/50 bg-chart-5/10 mt-4">
+                  <Info className="h-4 w-4 text-chart-5" />
+                  <AlertTitle className="text-chart-5">Event Completed</AlertTitle>
+                  <AlertDescription>
+                    Your signup-only event has completed. You can still manage signups and view details.
+                  </AlertDescription>
+                </Alert>
+              )}
+            </>
+          )}
+          {/* --- END ADDED --- */}
+
+          {/* --- ADDED: Alerts for QR Code / Manual Check-in Projects --- */}
+          {(project.verification_method === 'qr-code' || project.verification_method === 'manual') && !isCancelled && (
+            <>
+              {isStartingSoon && !isCheckInOpen && ( // Show only if > 2 hours away
+                <Alert variant="default" className="border-chart-3/50 bg-chart-3/10 mt-4">
+                  <Info className="h-4 w-4 text-chart-3" />
+                  <AlertTitle className="text-chart-3">Event Starting Soon!</AlertTitle>
+                  <AlertDescription>
+                    Your event starts within 24 hours. 
+                    {project.verification_method === 'qr-code' && " QR codes for check-in will be available 2 hours before the start time."}
+                    {project.verification_method === 'manual' && " Prepare for manual volunteer check-in."}
+                    <div className="mt-3 flex gap-2">
+                      {project.verification_method === 'qr-code' && (
+                        <Button variant="outline" size="sm" onClick={() => setQrCodeOpen(true)}>
+                          <QrCode className="h-4 w-4 mr-1.5" /> Preview QR Codes
+                        </Button>
+                      )}
+                      <Button variant="outline" size="sm" asChild>
+                        <Link href={`/projects/${project.id}/signups`}>
+                          <Users className="h-4 w-4 mr-1.5" /> View Signups
+                        </Link>
+                      </Button>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              )}
+              {isCheckInOpen && !isInProgress && !isCompleted && ( // Show only if < 2 hours away but not started
+                <Alert variant="default" className="border-primary/50 bg-primary/10 mt-4">
+                  <Hourglass className="h-4 w-4 text-primary" />
+                  <AlertTitle className="text-primary">Check-in Window Open!</AlertTitle>
+                  <AlertDescription>
+                    Volunteer check-in is available starting 2 hours before the event.
+                    {project.verification_method === 'qr-code' && " Ensure QR codes are accessible."}
+                    {project.verification_method === 'manual' && " Be ready to check volunteers in manually."}
+                    <div className="mt-3 flex gap-2">
+                      {project.verification_method === 'qr-code' && (
+                        <Button variant="outline" size="sm" onClick={() => setQrCodeOpen(true)}>
+                          <QrCode className="h-4 w-4 mr-1.5" /> View QR Codes
+                        </Button>
+                      )}
+                      <Button variant="outline" size="sm" asChild>
+                        <Link href={`/projects/${project.id}/attendance`}>
+                          <UserCheck className="h-4 w-4 mr-1.5" /> Manage Attendance
+                        </Link>
+                      </Button>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              )}
+              {isInProgress && (
+                <Alert variant="default" className="border-chart-4/50 bg-chart-4/10 mt-4">
+                  <Info className="h-4 w-4 text-chart-4" />
+                  <AlertTitle className="text-chart-4">Event In Progress</AlertTitle>
+                  <AlertDescription>
+                    Your event is currently ongoing. Manage check-ins and view attendance records.
+                    <div className="mt-3 flex gap-2">
+                      {project.verification_method === 'qr-code' && (
+                        <Button variant="outline" size="sm" onClick={() => setQrCodeOpen(true)}>
+                          <QrCode className="h-4 w-4 mr-1.5" /> View QR Codes
+                        </Button>
+                      )}
+                      <Button variant="outline" size="sm" asChild>
+                        <Link href={`/projects/${project.id}/attendance`}>
+                          <UserCheck className="h-4 w-4 mr-1.5" /> Manage Attendance
+                        </Link>
+                      </Button>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              )}
+              {isCompleted && (
+                <Alert variant="default" className="border-chart-5/50 bg-chart-5/10 mt-4">
+                  <CheckCircle2 className="h-4 w-4 text-chart-5" />
+                  <AlertTitle className="text-chart-5">Event Completed</AlertTitle>
+                  <AlertDescription>
+                    Your event has finished. You can review the final attendance records.
+                    <div className="mt-3 flex gap-2">
+                      <Button variant="outline" size="sm" asChild>
+                        <Link href={`/projects/${project.id}/attendance`}>
+                          <Printer className="h-4 w-4 mr-1.5" /> View/Print Attendance
+                        </Link>
+                      </Button>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              )}
+            </>
+          )}
+          {/* --- END ADDED --- */}
+
+          {/* --- ADDED: Alert for Auto Check-in Projects --- */}
+          {project.verification_method === 'auto' && !isCancelled && (
+            <Alert variant="default" className="border-chart-2/50 bg-chart-2/10 mt-4">
+              <Zap className="h-4 w-4 text-chart-2" />
+              <AlertTitle className="text-chart-2">Automatic Check-in Enabled</AlertTitle>
+              <AlertDescription>
+                Volunteer check-in for this project is handled automatically based on the scheduled start times. No manual action is required from you or the volunteers for check-in. You can monitor attendance as it happens.
+                <div className="mt-3 flex gap-2">
+                  <Button variant="outline" size="sm" asChild>
+                    <Link href={`/projects/${project.id}/attendance`}>
+                      <Users className="h-4 w-4 mr-1.5" /> Monitor Attendance
+                    </Link>
+                  </Button>
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+          {/* --- END ADDED --- */}
 
           {isCancelled ? (
             <div className="flex flex-col sm:flex-row items-start gap-2 rounded-md border border-destructive p-3 sm:p-4 bg-destructive/10">
@@ -288,12 +614,21 @@ export default function CreatorDashboard({ project }: Props) {
         onConfirm={handleCancelProject}
       />
 
-      {/* Add the ProjectTimeline component */}
+      {/* Project Timeline */}
       <ProjectTimeline 
         project={project} 
         open={timelineOpen} 
         onOpenAction={setTimelineOpen} 
       />
+      
+      {/* Add QR Code Modal - only for qr code method */}
+      {project.verification_method === 'qr-code' && (
+        <ProjectQRCodeModal
+          project={project}
+          open={qrCodeOpen}
+          onOpenChange={setQrCodeOpen}
+        />
+      )}
     </div>
   );
 }

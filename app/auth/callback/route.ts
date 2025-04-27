@@ -99,7 +99,17 @@ export async function GET(request: Request) {
         }
 
         // Determine redirect path
-        const redirectTo = redirectAfterAuth ? new URL(redirectAfterAuth).pathname : "/home";
+        const redirectTo = redirectAfterAuth
+          ? (() => {
+              const decoded = decodeURIComponent(redirectAfterAuth);
+              try {
+                return new URL(decoded).pathname;
+              } catch {
+                return decoded;
+              }
+            })()
+          : "/home";
+
         const forwardedHost = request.headers.get("x-forwarded-host");
         
         // Handle redirect based on environment

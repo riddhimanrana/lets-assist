@@ -107,14 +107,14 @@ export default function LoginClient({ redirectPath }: LoginClientProps) {
 
   return (
     <div className="flex items-center justify-center min-h-screen">
-      <Card className="mx-auto max-w-sm mb-12">
+      <Card className="mx-auto w-[370px] max-w-full mb-12">
         <CardHeader>
           <CardTitle className="text-2xl">Login</CardTitle>
-          <CardDescription>
-            {redirectPath 
-              ? "Login to continue to the requested page"
-              : "Enter your email below to login to your account"
-            }
+          <CardDescription className="w-full">
+        {redirectPath 
+          ? "Login to continue to the requested page"
+          : "Enter your email below to login to your account"
+        }
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

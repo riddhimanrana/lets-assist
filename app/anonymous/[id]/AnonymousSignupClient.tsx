@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { CheckCircle2, Clock, Link as LinkIcon, User, Mail, Phone, Calendar, Info, Loader2, XCircle, AlertTriangle, Clock3 } from "lucide-react";
 import Link from "next/link";
-import { format, addDays } from "date-fns";
+import { format, addDays, parseISO, differenceInSeconds } from "date-fns";
 import { formatTimeTo12Hour } from "@/lib/utils";
 import { Project } from "@/types";
 import { useState } from "react";
@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { Separator } from "@/components/ui/separator";
+import { Progress } from "@/components/ui/progress";
 
 // Helper function to format schedule slot (same as before)
 const formatScheduleSlot = (project: Project, slotId: string) => {
@@ -111,6 +112,7 @@ interface AnonymousSignupClientProps {
   project_signup_id: string;
   isProjectCancelled: boolean;
   created_at: string; // Add creation date
+  check_in_time: string | null;
 }
 
 export default function AnonymousSignupClient({
@@ -124,7 +126,8 @@ export default function AnonymousSignupClient({
   project,
   project_signup_id,
   isProjectCancelled,
-  created_at
+  created_at,
+  check_in_time
 }: AnonymousSignupClientProps) {
   const router = useRouter();
   const isConfirmed = !!confirmed_at;
@@ -137,7 +140,57 @@ export default function AnonymousSignupClient({
   const createdDate = new Date(created_at);
   const confirmedDate = confirmed_at ? new Date(confirmed_at) : null;
   const autoDeletionDate = getAutoDeletionDate(project);
-  
+
+  // --- Start: Progress Calculation Logic ---
+  let percent = 0;
+  let sessionDate = "";
+  let endTime = "";
+  let checkInTimeFormatted = "";
+
+  // Determine session timing from project data (similar to VolunteerStatusCard)
+  if (project.event_type === "oneTime" && project.schedule.oneTime) {
+    sessionDate = project.schedule.oneTime.date;
+    endTime = project.schedule.oneTime.endTime;
+  } else if (project.event_type === "multiDay" && project.schedule.multiDay) {
+    // schedule_id format: "YYYY-MM-DD-<slotIndex>", e.g., "2025-04-26-1"
+    const lastDashIdx = schedule_id.lastIndexOf("-");
+    const date = schedule_id.substring(0, lastDashIdx);
+    const idx = schedule_id.substring(lastDashIdx + 1);
+    const day = project.schedule.multiDay.find(d => d.date === date);
+    const slotIndex = parseInt(idx, 10);
+    const slot = day && !isNaN(slotIndex) ? day.slots[slotIndex] : undefined;
+    if (day && slot) {
+      sessionDate = day.date;
+      endTime = slot.endTime;
+    }
+  } else if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
+    const role = project.schedule.sameDayMultiArea.roles.find(r => r.name === schedule_id);
+    if (role) {
+      sessionDate = project.schedule.sameDayMultiArea.date;
+      endTime = role.endTime;
+    }
+  }
+
+  // Calculate progress if status is 'attended' and check_in_time exists
+  if (status === 'attended' && check_in_time) {
+    try {
+      const checkIn = new Date(check_in_time);
+      checkInTimeFormatted = format(checkIn, "h:mm a") || "N/A"; // Format check-in time for display
+      const endDt = parseISO(`${sessionDate}T${endTime}`);
+
+      if (!isNaN(endDt.getTime()) && !isNaN(checkIn.getTime())) {
+        const totalSec = Math.max(1, differenceInSeconds(endDt, checkIn));
+        const elapsedSec = Math.min(totalSec, differenceInSeconds(new Date(), checkIn));
+        percent = Math.round((elapsedSec / totalSec) * 100);
+      } else {
+        console.error("Invalid session end time or check-in time:", `${sessionDate}T${endTime}`, check_in_time);
+      }
+    } catch (error) {
+      console.error("Error parsing dates for progress:", error);
+    }
+  }
+  // --- End: Progress Calculation Logic ---
+
   // Handle signup cancellation by deleting records
   const handleCancelSignup = async () => {
     if (!project_signup_id || !id) {
@@ -233,7 +286,7 @@ export default function AnonymousSignupClient({
         )}
         
         <CardHeader className={isProjectCancelled ? "pt-4" : ""}>
-            <CardTitle className="leading-tight">Your Volunteer Signup Details</CardTitle>
+            <CardTitle className="leading-tight">Volunteer Signup Details</CardTitle>
           <CardDescription>
             Details for your anonymous signup for the project:{" "}
             <Link href={`/projects/${project.id}`} className="text-primary hover:underline font-medium">
@@ -332,7 +385,48 @@ export default function AnonymousSignupClient({
             </div>
           </div>
           
-          <Separator />
+          
+            {status === 'attended' && check_in_time && (
+            <>
+              <Separator />
+              <div className="space-y-3 text-sm">
+              <h3 className="font-medium text-base mb-2">Session Progress</h3>
+              <p className="text-muted-foreground">
+                Checked in at: <span className="text-foreground font-medium">{checkInTimeFormatted}</span>
+              </p>
+              <Progress value={percent} className="h-3" aria-label="Session progress" />
+              <div>
+              <div className="flex justify-between items-center">
+                <p className="text-xs text-muted-foreground">{percent}% of session completed</p>
+                {/* Time remaining */}
+                {(() => {
+                  // Calculate time remaining
+                  let timeRemaining = "";
+                  if (sessionDate && endTime) {
+                    const now = new Date();
+                    const endDt = parseISO(`${sessionDate}T${endTime}`);
+                    let diff = Math.max(0, endDt.getTime() - now.getTime());
+                    const hours = Math.floor(diff / (1000 * 60 * 60));
+                    diff -= hours * 1000 * 60 * 60;
+                    const minutes = Math.floor(diff / (1000 * 60));
+                    if (endDt > now) {
+                      timeRemaining = `${hours > 0 ? `${hours}h ` : ""}${minutes}m remaining`;
+                    } else {
+                      timeRemaining = "Session ended";
+                    }
+                  }
+                  return (
+                    <p className="text-xs text-muted-foreground text-right min-w-[110px]">
+                      {timeRemaining}
+                    </p>
+                  );
+                })()}
+              </div>
+              </div>
+              </div>
+            </>
+            )}
+        <Separator />
 
           <div className="space-y-3 text-sm">
             <h3 className="font-medium text-base mb-2">Your Information</h3>
@@ -348,7 +442,7 @@ export default function AnonymousSignupClient({
               </div>
             )}
           </div>
-
+          <Separator />
           <div className="space-y-3 text-sm">
             <h3 className="font-medium text-base mb-2">Project & Slot Details</h3>
              <div className="flex items-center gap-2 text-muted-foreground">
@@ -358,6 +452,7 @@ export default function AnonymousSignupClient({
               <Info className="h-4 w-4" /> Status:
               <Badge variant={
                 signupStatus === 'approved' ? 'default' :
+                signupStatus === 'attended' ? 'default' :
                 signupStatus === 'pending' ? 'secondary' :
                 'destructive'
               } className="capitalize ml-1">
@@ -376,7 +471,7 @@ export default function AnonymousSignupClient({
             </Alert>
           )}
         </CardContent>
-        
+
         <CardFooter className="flex flex-col border-t p-6 gap-4">
           <h3 className="font-medium text-base self-start">Manage Your Signup</h3>
           
@@ -414,7 +509,7 @@ export default function AnonymousSignupClient({
               </div>
         </CardFooter>
       </Card>
-      
+
       {/* Cancellation Confirmation Dialog */}
       <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
@@ -454,6 +549,10 @@ export default function AnonymousSignupClient({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* --- Start: Session Progress Section (Conditional) --- */}
+      
+      {/* --- End: Session Progress Section --- */}
     </div>
   );
 }

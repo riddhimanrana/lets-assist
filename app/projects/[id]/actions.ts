@@ -27,6 +27,16 @@ const generateConfirmationEmailHtml = (
   projectName: string,
   userName: string
 ): string => {
+  // Remove /confirm and token query from the confirmationUrl for display/profile link
+  // confirmationUrl is like: `${siteUrl}/anonymous/${anonymousSignupId}/confirm?token=${confirmationToken}`
+  // We want just: `${siteUrl}/anonymous/${anonymousSignupId}`
+  const urlObj = new URL(confirmationUrl);
+  // The anonymousSignupId is the second-to-last segment
+  const pathParts = urlObj.pathname.split('/').filter(Boolean);
+  const anonymousSignupId = pathParts[1]; // e.g., /anonymous/{id}/confirm
+
+  const anonymousProfileUrl = `${siteUrl}/anonymous/${anonymousSignupId}`;
+
   return `
   <!DOCTYPE html>
   <html lang="en">
@@ -34,7 +44,7 @@ const generateConfirmationEmailHtml = (
       <meta charset="UTF-8">
       <title>Confirm Your Signup</title>
       <style>
-          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;of 5 00;600;700&display=swap');
 
           * {
               margin: 0;
@@ -123,6 +133,9 @@ const generateConfirmationEmailHtml = (
               
               <p class="help-text">Having trouble with the button? You can also use this link:</p>
               <p><a href="${confirmationUrl}" style="color:#16a34a" class="alternative-link">${confirmationUrl}</a></p>
+
+              <p class="help-text">For future reference, here's a link to your anonymous profile:</p>
+              <p><a href="${anonymousProfileUrl}" style="color:#16a34a" class="alternative-link">${anonymousProfileUrl}</a></p>
               
               <div class="getting-started">
                   <p>If you did not sign up for this project on Let's Assist, you can safely ignore this email.</p>
@@ -289,7 +302,7 @@ async function getCurrentSignups(projectId: string, scheduleId: string): Promise
     .select("*", { count: 'exact', head: true })
     .eq("project_id", projectId)
     .eq("schedule_id", scheduleId)
-    .eq("status", "approved");
+    .in("status", ["approved", "attended"]);
     
   return count || 0;
 }
@@ -366,7 +379,7 @@ export async function signUpForProject(
       return { error: "Invalid schedule slot" };
     }
 
-    // Check if slot is full (only count 'approved' signups towards capacity)
+    // Check if slot is full (only count 'approved/attended' signups towards capacity)
     const currentSignups = await getCurrentSignups(projectId, scheduleId);
     console.log("Current signups:", { currentSignups, maxVolunteers: slotDetails.volunteers });
 
@@ -1006,6 +1019,56 @@ export async function updateProject(projectId: string, updates: Partial<Project>
   } catch (error) {
     console.error("Error updating project:", error);
     return { error: "Failed to update project" };
+  }
+}
+
+/**
+ * Manually check in a participant by the project creator
+ */
+export async function checkInParticipant(
+  signupId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const supabase = await createClient();
+    
+    // Get the signup to verify it exists
+    const { data: signup, error: fetchError } = await supabase
+      .from("project_signups")
+      .select("id, project_id")
+      .eq("id", signupId)
+      .single();
+      
+    if (fetchError || !signup) {
+      return { 
+        success: false, 
+        error: "Signup record not found" 
+      };
+    }
+    
+    // Update the check-in time
+    const now = new Date().toISOString();
+    const { error: updateError } = await supabase
+      .from("project_signups")
+      .update({ check_in_time: now })
+      .eq("id", signupId);
+      
+    if (updateError) {
+      return { 
+        success: false, 
+        error: "Failed to update check-in time" 
+      };
+    }
+    
+    // Revalidate the project page to reflect the changes
+    revalidatePath(`/projects/${signup.project_id}`);
+    
+    return { success: true };
+  } catch (error) {
+    console.error("Error checking in participant:", error);
+    return { 
+      success: false, 
+      error: "An unexpected error occurred" 
+    };
   }
 }
 
