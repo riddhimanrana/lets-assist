@@ -448,9 +448,17 @@ export default function UserDashboard({ project, user, signups }: Props) {
                     </span>
                   </div>
                   <div className="pt-2">
-                    <p className="text-xs text-muted-foreground text-center">
-                      Check-in will be available 2 hours before start time.
-                    </p>
+                    {/* --- MODIFIED: Add conditional text for auto check-in --- */}
+                    {project.verification_method === 'auto' ? (
+                      <p className="text-xs text-muted-foreground text-center">
+                        Check-in will happen automatically at the start time. No action needed.
+                      </p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground text-center">
+                        Check-in will be available 2 hours before start time.
+                      </p>
+                    )}
+                    {/* --- END MODIFIED --- */}
                   </div>
                 </CardContent>
               </Card>

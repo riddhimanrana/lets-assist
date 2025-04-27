@@ -32,7 +32,9 @@ import {
   // --- ADDED ---
   Pause, 
   Printer, 
-  Info 
+  Info,
+  Hourglass, 
+  CheckCircle2 
   // --- END ADDED ---
 } from "lucide-react";
 import { useState, useMemo } from "react";
@@ -145,10 +147,12 @@ export default function CreatorDashboard({ project }: Props) {
   const canCancel = canCancelProject(project);
   const isCancelled = project.status === "cancelled";
 
-  // --- ADDED: Calculate phases for signup-only alerts ---
+  // --- Phases ---
   const isStartingSoon = hoursUntilStart <= 24 && isBefore(now, startDateTime); // Within 24 hours but not started
   const isInProgress = isAfter(now, startDateTime) && isBefore(now, endDateTime);
   const isCompleted = isAfter(now, endDateTime);
+  // --- ADDED: Check-in specific phase ---
+  const isCheckInOpen = hoursUntilStart <= 2 && isBefore(now, endDateTime); // Within 2 hours before start until end
   // --- END ADDED ---
   
   // Check if attendance management is available (2 hours before event)
@@ -292,7 +296,7 @@ export default function CreatorDashboard({ project }: Props) {
             </Button>
             
             {/* Add QR Code Button - only for QR code verification */}
-            {project.verification_method === 'qr-code' && (
+            {/* {project.verification_method === 'qr-code' && (
               <Button
                 variant="outline"
                 className="w-full sm:w-auto flex items-center justify-center gap-2 bg-chart-4/30 hover:bg-chart-4/20 border-chart-4/60"
@@ -301,10 +305,10 @@ export default function CreatorDashboard({ project }: Props) {
                 <QrCode className="h-4 w-4" />
                 QR Check-In
               </Button>
-            )}
+            )} */}
             
             {/* Attendance Button - for QR code and manual methods */}
-            {(project.verification_method === 'qr-code' || project.verification_method === 'manual') && (
+            {/* {(project.verification_method === 'qr-code' || project.verification_method === 'manual') && (
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -334,10 +338,10 @@ export default function CreatorDashboard({ project }: Props) {
                   )}
                 </Tooltip>
               </TooltipProvider>
-            )}
+            )} */}
             
             {/* Visual indicator for automatic check-in */}
-            {project.verification_method === 'auto' && (
+            {/* {project.verification_method === 'auto' && (
               <div className="w-full sm:w-auto">
                 <Button
                   variant="outline"
@@ -348,7 +352,7 @@ export default function CreatorDashboard({ project }: Props) {
                   Automatic Check-in Enabled
                 </Button>
               </div>
-            )}
+            )} */}
 
             {/* <TooltipProvider>
               <Tooltip>
@@ -421,6 +425,115 @@ export default function CreatorDashboard({ project }: Props) {
                 </Alert>
               )}
             </>
+          )}
+          {/* --- END ADDED --- */}
+
+          {/* --- ADDED: Alerts for QR Code / Manual Check-in Projects --- */}
+          {(project.verification_method === 'qr-code' || project.verification_method === 'manual') && !isCancelled && (
+            <>
+              {isStartingSoon && !isCheckInOpen && ( // Show only if > 2 hours away
+                <Alert variant="default" className="border-chart-3/50 bg-chart-3/10 mt-4">
+                  <Info className="h-4 w-4 text-chart-3" />
+                  <AlertTitle className="text-chart-3">Event Starting Soon!</AlertTitle>
+                  <AlertDescription>
+                    Your event starts within 24 hours. 
+                    {project.verification_method === 'qr-code' && " QR codes for check-in will be available 2 hours before the start time."}
+                    {project.verification_method === 'manual' && " Prepare for manual volunteer check-in."}
+                    <div className="mt-3 flex gap-2">
+                      {project.verification_method === 'qr-code' && (
+                        <Button variant="outline" size="sm" onClick={() => setQrCodeOpen(true)}>
+                          <QrCode className="h-4 w-4 mr-1.5" /> Preview QR Codes
+                        </Button>
+                      )}
+                      <Button variant="outline" size="sm" asChild>
+                        <Link href={`/projects/${project.id}/signups`}>
+                          <Users className="h-4 w-4 mr-1.5" /> View Signups
+                        </Link>
+                      </Button>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              )}
+              {isCheckInOpen && !isInProgress && !isCompleted && ( // Show only if < 2 hours away but not started
+                <Alert variant="default" className="border-primary/50 bg-primary/10 mt-4">
+                  <Hourglass className="h-4 w-4 text-primary" />
+                  <AlertTitle className="text-primary">Check-in Window Open!</AlertTitle>
+                  <AlertDescription>
+                    Volunteer check-in is available starting 2 hours before the event.
+                    {project.verification_method === 'qr-code' && " Ensure QR codes are accessible."}
+                    {project.verification_method === 'manual' && " Be ready to check volunteers in manually."}
+                    <div className="mt-3 flex gap-2">
+                      {project.verification_method === 'qr-code' && (
+                        <Button variant="outline" size="sm" onClick={() => setQrCodeOpen(true)}>
+                          <QrCode className="h-4 w-4 mr-1.5" /> View QR Codes
+                        </Button>
+                      )}
+                      <Button variant="outline" size="sm" asChild>
+                        <Link href={`/projects/${project.id}/attendance`}>
+                          <UserCheck className="h-4 w-4 mr-1.5" /> Manage Attendance
+                        </Link>
+                      </Button>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              )}
+              {isInProgress && (
+                <Alert variant="default" className="border-chart-4/50 bg-chart-4/10 mt-4">
+                  <Info className="h-4 w-4 text-chart-4" />
+                  <AlertTitle className="text-chart-4">Event In Progress</AlertTitle>
+                  <AlertDescription>
+                    Your event is currently ongoing. Manage check-ins and view attendance records.
+                    <div className="mt-3 flex gap-2">
+                      {project.verification_method === 'qr-code' && (
+                        <Button variant="outline" size="sm" onClick={() => setQrCodeOpen(true)}>
+                          <QrCode className="h-4 w-4 mr-1.5" /> View QR Codes
+                        </Button>
+                      )}
+                      <Button variant="outline" size="sm" asChild>
+                        <Link href={`/projects/${project.id}/attendance`}>
+                          <UserCheck className="h-4 w-4 mr-1.5" /> Manage Attendance
+                        </Link>
+                      </Button>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              )}
+              {isCompleted && (
+                <Alert variant="default" className="border-chart-5/50 bg-chart-5/10 mt-4">
+                  <CheckCircle2 className="h-4 w-4 text-chart-5" />
+                  <AlertTitle className="text-chart-5">Event Completed</AlertTitle>
+                  <AlertDescription>
+                    Your event has finished. You can review the final attendance records.
+                    <div className="mt-3 flex gap-2">
+                      <Button variant="outline" size="sm" asChild>
+                        <Link href={`/projects/${project.id}/attendance`}>
+                          <Printer className="h-4 w-4 mr-1.5" /> View/Print Attendance
+                        </Link>
+                      </Button>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              )}
+            </>
+          )}
+          {/* --- END ADDED --- */}
+
+          {/* --- ADDED: Alert for Auto Check-in Projects --- */}
+          {project.verification_method === 'auto' && !isCancelled && (
+            <Alert variant="default" className="border-chart-2/50 bg-chart-2/10 mt-4">
+              <Zap className="h-4 w-4 text-chart-2" />
+              <AlertTitle className="text-chart-2">Automatic Check-in Enabled</AlertTitle>
+              <AlertDescription>
+                Volunteer check-in for this project is handled automatically based on the scheduled start times. No manual action is required from you or the volunteers for check-in. You can monitor attendance as it happens.
+                <div className="mt-3 flex gap-2">
+                  <Button variant="outline" size="sm" asChild>
+                    <Link href={`/projects/${project.id}/attendance`}>
+                      <Users className="h-4 w-4 mr-1.5" /> Monitor Attendance
+                    </Link>
+                  </Button>
+                </div>
+              </AlertDescription>
+            </Alert>
           )}
           {/* --- END ADDED --- */}
 
