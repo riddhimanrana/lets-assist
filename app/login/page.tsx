@@ -7,11 +7,12 @@ export const metadata: Metadata = {
     "Log in to your Let's Assist account and start connecting with volunteer opportunities.",
 };
 
-type Props = {
-  params: Promise<{ redirect: string }>;
-};
+interface LoginPageProps {
+  searchParams: { redirect?: string };
+}
 
-export default async function LoginPage({ params }: Props) {
-  const { redirect } = await params;
-  return <LoginClient redirectPath={redirect ?? ""} />;
+export default async function LoginPage({ searchParams }: LoginPageProps) {
+  const { redirect } = await searchParams;
+  const redirectPath = redirect ?? "";
+  return <LoginClient redirectPath={redirectPath} />;
 }

@@ -6,13 +6,15 @@ import { Project, EventType } from "@/types";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { QRCode } from "react-qrcode-logo";
 import { Button } from "@/components/ui/button";
-import { differenceInHours, parseISO, format } from "date-fns";
+import { differenceInHours, parseISO, format, isBefore, subHours } from "date-fns";
 import { Printer, Calendar, Clock, Info, Lock, Users, QrCode as QrIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { formatTimeTo12Hour } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { useReactToPrint } from "react-to-print";
 import Image from "next/image";
+
+// Remove the complex token generation function - we'll use cookies/sessions instead
 
 interface ProjectQRCodeModalProps {
   project: Project;
@@ -49,10 +51,26 @@ export function ProjectQRCodeModal({ project, open, onOpenChange }: ProjectQRCod
       const now = new Date();
       const processedSessions: SessionInfo[] = [];
 
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://lets-assist.com';
+
+      const calculateAvailability = (date: string, startTime: string, endTime: string) => {
+        const startDate = parseISO(`${date}T${startTime}`);
+        const endDate = parseISO(`${date}T${endTime}`); // Parse end time
+        const hoursUntilStart = differenceInHours(startDate, now);
+        
+        // Check if current time is within 24 hours before start AND before end time
+        const isWithinWindow = hoursUntilStart <= 24; 
+        const isNotEnded = isBefore(now, endDate); // Check if 'now' is before 'endDate'
+
+        return {
+          isAvailable: isWithinWindow && isNotEnded,
+          hoursUntilStart
+        };
+      };
+
       if (project.event_type === "oneTime" && project.schedule.oneTime) {
         const { date, startTime, endTime } = project.schedule.oneTime;
-        const startDate = parseISO(`${date}T${startTime}`);
-        const hoursUntilStart = differenceInHours(startDate, now);
+        const availability = calculateAvailability(date, startTime, endTime);
         
         processedSessions.push({
           id: "oneTime",
@@ -60,17 +78,16 @@ export function ProjectQRCodeModal({ project, open, onOpenChange }: ProjectQRCod
           date,
           startTime,
           endTime,
-          isAvailable: hoursUntilStart <= 24 && hoursUntilStart >= -2, // Available 24h before until 2h after start
-          hoursUntilStart,
-          qrUrl: `lets-assist.com/attend/${project.id}?session=oneTime`
+          isAvailable: availability.isAvailable,
+          hoursUntilStart: availability.hoursUntilStart,
+          qrUrl: `${siteUrl}/attend/${project.id}/prepare?session=${project.session_id}&schedule=oneTime`
         });
       } 
       else if (project.event_type === "multiDay" && project.schedule.multiDay) {
         project.schedule.multiDay.forEach((day, dayIndex) => {
           day.slots.forEach((slot, slotIndex) => {
             const scheduleId = `${day.date}-${slotIndex}`;
-            const startDate = parseISO(`${day.date}T${slot.startTime}`);
-            const hoursUntilStart = differenceInHours(startDate, now);
+            const availability = calculateAvailability(day.date, slot.startTime, slot.endTime);
             
             processedSessions.push({
               id: scheduleId,
@@ -78,9 +95,9 @@ export function ProjectQRCodeModal({ project, open, onOpenChange }: ProjectQRCod
               date: day.date,
               startTime: slot.startTime,
               endTime: slot.endTime,
-              isAvailable: hoursUntilStart <= 24 && hoursUntilStart >= -2,
-              hoursUntilStart,
-              qrUrl: `lets-assist.com/attend/${project.id}?session=${scheduleId}`
+              isAvailable: availability.isAvailable,
+              hoursUntilStart: availability.hoursUntilStart,
+              qrUrl: `${siteUrl}/attend/${project.id}/prepare?session=${project.session_id}&schedule=${scheduleId}`
             });
           });
         });
@@ -89,8 +106,7 @@ export function ProjectQRCodeModal({ project, open, onOpenChange }: ProjectQRCod
         const { date, roles } = project.schedule.sameDayMultiArea;
         
         roles.forEach((role) => {
-          const startDate = parseISO(`${date}T${role.startTime}`);
-          const hoursUntilStart = differenceInHours(startDate, now);
+          const availability = calculateAvailability(date, role.startTime, role.endTime);
           
           processedSessions.push({
             id: role.name,
@@ -98,9 +114,9 @@ export function ProjectQRCodeModal({ project, open, onOpenChange }: ProjectQRCod
             date,
             startTime: role.startTime,
             endTime: role.endTime,
-            isAvailable: hoursUntilStart <= 24 && hoursUntilStart >= -2,
-            hoursUntilStart,
-            qrUrl: `lets-assist.com/attend/${project.id}?session=${role.name}`
+            isAvailable: availability.isAvailable,
+            hoursUntilStart: availability.hoursUntilStart,
+            qrUrl: `${siteUrl}/attend/${project.id}/prepare?session=${project.session_id}&schedule=${role.name}`
           });
         });
       }
@@ -113,7 +129,7 @@ export function ProjectQRCodeModal({ project, open, onOpenChange }: ProjectQRCod
         setSelectedQRCode(availableSessions[0]);
       }
     }
-  }, [project, open]);
+  }, [project, open, selectedQRCode]);
 
   // Reset modal state when it closes
   useEffect(() => {
@@ -123,14 +139,23 @@ export function ProjectQRCodeModal({ project, open, onOpenChange }: ProjectQRCod
   }, [open]);
 
   const renderAvailabilityBadge = (session: SessionInfo) => {
+    const now = new Date();
+    const startDate = parseISO(`${session.date}T${session.startTime}`);
+    const endDate = parseISO(`${session.date}T${session.endTime}`);
+
     if (session.isAvailable) {
-      return <Badge className="bg-green-100 text-green-800 hover:bg-green-200">Available Now</Badge>;
-    } else if (session.hoursUntilStart > 24) {
-      return <Badge variant="outline" className="text-muted-foreground">
-        Available in {Math.ceil(session.hoursUntilStart - 24)} hours
-      </Badge>;
-    } else {
-      return <Badge variant="destructive">No Longer Available</Badge>;
+      return <Badge variant="default">Available Now</Badge>;
+    } else if (isBefore(now, subHours(startDate, 24))) { // More than 24 hours before start
+       const hoursUntilWindowOpens = differenceInHours(subHours(startDate, 24), now);
+       const days = Math.floor(hoursUntilWindowOpens / 24);
+       const hours = hoursUntilWindowOpens % 24;
+       let availableIn = "Available in ";
+       if (days > 0) availableIn += `${days} day${days > 1 ? 's' : ''} `;
+       if (hours > 0) availableIn += `${hours} hour${hours > 1 ? 's' : ''}`;
+       if (days === 0 && hours === 0) availableIn = "Available soon"; // Handle edge case
+      return <Badge variant="outline" className="text-muted-foreground">{availableIn.trim()}</Badge>;
+    } else { // After end time
+      return <Badge variant="destructive">Session Ended</Badge>;
     }
   };
 
@@ -146,7 +171,7 @@ export function ProjectQRCodeModal({ project, open, onOpenChange }: ProjectQRCod
           <div className="space-y-4 border-r pr-4">
             <h3 className="font-medium text-lg">Project Sessions</h3>
             <p className="text-sm text-muted-foreground mb-4">
-              QR codes become available 24 hours before each session starts and remain available for 2 hours after the session starts.
+              QR codes become available 24 hours before each session starts and expire when the session ends. They can be scanned 2 hours before to check in.
             </p>
             
             <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
@@ -201,16 +226,29 @@ export function ProjectQRCodeModal({ project, open, onOpenChange }: ProjectQRCod
                   </div>
                   {/* QR code box */}
                   <div className="border p-4 rounded-xl">
-                    <QRCode
-                      value={selectedQRCode.qrUrl}
-                      size={qrCodeSize}
-                      logoImage="/logo.png"
-                      qrStyle="dots"
-                      eyeRadius={{ outer: 8, inner: 1 }}
-                      removeQrCodeBehindLogo
-                      logoPadding={2}
-                      ecLevel="L"
-                    />
+                    {selectedQRCode.isAvailable ? (
+                      <QRCode
+                        value={selectedQRCode.qrUrl}
+                        size={qrCodeSize}
+                        logoImage="/logo.png"
+                        qrStyle="dots"
+                        eyeRadius={{ outer: 8, inner: 1 }}
+                        fgColor="#000000"
+                        bgColor="#FFFFFF"
+                        removeQrCodeBehindLogo
+                        logoPadding={2}
+                        ecLevel="L"
+                      />
+                    ) : (
+                      <div className="w-[220px] h-[220px] border-2 border-dashed rounded-xl flex flex-col items-center justify-center p-4 text-center">
+                        <Lock className="h-10 w-10 mb-3 text-muted-foreground" />
+                        <p className="text-sm text-muted-foreground">
+                          {isBefore(new Date(), parseISO(`${selectedQRCode.date}T${selectedQRCode.startTime}`))
+                            ? "QR code will be available 24 hours before the session starts."
+                            : "This session has ended."}
+                        </p>
+                      </div>
+                    )}
                   </div>
                   {/* Print button */}
                   <Button
@@ -241,6 +279,8 @@ export function ProjectQRCodeModal({ project, open, onOpenChange }: ProjectQRCod
                     logoImage="/logo.png"
                     qrStyle="dots"
                     eyeRadius={{ outer: 8, inner: 1 }}
+                    fgColor="#000000"
+                    bgColor="#FFFFFF"
                     removeQrCodeBehindLogo
                     logoPadding={4}
                     ecLevel="H"

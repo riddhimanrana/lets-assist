@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -24,8 +24,10 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { toast } from "sonner";
-import { useTheme } from "next-themes";
-import { useSearchParams } from "next/navigation";
+
+interface SignupClientProps {
+  redirectPath?: string;
+}
 
 const signupSchema = z.object({
   fullName: z.string().min(3, "Full name must be at least 3 characters"),
@@ -35,29 +37,10 @@ const signupSchema = z.object({
 
 type SignupValues = z.infer<typeof signupSchema>;
 
-export default function SignupClient() {
-  const { theme } = useTheme();
+export default function SignupClient({ redirectPath }: SignupClientProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-  const [redirectUrl, setRedirectUrl] = useState<string | null>(null);
-  const searchParams = useSearchParams();
-  
-  useEffect(() => {
-    // Check for redirect in query params first
-    const redirectParam = searchParams.get('redirect');
-    if (redirectParam) {
-      setRedirectUrl(redirectParam);
-      // Store in sessionStorage for after authentication
-      sessionStorage.setItem('redirect_after_auth', redirectParam);
-    } else {
-      // Check if there's a redirect URL in sessionStorage
-      const storedRedirect = sessionStorage.getItem('redirect_after_auth');
-      if (storedRedirect) {
-        setRedirectUrl(storedRedirect);
-      }
-    }
-  }, [searchParams]);
-  
+
   const form = useForm<SignupValues>({
     resolver: zodResolver(signupSchema),
     defaultValues: {
@@ -66,26 +49,24 @@ export default function SignupClient() {
       password: "",
     },
   });
-  
+
   async function onSubmit(data: SignupValues) {
     setIsLoading(true);
     const formData = new FormData();
     Object.entries(data).forEach(([key, value]) => formData.append(key, value));
-    
-    // Pass redirect URL if available
-    if (redirectUrl) {
-      formData.append('redirectUrl', redirectUrl);
+    if (redirectPath) {
+      formData.append("redirectUrl", redirectPath);
     }
-    
+
     const result = await signup(formData);
-    
+
     if (result.error) {
       const errors: {
         email?: string[];
         password?: string[];
         server?: string[];
       } = result.error;
-      
+
       Object.keys(errors).forEach((key) => {
         if (key in errors && key in signupSchema.shape) {
           form.setError(key as keyof SignupValues, {
@@ -94,7 +75,7 @@ export default function SignupClient() {
           });
         }
       });
-      
+
       if (errors.server && errors.server[0] === "ACCEXISTS0") {
         console.log(errors);
         toast.warning("This email is already registered. Please sign in.");
@@ -113,16 +94,15 @@ export default function SignupClient() {
         duration: 15000, // duration in milliseconds (15 seconds)
       });
     }
-    
+
     setIsLoading(false);
   }
-  
+
   const handleGoogleSignIn = async () => {
     try {
       setIsGoogleLoading(true);
-      // Pass the redirect URL to Google sign-in if available
-      const result = await signInWithGoogle(redirectUrl);
-      
+      const result = await signInWithGoogle(redirectPath ?? null);
+
       if (result.error) {
         if (result.error.server?.[0]?.includes("email-password")) {
           toast.error(
@@ -133,7 +113,7 @@ export default function SignupClient() {
         }
         return;
       }
-      
+
       if (result.url) {
         window.location.href = result.url;
       }
@@ -143,7 +123,7 @@ export default function SignupClient() {
       setIsGoogleLoading(false);
     }
   };
-  
+
   return (
     <div className="flex items-center justify-center min-h-screen p-4">
       <Card className="w-full max-w-sm mx-auto mb-12">
@@ -152,10 +132,9 @@ export default function SignupClient() {
             Create an account
           </CardTitle>
           <CardDescription className="text-left">
-            {redirectUrl 
-              ? "Sign up to continue with your project signup" 
-              : "Enter your details below to create your account"
-            }
+            {redirectPath
+              ? "Sign up to continue with your project signup"
+              : "Enter your details below to create your account"}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -256,7 +235,7 @@ export default function SignupClient() {
               <div className="mt-4 text-center text-sm">
                 Already have an account?{" "}
                 <Link 
-                  href={redirectUrl ? `/login?redirect=${encodeURIComponent(redirectUrl)}` : "/login"}
+                  href={redirectPath ? `/login?redirect=${encodeURIComponent(redirectPath)}` : "/login"}
                   className="underline"
                 >
                   Sign in

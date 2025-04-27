@@ -2,22 +2,25 @@ import { createClient } from "@/utils/supabase/server";
 import { cookies } from "next/headers";
 import { getProject, getCreatorProfile } from "./actions";
 import { redirect, notFound } from "next/navigation";
-import ProjectDetails from "./ProjectDetails";
-import { getSlotCapacities } from "./utils";
+import { getSlotCapacities } from "@/utils/project";
 import { getProjectStatus } from "@/utils/project";
 import ProjectUnauthorized from "./ProjectUnauthorized";
-import { Project } from "@/types"; // Assuming Project type is imported
+// Make sure Signup type is imported
+import { Project, Signup } from "@/types"; 
+import VolunteerStatusCard from '@/components/VolunteerStatusCard';
+import ProjectClient from './ProjectClient'; // Import the new client component
 
 interface PageProps {
   params: Promise<{ id: string }>;
-  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
+  searchParams: Promise<{ checkedIn?: string; schedule?: string }>;  // expects checkedIn and schedule flags
 }
 
-export default async function ProjectPage({ params }: PageProps): Promise<React.ReactElement> {
+export default async function ProjectPage({ params, searchParams }: PageProps): Promise<React.ReactElement> {
   const supabase = await createClient();
 
   // Destructure id from params
   const { id } = await params;
+  const { checkedIn, schedule } = await searchParams;
 
   // Get the project data
   const { project, error: projectError } = await getProject(id);
@@ -44,6 +47,21 @@ export default async function ProjectPage({ params }: PageProps): Promise<React.
   const { data: { user } } = await supabase.auth.getUser();
   const isCreator = user?.id === project.creator_id;
 
+  // If redirected after check-in, render the status card
+  if (checkedIn === 'true' && schedule && user) {
+    const { data: signup } = await supabase
+      .from('project_signups')
+      .select('check_in_time, schedule_id')
+      .eq('project_id', project.id)
+      .eq('user_id', user.id)
+      .eq('schedule_id', schedule)
+      .single();
+    if (signup && signup.check_in_time) {
+      // Pass the full signup object
+      return <VolunteerStatusCard project={project} signup={signup as Signup} />;
+    }
+  }
+
   // Get organization if exists
   let organization = null;
   if (project.organization_id) {
@@ -59,22 +77,34 @@ export default async function ProjectPage({ params }: PageProps): Promise<React.
   // Pass supabase client and project id to the updated function
   const slotCapacities = await getSlotCapacities(project, supabase, id);
 
-  // Get user's existing signups
+  // Get user's existing signups (approved and checked-in)
   const userSignups: Record<string, boolean> = {};
+  const attendedSlots: Record<string, boolean> = {};
+  // Fetch full signup data for the UserDashboard
+  let userSignupsData: Signup[] = []; 
   if (user) {
-    const { data: signups } = await supabase
+    // Fetch approved signups first
+    const { data: approvedSignups, error: approvedError } = await supabase
       .from("project_signups")
-      .select("schedule_id")
+      // Select all necessary fields for UserDashboard
+      .select("id, schedule_id, status, check_in_time, created_at") 
       .eq("project_id", project.id)
       .eq("user_id", user.id)
-      .eq("status", "approved");
+      .in("status", ["approved", "attended"]) // Fetch both approved and attended signups
 
-    if (signups) {
-      signups.forEach((signup: { schedule_id: string }) => {
-        userSignups[signup.schedule_id] = true;
+    if (approvedError) {
+      console.error("Error fetching user approved signups:", approvedError);
+    } else if (approvedSignups) {
+      userSignupsData = approvedSignups as Signup[]; // Store full data
+      approvedSignups.forEach((signup: { schedule_id: string; check_in_time: string | null }) => {
+        userSignups[signup.schedule_id] = true; // Keep this for the signup button logic
+        if (signup.check_in_time) {
+          attendedSlots[signup.schedule_id] = true; // Mark attended slots
+        }
       });
     }
   }
+
 
   // Get user's rejected slots
   const rejectedSlots: Record<string, boolean> = {};
@@ -96,18 +126,22 @@ export default async function ProjectPage({ params }: PageProps): Promise<React.
   // Format initial data for the client component
   const initialSlotData = {
     remainingSlots: slotCapacities,
-    userSignups: userSignups,
-    rejectedSlots: rejectedSlots,  // Include rejected slots in initial data
+    userSignups: userSignups, // Boolean map for button state
+    rejectedSlots: rejectedSlots,
+    attendedSlots: attendedSlots, // Add attendedSlots to initial data
   };
 
+  // Render the Client Component, passing all necessary data as props
   return (
-    <ProjectDetails
+    <ProjectClient
       project={project}
       creator={creator}
       organization={organization}
       initialSlotData={initialSlotData}
       initialIsCreator={isCreator}
       initialUser={user}
+      // Pass the full signup data
+      userSignupsData={userSignupsData} 
     />
   );
 }

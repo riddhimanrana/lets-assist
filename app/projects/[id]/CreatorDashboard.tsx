@@ -26,9 +26,10 @@ import {
   XCircle,
   AlertTriangle,
   CalendarClock,
-  QrCode // Add this import for the QR code icon
+  QrCode,
+  UserCheck // Add UserCheck icon for attendance
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { deleteProject, updateProjectStatus } from "./actions";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -44,10 +45,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import { canCancelProject, canDeleteProject } from "@/utils/project";
 import { CancelProjectDialog } from "@/components/CancelProjectDialog";
-import { differenceInHours } from "date-fns";
+import { differenceInHours, addHours, isBefore } from "date-fns";
 import { getProjectStartDateTime, getProjectEndDateTime } from "@/utils/project";
 import ProjectTimeline from "./ProjectTimeline";
-import { ProjectQRCodeModal } from "./ProjectQRCodeModal"; // Import the new QR code modal component
+import { ProjectQRCodeModal } from "./ProjectQRCodeModal"; 
 
 interface Props {
   project: Project;
@@ -59,7 +60,7 @@ export default function CreatorDashboard({ project }: Props) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [timelineOpen, setTimelineOpen] = useState(false);
-  const [qrCodeOpen, setQrCodeOpen] = useState(false); // Add state for QR code modal
+  const [qrCodeOpen, setQrCodeOpen] = useState(false);
 
   const handleCancelProject = async (reason: string) => {
     try {
@@ -134,6 +135,105 @@ export default function CreatorDashboard({ project }: Props) {
   const canDelete = canDeleteProject(project);
   const canCancel = canCancelProject(project);
   const isCancelled = project.status === "cancelled";
+  
+  // Check if attendance management is available (2 hours before event)
+  const isAttendanceAvailable = useMemo(() => {
+    // Handle different event types
+    if (project.event_type === "oneTime" && project.schedule.oneTime) {
+      const { date, startTime } = project.schedule.oneTime;
+      const [year, month, day] = date.split('-').map(Number);
+      const [hours, minutes] = startTime.split(':').map(Number);
+      
+      const sessionStart = new Date(year, month - 1, day, hours, minutes);
+      const attendanceOpenTime = addHours(sessionStart, -2);
+      
+      return !isBefore(now, attendanceOpenTime);
+    } 
+    else if (project.event_type === "multiDay" && project.schedule.multiDay) {
+      // Check if any session is within 2 hours of starting
+      return project.schedule.multiDay.some(day => {
+        const [year, month, dayNum] = day.date.split('-').map(Number);
+        
+        return day.slots.some(slot => {
+          const [hours, minutes] = slot.startTime.split(':').map(Number);
+          const sessionStart = new Date(year, month - 1, dayNum, hours, minutes);
+          const attendanceOpenTime = addHours(sessionStart, -2);
+          
+          return !isBefore(now, attendanceOpenTime);
+        });
+      });
+    }
+    else if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
+      const { date, roles } = project.schedule.sameDayMultiArea;
+      const [year, month, day] = date.split('-').map(Number);
+      
+      return roles.some(role => {
+        const [hours, minutes] = role.startTime.split(':').map(Number);
+        const sessionStart = new Date(year, month - 1, day, hours, minutes);
+        const attendanceOpenTime = addHours(sessionStart, -2);
+        
+        return !isBefore(now, attendanceOpenTime);
+      });
+    }
+    
+    return false;
+  }, [project]);
+  
+  // Calculate time until attendance opens for tooltip
+  const timeUntilAttendanceOpens = useMemo(() => {
+    if (isAttendanceAvailable) return null;
+    
+    let earliestSessionTime: Date | null = null;
+    
+    if (project.event_type === "oneTime" && project.schedule.oneTime) {
+      const { date, startTime } = project.schedule.oneTime;
+      const [year, month, day] = date.split('-').map(Number);
+      const [hours, minutes] = startTime.split(':').map(Number);
+      
+      earliestSessionTime = new Date(year, month - 1, day, hours, minutes);
+    } 
+    else if (project.event_type === "multiDay" && project.schedule.multiDay) {
+      project.schedule.multiDay.forEach(day => {
+        const [year, month, dayNum] = day.date.split('-').map(Number);
+        
+        day.slots.forEach(slot => {
+          const [hours, minutes] = slot.startTime.split(':').map(Number);
+          const sessionStart = new Date(year, month - 1, dayNum, hours, minutes);
+          
+          if (!earliestSessionTime || isBefore(sessionStart, earliestSessionTime)) {
+            earliestSessionTime = sessionStart;
+          }
+        });
+      });
+    }
+    else if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
+      const { date, roles } = project.schedule.sameDayMultiArea;
+      const [year, month, day] = date.split('-').map(Number);
+      
+      roles.forEach(role => {
+        const [hours, minutes] = role.startTime.split(':').map(Number);
+        const sessionStart = new Date(year, month - 1, day, hours, minutes);
+        
+        if (!earliestSessionTime || isBefore(sessionStart, earliestSessionTime)) {
+          earliestSessionTime = sessionStart;
+        }
+      });
+    }
+    
+    if (earliestSessionTime) {
+      const openTime = addHours(earliestSessionTime, -2);
+      const diffMs = openTime.getTime() - now.getTime();
+      
+      if (diffMs > 0) {
+        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+        const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+        
+        return `${diffHours}h ${diffMinutes}m before event starts`;
+      }
+    }
+    
+    return "Not yet available";
+  }, [project, isAttendanceAvailable]);
 
   return (
     <div className="space-y-4 sm:space-y-6 mb-4 px-2 sm:px-0">
@@ -179,12 +279,43 @@ export default function CreatorDashboard({ project }: Props) {
             {/* Add QR Code Button */}
             <Button
               variant="outline"
-              className="w-full sm:w-auto flex items-center justify-center gap-2"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 bg-chart-4/30 hover:bg-chart-4/20 border-chart-4/60"
               onClick={() => setQrCodeOpen(true)}
             >
               <QrCode className="h-4 w-4" />
               QR Check-In
             </Button>
+            
+            {/* Update Attendance Button with availability tooltip */}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="w-full sm:w-auto">
+                    <Button
+                      variant="outline"
+                      className={`w-full sm:w-auto flex items-center justify-center gap-2 ${
+                        isAttendanceAvailable 
+                          ? "bg-chart-5/30 hover:bg-chart-5/20 border-chart-5/60" 
+                          : "opacity-70"
+                      }`}
+                      onClick={() => router.push(`/projects/${project.id}/attendance`)}
+                      disabled={!isAttendanceAvailable}
+                    >
+                      <UserCheck className="h-4 w-4" />
+                      Manage Attendance
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                {!isAttendanceAvailable && (
+                  <TooltipContent className="max-w-[250px] p-2">
+                    <p>Attendance management will be available 2 hours before the event starts</p>
+                    {timeUntilAttendanceOpens && (
+                      <p className="text-xs mt-1">{timeUntilAttendanceOpens}</p>
+                    )}
+                  </TooltipContent>
+                )}
+              </Tooltip>
+            </TooltipProvider>
             
             {/* Timeline Button */}
             {/* <Button

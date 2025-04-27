@@ -1,6 +1,6 @@
 export type EventType = "oneTime" | "multiDay" | "sameDayMultiArea";
 export type VerificationMethod = "qr-code" | "auto" | "manual" | "signup-only";
-export type SignupStatus = "approved" | "rejected" | "pending";
+export type SignupStatus = "approved" | "rejected" | "pending" | "attended";
 
 // New location type to support coordinates
 export interface LocationData {
@@ -99,6 +99,7 @@ export interface Project {
   profiles: Profile;
   created_at: string;
   cover_image_url?: string | null;
+  session_id?: string | null;
 }
 
 export interface AnonymousSignupData {
@@ -148,4 +149,19 @@ export interface AnonymousSignup {
     confirmed_at?: string | null;
     created_at: string;
     signup_id: string | null; // Foreign key to project_signups
+}
+
+// Add Signup type definition if it doesn't exist or update it
+export interface Signup {
+  id: string;
+  project_id: string;
+  user_id: string | null; // Can be null for anonymous
+  schedule_id: string;
+  status: 'pending' | 'approved' | 'rejected' | 'attended';
+  created_at: string;
+  updated_at: string;
+  check_in_time: string | null;
+  email?: string | null; // For anonymous signups
+  full_name?: string | null; // For anonymous signups
+  // Add other relevant fields if needed
 }
