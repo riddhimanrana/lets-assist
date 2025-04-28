@@ -437,59 +437,7 @@ export default function CreatorDashboard({ project }: Props) {
               </TooltipProvider>
             )}  */}
             {/* Visual indicator for automatic check-in */}
-            {project.verification_method === 'auto' && (
-              <div className="w-full sm:w-auto">
-                 <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span className="w-full sm:w-auto">
-                        <Button
-                          variant="outline"
-                          className="w-full sm:w-auto flex items-center justify-center gap-2 opacity-70 cursor-default"
-                          disabled
-                        >
-                          <Zap className="h-4 w-4" />
-                          Automatic Check-in
-                        </Button>
-                      </span>
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-[250px] p-2">
-                      <p>Check-in is automatic. View attendance records via the link below (available 2 hours before start).</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                {/* Link to view attendance for auto projects */}
-                 <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span className="w-full sm:w-auto block mt-2 sm:mt-0 sm:inline-block"> {/* Adjust layout */}
-                        <Button
-                          variant="outline"
-                          className={`w-full sm:w-auto flex items-center justify-center gap-2 ${
-                            isAttendanceAvailable
-                              ? "bg-blue-500/10 hover:bg-blue-500/20 border-blue-500/60 text-blue-700 dark:text-blue-400" // Different color for view
-                              : "opacity-70"
-                          }`}
-                          onClick={() => router.push(`/projects/${project.id}/attendance`)}
-                          disabled={!isAttendanceAvailable}
-                        >
-                          <Users className="h-4 w-4" />
-                          View Attendance
-                        </Button>
-                      </span>
-                    </TooltipTrigger>
-                    {!isAttendanceAvailable && (
-                      <TooltipContent className="max-w-[250px] p-2">
-                        <p>Attendance records will be available 2 hours before the event starts</p>
-                        {timeUntilAttendanceOpens && (
-                          <p className="text-xs mt-1">{timeUntilAttendanceOpens}</p>
-                        )}
-                      </TooltipContent>
-                    )}
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-            )}
+            
 
             {/* <TooltipProvider>
               <Tooltip>

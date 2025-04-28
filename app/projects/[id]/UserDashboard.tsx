@@ -20,7 +20,7 @@ import {
   formatDistanceToNowStrict,
   parse,
 } from "date-fns";
-import { Clock, CheckCircle, AlertTriangle, Camera, Hourglass, CalendarCheck, Info, ExternalLink, CheckCircle2 } from "lucide-react"; 
+import { Clock, CheckCircle, AlertTriangle, Camera, Hourglass, CalendarCheck, Info, ExternalLink, CheckCircle2, FileText } from "lucide-react"; // Add FileText import
 import Link from "next/link";
 import { useRouter } from "next/navigation"; // Import useRouter
 import { QRCodeScannerModal } from "@/components/QRCodeScannerModal"; // Import the new component
@@ -29,7 +29,7 @@ import { QRCodeScannerModal } from "@/components/QRCodeScannerModal"; // Import 
 function formatRemainingTime(minutes: number): string {
   if (minutes <= 0) return "Session ended";
   const hours = Math.floor(minutes / 60);
-  const remainingMinutes = Math.round(minutes % 60);
+  const remainingMinutes = Math.round(minutes % 60) + 1;
   let result = "";
   if (hours > 0) {
     result += `${hours}h `;
@@ -126,6 +126,7 @@ export default function UserDashboard({ project, user, signups }: Props) {
         
         // Use type-safe comparison for status
         const isAttended = signup.status === 'attended' as any;
+        const isApproved = signup.status === 'approved' as any;
         const checkIn = signup.check_in_time ? new Date(signup.check_in_time) : null;
 
         if (!startTime || !endTime) {
@@ -136,8 +137,40 @@ export default function UserDashboard({ project, user, signups }: Props) {
         const diffMinutes = differenceInMinutes(startTime, now);
         const sessionOver = isAfter(now, endTime);
         const sessionInProgress = isAfter(now, startTime) && isBefore(now, endTime);
-        // --- MODIFIED: isCheckedIn is now equivalent to isAttended for state logic ---
-        // const isCheckedIn = !!checkIn; // We'll use isAttended for state determination
+        
+        // Check if we're in the post-event window (first 48 hours after event)
+        const hoursSinceEnd = differenceInHours(now, endTime);
+        const isInPostEventWindow = sessionOver && hoursSinceEnd >= 0 && hoursSinceEnd < 48;
+        
+        // Check if we're past the post-event window
+        const isPastPostEventWindow = sessionOver && hoursSinceEnd >= 48;
+
+        // --- For approved users who didn't attend, show no-show message after event ---
+        if (isApproved && !isAttended && sessionOver) {
+          return {
+            signup,
+            slotDetails: details,
+            sessionStartTime: startTime,
+            sessionEndTime: endTime,
+            isSessionOver: sessionOver,
+            renderState: 'missedEvent',
+            sessionDisplayName: getSessionDisplayName(project, startTime, details)
+          };
+        }
+
+        // --- For attended users, show hours editing message during editing window ---
+        if (isAttended && isInPostEventWindow) {
+          return {
+            signup,
+            slotDetails: details,
+            sessionStartTime: startTime,
+            sessionEndTime: endTime,
+            hoursSinceEnd,
+            checkInTime: checkIn,
+            renderState: 'postEventHours',
+            sessionDisplayName: getSessionDisplayName(project, startTime, details)
+          };
+        }
 
         // Skip rendering if the session is over and the user never attended
         if (sessionOver && !isAttended) {
@@ -176,10 +209,11 @@ export default function UserDashboard({ project, user, signups }: Props) {
         }
 
         // --- MODIFIED: Determine state for rendering with type-safe comparisons ---
-        let renderState: 'checkedIn' | 'checkInOpen' | 'reminder' | 'none' = 'none';
-        if (signup.status === 'attended' as any) {
+        let renderState: 'checkedIn' | 'checkInOpen' | 'reminder' | 'none' | 'postEventHours' | 'missedEvent' = 'none';
+        
+        if (isAttended) {
             renderState = 'checkedIn'; // Priority 1: If status is 'attended', show checkedIn card
-        } else if (signup.status === 'approved' as any) { // Only apply time logic if status is 'approved'
+        } else if (isApproved) { // Only apply time logic if status is 'approved'
             const totalDurationMinutes = differenceInMinutes(endTime, startTime);
             // Check-in available: <= 2 hours before start AND before the session ends
             if (diffMinutes <= 120 && diffMinutes > -totalDurationMinutes) {
@@ -208,12 +242,39 @@ export default function UserDashboard({ project, user, signups }: Props) {
           progressPercentage: progress,
           remainingTimeFormatted: remainingFormatted,
           timeUntilStartFormatted: untilStartFormatted,
+          hoursSinceEnd,
+          isInPostEventWindow,
+          isPastPostEventWindow,
+          sessionDisplayName: getSessionDisplayName(project, startTime, details),
           renderState,
         };
       })
       .filter(status => status !== null && status.renderState !== 'none'); // Filter out nulls and 'none' state
   }, [signups, project, now]);
 
+  // Helper function to get a consistent session display name
+  function getSessionDisplayName(project: Project, startTime: Date | null, details: any): string {
+    // If multiRole event with named roles, keep using the role name
+    if ('name' in details && details.name) {
+        return details.name;
+    }
+    // For oneTime events, show "Main Event"
+    else if (project.schedule?.oneTime) {
+        return "Main Event";
+    }
+    // For multiDay events, format the date nicely with time
+    else if (project.schedule?.multiDay && startTime) {
+        // Format the date from the session start time and include time info
+        const formattedDate = format(startTime, "MMMM d, yyyy");
+        const formattedStartTime = formatTimeTo12Hour(details.startTime);
+        const formattedEndTime = formatTimeTo12Hour(details.endTime);
+        return `${formattedDate} (${formattedStartTime} - ${formattedEndTime})`;
+    }
+    // Default fallback
+    else {
+        return details.schedule_id || "Session";
+    }
+  }
 
   // --- Render Logic ---
 
@@ -228,34 +289,59 @@ export default function UserDashboard({ project, user, signups }: Props) {
 
     if (isProjectStartingSoon) {
       return (
-        <Alert variant="default" className="mb-6 border-chart-3/50 bg-chart-3/10">
-          <Info className="h-4 w-4 text-chart-3" />
-          <AlertTitle className="text-chart-3">Event Starting Soon!</AlertTitle>
-          <AlertDescription>
-            The signup-only event &quot;{project.title}&quot; is scheduled to start within 24 hours.
-          </AlertDescription>
-        </Alert>
+        <Card className="mb-6 border-chart-3/30 bg-chart-3/5 overflow-hidden">
+          <CardHeader className="p-6">
+            <div className="flex items-center gap-3">
+              <div className="bg-chart-3/10 p-2 rounded-full">
+                <Info className="h-5 w-5 text-chart-3" />
+              </div>
+              <div>
+                <CardTitle className="text-lg">Event Starting Soon!</CardTitle>
+                <CardDescription>
+                  The signup-only event &quot;{project.title}&quot; is scheduled to start within 24 hours.
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+        </Card>
       );
     }
     if (isProjectProgressing) {
       return (
-        <Alert variant="default" className="mb-6 border-chart-4/50 bg-chart-4/10">
-          <Clock className="h-4 w-4 text-chart-4" />
-          <AlertTitle className="text-chart-4">Event in Progress</AlertTitle>
-          <AlertDescription>
-            The signup-only event &quot;{project.title}&quot; is currently in progress.
-          </AlertDescription>
-        </Alert>
+        <Card className="mb-6 border-chart-4/30 bg-chart-4/5 overflow-hidden">
+          <CardHeader className="p-6">
+            <div className="flex items-center gap-3">
+              <div className="bg-chart-4/10 p-2 rounded-full">
+                <Clock className="h-5 w-5 text-chart-4" />
+              </div>
+              <div>
+                <CardTitle className="text-lg">Event in Progress</CardTitle>
+                <CardDescription>
+                  The signup-only event &quot;{project.title}&quot; is currently in progress.
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+        </Card>
       );
     }
     if (isProjectCompleted) {
       return (
-        <Alert variant="default" className="mb-6 border-chart-5/50 bg-chart-5/10">
-          <CheckCircle2 className="h-4 w-4 text-chart-5" />
-          <AlertTitle className="text-chart-5">Event Completed</AlertTitle>
-          <AlertDescription>
-            The signup-only event &quot;{project.title}&quot; has finished based on its schedule.      </AlertDescription>
-        </Alert>
+        <Card className="mb-6 border-chart-5/30 bg-chart-5/5 overflow-hidden">
+          <CardHeader className="p-6">
+            <div className="flex items-center gap-3">
+              <div className="bg-chart-5/10 p-2 rounded-full">
+                <CheckCircle2 className="h-5 w-5 text-chart-5" />
+              </div>
+              <div>
+                <CardTitle className="text-lg">Event Completed</CardTitle>
+                <CardDescription>
+                  The signup-only event &quot;{project.title}&quot; has finished based on its schedule.
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+        </Card>
       );
     }
 
@@ -277,27 +363,112 @@ export default function UserDashboard({ project, user, signups }: Props) {
       {signupStatuses.map((status) => {
         if (!status) return null; // Should not happen due to filter, but good practice
 
-        // Determine the display name for the session
-        let sessionDisplayName;
-        // If multiRole event with named roles, keep using the role name
-        if ('name' in status.slotDetails && status.slotDetails.name) {
-            sessionDisplayName = status.slotDetails.name;
-        }
-        // For oneTime events, show "Main Event"
-        else if (project.schedule?.oneTime) {
-            sessionDisplayName = "Main Event";
-        }
-        // For multiDay events, format the date nicely
-        else if (project.schedule?.multiDay && status.sessionStartTime) {
-            // Format the date from the session start time
-            sessionDisplayName = format(status.sessionStartTime, "MMMM d, yyyy");
-        }
-        // Default fallback
-        else {
-            sessionDisplayName = status.signup.schedule_id;
-        }
-
         switch (status.renderState) {
+          // Add new case for post-event hours state
+          case 'postEventHours':
+            return (
+              <Card key={status.signup.id} className="mb-6 border-chart-4/30 bg-chart-4/5 overflow-hidden">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-chart-4/10 p-2 rounded-full">
+                      <FileText className="h-5 w-5 text-chart-4" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">Hours Being Processed</CardTitle>
+                      <CardDescription>Thank you for your participation in {project.title}</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4 pt-2">
+                  {/* Session info */}
+                  <div className="flex flex-col space-y-2 text-sm">
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium text-muted-foreground">Session:</span>
+                      <span>{status.sessionDisplayName}</span>
+                    </div>
+                    {status.checkInTime && (
+                      <div className="flex justify-between items-center">
+                        <span className="font-medium text-muted-foreground">Checked in at:</span>
+                        <span>{format(status.checkInTime, "h:mm a")}</span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Processing information with visual timeline */}
+                  <div className="relative pl-6 border-chart-4/30 mt-3 space-y-3">
+                    <div className="relative">
+                      <div className="absolute -left-[27px] top-0 w-5 h-5 rounded-full bg-chart-4/20 flex items-center justify-center">
+                        <div className="w-2 h-2 rounded-full bg-chart-4"></div>
+                      </div>
+                      <p className="text-sm font-medium">Processing Period</p>
+                      <p className="text-xs text-muted-foreground">
+                        The project owner is reviewing hours and all records will be finalized within 48 hours after the event.
+                      </p>
+                    </div>
+                    
+                    <div className="relative">
+                      <div className="absolute -left-[27px] top-0 w-5 h-5 rounded-full bg-chart-4/20 flex items-center justify-center">
+                        <div className="w-2 h-2 rounded-full bg-chart-4"></div>
+                      </div>
+                      <p className="text-sm font-medium">Need Adjustments?</p>
+                      <p className="text-xs text-muted-foreground">
+                        If your recorded hours need correction, please contact the project owner directly.
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {/* Approx time remaining */}
+                  <div className="bg-chart-4/10 rounded-md p-3 flex items-center justify-between mt-2">
+                    <span className="text-xs font-medium text-chart-4">Processing time remaining:</span>
+                    <span className="text-xs font-medium text-chart-4">
+                      {48 - (status.hoursSinceEnd || 0)} hours
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          
+          // Add new case for missed event state
+          case 'missedEvent':
+            return (
+              <Card key={status.signup.id} className="mb-6 border-chart-7/30 bg-chart-7/5 overflow-hidden">
+              <CardHeader className="pb-2">
+                <div className="flex items-center gap-3">
+                <div className="bg-chart-7/10 p-2 rounded-full">
+                  <AlertTriangle className="h-5 w-5 text-chart-7" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg">Event Not Attended</CardTitle>
+                  <CardDescription>
+                  You were signed up for {project.title} but no attendance was recorded.
+                  </CardDescription>
+                </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4 pt-2">
+                {/* Session info */}
+                <div className="flex flex-col space-y-2 text-sm">
+                <div className="flex justify-between items-center">
+                  <span className="font-medium text-muted-foreground">Session:</span>
+                  <span>{status.sessionDisplayName}</span>
+                </div>
+                </div>
+                {/* Timeline style info */}
+                <div className="relative pl-6 border-chart-7/30 mt-3 space-y-3">
+                <div className="relative">
+                  <div className="absolute -left-[27px] top-0 w-5 h-5 rounded-full bg-chart-7/20 flex items-center justify-center">
+                  <div className="w-2 h-2 rounded-full bg-chart-7"></div>
+                  </div>
+                  <p className="text-sm font-medium">Think This Is a Mistake?</p>
+                  <p className="text-xs text-muted-foreground">
+                  If you believe this is an error, please contact the project organizer directly. Your signup status might be updated if there was a check-in issue.
+                  </p>
+                </div>
+                </div>
+              </CardContent>
+              </Card>
+            );
+
           // 1. Checked-in State (Triggered by signup.status === 'attended')
           case 'checkedIn':
             // Use checkInTime if available, otherwise indicate attendance without specific time
@@ -306,7 +477,9 @@ export default function UserDashboard({ project, user, signups }: Props) {
               <Card key={status.signup.id} className="mb-6 border-primary/30 bg-primary/5">
                 <CardHeader>
                   <div className="flex items-center gap-3">
-                    <CheckCircle className="h-6 w-6 text-primary flex-shrink-0" />
+                    <div className="bg-primary/10 p-2 rounded-full">
+                      <CheckCircle className="h-5 w-5 text-primary" />
+                    </div>
                     <div>
                       <CardTitle className="text-lg">Attendance Confirmed</CardTitle> {/* Updated Title */}
                       <CardDescription>Your attendance for {project.title} is confirmed.</CardDescription>
@@ -316,7 +489,7 @@ export default function UserDashboard({ project, user, signups }: Props) {
                 <CardContent className="space-y-3 text-sm">
                   <div className="flex justify-between items-center">
                     <span className="font-medium text-muted-foreground">Session:</span>
-                    <>{sessionDisplayName}</>
+                    <>{status.sessionDisplayName}</>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="font-medium text-muted-foreground">Status:</span>
@@ -334,9 +507,9 @@ export default function UserDashboard({ project, user, signups }: Props) {
                      <div className="space-y-1 pt-2">
                        <div className="flex justify-between items-center mb-1">
                          <span className="font-medium text-muted-foreground">Session Progress:</span>
-                         <span className="text-muted-foreground">{status.remainingTimeFormatted} remaining</span>
+                         <span>{status.remainingTimeFormatted} remaining</span>
                        </div>
-                       <Progress value={status.progressPercentage} aria-label={`Session progress: ${Math.round(status.progressPercentage)}%`} />
+                       <Progress value={status.progressPercentage ?? 0} aria-label={`Session progress: ${Math.round(status.progressPercentage ?? 0)}%`} />
                      </div>
                   )}
                    {/* Show message when session ended */}
@@ -362,12 +535,12 @@ export default function UserDashboard({ project, user, signups }: Props) {
             switch(project.verification_method) {
               case 'qr-code':
                 alertTitle = 'Check-in is open!';
-                checkInInfoText = `Check-in for your session ${sessionDisplayName} starting at ${formatTimeTo12Hour(status.slotDetails.startTime)} is now available. Scan the QR code provided by the organizer to check in.`;
+                checkInInfoText = `Check-in for your session ${status.sessionDisplayName} starting at ${formatTimeTo12Hour(status.slotDetails.startTime)} is now available. Scan the QR code provided by the organizer to check in.`;
                 buttonContent = (
                   <Button
                     size="sm"
                     variant="outline"
-                    aria-label={`Open camera to scan QR code for session ${sessionDisplayName}`}
+                    aria-label={`Open camera to scan QR code for session ${status.sessionDisplayName}`}
                     onClick={() => {
                       setSelectedScheduleForScan(status.signup.schedule_id);
                       setIsCameraModalOpen(true);
@@ -381,37 +554,52 @@ export default function UserDashboard({ project, user, signups }: Props) {
               
               case 'manual':
                 alertTitle = 'Check-in Required';
-                checkInInfoText = `Check-in for your session ${sessionDisplayName} starting at ${formatTimeTo12Hour(status.slotDetails.startTime)} needs to be done in person. Please find the project organizer when you arrive at the venue.`;
+                checkInInfoText = `Check-in for your session ${status.sessionDisplayName} starting at ${formatTimeTo12Hour(status.slotDetails.startTime)} needs to be done in person. Please find the project organizer when you arrive at the venue.`;
                 break;
               
               case 'auto':
                 alertTitle = 'Upcoming Session';
-                checkInInfoText = `Check-in for your session ${sessionDisplayName} starting at ${formatTimeTo12Hour(status.slotDetails.startTime)} will happen automatically at the start time. No action is required from you.`;
+                checkInInfoText = `Check-in for your session ${status.sessionDisplayName} starting at ${formatTimeTo12Hour(status.slotDetails.startTime)} will happen automatically at the start time. No action is required from you.`;
                 break;
               
               default:
-                checkInInfoText = `Check-in for your session ${sessionDisplayName} starting at ${formatTimeTo12Hour(status.slotDetails.startTime)} is now available.`;
+                checkInInfoText = `Check-in for your session ${status.sessionDisplayName} starting at ${formatTimeTo12Hour(status.slotDetails.startTime)} is now available.`;
             }
             
             return (
-              <Alert key={status.signup.id} variant="default" className="mb-6 border-primary/40 bg-primary/5">
-                <div className="flex items-center gap-2">
-                  <Hourglass className="h-5 w-5 text-primary flex-shrink-0" />
-                  <CardTitle className="font-semibold text-lg">
-                    {alertTitle}
-                  </CardTitle>
-                </div>
-                <AlertDescription className="text-muted-foreground mt-2">
-                  <>
-                    {checkInInfoText}
-                    {buttonContent && (
-                      <div className="mt-3 flex gap-2">
-                        {buttonContent}
-                      </div>
-                    )}
-                  </>
-                </AlertDescription>
-              </Alert>
+              <Card key={status.signup.id} className="mb-6 border-primary/30 bg-primary/5 overflow-hidden">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-primary/10 p-2 rounded-full">
+                      <Hourglass className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">{alertTitle}</CardTitle>
+                      <CardDescription>Check-in available for {project.title}</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4 pt-2">
+                  <div className="flex flex-col space-y-2 text-sm">
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium text-muted-foreground">Session:</span>
+                      <span>{status.sessionDisplayName}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium text-muted-foreground">Starts At:</span>
+                      <span>{formatTimeTo12Hour(status.slotDetails.startTime)}</span>
+                    </div>
+                  </div>
+                  
+                  <p className="text-sm text-muted-foreground">{checkInInfoText}</p>
+                  
+                  {buttonContent && (
+                    <div className="mt-2">
+                      {buttonContent}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             );
 
           // 3. Reminder State (Triggered by approved status + time window)
@@ -435,7 +623,7 @@ export default function UserDashboard({ project, user, signups }: Props) {
                 <CardContent className="space-y-3 text-sm">
                   <div className="flex justify-between items-center">
                     <span className="font-medium text-muted-foreground">Session:</span>
-                    <>{sessionDisplayName}</>
+                    <>{status.sessionDisplayName}</>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="font-medium text-muted-foreground">Starts In:</span>

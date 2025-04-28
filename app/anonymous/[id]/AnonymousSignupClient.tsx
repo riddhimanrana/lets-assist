@@ -6,10 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { CheckCircle2, Clock, Link as LinkIcon, User, Mail, Phone, Calendar, Info, Loader2, XCircle, AlertTriangle, Clock3 } from "lucide-react";
 import Link from "next/link";
-import { format, addDays, parseISO, differenceInSeconds } from "date-fns";
+import { format, addDays, parseISO, differenceInSeconds, differenceInHours, isAfter } from "date-fns";
 import { formatTimeTo12Hour } from "@/lib/utils";
 import { Project } from "@/types";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -244,6 +244,40 @@ export default function AnonymousSignupClient({
     }
   };
 
+  // Calculate if we're in the post-event window (first 48 hours after event ends)
+  const isInPostEventWindow = useMemo(() => {
+    if (!endTime || !sessionDate) return false;
+    
+    try {
+      const endDt = parseISO(`${sessionDate}T${endTime}`);
+      if (isNaN(endDt.getTime())) return false;
+      
+      const hoursSinceEnd = differenceInHours(new Date(), endDt);
+      return isAfter(new Date(), endDt) && hoursSinceEnd >= 0 && hoursSinceEnd < 48;
+    } catch (error) {
+      console.error("Error calculating post-event window:", error);
+      return false;
+    }
+  }, [sessionDate, endTime]);
+  
+  // Check if project is over
+  const isProjectOver = useMemo(() => {
+    if (!sessionDate || !endTime) return false;
+    
+    try {
+      const endDt = parseISO(`${sessionDate}T${endTime}`);
+      if (isNaN(endDt.getTime())) return false;
+      
+      return isAfter(new Date(), endDt);
+    } catch (error) {
+      console.error("Error determining if project is over:", error);
+      return false;
+    }
+  }, [sessionDate, endTime]);
+
+  // Determine if this is a "missed event" situation (approved but didn't attend)
+  const isMissedEvent = status === 'approved' && !check_in_time && isProjectOver;
+
   if (isDeleted) {
     return (
       <div className="container mx-auto max-w-2xl px-4 py-10">
@@ -296,45 +330,196 @@ export default function AnonymousSignupClient({
         </CardHeader>
         
         <CardContent className="space-y-6">
-            <div className="flex items-center gap-2 mb-2">
-              {/* <Badge variant={
-                  signupStatus === 'approved' ? 'default' :
-                  signupStatus === 'pending' ? 'secondary' :
-                  'destructive'
-                } className="capitalize">
-                {signupStatus}
-              </Badge> */}
-              
-
+          <div className="flex items-center gap-2 mb-2">
+            {/* Convert alerts to cards */}
             
+            {status === 'attended' && isInPostEventWindow && (
+              <Card className="w-full border-chart-4/30 bg-chart-4/5 overflow-hidden">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-chart-4/10 p-2 rounded-full">
+                      <Clock className="h-5 w-5 text-chart-4" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">Volunteer Hours Being Processed</CardTitle>
+                      <CardDescription>Thank you for attending {project.title}!</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4 pt-2">
+                  {/* Session info */}
+                  <div className="flex flex-col space-y-2 text-sm">
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium text-muted-foreground">Event:</span>
+                      <span>{formatScheduleSlot(project, schedule_id)}</span>
+                    </div>
+                    {check_in_time && (
+                      <div className="flex justify-between items-center">
+                        <span className="font-medium text-muted-foreground">Checked in at:</span>
+                        <span>{format(new Date(check_in_time), "h:mm a")}</span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Processing information with visual timeline */}
+                  <div className="relative pl-6 border-chart-4/30 mt-3 space-y-3">
+                    <div className="relative">
+                      <div className="absolute -left-[27px] top-0 w-5 h-5 rounded-full bg-chart-4/20 flex items-center justify-center">
+                        <div className="w-2 h-2 rounded-full bg-chart-4"></div>
+                      </div>
+                      <p className="text-sm font-medium">Processing Period</p>
+                      <p className="text-xs text-muted-foreground">
+                        Hours are typically finalized within 48 hours after the event.
+                      </p>
+                    </div>
+                    
+                    <div className="relative">
+                      <div className="absolute -left-[27px] top-0 w-5 h-5 rounded-full bg-chart-4/20 flex items-center justify-center">
+                        <div className="w-2 h-2 rounded-full bg-chart-4"></div>
+                      </div>
+                      <p className="text-sm font-medium">Need Adjustments?</p>
+                      <p className="text-xs text-muted-foreground">
+                        If your recorded hours need correction, please contact the project organizer directly.
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {/* Approx time remaining */}
+                  <div className="bg-chart-4/10 rounded-md p-3 flex items-center justify-between mt-2">
+                    <span className="text-xs font-medium text-chart-4">Processing time remaining:</span>
+                    <span className="text-xs font-medium text-chart-4">
+                      {48 - differenceInHours(new Date(), parseISO(`${sessionDate}T${endTime}`))} hours
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+            
+            {isMissedEvent && (
+              <Card className="w-full border-chart-7/30 bg-chart-7/5 overflow-hidden">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-chart-7/10 p-2 rounded-full">
+                      <AlertTriangle className="h-5 w-5 text-chart-7" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">Event Not Attended</CardTitle>
+                      <CardDescription>You were signed up for {project.title} but no attendance was recorded.</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4 pt-2">
+                  {/* Session info */}
+                  <div className="flex flex-col space-y-2 text-sm">
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium text-muted-foreground">Event:</span>
+                      <span>{formatScheduleSlot(project, schedule_id)}</span>
+                    </div>
+                  </div>
+                  
+                  {/* Timeline style info */}
+                  <div className="relative pl-6 border-chart-7/30 mt-3 space-y-3">
+                    <div className="relative">
+                      <div className="absolute -left-[27px] top-0 w-5 h-5 rounded-full bg-chart-7/20 flex items-center justify-center">
+                        <div className="w-2 h-2 rounded-full bg-chart-7"></div>
+                      </div>
+                      <p className="text-sm font-medium">Think This Is a Mistake?</p>
+                      <p className="text-xs text-muted-foreground">
+                        If you believe this is an error, please contact the project organizer directly. Your signup status might be updated if there was a check-in issue.
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {!isConfirmed && signupStatus === 'pending' && (
-              <Alert variant="warning" className="mt-2">
-                <Clock className="h-4 w-4" />
-                <AlertTitle>Action Required</AlertTitle>
-                <AlertDescription>
-                  Please check your email (<span className="font-medium">{email}</span>) for a confirmation link to finalize your signup.
-                </AlertDescription>
-              </Alert>
+              <Card className="w-full border-amber-500/30 bg-amber-500/5 overflow-hidden">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-amber-500/10 p-2 rounded-full">
+                      <Clock className="h-5 w-5 text-amber-500" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">Action Required</CardTitle>
+                      <CardDescription>Please confirm your email to finalize your signup.</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4 pt-2">
+                  <div className="flex flex-col space-y-2 text-sm">
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium text-muted-foreground">Email:</span>
+                      <span className="font-medium">{email}</span>
+                    </div>
+                  </div>
+                  
+                  <div className="relative pl-6 border-amber-500/30 mt-3 space-y-3">
+                    <div className="relative">
+                      <div className="absolute -left-[27px] top-0 w-5 h-5 rounded-full bg-amber-500/20 flex items-center justify-center">
+                        <div className="w-2 h-2 rounded-full bg-amber-500"></div>
+                      </div>
+                      <p className="text-sm font-medium">Next Steps</p>
+                      <p className="text-xs text-muted-foreground">
+                        Check your email for a confirmation link to verify your identity and secure your spot.
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             )}
             
             {isConfirmed && signupStatus === 'approved' && (
-               <Alert variant="success" className="mt-2">
-                <CheckCircle2 className="h-4 w-4" />
-                <AlertTitle>Signup Confirmed!</AlertTitle>
-                <AlertDescription>
-                  Your spot for this project is confirmed. Thank you for volunteering!
-                </AlertDescription>
-              </Alert>
+              <Card className="w-full border-primary/30 bg-primary/5 overflow-hidden">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-primary/10 p-2 rounded-full">
+                      <CheckCircle2 className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">Signup Confirmed!</CardTitle>
+                      <CardDescription>Your spot for this project is confirmed. Thank you for volunteering!</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4 pt-2">
+                  <div className="flex flex-col space-y-2 text-sm">
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium text-muted-foreground">Event:</span>
+                      <span>{formatScheduleSlot(project, schedule_id)}</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             )}
             
             {signupStatus === 'rejected' && (
-               <Alert variant="destructive" className="mt-2">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>Signup Rejected</AlertTitle>
-                <AlertDescription>
-                  This signup has been rejected by the project coordinator. Contact the project coordinator for more details.
-                </AlertDescription>
-              </Alert>
+              <Card className="w-full border-destructive/30 bg-destructive/5 overflow-hidden">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-destructive/10 p-2 rounded-full">
+                      <AlertTriangle className="h-5 w-5 text-destructive" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">Signup Rejected</CardTitle>
+                      <CardDescription>This signup has been rejected by the project coordinator.</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4 pt-2">
+                  <div className="relative pl-6 border-destructive/30 mt-3 space-y-3">
+                    <div className="relative">
+                      <div className="absolute -left-[27px] top-0 w-5 h-5 rounded-full bg-destructive/20 flex items-center justify-center">
+                        <div className="w-2 h-2 rounded-full bg-destructive"></div>
+                      </div>
+                      <p className="text-sm font-medium">Need More Information?</p>
+                      <p className="text-xs text-muted-foreground">
+                        Contact the project coordinator for more details about why your signup was not approved.
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             )}
           </div>
 

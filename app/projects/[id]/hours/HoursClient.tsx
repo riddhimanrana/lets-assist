@@ -5,7 +5,7 @@ import { Project, ProjectSignup } from "@/types"; // Use ProjectSignup type
 import { Input } from "@/components/ui/input";
 import { Search, ArrowLeft, Clock, CheckCircle, RefreshCw, Loader2, UserRoundCheck, Edit, AlertCircle, PencilLine } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
-import { format, parseISO, differenceInMinutes, isAfter, isValid } from "date-fns";
+import { format, parseISO, differenceInMinutes, differenceInSeconds, isAfter, isValid } from "date-fns";
 import Link from "next/link";
 import {
   Card,
@@ -15,6 +15,7 @@ import {
   CardTitle,
   CardFooter,
 } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogClose, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -202,7 +203,10 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses, a
     try {
       const checkIn = parseISO(checkInISO);
       const checkOut = parseISO(checkOutISO);
-      const diffMins = differenceInMinutes(checkOut, checkIn);
+      
+      // Calculate difference in seconds and convert to minutes with rounding
+      const diffSeconds = differenceInSeconds(checkOut, checkIn);
+      const diffMins = Math.round(diffSeconds / 60);
       
       // Various validation checks
       if (diffMins < 0) {
@@ -546,15 +550,105 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses, a
     return sessions;
   }, [project]);
 
+  // State for batch time adjustment
+  const [showBatchAdjustment, setShowBatchAdjustment] = useState<Record<string, boolean>>({});
+  const [batchMinutesAdjustment, setBatchMinutesAdjustment] = useState<number>(30);
+  const [applyingBatchAdjustment, setApplyingBatchAdjustment] = useState<Record<string, boolean>>({});
+
+  // Function to handle batch time adjustment
+  const handleBatchAdjustment = (sessionId: string, minutes: number) => {
+    setApplyingBatchAdjustment(prev => ({
+      ...prev,
+      [sessionId]: true
+    }));
+    
+    try {
+      // Get all signups for this session
+      let sessionSignups: ProjectSignup[] = [];
+      
+      // First try exact match
+      if (signupsBySession[sessionId]) {
+        sessionSignups = signupsBySession[sessionId];
+      } else {
+        // Try all alternative IDs
+        const session = getAllProjectSessions.find(s => s.id === sessionId);
+        if (session) {
+          for (const altId of session.alternativeIds) {
+            if (signupsBySession[altId]) {
+              sessionSignups = signupsBySession[altId];
+              console.log(`Found signups using alternative ID ${altId} for session ${sessionId}`);
+              break;
+            }
+          }
+        }
+      }
+      
+      if (sessionSignups.length === 0) {
+        toast.error("No volunteers found for this session.");
+        return;
+      }
+      
+      // Apply the adjustment to all signups in the session
+      const newEditedTimes = { ...editedTimes };
+      let successCount = 0;
+      
+      sessionSignups.forEach(signup => {
+        const currentCheckOut = editedTimes[signup.id]?.check_out_time;
+        
+        if (currentCheckOut) {
+          // Create a date object from the current checkout time
+          const checkOutDate = new Date(currentCheckOut);
+          
+          // Add the specified minutes
+          checkOutDate.setMinutes(checkOutDate.getMinutes() + minutes);
+          
+          // Update the edited times
+          newEditedTimes[signup.id] = {
+            ...newEditedTimes[signup.id],
+            check_out_time: checkOutDate.toISOString()
+          };
+          
+          successCount++;
+        }
+      });
+      
+      // Update state with new times
+      setEditedTimes(newEditedTimes);
+      
+      // Show success message
+      if (successCount > 0) {
+        toast.success(`Successfully adjusted ${successCount} volunteer${successCount !== 1 ? 's' : ''} by ${minutes} minutes.`);
+      } else {
+        toast.warning("No checkout times were adjusted. Make sure volunteers have check-out times set.");
+      }
+      
+      // Close the batch adjustment UI
+      setShowBatchAdjustment(prev => ({
+        ...prev,
+        [sessionId]: false
+      }));
+      
+    } catch (error) {
+      console.error("Error applying batch adjustment:", error);
+      toast.error("Failed to apply time adjustment.");
+    } finally {
+      setApplyingBatchAdjustment(prev => ({
+        ...prev,
+        [sessionId]: false
+      }));
+    }
+  };
+
   return (
-    <div className="container mx-auto px-4 py-6 max-w-5xl">
-      <div className="mb-6">
+    <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-6 max-w-5xl">
+      <div className="mb-4 sm:mb-6">
         <Button variant="ghost" className="gap-2" asChild>
-           <Link href={`/projects/${project.id}`}>
-             <ArrowLeft className="h-4 w-4" />
-             Back to Project
-           </Link>
-         </Button>
+          <Link href={`/projects/${project.id}`}>
+            <ArrowLeft className="h-4 w-4" />
+            <span className="hidden sm:inline">Back to Project</span>
+            <span className="sm:hidden">Back</span>
+          </Link>
+        </Button>
       </div>
 
       <Card className="min-h-[400px] relative">
@@ -566,64 +660,51 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses, a
             </div>
           </div>
         )}
-        <CardHeader>
+        <CardHeader className="px-3 py-4 sm:p-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-              <CardTitle>Manage Volunteer Hours</CardTitle>
-              <CardDescription>
-                Review and edit volunteer check-in/out times. Publish hours to generate certificates.
+              <CardTitle className="text-lg sm:text-xl">Manage Volunteer Hours</CardTitle>
+              <CardDescription className="text-sm">
+                Review and edit volunteer check-in/out times. If no changes are made, the system will automatically publish hours after 48 hours.
               </CardDescription>
             </div>
-            {/* Optional Refresh Button */}
-            {/* <Button variant="outline" className="p-3 sm:gap-2" onClick={loadSignups} disabled={refreshing} aria-label="Refresh">
-              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-              <span className="hidden sm:inline">Refresh</span>
-            </Button> */}
           </div>
-          {/* {hoursUntilWindowCloses !== null && (
-             <Alert variant="warning" className="mt-4">
-               <Clock className="h-4 w-4" />
-               <AlertTitle>Editing Window Closing Soon</AlertTitle>
-               <AlertDescription>
-                 You have approximately {hoursUntilWindowCloses} hour{hoursUntilWindowCloses !== 1 ? 's' : ''} left to edit and publish volunteer hours.
-               </AlertDescription>
-             </Alert>
-           )} */}
-           
-           {/* Display active session information */}
-        {activeSessions.length > 0 && (
+          
+          {/* Display active session information */}
+          {activeSessions.length > 0 && (
             <div className="mt-4">
-                <div className="flex items-center gap-2 mb-2">
-                    <Edit className="h-4 w-4 text-chart-4" aria-hidden="true" />
-                    <span className="text-base font-semibold text-chart-4">Editing Windows Open</span>
+              <div className="flex items-center gap-2 mb-2">
+                <Edit className="h-4 w-4 text-chart-4" aria-hidden="true" />
+                <span className="text-sm sm:text-base font-semibold text-chart-4">Editing Windows Open</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                {activeSessions.map(session => (
+                  <div
+                    key={session.id}
+                    className="flex flex-col gap-1 p-3 sm:p-4 rounded-xl border border-chart-4/30 bg-gradient-to-br from-chart-4/10 to-white/80 dark:to-background shadow-sm transition hover:shadow-lg"
+                    aria-label={`Editing window for ${session.name}`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-sm text-chart-4 line-clamp-1">{session.name}</span>
+                  </div>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Clock
+                      className="h-3.5 w-3.5 text-chart-4 animate-spin"
+                      style={{ animationDuration: "8s" }}
+                      aria-hidden="true"
+                    />
+                    <span className="text-xs text-muted-foreground">
+                      <span className="font-semibold text-chart-4">{session.hoursRemaining}h</span> left to edit
+                    </span>
+                  </div>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                    {activeSessions.map(session => (
-                        <div
-                            key={session.id}
-                            className="flex flex-col gap-1 p-4 rounded-xl border border-chart-4/30 bg-gradient-to-br from-chart-4/10 to-white/80 dark:to-background shadow-sm transition hover:shadow-lg"
-                            aria-label={`Editing window for ${session.name}`}
-                        >
-                            <div className="flex items-center gap-2">
-                                <span className="font-medium text-sm text-chart-4">{session.name}</span>
-                            </div>
-                            <div className="flex items-center gap-2 mt-1">
-                                <Clock
-                                    className="h-4 w-4 text-chart-4 animate-spin"
-                                    style={{ animationDuration: "8s" }}
-                                    aria-hidden="true"
-                                />
-                                <span className="text-xs text-muted-foreground">
-                                    <span className="font-semibold text-chart-4">{session.hoursRemaining}h</span> left to edit &amp; publish
-                                </span>
-                            </div>
-                        </div>
-                    ))}
-                </div>
+                ))}
+              </div>
             </div>
-        )}
+          )}
         </CardHeader>
-        <CardContent className="space-y-6">
+        
+        <CardContent className="space-y-4 sm:space-y-6 px-3 sm:px-6">
           {/* Search and Filter */}
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center justify-between">
             <div className="flex flex-col gap-2 flex-1 sm:flex-row sm:items-center">
@@ -752,53 +833,140 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses, a
             
             return (
               <div key={session.id} className="space-y-4 mb-8 border rounded-lg p-4">
-                <div className="flex flex-col sm:flex-row justify-between gap-3">
-                  <div>
-                    <h3 className="font-medium text-base">
-                      {session.name}
-                    </h3>
-                    <div className="flex items-center gap-2 mt-1">
-                      {session.status === "upcoming" && (
-                        <span className="text-xs px-2 py-1 rounded-full bg-chart-3/10 text-chart-3 font-medium">
-                          Upcoming
-                        </span>
-                      )}
-                      {session.status === "in-progress" && (
-                        <span className="text-xs px-2 py-1 rounded-full bg-chart-2/10 text-chart-2 font-medium">
-                          In Progress
-                        </span>
-                      )}
-                      {session.status === "editing" && (
-                        <span className="text-xs px-2 py-1 rounded-full bg-chart-4/10 text-chart-4 font-medium">
-                          Editing Window Open
-                        </span>
-                      )}
-                      {session.status === "completed" && (
-                        <span className="text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground font-medium">
-                          Completed
-                        </span>
+                <div className="flex flex-col gap-3">
+                  <div className="flex flex-wrap sm:flex-row justify-between gap-3">
+                    <div>
+                      <h3 className="font-medium text-base">
+                        {session.name}
+                      </h3>
+                      <div className="flex items-center gap-2 mt-1">
+                        {session.status === "upcoming" && (
+                          <span className="text-xs px-2 py-1 rounded-full bg-chart-3/10 text-chart-3 font-medium">
+                            Upcoming
+                          </span>
+                        )}
+                        {session.status === "in-progress" && (
+                          <span className="text-xs px-2 py-1 rounded-full bg-chart-2/10 text-chart-2 font-medium">
+                            In Progress
+                          </span>
+                        )}
+                        {session.status === "editing" && (
+                          <span className="text-xs px-2 py-1 rounded-full bg-chart-4/10 text-chart-4 font-medium">
+                            Editing Window Open
+                          </span>
+                        )}
+                        {session.status === "completed" && (
+                          <span className="text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground font-medium">
+                            Completed
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Make the batch adjustment and publish buttons appear side by side, aligned horizontally */}
+                    <div className="flex flex-row gap-2 items-center">
+                        {session.status === "editing" && hasSignups && (
+                        <>
+                          <Dialog>
+                          <DialogTrigger asChild>
+                            <Button
+                            variant="outline"
+                            size="sm"
+                            className="whitespace-nowrap"
+                            >
+                            <Clock className="h-4 w-4 mr-2" />
+                            <span className="hidden sm:inline">Adjust All Times</span>
+                            <span className="sm:hidden">Batch Edit</span>
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="sm:max-w-[425px]">
+                            <DialogHeader>
+                            <DialogTitle>Batch Adjust Check-out Times</DialogTitle>
+                            <DialogDescription>
+                              Add time to all volunteer check-out times in this session. 
+                              This is useful when volunteers stayed longer than initially recorded.
+                            </DialogDescription>
+                            </DialogHeader>
+                            <div className="grid gap-4 py-4">
+                            <div className="flex items-center justify-center gap-4">
+                              <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setBatchMinutesAdjustment(prev => Math.max(5, prev - 5))}
+                              disabled={applyingBatchAdjustment[session.id]}
+                              >
+                              -
+                              </Button>
+                              <div className="flex flex-col items-center gap-1">
+                              <span className="text-2xl font-semibold">{batchMinutesAdjustment}</span>
+                              <span className="text-sm text-muted-foreground">minutes</span>
+                              </div>
+                              <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setBatchMinutesAdjustment(prev => Math.min(120, prev + 5))}
+                              disabled={applyingBatchAdjustment[session.id]}
+                              >
+                              +
+                              </Button>
+                            </div>
+                            <div className="text-sm text-muted-foreground text-center">
+                              This will extend the check-out time for {sessionSignups.filter(signup => editedTimes[signup.id]?.check_out_time).length} volunteers
+                            </div>
+                            </div>
+                            <DialogFooter>
+                            <DialogClose asChild>
+                              <Button variant="outline" className="hidden sm:inline">Cancel</Button>
+                            </DialogClose>
+                            <Button 
+                              onClick={() => handleBatchAdjustment(session.id, batchMinutesAdjustment)}
+                              disabled={applyingBatchAdjustment[session.id]}
+                            >
+                              {applyingBatchAdjustment[session.id] ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Applying...
+                              </>
+                              ) : (
+                              'Apply Adjustment'
+                              )}
+                            </Button>
+                            </DialogFooter>
+                          </DialogContent>
+                          </Dialog>
+                        </>
+                        )}
+
+                      {session.status === "editing" && hasSignups && (
+                        <Button
+                          onClick={() => handlePublishHours(session.id)}
+                          disabled={isPublishing || !hasValidHoursData || hasInvalidTimes || applyingBatchAdjustment[session.id]}
+                          className="whitespace-nowrap"
+                          size="sm"
+                        >
+                          {isPublishing ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              Publishing...
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle />
+                              <span>Publish Hours</span>
+                            </>
+                          )}
+                        </Button>
                       )}
                     </div>
                   </div>
-                  
-                  {session.status === "editing" && hasSignups && (
-                    <Button 
-                      onClick={() => handlePublishHours(session.id)}
-                      disabled={isPublishing || !hasValidHoursData || hasInvalidTimes}
-                      className="whitespace-nowrap"
-                    >
-                      {isPublishing ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 
-                          Publishing...
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle className="mr-2 h-4 w-4" />
-                          Publish Hours & Generate Certificates
-                        </>
-                      )}
-                    </Button>
+
+                  {/* Batch adjustment description */}
+                  {showBatchAdjustment[session.id] && !applyingBatchAdjustment[session.id] && (
+                    <div className="text-sm text-muted-foreground bg-muted/40 p-2 rounded border">
+                      <p>
+                        This will add <span className="font-semibold">{batchMinutesAdjustment} minutes</span> to all volunteer check-out times in this session. Useful for extending hours when volunteers stayed longer than initially recorded.
+                      </p>
+                    </div>
                   )}
                 </div>
                 
@@ -813,70 +981,80 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses, a
                 )}
                 
                 {hasSignups ? (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Check-in Time</TableHead>
-                        <TableHead>Check-out Time</TableHead>
-                        <TableHead>Duration</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {sessionSignups.map((signup) => {
-                        const isRegistered = !!signup.user_id;
-                        const name = isRegistered ? signup.profile?.full_name : signup.anonymous_signup?.name;
-                        const email = isRegistered ? signup.profile?.email : signup.anonymous_signup?.email;
-                        const currentEdit = editedTimes[signup.id] || { check_in_time: null, check_out_time: null };
-                        const duration = calculateDuration(currentEdit.check_in_time, currentEdit.check_out_time);
-                        
-                        // Check if this record has been edited 
-                        const checkInOriginal = signup.check_in_time;
-                        const checkOutOriginal = signup.check_out_time;
-                        const hasBeenEdited = 
-                          currentEdit.check_in_time !== checkInOriginal || 
-                          currentEdit.check_out_time !== checkOutOriginal;
-
-                        return (
-                          <TableRow key={signup.id} className={hasBeenEdited ? "bg-muted/40" : ""}>
-                            <TableCell className="font-medium">
-                              {name || 'N/A'}
-                              {hasBeenEdited && (
-                                <span className="ml-2 text-xs text-muted-foreground">
-                                  <PencilLine className="h-3 w-3 inline-block" /> Edited
-                                </span>
-                              )}
-                            </TableCell>
-                            <TableCell>{email || 'N/A'}</TableCell>
-                            <TableCell>
-                              <TimePicker
-                                value={currentEdit.check_in_time 
-                                  ? format(new Date(currentEdit.check_in_time), 'HH:mm')
-                                  : ''}
-                                onChangeAction={(time) => handleTimeChange(signup.id, 'check_in_time', time)}
-                                disabled={session.status !== 'editing'}
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <TimePicker
-                                value={currentEdit.check_out_time 
-                                  ? format(new Date(currentEdit.check_out_time), 'HH:mm')
-                                  : ''}
-                                onChangeAction={(time) => handleTimeChange(signup.id, 'check_out_time', time)}
-                                disabled={session.status !== 'editing'}
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <span className={`text-xs font-medium ${!duration.isValid ? 'text-destructive' : ''}`}>
-                                {duration.text}
-                              </span>
-                            </TableCell>
+                  <div className="overflow-x-auto -mx-3 sm:mx-0 pb-2">
+                    <div className="inline-block min-w-full align-middle">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="whitespace-nowrap min-w-[140px]">Name</TableHead>
+                            <TableHead className="whitespace-nowrap">Email</TableHead>
+                            <TableHead className="whitespace-nowrap">Check-in</TableHead>
+                            <TableHead className="whitespace-nowrap">Check-out</TableHead>
+                            <TableHead className="whitespace-nowrap">Duration</TableHead>
                           </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
+                        </TableHeader>
+                        <TableBody>
+                          {sessionSignups.map((signup) => {
+                            const isRegistered = !!signup.user_id;
+                            const name = isRegistered ? signup.profile?.full_name : signup.anonymous_signup?.name;
+                            const email = isRegistered ? signup.profile?.email : signup.anonymous_signup?.email;
+                            const currentEdit = editedTimes[signup.id] || { check_in_time: null, check_out_time: null };
+                            const duration = calculateDuration(currentEdit.check_in_time, currentEdit.check_out_time);
+                            
+                            // Check if this record has been edited 
+                            const checkInOriginal = signup.check_in_time;
+                            const checkOutOriginal = signup.check_out_time;
+                            const hasBeenEdited = 
+                              currentEdit.check_in_time !== checkInOriginal || 
+                              currentEdit.check_out_time !== checkOutOriginal;
+
+                            return (
+                              <TableRow key={signup.id} className={hasBeenEdited ? "bg-muted/40" : ""}>
+                                <TableCell className="font-medium py-2.5 px-3 sm:p-4">
+                                  {name || 'N/A'}
+                                  {hasBeenEdited && (
+                                    <span className="ml-2 text-xs text-muted-foreground">
+                                      <PencilLine className="h-3 w-3 inline-block" /> Edited
+                                    </span>
+                                  )}
+                                </TableCell>
+                                <TableCell className="py-2.5 px-3 sm:p-4">
+                                  <span className="truncate max-w-[120px] sm:max-w-none block">{email || 'N/A'}</span>
+                                </TableCell>
+                                <TableCell className="py-2.5 px-3 sm:p-4">
+                                  <div className="max-w-[120px]">
+                                  <TimePicker
+                                    value={currentEdit.check_in_time 
+                                    ? format(new Date(currentEdit.check_in_time), 'HH:mm')
+                                    : ''}
+                                    onChangeAction={(time) => handleTimeChange(signup.id, 'check_in_time', time)}
+                                    disabled={session.status !== 'editing'}
+                                  />
+                                  </div>
+                                </TableCell>
+                                <TableCell className="py-2.5 px-3 sm:p-4">
+                                  <div className="max-w-[120px]">
+                                  <TimePicker
+                                    value={currentEdit.check_out_time 
+                                    ? format(new Date(currentEdit.check_out_time), 'HH:mm')
+                                    : ''}
+                                    onChangeAction={(time) => handleTimeChange(signup.id, 'check_out_time', time)}
+                                    disabled={session.status !== 'editing'}
+                                  />
+                                  </div>
+                                </TableCell>
+                                <TableCell className="py-2.5 px-3 sm:p-4">
+                                  <span className={`text-xs font-medium ${!duration.isValid ? 'text-destructive' : ''}`}>
+                                  {duration.text}
+                                  </span>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
                 ) : (
                   <div className="border rounded-md p-4 bg-muted/30 flex flex-col items-center justify-center py-6 text-center">
                     {session.status === "upcoming" && (
