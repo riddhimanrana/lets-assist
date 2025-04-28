@@ -16,7 +16,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Project } from "@/types";
-import { 
+import {
   Edit,
   Trash2,
   AlertCircle,
@@ -27,15 +27,14 @@ import {
   AlertTriangle,
   CalendarClock,
   QrCode,
-  UserCheck, // Add UserCheck icon for attendance
-  Zap, // Add Zap icon for automatic check-in
-  // --- ADDED ---
-  Pause, 
-  Printer, 
+  UserCheck,
+  Zap,
+  Pause,
+  Printer,
   Info,
-  Hourglass, 
-  CheckCircle2 
-  // --- END ADDED ---
+  Hourglass,
+  CheckCircle2,
+  Clock, // For hours editing icon
 } from "lucide-react";
 import { useState, useMemo } from "react";
 import { deleteProject, updateProjectStatus } from "./actions";
@@ -51,15 +50,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-// --- ADDED ---
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"; 
-// --- END ADDED ---
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { canCancelProject, canDeleteProject } from "@/utils/project";
 import { CancelProjectDialog } from "@/components/CancelProjectDialog";
-import { differenceInHours, addHours, isBefore, isAfter } from "date-fns"; // Added isAfter
+import { differenceInHours, addHours, isBefore, isAfter, parseISO, format } from "date-fns";
 import { getProjectStartDateTime, getProjectEndDateTime } from "@/utils/project";
 import ProjectTimeline from "./ProjectTimeline";
-import { ProjectQRCodeModal } from "./ProjectQRCodeModal"; 
+import { ProjectQRCodeModal } from "./ProjectQRCodeModal";
 
 interface Props {
   project: Project;
@@ -141,7 +138,7 @@ export default function CreatorDashboard({ project }: Props) {
   const endDateTime = getProjectEndDateTime(project);
   const hoursUntilStart = differenceInHours(startDateTime, now);
   const hoursAfterEnd = differenceInHours(now, endDateTime);
-  
+
   const isInDeletionRestrictionPeriod = hoursUntilStart <= 24 && hoursAfterEnd <= 48;
   const canDelete = canDeleteProject(project);
   const canCancel = canCancelProject(project);
@@ -151,10 +148,84 @@ export default function CreatorDashboard({ project }: Props) {
   const isStartingSoon = hoursUntilStart <= 24 && isBefore(now, startDateTime); // Within 24 hours but not started
   const isInProgress = isAfter(now, startDateTime) && isBefore(now, endDateTime);
   const isCompleted = isAfter(now, endDateTime);
-  // --- ADDED: Check-in specific phase ---
   const isCheckInOpen = hoursUntilStart <= 2 && isBefore(now, endDateTime); // Within 2 hours before start until end
-  // --- END ADDED ---
+
+  // --- Post-Event Editing Window Check ---
+  const isPostEventEditingWindowActive = useMemo(() => {
+    if (!endDateTime) return false;
+    const hoursSinceEnd = differenceInHours(now, endDateTime);
+    // Active if event ended AND within 48 hours
+    return isAfter(now, endDateTime) && hoursSinceEnd >= 0 && hoursSinceEnd < 48;
+  }, [now, endDateTime]);
+
+  // --- NEW: Session-specific Editing Window Check ---
+  const sessionsInEditingWindow = useMemo(() => {
+    const result: { id: string; name: string; hoursRemaining: number }[] = [];
+    
+    // Check one-time events
+    if (project.event_type === "oneTime" && project.schedule.oneTime) {
+      const date = parseISO(project.schedule.oneTime.date);
+      const [hours, minutes] = project.schedule.oneTime.endTime.split(':').map(Number);
+      const sessionEndTime = new Date(date.setHours(hours, minutes));
+      const hoursSinceEnd = differenceInHours(now, sessionEndTime);
+      
+      if (isAfter(now, sessionEndTime) && hoursSinceEnd >= 0 && hoursSinceEnd < 48) {
+        result.push({
+          id: "oneTime",
+          name: `Event on ${format(date, "MMM d")}`,
+          hoursRemaining: 48 - hoursSinceEnd
+        });
+      }
+    }
+    
+    // Check multi-day events
+    else if (project.event_type === "multiDay" && project.schedule.multiDay) {
+      project.schedule.multiDay.forEach((day, dayIndex) => {
+        const dayDate = parseISO(day.date);
+        
+        day.slots.forEach((slot, slotIndex) => {
+          const [hours, minutes] = slot.endTime.split(':').map(Number);
+          const slotEndTime = new Date(new Date(dayDate).setHours(hours, minutes));
+          const hoursSinceEnd = differenceInHours(now, slotEndTime);
+          
+          if (isAfter(now, slotEndTime) && hoursSinceEnd >= 0 && hoursSinceEnd < 48) {
+            const sessionId = `day-${dayIndex}-slot-${slotIndex}`;
+            result.push({
+              id: sessionId,
+              name: `${format(dayDate, "MMM d")} (${slot.startTime} - ${slot.endTime})`,
+              hoursRemaining: 48 - hoursSinceEnd
+            });
+          }
+        });
+      });
+    }
+    
+    // Check same-day multi-area events
+    else if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
+      const date = parseISO(project.schedule.sameDayMultiArea.date);
+      
+      project.schedule.sameDayMultiArea.roles.forEach((role, roleIndex) => {
+        const [hours, minutes] = role.endTime.split(':').map(Number);
+        const roleEndTime = new Date(new Date(date).setHours(hours, minutes));
+        const hoursSinceEnd = differenceInHours(now, roleEndTime);
+        
+        if (isAfter(now, roleEndTime) && hoursSinceEnd >= 0 && hoursSinceEnd < 48) {
+          const sessionId = `role-${roleIndex}`;
+          result.push({
+            id: sessionId,
+            name: `${role.name} (${role.startTime} - ${role.endTime})`,
+            hoursRemaining: 48 - hoursSinceEnd
+          });
+        }
+      });
+    }
+    
+    return result;
+  }, [project, now]);
   
+  const hasSessionsInEditingWindow = sessionsInEditingWindow.length > 0;
+  // --- END NEW ---
+
   // Check if attendance management is available (2 hours before event)
   const isAttendanceAvailable = useMemo(() => {
     // Handle different event types
@@ -294,19 +365,45 @@ export default function CreatorDashboard({ project }: Props) {
               <FileEdit className="h-4 w-4" />
               Manage Files
             </Button>
-            
-            {/* Add QR Code Button - only for QR code verification */}
-            {/* {project.verification_method === 'qr-code' && (
-              <Button
-                variant="outline"
-                className="w-full sm:w-auto flex items-center justify-center gap-2 bg-chart-4/30 hover:bg-chart-4/20 border-chart-4/60"
-                onClick={() => setQrCodeOpen(true)}
-              >
-                <QrCode className="h-4 w-4" />
-                QR Check-In
-              </Button>
-            )} */}
-            
+
+            {/* --- ADDED: Manage Hours Button (Conditional) --- */}
+            {hasSessionsInEditingWindow && project.verification_method !== 'auto' && (
+              <div className="w-full sm:w-auto">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="w-full sm:w-auto">
+                        <Button
+                          variant="outline"
+                          className="w-full bg-chart-8/30 hover:bg-chart-8/20 border-chart-8/60 sm:w-auto flex items-center justify-center  gap-2"
+                          onClick={() => router.push(`/projects/${project.id}/hours`)}
+                        >
+                          <Clock className="h-4 w-4" />
+                          Manage Hours
+                        </Button>
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-[280px] p-2">
+                      <p>
+                        {sessionsInEditingWindow.length === 1 
+                          ? `Editing window open for: ${sessionsInEditingWindow[0].name}` 
+                          : `Editing windows open for ${sessionsInEditingWindow.length} sessions`}
+                      </p>
+                      {sessionsInEditingWindow.length > 1 && (
+                        <ul className="text-xs mt-1 space-y-1">
+                          {sessionsInEditingWindow.map(session => (
+                            <li key={session.id}>
+                              • {session.name} ({session.hoursRemaining}h remaining)
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+            )}
+
             {/* Attendance Button - for QR code and manual methods */}
             {/* {(project.verification_method === 'qr-code' || project.verification_method === 'manual') && (
               <TooltipProvider>
@@ -338,21 +435,61 @@ export default function CreatorDashboard({ project }: Props) {
                   )}
                 </Tooltip>
               </TooltipProvider>
-            )} */}
-            
+            )}  */}
             {/* Visual indicator for automatic check-in */}
-            {/* {project.verification_method === 'auto' && (
+            {project.verification_method === 'auto' && (
               <div className="w-full sm:w-auto">
-                <Button
-                  variant="outline"
-                  className="w-full sm:w-auto flex items-center justify-center gap-2 opacity-70 cursor-default"
-                  disabled
-                >
-                  <Zap className="h-4 w-4" />
-                  Automatic Check-in Enabled
-                </Button>
+                 <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="w-full sm:w-auto">
+                        <Button
+                          variant="outline"
+                          className="w-full sm:w-auto flex items-center justify-center gap-2 opacity-70 cursor-default"
+                          disabled
+                        >
+                          <Zap className="h-4 w-4" />
+                          Automatic Check-in
+                        </Button>
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-[250px] p-2">
+                      <p>Check-in is automatic. View attendance records via the link below (available 2 hours before start).</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                {/* Link to view attendance for auto projects */}
+                 <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="w-full sm:w-auto block mt-2 sm:mt-0 sm:inline-block"> {/* Adjust layout */}
+                        <Button
+                          variant="outline"
+                          className={`w-full sm:w-auto flex items-center justify-center gap-2 ${
+                            isAttendanceAvailable
+                              ? "bg-blue-500/10 hover:bg-blue-500/20 border-blue-500/60 text-blue-700 dark:text-blue-400" // Different color for view
+                              : "opacity-70"
+                          }`}
+                          onClick={() => router.push(`/projects/${project.id}/attendance`)}
+                          disabled={!isAttendanceAvailable}
+                        >
+                          <Users className="h-4 w-4" />
+                          View Attendance
+                        </Button>
+                      </span>
+                    </TooltipTrigger>
+                    {!isAttendanceAvailable && (
+                      <TooltipContent className="max-w-[250px] p-2">
+                        <p>Attendance records will be available 2 hours before the event starts</p>
+                        {timeUntilAttendanceOpens && (
+                          <p className="text-xs mt-1">{timeUntilAttendanceOpens}</p>
+                        )}
+                      </TooltipContent>
+                    )}
+                  </Tooltip>
+                </TooltipProvider>
               </div>
-            )} */}
+            )}
 
             {/* <TooltipProvider>
               <Tooltip>
@@ -378,11 +515,17 @@ export default function CreatorDashboard({ project }: Props) {
                     <p>Projects cannot be deleted during the 72-hour window around the event</p>
                   </TooltipContent>
                 )}
+                 {!canDelete && !isInDeletionRestrictionPeriod && ( // Add tooltip if deletion is disallowed for other reasons
+                  <TooltipContent className="max-w-[250px] text-center p-2">
+                    <p>Project cannot be deleted at this time (e.g., too close to start).</p>
+                  </TooltipContent>
+                )}
               </Tooltip>
             </TooltipProvider> */}
           </div>
 
-          {/* --- ADDED: Conditional Alerts for Signup-Only Projects --- */}
+          {/* --- Conditional Alerts --- */}
+          {/* Signup-Only */}
           {project.verification_method === 'signup-only' && !isCancelled && (
             <>
               {isStartingSoon && (
@@ -415,20 +558,56 @@ export default function CreatorDashboard({ project }: Props) {
                   </AlertDescription>
                 </Alert>
               )}
+              {/* --- MODIFIED: Unified Completed Alert --- */}
               {isCompleted && (
-                <Alert variant="default" className="border-chart-5/50 bg-chart-5/10 mt-4">
-                  <Info className="h-4 w-4 text-chart-5" />
-                  <AlertTitle className="text-chart-5">Event Completed</AlertTitle>
+                <Alert variant="default" className="border-chart-6/50 bg-chart-6/10 mt-4">
+                  <CheckCircle2 className="h-4 w-4 text-chart-6" />
+                  <AlertTitle className="text-chart-6">Event Completed</AlertTitle>
                   <AlertDescription>
-                    Your signup-only event has completed. You can still manage signups and view details.
+                    {isPostEventEditingWindowActive
+                      ? "Your signup-only event has finished. Please review and finalize volunteer hours within 48 hours of the event end time to generate certificates."
+                      : "Your signup-only event has finished, and the window for managing volunteer hours has closed."}
+                    <div className="mt-3">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            {/* Span needed for tooltip on disabled button */}
+                            <span className="inline-block" tabIndex={isPostEventEditingWindowActive ? -1 : 0}>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                asChild={isPostEventEditingWindowActive} // Use asChild only if active
+                                disabled={!isPostEventEditingWindowActive}
+                                className={!isPostEventEditingWindowActive ? "pointer-events-none" : ""}
+                              >
+                                {isPostEventEditingWindowActive ? (
+                                  <Link href={`/projects/${project.id}/hours`}>
+                                    <Clock className="h-4 w-4 mr-1.5" /> Manage Hours
+                                  </Link>
+                                ) : (
+                                  // Content for disabled button
+                                  <>
+                                    <Clock className="h-4 w-4 mr-1.5" /> Manage Hours
+                                  </>
+                                )}
+                              </Button>
+                            </span>
+                          </TooltipTrigger>
+                          {!isPostEventEditingWindowActive && (
+                            <TooltipContent>
+                              <p>Editing window closed (48 hours post-event).</p>
+                            </TooltipContent>
+                          )}
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
                   </AlertDescription>
                 </Alert>
               )}
+              {/* --- END MODIFIED --- */}
             </>
           )}
-          {/* --- END ADDED --- */}
-
-          {/* --- ADDED: Alerts for QR Code / Manual Check-in Projects --- */}
+          {/* QR Code / Manual */}
           {(project.verification_method === 'qr-code' || project.verification_method === 'manual') && !isCancelled && (
             <>
               {isStartingSoon && !isCheckInOpen && ( // Show only if > 2 hours away
@@ -498,45 +677,82 @@ export default function CreatorDashboard({ project }: Props) {
                   </AlertDescription>
                 </Alert>
               )}
-              {isCompleted && (
-                <Alert variant="default" className="border-chart-5/50 bg-chart-5/10 mt-4">
-                  <CheckCircle2 className="h-4 w-4 text-chart-5" />
-                  <AlertTitle className="text-chart-5">Event Completed</AlertTitle>
-                  <AlertDescription>
-                    Your event has finished. You can review the final attendance records.
-                    <div className="mt-3 flex gap-2">
-                      <Button variant="outline" size="sm" asChild>
-                        <Link href={`/projects/${project.id}/attendance`}>
-                          <Printer className="h-4 w-4 mr-1.5" /> View/Print Attendance
-                        </Link>
-                      </Button>
+                      {isCompleted && (
+                      <Alert
+                        variant="default"
+                        className={`border-${isPostEventEditingWindowActive ? "chart-3" : "chart-5"}/50 bg-${isPostEventEditingWindowActive ? "chart-3" : "chart-5"}/10 mt-4`}
+                      >
+                        <CheckCircle2 className={`h-4 w-4 text-${isPostEventEditingWindowActive ? "chart-3" : "chart-5"}`} />
+                        <AlertTitle className={`text-${isPostEventEditingWindowActive ? "chart-3" : "chart-5"}`}>Event Completed</AlertTitle>
+                        <AlertDescription>
+                    {isPostEventEditingWindowActive
+                      ? "Your event has finished. Please review, edit, and publish volunteer hours within 48 hours of the event end time to generate certificates. If you don't edit, hours will be published automatically."
+                      : "Your event has finished, and the window for managing volunteer hours has closed. You can still view the final attendance records."}
+                    <div className="mt-3 flex gap-2 flex-wrap">
+                         <Button variant="outline" size="sm" asChild>
+                           <Link href={`/projects/${project.id}/attendance`}>
+                             <Users className="h-4 w-4 mr-1.5" /> View Attendance
+                           </Link>
+                         </Button>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="inline-block" tabIndex={isPostEventEditingWindowActive ? -1 : 0}>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                asChild={isPostEventEditingWindowActive}
+                                disabled={!isPostEventEditingWindowActive}
+                                className={!isPostEventEditingWindowActive ? "pointer-events-none" : ""}
+                              >
+                                {isPostEventEditingWindowActive ? (
+                                  <Link href={`/projects/${project.id}/hours`}>
+                                    <Clock className="h-4 w-4 mr-1.5" /> Manage Hours
+                                  </Link>
+                                ) : (
+                                  <>
+                                    <Clock className="h-4 w-4 mr-1.5" /> Manage Hours
+                                  </>
+                                )}
+                              </Button>
+                            </span>
+                          </TooltipTrigger>
+                          {!isPostEventEditingWindowActive && (
+                            <TooltipContent>
+                              <p>Editing window closed (48 hours post-event).</p>
+                            </TooltipContent>
+                          )}
+                        </Tooltip>
+                      </TooltipProvider>
+                      
                     </div>
                   </AlertDescription>
                 </Alert>
               )}
+              {/* --- END MODIFIED --- */}
             </>
           )}
-          {/* --- END ADDED --- */}
-
-          {/* --- ADDED: Alert for Auto Check-in Projects --- */}
+          {/* Auto Check-in (Keep this separate as it has no hours management) */}
           {project.verification_method === 'auto' && !isCancelled && (
-            <Alert variant="default" className="border-chart-2/50 bg-chart-2/10 mt-4">
-              <Zap className="h-4 w-4 text-chart-2" />
-              <AlertTitle className="text-chart-2">Automatic Check-in Enabled</AlertTitle>
-              <AlertDescription>
-                Volunteer check-in for this project is handled automatically based on the scheduled start times. No manual action is required from you or the volunteers for check-in. You can monitor attendance as it happens.
-                <div className="mt-3 flex gap-2">
-                  <Button variant="outline" size="sm" asChild>
-                    <Link href={`/projects/${project.id}/attendance`}>
-                      <Users className="h-4 w-4 mr-1.5" /> Monitor Attendance
-                    </Link>
-                  </Button>
-                </div>
-              </AlertDescription>
-            </Alert>
+             <Alert variant="default" className="border-chart-2/50 bg-chart-2/10 mt-4">
+               <Zap className="h-4 w-4 text-chart-2" />
+               <AlertTitle className="text-chart-2">Automatic Check-in Enabled</AlertTitle>
+               <AlertDescription>
+                 Volunteer check-in is automatic. Hours are recorded based on the schedule. Manual editing is not available for this project type.
+                 <div className="mt-3 flex gap-2">
+                   <Button variant="outline" size="sm" asChild disabled={!isAttendanceAvailable}>
+                     <Link href={`/projects/${project.id}/attendance`}>
+                       <Users className="h-4 w-4 mr-1.5" /> {isCompleted ? "View Final Attendance" : "Monitor Attendance"}
+                     </Link>
+                   </Button>
+                 </div>
+               </AlertDescription>
+             </Alert>
           )}
-          {/* --- END ADDED --- */}
+          {/* --- End Conditional Alerts --- */}
 
+
+          {/* Cancelled Project Info */}
           {isCancelled ? (
             <div className="flex flex-col sm:flex-row items-start gap-2 rounded-md border border-destructive p-3 sm:p-4 bg-destructive/10">
               <AlertTriangle className="h-5 w-5 text-destructive flex-shrink-0" />
