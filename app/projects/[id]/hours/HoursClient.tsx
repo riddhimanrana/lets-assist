@@ -3,9 +3,10 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { Project, ProjectSignup } from "@/types"; // Use ProjectSignup type
 import { Input } from "@/components/ui/input";
-import { Search, ArrowLeft, Clock, CheckCircle, RefreshCw, Loader2, UserRoundCheck, Edit, AlertCircle, PencilLine } from "lucide-react";
+import { Search, ArrowLeft, Clock, CheckCircle, RefreshCw, Loader2, UserRoundCheck, Info, Edit, AlertCircle, PencilLine, FileText } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { format, parseISO, differenceInMinutes, differenceInSeconds, isAfter, isValid } from "date-fns";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import Link from "next/link";
 import {
   Card,
@@ -15,7 +16,9 @@ import {
   CardTitle,
   CardFooter,
 } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogClose, DialogFooter } from "@/components/ui/dialog";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogClose, DialogFooter 
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -28,6 +31,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+// Fixed: Added the missing Select imports
 import {
   Select,
   SelectContent,
@@ -35,9 +39,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-// Remove the DateTimePicker import and add TimePicker
+// Import the server action
+import { publishVolunteerHours } from "./actions";
+// Import the TimePicker
 import { TimePicker } from "@/components/ui/time-picker";
-// Import necessary utils if needed (like formatSessionName, formatTimeTo12Hour)
 import { formatTimeTo12Hour } from "@/lib/utils"; // Assuming this exists and works
 
 // Define the structure for edited times
@@ -69,9 +74,13 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses, a
   const [searchTerm, setSearchTerm] = useState("");
   const [sessionFilter, setSessionFilter] = useState<string>("all");
   
-  // Track which sessions are currently being published
+  // State to track which sessions are currently being published
   const [publishingSessions, setPublishingSessions] = useState<Record<string, boolean>>({});
-
+  
+  // Add state for confirmation dialog
+  const [confirmPublishSessionId, setConfirmPublishSessionId] = useState<string | null>(null);
+  const [confirmPublishCount, setConfirmPublishCount] = useState<number>(0);
+  
   // Log initial data for debugging
   useEffect(() => {
     console.log("HoursClient initialized with:", {
@@ -256,9 +265,44 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses, a
     }));
   };
 
-  // Enhanced publish function for individual sessions
+  // Add function to initiate the publish confirmation
+  const initiatePublishHours = (sessionId: string) => {
+    // Find all signups for this session to show count in confirmation
+    let sessionSignups: ProjectSignup[] = [];
+    
+    // Try exact match first
+    if (signupsBySession[sessionId]) {
+      sessionSignups = signupsBySession[sessionId];
+    } else {
+      // Try all alternative IDs
+      const session = getAllProjectSessions.find(s => s.id === sessionId);
+      if (session) {
+        for (const altId of session.alternativeIds) {
+          if (signupsBySession[altId]) {
+            sessionSignups = signupsBySession[altId];
+            break;
+          }
+        }
+      }
+    }
+    
+    // Count valid volunteers
+    const validVolunteers = sessionSignups.filter(signup => {
+      const edit = editedTimes[signup.id] || { check_in_time: null, check_out_time: null };
+      const duration = calculateDuration(edit.check_in_time, edit.check_out_time);
+      return duration.isValid && edit.check_in_time && edit.check_out_time;
+    });
+    
+    // Set state for confirmation dialog
+    setConfirmPublishCount(validVolunteers.length);
+    setConfirmPublishSessionId(sessionId);
+  };
+
+  // Modify the handle publish function to be called after confirmation
   const handlePublishHours = async (sessionId: string) => {
-    // Mark this session as publishing
+    // Close the confirmation dialog
+    setConfirmPublishSessionId(null);
+    
     setPublishingSessions(prev => ({
       ...prev,
       [sessionId]: true
@@ -294,10 +338,9 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses, a
         
         return {
           signupId: signup.id,
-          userId: signup.user_id,
-          profileData: signup.profile,
-          name: signup.user_id ? signup.profile?.full_name : signup.anonymous_signup?.name,
-          email: signup.user_id ? signup.profile?.email : signup.anonymous_signup?.email,
+          userId: signup.user_id || null,
+          name: signup.user_id ? signup.profile?.full_name || null : signup.anonymous_signup?.name || null,
+          email: signup.user_id ? signup.profile?.email || null : signup.anonymous_signup?.email || null,
           checkIn: edit.check_in_time,
           checkOut: edit.check_out_time,
           durationMinutes: duration.minutes,
@@ -313,23 +356,33 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses, a
         return;
       }
       
-      // TODO: Call server action to publish hours for this session
-      console.log("Publishing data:", sessionData);
+      // Call server action to publish hours and generate certificates
+      const result = await publishVolunteerHours(project.id, sessionId, sessionData);
       
-      // Simulate server call
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      if (!result.success) {
+        console.error("Error from server:", result.error);
+        toast.error(result.error || "Failed to publish volunteer hours");
+        return;
+      }
+
+      // Update local published state
+      const publishKey = getPublishStateKey(sessionId);
+      setPublishedSessions(prev => ({
+        ...prev,
+        [publishKey]: true
+      }));
       
       // Show success message
-      const volunteerCount = sessionData.length;
-      toast.success(`Published hours for ${volunteerCount} volunteer${volunteerCount !== 1 ? 's' : ''} in this session!`);
+      toast.success(
+        `Published hours and created certificate${result.certificatesCreated !== 1 ? 's' : ''} for ${sessionData.length} volunteer${sessionData.length !== 1 ? 's' : ''}!`
+      );
       
-      // Optionally refresh data or mark session as published
-      // e.g. router.refresh();
+      router.refresh();
+      
     } catch (error) {
       console.error("Error publishing hours:", error);
       toast.error("Failed to publish volunteer hours. Please try again.");
     } finally {
-      // Clear publishing state for this session
       setPublishingSessions(prev => ({
         ...prev,
         [sessionId]: false
@@ -507,15 +560,16 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses, a
     else if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
       const date = parseISO(project.schedule.sameDayMultiArea.date);
       
-      project.schedule.sameDayMultiArea.roles.forEach((role, roleIndex) => {
-        const sessionId = `role-${roleIndex}`;
+      project.schedule.sameDayMultiArea.roles.forEach((role) => {
         const [endHours, endMinutes] = role.endTime.split(':').map(Number);
         const endDateTime = new Date(new Date(date).setHours(endHours, endMinutes));
+        
+        // Use role name directly as the session ID
+        const sessionId = role.name;
         
         // Determine status
         let status: 'upcoming' | 'in-progress' | 'completed' | 'editing' = 'upcoming';
         if (isAfter(now, endDateTime)) {
-          // Check if in editing window
           const hoursSinceEnd = differenceInMinutes(now, endDateTime) / 60;
           if (hoursSinceEnd < 48) {
             status = 'editing';
@@ -531,11 +585,11 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses, a
         }
         
         sessions.push({
-          id: sessionId,
+          id: sessionId, // Use role name as ID
           name: formatSessionName(project, sessionId),
           endDateTime,
           status,
-          alternativeIds: [`role${roleIndex}`, `${roleIndex}`]
+          alternativeIds: [sessionId] // The role name is the only ID we need
         });
       });
     }
@@ -639,6 +693,51 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses, a
     }
   };
 
+  // Add state to track published status from project
+  const [publishedSessions, setPublishedSessions] = useState<Record<string, boolean>>(() => {
+    // Initialize from project.published
+    if (!project.published) return {};
+    return project.published as Record<string, boolean>;
+  });
+
+  // Function to check if a session is published
+  const isSessionPublished = (sessionId: string): boolean => {
+    if (project.event_type === "oneTime") {
+      return !!publishedSessions["oneTime"];
+    } else if (project.event_type === "multiDay") {
+      // For multiDay events, the session ID matches the published state key
+      const [_, dayIndex, __, slotIndex] = sessionId.split("-");
+      const dateKey = project.schedule.multiDay?.[parseInt(dayIndex)]?.date;
+      return dateKey ? !!publishedSessions[`${dateKey}-${slotIndex}`] : false;
+    } else if (project.event_type === "sameDayMultiArea") {
+      // For multi-area events, use the sessionId directly as it's the role name
+      return !!publishedSessions[sessionId];
+    }
+    return false;
+  };
+
+  // Function to get session identifier for publishing
+  const getPublishStateKey = (sessionId: string): string => {
+    if (project.event_type === "oneTime") {
+      return "oneTime";
+    } else if (project.event_type === "multiDay") {
+      const [_, dayIndex, __, slotIndex] = sessionId.split("-");
+      const dateKey = project.schedule.multiDay?.[parseInt(dayIndex)]?.date;
+      // Ensure dateKey is valid before constructing the key
+      return dateKey ? `${dateKey}-${slotIndex}` : sessionId; // Fallback to sessionId if dateKey is missing
+    } else if (project.event_type === "sameDayMultiArea") {
+      // For multi-area events, the sessionId is already the role name
+      return sessionId;
+    }
+    return sessionId;
+  };
+
+  // --- Filter active sessions for the header display ---
+  const activeUnpublishedSessions = useMemo(() => {
+    return activeSessions.filter(session => !isSessionPublished(session.id));
+  }, [activeSessions, publishedSessions]);
+  // --- End filter ---
+
   return (
     <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-6 max-w-5xl">
       <div className="mb-4 sm:mb-6">
@@ -651,6 +750,46 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses, a
         </Button>
       </div>
 
+      {/* Add confirmation dialog */}
+      <Dialog open={confirmPublishSessionId !== null} onOpenChange={(open) => !open && setConfirmPublishSessionId(null)}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="text-xl flex items-center">
+              <AlertCircle className="h-5 w-5 text-chart-4 mr-2" />
+              Publish Volunteer Hours
+            </DialogTitle>
+            <DialogDescription className="pt-2">
+              You are about to publish volunteer hours and generate official certificates 
+              for <strong>{confirmPublishCount}</strong> volunteer{confirmPublishCount !== 1 ? 's' : ''}.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="my-2 p-3 border rounded-md bg-muted/50">
+            <p className="text-sm text-chart-4 font-medium">Important:</p>
+            <p className="text-sm mt-1">
+              This action is final. Once published, these hours cannot be modified. 
+              Volunteers will have access to their certificates immediately.
+            </p>
+          </div>
+          
+          <p className="text-sm text-muted-foreground">
+            For any changes after publishing, you&apos;ll need to contact support at <a href="mailto:support@lets-assist.com" className="text-primary underline">support@lets-assist.com</a>
+          </p>
+          
+          <DialogFooter className="gap-2 mt-4">
+            <DialogClose asChild>
+              <Button variant="outline">Cancel</Button>
+            </DialogClose>
+            <Button 
+              onClick={() => confirmPublishSessionId && handlePublishHours(confirmPublishSessionId)}
+              variant="default"
+            >
+              Confirm & Publish
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
       <Card className="min-h-[400px] relative">
         {loading && (
           <div className="absolute inset-0 flex items-center justify-center z-10 bg-background/50">
@@ -670,15 +809,16 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses, a
             </div>
           </div>
           
-          {/* Display active session information */}
-          {activeSessions.length > 0 && (
+          {/* Display active session information - ONLY if there are active UNPUBLISHED sessions */}
+          {activeUnpublishedSessions.length > 0 && (
             <div className="mt-4">
               <div className="flex items-center gap-2 mb-2">
                 <Edit className="h-4 w-4 text-chart-4" aria-hidden="true" />
                 <span className="text-sm sm:text-base font-semibold text-chart-4">Editing Windows Open</span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                {activeSessions.map(session => (
+                {/* Map over the filtered list */}
+                {activeUnpublishedSessions.map(session => (
                   <div
                     key={session.id}
                     className="flex flex-col gap-1 p-3 sm:p-4 rounded-xl border border-chart-4/30 bg-gradient-to-br from-chart-4/10 to-white/80 dark:to-background shadow-sm transition hover:shadow-lg"
@@ -819,6 +959,9 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses, a
             
             const hasSignups = sessionSignups.length > 0;
             const isPublishing = publishingSessions[session.id] || false;
+            // --- Use the isSessionPublished function ---
+            const isPublished = isSessionPublished(session.id);
+            // --- End Use the isSessionPublished function ---
             const hasInvalidTimes = hasSignups && sessionSignups.some(signup => {
               const edit = editedTimes[signup.id] || { check_in_time: null, check_out_time: null };
               const duration = calculateDuration(edit.check_in_time, edit.check_out_time);
@@ -850,14 +993,22 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses, a
                             In Progress
                           </span>
                         )}
-                        {session.status === "editing" && (
+                        {/* --- Conditionally render Editing Window badge --- */}
+                        {session.status === "editing" && !isPublished && (
                           <span className="text-xs px-2 py-1 rounded-full bg-chart-4/10 text-chart-4 font-medium">
                             Editing Window Open
                           </span>
                         )}
-                        {session.status === "completed" && (
+                        {/* --- End Conditional render --- */}
+                        {session.status === "completed" && !isPublished && ( // Show completed only if not published
                           <span className="text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground font-medium">
                             Completed
+                          </span>
+                        )}
+                        {/* Add published badge */}
+                        {isPublished && (
+                          <span className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary font-medium">
+                            Published
                           </span>
                         )}
                       </div>
@@ -865,7 +1016,7 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses, a
 
                     {/* Make the batch adjustment and publish buttons appear side by side, aligned horizontally */}
                     <div className="flex flex-row gap-2 items-center">
-                        {session.status === "editing" && hasSignups && (
+                        {session.status === "editing" && hasSignups && !isPublished && (
                         <>
                           <Dialog>
                           <DialogTrigger asChild>
@@ -937,10 +1088,10 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses, a
                         </>
                         )}
 
-                      {session.status === "editing" && hasSignups && (
+                      {session.status === "editing" && hasSignups && !isPublished && (
                         <Button
-                          onClick={() => handlePublishHours(session.id)}
-                          disabled={isPublishing || !hasValidHoursData || hasInvalidTimes || applyingBatchAdjustment[session.id]}
+                          onClick={() => initiatePublishHours(session.id)}
+                          disabled={isPublishing || !hasValidHoursData || hasInvalidTimes}
                           className="whitespace-nowrap"
                           size="sm"
                         >
@@ -951,10 +1102,26 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses, a
                             </>
                           ) : (
                             <>
-                              <CheckCircle />
+                              <CheckCircle className="h-4 w-4 mr-1.5" />
                               <span>Publish Hours</span>
                             </>
                           )}
+                        </Button>
+                      )}
+                      
+                      {/* Show view certificates button if published */}
+                      {isPublished && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="whitespace-nowrap"
+                          asChild
+                        >
+                          <Link href={`/projects/${project.id}/certificates?session=${session.id}`}>
+                            <FileText className="h-4 w-4 mr-1.5" />
+                            <span className="hidden sm:inline">View Certificates</span>
+                            <span className="sm:hidden">Certificates</span>
+                          </Link>
                         </Button>
                       )}
                     </div>
@@ -980,7 +1147,18 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses, a
                   </Alert>
                 )}
                 
-                {hasSignups ? (
+                {isPublished && (
+                  <div className="border rounded-md p-4 bg-primary/5 flex flex-col items-center justify-center py-6 text-center">
+                    <p className="text-primary font-medium">
+                      This session&apos;s hours have been published and certificates generated.
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Hours can no longer be modified. Contact support for any needed changes.
+                    </p>
+                  </div>
+                )}
+                
+                {hasSignups && !isPublished ? (
                   <div className="overflow-x-auto -mx-3 sm:mx-0 pb-2">
                     <div className="inline-block min-w-full align-middle">
                       <Table>
@@ -990,7 +1168,25 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses, a
                             <TableHead className="whitespace-nowrap">Email</TableHead>
                             <TableHead className="whitespace-nowrap">Check-in</TableHead>
                             <TableHead className="whitespace-nowrap">Check-out</TableHead>
-                            <TableHead className="whitespace-nowrap">Duration</TableHead>
+                            <TableHead className="whitespace-nowrap flex items-center gap-1">
+                              Duration
+                              <span>
+                              <div>
+                                <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                  <span tabIndex={0} aria-label="Duration info">
+                                    <Info className="h-4 w-4 cursor-pointer" aria-hidden="true" />
+                                  </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top" align="center">
+                                  Times may be off by ±1 minute due to rounding seconds to the nearest minute.
+                                  </TooltipContent>
+                                </Tooltip>
+                                </TooltipProvider>
+                              </div>
+                              </span>
+                            </TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -1056,26 +1252,28 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses, a
                     </div>
                   </div>
                 ) : (
-                  <div className="border rounded-md p-4 bg-muted/30 flex flex-col items-center justify-center py-6 text-center">
-                    {session.status === "upcoming" && (
-                      <>
-                        <p className="text-muted-foreground">This session hasn&apos;t started yet.</p>
-                        <p className="text-xs text-muted-foreground mt-1">Check back after the session is complete.</p>
-                      </>
-                    )}
-                    {session.status === "in-progress" && (
-                      <>
-                        <p className="text-muted-foreground">This session is currently in progress.</p>
-                        <p className="text-xs text-muted-foreground mt-1">Volunteer hours will be available after the session ends.</p>
-                      </>
-                    )}
-                    {(session.status === "editing" || session.status === "completed") && (
-                      <>
-                        <p className="text-muted-foreground">No volunteers attended this session.</p>
-                        <p className="text-xs text-muted-foreground mt-1">There are no hours to manage.</p>
-                      </>
-                    )}
-                  </div>
+                  !isPublished && (
+                    <div className="border rounded-md p-4 bg-muted/30 flex flex-col items-center justify-center py-6 text-center">
+                      {session.status === "upcoming" && (
+                        <>
+                          <p className="text-muted-foreground">This session hasn&apos;t started yet.</p>
+                          <p className="text-xs text-muted-foreground mt-1">Check back after the session is complete.</p>
+                        </>
+                      )}
+                      {session.status === "in-progress" && (
+                        <>
+                          <p className="text-muted-foreground">This session is currently in progress.</p>
+                          <p className="text-xs text-muted-foreground mt-1">Volunteer hours will be available after the session ends.</p>
+                        </>
+                      )}
+                      {(session.status === "editing" || session.status === "completed") && (
+                        <>
+                          <p className="text-muted-foreground">No volunteers attended this session.</p>
+                          <p className="text-xs text-muted-foreground mt-1">There are no hours to manage.</p>
+                        </>
+                      )}
+                    </div>
+                  )
                 )}
               </div>
             );

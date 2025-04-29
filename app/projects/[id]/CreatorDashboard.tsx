@@ -325,6 +325,116 @@ export default function CreatorDashboard({ project }: Props) {
     return "Not yet available";
   }, [project, isAttendanceAvailable]);
 
+  // --- Helper function to get the key used in the 'published' object ---
+  const getPublishStateKey = (sessionId: string): string => {
+    if (project.event_type === "oneTime" && sessionId === "oneTime") {
+      return "oneTime";
+    } else if (project.event_type === "multiDay") {
+      const match = sessionId.match(/day-(\d+)-slot-(\d+)/);
+      if (match && project.schedule.multiDay) {
+        const dayIndex = parseInt(match[1], 10);
+        const slotIndex = parseInt(match[2], 10);
+        const dateKey = project.schedule.multiDay[dayIndex]?.date;
+        // Ensure dateKey is valid before constructing the key
+        return dateKey ? `${dateKey}-${slotIndex}` : sessionId; // Fallback
+      }
+    } else if (project.event_type === "sameDayMultiArea") {
+       // For sameDayMultiArea, the session ID passed to this function might be role-${index}
+       // but the actual key in 'published' is the role name. We need the role name from the session list.
+       // This helper might need adjustment depending on where it's called, or we filter based on the session object directly.
+       // Let's assume the session object with the name is available where filtering happens.
+       // If called with just the ID like 'role-0', we need to look up the name.
+       const match = sessionId.match(/role-(\d+)/);
+       if (match && project.schedule.sameDayMultiArea?.roles) {
+         const roleIndex = parseInt(match[1], 10);
+         const roleName = project.schedule.sameDayMultiArea.roles[roleIndex]?.name;
+         return roleName || sessionId; // Use role name if found
+       }
+       // If the sessionId is already the role name (as used in HoursClient), return it directly
+       if (project.schedule.sameDayMultiArea?.roles.some(r => r.name === sessionId)) {
+         return sessionId;
+       }
+    }
+    return sessionId; // Fallback
+  };
+  // --- End Helper ---
+
+  // --- NEW: Session-specific Editing Window Check (FILTERED) ---
+  const activeUnpublishedSessionsInEditingWindow = useMemo(() => {
+    const result: { id: string; name: string; hoursRemaining: number }[] = [];
+    const publishedKeys = project.published || {};
+
+    // Check one-time events
+    if (project.event_type === "oneTime" && project.schedule.oneTime) {
+      const date = parseISO(project.schedule.oneTime.date);
+      const [hours, minutes] = project.schedule.oneTime.endTime.split(':').map(Number);
+      const sessionEndTime = new Date(new Date(date).setHours(hours, minutes)); // Use new Date() to avoid modifying original 'date'
+      const hoursSinceEnd = differenceInHours(now, sessionEndTime);
+      const sessionId = "oneTime";
+      const publishKey = getPublishStateKey(sessionId);
+
+      if (isAfter(now, sessionEndTime) && hoursSinceEnd >= 0 && hoursSinceEnd < 48 && !publishedKeys[publishKey]) {
+        result.push({
+          id: sessionId,
+          name: `Event on ${format(date, "MMM d")}`,
+          hoursRemaining: 48 - hoursSinceEnd
+        });
+      }
+    }
+
+    // Check multi-day events
+    else if (project.event_type === "multiDay" && project.schedule.multiDay) {
+      project.schedule.multiDay.forEach((day, dayIndex) => {
+        const dayDate = parseISO(day.date);
+
+        day.slots.forEach((slot, slotIndex) => {
+          const [hours, minutes] = slot.endTime.split(':').map(Number);
+          const slotEndTime = new Date(new Date(dayDate).setHours(hours, minutes)); // Use new Date()
+          const hoursSinceEnd = differenceInHours(now, slotEndTime);
+          const sessionId = `day-${dayIndex}-slot-${slotIndex}`;
+          const publishKey = getPublishStateKey(sessionId); // Uses date and slotIndex
+
+          if (isAfter(now, slotEndTime) && hoursSinceEnd >= 0 && hoursSinceEnd < 48 && !publishedKeys[publishKey]) {
+            result.push({
+              id: sessionId,
+              name: `${format(dayDate, "MMM d")} (${slot.startTime} - ${slot.endTime})`,
+              hoursRemaining: 48 - hoursSinceEnd
+            });
+          }
+        });
+      });
+    }
+
+    // Check same-day multi-area events
+    else if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
+      const date = parseISO(project.schedule.sameDayMultiArea.date);
+
+      project.schedule.sameDayMultiArea.roles.forEach((role, roleIndex) => {
+        const [hours, minutes] = role.endTime.split(':').map(Number);
+        const roleEndTime = new Date(new Date(date).setHours(hours, minutes)); // Use new Date()
+        const hoursSinceEnd = differenceInHours(now, roleEndTime);
+        // Use the role name as the primary identifier and the key for publishing
+        const sessionId = role.name; // Use role name directly
+        const publishKey = sessionId; // The key is the role name
+
+        if (isAfter(now, roleEndTime) && hoursSinceEnd >= 0 && hoursSinceEnd < 48 && !publishedKeys[publishKey]) {
+          result.push({
+            id: sessionId, // Store role name as ID here
+            name: `${role.name} (${role.startTime} - ${role.endTime})`,
+            hoursRemaining: 48 - hoursSinceEnd
+          });
+        }
+      });
+    }
+
+    return result;
+    // Add project.published to dependency array
+  }, [project, now, project.published]);
+
+  // Rename variable used later
+  const hasActiveUnpublishedSessions = activeUnpublishedSessionsInEditingWindow.length > 0;
+  // --- END NEW ---
+
   return (
     <div className="space-y-4 sm:space-y-6 mb-4 px-2 sm:px-0">
       <Card className="overflow-hidden">
@@ -366,8 +476,9 @@ export default function CreatorDashboard({ project }: Props) {
               Manage Files
             </Button>
 
-            {/* --- ADDED: Manage Hours Button (Conditional) --- */}
-            {hasSessionsInEditingWindow && project.verification_method !== 'auto' && (
+            {/* --- MODIFIED: Manage Hours Button (Conditional) --- */}
+            {/* Use the new filtered list */}
+            {hasActiveUnpublishedSessions && project.verification_method !== 'auto' && (
               <div className="w-full sm:w-auto">
                 <TooltipProvider>
                   <Tooltip>
@@ -383,26 +494,30 @@ export default function CreatorDashboard({ project }: Props) {
                         </Button>
                       </span>
                     </TooltipTrigger>
+                    {/* --- Update tooltip content to use activeUnpublishedSessionsInEditingWindow --- */}
                     <TooltipContent className="max-w-[280px] p-2">
                       <p>
-                        {sessionsInEditingWindow.length === 1 
-                          ? `Editing window open for: ${sessionsInEditingWindow[0].name}` 
-                          : `Editing windows open for ${sessionsInEditingWindow.length} sessions`}
+                        {activeUnpublishedSessionsInEditingWindow.length === 1
+                          ? `Editing window open for: ${activeUnpublishedSessionsInEditingWindow[0].name}`
+                          : `Editing windows open for ${activeUnpublishedSessionsInEditingWindow.length} sessions`}
                       </p>
-                      {sessionsInEditingWindow.length > 1 && (
+                      {activeUnpublishedSessionsInEditingWindow.length > 1 && (
                         <ul className="text-xs mt-1 space-y-1">
-                          {sessionsInEditingWindow.map(session => (
+                          {activeUnpublishedSessionsInEditingWindow.map(session => (
                             <li key={session.id}>
                               • {session.name} ({session.hoursRemaining}h remaining)
                             </li>
                           ))}
                         </ul>
                       )}
+                       <p className="text-xs mt-1 text-muted-foreground">Click to review/edit hours before publishing.</p>
                     </TooltipContent>
+                    {/* --- End Update --- */}
                   </Tooltip>
                 </TooltipProvider>
               </div>
             )}
+            {/* --- END MODIFIED --- */}
 
             {/* Attendance Button - for QR code and manual methods */}
             {/* {(project.verification_method === 'qr-code' || project.verification_method === 'manual') && (
@@ -506,29 +621,30 @@ export default function CreatorDashboard({ project }: Props) {
                   </AlertDescription>
                 </Alert>
               )}
-              {/* --- MODIFIED: Unified Completed Alert --- */}
-              {isCompleted && (
+              {/* --- MODIFIED: Signup-Only Completed Alert --- */}
+              {isCompleted && ( // Condition already checks for completion
                 <Alert variant="default" className="border-chart-6/50 bg-chart-6/10 mt-4">
                   <CheckCircle2 className="h-4 w-4 text-chart-6" />
                   <AlertTitle className="text-chart-6">Event Completed</AlertTitle>
                   <AlertDescription>
-                    {isPostEventEditingWindowActive
+                    {/* Use hasActiveUnpublishedSessions for conditional text */}
+                    {hasActiveUnpublishedSessions
                       ? "Your signup-only event has finished. Please review and finalize volunteer hours within 48 hours of the event end time to generate certificates."
-                      : "Your signup-only event has finished, and the window for managing volunteer hours has closed."}
+                      : "Your signup-only event has finished, and the window for managing volunteer hours has closed or all sessions are published."}
                     <div className="mt-3">
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
                             {/* Span needed for tooltip on disabled button */}
-                            <span className="inline-block" tabIndex={isPostEventEditingWindowActive ? -1 : 0}>
+                            <span className="inline-block" tabIndex={hasActiveUnpublishedSessions ? -1 : 0}>
                               <Button
                                 variant="outline"
                                 size="sm"
-                                asChild={isPostEventEditingWindowActive} // Use asChild only if active
-                                disabled={!isPostEventEditingWindowActive}
-                                className={!isPostEventEditingWindowActive ? "pointer-events-none" : ""}
+                                asChild={hasActiveUnpublishedSessions} // Link only if active
+                                disabled={!hasActiveUnpublishedSessions} // Disable if no active sessions
+                                className={!hasActiveUnpublishedSessions ? "pointer-events-none opacity-60" : ""} // Style disabled button
                               >
-                                {isPostEventEditingWindowActive ? (
+                                {hasActiveUnpublishedSessions ? (
                                   <Link href={`/projects/${project.id}/hours`}>
                                     <Clock className="h-4 w-4 mr-1.5" /> Manage Hours
                                   </Link>
@@ -541,9 +657,10 @@ export default function CreatorDashboard({ project }: Props) {
                               </Button>
                             </span>
                           </TooltipTrigger>
-                          {!isPostEventEditingWindowActive && (
+                          {/* Tooltip for disabled button */}
+                          {!hasActiveUnpublishedSessions && (
                             <TooltipContent>
-                              <p>Editing window closed (48 hours post-event).</p>
+                              <p>Editing window closed or all sessions published.</p>
                             </TooltipContent>
                           )}
                         </Tooltip>
@@ -625,17 +742,19 @@ export default function CreatorDashboard({ project }: Props) {
                   </AlertDescription>
                 </Alert>
               )}
-                      {isCompleted && (
+                      {isCompleted && (project.verification_method === 'qr-code' || project.verification_method === 'manual') && !isCancelled && (
                       <Alert
                         variant="default"
-                        className={`border-${isPostEventEditingWindowActive ? "chart-3" : "chart-5"}/50 bg-${isPostEventEditingWindowActive ? "chart-3" : "chart-5"}/10 mt-4`}
+                        // Use hasActiveUnpublishedSessions for conditional styling
+                        className={`border-${hasActiveUnpublishedSessions ? "chart-3" : "chart-5"}/50 bg-${hasActiveUnpublishedSessions ? "chart-3" : "chart-5"}/10 mt-4`}
                       >
-                        <CheckCircle2 className={`h-4 w-4 text-${isPostEventEditingWindowActive ? "chart-3" : "chart-5"}`} />
-                        <AlertTitle className={`text-${isPostEventEditingWindowActive ? "chart-3" : "chart-5"}`}>Event Completed</AlertTitle>
+                        <CheckCircle2 className={`h-4 w-4 text-${hasActiveUnpublishedSessions ? "chart-3" : "chart-5"}`} />
+                        <AlertTitle className={`text-${hasActiveUnpublishedSessions ? "chart-3" : "chart-5"}`}>Event Completed</AlertTitle>
                         <AlertDescription>
-                    {isPostEventEditingWindowActive
+                    {/* Use hasActiveUnpublishedSessions here */}
+                    {hasActiveUnpublishedSessions
                       ? "Your event has finished. Please review, edit, and publish volunteer hours within 48 hours of the event end time to generate certificates. If you don't edit, hours will be published automatically."
-                      : "Your event has finished, and the window for managing volunteer hours has closed. You can still view the final attendance records."}
+                      : "Your event has finished, and the window for managing volunteer hours has closed or all sessions are published. You can still view the final attendance records."}
                     <div className="mt-3 flex gap-2 flex-wrap">
                          <Button variant="outline" size="sm" asChild>
                            <Link href={`/projects/${project.id}/attendance`}>
@@ -645,15 +764,15 @@ export default function CreatorDashboard({ project }: Props) {
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <span className="inline-block" tabIndex={isPostEventEditingWindowActive ? -1 : 0}>
+                            <span className="inline-block" tabIndex={hasActiveUnpublishedSessions ? -1 : 0}>
                               <Button
                                 variant="outline"
                                 size="sm"
-                                asChild={isPostEventEditingWindowActive}
-                                disabled={!isPostEventEditingWindowActive}
-                                className={!isPostEventEditingWindowActive ? "pointer-events-none" : ""}
+                                asChild={hasActiveUnpublishedSessions} // Link only if active
+                                disabled={!hasActiveUnpublishedSessions} // Disable if no active sessions
+                                className={!hasActiveUnpublishedSessions ? "pointer-events-none opacity-60" : ""} // Style disabled button
                               >
-                                {isPostEventEditingWindowActive ? (
+                                {hasActiveUnpublishedSessions ? (
                                   <Link href={`/projects/${project.id}/hours`}>
                                     <Clock className="h-4 w-4 mr-1.5" /> Manage Hours
                                   </Link>
@@ -665,14 +784,14 @@ export default function CreatorDashboard({ project }: Props) {
                               </Button>
                             </span>
                           </TooltipTrigger>
-                          {!isPostEventEditingWindowActive && (
+                          {/* Tooltip for disabled button */}
+                          {!hasActiveUnpublishedSessions && (
                             <TooltipContent>
-                              <p>Editing window closed (48 hours post-event).</p>
+                              <p>Editing window closed or all sessions published.</p>
                             </TooltipContent>
                           )}
                         </Tooltip>
                       </TooltipProvider>
-                      
                     </div>
                   </AlertDescription>
                 </Alert>

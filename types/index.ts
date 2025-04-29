@@ -100,6 +100,7 @@ export interface Project {
   created_at: string;
   cover_image_url?: string | null;
   session_id?: string | null;
+  published?: Record<string, boolean>; // Track which sessions have published certificates
 }
 
 export interface AnonymousSignupData {
