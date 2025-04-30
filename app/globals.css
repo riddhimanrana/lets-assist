@@ -34,7 +34,8 @@
     --chart-5: 109 58% 40%; /* green */
     --chart-6: 22 99% 52%; /* orange */
     --chart-7: 355 76% 59%; /* maroon */
-    --chart-8: 231 97% 72% /* lavender */
+    --chart-8: 231 97% 72%; /* lavender */
+    --chart-9: 220 21% 89%; /* base */
   }
 
   .dark {
@@ -69,6 +70,7 @@
     --chart-6: 23 92% 75%; /* orange */
     --chart-7: 350 65% 77%; /* maroon */
     --chart-8: 232 97% 85%; /* lavender */
+    --chart-9: 240 23% 9%; /* mantle */
   }
 }
 
