@@ -165,25 +165,32 @@ export default function EditOrganizationForm({ organization, userId }: EditOrgan
   const handleCropComplete = async (croppedImage: string) => {
     setIsUploading(true);
     try {
-      // Convert base64 string to a file object
-      const base64Response = await fetch(croppedImage);
-      const blob = await base64Response.blob();
-      const file = new File([blob], "organization-logo.jpg", { type: "image/jpeg" });
-      
-      // Set the file in the form value first
+      // Update local preview
       form.setValue("logoUrl", croppedImage, { shouldDirty: true });
-      
-      // The actual upload to Supabase will happen in updateOrganization action
-      // when the form is submitted
-      
-      setTempImageUrl("");
-      setShowCropper(false);
-      toast.success("Logo cropped successfully. Save changes to update your organization.");
+      // Immediately upload and update organization logo
+      const values = form.getValues();
+      const result = await updateOrganization({
+        id: organization.id,
+        name: values.name,
+        username: values.username,
+        description: values.description,
+        website: values.website,
+        type: values.type,
+        logoUrl: croppedImage,
+      });
+      if (result.error) {
+        toast.error(result.error);
+      } else {
+        toast.success("Logo updated successfully!");
+        router.refresh();
+      }
     } catch (error) {
-      console.error("Error processing cropped image:", error);
-      toast.error("Failed to process the cropped image. Please try again.");
+      console.error("Error uploading logo:", error);
+      toast.error("Failed to upload logo. Please try again.");
     } finally {
       setIsUploading(false);
+      setShowCropper(false);
+      setTempImageUrl("");
     }
   };
 
