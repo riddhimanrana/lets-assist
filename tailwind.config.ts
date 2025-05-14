@@ -70,7 +70,7 @@ const config: Config = {
   				'sans-serif'
   			],
 			mono: [
-				'var(--font-geistmono)',
+				'var(--font-geist-mono)',
 				'sans-serif'
 			]
   		},

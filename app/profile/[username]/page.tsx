@@ -4,14 +4,16 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { format } from "date-fns";
+import { format, parseISO, differenceInMinutes, isBefore } from "date-fns"; // Added parseISO, differenceInMinutes, isBefore
 import { notFound } from "next/navigation";
 import { NoAvatar } from "@/components/NoAvatar";
-import { Metadata } from "next";
-import { CalendarIcon, Calendar, MapPin, BadgeCheck, Users } from "lucide-react";
+import { CalendarIcon, Calendar, MapPin, BadgeCheck, Users, Clock, Award, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { Shield, UserRoundCog, UserRound } from "lucide-react";
 import { ProjectStatusBadge } from "@/components/ui/status-badge";
+import { Progress } from "@/components/ui/progress";
+import type { Metadata } from "next";
+import Image from "next/image";
 
 interface Profile {
   id: string;
@@ -19,6 +21,24 @@ interface Profile {
   full_name: string;
   avatar_url: string | null;
   created_at: string;
+  volunteer_hours?: number;
+  verified_hours?: number;
+}
+
+interface Certificate {
+  id: string;
+  user_id: string;
+  title: string;
+  issuer: string;
+  created_at: string; // This is likely 'created_at' from dashboard context
+  event_start: string; // Added: Assuming this exists in your DB table
+  event_end: string;   // Added: Assuming this exists in your DB table
+  image_url?: string;
+  verification_url?: string;
+  description?: string;
+  // Add other fields from dashboard's Certificate if they are selected and needed
+  project_title?: string; // From dashboard, might be same as title
+  organization_name?: string; // From dashboard, might be same as issuer
 }
 
 interface Project {
@@ -72,6 +92,22 @@ export async function generateMetadata(
     title: `${profile?.full_name} (${username})` || username,
     description: `Profile page for ${username}`,
   };
+}
+
+// Helper function to calculate hours (copied from dashboard logic)
+function calculateHours(startTimeStr: string, endTimeStr: string): number {
+  try {
+    if (!startTimeStr || !endTimeStr) return 0;
+    const start = parseISO(startTimeStr);
+    const end = parseISO(endTimeStr);
+    if (isBefore(end, start)) return 0;
+    // Calculate difference in minutes, then convert to hours, rounded to 1 decimal place
+    const diffMins = differenceInMinutes(end, start);
+    return Math.round((diffMins / 60) * 10) / 10;
+  } catch (e) {
+    console.error("Error calculating hours:", e, { startTimeStr, endTimeStr });
+    return 0;
+  }
 }
 
 export default async function ProfilePage(
@@ -134,6 +170,40 @@ export default async function ProfilePage(
     .eq('user_id', profile.id)
     .order('role', { ascending: false });
 
+  // Fetch certificates for this user
+  // This query should select event_start and event_end if they exist in the table
+  const { data: certificates, error: certificatesError } = await supabase
+    .from("certificates")
+    .select("*") // Ensure event_start and event_end are selected
+    .eq("user_id", profile.id)
+    .order("created_at", { ascending: false }); // Assuming 'issue_date' is the correct field for ordering
+
+  if (certificatesError) {
+    console.error("Error fetching certificates for profile page:", certificatesError);
+    // Handle error appropriately
+  }
+  
+  // Calculate total hours from certificates
+  let totalHours = 0;
+  if (certificates) {
+    totalHours = certificates.reduce((sum, cert) => {
+      // Ensure event_start and event_end are present on the cert object
+      if (cert.event_start && cert.event_end) {
+        return sum + calculateHours(cert.event_start, cert.event_end);
+      }
+      return sum;
+    }, 0);
+  }
+
+// Utility: Format hours as "Xh Ym"
+function formatHours(hours: number): string {
+  const h = Math.floor(hours);
+  const m = Math.round((hours - h) * 60);
+  if (h > 0 && m > 0) return `${h}h ${m}m`;
+  if (h > 0) return `${h}h`;
+  return `${m}m`;
+}
+
   // Transform the data to match the expected structure
   const formattedOrganizations: OrganizationMembership[] = userOrganizations?.map((item: any) => ({
     role: item.role,
@@ -147,7 +217,7 @@ export default async function ProfilePage(
   
   const totalAttendedProjects = attendedProjects?.length || 0;
   const totalProjects = totalCreatedProjects + totalAttendedProjects;
-
+  
   return (
     <div className="flex justify-center w-full">
       <div className="container max-w-5xl py-4 sm:py-8 px-4 sm:px-6">
@@ -173,11 +243,10 @@ export default async function ProfilePage(
           </CardHeader>
           <CardContent className="px-4 sm:px-6 pt-2 pb-4">
             <div className="flex flex-col sm:flex-row justify-between gap-4 sm:gap-3">
-              <div className="flex gap-2 flex-wrap">
-              <Badge variant="secondary">{totalAttendedProjects} Projects Attended</Badge>
+              <div className="flex gap-2 flex-wrap">                <Badge variant="secondary">{totalAttendedProjects} Projects Attended</Badge>
                 <Badge variant="outline">{completedCreatedProjects} Projects Created</Badge>
                 <Badge variant="outline">{totalProjects} Total</Badge>
-                
+                <Badge variant="default">{totalHours} Volunteer Hours</Badge>
               </div>
               <div className="flex items-center text-xs text-muted-foreground">
                 <CalendarIcon className="h-3 w-3 mr-1.5" />
@@ -186,6 +255,89 @@ export default async function ProfilePage(
             </div>
           </CardContent>
         </Card>
+
+        {/* Volunteer Hours Section */}
+        <div className="mb-6 sm:mb-8">
+          <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4 flex items-center">
+            <Clock className="h-5 w-5 mr-2 text-primary" aria-hidden="true" />
+            Volunteer Hours
+          </h2>
+          <Separator className="mb-4" />
+          
+          <Card className="overflow-hidden">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="bg-primary/10 rounded-full p-2.5">
+                  <Clock className="h-6 w-6 text-primary" aria-hidden="true" />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-3xl font-bold text-primary" aria-label={`Total volunteer hours: ${formatHours(totalHours)}`}>
+                    {formatHours(totalHours)}
+                  </span>
+                  <span className="text-sm text-muted-foreground">from {totalProjects} projects</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Certificates Section
+        <div className="mb-6 sm:mb-8">
+          <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4 flex items-center">
+            <Award className="h-6 w-6 mr-2 text-primary" />
+            Certificates & Achievements
+          </h2>
+          <Separator className="mb-4 sm:mb-6" />
+          
+          {certificates && certificates.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+              {certificates.map((certificate) => (
+                <Card key={certificate.id} className="hover:shadow-md transition-shadow overflow-hidden">
+                  {certificate.image_url && (
+                    <div className="h-32 w-full overflow-hidden bg-muted" style={{ position: "relative" }}>
+                      <Image
+                        src={certificate.image_url}
+                        alt={certificate.title}
+                        fill
+                        className="object-cover"
+                        sizes="(max-width: 640px) 100vw, 33vw"
+                        priority={false}
+                      />
+                    </div>
+                  )}
+                  <CardContent className="p-4">
+                    <div className="flex justify-between items-start gap-2 mb-2">
+                      <h3 className="font-semibold text-base sm:text-lg line-clamp-1">{certificate.title}</h3>
+                      {certificate.verification_url && (
+                        <Link href={certificate.verification_url} target="_blank" rel="noopener noreferrer">
+                          <ExternalLink className="h-4 w-4 text-muted-foreground hover:text-primary" />
+                        </Link>
+                      )}
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Issued by {certificate.issuer}
+                    </p>
+                    {certificate.description && (
+                      <p className="text-xs text-muted-foreground mb-2 line-clamp-2">
+                        {certificate.description}
+                      </p>
+                    )}
+                    <div className="flex items-center text-xs text-muted-foreground mt-2">
+                      <CalendarIcon className="h-3 w-3 mr-1.5" />
+                      <span>Issued on {format(new Date(certificate.created_at), "MMM d, yyyy")}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center p-8 bg-muted/20 rounded-lg">
+              <Award className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+              <h3 className="text-lg font-medium mb-1">No Certificates Yet</h3>
+              <p className="text-muted-foreground">This user hasn&apos;t earned any certificates yet.</p>
+            </div>
+          )}
+        </div> */}
 
         {/* Organizations Section */}
         {formattedOrganizations && formattedOrganizations.length > 0 && (

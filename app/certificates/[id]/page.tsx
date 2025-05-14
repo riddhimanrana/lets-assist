@@ -2,7 +2,7 @@ import { createClient } from "@/utils/supabase/server";
 import { notFound } from "next/navigation";
 import { format, differenceInMinutes, parseISO, isValid } from "date-fns";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Clock, MapPin, Building2, User, ExternalLink, Award, QrCode, UserCheck, Clipboard } from "lucide-react";
+import { Calendar, Clock, MapPin, Building2, User, ExternalLink, Award, QrCode, UserCheck, Clipboard, BadgeCheck} from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -10,6 +10,7 @@ import { CardContainer, CardBody, CardItem } from "@/components/ui/3d-card";
 import { CertificateCardButton } from "./CertificateCardButton";
 import Image from "next/image";
 import { PrintCertificate } from "./PrintCertificate";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 // Define the expected shape of the fetched data based on the 'certificates' table
 interface CertificateData {
@@ -30,6 +31,7 @@ interface CertificateData {
   signup_id: string | null;
   volunteer_name: string | null;
   project_location: string | null;
+  creator_profile: { username: string | null } | null; // Updated to single object or null
 }
 
 // Helper function to calculate and format duration
@@ -74,7 +76,8 @@ export default async function VolunteerRecordPage({ params }: { params: { id: st
       issued_at,
       signup_id,
       volunteer_name,
-      project_location
+      project_location,
+      creator_profile:profiles!certificates_creator_id_fkey (username) // Specified foreign key and alias
     `)
     .eq("id", recordId)
     .single();
@@ -84,8 +87,8 @@ export default async function VolunteerRecordPage({ params }: { params: { id: st
     notFound(); // Show 404 if record not found or error occurs
   }
 
-  // Type assertion after checking for null
-  const data = record as CertificateData;
+  // Type assertion after checking for null and converting to unknown first
+  const data = record as unknown as CertificateData;
 
   // Format dates
   const eventStart = format(parseISO(data.event_start), "MMM d, yyyy • h:mm a");
@@ -101,6 +104,7 @@ export default async function VolunteerRecordPage({ params }: { params: { id: st
     ...data,
     durationText,
     issuedDate,
+    creator_username: data.creator_profile?.username || null, // Adjusted to access single profile object
   };
 
   return (
@@ -146,7 +150,7 @@ export default async function VolunteerRecordPage({ params }: { params: { id: st
                       </span>
                       <User className="h-4 w-4 text-primary" aria-hidden="true" />
                       <Link
-                        href={`/profile/${data.user_id}`}
+                        href={`/profile/${certificateData.creator_username}`}
                         className="text-sm font-semibold text-foreground hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/60 rounded"
                         aria-label={`View profile of ${data.creator_name}`}
                       >
@@ -157,9 +161,23 @@ export default async function VolunteerRecordPage({ params }: { params: { id: st
                 </div>
                 {data.is_certified && (
                   <CardItem translateZ={60} as="div">
-                    <Badge variant="secondary" className="ml-auto backdrop-blur-sm bg-primary/10 border border-primary/20 text-primary-foreground">
-                      <Award className="h-3.5 w-3.5 mr-1" /> Verified
-                    </Badge>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Badge
+                            variant="secondary"
+                            className="ml-auto backdrop-blur-sm bg-primary/10 border border-primary/20 text-chart-5"
+                            tabIndex={0}
+                            aria-label="Verified badge"
+                          >
+                            <BadgeCheck className="h-3.5 w-3.5 mr-1" /> Verified
+                          </Badge>
+                        </TooltipTrigger>
+                        <TooltipContent side="left" className="max-w-xs" aria-label="Verified badge explanation">
+                          Verified badges mean this certificate comes from a verified organization.
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </CardItem>
                 )}
               </div>

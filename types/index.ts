@@ -56,12 +56,18 @@ export interface ProjectDocument {
   url: string;
 };
 
+export interface VolunteerGoalsData {
+  hours_goal: number;
+  events_goal: number;
+}
+
 export interface Profile {
   full_name: string | null;
   email: string | null;
   avatar_url: string | null;
   username: string | null;
   created_at: string | null;
+  volunteer_goals?: VolunteerGoalsData | null;
 }
 
 export type ProjectStatus = "upcoming" | "in-progress" | "completed" | "cancelled";
@@ -101,6 +107,7 @@ export interface Project {
   cover_image_url?: string | null;
   session_id?: string | null;
   published?: Record<string, boolean>; // Track which sessions have published certificates
+  certificates?: Record<string, string>; // Map of signup_id to certificate_id
 }
 
 export interface AnonymousSignupData {

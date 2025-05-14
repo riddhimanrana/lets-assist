@@ -4,12 +4,12 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { CheckCircle2, Clock, Link as LinkIcon, User, Mail, Phone, Calendar, Info, Loader2, XCircle, AlertTriangle, Clock3 } from "lucide-react";
+import { CheckCircle2, Clock, Link as LinkIcon, User, Mail, Phone, Calendar, Info, Loader2, XCircle, AlertTriangle, Clock3, Award, Medal } from "lucide-react"; // Use Medal instead of Certificate
 import Link from "next/link";
 import { format, addDays, parseISO, differenceInSeconds, differenceInHours, isAfter } from "date-fns";
 import { formatTimeTo12Hour } from "@/lib/utils";
 import { Project } from "@/types";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react"; // add useEffect
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -275,8 +275,36 @@ export default function AnonymousSignupClient({
     }
   }, [sessionDate, endTime]);
 
+  // --- ADDED: Check if hours are published for this specific schedule_id ---
+  const areHoursPublished = useMemo(() => {
+    return project.published && project.published[schedule_id] === true;
+  }, [project.published, schedule_id]);
+  
+  // --- Check for corresponding certificate based on project_signup_id ---
+  const [certMap, setCertMap] = useState<Record<string,string>>({});
+  useEffect(() => {
+    const supabase = createClient();
+    supabase
+      .from("certificates")
+      .select("id, signup_id")
+      .eq("signup_id", project_signup_id)
+      .then(({ data, error }) => {
+        if (error) console.error("Error fetching certificates:", error);
+        else {
+          const map: Record<string,string> = {};
+          data?.forEach((cert) => {
+            map[cert.signup_id] = cert.id;
+          });
+          setCertMap(map);
+        }
+      });
+  }, [project_signup_id]);
+  const certificateId = certMap[project_signup_id] ?? null;
+  // --- END ADDED ---
+
   // Determine if this is a "missed event" situation (approved but didn't attend)
-  const isMissedEvent = status === 'approved' && !check_in_time && isProjectOver;
+  // --- MODIFIED: Only count as missed if hours are NOT published ---
+  const isMissedEvent = status === 'approved' && !check_in_time && isProjectOver && !areHoursPublished;
 
   if (isDeleted) {
     return (
@@ -332,8 +360,78 @@ export default function AnonymousSignupClient({
         <CardContent className="space-y-6">
           <div className="flex items-center gap-2 mb-2">
             {/* Convert alerts to cards */}
-            
-            {status === 'attended' && isInPostEventWindow && (
+
+            {/* --- ADDED: Hours Published Card (Highest Priority Post-Event) --- */}
+            {areHoursPublished && (
+              <Card className="w-full border-chart-5/30 bg-chart-5/5 overflow-hidden">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-chart-5/10 p-2 rounded-full">
+                      <Award className="h-5 w-5 text-chart-5" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">Volunteer Hours Published!</CardTitle>
+                      <CardDescription>Your hours for {project.title} have been finalized.</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4 pt-2">
+                  {/* Session info */}
+                  <div className="flex flex-col space-y-2 text-sm">
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium text-muted-foreground">Event:</span>
+                      <span>{formatScheduleSlot(project, schedule_id)}</span>
+                    </div>
+                    {check_in_time && (
+                      <div className="flex justify-between items-center">
+                        <span className="font-medium text-muted-foreground">Checked in at:</span>
+                        <span>{format(new Date(check_in_time), "h:mm a")}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Info Section */}
+                  <div className="relative pl-6 border-chart-5/30 mt-3 space-y-3">
+                    <div className="relative">
+                      <div className="absolute -left-[27px] top-0 w-5 h-5 rounded-full bg-chart-5/20 flex items-center justify-center">
+                        <div className="w-2 h-2 rounded-full bg-chart-5"></div>
+                      </div>
+                      <p className="text-sm font-medium">Hours Finalized</p>
+                      <p className="text-xs text-muted-foreground">
+                        Your participation details and hours have been recorded.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Certificate Link */}
+                  {certificateId && (
+                    <div className="mt-3 flex justify-end">
+                      <Button size="sm" variant="outline" asChild>
+                        <Link href={`/certificates/${certificateId}`}>
+                          <Medal className="h-4 w-4 mr-1.5" />
+                          View Certificate
+                        </Link>
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Data Retention Warning */}
+                  {autoDeletionDate && (
+                    <Alert className="bg-muted/50 border-muted mt-4">
+                      <Clock className="h-4 w-4" />
+                      <AlertTitle className="font-medium">Important: Data Retention</AlertTitle>
+                      <AlertDescription className="text-xs text-muted-foreground">
+                        This anonymous signup record, including your hours, will be automatically deleted on <span className="font-semibold">{format(autoDeletionDate, "MMMM d, yyyy")}</span>. Please save this page or take a screenshot if you need a permanent record of your participation.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+            {/* --- END ADDED --- */}
+
+            {/* --- MODIFIED: Only show processing card if hours are NOT published --- */}
+            {status === 'attended' && isInPostEventWindow && !areHoursPublished && (
               <Card className="w-full border-chart-4/30 bg-chart-4/5 overflow-hidden">
                 <CardHeader className="pb-2">
                   <div className="flex items-center gap-3">
@@ -469,7 +567,7 @@ export default function AnonymousSignupClient({
               </Card>
             )}
             
-            {isConfirmed && signupStatus === 'approved' && (
+            {isConfirmed && signupStatus === 'approved' && !isProjectOver && !areHoursPublished && (
               <Card className="w-full border-primary/30 bg-primary/5 overflow-hidden">
                 <CardHeader className="pb-2">
                   <div className="flex items-center gap-3">
@@ -571,7 +669,7 @@ export default function AnonymousSignupClient({
           </div>
           
           
-            {status === 'attended' && check_in_time && (
+            {status === 'attended' && check_in_time && !areHoursPublished && (
             <>
               <Separator />
               <div className="space-y-3 text-sm">
@@ -646,15 +744,10 @@ export default function AnonymousSignupClient({
             </div>
           </div>
           
-          {autoDeletionDate && (
-            <Alert className="bg-muted/50 border-muted">
-              <Clock className="h-4 w-4" />
-              <AlertTitle className="font-medium">Data Retention Notice</AlertTitle>
-                <AlertDescription className="text-xs text-muted-foreground">
-                This signup record will be automatically deleted on {format(autoDeletionDate, "MMMM d, yyyy")}&nbsp;(30 days after the project date). Save this page if you need to keep a record of your participation.
-                </AlertDescription>
-            </Alert>
-          )}
+          {/* --- MODIFIED: Move Data Retention Notice into the Published Hours card --- */}
+          {/* {autoDeletionDate && (
+            <Alert className="bg-muted/50 border-muted"> ... </Alert>
+          )} */}
         </CardContent>
 
         <CardFooter className="flex flex-col border-t p-6 gap-4">

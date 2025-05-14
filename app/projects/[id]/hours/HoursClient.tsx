@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { Project, ProjectSignup } from "@/types"; // Use ProjectSignup type
 import { Input } from "@/components/ui/input";
-import { Search, ArrowLeft, Clock, CheckCircle, RefreshCw, Loader2, UserRoundCheck, Info, Edit, AlertCircle, PencilLine, FileText } from "lucide-react";
+import { Search, ArrowLeft, Clock, CheckCircle, RefreshCw, Loader2, UserRoundCheck, Info, Edit, AlertCircle, PencilLine, FileText, Copy } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { format, parseISO, differenceInMinutes, differenceInSeconds, isAfter, isValid } from "date-fns";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "sonner"; // Import sonner toast
 // Fixed: Added the missing Select imports
 import {
   Select,
@@ -40,9 +40,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 // Import the server action
-import { publishVolunteerHours } from "./actions";
-// Import the TimePicker
-import { TimePicker } from "@/components/ui/time-picker";
+import { publishVolunteerHours } from "./actions"; // Import the server action
+import { TimePicker } from "@/components/ui/time-picker"; // Import the TimePicker
 import { formatTimeTo12Hour } from "@/lib/utils"; // Assuming this exists and works
 
 // Define the structure for edited times
@@ -80,6 +79,11 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses, a
   // Add state for confirmation dialog
   const [confirmPublishSessionId, setConfirmPublishSessionId] = useState<string | null>(null);
   const [confirmPublishCount, setConfirmPublishCount] = useState<number>(0);
+
+  // State for publish success modal
+  const [showPublishSuccessModal, setShowPublishSuccessModal] = useState(false);
+  const [publishedSessionEmails, setPublishedSessionEmails] = useState<string[]>([]);
+  const [currentPublishedSessionName, setCurrentPublishedSessionName] = useState<string>("");
   
   // Log initial data for debugging
   useEffect(() => {
@@ -133,7 +137,7 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses, a
 
    // Enhanced formatSessionName function
    const formatSessionName = (proj: Project, sessionId: string): string => {
-     if (!proj) return sessionId;
+     if (!proj) return sessionId; // Added missing return statement
      
      // One-time events
      if (proj.event_type === "oneTime" && sessionId === "oneTime" && proj.schedule.oneTime) {
@@ -269,13 +273,14 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses, a
   const initiatePublishHours = (sessionId: string) => {
     // Find all signups for this session to show count in confirmation
     let sessionSignups: ProjectSignup[] = [];
+    const allSessions = getAllProjectSessions; // Ensure getAllProjectSessions is in scope
     
     // Try exact match first
     if (signupsBySession[sessionId]) {
       sessionSignups = signupsBySession[sessionId];
     } else {
       // Try all alternative IDs
-      const session = getAllProjectSessions.find(s => s.id === sessionId);
+      const session = allSessions.find((s: { id: string; name: string; endDateTime: Date; status: 'upcoming' | 'in-progress' | 'completed' | 'editing'; alternativeIds: string[] }) => s.id === sessionId);
       if (session) {
         for (const altId of session.alternativeIds) {
           if (signupsBySession[altId]) {
@@ -303,85 +308,95 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses, a
     // Close the confirmation dialog
     setConfirmPublishSessionId(null);
     
-    setPublishingSessions(prev => ({
+    setPublishingSessions((prev: Record<string, boolean>) => ({ // Added type for prev
       ...prev,
       [sessionId]: true
     }));
     
     try {
-      console.log(`Publishing hours for session ${sessionId}`);
-      
       // Find all signups for this session
       let sessionSignups: ProjectSignup[] = [];
-      
       // Try exact match first
       if (signupsBySession[sessionId]) {
         sessionSignups = signupsBySession[sessionId];
       } else {
-        // Try all alternative IDs
-        const session = getAllProjectSessions.find(s => s.id === sessionId);
-        if (session) {
-          for (const altId of session.alternativeIds) {
-            if (signupsBySession[altId]) {
-              sessionSignups = signupsBySession[altId];
-              console.log(`Found signups using alternative ID ${altId} for session ${sessionId}`);
-              break;
+        // Fallback for alternative session IDs (e.g., from getAllProjectSessions)
+        const allProjSessions = getAllProjectSessions; // Ensure getAllProjectSessions is in scope
+        const targetSessionInfo = allProjSessions.find((s: { id: string; alternativeIds: string[] }) => s.id === sessionId || s.alternativeIds.includes(sessionId));
+        if (targetSessionInfo) {
+          // Check primary ID first
+          if (signupsBySession[targetSessionInfo.id]) {
+            sessionSignups = signupsBySession[targetSessionInfo.id];
+          } else {
+            // Check alternative IDs
+            for (const altId of targetSessionInfo.alternativeIds) {
+              if (signupsBySession[altId]) {
+                sessionSignups = signupsBySession[altId];
+                break;
+              }
             }
           }
         }
       }
-      
-      // Get all edited times for signups in this session
-      const sessionData = sessionSignups.map(signup => {
-        const edit = editedTimes[signup.id] || { check_in_time: null, check_out_time: null };
-        const duration = calculateDuration(edit.check_in_time, edit.check_out_time);
-        
-        return {
-          signupId: signup.id,
-          userId: signup.user_id || null,
-          name: signup.user_id ? signup.profile?.full_name || null : signup.anonymous_signup?.name || null,
-          email: signup.user_id ? signup.profile?.email || null : signup.anonymous_signup?.email || null,
-          checkIn: edit.check_in_time,
-          checkOut: edit.check_out_time,
-          durationMinutes: duration.minutes,
-          isValid: duration.isValid
-        };
-      });
-      
-      // Check if any durations are invalid
-      const invalidEntries = sessionData.filter(entry => !entry.isValid);
-      if (invalidEntries.length > 0) {
-        console.error("Invalid time entries detected:", invalidEntries);
-        toast.error(`${invalidEntries.length} volunteer${invalidEntries.length > 1 ? 's have' : ' has'} invalid hours. Please fix before publishing.`);
-        return;
-      }
-      
-      // Call server action to publish hours and generate certificates
-      const result = await publishVolunteerHours(project.id, sessionId, sessionData);
-      
-      if (!result.success) {
-        console.error("Error from server:", result.error);
-        toast.error(result.error || "Failed to publish volunteer hours");
+
+      const volunteersData = sessionSignups
+        .map(signup => {
+          const edited = editedTimes[signup.id];
+          if (!edited || !edited.check_in_time || !edited.check_out_time) {
+            return null; // Skip if no valid times
+          }
+          const duration = calculateDuration(edited.check_in_time, edited.check_out_time);
+          return {
+            signupId: signup.id,
+            userId: signup.user_id,
+            name: signup.profile?.full_name || signup.anonymous_signup?.name || "Anonymous Volunteer",
+            email: signup.profile?.email || signup.anonymous_signup?.email,
+            checkIn: edited.check_in_time,
+            checkOut: edited.check_out_time,
+            durationMinutes: duration.minutes,
+            isValid: duration.isValid,
+          };
+        })
+        .filter(v => v !== null && v.isValid) as { 
+            signupId: string; userId: string | null; name: string | null; email: string | null; 
+            checkIn: string; checkOut: string; durationMinutes: number; isValid: boolean; 
+        }[]; // Type assertion
+
+      if (volunteersData.length === 0) {
+        toast.error("No Valid Hours", {
+          description: "No volunteers with valid check-in and check-out times to publish.",
+        });
         return;
       }
 
-      // Update local published state
-      const publishKey = getPublishStateKey(sessionId);
-      setPublishedSessions(prev => ({
-        ...prev,
-        [publishKey]: true
-      }));
-      
-      // Show success message
-      toast.success(
-        `Published hours and created certificate${result.certificatesCreated !== 1 ? 's' : ''} for ${sessionData.length} volunteer${sessionData.length !== 1 ? 's' : ''}!`
-      );
-      
-      router.refresh();
-      
+      const result = await publishVolunteerHours(project.id, sessionId, volunteersData);
+
+      if (result.success) {
+        toast.success("Hours Published!", {
+          description: `${result.certificatesCreated} certificates generated for session: ${formatSessionName(project, sessionId)}.`,
+        });
+        // Update published status locally
+        const publishKey = getPublishStateKey(sessionId); // Ensure getPublishStateKey is in scope
+        setPublishedSessions((prev: Record<string, boolean>) => ({ ...prev, [publishKey]: true })); // Corrected to setPublishedSessions and added type for prev
+
+        // Prepare for success modal
+        const emails = volunteersData
+          .map(v => v.email)
+          .filter(email => email !== null && email.trim() !== "") as string[];
+        setPublishedSessionEmails(emails);
+        setCurrentPublishedSessionName(formatSessionName(project, sessionId));
+        setShowPublishSuccessModal(true);
+
+      } else {
+        toast.error("Publishing Failed", {
+          description: result.error || "An unknown error occurred.",
+        });
+      }
     } catch (error) {
       console.error("Error publishing hours:", error);
-      toast.error("Failed to publish volunteer hours. Please try again.");
+      toast.error("Publishing Error", {
+        description: "An unexpected error occurred while publishing hours.",
+      });
     } finally {
       setPublishingSessions(prev => ({
         ...prev,
@@ -435,11 +450,11 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses, a
         const matchingSignups = sessionSignups.filter(record => {
           // --- CORRECTED ACCESS ---
           const nameMatch = record.user_id
-            ? (record.profile?.full_name?.toLowerCase().includes(searchLower) || false) // Access nested profile
-            : (record.anonymous_signup?.name?.toLowerCase().includes(searchLower) || false); // Access nested anonymous_signup
+            ? (record.profile?.full_name?.toLowerCase().includes(searchLower) || false) 
+            : (record.anonymous_signup?.name?.toLowerCase().includes(searchLower) || false); 
           const emailMatch = record.user_id
-            ? (record.profile?.email?.toLowerCase().includes(searchLower) || false) // Access nested profile
-            : (record.anonymous_signup?.email?.toLowerCase().includes(searchLower) || false); // Access nested anonymous_signup
+            ? (record.profile?.email?.toLowerCase().includes(searchLower) || false) 
+            : (record.anonymous_signup?.email?.toLowerCase().includes(searchLower) || false); 
           // --- END CORRECTION ---
           return nameMatch || emailMatch;
         });
@@ -450,13 +465,15 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses, a
     }
     // Basic sort by name for now
      Object.keys(filtered).forEach(session => {
-       filtered[session].sort((a, b) => {
+       if (filtered[session]) { // Add null check for filtered[session]
+        filtered[session].sort((a, b) => {
          // --- CORRECTED ACCESS ---
-         const nameA = (a.user_id ? a.profile?.full_name : a.anonymous_signup?.name) || ''; // Access nested
-         const nameB = (b.user_id ? b.profile?.full_name : b.anonymous_signup?.name) || ''; // Access nested
+         const nameA = (a.user_id ? a.profile?.full_name : a.anonymous_signup?.name) || ''; 
+         const nameB = (b.user_id ? b.profile?.full_name : b.anonymous_signup?.name) || ''; 
          // --- END CORRECTION ---
          return nameA.localeCompare(nameB);
        });
+       }
      });
 
     return filtered;
@@ -615,6 +632,7 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses, a
       ...prev,
       [sessionId]: true
     }));
+    const allSessions = getAllProjectSessions; // Ensure getAllProjectSessions is in scope
     
     try {
       // Get all signups for this session
@@ -625,7 +643,7 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses, a
         sessionSignups = signupsBySession[sessionId];
       } else {
         // Try all alternative IDs
-        const session = getAllProjectSessions.find(s => s.id === sessionId);
+        const session = allSessions.find(s => s.id === sessionId);
         if (session) {
           for (const altId of session.alternativeIds) {
             if (signupsBySession[altId]) {
@@ -739,7 +757,7 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses, a
   // --- End filter ---
 
   return (
-    <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-6 max-w-5xl">
+    <div className="container mx-auto px-4 py-6 max-w-7xl">
       <div className="mb-4 sm:mb-6">
         <Button variant="ghost" className="gap-2" asChild>
           <Link href={`/projects/${project.id}`}>
@@ -749,6 +767,61 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses, a
           </Link>
         </Button>
       </div>
+
+      {/* Publish Success Modal */}
+      <Dialog open={showPublishSuccessModal} onOpenChange={setShowPublishSuccessModal}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Hours Published for {currentPublishedSessionName}</DialogTitle>
+            <DialogDescription>
+              Volunteer hours have been finalized and certificates generated. You can copy the emails below to notify your volunteers.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="max-h-40 overflow-y-auto rounded-md border p-3">
+              {publishedSessionEmails.length > 0 ? (
+                publishedSessionEmails.map((email, index) => (
+                  <div key={index} className="text-sm">{email}</div>
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground">No emails available for this session&apos;s attendees.</p>
+              )}
+            </div>
+            {publishedSessionEmails.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  navigator.clipboard.writeText(publishedSessionEmails.join(", "));
+                  toast("Emails Copied!", { description: "Volunteer emails copied to clipboard." }); // Corrected toast call
+                }}
+                className="w-full"
+              >
+                <Copy className="mr-2 h-4 w-4" />
+                Copy Emails
+              </Button>
+            )}
+            <Alert variant="default" className="mt-4">
+              <Info className="h-4 w-4" />
+              <AlertTitle className="font-semibold">Notification Message for Volunteers:</AlertTitle>
+              <AlertDescription className="text-xs space-y-1">
+                <p>The volunteer hours for this session have been successfully published, and certificates have been generated.</p>
+                <p className="font-medium">For Volunteers:</p>
+                <ul className="list-disc pl-5 space-y-0.5">
+                  <li><strong>If you have a Let&apos;s Assist account:</strong> Please check the project page or your profile for your certificate.</li>
+                  <li><strong>If you signed up anonymously:</strong> Please refer to your original anonymous signup confirmation email. Click the link in that email to view your signup details and access your certificate.</li>
+                </ul>
+                <p className="mt-1">If you encounter any issues locating your certificate, please contact the project organizer.</p>
+              </AlertDescription>
+            </Alert>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button type="button" variant="secondary">Close</Button>
+            </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Add confirmation dialog */}
       <Dialog open={confirmPublishSessionId !== null} onOpenChange={(open) => !open && setConfirmPublishSessionId(null)}>
@@ -937,15 +1010,16 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses, a
           {(sessionFilter === "all" ? getAllProjectSessions : getAllProjectSessions.filter(s => s.id === sessionFilter)).map(session => {
             // Find signups for this session by checking both exact ID and alternative IDs
             let sessionSignups: ProjectSignup[] = [];
+            const currentFilteredSignups = filteredSignupsBySession; // Ensure filteredSignupsBySession is in scope
             
             // Try exact match first
-            if (filteredSignupsBySession[session.id]) {
-              sessionSignups = filteredSignupsBySession[session.id];
+            if (currentFilteredSignups[session.id]) {
+              sessionSignups = currentFilteredSignups[session.id];
             } else {
               // Try all alternative IDs
               for (const altId of session.alternativeIds) {
-                if (filteredSignupsBySession[altId]) {
-                  sessionSignups = filteredSignupsBySession[altId];
+                if (currentFilteredSignups[altId]) {
+                  sessionSignups = currentFilteredSignups[altId];
                   console.log(`Found signups using alternative ID ${altId} for session ${session.id}`);
                   break;
                 }

@@ -20,10 +20,12 @@ import {
   formatDistanceToNowStrict,
   parse,
 } from "date-fns";
-import { Clock, CheckCircle, AlertTriangle, Camera, Hourglass, CalendarCheck, Info, ExternalLink, CheckCircle2, FileText } from "lucide-react"; // Add FileText import
+import { Clock, CheckCircle, AlertTriangle, Camera, Hourglass, CalendarCheck, Info, ExternalLink,TicketCheck, FileText, Award } from "lucide-react";
+import { Medal } from "lucide-react"; // Use Medal icon instead of Certificate
 import Link from "next/link";
 import { useRouter } from "next/navigation"; // Import useRouter
 import { QRCodeScannerModal } from "@/components/QRCodeScannerModal"; // Import the new component
+import { createClient } from "@/utils/supabase/client";          // 🆕 add supabase client
 
 // Helper function to format remaining time (copied from AttendanceClient)
 function formatRemainingTime(minutes: number): string {
@@ -66,6 +68,9 @@ export default function UserDashboard({ project, user, signups }: Props) {
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
   const [selectedScheduleForScan, setSelectedScheduleForScan] = useState<string | null>(null);
 
+  // 🆕 store map of signup_id → certificate.id
+  const [certMap, setCertMap] = useState<Record<string,string>>({});
+
   // Update 'now' state every minute for countdowns
   useEffect(() => {
     const intervalId = setInterval(() => {
@@ -73,6 +78,26 @@ export default function UserDashboard({ project, user, signups }: Props) {
     }, 60000); // Update every 60 seconds
     return () => clearInterval(intervalId);
   }, []);
+
+  // 🆕 fetch certificates for all signups once
+  useEffect(() => {
+    const supabase = createClient();
+    supabase
+      .from("certificates")
+      .select("id, signup_id")
+      .in("signup_id", signups.map((s) => s.id))
+      .then(({ data, error }) => {
+        if (error) {
+          console.error("Error fetching certificates:", error);
+        } else {
+          const map: Record<string,string> = {};
+          data?.forEach((cert) => {
+            map[cert.signup_id] = cert.id;
+          });
+          setCertMap(map);
+        }
+      });
+  }, [signups]);
 
   // --- ADDED: Calculate overall project phase for signup-only alerts ---
   const projectStartDateTime = useMemo(() => getProjectStartDateTime(project), [project]);
@@ -91,7 +116,7 @@ export default function UserDashboard({ project, user, signups }: Props) {
   // --- Process Each Signup ---
   const signupStatuses = useMemo(() => {
     return signups
-      .map(signup => {
+      .map((signup) => {
         // First check if signup status is valid for processing
         // Using type-safe approach with Array.includes
         const validStatuses = ['approved', 'attended'] as const;
@@ -123,7 +148,7 @@ export default function UserDashboard({ project, user, signups }: Props) {
 
         const startTime = getCombinedDateTime(slotDate, details.startTime);
         const endTime = getCombinedDateTime(slotDate, details.endTime);
-        
+
         // Use type-safe comparison for status
         const isAttended = signup.status === 'attended' as any;
         const isApproved = signup.status === 'approved' as any;
@@ -137,16 +162,24 @@ export default function UserDashboard({ project, user, signups }: Props) {
         const diffMinutes = differenceInMinutes(startTime, now);
         const sessionOver = isAfter(now, endTime);
         const sessionInProgress = isAfter(now, startTime) && isBefore(now, endTime);
-        
+
         // Check if we're in the post-event window (first 48 hours after event)
         const hoursSinceEnd = differenceInHours(now, endTime);
         const isInPostEventWindow = sessionOver && hoursSinceEnd >= 0 && hoursSinceEnd < 48;
-        
+
         // Check if we're past the post-event window
         const isPastPostEventWindow = sessionOver && hoursSinceEnd >= 48;
 
+        // --- ADDED: Check if hours are published for this specific schedule_id ---
+        const areHoursPublished = project.published && project.published[signup.schedule_id] === true;
+        
+        // --- Check for corresponding certificate based on signup_id ---
+        const certificateId = certMap[signup.id] ?? null;
+        // --- END ADDED ---
+
         // --- For approved users who didn't attend, show no-show message after event ---
-        if (isApproved && !isAttended && sessionOver) {
+        // --- MODIFIED: Only show missedEvent if hours are NOT published ---
+        if (isApproved && !isAttended && sessionOver && !areHoursPublished) {
           return {
             signup,
             slotDetails: details,
@@ -154,12 +187,14 @@ export default function UserDashboard({ project, user, signups }: Props) {
             sessionEndTime: endTime,
             isSessionOver: sessionOver,
             renderState: 'missedEvent',
-            sessionDisplayName: getSessionDisplayName(project, startTime, details)
+            sessionDisplayName: getSessionDisplayName(project, startTime, details),
+            certificateId,
           };
         }
 
         // --- For attended users, show hours editing message during editing window ---
-        if (isAttended && isInPostEventWindow) {
+        // --- MODIFIED: Only show postEventHours if hours are NOT published ---
+        if (isAttended && isInPostEventWindow && !areHoursPublished) {
           return {
             signup,
             slotDetails: details,
@@ -172,13 +207,13 @@ export default function UserDashboard({ project, user, signups }: Props) {
           };
         }
 
-        // Skip rendering if the session is over and the user never attended
-        if (sessionOver && !isAttended) {
+        // Skip rendering if the session is over and the user never attended (and hours aren't published)
+        if (sessionOver && !isAttended && !areHoursPublished) {
             return null;
         }
 
-        // Skip rendering if the session is more than 24 hours away (unless already attended)
-        if (diffHours > 24 && !isAttended) {
+        // Skip rendering if the session is more than 24 hours away (unless already attended or hours published)
+        if (diffHours > 24 && !isAttended && !areHoursPublished) {
             return null;
         }
 
@@ -208,20 +243,28 @@ export default function UserDashboard({ project, user, signups }: Props) {
           untilStartFormatted = formatDistanceToNowStrict(startTime, { unit: diffHours >= 1 ? 'hour' : 'minute' });
         }
 
-        // --- MODIFIED: Determine state for rendering with type-safe comparisons ---
-        let renderState: 'checkedIn' | 'checkInOpen' | 'reminder' | 'none' | 'postEventHours' | 'missedEvent' = 'none';
-        
-        if (isAttended) {
-            renderState = 'checkedIn'; // Priority 1: If status is 'attended', show checkedIn card
-        } else if (isApproved) { // Only apply time logic if status is 'approved'
-            const totalDurationMinutes = differenceInMinutes(endTime, startTime);
-            // Check-in available: <= 2 hours before start AND before the session ends
-            if (diffMinutes <= 120 && diffMinutes > -totalDurationMinutes) {
-                renderState = 'checkInOpen';
-            }
-            // Reminder state: > 2 hours before start AND <= 24 hours before start
-            else if (diffMinutes > 120 && diffHours <= 24) {
-                renderState = 'reminder';
+        // --- MODIFIED: Determine state for rendering with type-safe comparisons and published hours check ---
+        let renderState: 'checkedIn' | 'checkInOpen' | 'reminder' | 'none' | 'postEventHours' | 'missedEvent' | 'hoursPublished' = 'none';
+
+        if (areHoursPublished) {
+            renderState = 'hoursPublished'; // Highest priority if hours are published
+        } else if (isAttended && isInPostEventWindow) {
+            renderState = 'postEventHours'; // Show processing message during the 48hr window
+        } else if (isAttended) {
+            renderState = 'checkedIn'; // Show checked-in status (during event or after 48hrs if not published)
+        } else if (isApproved) { // Only apply time logic if status is 'approved' and hours not published
+            if (sessionOver) {
+                renderState = 'missedEvent'; // Show missed event if approved, session over, not attended, not published
+            } else {
+                const totalDurationMinutes = differenceInMinutes(endTime, startTime);
+                // Check-in available: <= 2 hours before start AND before the session ends
+                if (diffMinutes <= 120 && diffMinutes > -totalDurationMinutes) {
+                    renderState = 'checkInOpen';
+                }
+                // Reminder state: > 2 hours before start AND <= 24 hours before start
+                else if (diffMinutes > 120 && diffHours <= 24) {
+                    renderState = 'reminder';
+                }
             }
         }
 
@@ -234,9 +277,8 @@ export default function UserDashboard({ project, user, signups }: Props) {
           sessionEndTime: endTime,
           hoursUntilStart: diffHours,
           minutesUntilStart: diffMinutes,
-          // --- MODIFIED: Use isAttended for the primary state check ---
-          isCheckedIn: isAttended, // Keep this name for consistency in card rendering logic? Or rename? Let's keep for now.
-          checkInTime: checkIn, // Keep original check-in time if available
+          isCheckedIn: isAttended,
+          checkInTime: checkIn,
           isSessionOver: sessionOver,
           isSessionInProgress: sessionInProgress,
           progressPercentage: progress,
@@ -247,10 +289,12 @@ export default function UserDashboard({ project, user, signups }: Props) {
           isPastPostEventWindow,
           sessionDisplayName: getSessionDisplayName(project, startTime, details),
           renderState,
+          certificateId,           // 🆕 include here
+          areHoursPublished,
         };
       })
       .filter(status => status !== null && status.renderState !== 'none'); // Filter out nulls and 'none' state
-  }, [signups, project, now]);
+  }, [signups, project, now, certMap]);
 
   // Helper function to get a consistent session display name
   function getSessionDisplayName(project: Project, startTime: Date | null, details: any): string {
@@ -331,7 +375,7 @@ export default function UserDashboard({ project, user, signups }: Props) {
           <CardHeader className="p-6">
             <div className="flex items-center gap-3">
               <div className="bg-chart-5/10 p-2 rounded-full">
-                <CheckCircle2 className="h-5 w-5 text-chart-5" />
+                <CheckCircle className="h-5 w-5 text-chart-5" />
               </div>
               <div>
                 <CardTitle className="text-lg">Event Completed</CardTitle>
@@ -364,6 +408,63 @@ export default function UserDashboard({ project, user, signups }: Props) {
         if (!status) return null; // Should not happen due to filter, but good practice
 
         switch (status.renderState) {
+          // --- ADDED: New case for published hours ---
+          case 'hoursPublished':
+            return (
+              <Card key={status.signup.id} className="mb-6 border-chart-5/30 bg-chart-5/5 overflow-hidden">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-chart-5/10 p-2 rounded-full">
+                      <Award className="h-5 w-5 text-chart-5" /> {/* Using Award icon */}
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">Volunteer Hours Published!</CardTitle>
+                      <CardDescription>Your hours for {project.title} have been finalized.</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4 pt-2">
+                  {/* Session info */}
+                  <div className="flex flex-col space-y-2 text-sm">
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium text-muted-foreground">Session:</span>
+                      <span>{status.sessionDisplayName}</span>
+                    </div>
+                    {status.checkInTime && (
+                      <div className="flex justify-between items-center">
+                        <span className="font-medium text-muted-foreground">Checked in at:</span>
+                        <span>{format(status.checkInTime, "h:mm a")}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Info Section */}
+                  <div className="relative pl-6 border-chart-5/30 mt-3 space-y-3">
+                    <div className="relative">
+                      <div className="absolute -left-[27px] top-0 w-5 h-5 rounded-full bg-chart-5/20 flex items-center justify-center">
+                        <div className="w-2 h-2 rounded-full bg-chart-5"></div>
+                      </div>
+                      <p className="text-sm font-medium">View Your Record</p>
+                      <p className="text-xs text-muted-foreground">
+                        Your participation details and hours are now available in your volunteer dashboard
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Link to Profile */}
+                  <div className="mt-3 flex justify-end">
+                    <Button size="sm" variant="outline" asChild>
+                      <Link href={`/certificates/${status.certificateId}`}>
+                        <TicketCheck className="h-4 w-4 mr-1.5" />
+                        View Certificate
+                      </Link>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          // --- END ADDED ---
+
           // Add new case for post-event hours state
           case 'postEventHours':
             return (
@@ -473,6 +574,8 @@ export default function UserDashboard({ project, user, signups }: Props) {
           case 'checkedIn':
             // Use checkInTime if available, otherwise indicate attendance without specific time
             const checkInDisplayTime = status.checkInTime ? format(status.checkInTime, "h:mm a") : "Confirmed";
+            // --- MODIFIED: Don't show progress if session is over (and hours not published yet) ---
+            const showProgress = !status.isSessionOver;
             return (
               <Card key={status.signup.id} className="mb-6 border-primary/30 bg-primary/5">
                 <CardHeader>
@@ -502,8 +605,8 @@ export default function UserDashboard({ project, user, signups }: Props) {
                       {formatTimeTo12Hour(status.slotDetails.startTime)} - {formatTimeTo12Hour(status.slotDetails.endTime)}
                     </span>
                   </div>
-                  {/* Progress Bar - Conditionally render based on remaining time */}
-                  {status.remainingTimeFormatted !== "Session ended" && (
+                  {/* Progress Bar - Conditionally render based on session progress */}
+                  {showProgress && (
                      <div className="space-y-1 pt-2">
                        <div className="flex justify-between items-center mb-1">
                          <span className="font-medium text-muted-foreground">Session Progress:</span>
@@ -512,9 +615,9 @@ export default function UserDashboard({ project, user, signups }: Props) {
                        <Progress value={status.progressPercentage ?? 0} aria-label={`Session progress: ${Math.round(status.progressPercentage ?? 0)}%`} />
                      </div>
                   )}
-                   {/* Show message when session ended */}
-                   {status.remainingTimeFormatted === "Session ended" && (
-                       <p className="text-xs text-muted-foreground text-center pt-2">Session has concluded.</p>
+                   {/* Show message when session ended (and hours not published) */}
+                   {!showProgress && !status.areHoursPublished && (
+                       <p className="text-xs text-muted-foreground text-center pt-2">Session concluded. Awaiting final hours processing.</p>
                    )}
                 </CardContent>
               </Card>

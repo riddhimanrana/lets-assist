@@ -129,7 +129,7 @@ export function PrintCertificate({ data }: { data: CertificateData }) {
               </div>` : ""}
               <div style="text-align:right">
                 <p class="print-text" style="margin:0">Verify at:</p>
-                <p class="print-text" style="font-weight:bold;margin:.25rem 0">lets-assist.com/certificate/${data.id}</p>
+                <p class="print-text" style="font-weight:bold;margin:.25rem 0">lets-assist.com/certificates/${data.id}</p>
               </div>
             </div>
           </div>
