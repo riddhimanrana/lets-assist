@@ -6,7 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { format, parseISO } from "date-fns";
-import { Calendar, Clock, MapPin, Users } from "lucide-react";
+import { Calendar, Clock, MapPin, Users, Award } from "lucide-react"; // Add Award
 import { NoAvatar } from "@/components/NoAvatar";
 import Link from "next/link";
 import { ProjectStatusBadge } from "@/components/ui/status-badge";
@@ -63,6 +63,7 @@ interface ProjectWithCreator extends Project {
   signup_id?: string;
   signup_status?: string;
   signup_schedule_id?: string;
+  areHoursPublished?: boolean; // Add this field
 }
 
 export default async function UserProjects() {
@@ -105,7 +106,8 @@ export default async function UserProjects() {
       schedule_id,
       projects (
         *,
-        organizations(name, logo_url, username)
+        organizations(name, logo_url, username),
+        published
       )
     `)
     .eq("user_id", user.id)
@@ -145,12 +147,16 @@ export default async function UserProjects() {
     const projectData = Array.isArray(signup.projects) ? signup.projects[0] : signup.projects;
     const creator = creatorProfiles[projectData.creator_id];
     
+    // Determine if hours are published for this specific signup's schedule_id
+    const areHoursPublished = projectData.published_hours && projectData.published_hours[signup.schedule_id] === true;
+
     return {
       ...(projectData as unknown as Project),
       creator,
       signup_id: signup.id,
       signup_status: signup.status,
-      signup_schedule_id: signup.schedule_id
+      signup_schedule_id: signup.schedule_id,
+      areHoursPublished, // Include this in the returned object
     };
   }) || [];
 
@@ -335,10 +341,21 @@ export default async function UserProjects() {
                   <h2 className="text-lg font-semibold mb-3">Past ({pastVolunteered.length})</h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {pastVolunteered.map((project) => (
-                      <Card key={`volunteer-past-${project.id}`} className="bg-muted/30">
+                      // This key needs to be unique. Using project.signup_id ensures uniqueness per signup.
+                      <Card key={`volunteer-past-${project.id}-${project.signup_id}`} className="bg-muted/30">
                         <CardHeader className="p-4 pb-0 space-y-1.5">
                           <div className="flex justify-between items-start gap-2">
-                            <Badge variant="outline" className="bg-muted text-xs">Past Event</Badge>
+                            {/* Display status based on project.status or if hours are published */}
+                            {project.areHoursPublished ? (
+                              <Badge variant="default" className="text-xs bg-chart-5 text-chart-5-foreground hover:bg-chart-5/90">
+                                <Award className="h-3 w-3 mr-1" />
+                                Hours Published
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="bg-muted text-xs">
+                                {project.status === 'cancelled' ? 'Cancelled' : 'Past Event'}
+                              </Badge>
+                            )}
                             <Badge variant="outline" className="text-xs">{formatDateDisplay(project)}</Badge>
                           </div>
                           <h3 className="font-medium line-clamp-1">{project.title}</h3>
@@ -350,9 +367,9 @@ export default async function UserProjects() {
                           </div>
                           <div className="flex items-center gap-2">
                             <Avatar className="h-6 w-6">
-                              <AvatarImage 
-                                src={project.organization?.logo_url || project.creator?.avatar_url || ""} 
-                                alt={project.organization?.name || project.creator?.full_name || ""} 
+                              <AvatarImage
+                                src={project.organization?.logo_url || project.creator?.avatar_url || ""}
+                                alt={project.organization?.name || project.creator?.full_name || ""}
                               />
                               <AvatarFallback>
                                 <NoAvatar className="text-xs" fullName={project.organization?.name || project.creator?.full_name || ""} />

@@ -8,13 +8,12 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { 
   Building2, 
-  Globe, 
-  Upload, 
-  Loader2, 
-  ArrowLeft, 
-  CheckCircle2, 
-  XCircle,
-  Trash2
+  Globe,
+  Loader2,
+  CheckCircle2,
+  AlertCircle,
+  Upload,
+  X
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -164,8 +163,35 @@ export default function EditOrganizationForm({ organization, userId }: EditOrgan
   };
 
   const handleCropComplete = async (croppedImage: string) => {
-    form.setValue("logoUrl", croppedImage, { shouldDirty: true });
-    setShowCropper(false);
+    setIsUploading(true);
+    try {
+      // Update local preview
+      form.setValue("logoUrl", croppedImage, { shouldDirty: true });
+      // Immediately upload and update organization logo
+      const values = form.getValues();
+      const result = await updateOrganization({
+        id: organization.id,
+        name: values.name,
+        username: values.username,
+        description: values.description,
+        website: values.website,
+        type: values.type,
+        logoUrl: croppedImage,
+      });
+      if (result.error) {
+        toast.error(result.error);
+      } else {
+        toast.success("Logo updated successfully!");
+        router.refresh();
+      }
+    } catch (error) {
+      console.error("Error uploading logo:", error);
+      toast.error("Failed to upload logo. Please try again.");
+    } finally {
+      setIsUploading(false);
+      setShowCropper(false);
+      setTempImageUrl("");
+    }
   };
 
   const handleCropCancel = () => {
@@ -247,21 +273,11 @@ export default function EditOrganizationForm({ organization, userId }: EditOrgan
                           src={field.value || undefined}
                           alt="Organization logo"
                         />
-                        <AvatarFallback className="bg-muted">
-                          <Building2 className="h-8 w-8 text-muted-foreground" />
+                        <AvatarFallback>
+                          <Building2 className="h-10 w-10 text-muted-foreground" />
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => document.getElementById("logo-upload")?.click()}
-                          disabled={isUploading}
-                          className="w-full sm:w-auto"
-                        >
-                          <Upload className="h-4 w-4 mr-2" />
-                          Change Logo
-                        </Button>
                         <input
                           id="logo-upload"
                           type="file"
@@ -270,14 +286,34 @@ export default function EditOrganizationForm({ organization, userId }: EditOrgan
                           onChange={handleImageUpload}
                           disabled={isUploading}
                         />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => document.getElementById('logo-upload')?.click()}
+                          disabled={isUploading}
+                        >
+                          {isUploading ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Uploading...
+                            </>
+                          ) : (
+                            <>
+                              <Upload className="mr-2 h-4 w-4" />
+                              {field.value ? "Change Logo" : "Upload Logo"}
+                            </>
+                          )}
+                        </Button>
                         {field.value && (
                           <Button
                             type="button"
                             variant="outline"
+                            size="sm"
                             onClick={handleRemoveLogo}
-                            className="text-destructive border-destructive/30 hover:bg-destructive/10 w-full sm:w-auto"
+                            disabled={isUploading}
                           >
-                            <Trash2 className="h-4 w-4 mr-2" />
+                            <X className="mr-2 h-4 w-4" />
                             Remove
                           </Button>
                         )}
@@ -354,7 +390,7 @@ export default function EditOrganizationForm({ organization, userId }: EditOrgan
                           {usernameAvailable ? (
                             <CheckCircle2 className="h-5 w-5 text-primary" />
                           ) : (
-                            <XCircle className="h-5 w-5 text-destructive" />
+                            <AlertCircle className="h-5 w-5 text-destructive" />
                           )}
                         </div>
                       )}

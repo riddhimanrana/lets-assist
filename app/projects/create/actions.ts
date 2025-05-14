@@ -94,6 +94,31 @@ export async function createBasicProject(projectData: any) {
   }
 
   try {
+    // Initialize published field based on event type
+    let publishedState: { [key: string]: boolean } = {};
+    
+    if (projectData.eventType === "oneTime") {
+      // For one-time events, simple oneTime key
+      publishedState = { oneTime: false };
+    } 
+    else if (projectData.eventType === "multiDay" && projectData.schedule.multiDay) {
+      // For multi-day events, create keys for each day and slot combination
+      projectData.schedule.multiDay.forEach((day: { date: string; slots: { startTime: string; endTime: string; }[] }, dayIndex: number) => {
+        day.slots.forEach((slot: { startTime: string; endTime: string }, slotIndex: number) => {
+          // Format: "2025-04-28-0" (date-slotIndex)
+          const sessionKey = `${day.date}-${slotIndex}`;
+          publishedState[sessionKey] = false;
+        });
+      });
+    } 
+    else if (projectData.eventType === "sameDayMultiArea" && projectData.schedule.sameDayMultiArea) {
+      // For multi-area events, use role names as keys
+      projectData.schedule.sameDayMultiArea.roles.forEach((role: { name: string; startTime: string; endTime: string }) => {
+        // Use role name as the key
+        publishedState[role.name] = false;
+      });
+    }
+
     // Create project in the database
     const { data: project, error: projectError } = await supabase
       .from("projects")
@@ -112,6 +137,7 @@ export async function createBasicProject(projectData: any) {
         status: "upcoming",
         organization_id: organizationId || null, // Save organization_id if provided
         is_private: organizationId ? projectData.isPrivate : false, // Set is_private based on organization and preference
+        published: publishedState, // Add the published state tracking
       })
       .select("id")
       .single();

@@ -295,11 +295,15 @@ export default function Navbar({ initialUser }: NavbarProps) {
                   <Link href="/home">Home</Link>
                 </Button>
                 <Button variant="ghost" asChild>
+                  <Link href="/dashboard">Volunteer Dashboard</Link>
+                </Button>
+                <Button variant="ghost" asChild>
                   <Link href="/projects">My Projects</Link>
                 </Button>
                 <Button variant="ghost" asChild>
                   <Link href="/organization">Organizations</Link>
                 </Button>
+                
               </>
             ) : (
               <>
@@ -553,8 +557,17 @@ export default function Navbar({ initialUser }: NavbarProps) {
                         asChild
                         onClick={handleNavigation}
                       >
+                        <Link href="/dashboard">Volunteer Dashboard</Link>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-between text-muted-foreground"
+                        asChild
+                        onClick={handleNavigation}
+                      >
                         <Link href="/projects">My Projects</Link>
                       </Button>
+                      
                       <Button
                         variant="ghost"
                         className="w-full justify-between text-muted-foreground"

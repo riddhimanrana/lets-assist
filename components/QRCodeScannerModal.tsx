@@ -104,7 +104,7 @@ export function QRCodeScannerModal({
               <Scanner
                 onScan={handleScan}
                 onError={handleError}
-                constraints={{ facingMode: "user" }}
+                constraints={{ facingMode: "environment" }}
                 scanDelay={500}
                 formats={["qr_code"]}
                 // Add the track prop here

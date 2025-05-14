@@ -51,6 +51,8 @@ const config: Config = {
   				'5': 'hsl(var(--chart-5))',
 				'6': 'hsl(var(--chart-6))',
 				'7': 'hsl(var(--chart-7))',
+				'8': 'hsl(var(--chart-8))',
+				'9': 'hsl(var(--chart-9))',
   			}
   		},
   		borderRadius: {
@@ -68,7 +70,7 @@ const config: Config = {
   				'sans-serif'
   			],
 			mono: [
-				'var(--font-geistmono)',
+				'var(--font-geist-mono)',
 				'sans-serif'
 			]
   		},

@@ -56,12 +56,18 @@ export interface ProjectDocument {
   url: string;
 };
 
+export interface VolunteerGoalsData {
+  hours_goal: number;
+  events_goal: number;
+}
+
 export interface Profile {
   full_name: string | null;
   email: string | null;
   avatar_url: string | null;
   username: string | null;
   created_at: string | null;
+  volunteer_goals?: VolunteerGoalsData | null;
 }
 
 export type ProjectStatus = "upcoming" | "in-progress" | "completed" | "cancelled";
@@ -100,6 +106,8 @@ export interface Project {
   created_at: string;
   cover_image_url?: string | null;
   session_id?: string | null;
+  published?: Record<string, boolean>; // Track which sessions have published certificates
+  certificates?: Record<string, string>; // Map of signup_id to certificate_id
 }
 
 export interface AnonymousSignupData {
@@ -114,18 +122,29 @@ export interface ProjectSignup {
   user_id?: string | null;
   schedule_id: string;
   status: SignupStatus;
-  anonymous_id?: string | null; // Add anonymous_id based on usage in actions.ts
+  anonymous_id?: string | null;
   anonymous_name?: string;
   anonymous_email?: string;
   anonymous_phone?: string;
   created_at: string;
-  profiles?: {
-    full_name: string | null;
-    username: string | null;
-    avatar_url: string | null;
+  // Nested user profile when user_id is present (matches Supabase 'profile' selection)
+  profile?: {
+    id: string;
+    full_name: string;
+    username: string;
+    email: string;
+    phone: string;
   };
-  // Add the nested anonymous_signup structure if needed elsewhere,
-  // but for the query result type, keep it separate.
+  // Nested anonymous signup data when anonymous_id is present (matches Supabase 'anonymous_signup' selection)
+  anonymous_signup?: {
+    id: string;
+    name: string;
+    email?: string;
+    phone_number?: string;
+  };
+  // Timestamps for volunteer check-in and check-out
+  check_in_time?: string | null;
+  check_out_time?: string | null;
 }
 
 // Add this new interface

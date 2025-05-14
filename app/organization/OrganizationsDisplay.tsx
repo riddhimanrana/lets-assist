@@ -5,13 +5,12 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Plus, Building2, Users2, ExternalLink, Search, Settings2, Check, BadgeCheck, X } from "lucide-react";
+import { Plus, Building2, Search, Settings2, Check, Users2, ExternalLink, BadgeCheck } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
-import { NoAvatar } from "@/components/NoAvatar";
 import { JoinOrganizationDialog } from "./JoinOrganizationDialog";
 import { useEffect, useState } from "react";
+import OrganizationCard from "./OrganizationCard";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,6 +18,8 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { NoAvatar } from "@/components/NoAvatar";
 
 interface OrganizationsDisplayProps {
   organizations: any[];
@@ -34,6 +35,10 @@ export default function OrganizationsDisplay({
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [filteredOrgs, setFilteredOrgs] = useState(organizations);
+  const [userOrgs, setUserOrgs] = useState<any[]>([]);
+  const [adminOrgs, setAdminOrgs] = useState<any[]>([]);
+  const [memberOrgs, setMemberOrgs] = useState<any[]>([]);
+  const [otherOrgs, setOtherOrgs] = useState<any[]>([]);
   const [sortBy, setSortBy] = useState("verified-first");
 
   // Simplified search and sort with single useEffect
@@ -72,12 +77,33 @@ export default function OrganizationsDisplay({
         break;
     }
     
+    // Separate user's organizations and other organizations
+    if (isLoggedIn && result.length > 0) {
+      // Split user organizations into admin and member categories
+      const adminOrgs = result.filter(org => org.is_member && org.user_role === 'admin');
+      const memberOrgs = result.filter(org => org.is_member && org.user_role !== 'admin');
+      const otherOrgsList = result.filter(org => !org.is_member);
+      
+      // Set user orgs to include both admin and member orgs for proper display
+      setUserOrgs([...adminOrgs, ...memberOrgs]);
+      
+      // Update admin and member orgs state
+      setAdminOrgs(adminOrgs);
+      setMemberOrgs(memberOrgs);
+      setOtherOrgs(otherOrgsList);
+    } else {
+      setUserOrgs([]);
+      setAdminOrgs([]);
+      setMemberOrgs([]);
+      setOtherOrgs(result);
+    }
+    
     setFilteredOrgs(result);
-  }, [organizations, search, sortBy]);
+  }, [organizations, search, sortBy, isLoggedIn]);
 
   return (
     <div className="mx-auto px-4 sm:px-8 lg:px-12 py-8">
-      <div className="w-full max-w-7xl space-y-4 sm:space-y-8">
+      <div className="w-full space-y-4 sm:space-y-8">
         {/* Header section */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
           <div>
@@ -171,69 +197,63 @@ export default function OrganizationsDisplay({
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-            {filteredOrgs.map((org) => (
-              <Link href={`/organization/${org.username}`} key={org.id}>
-                <Card className="h-full overflow-hidden hover:shadow-md transition-shadow">
-                  <CardContent className="p-0">
-                    <div className="h-20 sm:h-24 bg-gradient-to-r from-primary/40 via-primary/20 to-primary/10 relative">
-                      {org.logo_url && (
-                        <div className="absolute bottom-0 left-4 transform translate-y-1/2">
-                          <Avatar className="h-12 w-12 sm:h-14 sm:w-14 rounded-full border-4 border-background">
-                            <AvatarImage src={org.logo_url} alt={org.name} />
-                            <AvatarFallback>
-                              <NoAvatar fullName={org.name} className="text-base" />
-                            </AvatarFallback>
-                          </Avatar>
-                        </div>
-                      )}
-                      {!org.logo_url && (
-                        <div className="absolute bottom-0 left-4 transform translate-y-1/2 rounded-full bg-muted border-4 border-background h-12 w-12 sm:h-14 sm:w-14 flex items-center justify-center">
-                          <Building2 className="h-5 w-5 sm:h-6 sm:w-6 text-muted-foreground" />
-                        </div>
-                      )}
-                    </div>
-                    
-                    <div className="pt-8 sm:pt-10 px-3 sm:px-4 pb-3">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <div className="flex items-center gap-1">
-                            <h3 className="font-semibold text-base sm:text-lg line-clamp-1">{org.name}</h3>
-                            {org.verified && (
-                              <BadgeCheck className="h-6 w-6" fill="hsl(var(--primary))" stroke="hsl(var(--popover))" strokeWidth={2.5} />
-                            )}
-                          </div>
-                          <p className="text-xs sm:text-sm text-muted-foreground">@{org.username}</p>
-                        </div>
-                        <Badge variant="outline" className="text-xs capitalize">
-                          {org.type}
-                        </Badge>
-                      </div>
-                      
-                      <p className="mt-2 text-xs sm:text-sm line-clamp-1 text-muted-foreground">
-                        {org.description || "No description provided"}
-                      </p>
-                    </div>
-                  </CardContent>
-                  
-                  <CardFooter className="px-3 sm:px-4 py-2 sm:py-3 flex justify-between border-t bg-muted/10">
-                    <div className="flex items-center text-xs sm:text-sm text-muted-foreground">
-                      <Users2 className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5" />
-                      <span>{memberCounts[org.id] || 0} members</span>
-                    </div>
-                    
-                    {org.website && (
-                      <div className="flex items-center text-xs sm:text-sm">
-                        <ExternalLink className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5" />
-                        <span className="max-w-[100px] sm:max-w-[150px] truncate">
-                          {org.website.replace(/^https?:\/\//, '')}
-                        </span>
-                      </div>
-                    )}
-                  </CardFooter>
-                </Card>
-              </Link>
-            ))}
+          <div className="grid grid-cols-1 gap-8">
+            {/* Admin Organizations Section */}
+            {adminOrgs.length > 0 && (
+              <div>
+                <h2 className="text-lg sm:text-xl font-semibold mb-4 flex items-center">
+                  <span className="mr-2">Organizations You Manage</span>
+                  <Badge variant="secondary" className="text-xs">Admin</Badge>
+                </h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                  {adminOrgs.map((org) => (
+                    <OrganizationCard 
+                      key={org.id} 
+                      org={org} 
+                      memberCount={memberCounts[org.id] || 0}
+                      isUserMember={true}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Member Organizations Section */}
+            {memberOrgs.length > 0 && (
+              <div>
+                <h2 className="text-lg sm:text-xl font-semibold mb-4">
+                  Organizations You&apos;re A Member Of
+                </h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                  {memberOrgs.map((org) => (
+                    <OrganizationCard 
+                      key={org.id} 
+                      org={org} 
+                      memberCount={memberCounts[org.id] || 0}
+                      isUserMember={true}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Other Organizations Section */}
+            {otherOrgs.length > 0 && (
+              <div>
+                <h2 className="text-lg sm:text-xl font-semibold mb-4">
+                  Discover Organizations
+                </h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                  {otherOrgs.map((org) => (
+                    <OrganizationCard 
+                      key={org.id} 
+                      org={org} 
+                      memberCount={memberCounts[org.id] || 0}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
