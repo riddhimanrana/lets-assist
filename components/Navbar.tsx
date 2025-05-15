@@ -58,6 +58,7 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import { NotificationPopover } from "@/components/NotificationPopover";
 import { useTheme } from "next-themes";
+import { usePathname } from "next/navigation"; // Added import
 
 interface SectionProps {
   title: string;
@@ -125,6 +126,7 @@ export default function Navbar({ initialUser }: NavbarProps) {
   const { theme, setTheme } = useTheme();
   // Add loading state for logout
   const [isLoggingOut, setIsLoggingOut] = React.useState(false);
+  const pathname = usePathname(); // Get current pathname
 
   // Extract the getUserAndProfile function to reuse it for error handling
   const getUserAndProfile = async () => {
@@ -292,16 +294,44 @@ export default function Navbar({ initialUser }: NavbarProps) {
             {user ? (
               <>
                 <Button variant="ghost" asChild>
-                  <Link href="/home">Home</Link>
+                  <Link
+                    className={cn(
+                      pathname === "/home" ? "text-primary font-semibold" : "text-muted-foreground"
+                    )}
+                    href="/home"
+                  >
+                    Home
+                  </Link>
                 </Button>
                 <Button variant="ghost" asChild>
-                  <Link href="/dashboard">Volunteer Dashboard</Link>
+                  <Link
+                    className={cn(
+                      pathname === "/dashboard" ? "text-primary font-semibold" : "text-muted-foreground"
+                    )}
+                    href="/dashboard"
+                  >
+                    Volunteer Dashboard
+                  </Link>
                 </Button>
                 <Button variant="ghost" asChild>
-                  <Link href="/projects">My Projects</Link>
+                  <Link
+                    className={cn(
+                      pathname === "/projects" ? "text-primary font-semibold" : "text-muted-foreground"
+                    )}
+                    href="/projects"
+                  >
+                    My Projects
+                  </Link>
                 </Button>
                 <Button variant="ghost" asChild>
-                  <Link href="/organization">Organizations</Link>
+                  <Link
+                    className={cn(
+                      pathname === "/organization" ? "text-primary font-semibold" : "text-muted-foreground"
+                    )}
+                    href="/organization"
+                  >
+                    Organizations
+                  </Link>
                 </Button>
                 
               </>
@@ -310,7 +340,7 @@ export default function Navbar({ initialUser }: NavbarProps) {
                 <NavigationMenu>
                   <NavigationMenuList>
                     <NavigationMenuItem>
-                      <NavigationMenuTrigger>Features</NavigationMenuTrigger>
+                      <NavigationMenuTrigger className={cn(pathname === "/#features" && "bg-accent text-accent-foreground")}>Features</NavigationMenuTrigger>
                       <NavigationMenuContent>
                         <ul className="grid gap-3 p-6 md:w-[400px] lg:w-[500px] lg:grid-cols-[.75fr_1fr]">
                           <li className="row-span-3">
@@ -349,10 +379,14 @@ export default function Navbar({ initialUser }: NavbarProps) {
                   </NavigationMenuList>
                 </NavigationMenu>
                 <Button variant="ghost" asChild>
-                  <Link href="/projects">Volunteering Near Me</Link>
+                  <Link href="/projects" className={cn(
+                      pathname === "/projects" ? "text-primary font-semibold" : "text-muted-foreground"
+                    )}>Volunteering Near Me</Link>
                 </Button>
                 <Button variant="ghost" asChild>
-                  <Link href="/organization">Connected Organizations</Link>
+                  <Link href="/organization" className={cn(
+                      pathname === "/organization" ? "text-primary font-semibold" : "text-muted-foreground"
+                    )}>Connected Organizations</Link>
                 </Button>
               </>
             )}
@@ -366,12 +400,19 @@ export default function Navbar({ initialUser }: NavbarProps) {
                     {isProfileLoading ? (
                       <Skeleton className="w-9 h-9 rounded-full" />
                     ) : (
-                      <Avatar className="w-9 h-9 cursor-pointer">
-                        <AvatarImage src={profile?.avatar_url} />
-                        <AvatarFallback>
-                          <NoAvatar fullName={profile?.full_name} />
-                        </AvatarFallback>
-                      </Avatar>
+                      <div className="relative group w-9 h-9">
+                        {/* The glowing circle behind the avatar, only visible on hover */}
+                        <span
+                          aria-hidden="true"
+                          className="absolute inset-0 rounded-full bg-muted-foreground/10 scale-105 opacity-0 group-hover:opacity-100 group-hover:scale-125 transition-all duration-200 pointer-events-none"
+                        />
+                        <Avatar className="w-9 h-9 cursor-pointer relative z-10">
+                          <AvatarImage src={profile?.avatar_url} />
+                          <AvatarFallback>
+                            <NoAvatar fullName={profile?.full_name} />
+                          </AvatarFallback>
+                        </Avatar>
+                      </div>
                     )}
                   </DropdownMenuTrigger>
                   <DropdownMenuContent
@@ -389,24 +430,17 @@ export default function Navbar({ initialUser }: NavbarProps) {
                         </p>
                       </div>
                     </DropdownMenuLabel>
-
+                    {/* <DropdownMenuSeparator className="my-2" /> */}
                     <DropdownMenuItem
                       className="py-2.5 text-muted-foreground cursor-pointer"
                       asChild
                     >
                       <Link href="/home">
-                        <span>Dashboard</span>
+                        <span>Volunteer Dashboard</span>
                       </Link>
                     </DropdownMenuItem>
 
-                    <DropdownMenuItem
-                      className="py-2.5 text-muted-foreground cursor-pointer"
-                      asChild
-                    >
-                      <Link href="/account/profile">
-                        <span>Account Settings</span>
-                      </Link>
-                    </DropdownMenuItem>
+                    
                     <DropdownMenuItem
                       className="py-2.5 text-muted-foreground cursor-pointer"
                       asChild
@@ -415,7 +449,14 @@ export default function Navbar({ initialUser }: NavbarProps) {
                         <span>My Profile</span>
                       </Link>
                     </DropdownMenuItem>
-
+<DropdownMenuItem
+                      className="py-2.5 text-muted-foreground cursor-pointer"
+                      asChild
+                    >
+                      <Link href="/account/profile">
+                        <span>Account Settings</span>
+                      </Link>
+                    </DropdownMenuItem>
                     <DropdownMenuSeparator className="my-2" />
 
                     {/* Replace custom theme selector with new Vercel-style ThemeSelector */}
@@ -630,7 +671,7 @@ export default function Navbar({ initialUser }: NavbarProps) {
                 )}
 
                 <Separator className="my-4" />
-                <div className="px-2 py-0.5 flex justify-between">
+                <div className="px-4 py-0.5 flex justify-between">
                 <span className="text-sm self-center text-muted-foreground block">
                 Appearance
                 </span>

@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import SignupClient from "./SignupClient";
 
 export const metadata: Metadata = {
-  title: "Sign Up - Let's Assist",
+  title: "Sign Up",
   description: "Join Let's Assist and start making a difference by finding volunteering opportunities.",
 };
 

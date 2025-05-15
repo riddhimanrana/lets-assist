@@ -11,7 +11,7 @@ import { Metadata } from "next";
 import { ProjectsInfiniteScroll } from "@/components/ProjectsInfiniteScroll";
 
 export const metadata: Metadata = {
-  title: "Let's Assist",
+  title: "Home",
   description:
     "Find and join local volunteer projects. Connect with your community and make a difference today.",
 };

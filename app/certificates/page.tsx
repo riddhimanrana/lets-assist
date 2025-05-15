@@ -2,6 +2,13 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
 import { CertificatesList } from "./CertificatesList";
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Certificates",
+  description: "View and manage your earned volunteer certificates.",
+};
+
 
 export default async function CertificatesPage() {
   // initialize supabase on the server

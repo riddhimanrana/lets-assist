@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ActivityChart } from "./ActivityChart";
 import { Project, ProjectSchedule } from "@/types";
 import { getSlotDetails } from "@/utils/project";
+import { Metadata } from "next";
 
 // Define types for certificate data
 interface Certificate {
@@ -60,6 +61,11 @@ interface UpcomingSession {
   sessionStartTime: Date;
   status: 'approved' | 'pending';
 }
+
+export const metadata: Metadata = {
+  title: "Volunteer Dashboard",
+  description: "Track your volunteering progress and achievements",
+};
 
 // Calculate hours between two timestamps
 function calculateHours(startTime: string, endTime: string): number {
@@ -340,7 +346,7 @@ export default async function VolunteerDashboard() {
         
         <div className="flex-shrink-0">
           <Button asChild>
-            <Link href="/explore">
+            <Link href="/home">
               Find Opportunities <ChevronRight className="ml-2 h-4 w-4" />
             </Link>
           </Button>

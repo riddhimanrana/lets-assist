@@ -287,7 +287,7 @@ export function CertificatesList({ certificates, user }: CertificatesListProps) 
           Your certificates will appear here once you&apos;ve completed volunteer events and organizers have finalized your hours.
         </p>
         <Button className="mt-6" asChild>
-          <Link href="/explore">Find Opportunities</Link>
+          <Link href="/home">Find Opportunities</Link>
         </Button>
       </div>
     );

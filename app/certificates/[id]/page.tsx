@@ -1,3 +1,4 @@
+import { Metadata } from "next";
 import { createClient } from "@/utils/supabase/server";
 import { notFound } from "next/navigation";
 import { format, differenceInMinutes, parseISO, isValid } from "date-fns";
@@ -50,6 +51,22 @@ function formatDuration(startISO: string, endISO: string): string {
   } catch {
     return "Error";
   }
+}
+
+export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+  const supabase = await createClient();
+  const { data: record } = await supabase
+    .from("certificates")
+    .select("project_title")
+    .eq("id", params.id)
+    .single();
+
+  return {
+    title: record?.project_title 
+      ? `${record.project_title} Volunteer Certificate` 
+      : "Volunteer Certificate",
+    description: "Official volunteer certificate from Let's Assist",
+  };
 }
 
 export default async function VolunteerRecordPage({ params }: { params: { id: string } }): Promise<React.ReactElement> {

@@ -591,7 +591,7 @@ export default function ProjectDetails({
 
   return (
     <>
-      <div className="container mx-auto px-4 py-6 max-w-5xl">
+      <div className="container mx-auto px-4 py-6 max-w-6xl">
         {/* Render Creator Dashboard if user is creator */}
         {isCreator && <CreatorDashboard project={project} />}
         {/* Render User Dashboard if user is logged in, NOT creator, and has signups */}

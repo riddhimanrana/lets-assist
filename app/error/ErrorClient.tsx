@@ -14,9 +14,21 @@ import { useRouter, useSearchParams } from "next/navigation";
 export default function ErrorClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  // Parse hash fragment for error details (lines 15-21)
+  let hashError: string | null = null;
+  let hashErrorCode: string | null = null;
+  let hashErrorDescription: string | null = null;
+  if (typeof window !== "undefined" && window.location.hash) {
+    const params = new URLSearchParams(window.location.hash.substring(1));
+    hashError = params.get("error");
+    hashErrorCode = params.get("error_code");
+    hashErrorDescription = params.get("error_description");
+  }
+
   const message =
-    searchParams.get("message") ||"There was a problem with the link.";
-    
+    searchParams.get("message") || hashErrorDescription || "There was a problem with the link.";
+
   return (
     <div className="min-h-screen flex items-center justify-center">
       <Card className="w-[380px] shadow-lg">
