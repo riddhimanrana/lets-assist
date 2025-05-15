@@ -72,6 +72,23 @@ export async function createBasicProject(projectData: any) {
     return { error: "You must be logged in to create a project" };
   }
 
+  // Rate limiting: Check projects created in the last 6 hours
+  const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
+  const { count: projectsCount, error: countError } = await supabase
+    .from("projects")
+    .select("id", { count: "exact", head: true })
+    .eq("creator_id", user.id)
+    .gte("created_at", sixHoursAgo);
+
+  if (countError) {
+    console.error("Error counting projects for rate limit:", countError);
+    // Decide if you want to block creation or allow if count fails. For now, allowing.
+  }
+
+  if (projectsCount !== null && projectsCount >= 10) {
+    return { error: "You have created too many projects recently. Please try again in 6 hours." };
+  }
+
   // Get organization_id from the project data
   const organizationId = projectData.basicInfo.organizationId;
 

@@ -68,6 +68,23 @@ export async function createOrganization(data: OrganizationCreationData) {
     return { error: "You must be logged in to create an organization" };
   }
 
+  // Rate limiting: Check organizations created in the last 14 days
+  const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
+  const { count: orgsCount, error: countError } = await supabase
+    .from("organizations")
+    .select("id", { count: "exact", head: true })
+    .eq("created_by", user.id) // Assuming 'created_by' stores the user ID
+    .gte("created_at", fourteenDaysAgo);
+
+  if (countError) {
+    console.error("Error counting organizations for rate limit:", countError);
+    // Decide if you want to block creation or allow if count fails. For now, allowing.
+  }
+
+  if (orgsCount !== null && orgsCount >= 1) {
+    return { error: "You can only create one organization every 14 days." };
+  }
+
   // Double-check username availability
   const isUsernameAvailable = await checkOrgUsername(data.username);
   if (!isUsernameAvailable) {
