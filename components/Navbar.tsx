@@ -378,11 +378,15 @@ export default function Navbar({ initialUser }: NavbarProps) {
                     </NavigationMenuItem>
                   </NavigationMenuList>
                 </NavigationMenu>
-                <Button variant={pathname === "/projects" ? "secondary" : "ghost"} asChild>
-                  <Link href="/projects">Volunteering Near Me</Link>
+                <Button variant="ghost" asChild>
+                  <Link href="/projects" className={cn(
+                      pathname === "/projects" ? "text-primary font-semibold" : "text-muted-foreground"
+                    )}>Volunteering Near Me</Link>
                 </Button>
-                <Button variant={pathname === "/organization" ? "secondary" : "ghost"} asChild>
-                  <Link href="/organization">Connected Organizations</Link>
+                <Button variant="ghost" asChild>
+                  <Link href="/organization" className={cn(
+                      pathname === "/organization" ? "text-primary font-semibold" : "text-muted-foreground"
+                    )}>Connected Organizations</Link>
                 </Button>
               </>
             )}
