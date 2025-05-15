@@ -16,36 +16,60 @@ import { motion } from "framer-motion";
 export default function AuthenticationClient() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [isGoogleConnected, setIsGoogleConnected] = useState(false);
+  const [linkedGoogleEmail, setLinkedGoogleEmail] = useState<string | null>(
+    null,
+  );
   const supabase = createClient();
   
   useEffect(() => {
     checkGoogleConnection();
-  });
+  }, []); // Added empty dependency array
   
   const checkGoogleConnection = async () => {
     const {
       data: { user },
     } = await supabase.auth.getUser();
-    if (user) {
-      const { identities } = user;
-      const isGoogleLinked =
-        identities?.some((identity) => identity.provider === "google") ?? false;
-      setIsGoogleConnected(isGoogleLinked);
+    if (user && user.identities) {
+      const googleIdentity = user.identities.find(
+        (identity) => identity.provider === "google",
+      );
+      if (googleIdentity) {
+        setIsGoogleConnected(true);
+        // Supabase stores provider-specific data in identity_data
+        // For Google, this typically includes an 'email' field.
+        const email = googleIdentity.identity_data?.email;
+        if (typeof email === "string") {
+          setLinkedGoogleEmail(email);
+        } else {
+          // Fallback or further investigation needed if email isn't directly available
+          // This might happen if the identity_data is structured differently or email is missing
+          console.warn("Google identity found, but email not in identity_data.email. Attempting to use user.email if it matches provider.");
+          // As a fallback, if the primary user email is from google, we can assume it.
+          // This is less direct but can be a placeholder.
+          // A more robust solution might involve calling getUserIdentities() for richer data if needed.
+          if (user.email && googleIdentity.user_id === user.id) { // Check if this identity belongs to the current user
+             // Heuristic: if user.email exists and this identity is for this user, it might be the one.
+             // However, user.email is the primary email, not necessarily the Google linked one if they differ.
+             // For now, we'll prefer the direct identity_data.email.
+             setLinkedGoogleEmail(null); // Or set to user.email if logic dictates
+          } else {
+            setLinkedGoogleEmail(null);
+          }
+        }
+      } else {
+        setIsGoogleConnected(false);
+        setLinkedGoogleEmail(null);
+      }
+    } else {
+      setIsGoogleConnected(false);
+      setLinkedGoogleEmail(null);
     }
   };
-  
-  const handleGoogleConnect = async () => {
+
+  const handleGoogleLink = async () => {
     setIsConnecting(true);
     try {
-      if (isGoogleConnected) {
-        // Future: Implement disconnect functionality
-        toast.error("Disconnecting accounts is not yet supported");
-        return;
-      }
-      const {
-        data: { url },
-        error,
-      } = await supabase.auth.signInWithOAuth({
+      const { error } = await supabase.auth.linkIdentity({
         provider: "google",
         options: {
           redirectTo: `${window.location.origin}/auth/callback?from=authentication`,
@@ -56,12 +80,74 @@ export default function AuthenticationClient() {
         },
       });
       if (error) throw error;
-      if (url) window.location.href = url;
+      // Redirect will happen, or handle error if no redirect URL (though linkIdentity doesn't return a URL directly like signInWithOAuth)
+      // For linkIdentity, Supabase handles the redirect. We might need to refresh state upon return via callback.
+      // For now, we assume the redirect happens and state is updated on page reload or via the callback handler.
+      toast.info("Redirecting to Google to link your account...");
     } catch (error) {
-      console.error("Error connecting Google account:", error);
-      toast.error("Failed to connect Google account. Please try again.");
+      console.error("Error linking Google account:", error);
+      toast.error(
+        `Failed to link Google account. ${error instanceof Error ? error.message : "Please try again."}`,
+      );
+      setIsConnecting(false); // Only set to false on error, as success means redirect
+    }
+    // setIsConnecting(false) will be handled by page navigation or if an error occurs.
+  };
+
+  const handleGoogleDisconnect = async () => {
+    setIsConnecting(true);
+    try {
+      const { data: identitiesData, error: identitiesError } =
+        await supabase.auth.getUserIdentities();
+
+      if (identitiesError) throw identitiesError;
+
+      if (!identitiesData || !identitiesData.identities) {
+        throw new Error("Could not retrieve user identities.");
+      }
+      
+      if (identitiesData.identities.length < 2) {
+        toast.error("Cannot disconnect the last linked identity. You need at least two identities (e.g., email and Google) to unlink one.");
+        setIsConnecting(false);
+        return;
+      }
+
+      const googleIdentity = identitiesData.identities.find(
+        (identity) => identity.provider === "google",
+      );
+
+      if (!googleIdentity) {
+        toast.error("Google account not found or already disconnected.");
+        setIsGoogleConnected(false); // Correct the state if it's desynced
+        setIsConnecting(false);
+        return;
+      }
+
+      const { error: unlinkError } =
+        await supabase.auth.unlinkIdentity(googleIdentity);
+
+      if (unlinkError) throw unlinkError;
+
+      toast.success("Google account disconnected successfully.");
+      setIsGoogleConnected(false);
+      setLinkedGoogleEmail(null); // Clear the linked email
+      // Optionally, call checkGoogleConnection() again to be absolutely sure
+      // await checkGoogleConnection(); 
+    } catch (error) {
+      console.error("Error disconnecting Google account:", error);
+      toast.error(
+        `Failed to disconnect Google account. ${error instanceof Error ? error.message : "Please try again."}`,
+      );
     } finally {
       setIsConnecting(false);
+    }
+  };
+  
+  const handleGoogleConnect = async () => {
+    if (isGoogleConnected) {
+      await handleGoogleDisconnect();
+    } else {
+      await handleGoogleLink();
     }
   };
   
@@ -71,7 +157,7 @@ export default function AuthenticationClient() {
       animate={{ opacity: 1, y: 0 }}
       className="p-4 sm:p-6"
     >
-      <div className="space-y-6 max-w-5xl mx-auto">
+      <div className="space-y-6 max-w-6xl">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
             Authentication
@@ -108,9 +194,11 @@ export default function AuthenticationClient() {
                 <div>
                   <h4 className="text-sm font-semibold">Google Account</h4>
                   <p className="text-xs sm:text-sm text-muted-foreground">
-                    {isGoogleConnected
-                      ? "Your account is connected with Google"
-                      : "Connect your account with Google for easier sign-in"}
+                    {isGoogleConnected && linkedGoogleEmail
+                      ? `Connected with Google: ${linkedGoogleEmail}`
+                      : isGoogleConnected
+                        ? "Your account is connected with Google." // Fallback if email isn't available
+                        : "Connect your account with Google for easier sign-in."}
                   </p>
                 </div>
               </div>
@@ -120,11 +208,12 @@ export default function AuthenticationClient() {
                   onClick={handleGoogleConnect}
                   disabled={isConnecting}
                   className="w-full sm:w-auto"
+                  aria-label={isGoogleConnected ? "Disconnect Google Account" : "Connect Google Account"}
                 >
                   {isConnecting
-                    ? "Connecting..."
+                    ? isGoogleConnected ? "Disconnecting..." : "Connecting..."
                     : isGoogleConnected
-                      ? "Connected"
+                      ? "Disconnect"
                       : "Connect"}
                 </Button>
               </div>

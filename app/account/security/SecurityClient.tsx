@@ -224,7 +224,7 @@ export default function SecurityClient() {
       animate={{ opacity: 1, y: 0 }}
       className="p-4 sm:p-6"
     >
-      <div className="max-w-5xl mx-auto">
+      <div className="max-w-6xl">
         <div className="mb-6">
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
             Privacy & Security
