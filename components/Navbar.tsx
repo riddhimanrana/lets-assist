@@ -396,12 +396,19 @@ export default function Navbar({ initialUser }: NavbarProps) {
                     {isProfileLoading ? (
                       <Skeleton className="w-9 h-9 rounded-full" />
                     ) : (
-                      <Avatar className="w-9 h-9 cursor-pointer">
-                        <AvatarImage src={profile?.avatar_url} />
-                        <AvatarFallback>
-                          <NoAvatar fullName={profile?.full_name} />
-                        </AvatarFallback>
-                      </Avatar>
+                      <div className="relative group w-9 h-9">
+                        {/* The glowing circle behind the avatar, only visible on hover */}
+                        <span
+                          aria-hidden="true"
+                          className="absolute inset-0 rounded-full bg-muted-foreground/10 scale-105 opacity-0 group-hover:opacity-100 group-hover:scale-125 transition-all duration-200 pointer-events-none"
+                        />
+                        <Avatar className="w-9 h-9 cursor-pointer relative z-10">
+                          <AvatarImage src={profile?.avatar_url} />
+                          <AvatarFallback>
+                            <NoAvatar fullName={profile?.full_name} />
+                          </AvatarFallback>
+                        </Avatar>
+                      </div>
                     )}
                   </DropdownMenuTrigger>
                   <DropdownMenuContent

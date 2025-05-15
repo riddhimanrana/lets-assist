@@ -9,6 +9,23 @@ import ProjectUnauthorized from "./ProjectUnauthorized";
 import { Project, Signup } from "@/types"; 
 import VolunteerStatusCard from '@/components/VolunteerStatusCard';
 import ProjectClient from './ProjectClient'; // Import the new client component
+import { Metadata } from "next";
+
+export async function generateMetadata({ 
+  params 
+}: { 
+  params: { id: string } 
+}): Promise<Metadata> {
+  const { id } = await params;  // params is no longer a Promise, so we can destructure directly
+  const { project } = await getProject(id);
+  
+  return {
+    title: project ? `${project.title}` : "Project",
+    description: project 
+      ? `View details and sign up for ${project.title}`
+      : "View and manage project details.",
+  };
+}
 
 interface PageProps {
   params: Promise<{ id: string }>;

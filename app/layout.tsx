@@ -14,6 +14,15 @@ import { ToasterTheme } from "@/components/ToasterTheme";
 import { NotificationListener } from "@/components/NotificationListener";
 import GlobalNotificationProvider from "@/components/GlobalNotificationProvider";
 import { GeistMono } from 'geist/font/mono';
+ 
+export const metadata: Metadata = {
+  title: {
+    template: "%s - Let's Assist",
+    default: "Let's Assist",
+  },
+  description: 'Find volunteering opportunities and connect with organizations in need of your help.',
+  metadataBase: new URL('https://lets-assist.com'),
+};
 
 const overusedgrotesk = localFont({
   src: "../public/fonts/OverusedGrotesk-VF.woff2",
@@ -29,12 +38,6 @@ const inter = Inter({
 });
 
 
-
-export const metadata: Metadata = {
-  title: "Let's Assist",
-  description:
-    "Let's Assist is a platform that connects volunteers with people in need of assistance.",
-};
 
 export default async function RootLayout({
   children,

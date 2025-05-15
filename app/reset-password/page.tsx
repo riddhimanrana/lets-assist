@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import ResetPasswordClient from "./ResetPasswordClient";
 
 export const metadata: Metadata = {
-  title: "Reset Password - Let's Assist",
+  title: "Reset Password",
   description: "Reset your Let's Assist password.",
 };
 

@@ -14,7 +14,7 @@ import {
 import { verifyEmailToken } from "./actions";
 
 export const metadata: Metadata = {
-  title: "Verification Success - Let's Assist",
+  title: "Verification Success",
   description: "Your email has been successfully verified.",
 };
 

@@ -3,7 +3,7 @@ import ResetPasswordForm from "./ResetPasswordForm";
 import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
-  title: "Set New Password - Let's Assist",
+  title: "Set New Password",
   description: "Set a new password for your Let's Assist account.",
 };
 
