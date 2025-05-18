@@ -216,7 +216,7 @@ export default function ProjectInstructionsModal({ project }: ProjectInstruction
               <CardContent className="text-sm space-y-2">
                 <p>1. Arrive at the event location.</p>
                 <p>2. Find the event coordinator with the QR code.</p>
-                <p>3. Open the app and tap on "Scan QR Code" in your dashboard.</p>
+                <p>3. Open the app and tap on &quot;Scan QR Code&quot; in your dashboard.</p>
                 <p>4. Scan the QR code to check in.</p>
                 <p className="text-muted-foreground mt-2">* QR codes become available 2 hours before each session starts.</p>
               </CardContent>
@@ -335,7 +335,7 @@ export default function ProjectInstructionsModal({ project }: ProjectInstruction
                 </CardTitle>
               </CardHeader>
               <CardContent className="text-sm">
-                <p>Your participation will be recognized, but specific hours won't be tracked for this event.</p>
+                <p>Your participation will be recognized, but specific hours won&apos;t be tracked for this event.</p>
               </CardContent>
             </Card>
           </div>
@@ -383,7 +383,7 @@ export default function ProjectInstructionsModal({ project }: ProjectInstruction
             <div className="flex items-start gap-3">
               <div className="bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0">3</div>
               <div>
-                <p className="font-medium">Click the "Sign Up" Button</p>
+                <p className="font-medium">Click the &quot;Sign Up&quot; Button</p>
                 <p className="text-sm text-muted-foreground mt-1">
                   Complete the signup process by clicking the sign up button for your preferred slot.
                 </p>
