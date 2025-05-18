@@ -19,43 +19,46 @@ const ALLOWED_DOCUMENT_TYPES = [
   "image/jpg"
 ];
 
-// Helper function to check if date/time is in the past
-const isDateTimeInPast = (date: string, time: string): boolean => {
+// Helper function to check if date/time is in the past, using user's local time
+const isDateTimeInPast = (date: string, time: string, userNow: Date): boolean => {
   const [hours, minutes] = time.split(':').map(Number);
   const [year, month, day] = date.split('-').map(Number);
-  
+
   const datetime = new Date(year, month - 1, day);
   datetime.setHours(hours, minutes, 0, 0);
-  
-  return datetime < new Date();
+
+  return datetime < userNow;
 };
 
 // Create project without files first
 export async function createBasicProject(projectData: any) {
-  // Validate that all dates and times are in the future
+  // Get user's current local time from projectData
+  const userNow = projectData.userNow ? new Date(projectData.userNow) : new Date();
+
+  // Validate that all dates and times are in the future (using user's local time)
   if (projectData.eventType === "oneTime") {
-    if (isDateTimeInPast(projectData.schedule.oneTime.date, projectData.schedule.oneTime.startTime) ||
-        isDateTimeInPast(projectData.schedule.oneTime.date, projectData.schedule.oneTime.endTime)) {
+    if (isDateTimeInPast(projectData.schedule.oneTime.date, projectData.schedule.oneTime.startTime, userNow) ||
+        isDateTimeInPast(projectData.schedule.oneTime.date, projectData.schedule.oneTime.endTime, userNow)) {
       return { error: "Event dates and times must be in the future" };
     }
   } else if (projectData.eventType === "multiDay") {
     for (const day of projectData.schedule.multiDay) {
       for (const slot of day.slots) {
-        if (isDateTimeInPast(day.date, slot.startTime) ||
-            isDateTimeInPast(day.date, slot.endTime)) {
+        if (isDateTimeInPast(day.date, slot.startTime, userNow) ||
+            isDateTimeInPast(day.date, slot.endTime, userNow)) {
           return { error: "Event dates and times must be in the future" };
         }
       }
     }
   } else if (projectData.eventType === "sameDayMultiArea") {
     const date = projectData.schedule.sameDayMultiArea.date;
-    if (isDateTimeInPast(date, projectData.schedule.sameDayMultiArea.overallStart) ||
-        isDateTimeInPast(date, projectData.schedule.sameDayMultiArea.overallEnd)) {
+    if (isDateTimeInPast(date, projectData.schedule.sameDayMultiArea.overallStart, userNow) ||
+        isDateTimeInPast(date, projectData.schedule.sameDayMultiArea.overallEnd, userNow)) {
       return { error: "Event dates and times must be in the future" };
     }
     for (const role of projectData.schedule.sameDayMultiArea.roles) {
-      if (isDateTimeInPast(date, role.startTime) ||
-          isDateTimeInPast(date, role.endTime)) {
+      if (isDateTimeInPast(date, role.startTime, userNow) ||
+          isDateTimeInPast(date, role.endTime, userNow)) {
         return { error: "Event dates and times must be in the future" };
       }
     }
