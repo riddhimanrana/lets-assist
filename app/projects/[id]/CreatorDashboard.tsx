@@ -34,7 +34,8 @@ import {
   Info,
   Hourglass,
   CheckCircle2,
-  Clock, // For hours editing icon
+  Clock,
+  HelpCircle, // For instructions modal
 } from "lucide-react";
 import { useState, useMemo } from "react";
 import { deleteProject, updateProjectStatus } from "./actions";
@@ -61,6 +62,8 @@ import { ProjectQRCodeModal } from "./ProjectQRCodeModal";
 interface Props {
   project: Project;
 }
+
+import ProjectInstructionsModal from "./ProjectInstructions";
 
 export default function CreatorDashboard({ project }: Props) {
   const router = useRouter();
@@ -475,6 +478,9 @@ export default function CreatorDashboard({ project }: Props) {
               <FileEdit className="h-4 w-4" />
               Manage Files
             </Button>
+
+            {/* Project Instructions Modal */}
+            <ProjectInstructionsModal project={project} />
 
             {/* --- MODIFIED: Manage Hours Button (Conditional) --- */}
             {/* Use the new filtered list */}
