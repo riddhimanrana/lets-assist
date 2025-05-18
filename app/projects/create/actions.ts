@@ -36,33 +36,33 @@ export async function createBasicProject(projectData: any) {
   const userNow = projectData.userNow ? new Date(projectData.userNow) : new Date();
 
   // Validate that all dates and times are in the future (using user's local time)
-  if (projectData.eventType === "oneTime") {
-    if (isDateTimeInPast(projectData.schedule.oneTime.date, projectData.schedule.oneTime.startTime, userNow) ||
-        isDateTimeInPast(projectData.schedule.oneTime.date, projectData.schedule.oneTime.endTime, userNow)) {
-      return { error: "Event dates and times must be in the future" };
-    }
-  } else if (projectData.eventType === "multiDay") {
-    for (const day of projectData.schedule.multiDay) {
-      for (const slot of day.slots) {
-        if (isDateTimeInPast(day.date, slot.startTime, userNow) ||
-            isDateTimeInPast(day.date, slot.endTime, userNow)) {
-          return { error: "Event dates and times must be in the future" };
-        }
-      }
-    }
-  } else if (projectData.eventType === "sameDayMultiArea") {
-    const date = projectData.schedule.sameDayMultiArea.date;
-    if (isDateTimeInPast(date, projectData.schedule.sameDayMultiArea.overallStart, userNow) ||
-        isDateTimeInPast(date, projectData.schedule.sameDayMultiArea.overallEnd, userNow)) {
-      return { error: "Event dates and times must be in the future" };
-    }
-    for (const role of projectData.schedule.sameDayMultiArea.roles) {
-      if (isDateTimeInPast(date, role.startTime, userNow) ||
-          isDateTimeInPast(date, role.endTime, userNow)) {
-        return { error: "Event dates and times must be in the future" };
-      }
-    }
-  }
+  // if (projectData.eventType === "oneTime") {
+  //   if (isDateTimeInPast(projectData.schedule.oneTime.date, projectData.schedule.oneTime.startTime, userNow) ||
+  //       isDateTimeInPast(projectData.schedule.oneTime.date, projectData.schedule.oneTime.endTime, userNow)) {
+  //     return { error: "Event dates and times must be in the future" };
+  //   }
+  // } else if (projectData.eventType === "multiDay") {
+  //   for (const day of projectData.schedule.multiDay) {
+  //     for (const slot of day.slots) {
+  //       if (isDateTimeInPast(day.date, slot.startTime, userNow) ||
+  //           isDateTimeInPast(day.date, slot.endTime, userNow)) {
+  //         return { error: "Event dates and times must be in the future" };
+  //       }
+  //     }
+  //   }
+  // } else if (projectData.eventType === "sameDayMultiArea") {
+  //   const date = projectData.schedule.sameDayMultiArea.date;
+  //   if (isDateTimeInPast(date, projectData.schedule.sameDayMultiArea.overallStart, userNow) ||
+  //       isDateTimeInPast(date, projectData.schedule.sameDayMultiArea.overallEnd, userNow)) {
+  //     return { error: "Event dates and times must be in the future" };
+  //   }
+  //   for (const role of projectData.schedule.sameDayMultiArea.roles) {
+  //     if (isDateTimeInPast(date, role.startTime, userNow) ||
+  //         isDateTimeInPast(date, role.endTime, userNow)) {
+  //       return { error: "Event dates and times must be in the future" };
+  //     }
+  //   }
+  // }
   const supabase = await createClient();
 
   // Get current user
