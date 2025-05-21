@@ -52,7 +52,7 @@ export default function AcknowledgementsPage() {
           </CardHeader>
           <CardContent className="space-y-2">
             <Link
-              href="https://github.com/rrcoder0167/lets-assist"
+              href="https://github.com/riddhimanrana/lets-assist"
               className="text-chart-3 font-semibold"
             >
               lets-assist
