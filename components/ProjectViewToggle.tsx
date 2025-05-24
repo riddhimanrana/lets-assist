@@ -3,13 +3,13 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { getProjectStatus } from "@/utils/project";
-import { 
-  MapPin, 
-  Calendar, 
-  Users, 
-  Clock, 
-  LayoutGrid, 
-  List, 
+import {
+  MapPin,
+  Calendar,
+  Users,
+  Clock,
+  LayoutGrid,
+  List,
   Table2,
   ArrowUpDown,
   ArrowUp,
@@ -19,7 +19,7 @@ import {
   BadgeCheck,
   CalendarClock,
   CalendarDays,
-  Map
+  Map,
 } from "lucide-react";
 import { ProjectsMapView } from "@/components/ProjectsMapView";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -47,7 +47,7 @@ type Project = any;
 const STORAGE_KEY = "preferred-project-view";
 const VALID_VIEWS = ["card", "list", "table", "map"] as const;
 
-type ValidView = typeof VALID_VIEWS[number];
+type ValidView = (typeof VALID_VIEWS)[number];
 
 // Update the type definition to include "map"
 type ProjectViewToggleProps = {
@@ -68,7 +68,7 @@ const formatTime = (timeString: string) => {
 };
 
 const formatSpots = (count: number) => {
-  return `${count} ${count === 1 ? 'spot' : 'spots'} left`;
+  return `${count} ${count === 1 ? "spot" : "spots"} left`;
 };
 
 const formatDateDisplay = (project: any) => {
@@ -83,38 +83,38 @@ const formatDateDisplay = (project: any) => {
     }
     case "multiDay": {
       const dates = project.schedule.multiDay
-      .map((day: any) => {
-        const [year, month, dayNum] = day.date.split("-").map(Number);
-        return new Date(year, month - 1, dayNum);
-      })
-      .sort((a: Date, b: Date) => a.getTime() - b.getTime());
+        .map((day: any) => {
+          const [year, month, dayNum] = day.date.split("-").map(Number);
+          return new Date(year, month - 1, dayNum);
+        })
+        .sort((a: Date, b: Date) => a.getTime() - b.getTime());
 
       // If dates are in the same month
       const allSameMonth = dates.every(
-      (date: Date) => date.getMonth() === dates[0].getMonth()
+        (date: Date) => date.getMonth() === dates[0].getMonth(),
       );
 
       if (dates.length <= 3) {
-      if (allSameMonth) {
-        // Format as "Mar 7, 9, 10"
-        return `${format(dates[0], "MMM")} ${dates
-        .map((date: Date) => format(date, "d"))
-        .join(", ")}`;
+        if (allSameMonth) {
+          // Format as "Mar 7, 9, 10"
+          return `${format(dates[0], "MMM")} ${dates
+            .map((date: Date) => format(date, "d"))
+            .join(", ")}`;
+        } else {
+          // Format as "Mar 7, Apr 9, 10"
+          return dates
+            .map((date: Date, i: number) => {
+              const prevDate = i > 0 ? dates[i - 1] : null;
+              if (!prevDate || prevDate.getMonth() !== date.getMonth()) {
+                return format(date, "MMM d");
+              }
+              return format(date, "d");
+            })
+            .join(", ");
+        }
       } else {
-        // Format as "Mar 7, Apr 9, 10"
-        return dates
-        .map((date: Date, i: number) => {
-          const prevDate = i > 0 ? dates[i - 1] : null;
-          if (!prevDate || prevDate.getMonth() !== date.getMonth()) {
-          return format(date, "MMM d");
-          }
-          return format(date, "d");
-        })
-        .join(", ");
-      }
-      } else {
-      // For more than 3 dates, show range
-      return `${format(dates[0], "MMM d")} - ${format(dates[dates.length - 1], "MMM d")}`;
+        // For more than 3 dates, show range
+        return `${format(dates[0], "MMM d")} - ${format(dates[dates.length - 1], "MMM d")}`;
       }
     }
     case "sameDayMultiArea": {
@@ -134,7 +134,7 @@ const getEventScheduleSummary = (project: any) => {
 
   switch (project.event_type) {
     case "oneTime": {
-      const dateStr = project.schedule.oneTime?.date
+      const dateStr = project.schedule.oneTime?.date;
       const [year, month, dayNum] = dateStr.split("-").map(Number);
       const dateFormat = new Date(year, month - 1, dayNum);
       const date = format(dateFormat, "MMM d, yyyy");
@@ -145,7 +145,9 @@ const getEventScheduleSummary = (project: any) => {
       const startDateStr = project.schedule.multiDay[0].date;
       const endDateStr = project.schedule.multiDay[days - 1].date;
 
-      const [startYear, startMonth, startDayNum] = startDateStr.split("-").map(Number);
+      const [startYear, startMonth, startDayNum] = startDateStr
+        .split("-")
+        .map(Number);
       const [endYear, endMonth, endDayNum] = endDateStr.split("-").map(Number);
 
       const startDateFormat = new Date(startYear, startMonth - 1, startDayNum);
@@ -157,7 +159,7 @@ const getEventScheduleSummary = (project: any) => {
       return `${days} days (${startDate} - ${endDate})`;
     }
     case "sameDayMultiArea": {
-      const dateStr = project.schedule.sameDayMultiArea.date
+      const dateStr = project.schedule.sameDayMultiArea.date;
       const [year, month, dayNum] = dateStr.split("-").map(Number);
       const dateFormat = new Date(year, month - 1, dayNum);
       const date = format(dateFormat, "MMM d, yyyy");
@@ -208,16 +210,18 @@ const getVolunteerCount = (project: any) => {
 // New function to get remaining spots
 const getRemainingSpots = (project: any) => {
   const totalSpots = getVolunteerCount(project);
-  
+
   // Use confirmed_signups from server
   const confirmedCount = project.total_confirmed || 0;
-  
+
   return Math.max(0, totalSpots - confirmedCount);
 };
 
 // Function to check if project has upcoming status
 const isUpcomingProject = (project: any) => {
-  return project.status === "upcoming" || getProjectStatus(project) === "upcoming";
+  return (
+    project.status === "upcoming" || getProjectStatus(project) === "upcoming"
+  );
 };
 
 // Function to get project organization or creator name
@@ -268,7 +272,7 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
   // Handle volunteer sort toggle
   const handleVolunteerSortToggle = () => {
     if (!onVolunteerSortChange) return;
-    
+
     if (!volunteerSort) {
       onVolunteerSortChange("desc");
     } else if (volunteerSort === "desc") {
@@ -285,8 +289,8 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
   };
 
   // Filter projects - only show upcoming projects with available spots
-  const filteredProjects = projects.filter(project => 
-    isUpcomingProject(project) && getRemainingSpots(project) > 0
+  const filteredProjects = projects.filter(
+    (project) => isUpcomingProject(project) && getRemainingSpots(project) > 0,
   );
 
   // Update EventInfo to show remaining spots
@@ -304,7 +308,8 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
               </Badge>
               <Badge variant="outline" className="gap-1">
                 <Clock className="h-3 w-3" />
-                {formatTime(project.schedule.oneTime.startTime)} - {formatTime(project.schedule.oneTime.endTime)}
+                {formatTime(project.schedule.oneTime.startTime)} -{" "}
+                {formatTime(project.schedule.oneTime.endTime)}
               </Badge>
               <Badge variant="outline" className="gap-1">
                 <Users className="h-3 w-3" />
@@ -319,8 +324,14 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
             <>
               <Badge variant="outline" className="gap-1">
                 <Calendar className="h-3 w-3" />
-                {format(new Date(project.schedule.multiDay[0].date), "MMM d")} -{" "}
-                {format(new Date(project.schedule.multiDay[days - 1].date), "MMM d")}
+                {format(
+                  new Date(project.schedule.multiDay[0].date),
+                  "MMM d",
+                )} -{" "}
+                {format(
+                  new Date(project.schedule.multiDay[days - 1].date),
+                  "MMM d",
+                )}
               </Badge>
               <Badge variant="outline" className="gap-1">
                 <Users className="h-3 w-3" />
@@ -334,7 +345,10 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
             <>
               <Badge variant="outline" className="gap-1">
                 <Calendar className="h-3 w-3" />
-                {format(new Date(project.schedule.sameDayMultiArea.date), "MMM d, yyyy")}
+                {format(
+                  new Date(project.schedule.sameDayMultiArea.date),
+                  "MMM d, yyyy",
+                )}
               </Badge>
               <Badge variant="outline" className="gap-1">
                 <Users className="h-3 w-3" />
@@ -358,116 +372,133 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
           {filteredProjects.map((project: any) => (
             <Link key={project.id} href={`/projects/${project.id}`}>
               <Card className="p-6 hover:shadow-lg transition-all cursor-pointer h-full flex flex-col">
-          <h3 className="text-xl font-semibold mb-2 line-clamp-1">{project.title}</h3>
-          <div className="flex items-center gap-2 mb-4">
-            <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-            <span className="text-sm text-muted-foreground truncate">{project.location}</span>
-          </div>
-          
-          <div className="flex flex-wrap gap-2 mb-4">
-            <Badge variant="outline" className="gap-1">
-              <Calendar className="h-3 w-3" />
-              {formatDateDisplay(project)}
-            </Badge>
-            <Badge variant="outline" className="gap-1">
-              <Users className="h-3 w-3" />
-              {formatSpots(getRemainingSpots(project))}
-            </Badge>
-          </div>
-          
-          {/* User info with hover card - updated to show organization if available */}
-          <div className="mt-auto pt-3">
-            <HoverCard>
-              <HoverCardTrigger asChild>
-              <div className="flex items-center gap-2 cursor-pointer">
-              <Avatar className="h-7 w-7">
-              <AvatarImage
-                src={getCreatorAvatarUrl(project)}
-                alt={getProjectCreator(project)}
-              />
-              <AvatarFallback>
-                <NoAvatar fullName={getProjectCreator(project)} className="text-sm"/>
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">
-                {getProjectCreator(project)}
-              </p>
-              {/* <p className="text-xs text-muted-foreground">
-                {project.organization_id ? 
-                  (project.organization?.type || project.organizations?.type || "Organization") : 
-                  `@${project.profiles?.username || "unknown"}`}
-              </p> */}
-            </div>
-                </div>
-              </HoverCardTrigger>
-              <HoverCardContent className="w-auto">
-                <div className="flex justify-between space-x-4 cursor-pointer" onClick={(e) => {
-            e.preventDefault();
-            if (project.organization_id) {
-              window.location.href = `/organization/${project.organization?.username || project.organizations?.username || project.organization_id}`;
-            } else {
-              window.location.href = `/profile/${project.profiles?.username || "unknown"}`;
-            }
-                }}>
-            <Avatar className="h-10 w-10">
-              <AvatarImage 
-                src={getCreatorAvatarUrl(project)}
-                alt={getProjectCreator(project)}
-              />
-              <AvatarFallback>
-                <NoAvatar fullName={getProjectCreator(project)} />
-              </AvatarFallback>
-            </Avatar>
-            <div className="space-y-1 flex-1">
-              <h4 className="text-sm font-semibold">
-                {getProjectCreator(project)}
-              </h4>
-              <p className="text-xs text-muted-foreground">
-                {project.organization_id ? (
-                  (() => {
-                    const orgType =
-                      project.organization?.type || project.organizations?.type || "Organization";
-                    const normalizedType =
-                      orgType.toLowerCase() === "company" ? "Company" : orgType;
-                    const icon =
-                      orgType.toLowerCase() === "company" ? (
-                        <Building2 className="h-4 w-4 opacity-70" />
-                      ) : (
-                        <BadgeCheck className="h-4 w-4 opacity-70" />
-                      );
-
-                    return (
-                      <div className="flex items-center">
-                        <span>
-                          @{project.organization?.username || project.organizations?.username || "unknown"}
-                          <span className="flex pt-2">
-                          {icon}
-                          <span className="ml-2">{normalizedType}</span>
-                          </span>
-                        </span>
-                      </div>
-                    );
-                  })()
-                ) : (
-                  `@${project.profiles?.username || "unknown"}`
-                )}
-              </p>
-              {!project.organization_id && (
-                <div className="flex items-center pt-2">
-                  <CalendarDays className="mr-2 h-4 w-4 opacity-70" />
-                  <span className="text-xs text-muted-foreground">
-              {project.profiles?.created_at ? 
-                `Joined ${format(new Date(project.profiles.created_at), "MMMM yyyy")}` : 
-                "New member"}
+                <h3 className="text-xl font-semibold mb-2 text-ellipsis">
+                  {project.title}
+                </h3>
+                <div className="flex items-center gap-2 mb-4">
+                  <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <span className="text-sm text-muted-foreground truncate">
+                    {project.location}
                   </span>
                 </div>
-              )}
-            </div>
+
+                <div className="flex flex-wrap gap-2 mb-4">
+                  <Badge variant="outline" className="gap-1">
+                    <Calendar className="h-3 w-3" />
+                    {formatDateDisplay(project)}
+                  </Badge>
+                  <Badge variant="outline" className="gap-1">
+                    <Users className="h-3 w-3" />
+                    {formatSpots(getRemainingSpots(project))}
+                  </Badge>
                 </div>
-              </HoverCardContent>
-            </HoverCard>
-          </div>
+
+                {/* User info with hover card - updated to show organization if available */}
+                <div className="mt-auto pt-3">
+                  <HoverCard>
+                    <HoverCardTrigger asChild>
+                      <div className="flex items-center gap-2 cursor-pointer">
+                        <Avatar className="h-7 w-7">
+                          <AvatarImage
+                            src={getCreatorAvatarUrl(project)}
+                            alt={getProjectCreator(project)}
+                          />
+                          <AvatarFallback>
+                            <NoAvatar
+                              fullName={getProjectCreator(project)}
+                              className="text-sm"
+                            />
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">
+                            {getProjectCreator(project)}
+                          </p>
+                          {/* <p className="text-xs text-muted-foreground">
+                {project.organization_id ?
+                  (project.organization?.type || project.organizations?.type || "Organization") :
+                  `@${project.profiles?.username || "unknown"}`}
+              </p> */}
+                        </div>
+                      </div>
+                    </HoverCardTrigger>
+                    <HoverCardContent className="w-auto">
+                      <div
+                        className="flex justify-between space-x-4 cursor-pointer"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          if (project.organization_id) {
+                            window.location.href = `/organization/${project.organization?.username || project.organizations?.username || project.organization_id}`;
+                          } else {
+                            window.location.href = `/profile/${project.profiles?.username || "unknown"}`;
+                          }
+                        }}
+                      >
+                        <Avatar className="h-10 w-10">
+                          <AvatarImage
+                            src={getCreatorAvatarUrl(project)}
+                            alt={getProjectCreator(project)}
+                          />
+                          <AvatarFallback>
+                            <NoAvatar fullName={getProjectCreator(project)} />
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="space-y-1 flex-1">
+                          <h4 className="text-sm font-semibold">
+                            {getProjectCreator(project)}
+                          </h4>
+                          <p className="text-xs text-muted-foreground">
+                            {project.organization_id
+                              ? (() => {
+                                  const orgType =
+                                    project.organization?.type ||
+                                    project.organizations?.type ||
+                                    "Organization";
+                                  const normalizedType =
+                                    orgType.toLowerCase() === "company"
+                                      ? "Company"
+                                      : orgType;
+                                  const icon =
+                                    orgType.toLowerCase() === "company" ? (
+                                      <Building2 className="h-4 w-4 opacity-70" />
+                                    ) : (
+                                      <BadgeCheck className="h-4 w-4 opacity-70" />
+                                    );
+
+                                  return (
+                                    <div className="flex items-center">
+                                      <span>
+                                        @
+                                        {project.organization?.username ||
+                                          project.organizations?.username ||
+                                          "unknown"}
+                                        <span className="flex pt-2">
+                                          {icon}
+                                          <span className="ml-2">
+                                            {normalizedType}
+                                          </span>
+                                        </span>
+                                      </span>
+                                    </div>
+                                  );
+                                })()
+                              : `@${project.profiles?.username || "unknown"}`}
+                          </p>
+                          {!project.organization_id && (
+                            <div className="flex items-center pt-2">
+                              <CalendarDays className="mr-2 h-4 w-4 opacity-70" />
+                              <span className="text-xs text-muted-foreground">
+                                {project.profiles?.created_at
+                                  ? `Joined ${format(new Date(project.profiles.created_at), "MMMM yyyy")}`
+                                  : "New member"}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </HoverCardContent>
+                  </HoverCard>
+                </div>
               </Card>
             </Link>
           ))}
@@ -493,11 +524,17 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                         </div>
                       </div>
                       <div className="flex flex-wrap items-start gap-2 order-1 md:order-none project-badges">
-                        <Badge variant="outline" className="gap-1 py-0.5 text-xs">
+                        <Badge
+                          variant="outline"
+                          className="gap-1 py-0.5 text-xs"
+                        >
                           <Calendar className="h-3 w-3 md:h-2.5 md:w-2.5 project-badge-icon flex-shrink-0" />
                           {formatDateDisplay(project)}
                         </Badge>
-                        <Badge variant="outline" className="gap-1 py-0.5 text-xs">
+                        <Badge
+                          variant="outline"
+                          className="gap-1 py-0.5 text-xs"
+                        >
                           <Users className="h-3 w-3 md:h-2.5 md:w-2.5 project-badge-icon flex-shrink-0" />
                           {formatSpots(getRemainingSpots(project))}
                         </Badge>
@@ -513,7 +550,10 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                                 alt={getProjectCreator(project)}
                               />
                               <AvatarFallback>
-                                <NoAvatar fullName={getProjectCreator(project)} className="text-sm"/>
+                                <NoAvatar
+                                  fullName={getProjectCreator(project)}
+                                  className="text-sm"
+                                />
                               </AvatarFallback>
                             </Avatar>
                             <span className="text-sm font-medium truncate">
@@ -521,23 +561,28 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                             </span>
                           </div>
                         </HoverCardTrigger>
-                      
+
                         <HoverCardContent className="w-auto">
-                          <div className="flex justify-between space-x-4 cursor-pointer" onClick={(e) => {
-                            e.preventDefault();
-                            if (project.organization_id) {
-                              window.location.href=`/organization/${project.organization?.username || project.organizations?.username || project.organization_id}`;
-                            } else {
-                              window.location.href=`/profile/${project.profiles?.username || "unknown"}`;
-                            }
-                          }}>
+                          <div
+                            className="flex justify-between space-x-4 cursor-pointer"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              if (project.organization_id) {
+                                window.location.href = `/organization/${project.organization?.username || project.organizations?.username || project.organization_id}`;
+                              } else {
+                                window.location.href = `/profile/${project.profiles?.username || "unknown"}`;
+                              }
+                            }}
+                          >
                             <Avatar className="h-10 w-10">
-                              <AvatarImage 
+                              <AvatarImage
                                 src={getCreatorAvatarUrl(project)}
                                 alt={getProjectCreator(project)}
                               />
                               <AvatarFallback>
-                                <NoAvatar fullName={getProjectCreator(project)} />
+                                <NoAvatar
+                                  fullName={getProjectCreator(project)}
+                                />
                               </AvatarFallback>
                             </Avatar>
                             <div className="space-y-1 flex-1">
@@ -545,17 +590,19 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                                 {getProjectCreator(project)}
                               </h4>
                               <p className="text-sm">
-                                {project.organization_id ? 
-                                  (project.organization?.type || project.organizations?.type || "Organization") : 
-                                  `@${project.profiles?.username || "unknown"}`}
+                                {project.organization_id
+                                  ? project.organization?.type ||
+                                    project.organizations?.type ||
+                                    "Organization"
+                                  : `@${project.profiles?.username || "unknown"}`}
                               </p>
                               {!project.organization_id && (
                                 <div className="flex items-center pt-2">
                                   <CalendarDays className="mr-2 h-4 w-4 opacity-70" />
                                   <span className="text-xs text-muted-foreground">
-                                    {project.profiles?.created_at ? 
-                                    `Joined ${format(new Date(project.profiles.created_at), "MMMM yyyy")}` : 
-                                    "New member"}
+                                    {project.profiles?.created_at
+                                      ? `Joined ${format(new Date(project.profiles.created_at), "MMMM yyyy")}`
+                                      : "New member"}
                                   </span>
                                 </div>
                               )}
@@ -565,8 +612,8 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                       </HoverCard>
                     </div>
                   </div>
-                  <Button 
-                    variant="ghost" 
+                  <Button
+                    variant="ghost"
                     size="icon"
                     className="hidden md:flex opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
                   >
@@ -589,10 +636,10 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                 <TableHead className="hidden sm:table-cell">Schedule</TableHead>
                 <TableHead className="hidden sm:table-cell">Location</TableHead>
                 <TableHead className="hidden sm:table-cell">Creator</TableHead>
-                <TableHead 
+                <TableHead
                   className={cn(
                     "text-center cursor-pointer hover:bg-muted/50 transition-colors",
-                    volunteerSort && "bg-muted/30"
+                    volunteerSort && "bg-muted/30",
                   )}
                   onClick={handleVolunteerSortToggle}
                 >
@@ -600,8 +647,12 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                     <span className="hidden sm:inline">Spots Left</span>
                     <span className="sm:hidden">Spots</span>
                     {!volunteerSort && <ArrowUpDown className="h-3.5 w-3.5" />}
-                    {volunteerSort === "desc" && <ArrowDown className="h-3.5 w-3.5" />}
-                    {volunteerSort === "asc" && <ArrowUp className="h-3.5 w-3.5" />}
+                    {volunteerSort === "desc" && (
+                      <ArrowDown className="h-3.5 w-3.5" />
+                    )}
+                    {volunteerSort === "asc" && (
+                      <ArrowUp className="h-3.5 w-3.5" />
+                    )}
                   </div>
                 </TableHead>
                 <TableHead className="w-[100px] text-right">Actions</TableHead>
@@ -612,27 +663,35 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                 <TableRow key={project.id}>
                   <TableCell>
                     <div className="max-w-[300px] sm:max-w-none">
-                      <div className="font-medium line-clamp-1">{project.title}</div>
+                      <div className="font-medium line-clamp-1">
+                        {project.title}
+                      </div>
                       <div className="text-xs text-muted-foreground sm:hidden flex items-center gap-2 mt-1">
                         <MapPin className="h-3 w-3 flex-shrink-0" />
                         <span className="truncate">{project.location}</span>
                       </div>
                       <div className="text-xs text-muted-foreground sm:hidden flex items-center gap-2 mt-1">
                         <Calendar className="h-3 w-3 flex-shrink-0" />
-                        <span className="truncate">{getEventScheduleSummary(project)}</span>
+                        <span className="truncate">
+                          {getEventScheduleSummary(project)}
+                        </span>
                       </div>
                     </div>
                   </TableCell>
                   <TableCell className="hidden sm:table-cell">
                     <div className="flex items-center gap-1">
                       <Calendar className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-                      <span className="text-sm">{getEventScheduleSummary(project)}</span>
+                      <span className="text-sm">
+                        {getEventScheduleSummary(project)}
+                      </span>
                     </div>
                   </TableCell>
                   <TableCell className="hidden sm:table-cell">
                     <div className="flex items-center gap-1">
                       <MapPin className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-                      <span className="text-sm truncate max-w-[180px]">{project.location}</span>
+                      <span className="text-sm truncate max-w-[180px]">
+                        {project.location}
+                      </span>
                     </div>
                   </TableCell>
                   <TableCell className="hidden sm:table-cell">
@@ -653,17 +712,20 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                           </span>
                         </div>
                       </HoverCardTrigger>
-                    
+
                       <HoverCardContent className="w-auto">
-                        <div className="flex justify-between space-x-4 cursor-pointer" onClick={() => {
-                          if (project.organization_id) {
-                            window.location.href=`/organization/${project.organization?.username || project.organizations?.username || project.organization_id}`;
-                          } else {
-                            window.location.href=`/profile/${project.profiles?.username || "unknown"}`;
-                          }
-                        }}>
+                        <div
+                          className="flex justify-between space-x-4 cursor-pointer"
+                          onClick={() => {
+                            if (project.organization_id) {
+                              window.location.href = `/organization/${project.organization?.username || project.organizations?.username || project.organization_id}`;
+                            } else {
+                              window.location.href = `/profile/${project.profiles?.username || "unknown"}`;
+                            }
+                          }}
+                        >
                           <Avatar className="h-10 w-10">
-                            <AvatarImage 
+                            <AvatarImage
                               src={getCreatorAvatarUrl(project)}
                               alt={getProjectCreator(project)}
                             />
@@ -676,17 +738,19 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                               {getProjectCreator(project)}
                             </h4>
                             <p className="text-sm">
-                              {project.organization_id ? 
-                                (project.organization?.type || project.organizations?.type || "Organization") : 
-                                `@${project.profiles?.username || "unknown"}`}
+                              {project.organization_id
+                                ? project.organization?.type ||
+                                  project.organizations?.type ||
+                                  "Organization"
+                                : `@${project.profiles?.username || "unknown"}`}
                             </p>
                             {!project.organization_id && (
                               <div className="flex items-center pt-2">
                                 <CalendarDays className="mr-2 h-4 w-4 opacity-70" />
                                 <span className="text-xs text-muted-foreground">
-                                  {project.profiles?.created_at ? 
-                                  `Joined ${format(new Date(project.profiles.created_at), "MMMM yyyy")}` : 
-                                  "New member"}
+                                  {project.profiles?.created_at
+                                    ? `Joined ${format(new Date(project.profiles.created_at), "MMMM yyyy")}`
+                                    : "New member"}
                                 </span>
                               </div>
                             )}
@@ -696,15 +760,24 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                     </HoverCard>
                   </TableCell>
                   <TableCell className="text-center">
-                    <Badge variant={volunteerSort ? "secondary" : "outline"} className="gap-1">
+                    <Badge
+                      variant={volunteerSort ? "secondary" : "outline"}
+                      className="gap-1"
+                    >
                       <Users className="h-3 w-3" />
-                      <span className="hidden sm:inline">{formatSpots(getRemainingSpots(project))}</span>
-                      <span className="sm:hidden">{getRemainingSpots(project)}</span>
+                      <span className="hidden sm:inline">
+                        {formatSpots(getRemainingSpots(project))}
+                      </span>
+                      <span className="sm:hidden">
+                        {getRemainingSpots(project)}
+                      </span>
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
                     <Link href={`/projects/${project.id}`}>
-                      <Button size="sm" className="h-8 px-3">View</Button>
+                      <Button size="sm" className="h-8 px-3">
+                        View
+                      </Button>
                     </Link>
                   </TableCell>
                 </TableRow>
@@ -713,7 +786,7 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
           </Table>
         </div>
       )}
-      
+
       {view === "map" && (
         <div className="w-full h-[500px]">
           <ProjectsMapView initialProjects={filteredProjects} />
