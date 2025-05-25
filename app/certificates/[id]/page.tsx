@@ -53,12 +53,20 @@ function formatDuration(startISO: string, endISO: string): string {
   }
 }
 
-export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+// Define the page props interface
+interface CertificatePageProps {
+  params: Promise<{
+    id: string;
+  }>;
+}
+
+export async function generateMetadata({ params }: CertificatePageProps): Promise<Metadata> {
   const supabase = await createClient();
+  const { id } = await params;
   const { data: record } = await supabase
     .from("certificates")
     .select("project_title")
-    .eq("id", params.id)
+    .eq("id", id)
     .single();
 
   return {
@@ -69,7 +77,7 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
   };
 }
 
-export default async function VolunteerRecordPage({ params }: { params: { id: string } }): Promise<React.ReactElement> {
+export default async function VolunteerRecordPage({ params }: CertificatePageProps): Promise<React.ReactElement> {
   const supabase = await createClient();
   const { id: recordId } = await params;
 
