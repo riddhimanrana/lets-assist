@@ -3,9 +3,9 @@ import PrepareClient from './PrepareClient'; // Import the client component
 import { Loader2 } from 'lucide-react';
 
 interface PreparePageProps {
-  params: {
+  params: Promise<{
     projectId: string;
-  };
+  }>;
   // searchParams are implicitly available but not needed directly here
 }
 

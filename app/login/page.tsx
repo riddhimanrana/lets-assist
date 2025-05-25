@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 };
 
 interface LoginPageProps {
-  searchParams: { redirect?: string };
+  searchParams: Promise<{ redirect?: string }>;
 }
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {

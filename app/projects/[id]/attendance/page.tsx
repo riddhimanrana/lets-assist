@@ -81,7 +81,7 @@ async function checkAttendanceAvailability(projectId: string) {
   };
 }
 
-export default async function AttendancePage({ params }: { params: { id: string } }) {
+export default async function AttendancePage({ params }: { params: Promise<{ id: string }> }) {
     const { id: projectId } = await params;
     const availability = await checkAttendanceAvailability(projectId)
   
