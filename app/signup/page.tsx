@@ -7,10 +7,10 @@ export const metadata: Metadata = {
 };
 
 interface SignupPageProps {
-  searchParams: { redirect?: string };
+  searchParams: Promise<{ redirect?: string }>;
 }
 
-export default function SignupPage({ searchParams }: SignupPageProps) {
-  const redirect = searchParams.redirect ?? "";
-  return <SignupClient redirectPath={redirect} />;
+export default async function SignupPage({ searchParams }: SignupPageProps) {
+  const { redirect } = await searchParams;
+  return <SignupClient redirectPath={redirect ?? ""} />;
 }

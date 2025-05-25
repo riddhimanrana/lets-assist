@@ -14,9 +14,9 @@ import { Metadata } from "next";
 export async function generateMetadata({ 
   params 
 }: { 
-  params: { id: string } 
+  params: Promise<{ id: string }> 
 }): Promise<Metadata> {
-  const { id } = await params;  // params is no longer a Promise, so we can destructure directly
+  const { id } = await params;
   const { project } = await getProject(id);
   
   return {
