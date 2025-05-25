@@ -1,10 +1,10 @@
 {
   "name": "lets-assist",
-  "version": "0.1.0",
+  "version": "1.0",
   "private": true,
   "scripts": {
     "dev": "next dev --turbo",
-    "build": "next build --turbo",
+    "build": "next build",
     "postbuild": "next-sitemap",
     "start": "next start",
     "lint": "next lint"
@@ -106,6 +106,7 @@
     "eslint": "^9.22.0",
     "eslint-config-next": "^15.2.1",
     "eslint-config-prettier": "^10.1.1",
+    "fast-glob": "^3.3.3",
     "postcss": "^8.5.3",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.8.2"
