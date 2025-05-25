@@ -1,6 +1,6 @@
 /** @type {import('next-sitemap').IConfig} */
 module.exports = {
-  siteUrl: 'https://lets-assist.com',
+  siteUrl: 'https://lets-assist.com/',
   generateRobotsTxt: true,
   robotsTxtOptions: {
     policies: [
