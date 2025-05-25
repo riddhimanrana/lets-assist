@@ -109,6 +109,9 @@
   "trustedDependencies": [
     "@vercel/speed-insights",
     "sharp",
+    "core-js",
+    "esbuild",
+    "@vaadin/vaadin-usage-statistics",
   ],
   "overrides": {
     "react-is": "^19.0.0-rc-69d4b800-20241021",
