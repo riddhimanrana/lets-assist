@@ -114,7 +114,10 @@
     "react-is": "^19.0.0-rc-69d4b800-20241021"
   },
   "trustedDependencies": [
+    "@vaadin/vaadin-usage-statistics",
     "@vercel/speed-insights",
+    "core-js",
+    "esbuild",
     "sharp"
   ]
 }
