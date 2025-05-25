@@ -1,7 +1,0 @@
-User-agent: *
-
-Disallow: /api/
-Disallow: /auth/
-Disallow: /error/
-
-Sitemap: https://lets-assist.com/sitemap.xml
