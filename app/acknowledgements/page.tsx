@@ -84,7 +84,7 @@ export default function AcknowledgementsPage() {
               <ExternalLink size={16} className="transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
             </Link>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              This is a solo project and I'm currently not accepting contributions, however the code is still openly available for transparency.
+              This is a solo project and I&apos;m currently not accepting contributions, however the code is still openly available for transparency.
             </p>
           </CardContent>
         </Card>
