@@ -7,163 +7,84 @@ import {
 } from "@/components/ui/card";
 import Link from "next/link";
 import { Metadata } from "next";
+import { SiGithub } from "react-icons/si";
+import { ExternalLink } from "lucide-react";
+import Image from "next/image";
 
 export const metadata: Metadata = {
   title: "Acknowledgements",
   description:
-    "Acknowledgements page for Let's Assist, recognizing the open source projects, libraries, and contributors that have made this project possible.",
+    "Acknowledgements for Let's Assist - creator and source code.",
 };
 
 export default function AcknowledgementsPage() {
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8">
+    <div className="mx-auto max-w-3xl px-4 py-8">
       <div className="mb-8 text-center">
-        <h1 className="text-3xl sm:text-4xl font-bold mb-2">
+        <h1 className="text-3xl sm:text-4xl font-bold mb-4">
           Acknowledgements
         </h1>
-        <p className="text-base text-muted-foreground">
-          We gratefully acknowledge the following open source projects and
-          contributors
+        <p className="text-muted-foreground">
+          Recognizing the people and resources that made Let&apos;s Assist possible
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        <Card>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card className="transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
           <CardHeader>
-            <CardTitle>Creator & Developer</CardTitle>
+            <CardTitle className="flex items-center gap-2 mb-1">
+              <Image
+                src="/riddhimanrana.webp"
+                alt="Riddhiman Rana"
+                width={24}
+                height={24}
+              />
+              Project Creator
+            </CardTitle>
             <CardDescription>
-              Project lead for idea, creation, development, and marketing.
+              Initial Idea, Founder, and Developer
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-2">
+          <CardContent className="space-y-3">
             <Link
-              href="https://rrcoder0167.is-a.dev"
-              className="text-chart-3 font-semibold"
+              href="https://riddhimanrana.com"
+              className="text-primary font-semibold hover:text-primary/80 transition-colors duration-200 flex items-center gap-1 group"
             >
               Riddhiman Rana
+              <ExternalLink size={16} className="transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
             </Link>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>GitHub Repository</CardTitle>
-            <CardDescription>Source code and project details</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <Link
-              href="https://github.com/riddhimanrana/lets-assist"
-              className="text-chart-3 font-semibold"
-            >
-              lets-assist
-            </Link>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Core Technologies</CardTitle>
-            <CardDescription>The foundation of our platform</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <p>
-              <strong>
-                <Link
-                  href="https://nextjs.org/"
-                  className="text-chart-3 font-semibold"
-                >
-                  Next.js
-                </Link>
-              </strong>{" "}
-              - Our React framework
-            </p>
-            <p>
-              <strong>
-                <Link
-                  href="https://tailwindcss.com/"
-                  className="text-chart-3 font-semibold"
-                >
-                  Tailwind CSS
-                </Link>
-              </strong>{" "}
-              - For styling and design system
-            </p>
-            <p>
-              <strong>
-                <Link
-                  href="https://supabase.com/"
-                  className="text-chart-3 font-semibold"
-                >
-                  Supabase
-                </Link>
-              </strong>{" "}
-              - Backend and authentication
-            </p>
-            <p>
-              <strong>
-                <Link
-                  href="https://vercel.com"
-                  className="text-chart-3 font-semibold"
-                >
-                  Vercel
-                </Link>
-              </strong>{" "}
-              - Project Deployment
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              You can read more about the creation of Let&apos;s Assist on my{" "}
+              <Link
+                href="https://riddhimanrana.com/blog/lets-assist"
+                className="text-primary font-medium hover:text-primary/80 transition-all duration-200"
+              >
+                blog post
+              </Link>.
             </p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
           <CardHeader>
-            <CardTitle>UI Components</CardTitle>
+            <CardTitle className="flex items-center gap-2 mb-1">
+              <SiGithub size={24} />
+              Source Code
+            </CardTitle>
             <CardDescription>
-              Beautiful and accessible components
+              View on GitHub
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-2">
-            <p>
-              <strong>
-                <Link
-                  href="https://ui.shadcn.com/"
-                  className="text-chart-3 font-semibold"
-                >
-                  shadcn/ui
-                </Link>
-              </strong>{" "}
-              - For our component system
-            </p>
-            <p>
-              <strong>
-                <Link
-                  href="https://lucide.dev/"
-                  className="text-chart-3 font-semibold"
-                >
-                  Lucide Icons
-                </Link>
-              </strong>{" "}
-              - Beautiful open source icons
-            </p>
-            <p>
-              <strong>
-                <Link
-                  href="https://simpleicons.org/"
-                  className="text-chart-3 font-semibold"
-                >
-                  Simple Icons
-                </Link>
-              </strong>{" "}
-              - Brand and logo icons
-            </p>
-            <p>
-              <strong>
-                <Link
-                  href="https://ui.aceternity.com/"
-                  className="text-chart-3 font-semibold"
-                >
-                  Aceternity UI
-                </Link>
-              </strong>{" "}
-              - Landing Page components
+          <CardContent className="space-y-3">
+            <Link
+              href="https://github.com/riddhimanrana/lets-assist"
+              className="text-primary font-semibold hover:text-primary/80 transition-colors duration-200 flex items-center gap-1 group"
+            >
+              lets-assist
+              <ExternalLink size={16} className="transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+            </Link>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              This is a solo project and I'm currently not accepting contributions, however the code is still openly available for transparency.
             </p>
           </CardContent>
         </Card>
