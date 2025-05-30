@@ -2,18 +2,23 @@
 
 import { z } from "zod";
 import { createClient } from "@/utils/supabase/server";
+import { verifyTurnstileToken, isTurnstileEnabled } from "@/lib/turnstile";
 
 const signupSchema = z.object({
   fullName: z.string().min(3, "Full name must be at least 3 characters"),
   email: z.string().email("Invalid email address"),
   password: z.string().min(8, "Password must be at least 8 characters"),
+  turnstileToken: z.string().optional(),
 });
 
 export async function signup(formData: FormData) {
+  const turnstileToken = formData.get("turnstileToken") as string;
+
   const validatedFields = signupSchema.safeParse({
     fullName: formData.get("fullName"),
     email: formData.get("email"),
     password: formData.get("password"),
+    turnstileToken,
   });
 
   if (!validatedFields.success) {
@@ -23,11 +28,8 @@ export async function signup(formData: FormData) {
   const supabase = await createClient();
 
   try {
-    // 1. Create auth user
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.signUp({
+    // Pass the CAPTCHA token to Supabase - it will handle verification
+    const signUpOptions: any = {
       email: validatedFields.data.email,
       password: validatedFields.data.password,
       options: {
@@ -35,7 +37,17 @@ export async function signup(formData: FormData) {
           created_at: new Date().toISOString(),
         },
       },
-    });
+    };
+
+    if (turnstileToken) {
+      signUpOptions.options.captchaToken = turnstileToken;
+    }
+
+    // 1. Create auth user
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.signUp(signUpOptions);
 
     if (authError) {
       if (authError.code === "23503") {

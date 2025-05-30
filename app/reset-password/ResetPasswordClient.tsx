@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -25,9 +25,11 @@ import {
 import { toast } from "sonner";
 import Link from "next/link";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { TurnstileComponent, TurnstileRef } from "@/components/ui/turnstile";
 
 const resetPasswordSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
+  turnstileToken: z.string().optional(),
 });
 
 type ResetPasswordValues = z.infer<typeof resetPasswordSchema>;
@@ -39,18 +41,27 @@ interface ResetPasswordClientProps {
 export default function ResetPasswordClient({ error }: ResetPasswordClientProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
+  const [turnstileVerified, setTurnstileVerified] = useState(false);
+  const turnstileRef = useRef<TurnstileRef>(null);
 
   const form = useForm<ResetPasswordValues>({
     resolver: zodResolver(resetPasswordSchema),
     defaultValues: {
       email: "",
+      turnstileToken: "",
     },
   });
 
   async function onSubmit(data: ResetPasswordValues) {
+    const turnstileToken = turnstileRef.current?.getResponse();
+    
     setIsLoading(true);
     const formData = new FormData();
     formData.append("email", data.email);
+    
+    if (turnstileToken) {
+      formData.append("turnstileToken", turnstileToken);
+    }
 
     const result = await requestPasswordReset(formData);
 
@@ -70,6 +81,9 @@ export default function ResetPasswordClient({ error }: ResetPasswordClientProps)
     }
 
     setIsLoading(false);
+    // Reset Turnstile after submission
+    turnstileRef.current?.reset();
+    setTurnstileVerified(false);
   }
 
   if (emailSent) {
@@ -140,6 +154,25 @@ export default function ResetPasswordClient({ error }: ResetPasswordClientProps)
                   </FormItem>
                 )}
               />
+              <div className="flex justify-center">
+                <div className="w-[300px] h-[65px] overflow-hidden bg-muted/30 rounded-lg flex items-center justify-center border border-border/50">
+                <TurnstileComponent
+                  ref={turnstileRef}
+                  onVerify={(token) => {
+                    setTurnstileVerified(true);
+                    form.setValue("turnstileToken", token);
+                  }}
+                  onError={() => {
+                    setTurnstileVerified(false);
+                    toast.error("Security verification failed. Please try again.");
+                  }}
+                  onExpire={() => {
+                    setTurnstileVerified(false);
+                    form.setValue("turnstileToken", "");
+                  }}
+                />
+              </div>
+              </div>
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? "Sending Reset Link..." : "Send Reset Link"}
               </Button>

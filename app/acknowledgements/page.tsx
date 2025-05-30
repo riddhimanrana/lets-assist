@@ -56,7 +56,7 @@ export default function AcknowledgementsPage() {
             <p className="text-sm text-muted-foreground leading-relaxed">
               You can read more about the creation of Let&apos;s Assist on my{" "}
               <Link
-                href="https://riddhimanrana.com/blog/lets-assist"
+                href="https://riddhimanrana.com/blog/building-lets-assist"
                 className="text-primary font-medium hover:text-primary/80 transition-all duration-200"
               >
                 blog post
