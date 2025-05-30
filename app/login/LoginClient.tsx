@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -23,10 +23,12 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { toast } from "sonner";
+import { TurnstileComponent, TurnstileRef } from "@/components/ui/turnstile";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
   password: z.string().min(1, "Password is required"),
+  turnstileToken: z.string().optional(),
 });
 
 type LoginValues = z.infer<typeof loginSchema>;
@@ -38,19 +40,29 @@ interface LoginClientProps {
 export default function LoginClient({ redirectPath }: LoginClientProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [turnstileVerified, setTurnstileVerified] = useState(false);
+  const turnstileRef = useRef<TurnstileRef>(null);
 
   const form = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
       email: "",
       password: "",
+      turnstileToken: "",
     },
   });
 
   async function onSubmit(data: LoginValues) {
+    const turnstileToken = turnstileRef.current?.getResponse();
+    
     setIsLoading(true);
     const formData = new FormData();
     Object.entries(data).forEach(([key, value]) => formData.append(key, value));
+    
+    if (turnstileToken) {
+      formData.append("turnstileToken", turnstileToken);
+    }
+    
     const result = await login(formData);
 
     if (result.error) {
@@ -64,7 +76,11 @@ export default function LoginClient({ redirectPath }: LoginClientProps) {
         }
       });
 
-      if ("server" in errors && errors.server?.[0]?.includes("provider")) {
+      if ("server" in errors && errors.server?.[0]?.includes("captcha verification process failed")) {
+        toast.error("Security verification failed. Please complete the captcha again.");
+        turnstileRef.current?.reset();
+        setTurnstileVerified(false);
+      } else if ("server" in errors && errors.server?.[0]?.includes("provider")) {
         toast.error(
           "This email is registered with password. Please sign in with email and password.",
         );
@@ -76,6 +92,9 @@ export default function LoginClient({ redirectPath }: LoginClientProps) {
     }
 
     setIsLoading(false);
+    // Reset Turnstile after submission
+    turnstileRef.current?.reset();
+    setTurnstileVerified(false);
   }
 
   const handleGoogleSignIn = async () => {
@@ -195,6 +214,26 @@ export default function LoginClient({ redirectPath }: LoginClientProps) {
                     </FormItem>
                   )}
                 />
+                <div className="flex justify-center">
+                  <div className="w-[300px] h-[65px] overflow-hidden bg-muted/30 rounded-lg flex items-center justify-center border border-border/50">
+                    <TurnstileComponent
+                      ref={turnstileRef}
+                      onVerify={(token) => {
+                        setTurnstileVerified(true);
+                        form.setValue("turnstileToken", token);
+                      }}
+                      onError={() => {
+                        setTurnstileVerified(false);
+                        toast.error("Security verification failed. Please try again.");
+                      }}
+                      
+                      onExpire={() => {
+                        setTurnstileVerified(false);
+                        form.setValue("turnstileToken", "");
+                      }}
+                    />
+                  </div>
+                </div>
                 <Button type="submit" className="w-full" disabled={isLoading}>
                   {isLoading ? "Logging in..." : "Login"}
                 </Button>
