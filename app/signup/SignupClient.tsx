@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -24,6 +24,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { toast } from "sonner";
+import { TurnstileComponent, TurnstileRef } from "@/components/ui/turnstile";
 
 interface SignupClientProps {
   redirectPath?: string;
@@ -33,6 +34,7 @@ const signupSchema = z.object({
   fullName: z.string().min(3, "Full name must be at least 3 characters"),
   email: z.string().email("Invalid email address"),
   password: z.string().min(8, "Password must be at least 8 characters"),
+  turnstileToken: z.string().optional(),
 });
 
 type SignupValues = z.infer<typeof signupSchema>;
@@ -40,6 +42,8 @@ type SignupValues = z.infer<typeof signupSchema>;
 export default function SignupClient({ redirectPath }: SignupClientProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [turnstileVerified, setTurnstileVerified] = useState(false);
+  const turnstileRef = useRef<TurnstileRef>(null);
 
   const form = useForm<SignupValues>({
     resolver: zodResolver(signupSchema),
@@ -47,15 +51,22 @@ export default function SignupClient({ redirectPath }: SignupClientProps) {
       fullName: "",
       email: "",
       password: "",
+      turnstileToken: "",
     },
   });
 
   async function onSubmit(data: SignupValues) {
+    const turnstileToken = turnstileRef.current?.getResponse();
+    
     setIsLoading(true);
     const formData = new FormData();
     Object.entries(data).forEach(([key, value]) => formData.append(key, value));
     if (redirectPath) {
       formData.append("redirectUrl", redirectPath);
+    }
+    
+    if (turnstileToken) {
+      formData.append("turnstileToken", turnstileToken);
     }
 
     const result = await signup(formData);
@@ -96,6 +107,9 @@ export default function SignupClient({ redirectPath }: SignupClientProps) {
     }
 
     setIsLoading(false);
+    // Reset Turnstile after submission
+    turnstileRef.current?.reset();
+    setTurnstileVerified(false);
   }
 
   const handleGoogleSignIn = async () => {
@@ -216,22 +230,40 @@ export default function SignupClient({ redirectPath }: SignupClientProps) {
                       <Input type="password" {...field} />
                     </FormControl>
                     <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <p className="text-sm text-muted-foreground text-center">
-                By joining, you agree to our{" "}
-                <Link href="/terms" className="text-chart-3">
-                  Terms of Service
-                </Link>{" "}
-                and{" "}
-                <Link href="/privacy" className="text-chart-3">
-                  Privacy Policy
-                </Link>
-              </p>
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "Creating Account..." : "Create Account"}
-              </Button>
+                  </FormItem>                  )}
+                />
+                <p className="text-sm text-muted-foreground text-center">
+                  By joining, you agree to our{" "}
+                  <Link href="/terms" className="text-chart-3">
+                    Terms of Service
+                  </Link>{" "}
+                  and{" "}
+                  <Link href="/privacy" className="text-chart-3">
+                    Privacy Policy
+                  </Link>
+                </p>
+                <div className="flex justify-center">
+                  <div className="w-[300px] h-[65px] overflow-hidden bg-muted/30 rounded-lg flex items-center justify-center border border-border/50">
+                  <TurnstileComponent
+                    ref={turnstileRef}
+                    onVerify={(token) => {
+                      setTurnstileVerified(true);
+                      form.setValue("turnstileToken", token);
+                    }}
+                    onError={() => {
+                      setTurnstileVerified(false);
+                      toast.error("Security verification failed. Please try again.");
+                    }}
+                    onExpire={() => {
+                      setTurnstileVerified(false);
+                      form.setValue("turnstileToken", "");
+                    }}
+                  />
+                </div>
+                </div>
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? "Creating Account..." : "Create Account"}
+                </Button>
               <div className="mt-4 text-center text-sm">
                 Already have an account?{" "}
                 <Link 
