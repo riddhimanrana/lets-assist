@@ -2,10 +2,12 @@
 
 import { z } from "zod";
 import { createClient } from "@/utils/supabase/server";
+import { verifyTurnstileToken, isTurnstileEnabled } from "@/lib/turnstile";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
   password: z.string().min(1, "Password is required"),
+  turnstileToken: z.string().optional(),
 });
 
 export async function signInWithGoogle(redirectAfterAuth?: string | null) {
@@ -45,19 +47,29 @@ export async function signInWithGoogle(redirectAfterAuth?: string | null) {
 
 export async function login(formData: FormData) {
   const supabase = await createClient();
+  const turnstileToken = formData.get("turnstileToken") as string;
 
   const validatedFields = loginSchema.safeParse({
     email: formData.get("email"),
     password: formData.get("password"),
+    turnstileToken,
   });
 
   if (!validatedFields.success) {
     return { error: validatedFields.error.flatten().fieldErrors };
   }
 
-  const { error } = await supabase.auth.signInWithPassword(
-    validatedFields.data,
-  );
+  // Pass the CAPTCHA token to Supabase - it will handle verification
+  const signInOptions: any = {
+    email: validatedFields.data.email,
+    password: validatedFields.data.password,
+  };
+
+  if (turnstileToken) {
+    signInOptions.options = { captchaToken: turnstileToken };
+  }
+
+  const { error } = await supabase.auth.signInWithPassword(signInOptions);
 
   if (error) {
     return { error: { server: [error.message] } };
