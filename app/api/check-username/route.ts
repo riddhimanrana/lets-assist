@@ -15,7 +15,8 @@ export const GET = async (request: Request) => {
       );
     }
 
-    const result = await checkUsernameUnique(username);
+    const usernameLc = username.toLowerCase();
+    const result = await checkUsernameUnique(usernameLc);
     return NextResponse.json(result);
   } catch (error) {
     return NextResponse.json(

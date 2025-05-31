@@ -395,7 +395,7 @@ export default function UserDashboard({ project, user, signups }: Props) {
 
   if (!signupStatuses || signupStatuses.length === 0) {
     // Render general alerts even if no specific signup cards are shown
-    return <div className="space-y-4 mb-6">{renderGeneralSignupOnlyAlert()}</div>;
+    return <div className="space-y-4">{renderGeneralSignupOnlyAlert()}</div>; // add in mb-6 eventually maybe idk
   }
 
   return (
