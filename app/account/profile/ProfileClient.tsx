@@ -70,6 +70,7 @@ const onboardingSchema = z.object({
         USERNAME_REGEX,
         "Username can only contain letters, numbers, underscores, dots and hyphens",
       )
+      .transform((val) => val.toLowerCase())  // <-- force lowercase
       .optional(),
   ),
   avatarUrl: z.string().nullable().optional(),
@@ -485,7 +486,7 @@ export default function ProfileClient() {
                             <div className="relative">
                               <FormControl>
                                 <Input
-                                  placeholder="Choose a unique username"
+                                  placeholder="ue username"
                                   {...field}
                                   maxLength={USERNAME_MAX_LENGTH}
                                   onChange={(e) => {
@@ -493,8 +494,9 @@ export default function ProfileClient() {
                                       /\s/g,
                                       "",
                                     );
-                                    field.onChange(noSpaces);
-                                    setUsernameLength(noSpaces.length);
+                                    const lower = noSpaces.toLowerCase();          // <-- lowercase here
+                                    field.onChange(lower);
+                                    setUsernameLength(lower.length);
                                   }}
                                   onBlur={(e) => {
                                     field.onBlur();
