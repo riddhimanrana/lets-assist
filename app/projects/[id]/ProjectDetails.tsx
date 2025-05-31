@@ -78,6 +78,7 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { useRef } from "react";
 // Import User type from supabase
 import { User } from "@supabase/supabase-js"; 
+import ProjectInstructionsModal from "./ProjectInstructions";
 
 interface SlotData {
   remainingSlots: Record<string, number>;
@@ -663,6 +664,12 @@ export default function ProjectDetails({
             <Card>
               <CardHeader className="pb-3 flex flex-col mb-1 sm:flex-row items-start sm:items-center justify-between">
                 <CardTitle>Volunteer Opportunities</CardTitle>
+                {/* Add How It Works button for non-creators */}
+                {!isCreator && (
+                  <div className="mb-2">
+                    <ProjectInstructionsModal project={project} isCreator={false} />
+                  </div>
+                )}
               </CardHeader>
               <CardContent>
                 {project.pause_signups && (
