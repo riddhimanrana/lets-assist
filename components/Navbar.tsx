@@ -54,6 +54,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ReportBugDialog } from "@/components/ReportBugDialog";
+import { DonateDialog } from "@/components/DonateDialog";
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { NotificationPopover } from "@/components/NotificationPopover";
@@ -122,6 +123,7 @@ export default function Navbar({ initialUser }: NavbarProps) {
   } | null>(null);
   const [isProfileLoading, setIsProfileLoading] = React.useState(true);
   const [showBugDialog, setShowBugDialog] = useState(false);
+  const [showDonateDialog, setShowDonateDialog] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
   const { theme, setTheme } = useTheme();
   // Add loading state for logout
@@ -479,7 +481,13 @@ export default function Navbar({ initialUser }: NavbarProps) {
                       Report a Bug
                       <Bug className="h-4 w-4" />
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="text-chart-4 focus:text-chart-4 py-2.5 cursor-pointer flex justify-between">
+                    <DropdownMenuItem 
+                      className="text-chart-4 focus:text-chart-4 py-2.5 cursor-pointer flex justify-between"
+                      onSelect={(e) => {
+                        e.preventDefault();
+                        setShowDonateDialog(true);
+                      }}
+                    >
                       <span>Donate</span>
                       <Heart className="h-4 w-4" />
                     </DropdownMenuItem>
@@ -693,7 +701,10 @@ export default function Navbar({ initialUser }: NavbarProps) {
                   <Button
                     variant="ghost"
                     className="w-full justify-between text-chart-4 hover:text-chart-4 hover:bg-chart-4/10"
-                    onClick={handleNavigation}
+                    onClick={() => {
+                      setShowDonateDialog(true);
+                      handleNavigation();
+                    }}
                   >
                     Donate
                     <Heart className="h-4 w-4" />
@@ -708,6 +719,7 @@ export default function Navbar({ initialUser }: NavbarProps) {
       {showBugDialog && (
         <ReportBugDialog onOpenChangeAction={setShowBugDialog} />
       )}
+      <DonateDialog open={showDonateDialog} onOpenChange={setShowDonateDialog} />
     </>
   );
 }
