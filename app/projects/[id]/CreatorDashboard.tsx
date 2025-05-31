@@ -479,8 +479,8 @@ export default function CreatorDashboard({ project }: Props) {
               Manage Files
             </Button>
 
-            {/* Project Instructions Modal */}
-            <ProjectInstructionsModal project={project} />
+            {/* Creator Instructions Modal */}
+            <ProjectInstructionsModal project={project} isCreator={true} />
 
             {/* --- MODIFIED: Manage Hours Button (Conditional) --- */}
             {/* Use the new filtered list */}
