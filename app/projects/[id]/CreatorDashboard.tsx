@@ -36,6 +36,7 @@ import {
   CheckCircle2,
   Clock,
   HelpCircle, // For instructions modal
+  Mail,
 } from "lucide-react";
 import { useState, useMemo } from "react";
 import { deleteProject, updateProjectStatus } from "./actions";
@@ -133,6 +134,56 @@ export default function CreatorDashboard({ project }: Props) {
     } finally {
       setIsDeleting(false);
       setShowDeleteDialog(false);
+    }
+  };
+
+  const handleContactAllSignups = async () => {
+    try {
+      const supabase = createClient();
+      const { data: signups, error } = await supabase
+        .from('project_signups')
+        .select(`
+          user_id,
+          profiles!inner(email, full_name)
+        `)
+        .eq('project_id', project.id)
+        .not('profiles.email', 'is', null);
+
+      if (error) {
+        console.log('Error fetching signups:', error);
+        console.error('Error fetching signups:', error);
+        toast.error("Failed to fetch signup emails" + error.message);
+        return;
+      }
+
+      if (!signups || signups.length === 0) {
+        toast.error("No signups found for this project");
+        return;
+      }
+
+      // Extract emails from the signups
+      const emails = signups
+        .map((signup: any) => signup.profiles?.email)
+        .filter(email => email) // Remove any null/undefined emails
+        .join(',');
+
+      if (!emails) {
+        toast.error("No valid email addresses found");
+        return;
+      }
+
+      // Create mailto link
+      const subject = encodeURIComponent(`Update regarding: ${project.title}`);
+      const body = encodeURIComponent(`Dear volunteers,\n\nI hope this message finds you well. I wanted to reach out regarding the upcoming volunteer project "${project.title}".\n\n[Please add your message here]\n\nThank you for your commitment to this project!\n\nBest regards,\n[Your name]`);
+      const mailtoLink = `mailto:?bcc=${emails}&subject=${subject}&body=${body}`;
+
+      // Open email client
+      window.location.href = mailtoLink;
+      
+      toast.success(`Opening email client with ${signups.length} volunteer emails`);
+    } catch (error) {
+      console.error('Error fetching signups:', error);
+      toast.error("Failed to fetch signup emails");
     }
   };
 
@@ -478,6 +529,27 @@ export default function CreatorDashboard({ project }: Props) {
               <FileEdit className="h-4 w-4" />
               Manage Files
             </Button>
+            
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="w-full sm:w-auto">
+                    <Button
+                      variant="outline"
+                      className="w-full sm:w-auto flex items-center justify-center gap-2"
+                      onClick={handleContactAllSignups}
+                      disabled={isCancelled}
+                    >
+                      <Mail className="h-4 w-4" />
+                      Contact All Signups
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-[300px] p-2">
+                  <p>Open your email client with all volunteer emails pre-populated in BCC field</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
 
             {/* Creator Instructions Modal */}
             <ProjectInstructionsModal project={project} isCreator={true} />
