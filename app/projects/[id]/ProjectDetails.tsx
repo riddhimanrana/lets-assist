@@ -5,6 +5,7 @@ import {
   Project,
   MultiDayScheduleDay,
   SameDayMultiAreaSchedule,
+  SameDayMultiAreaRole,
   OneTimeSchedule,
   Profile,
   Organization,
@@ -79,6 +80,8 @@ import { useRef } from "react";
 // Import User type from supabase
 import { User } from "@supabase/supabase-js"; 
 import ProjectInstructionsModal from "./ProjectInstructions";
+import { SignupConfirmationModal } from "@/components/SignupConfirmationModal";
+import { CancelSignupModal } from "@/components/CancelSignupModal";
 
 interface SlotData {
   remainingSlots: Record<string, number>;
@@ -160,6 +163,16 @@ export default function ProjectDetails({
   // Add state for the confirmation alert
   const [showConfirmationAlert, setShowConfirmationAlert] = useState(false);
   
+  // Add state for confirmation modals
+  const [showSignupConfirmation, setShowSignupConfirmation] = useState(false);
+  const [showCancelConfirmation, setShowCancelConfirmation] = useState(false);
+  const [pendingScheduleId, setPendingScheduleId] = useState<string>("");
+  const [userProfile, setUserProfile] = useState<{
+    full_name: string | null;
+    email: string | null;
+    phone: string | null;
+  }>({ full_name: null, email: null, phone: null });
+  
   // Add state to track calculated status
   const [calculatedStatus, setCalculatedStatus] = useState<ProjectStatus>(
     getProjectStatus(project)
@@ -227,6 +240,35 @@ export default function ProjectDetails({
     
     checkPreviousRejections();
   }, [user, project.id]);
+
+  // Fetch user profile data when user changes
+  useEffect(() => {
+    async function fetchUserProfile() {
+      if (user) {
+        const supabase = createClient();
+        const { data: profile, error } = await supabase
+          .from("profiles")
+          .select("full_name, email, phone")
+          .eq("id", user.id)
+          .single();
+          
+        if (error) {
+          console.error("Error fetching user profile:", error);
+        } else if (profile) {
+          setUserProfile({
+            full_name: profile.full_name,
+            email: profile.email,
+            phone: profile.phone,
+          });
+        }
+      } else {
+        // Clear profile if user logs out
+        setUserProfile({ full_name: null, email: null, phone: null });
+      }
+    }
+    
+    fetchUserProfile();
+  }, [user]);
 
   // Move updateProjectStatusInDB outside useCallback to break circular dependency
   const updateProjectStatusInDB = async (newStatus: ProjectStatus) => {
@@ -372,41 +414,37 @@ export default function ProjectDetails({
       return;
     }
 
+    // For logged-in users, show confirmation modal
+    if (user) {
+      setPendingScheduleId(scheduleId);
+      setShowSignupConfirmation(true);
+      return;
+    }
+
     handleSignUp(scheduleId);
   };
 
   // Cancel signup
   const handleCancelSignup = async (scheduleId: string) => {
-    try {
-      const { data: signups } = await createClient()
-        .from("project_signups")
-        .select("id")
-        .eq("project_id", project.id)
-        .eq("schedule_id", scheduleId)
-        .eq("user_id", user?.id)
-        .eq("status", "approved")
-        .single();
-
-      if (!signups?.id) {
-        toast.error("Signup not found");
-        return;
-      }
-
-      const result = await cancelSignup(signups.id);
-      if (result.error) {
-        toast.error(result.error);
-      } else {
-        toast.success("Successfully cancelled signup");
-        setHasSignedUp(prev => ({ ...prev, [scheduleId]: false }));
-        setRemainingSlots(prev => ({ 
-          ...prev, 
-          [scheduleId]: (prev[scheduleId] || 0) + 1
-        }));
-      }
-    } catch (error) {
-      console.error("Error cancelling signup:", error);
-      toast.error("Failed to cancel signup");
+    // Show confirmation modal for logged-in users
+    if (user) {
+      setPendingScheduleId(scheduleId);
+      setShowCancelConfirmation(true);
+      return;
     }
+  };
+
+  // Handle confirmation modal actions
+  const handleConfirmSignup = () => {
+    setShowSignupConfirmation(false);
+    handleSignUp(pendingScheduleId);
+    setPendingScheduleId("");
+  };
+
+  const handleCloseModals = () => {
+    setShowSignupConfirmation(false);
+    setShowCancelConfirmation(false);
+    setPendingScheduleId("");
   };
 
   // Handle signup
@@ -1329,6 +1367,132 @@ export default function ProjectDetails({
         fileName={previewDocName}
         fileType={previewDocType}
       />
+
+      {/* Signup Confirmation Modal */}
+      {pendingScheduleId && (
+        <SignupConfirmationModal
+          isOpen={showSignupConfirmation}
+          onClose={handleCloseModals}
+          onConfirm={handleConfirmSignup}
+          project={{
+            title: project.title,
+            date: (() => {
+              // Get the appropriate date from the schedule
+              if (project.event_type === "oneTime" && project.schedule.oneTime) {
+                return project.schedule.oneTime.date;
+              } else if (project.event_type === "multiDay" && project.schedule.multiDay) {
+                // For multiDay, schedule ID is like "2024-05-31-0", extract the date part
+                const datePart = pendingScheduleId.split('-').slice(0, 3).join('-');
+                const day = project.schedule.multiDay.find((d: MultiDayScheduleDay) => d.date === datePart);
+                return day?.date || project.schedule.multiDay[0]?.date || '';
+              } else if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
+                return project.schedule.sameDayMultiArea.date;
+              }
+              return '';
+            })(),
+            location: project.location,
+            start_time: (() => {
+              // Get the appropriate start time from the schedule
+              if (project.event_type === "oneTime" && project.schedule.oneTime) {
+                return project.schedule.oneTime.startTime;
+              } else if (project.event_type === "multiDay" && project.schedule.multiDay) {
+                const datePart = pendingScheduleId.split('-').slice(0, 3).join('-');
+                const slotIndex = parseInt(pendingScheduleId.split('-')[3]);
+                const day = project.schedule.multiDay.find((d: MultiDayScheduleDay) => d.date === datePart);
+                return day?.slots[slotIndex]?.startTime;
+              } else if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
+                const role = project.schedule.sameDayMultiArea.roles.find((r: SameDayMultiAreaRole) => r.name === pendingScheduleId);
+                return role?.startTime;
+              }
+              return undefined;
+            })(),
+            end_time: (() => {
+              // Get the appropriate end time from the schedule
+              if (project.event_type === "oneTime" && project.schedule.oneTime) {
+                return project.schedule.oneTime.endTime;
+              } else if (project.event_type === "multiDay" && project.schedule.multiDay) {
+                const datePart = pendingScheduleId.split('-').slice(0, 3).join('-');
+                const slotIndex = parseInt(pendingScheduleId.split('-')[3]);
+                const day = project.schedule.multiDay.find((d: MultiDayScheduleDay) => d.date === datePart);
+                return day?.slots[slotIndex]?.endTime;
+              } else if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
+                const role = project.schedule.sameDayMultiArea.roles.find((r: SameDayMultiAreaRole) => r.name === pendingScheduleId);
+                return role?.endTime;
+              }
+              return undefined;
+            })(),
+          }}
+          isLoading={loadingStates[pendingScheduleId]}
+        />
+      )}
+
+      {/* Cancel Confirmation Modal */}
+      {/* Cancel Signup Modal */}
+      {pendingScheduleId && user && (
+        <CancelSignupModal
+          isOpen={showCancelConfirmation}
+          onClose={handleCloseModals}
+          onSuccess={(scheduleId) => {
+            // Handle successful cancellation
+            setHasSignedUp(prev => ({ ...prev, [scheduleId]: false }));
+            setRemainingSlots(prev => ({ 
+              ...prev, 
+              [scheduleId]: (prev[scheduleId] || 0) + 1
+            }));
+          }}
+          project={{
+            title: project.title,
+            date: (() => {
+              // Get the appropriate date from the schedule
+              if (project.event_type === "oneTime" && project.schedule.oneTime) {
+                return project.schedule.oneTime.date;
+              } else if (project.event_type === "multiDay" && project.schedule.multiDay) {
+                // For multiDay, schedule ID is like "2024-05-31-0", extract the date part
+                const datePart = pendingScheduleId.split('-').slice(0, 3).join('-');
+                const day = project.schedule.multiDay.find((d: MultiDayScheduleDay) => d.date === datePart);
+                return day?.date || project.schedule.multiDay[0]?.date || '';
+              } else if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
+                return project.schedule.sameDayMultiArea.date;
+              }
+              return '';
+            })(),
+            location: project.location,
+            start_time: (() => {
+              // Get the appropriate start time from the schedule
+              if (project.event_type === "oneTime" && project.schedule.oneTime) {
+                return project.schedule.oneTime.startTime;
+              } else if (project.event_type === "multiDay" && project.schedule.multiDay) {
+                const datePart = pendingScheduleId.split('-').slice(0, 3).join('-');
+                const slotIndex = parseInt(pendingScheduleId.split('-')[3]);
+                const day = project.schedule.multiDay.find((d: MultiDayScheduleDay) => d.date === datePart);
+                return day?.slots[slotIndex]?.startTime;
+              } else if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
+                const role = project.schedule.sameDayMultiArea.roles.find((r: SameDayMultiAreaRole) => r.name === pendingScheduleId);
+                return role?.startTime;
+              }
+              return undefined;
+            })(),
+            end_time: (() => {
+              // Get the appropriate end time from the schedule
+              if (project.event_type === "oneTime" && project.schedule.oneTime) {
+                return project.schedule.oneTime.endTime;
+              } else if (project.event_type === "multiDay" && project.schedule.multiDay) {
+                const datePart = pendingScheduleId.split('-').slice(0, 3).join('-');
+                const slotIndex = parseInt(pendingScheduleId.split('-')[3]);
+                const day = project.schedule.multiDay.find((d: MultiDayScheduleDay) => d.date === datePart);
+                return day?.slots[slotIndex]?.endTime;
+              } else if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
+                const role = project.schedule.sameDayMultiArea.roles.find((r: SameDayMultiAreaRole) => r.name === pendingScheduleId);
+                return role?.endTime;
+              }
+              return undefined;
+            })(),
+          }}
+          projectId={project.id}
+          scheduleId={pendingScheduleId}
+          userId={user.id}
+        />
+      )}
     </>
   );
 }

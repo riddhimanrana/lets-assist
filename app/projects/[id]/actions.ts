@@ -151,9 +151,243 @@ const generateConfirmationEmailHtml = (
   `;
 };
 
+// Function to generate signup confirmation email for logged-in users
+const generateLoggedInUserConfirmationEmailHtml = (
+  projectName: string,
+  userName: string,
+  projectDate: string,
+  projectTime: string,
+  projectLocation: string,
+  projectUrl: string
+): string => {
+  return `
+  <!DOCTYPE html>
+  <html lang="en">
+  <head>
+      <meta charset="UTF-8">
+      <title>Signup Confirmed</title>
+      <style>
+          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+          * {
+              margin: 0;
+              padding: 0;
+              font-family: 'Inter', 'Arial', sans-serif;
+          }
+          body {
+              background-color: #f9f9f9;
+              color: #333;
+              line-height: 1.6;
+          }
+          .email-container {
+              background-color: #ffffff;
+              overflow: hidden;
+          }
+          .email-body {
+              padding: 32px 24px;
+              background-color: #ffffff;
+          }
+          h1 {
+              color: #222;
+              font-size: 28px;
+              font-weight: 700;
+              margin-bottom: 20px;
+              letter-spacing: -0.02em;
+          }
+          p {
+              color: #555;
+              font-size: 16px;
+              margin-bottom: 20px;
+          }
+          .view-event-button {
+              display: inline-block;
+              background-color: #16a34a;
+              color: #fff !important;
+              text-decoration: none;
+              padding: 12px 32px;
+              border-radius: 6px;
+              font-weight: 600;
+              font-size: 14px;
+              margin: 24px 0;
+              transition: background-color 0.2s ease;
+              box-shadow: 0 4px 8px rgba(22, 163, 74, 0.15);
+              text-align: center;
+          }
+          .view-event-button:hover {
+              background-color: #15803d;
+          }
+          .event-details {
+              background-color: #f8f9fa;
+              border-radius: 6px;
+              padding: 20px;
+              margin: 24px 0;
+              border-left: 4px solid #16a34a;
+          }
+          .detail-row {
+              margin-bottom: 8px;
+              font-size: 15px;
+          }
+          .detail-row:last-child {
+              margin-bottom: 0;
+          }
+          .detail-label {
+              font-weight: 600;
+              color: #374151;
+              display: inline-block;
+              width: 80px;
+          }
+          .detail-value {
+              color: #555;
+          }
+          .email-footer {
+              padding: 20px 24px;
+              text-align: center;
+              font-size: 14px;
+              color: #777;
+              background-color: #f9fafb;
+              border-top: 1px solid #f0f0f0;
+          }
+          .help-text {
+              font-size: 14px;
+              color: #777;
+          }
+          .getting-started {
+              margin-top: 28px;
+              padding-top: 16px;
+              border-top: 1px solid #f0f0f0;
+              font-size: 15px;
+          }
+      </style>
+  </head>
+  <body>
+      <div class="email-container">
+          <div class="email-body">
+              <h1>Signup Confirmed!</h1>
+              <p>Hi ${userName},</p>
+              <p>Your signup for <strong>${projectName}</strong> has been confirmed. We're excited to have you volunteer with us!</p>
+              
+              <div class="event-details">
+                  <div class="detail-row">
+                      <span class="detail-label">Event:</span>
+                      <span class="detail-value">${projectName}</span>
+                  </div>
+                  <div class="detail-row">
+                      <span class="detail-label">Date:</span>
+                      <span class="detail-value">${projectDate}</span>
+                  </div>
+                  ${projectTime ? `
+                  <div class="detail-row">
+                      <span class="detail-label">Time:</span>
+                      <span class="detail-value">${projectTime}</span>
+                  </div>` : ''}
+                  <div class="detail-row">
+                      <span class="detail-label">Location:</span>
+                      <span class="detail-value">${projectLocation}</span>
+                  </div>
+              </div>
+              
+              <div style="text-align: center;">
+                  <a href="${projectUrl}" class="view-event-button">View Event Details</a>
+              </div>
+              
+              <div class="getting-started">
+                  <p><strong>What's next?</strong></p>
+                  <ul style="margin-top: 12px; padding-left: 20px;">
+                      <li>Mark your calendar for the event date</li>
+                      <li>Check your email for any updates from the organizers</li>
+                      <li>Visit the event page for additional information</li>
+                  </ul>
+              </div>
+          </div>
+          <div class="email-footer">
+              <p>&copy; ${new Date().getFullYear()} Let&apos;s Assist, LLC. All rights reserved.</p>
+              <p>Questions? Contact us at <a href="mailto:support@lets-assist.com" style="color: #16a34a; font-weight: 500;">support@lets-assist.com</a></p>
+          </div>
+      </div>
+  </body>
+  </html>
+  `;
+};
 
 
-// ...existing code...
+
+// Function to extract schedule details for email notifications
+function getScheduleDetails(project: Project, scheduleId: string) {
+  if (project.event_type === "oneTime") {
+    const schedule = project.schedule.oneTime;
+    if (!schedule) return { date: "TBD", time: "TBD", timeRange: "TBD" };
+    
+    const date = new Date(schedule.date).toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+    
+    const timeRange = schedule.startTime && schedule.endTime 
+      ? `${schedule.startTime} - ${schedule.endTime}`
+      : schedule.startTime || "TBD";
+    
+    return {
+      date,
+      time: schedule.startTime || "TBD",
+      timeRange
+    };
+  } else if (project.event_type === "multiDay") {
+    const parts = scheduleId.split("-");
+    if (parts.length >= 2) {
+      const slotIndexStr = parts.pop();
+      const dateStr = parts.join("-");
+      
+      const day = project.schedule.multiDay?.find(d => d.date === dateStr);
+      if (!day) return { date: "TBD", time: "TBD", timeRange: "TBD" };
+      
+      const slotIndex = parseInt(slotIndexStr!, 10);
+      const slot = day.slots[slotIndex];
+      if (!slot) return { date: "TBD", time: "TBD", timeRange: "TBD" };
+      
+      const date = new Date(dateStr).toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+      
+      const timeRange = slot.startTime && slot.endTime 
+        ? `${slot.startTime} - ${slot.endTime}`
+        : slot.startTime || "TBD";
+      
+      return {
+        date,
+        time: slot.startTime || "TBD",
+        timeRange
+      };
+    }
+  } else if (project.event_type === "sameDayMultiArea") {
+    const schedule = project.schedule.sameDayMultiArea;
+    if (!schedule) return { date: "TBD", time: "TBD", timeRange: "TBD" };
+    
+    const date = new Date(schedule.date).toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+    
+    const role = schedule.roles.find(r => r.name === scheduleId);
+    const timeRange = role?.startTime && role?.endTime 
+      ? `${role.startTime} - ${role.endTime}`
+      : role?.startTime || schedule.overallStart || "TBD";
+    
+    return {
+      date,
+      time: role?.startTime || schedule.overallStart || "TBD",
+      timeRange
+    };
+  }
+  
+  return { date: "TBD", time: "TBD", timeRange: "TBD" };
+}
 
 export async function isProjectCreator(projectId: string) {
   try {
@@ -441,6 +675,48 @@ export async function signUpForProject(
         if (signupError) {
           console.error("Error creating signup for registered user:", signupError);
           return { error: "Failed to sign up. Please try again." };
+        }
+        
+        // Send confirmation email to logged-in user
+        try {
+          // Get user profile for email
+          const { data: userProfile } = await supabase
+            .from("profiles")
+            .select("full_name, email")
+            .eq("id", user.id)
+            .single();
+
+          if (userProfile?.email) {
+            // Get schedule details for email
+            const { date, time, timeRange } = getScheduleDetails(project, scheduleId);
+            const projectUrl = `${siteUrl}/projects/${projectId}`;
+            
+            const emailHtml = generateLoggedInUserConfirmationEmailHtml(
+              project.title,
+              userProfile.full_name || 'Volunteer',
+              date,
+              timeRange,
+              project.location,
+              projectUrl
+            );
+
+            const { data: emailData, error: emailError } = await resend.emails.send({
+              from: "Let's Assist <projects@notifications.lets-assist.com>",
+              to: [userProfile.email],
+              subject: `Signup confirmed for ${project.title}`,
+              html: emailHtml,
+            });
+
+            if (emailError) {
+              console.error("Error sending confirmation email to logged-in user:", emailError);
+              // Don't fail the signup if email fails
+            } else {
+              console.log("Confirmation email sent to logged-in user successfully:", emailData);
+            }
+          }
+        } catch (emailError) {
+          console.error("Error in email sending process for logged-in user:", emailError);
+          // Don't fail the signup if email fails
         }
         
         // Explicitly log success for debugging
@@ -1069,6 +1345,40 @@ export async function checkInParticipant(
       success: false, 
       error: "An unexpected error occurred" 
     };
+  }
+}
+
+export async function getUserProfile() {
+  const supabase = await createClient();
+  
+  try {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    
+    if (userError || !user) {
+      return { error: "Not authenticated" };
+    }
+
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('full_name, phone')
+      .eq('id', user.id)
+      .single();
+
+    if (profileError) {
+      console.error('Error fetching profile:', profileError);
+      return { error: "Failed to fetch profile" };
+    }
+
+    return {
+      profile: {
+        full_name: profile.full_name || null,
+        email: user.email || null,
+        phone: profile.phone || null,
+      }
+    };
+  } catch (error) {
+    console.error('Error in getUserProfile:', error);
+    return { error: "An unexpected error occurred" };
   }
 }
 
