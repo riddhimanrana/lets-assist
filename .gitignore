@@ -41,3 +41,6 @@ next-env.d.ts
 # github/vscode settings
 /.github
 /.vscode
+
+# roo code
+/.roo
