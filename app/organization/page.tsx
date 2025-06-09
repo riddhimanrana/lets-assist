@@ -9,8 +9,8 @@ export const metadata: Metadata = {
 
 export default async function OrganizationsPage() {
   const supabase = await createClient();
-  const { data: { session } } = await supabase.auth.getSession();
-  const isLoggedIn = !!session;
+  const { data: { user } } = await supabase.auth.getUser();
+  const isLoggedIn = !!user;
   
   // Fetch organizations with ordering by verified status first
   const { data: organizations } = await supabase
