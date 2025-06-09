@@ -226,7 +226,7 @@ export default function EditProjectClient({ project }: Props) {
   };
 
   const handleDeleteProject = async () => {
-    if (!canDeleteProject(project)) {
+    if (canDeleteProject(project)) {
       toast.error("Projects cannot be deleted 24 hours before start until 48 hours after end");
       setShowDeleteDialog(false);
       return;
@@ -512,7 +512,6 @@ export default function EditProjectClient({ project }: Props) {
                   </p>
                   <Button 
                     onClick={() => setShowCancelDialog(true)}
-                    disabled={!canCancel}
                     className="w-full bg-chart-4 hover:bg-chart-4/90"
                   >
                     Cancel Project
@@ -536,7 +535,7 @@ export default function EditProjectClient({ project }: Props) {
                         <Button 
                           variant="destructive"
                           onClick={() => setShowDeleteDialog(true)}
-                          disabled={isDeleting || !canDelete}
+                          
                           className="w-full"
                         >
                           {isDeleting ? (
