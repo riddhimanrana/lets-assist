@@ -44,3 +44,6 @@ next-env.d.ts
 
 # roo code
 /.roo
+
+sitemap.xml
+robots.txt
