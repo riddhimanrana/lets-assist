@@ -12,6 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ActivityChart } from "./ActivityChart";
+import { CertificateExport } from "./CertificateExport";
 import { Project, ProjectSchedule } from "@/types";
 import { getSlotDetails } from "@/utils/project";
 import { Metadata } from "next";
@@ -580,6 +581,14 @@ export default async function VolunteerDashboard() {
 
         {/* Right Column */}
         <div className="space-y-8">
+          {/* Certificate Export */}
+          {user.email && (
+            <CertificateExport 
+              userEmail={user.email}
+              totalCertificates={statistics.totalCertificates}
+            />
+          )}
+
           {/* Goals */}
           <Card>
             <CardHeader>

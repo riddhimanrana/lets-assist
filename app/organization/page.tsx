@@ -12,7 +12,7 @@ export default async function OrganizationsPage() {
   const { data: { user } } = await supabase.auth.getUser();
   const isLoggedIn = !!user;
   
-  // Fetch organizations with ordering by verified status first
+  // Fetch all organizations
   const { data: organizations } = await supabase
     .from("organizations")
     .select(`
@@ -24,13 +24,12 @@ export default async function OrganizationsPage() {
       logo_url,
       type,
       verified,
-      created_at,
-      organization_members!inner(user_id)
+      created_at
     `)
     .order('verified', { ascending: false })
     .order('created_at', { ascending: false });
 
-  // Get member counts
+  // Get member counts for all organizations
   const { data: memberCounts } = await supabase
     .from("organization_members")
     .select('organization_id', { count: 'exact', head: false });
@@ -41,11 +40,38 @@ export default async function OrganizationsPage() {
     return acc;
   }, {} as Record<string, number>);
 
+  // If user is logged in, fetch their organization memberships
+  let userMemberships: any[] = [];
+  if (isLoggedIn && user) {
+    const { data: memberships } = await supabase
+      .from('organization_members')
+      .select(`
+        role,
+        organization_id,
+        organizations (
+          id,
+          name,
+          username,
+          description,
+          website,
+          logo_url,
+          type,
+          verified,
+          created_at
+        )
+      `)
+      .eq('user_id', user.id)
+      .order('role', { ascending: false }); // Admin first, then staff, then member
+
+    userMemberships = memberships || [];
+  }
+
   return (
     <OrganizationsDisplay
       organizations={organizations || []}
       memberCounts={orgMemberCounts}
       isLoggedIn={isLoggedIn}
+      userMemberships={userMemberships}
     />
   );
 }
