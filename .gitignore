@@ -39,7 +39,7 @@ next-env.d.ts
 /supabase
 
 # github/vscode settings
-# /.github
+/.github
 /.vscode
 
 # roo code
