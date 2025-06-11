@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { Project, ProjectSignup } from "@/types"; // Use ProjectSignup type
 import { Input } from "@/components/ui/input";
-import { Search, ArrowLeft, Clock, CheckCircle, RefreshCw, Loader2, UserRoundCheck, Info, Edit, AlertCircle, PencilLine, FileText, Copy } from "lucide-react";
+import { Search, ArrowLeft, Clock, CheckCircle, RefreshCw, Loader2, UserRoundCheck, Info, Edit, AlertCircle, PencilLine, FileText, Copy, Mail } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { format, parseISO, differenceInMinutes, differenceInSeconds, isAfter, isValid } from "date-fns";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -84,6 +84,23 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses, a
   const [showPublishSuccessModal, setShowPublishSuccessModal] = useState(false);
   const [publishedSessionEmails, setPublishedSessionEmails] = useState<string[]>([]);
   const [currentPublishedSessionName, setCurrentPublishedSessionName] = useState<string>("");
+  const [emailsSentCount, setEmailsSentCount] = useState<number>(0);
+  const [emailErrors, setEmailErrors] = useState<string[]>([]);
+  
+  // State for certificates modal
+  const [showCertificatesModal, setShowCertificatesModal] = useState(false);
+  const [certificatesModalData, setCertificatesModalData] = useState<{
+    sessionName: string;
+    volunteers: Array<{
+      name: string;
+      email: string;
+      checkInTime: string;
+      checkOutTime: string;
+      hours: string;
+      durationMinutes: number;
+    }>;
+  } | null>(null);
+  const [loadingCertificates, setLoadingCertificates] = useState(false);
   
   // Log initial data for debugging
   useEffect(() => {
@@ -269,6 +286,73 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses, a
     }));
   };
 
+  // Function to load certificates data for a session
+  const loadCertificatesData = async (sessionId: string) => {
+    setLoadingCertificates(true);
+    try {
+      // Find all signups for this session
+      let sessionSignups: ProjectSignup[] = [];
+      const allSessions = getAllProjectSessions;
+      
+      // Try exact match first
+      if (signupsBySession[sessionId]) {
+        sessionSignups = signupsBySession[sessionId];
+      } else {
+        // Try all alternative IDs
+        const session = allSessions.find((s: { id: string; name: string; endDateTime: Date; status: 'upcoming' | 'in-progress' | 'completed' | 'editing'; alternativeIds: string[] }) => s.id === sessionId);
+        if (session) {
+          for (const altId of session.alternativeIds) {
+            if (signupsBySession[altId]) {
+              sessionSignups = signupsBySession[altId];
+              break;
+            }
+          }
+        }
+      }
+
+      // Filter to only volunteers with valid hours (those that would have certificates)
+      const volunteersWithHours = sessionSignups
+        .map(signup => {
+          const edited = editedTimes[signup.id];
+          if (!edited || !edited.check_in_time || !edited.check_out_time) {
+            return null;
+          }
+          const duration = calculateDuration(edited.check_in_time, edited.check_out_time);
+          if (!duration.isValid) {
+            return null;
+          }
+
+          return {
+            name: signup.profile?.full_name || signup.anonymous_signup?.name || "Anonymous Volunteer",
+            email: signup.profile?.email || signup.anonymous_signup?.email || "N/A",
+            checkInTime: format(new Date(edited.check_in_time), "MMM d, yyyy h:mm a"),
+            checkOutTime: format(new Date(edited.check_out_time), "MMM d, yyyy h:mm a"),
+            hours: duration.text,
+            durationMinutes: duration.minutes
+          };
+        })
+        .filter(v => v !== null) as Array<{
+          name: string;
+          email: string;
+          checkInTime: string;
+          checkOutTime: string;
+          hours: string;
+          durationMinutes: number;
+        }>;
+
+      setCertificatesModalData({
+        sessionName: formatSessionName(project, sessionId),
+        volunteers: volunteersWithHours
+      });
+      setShowCertificatesModal(true);
+    } catch (error) {
+      console.error("Error loading certificates data:", error);
+      toast.error("Failed to load certificates data");
+    } finally {
+      setLoadingCertificates(false);
+    }
+  };
+
   // Add function to initiate the publish confirmation
   const initiatePublishHours = (sessionId: string) => {
     // Find all signups for this session to show count in confirmation
@@ -372,19 +456,33 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses, a
       const result = await publishVolunteerHours(project.id, sessionId, volunteersData);
 
       if (result.success) {
-        toast.success("Hours Published!", {
-          description: `${result.certificatesCreated} certificates generated for session: ${formatSessionName(project, sessionId)}.`,
-        });
+        const emailsSent = (result as any).emailsSent || 0;
+        const emailErrors = (result as any).emailErrors || [];
+        
+        if (emailsSent > 0) {
+          toast.success("Hours Published & Emails Sent!", {
+            description: `${result.certificatesCreated} certificates generated and ${emailsSent} email notifications sent for session: ${formatSessionName(project, sessionId)}.`,
+          });
+        } else {
+          toast.success("Hours Published!", {
+            description: `${result.certificatesCreated} certificates generated for session: ${formatSessionName(project, sessionId)}. ${emailErrors.length > 0 ? 'However, some email notifications failed to send.' : 'Email notifications were not sent.'}`,
+          });
+        }
+        
         // Update published status locally
         const publishKey = getPublishStateKey(sessionId); // Ensure getPublishStateKey is in scope
         setPublishedSessions((prev: Record<string, boolean>) => ({ ...prev, [publishKey]: true })); // Corrected to setPublishedSessions and added type for prev
 
-        // Prepare for success modal
+        // Prepare for success modal with updated information
         const emails = volunteersData
           .map(v => v.email)
           .filter(email => email !== null && email.trim() !== "") as string[];
         setPublishedSessionEmails(emails);
         setCurrentPublishedSessionName(formatSessionName(project, sessionId));
+        
+        // Store email sent information for the modal
+        setEmailsSentCount(emailsSent);
+        setEmailErrors(emailErrors);
         setShowPublishSuccessModal(true);
 
       } else {
@@ -750,10 +848,26 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses, a
     return sessionId;
   };
 
-  // --- Filter active sessions for the header display ---
+  // --- Filter active sessions for the header display - only show sessions in "editing" status that are unpublished ---
   const activeUnpublishedSessions = useMemo(() => {
-    return activeSessions.filter(session => !isSessionPublished(session.id));
-  }, [activeSessions, publishedSessions]);
+    // First get all sessions in editing status from getAllProjectSessions
+    const editingSessions = getAllProjectSessions.filter(session => session.status === 'editing');
+    
+    // Then filter out published sessions and add hoursRemaining calculation
+    return editingSessions
+      .filter(session => !isSessionPublished(session.id))
+      .map(session => {
+        // Calculate hours remaining (48 hour editing window)
+        const now = new Date();
+        const hoursSinceEnd = differenceInMinutes(now, session.endDateTime) / 60;
+        const hoursRemaining = Math.max(0, 48 - hoursSinceEnd);
+        
+        return {
+          ...session,
+          hoursRemaining: Math.floor(hoursRemaining)
+        };
+      });
+  }, [getAllProjectSessions, publishedSessions]);
   // --- End filter ---
 
   return (
@@ -774,44 +888,69 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses, a
           <DialogHeader>
             <DialogTitle>Hours Published for {currentPublishedSessionName}</DialogTitle>
             <DialogDescription>
-              Volunteer hours have been finalized and certificates generated. You can copy the emails below to notify your volunteers.
+              Volunteer hours have been finalized and certificates generated.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="max-h-40 overflow-y-auto rounded-md border p-3">
-              {publishedSessionEmails.length > 0 ? (
-                publishedSessionEmails.map((email, index) => (
-                  <div key={index} className="text-sm">{email}</div>
-                ))
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center gap-2 p-3 rounded-md bg-chart-5/10 border border-chart-5/80">
+                <CheckCircle className="h-5 w-5 text-chart-5" />
+                <div className="text-sm">
+                  <p className="font-medium">Certificates Created</p>
+                  <p className="text-muted-foreground">Generated certificates for all volunteers</p>
+                </div>
+              </div>
+              
+              {emailsSentCount > 0 ? (
+                <div className="flex items-center gap-2 p-3 rounded-md bg-chart-3/10 border border-chart-3/80">
+                  <Mail className="h-5 w-5 text-chart-3" />
+                  <div className="text-sm">
+                    <p className="font-medium">Email Notifications Sent</p>
+                    <p className="text-muted-foreground">
+                      Sent {emailsSentCount} email notification{emailsSentCount !== 1 ? 's' : ''} to volunteers with their certificate links
+                    </p>
+                  </div>
+                </div>
               ) : (
-                <p className="text-sm text-muted-foreground">No emails available for this session&apos;s attendees.</p>
+                <div className="flex items-center gap-2 p-3 rounded-md bg-orange-50 border border-orange-200">
+                  <AlertCircle className="h-5 w-5 text-orange-600" />
+                  <div className="text-sm">
+                    <p className="font-medium text-orange-800">Email Notifications</p>
+                    <p className="text-orange-600">
+                      {emailErrors.length > 0 
+                        ? "Some email notifications failed to send" 
+                        : "No email notifications were sent (missing email addresses)"}
+                    </p>
+                  </div>
+                </div>
               )}
             </div>
-            {publishedSessionEmails.length > 0 && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  navigator.clipboard.writeText(publishedSessionEmails.join(", "));
-                  toast("Emails Copied!", { description: "Volunteer emails copied to clipboard." }); // Corrected toast call
-                }}
-                className="w-full"
-              >
-                <Copy className="mr-2 h-4 w-4" />
-                Copy Emails
-              </Button>
+
+            {emailErrors.length > 0 && (
+              <div className="mt-4">
+                <details className="text-sm">
+                  <summary className="cursor-pointer text-orange-600 font-medium mb-2">
+                    View Email Errors ({emailErrors.length})
+                  </summary>
+                  <div className="bg-orange-50 border border-orange-200 rounded p-2 max-h-32 overflow-y-auto">
+                    {emailErrors.map((error, index) => (
+                      <p key={index} className="text-xs text-orange-700 mb-1">{error}</p>
+                    ))}
+                  </div>
+                </details>
+              </div>
             )}
+            
             <Alert variant="default" className="mt-4">
               <Info className="h-4 w-4" />
-              <AlertTitle className="font-semibold">Notification Message for Volunteers:</AlertTitle>
+              <AlertTitle className="font-semibold">What happens next?</AlertTitle>
               <AlertDescription className="text-xs space-y-1">
-                <p>The volunteer hours for this session have been successfully published, and certificates have been generated.</p>
-                <p className="font-medium">For Volunteers:</p>
-                <ul className="list-disc pl-5 space-y-0.5">
-                  <li><strong>If you have a Let&apos;s Assist account:</strong> Please check the project page or your profile for your certificate.</li>
-                  <li><strong>If you signed up anonymously:</strong> Please refer to your original anonymous signup confirmation email. Click the link in that email to view your signup details and access your certificate.</li>
+                <ul className="list-disc pl-5 space-y-0.5 mt-2">
+                  <li><strong>Volunteers with accounts:</strong> Can access certificates via their profile or the project page</li>
+                  <li><strong>Anonymous volunteers:</strong> Will receive email notifications with direct certificate links</li>
+                  <li><strong>All certificates:</strong> Are now permanently available and can be verified at any time</li>
                 </ul>
-                <p className="mt-1">If you encounter any issues locating your certificate, please contact the project organizer.</p>
+                <p className="mt-2">If volunteers need help accessing their certificates, direct them to contact you or support@lets-assist.com</p>
               </AlertDescription>
             </Alert>
           </div>
@@ -859,6 +998,132 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses, a
             >
               Confirm & Publish
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Certificates Modal */}
+      <Dialog open={showCertificatesModal} onOpenChange={setShowCertificatesModal}>
+        <DialogContent className="w-[95vw] max-w-4xl flex flex-col">
+          <DialogHeader className="flex-shrink-0">
+            <DialogTitle className="text-lg sm:text-xl flex items-center">
+              <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-primary mr-2 flex-shrink-0" />
+              <span className="truncate">Certificate Details</span>
+            </DialogTitle>
+            <DialogDescription className="text-sm">
+              {certificatesModalData ? (
+                <>
+                  <span className="block sm:inline">Session: <strong className="break-words">{certificatesModalData.sessionName}</strong></span>
+                  <span className="block sm:inline sm:ml-2">• {certificatesModalData.volunteers.length} volunteer{certificatesModalData.volunteers.length !== 1 ? 's' : ''}</span>
+                </>
+              ) : (
+                "Loading certificate details..."
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="flex-1 overflow-hidden flex flex-col min-h-0">
+            {certificatesModalData ? (
+              <div className="flex flex-col h-full space-y-4">
+                <div className="flex-1 overflow-auto min-h-0">
+                  <Table>
+                    <TableHeader className="sticky top-0 bg-background z-10">
+                      <TableRow>
+                        <TableHead className="w-[120px] sm:w-[150px]">Name</TableHead>
+                        <TableHead className="w-[150px] sm:w-[200px] hidden sm:table-cell">Email</TableHead>
+                        <TableHead className="w-[100px] sm:w-[140px]">Check-in</TableHead>
+                        <TableHead className="w-[100px] sm:w-[140px]">Check-out</TableHead>
+                        <TableHead className="w-[80px] sm:w-[100px]">Hours</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {certificatesModalData.volunteers.length > 0 ? (
+                        certificatesModalData.volunteers.map((volunteer, index) => (
+                          <TableRow key={index}>
+                            <TableCell className="font-medium">
+                              <div className="space-y-1">
+                                <div className="truncate">{volunteer.name}</div>
+                                <div className="sm:hidden text-xs text-muted-foreground truncate">{volunteer.email}</div>
+                              </div>
+                            </TableCell>
+                            <TableCell className="hidden sm:table-cell">{volunteer.email}</TableCell>
+                            <TableCell className="text-xs sm:text-sm">
+                              <div className="space-y-1">
+                                <div>{format(new Date(volunteer.checkInTime), "MMM d")}</div>
+                                <div className="text-muted-foreground">{format(new Date(volunteer.checkInTime), "h:mm a")}</div>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-xs sm:text-sm">
+                              <div className="space-y-1">
+                                <div>{format(new Date(volunteer.checkOutTime), "MMM d")}</div>
+                                <div className="text-muted-foreground">{format(new Date(volunteer.checkOutTime), "h:mm a")}</div>
+                              </div>
+                            </TableCell>
+                            <TableCell className="font-medium">{volunteer.hours}</TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                            No volunteers with valid hours found for this session.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+                
+                {certificatesModalData.volunteers.length > 0 && (
+                  <div className="flex-shrink-0 bg-muted/30 rounded-md p-4">
+                    <p className="text-sm font-medium mb-2">Summary:</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 text-sm">
+                      <div className="text-center sm:text-left">
+                        <span className="text-muted-foreground block sm:inline">Total Volunteers:</span>
+                        <div className="font-semibold text-lg sm:text-base">{certificatesModalData.volunteers.length}</div>
+                      </div>
+                      <div className="text-center sm:text-left">
+                        <span className="text-muted-foreground block sm:inline">Total Hours:</span>
+                        <div className="font-semibold text-lg sm:text-base">
+                          {(() => {
+                            const totalMinutes = certificatesModalData.volunteers.reduce((sum, v) => {
+                              return sum + (typeof v.durationMinutes === 'number' && !isNaN(v.durationMinutes) ? v.durationMinutes : 0);
+                            }, 0);
+                            const hours = Math.floor(totalMinutes / 60);
+                            const minutes = totalMinutes % 60;
+                            return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
+                          })()}
+                        </div>
+                      </div>
+                      <div className="text-center sm:text-left">
+                        <span className="text-muted-foreground block sm:inline">Average Hours:</span>
+                        <div className="font-semibold text-lg sm:text-base">
+                          {(() => {
+                            const totalMinutes = certificatesModalData.volunteers.reduce((sum, v) => {
+                              return sum + (typeof v.durationMinutes === 'number' && !isNaN(v.durationMinutes) ? v.durationMinutes : 0);
+                            }, 0);
+                            const avgMinutes = Math.round(totalMinutes / certificatesModalData.volunteers.length);
+                            const hours = Math.floor(avgMinutes / 60);
+                            const minutes = avgMinutes % 60;
+                            return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
+                          })()}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                <span>Loading certificate data...</span>
+              </div>
+            )}
+          </div>
+          
+          <DialogFooter className="flex-shrink-0 gap-2 flex-col sm:flex-row mt-4">
+            <DialogClose asChild>
+              <Button variant="outline" className="w-full sm:w-auto">Close</Button>
+            </DialogClose>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1189,13 +1454,21 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses, a
                           variant="outline"
                           size="sm"
                           className="whitespace-nowrap"
-                          asChild
+                          onClick={() => loadCertificatesData(session.id)}
+                          disabled={loadingCertificates}
                         >
-                          <Link href={`/projects/${project.id}/certificates?session=${session.id}`}>
-                            <FileText className="h-4 w-4 mr-1.5" />
-                            <span className="hidden sm:inline">View Certificates</span>
-                            <span className="sm:hidden">Certificates</span>
-                          </Link>
+                          {loadingCertificates ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                              Loading...
+                            </>
+                          ) : (
+                            <>
+                              <FileText className="h-4 w-4 mr-1.5" />
+                              <span className="hidden sm:inline">View Certificates</span>
+                              <span className="sm:hidden">Certificates</span>
+                            </>
+                          )}
                         </Button>
                       )}
                     </div>
