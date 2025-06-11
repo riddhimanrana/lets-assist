@@ -828,7 +828,7 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
       <DialogTrigger asChild>
         <Button
           variant={"outline"}
-          size={isCreator ? "sm" : "sm"}
+          size={isCreator ? "default": "sm"}
           className={`gap-2 `}
         >
           <HelpCircle className="h-4 w-4" />

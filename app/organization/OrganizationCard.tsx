@@ -4,16 +4,17 @@ import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Building2, Users2, ExternalLink, BadgeCheck } from "lucide-react";
+import { Building2, Users2, ExternalLink, BadgeCheck, Shield, UserRoundCog, UserRound } from "lucide-react";
 import { NoAvatar } from "@/components/NoAvatar";
 
 interface OrganizationCardProps {
   org: any;
   memberCount: number;
   isUserMember?: boolean;
+  userRole?: 'admin' | 'staff' | 'member';
 }
 
-export default function OrganizationCard({ org, memberCount, isUserMember = false }: OrganizationCardProps) {
+export default function OrganizationCard({ org, memberCount, isUserMember = false, userRole }: OrganizationCardProps) {
   return (
     <Link href={`/organization/${org.username}`}>
       <Card className={`h-full overflow-hidden hover:shadow-md transition-shadow ${isUserMember ? 'border-primary/30 bg-primary/5' : ''}`}>
@@ -35,10 +36,19 @@ export default function OrganizationCard({ org, memberCount, isUserMember = fals
               </div>
             )}
             
-            {isUserMember && (
+            {isUserMember && userRole && (
               <div className="absolute top-2 right-2">
-                <Badge variant="secondary" className="text-xs">
-                  Member
+                <Badge 
+                  variant={
+                    userRole === "admin" ? "default" : 
+                    userRole === "staff" ? "secondary" : "outline"
+                  }
+                  className="text-xs flex items-center gap-1"
+                >
+                  {userRole === "admin" && <Shield className="h-3 w-3" />}
+                  {userRole === "staff" && <UserRoundCog className="h-3 w-3" />}
+                  {userRole === "member" && <UserRound className="h-3 w-3" />}
+                  {userRole.charAt(0).toUpperCase() + userRole.slice(1)}
                 </Badge>
               </div>
             )}

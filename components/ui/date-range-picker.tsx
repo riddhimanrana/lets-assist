@@ -13,6 +13,13 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface DateRangePickerProps {
   value?: DateRange | undefined;
@@ -20,6 +27,7 @@ interface DateRangePickerProps {
   placeholder?: string;
   className?: string;
   align?: "start" | "center" | "end";
+  showQuickSelect?: boolean;
 }
 
 export function DateRangePicker({
@@ -27,7 +35,8 @@ export function DateRangePicker({
   onChange,
   placeholder = "Select date range",
   className,
-  align = "start"
+  align = "start",
+  showQuickSelect = false
 }: DateRangePickerProps) {
   // Handle the date range selection by adding a day to the end date
   const handleSelect = (range: DateRange | undefined) => {
@@ -42,6 +51,37 @@ export function DateRangePicker({
     }
   };
 
+  const handleQuickSelect = (value: string) => {
+    const now = new Date()
+    let startDate: Date
+    
+    switch (value) {
+      case "last-week":
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+        break
+      case "last-month":
+        startDate = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate())
+        break
+      case "last-3-months":
+        startDate = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate())
+        break
+      case "last-6-months":
+        startDate = new Date(now.getFullYear(), now.getMonth() - 6, now.getDate())
+        break
+      case "last-year":
+        startDate = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate())
+        break
+      case "lifetime":
+      default:
+        onChange?.(undefined)
+        return
+    }
+    
+    const adjustedEndDate = new Date(now);
+    adjustedEndDate.setDate(adjustedEndDate.getDate() + 1);
+    onChange?.({ from: startDate, to: adjustedEndDate })
+  };
+
   // For display purposes, if we have an end date, subtract one day to show the actual selected date
   const displayRange = value && value.to ? {
     from: value.from,
@@ -49,7 +89,22 @@ export function DateRangePicker({
   } : value;
 
   return (
-    <div className={cn("grid gap-2", className)}>
+    <div className={cn("flex flex-col sm:flex-row gap-2", className)}>
+      {showQuickSelect && (
+        <Select onValueChange={handleQuickSelect}>
+          <SelectTrigger className="w-full sm:w-[140px] h-9">
+            <SelectValue placeholder="Quick select" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="lifetime">Lifetime</SelectItem>
+            <SelectItem value="last-week">Last week</SelectItem>
+            <SelectItem value="last-month">Last month</SelectItem>
+            <SelectItem value="last-3-months">Last 3 months</SelectItem>
+            <SelectItem value="last-6-months">Last 6 months</SelectItem>
+            <SelectItem value="last-year">Last year</SelectItem>
+          </SelectContent>
+        </Select>
+      )}
       <Popover>
         <PopoverTrigger asChild>
           <Button

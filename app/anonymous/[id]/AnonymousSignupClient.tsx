@@ -421,7 +421,7 @@ export default function AnonymousSignupClient({
                       <Clock className="h-4 w-4" />
                       <AlertTitle className="font-medium">Important: Data Retention</AlertTitle>
                       <AlertDescription className="text-xs text-muted-foreground">
-                        This anonymous signup record, including your hours, will be automatically deleted on <span className="font-semibold">{format(autoDeletionDate, "MMMM d, yyyy")}</span>. Please save this page or take a screenshot if you need a permanent record of your participation.
+                        This anonymous signup account will be automatically deleted on <span className="font-semibold">{format(autoDeletionDate, "MMMM d, yyyy")}</span>. However, your hours and certificate links will remain available for your records. We recommend saving the links to your certificate and any important details before this date.
                       </AlertDescription>
                     </Alert>
                   )}

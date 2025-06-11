@@ -26,8 +26,8 @@ export default function ProjectUnauthorized({ projectId }: ProjectUnauthorizedPr
     const checkAuthStatus = async () => {
       try {
         const supabase = createClient();
-        const { data } = await supabase.auth.getSession();
-        setIsLoggedIn(!!data.session);
+        const { data: { user } } = await supabase.auth.getUser();
+        setIsLoggedIn(!!user);
       } catch (error) {
         console.error("Error checking auth status:", error);
       } finally {

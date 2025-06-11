@@ -31,7 +31,11 @@ import {
   Users,
   ArrowUpDown, 
   ChevronDown, 
-  ChevronUp 
+  ChevronUp,
+  Eye,
+  Clock,
+  Download,
+  Loader2
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -45,8 +49,19 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Card } from "@/components/ui/card";
+import { 
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { getMemberVolunteerHours } from "./member-hours-actions";
+import MemberDetailsDialog from "./MemberDetailsDialog";
+import { Skeleton } from "@/components/ui/skeleton";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
+import { DateRange } from "react-day-picker";
 
-type SortField = "role" | "joined_at";
+type SortField = "role" | "joined_at" | "hours" | "events";
 type SortDirection = "asc" | "desc";
 
 interface Sort {
@@ -72,6 +87,37 @@ export default function MembersTab({
   const [processingMember, setProcessingMember] = useState<string | null>(null);
   const [removingMember, setRemovingMember] = useState<{ id: string; name: string } | null>(null);
   const [sort, setSort] = useState<Sort>({ field: "role", direction: "asc" });
+  const [memberHours, setMemberHours] = useState<Record<string, { totalHours: number; eventCount: number; lastEventDate?: string }>>({});
+  const [loadingHours, setLoadingHours] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<any | null>(null);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+
+  // Load member hours for admins and staff
+  useEffect(() => {
+    const canViewHours = userRole === "admin" || userRole === "staff";
+    if (canViewHours && organizationId) {
+      loadMemberHours();
+    }
+  }, [userRole, organizationId, dateRange]);
+
+  const loadMemberHours = async () => {
+    setLoadingHours(true);
+    try {
+      const dateRangeParam = dateRange?.from && dateRange?.to 
+        ? { from: dateRange.from, to: dateRange.to }
+        : undefined;
+      const result = await getMemberVolunteerHours(organizationId, dateRangeParam);
+      if (!result.error) {
+        setMemberHours(result.memberHours);
+      }
+    } catch (error) {
+      console.error("Error loading member hours:", error);
+    } finally {
+      setLoadingHours(false);
+    }
+  };
 
   // Updated useEffect to handle sorting
   useEffect(() => {
@@ -107,11 +153,23 @@ export default function MembersTab({
         return (new Date(a.joined_at).getTime() - new Date(b.joined_at).getTime()) * direction;
       }
       
+      if (sort.field === "hours") {
+        const aHours = memberHours[a.user_id]?.totalHours || 0;
+        const bHours = memberHours[b.user_id]?.totalHours || 0;
+        return (aHours - bHours) * direction;
+      }
+      
+      if (sort.field === "events") {
+        const aEvents = memberHours[a.user_id]?.eventCount || 0;
+        const bEvents = memberHours[b.user_id]?.eventCount || 0;
+        return (aEvents - bEvents) * direction;
+      }
+      
       return 0;
     });
 
     setFilteredMembers(result);
-  }, [searchTerm, members, sort]);
+  }, [searchTerm, members, sort, memberHours]);
 
   // Log filtered members when they change
   useEffect(() => {
@@ -120,6 +178,93 @@ export default function MembersTab({
 
   const canManageMembers = userRole === "admin" || userRole === "staff";
   const isAdmin = userRole === "admin";
+  const canViewHours = userRole === "admin" || userRole === "staff";
+
+  // Helper function to format hours as "Xh Ym"
+  const formatHours = (hours: number): string => {
+    const h = Math.floor(hours);
+    const m = Math.round((hours - h) * 60);
+    if (h > 0 && m > 0) return `${h}h ${m}m`;
+    if (h > 0) return `${h}h`;
+    return `${m}m`;
+  };
+
+  const handleViewDetails = (member: any) => {
+    setSelectedMember(member);
+    setIsDetailsOpen(true);
+  };
+
+  const handleExportCSV = async () => {
+    setIsExporting(true);
+    try {
+      // Create simple hours export data
+      const exportData = [];
+      
+      for (const member of filteredMembers) {
+        const profile = Array.isArray(member.profiles) ? member.profiles[0] : member.profiles;
+        const memberName = profile?.full_name || "Unknown User";
+        const username = profile?.username || "";
+        const totalHours = memberHours[member.user_id]?.totalHours || 0;
+        const eventCount = memberHours[member.user_id]?.eventCount || 0;
+        
+        exportData.push({
+          memberName,
+          username,
+          role: member.role,
+          joinedDate: `"${format(new Date(member.joined_at), "MMM d, yyyy")}"`,
+          totalHours: formatHours(totalHours),
+          eventCount
+        });
+      }
+      
+      // Generate CSV
+      const headers = [
+        "Member Name", "Username", "Role", "Joined Date", "Total Hours", "Events Attended"
+      ];
+      const csvRows = [headers.join(",")];
+      
+      exportData.forEach(row => {
+        const csvRow = [
+          `"${row.memberName}"`,
+          row.username,
+          row.role,
+          row.joinedDate,
+          row.totalHours,
+          row.eventCount
+        ].join(",");
+        csvRows.push(csvRow);
+      });
+      
+      const csvData = csvRows.join("\n");
+      const blob = new Blob([csvData], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      
+      // Create filename with date range if applicable
+      const today = new Date().toISOString().split('T')[0];
+      let filename = `member-hours-${today}`;
+      if (dateRange?.from && dateRange?.to) {
+        const fromDate = format(dateRange.from, "yyyy-MM-dd");
+        const toDate = format(new Date(dateRange.to.getTime() - 24 * 60 * 60 * 1000), "yyyy-MM-dd");
+        filename = `member-hours-${fromDate}-to-${toDate}`;
+      } else {
+        filename = `member-hours-lifetime-${today}`;
+      }
+      a.download = `${filename}.csv`;
+      
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      toast.success("Member hours exported successfully");
+    } catch (error) {
+      console.error("Error exporting member hours:", error);
+      toast.error("Failed to export member hours");
+    } finally {
+      setIsExporting(false);
+    }
+  };
   
   const handleUpdateRole = async (memberId: string, userId: string, userName: string, newRole: string) => {
     if (userId === currentUserId && newRole !== "admin") {
@@ -178,7 +323,7 @@ export default function MembersTab({
   if (!Array.isArray(members)) {
     console.error("MembersTab: 'members' prop is not an array:", members);
     return (
-      <div className="p-4 text-center text-red-500">
+      <div className="p-4 text-center text-destructive">
         Error: Invalid members data provided
       </div>
     );
@@ -215,8 +360,57 @@ export default function MembersTab({
           </p>
         </div>
         
-        <div className="relative sm:w-auto min-w-64">
-           <div className="relative w-full sm:w-auto sm:flex-1 max-w-md">
+        <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+          {/* Date Range Filter for admins and staff */}
+          {canViewHours && (
+            <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+              <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">
+                Date Range:
+              </span>
+              <DateRangePicker
+                value={dateRange}
+                onChange={setDateRange}
+                placeholder={dateRange?.from ? undefined : "Lifetime (All Time)"}
+                showQuickSelect={true}
+                className="w-full sm:w-auto"
+              />
+            </div>
+          )}
+          
+          {/* Export button for admins and staff */}
+          {canViewHours && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    onClick={handleExportCSV}
+                    disabled={isExporting}
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                  >
+                    {isExporting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Exporting...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="h-4 w-4" />
+                        Export Members
+                      </>
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Export member hours summary</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+          
+          <div className="relative sm:w-auto min-w-64">
+             <div className="relative w-full sm:w-auto sm:flex-1 max-w-md">
             
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -235,6 +429,7 @@ export default function MembersTab({
           )}
           </div>
         </div>
+        </div>
       </div>
 
       <Card className="overflow-hidden border rounded-lg">
@@ -252,6 +447,30 @@ export default function MembersTab({
                     {getSortIcon("role")}
                   </div>
                 </TableHead>
+                {canViewHours && (
+                  <>
+                    <TableHead 
+                      className="min-w-[100px] cursor-pointer hover:text-foreground"
+                      onClick={() => toggleSort("hours")}
+                    >
+                      <div className="flex items-center gap-1">
+                        <Clock className="h-4 w-4" />
+                        Hours
+                        {getSortIcon("hours")}
+                      </div>
+                    </TableHead>
+                    <TableHead className="min-w-[100px]">
+                      <div 
+                        className="flex items-center gap-1 cursor-pointer hover:text-foreground"
+                        onClick={() => toggleSort("events")}
+                      >
+                        <Users className="h-4 w-4" />
+                        Events
+                        {getSortIcon("events")}
+                      </div>
+                    </TableHead>
+                  </>
+                )}
                 <TableHead 
                   className="min-w-[120px] cursor-pointer hover:text-foreground"
                   onClick={() => toggleSort("joined_at")}
@@ -297,6 +516,40 @@ export default function MembersTab({
                     <TableCell className="min-w-[100px]">
                       <RoleBadge role={member.role} />
                     </TableCell>
+                    {canViewHours && (
+                      <>
+                        <TableCell className="min-w-[100px]">
+                          {loadingHours ? (
+                            <Skeleton className="h-4 w-12" />
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <div className="font-medium text-primary">
+                                {formatHours(memberHours[member.user_id]?.totalHours || 0)}
+                              </div>
+                              {(canViewHours && (isAdmin || userRole === "staff" || member.user_id === currentUserId)) && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6"
+                                  onClick={() => handleViewDetails(member)}
+                                >
+                                  <Eye className="h-3 w-3" />
+                                </Button>
+                              )}
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell className="min-w-[100px]">
+                          {loadingHours ? (
+                            <Skeleton className="h-4 w-8" />
+                          ) : (
+                            <div className="font-medium">
+                              {memberHours[member.user_id]?.eventCount || 0}
+                            </div>
+                          )}
+                        </TableCell>
+                      </>
+                    )}
                     <TableCell className="text-sm text-muted-foreground min-w-[120px] whitespace-nowrap">
                       {member.joined_at ? format(new Date(member.joined_at), "MMM d, yyyy") : "N/A"}
                     </TableCell>
@@ -404,7 +657,7 @@ export default function MembersTab({
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={canManageMembers ? 4 : 3} className="h-32 text-center">
+                  <TableCell colSpan={canManageMembers ? (canViewHours ? 6 : 4) : (canViewHours ? 5 : 3)} className="h-32 text-center">
                     {searchTerm ? (
                       <div className="text-muted-foreground">
                         <p>No members found matching &quot;{searchTerm}&quot;</p>
@@ -471,6 +724,17 @@ export default function MembersTab({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Member Details Dialog */}
+      <MemberDetailsDialog
+        isOpen={isDetailsOpen}
+        onClose={() => {
+          setIsDetailsOpen(false);
+          setSelectedMember(null);
+        }}
+        member={selectedMember}
+        organizationId={organizationId}
+      />
     </div>
   );
 }

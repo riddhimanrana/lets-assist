@@ -159,6 +159,13 @@ export default function Navbar({ initialUser }: NavbarProps) {
 
   React.useEffect(() => {
     getUserAndProfile();
+    
+    // Set up periodic refresh every 10 seconds to ensure user data stays up to date
+    const interval = setInterval(() => {
+      getUserAndProfile();
+    }, 10000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   const handleNavigation = () => {
