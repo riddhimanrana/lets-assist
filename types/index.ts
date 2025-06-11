@@ -180,6 +180,7 @@ export interface Signup {
   created_at: string;
   updated_at: string;
   check_in_time: string | null;
+  check_out_time: string | null;
   email?: string | null; // For anonymous signups
   full_name?: string | null; // For anonymous signups
   // Add other relevant fields if needed
