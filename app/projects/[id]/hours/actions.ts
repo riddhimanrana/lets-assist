@@ -150,7 +150,7 @@ const generateCertificatePublishedEmailHtml = (
           <div class="email-body">
               <h1>🎉 Your Certificate is Ready!</h1>
               <p>Hi ${volunteerName},</p>
-              <p>Great news! Your volunteer certificate for <strong>${projectTitle}</strong> has been published and is now available for download.</p>
+              <p>Great news! Your volunteer certificate for <strong>${projectTitle}</strong> has been published and is now available to view.</p>
               
               <div class="event-details">
                   <div class="detail-row">
@@ -252,7 +252,7 @@ export async function publishVolunteerHours(
   projectId: string,
   sessionId: string,
   sessionData: SessionVolunteerData[]
-): Promise<{ success: boolean; error?: string; certificatesCreated?: number }> {
+): Promise<{ success: boolean; error?: string; certificatesCreated?: number; emailsSent?: number; emailErrors?: string[] }> {
   const cookieStore = cookies();
   const supabase = await createClient();
 
@@ -313,10 +313,11 @@ export async function publishVolunteerHours(
       schedule_id: sessionId, // Store the session identifier, sessionId renamed to scheduleId
     }));
 
-    // 5. Insert certificates into the database
-    const { error: insertError } = await supabase
+    // 5. Insert certificates into the database and get the created certificates for email sending
+    const { data: insertedCerts, error: insertError } = await supabase
       .from("certificates")
-      .insert(certificatesToInsert);
+      .insert(certificatesToInsert)
+      .select("id, volunteer_name, volunteer_email, project_title");
 
     if (insertError) {
         console.log(certificatesToInsert)
@@ -344,9 +345,18 @@ export async function publishVolunteerHours(
       return { success: false, error: `Failed to update project status: ${updateProjectError.message}` };
     }
 
-
+    // 7. Send email notifications
+    const emailResult = await sendCertificatePublishedEmails(insertedCerts || []);
+    
     console.log(`Successfully created ${certificatesToInsert.length} certificates for project ${projectId}, session ${sessionId}`);
-    return { success: true, certificatesCreated: certificatesToInsert.length };
+    console.log(`Email sending completed: ${emailResult.emailsSent} sent, ${emailResult.errors.length} errors`);
+    
+    return {
+      success: true,
+      certificatesCreated: certificatesToInsert.length,
+      emailsSent: emailResult.emailsSent,
+      emailErrors: emailResult.errors
+    };
 
   } catch (error: any) {
     console.error("Unexpected error in publishVolunteerHours:", error);

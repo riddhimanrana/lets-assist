@@ -7,7 +7,8 @@
     "build": "next build",
     "postbuild": "next-sitemap",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:auto-publish": "node scripts/test-auto-publish.js"
   },
   "dependencies": {
     "@arcgis/core": "^4.32.9",
