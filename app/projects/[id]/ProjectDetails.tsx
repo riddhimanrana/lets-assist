@@ -632,11 +632,7 @@ export default function ProjectDetails({
     <>
       <div className="container mx-auto px-4 py-6 max-w-6xl">
         {/* Render Creator Dashboard if user is creator */}
-        {isCreator && <CreatorDashboard project={project} />}
-        {/* Render User Dashboard if user is logged in, NOT creator, and has signups */}
-        {user && !isCreator && userSignupsData && userSignupsData.length > 0 && (
-          <UserDashboard project={project} user={user} signups={userSignupsData} />
-        )}
+        
 
         {/* Confirmation Alert */}
         {showConfirmationAlert && (
@@ -679,7 +675,11 @@ export default function ProjectDetails({
           </div>
         </div>
 
-
+{isCreator && <CreatorDashboard project={project} />}
+        {/* Render User Dashboard if user is logged in, NOT creator, and has signups */}
+        {user && !isCreator && userSignupsData && userSignupsData.length > 0 && (
+          <UserDashboard project={project} user={user} signups={userSignupsData} />
+        )}
         {/* Project Content */}
         <div className="grid gap-6 lg:grid-cols-5">
           {/* Left Column */}
