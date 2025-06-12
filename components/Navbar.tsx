@@ -9,7 +9,7 @@ import {
   LogOut,
   Settings,
   Heart,
-  Bug,
+  MessageSquare,
   ChevronDown,
   ChevronUp,
   Bell,
@@ -53,13 +53,13 @@ import {
   DropdownMenuRadioItem,
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ReportBugDialog } from "@/components/ReportBugDialog";
 import { DonateDialog } from "@/components/DonateDialog";
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { NotificationPopover } from "@/components/NotificationPopover";
 import { useTheme } from "next-themes";
 import { usePathname } from "next/navigation"; // Added import
+import { FeedbackDialog } from "@/components/FeedbackDialog";
 
 interface SectionProps {
   title: string;
@@ -124,6 +124,7 @@ export default function Navbar({ initialUser }: NavbarProps) {
   const [isProfileLoading, setIsProfileLoading] = React.useState(true);
   const [showBugDialog, setShowBugDialog] = useState(false);
   const [showDonateDialog, setShowDonateDialog] = useState(false);
+  const [showFeedbackDialog, setShowFeedbackDialog] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
   const { theme, setTheme } = useTheme();
   // Add loading state for logout
@@ -482,11 +483,11 @@ export default function Navbar({ initialUser }: NavbarProps) {
                       className="text-chart-3 focus:text-chart-3 py-2.5 cursor-pointer flex justify-between"
                       onSelect={(e) => {
                         e.preventDefault();
-                        setShowBugDialog(true);
+                        setShowFeedbackDialog(true);
                       }}
                     >
-                      Report a Bug
-                      <Bug className="h-4 w-4" />
+                      Send Feedback
+                      <MessageSquare className="h-4 w-4" />
                     </DropdownMenuItem>
                     <DropdownMenuItem 
                       className="text-chart-4 focus:text-chart-4 py-2.5 cursor-pointer flex justify-between"
@@ -506,7 +507,7 @@ export default function Navbar({ initialUser }: NavbarProps) {
                     >
                       <span>{isLoggingOut ? "Logging out..." : "Log Out"}</span>
                       {isLoggingOut ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <Loader2 className="h-4 w-4" />
                       ) : (
                         <LogOut className="h-4 w-4" />
                       )}
@@ -698,12 +699,12 @@ export default function Navbar({ initialUser }: NavbarProps) {
                     variant="ghost"
                     className="w-full justify-between text-chart-3 hover:text-chart-3 hover:bg-chart-3/10"
                     onClick={() => {
-                      setShowBugDialog(true);
+                      setShowFeedbackDialog(true);
                       handleNavigation();
                     }}
                   >
-                    Report a Bug
-                    <Bug className="h-4 w-4" />
+                    Send Feedback
+                    <MessageSquare className="h-4 w-4" />
                   </Button>
                   <Button
                     variant="ghost"
@@ -723,10 +724,10 @@ export default function Navbar({ initialUser }: NavbarProps) {
         </nav>
       </div>
       <Separator />
-      {showBugDialog && (
-        <ReportBugDialog onOpenChangeAction={setShowBugDialog} />
-      )}
       <DonateDialog open={showDonateDialog} onOpenChange={setShowDonateDialog} />
+      {showFeedbackDialog && (
+        <FeedbackDialog onOpenChangeAction={setShowFeedbackDialog} />
+      )}
     </>
   );
 }
