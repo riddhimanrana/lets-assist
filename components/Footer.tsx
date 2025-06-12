@@ -41,6 +41,12 @@ export function Footer() {
               Terms
             </Link>
             <Link
+             href="/help"
+              className="text-sm text-muted-foreground hover:text-foreground sm:col-span-2 sm:w-full"
+            >
+              Help
+            </Link>
+            <Link
               href="/contact"
               className="text-sm text-muted-foreground hover:text-foreground"
             >
@@ -52,6 +58,7 @@ export function Footer() {
             >
               Acknowledgements
             </Link>
+            
           </nav>
 
           {/* Copyright with social media icons right aligned */}
@@ -123,6 +130,12 @@ export function Footer() {
               >
                 Terms
               </Link>
+              <Link
+             href="/help"
+              className="text-sm text-muted-foreground hover:text-foreground"
+            >
+              Help
+            </Link>
               <Link
                 href="/contact"
                 className="text-sm text-muted-foreground hover:text-foreground"
