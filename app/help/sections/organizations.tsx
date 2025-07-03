@@ -87,7 +87,7 @@ export function OrganizationsSection() {
                   <AccordionTrigger>Verified Organizations</AccordionTrigger>
                   <AccordionContent className="space-y-3 text-sm">
                     <div className="space-y-2">
-                      <p>Verified organizations display a blue check badge throughout the platform:</p>
+                      <p>Verified organizations display a green check badge throughout the platform:</p>
                       <ul className="list-disc list-inside space-y-1 ml-2">
                         <li>On organization profile pages and cards</li>
                         <li>Next to organization names in project listings</li>
