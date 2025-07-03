@@ -20,6 +20,8 @@ import {
   CalendarClock,
   CalendarDays,
   Map,
+  GraduationCap,
+  Building,
 } from "lucide-react";
 import { ProjectsMapView } from "@/components/ProjectsMapView";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -245,6 +247,16 @@ const getCreatorAvatarUrl = (project: any) => {
   return project.profiles?.avatar_url;
 };
 
+// Function to check if the project's organization is verified
+const isOrganizationVerified = (project: any) => {
+  if (project.organization) {
+    return project.organization.verified || false;
+  } else if (project.organization_id && project.organizations) {
+    return project.organizations.verified || false;
+  }
+  return false;
+};
+
 export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
   projects,
   onVolunteerSortChange,
@@ -411,9 +423,14 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                           </AvatarFallback>
                         </Avatar>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">
-                            {getProjectCreator(project)}
-                          </p>
+                          <div className="flex items-center gap-1">
+                            <p className="text-sm font-medium truncate">
+                              {getProjectCreator(project)}
+                            </p>
+                            {project.organization_id && isOrganizationVerified(project) && (
+                              <BadgeCheck className="h-4 w-4 flex-shrink-0" fill="hsl(var(--primary))" stroke="hsl(var(--popover))" strokeWidth={2.5} />
+                            )}
+                          </div>
                           {/* <p className="text-xs text-muted-foreground">
                 {project.organization_id ?
                   (project.organization?.type || project.organizations?.type || "Organization") :
@@ -453,17 +470,44 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                                   const orgType =
                                     project.organization?.type ||
                                     project.organizations?.type ||
-                                    "Organization";
-                                  const normalizedType =
-                                    orgType.toLowerCase() === "company"
-                                      ? "Company"
-                                      : orgType;
-                                  const icon =
-                                    orgType.toLowerCase() === "company" ? (
-                                      <Building2 className="h-4 w-4 opacity-70" />
-                                    ) : (
-                                      <BadgeCheck className="h-4 w-4 opacity-70" />
-                                    );
+                                    "other";
+                                  
+                                  const getOrgDisplayInfo = (type: string) => {
+                                    switch (type.toLowerCase()) {
+                                      case "company":
+                                        return {
+                                          name: "Company",
+                                          icon: <Building2 className="h-4 w-4 opacity-70" />
+                                        };
+                                      case "nonprofit":
+                                        return {
+                                          name: "Nonprofit",
+                                          icon: <BadgeCheck className="h-4 w-4 opacity-70" />
+                                        };
+                                      case "school":
+                                        return {
+                                          name: "Educational Institution",
+                                          icon: <GraduationCap className="h-4 w-4 opacity-70" />
+                                        };
+                                      case "government":
+                                        return {
+                                          name: "Government Agency",
+                                          icon: <Building className="h-4 w-4 opacity-70" />
+                                        };
+                                      case "other":
+                                        return {
+                                          name: "Organization",
+                                          icon: <BadgeCheck className="h-4 w-4 opacity-70" />
+                                        };
+                                      default:
+                                        return {
+                                          name: "Organization",
+                                          icon: <BadgeCheck className="h-4 w-4 opacity-70" />
+                                        };
+                                    }
+                                  };
+                                  
+                                  const { name, icon } = getOrgDisplayInfo(orgType);
 
                                   return (
                                     <div className="flex items-center">
@@ -475,7 +519,7 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                                         <span className="flex pt-2">
                                           {icon}
                                           <span className="ml-2">
-                                            {normalizedType}
+                                            {name}
                                           </span>
                                         </span>
                                       </span>
@@ -556,9 +600,14 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                                 />
                               </AvatarFallback>
                             </Avatar>
-                            <span className="text-sm font-medium truncate">
-                              {getProjectCreator(project)}
-                            </span>
+                            <div className="flex items-center gap-1">
+                              <span className="text-sm font-medium truncate">
+                                {getProjectCreator(project)}
+                              </span>
+                              {project.organization_id && isOrganizationVerified(project) && (
+                                <BadgeCheck className="h-4 w-4 flex-shrink-0" fill="hsl(var(--primary))" stroke="hsl(var(--popover))" strokeWidth={2.5} />
+                              )}
+                            </div>
                           </div>
                         </HoverCardTrigger>
 
@@ -586,9 +635,14 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                               </AvatarFallback>
                             </Avatar>
                             <div className="space-y-1 flex-1">
-                              <h4 className="text-sm font-semibold">
-                                {getProjectCreator(project)}
-                              </h4>
+                              <div className="flex items-center gap-1">
+                                <h4 className="text-sm font-semibold">
+                                  {getProjectCreator(project)}
+                                </h4>
+                                {project.organization_id && isOrganizationVerified(project) && (
+                                  <BadgeCheck className="h-4 w-4 flex-shrink-0" fill="hsl(var(--primary))" stroke="hsl(var(--popover))" strokeWidth={2.5} />
+                                )}
+                              </div>
                               <p className="text-sm">
                                 {project.organization_id
                                   ? project.organization?.type ||
@@ -707,9 +761,14 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                               <NoAvatar fullName={getProjectCreator(project)} />
                             </AvatarFallback>
                           </Avatar>
-                          <span className="text-sm font-medium truncate">
-                            {getProjectCreator(project)}
-                          </span>
+                          <div className="flex items-center gap-1">
+                            <span className="text-sm font-medium truncate">
+                              {getProjectCreator(project)}
+                            </span>
+                            {project.organization_id && isOrganizationVerified(project) && (
+                              <BadgeCheck className="h-4 w-4 flex-shrink-0" fill="hsl(var(--primary))" stroke="hsl(var(--popover))" strokeWidth={2.5} />
+                            )}
+                          </div>
                         </div>
                       </HoverCardTrigger>
 
@@ -734,9 +793,14 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                             </AvatarFallback>
                           </Avatar>
                           <div className="space-y-1 flex-1">
-                            <h4 className="text-sm font-semibold">
-                              {getProjectCreator(project)}
-                            </h4>
+                            <div className="flex items-center gap-1">
+                              <h4 className="text-sm font-semibold">
+                                {getProjectCreator(project)}
+                              </h4>
+                              {project.organization_id && isOrganizationVerified(project) && (
+                                <BadgeCheck className="h-4 w-4 flex-shrink-0" fill="hsl(var(--primary))" stroke="hsl(var(--popover))" strokeWidth={2.5} />
+                              )}
+                            </div>
                             <p className="text-sm">
                               {project.organization_id
                                 ? project.organization?.type ||
