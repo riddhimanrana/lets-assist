@@ -40,7 +40,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrig
 const USERNAME_MAX_LENGTH = 32;
 const NAME_MAX_LENGTH = 64;
 const WEBSITE_MAX_LENGTH = 100;
-const DESCRIPTION_MAX_LENGTH = 300;
+const DESCRIPTION_MAX_LENGTH = 650;
 const USERNAME_REGEX = /^[a-zA-Z0-9_.-]+$/;
 
 // Form schema
@@ -64,7 +64,7 @@ const orgUpdateSchema = z.object({
     .optional()
     .or(z.literal("")),
   
-  type: z.enum(["nonprofit", "school", "company"]),
+  type: z.enum(["nonprofit", "school", "company", "government", "other"]),
   
   logoUrl: z.string().optional().nullable(),
 });
@@ -102,23 +102,29 @@ export default function EditOrganizationForm({ organization, userId }: EditOrgan
     },
   });
 
+  // Watch all form values and detect changes more reliably
   const formValues = form.watch();
   
   useEffect(() => {
-    const hasFormChanges = Object.keys(formValues).some(key => {
-      const initialValue = organization[key === 'logoUrl' ? 'logo_url' : key];
-      const currentValue = formValues[key as keyof OrganizationFormValues];
+    const subscription = form.watch((value, { name, type }) => {
+      // Check if any field has changed from initial values
+      const hasFormChanges = Object.keys(value).some(key => {
+        const initialValue = organization[key === 'logoUrl' ? 'logo_url' : key];
+        const currentValue = value[key as keyof OrganizationFormValues];
+        
+        // Handle empty strings and null values
+        if (!initialValue && !currentValue) return false;
+        if (!initialValue && currentValue === "") return false;
+        if (!currentValue && initialValue === "") return false;
+        
+        return initialValue !== currentValue;
+      });
       
-      // Handle empty strings and null values
-      if (!initialValue && !currentValue) return false;
-      if (!initialValue && currentValue === "") return false;
-      if (!currentValue && initialValue === "") return false;
-      
-      return initialValue !== currentValue;
+      setHasChanges(hasFormChanges);
     });
     
-    setHasChanges(hasFormChanges);
-  }, [formValues, organization]);
+    return () => subscription.unsubscribe();
+  }, [form, organization]);
   
   // Check if organization username is still available when changed
   const currentUsername = organization.username;
@@ -342,7 +348,7 @@ export default function EditOrganizationForm({ organization, userId }: EditOrgan
                 name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Organization Name*</FormLabel>
+                    <FormLabel>Organization Name</FormLabel>
                     <FormControl>
                       <Input 
                         {...field} 
@@ -363,7 +369,7 @@ export default function EditOrganizationForm({ organization, userId }: EditOrgan
                 name="username"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Username*</FormLabel>
+                    <FormLabel>Username</FormLabel>
                     <div className="relative">
                       <FormControl>
                         <Input
@@ -471,7 +477,7 @@ export default function EditOrganizationForm({ organization, userId }: EditOrgan
                 name="type"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Organization Type*</FormLabel>
+                    <FormLabel>Organization Type</FormLabel>
                     <Select
                       onValueChange={field.onChange}
                       defaultValue={field.value}
@@ -487,6 +493,8 @@ export default function EditOrganizationForm({ organization, userId }: EditOrgan
                           <SelectItem value="nonprofit">Nonprofit Organization</SelectItem>
                           <SelectItem value="school">Educational Institution</SelectItem>
                           <SelectItem value="company">Company/Business</SelectItem>
+                          <SelectItem value="government">Government Agency</SelectItem>
+                          <SelectItem value="other">Other</SelectItem>
                         </SelectGroup>
                       </SelectContent>
                     </Select>
@@ -505,8 +513,7 @@ export default function EditOrganizationForm({ organization, userId }: EditOrgan
                 disabled={
                   isSubmitting ||
                   !hasChanges ||
-                  (formValues.username !== organization.username && !usernameAvailable) ||
-                  !form.formState.isValid
+                  (formValues.username !== organization.username && !usernameAvailable)
                 }
               >
                 {isSubmitting ? (

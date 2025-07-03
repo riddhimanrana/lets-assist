@@ -147,7 +147,7 @@ export default async function OrganizationSettingsPage({ params }: Props) {
           </Card>
           
           {/* Member Data Management */}
-          <Card>
+          {/* <Card>
             <CardHeader>
               <CardTitle>Member Data</CardTitle>
               <CardDescription>
@@ -160,7 +160,7 @@ export default async function OrganizationSettingsPage({ params }: Props) {
               </p>
               <MemberExporter organizationId={organization.id} />
             </CardContent>
-          </Card>
+          </Card> */}
           
           {/* Danger Zone */}
           <Card className="border-destructive/50">
