@@ -82,6 +82,27 @@ export function OrganizationsSection() {
                     </div>
                   </AccordionContent>
                 </AccordionItem>
+
+                <AccordionItem value="verified-organizations">
+                  <AccordionTrigger>Verified Organizations</AccordionTrigger>
+                  <AccordionContent className="space-y-3 text-sm">
+                    <div className="space-y-2">
+                      <p>Verified organizations display a blue check badge throughout the platform:</p>
+                      <ul className="list-disc list-inside space-y-1 ml-2">
+                        <li>On organization profile pages and cards</li>
+                        <li>Next to organization names in project listings</li>
+                        <li>In project creator information</li>
+                        <li>On volunteer hour certificates</li>
+                      </ul>
+                    </div>
+                    <div className="bg-primary/10 p-3 rounded-lg">
+                      <p className="text-xs"><strong>Benefits of verified status:</strong> Enhanced credibility, higher trust from volunteers, and certificates carry more weight for academic requirements.</p>
+                    </div>
+                    <div className="bg-muted/50 p-3 rounded-lg">
+                      <p className="text-xs"><strong>How to get verified:</strong> Contact support with organization documentation, tax-exempt status, or official registration papers.</p>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
               </Accordion>
             </div>
             

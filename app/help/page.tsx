@@ -125,9 +125,9 @@ const searchIndex = [
   },
   {
     id: "organization-verification",
-    title: "Organization Verification",
+    title: "Organization Verification & Badges",
     category: "organizations",
-    content: "organization verification trust badges verified organization benefits higher trust enhanced visibility official verification badge priority search results apply verification",
+    content: "organization verification trust badges verified organization benefits higher trust enhanced visibility official verification badge blue check badge priority search results apply verification credibility certificates academic requirements project listings",
     section: "Verification"
   },
 
