@@ -478,47 +478,49 @@ export default async function VolunteerDashboard() {
                 <CardContent>
                   {certificatesData && certificatesData.length > 0 ? (
                     <div className="space-y-4">
-                      {/* Use certificatesData directly */}
-                      {certificatesData.map((cert: Certificate) => {
-                        // Calculate and format duration
-                        const durationHours = calculateDecimalHours(cert.event_start, cert.event_end);
-                        const formattedDuration = formatTotalDuration(durationHours);
+                      {/* Certificates in scrollable container */}
+                      <div className="max-h-[420px] overflow-y-auto pr-1 space-y-4 custom-scrollbar">
+                        {certificatesData.map((cert: Certificate) => {
+                          // Calculate and format duration
+                          const durationHours = calculateDecimalHours(cert.event_start, cert.event_end);
+                          const formattedDuration = formatTotalDuration(durationHours);
 
-                        return (
-                          <div key={cert.id} className="border rounded-lg p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                            <div className="flex-1 space-y-1">
-                              <Link href={`/projects/${cert.project_id}`} className="font-medium hover:text-primary transition-colors block">
-                                {cert.project_title}
-                              </Link>
-                              <p className="text-sm text-muted-foreground">
-                                {cert.organization_name || cert.creator_name || "Unknown Organizer"}
-                              </p>
-                              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground pt-1">
-                                <span className="flex items-center gap-1">
-                                  <Calendar className="h-3 w-3" />
-                                  {format(parseISO(cert.event_start), "MMM d, yyyy")}
-                                </span>
-                                {/* Display formatted duration */}
-                                {formattedDuration !== "0m" && (
+                          return (
+                            <div key={cert.id} className="border rounded-lg p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                              <div className="flex-1 space-y-1">
+                                <Link href={`/projects/${cert.project_id}`} className="font-medium hover:text-primary transition-colors block">
+                                  {cert.project_title}
+                                </Link>
+                                <p className="text-sm text-muted-foreground">
+                                  {cert.organization_name || cert.creator_name || "Unknown Organizer"}
+                                </p>
+                                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground pt-1">
                                   <span className="flex items-center gap-1">
-                                    <Clock className="h-3 w-3" />
-                                    {formattedDuration}
+                                    <Calendar className="h-3 w-3" />
+                                    {format(parseISO(cert.event_start), "MMM d, yyyy")}
                                   </span>
-                                )}
+                                  {/* Display formatted duration */}
+                                  {formattedDuration !== "0m" && (
+                                    <span className="flex items-center gap-1">
+                                      <Clock className="h-3 w-3" />
+                                      {formattedDuration}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex-shrink-0">
+                                <Button size="sm" variant="outline" asChild>
+                                  {/* TODO: Link to actual certificate download/view page */}
+                                  <Link href={`/certificates/${cert.id}`} target="_blank" rel="noopener noreferrer">
+                                    <TicketCheck className="h-4 w-4 mr-2" />
+                                    View Certificate
+                                  </Link>
+                                </Button>
                               </div>
                             </div>
-                            <div className="flex-shrink-0">
-                              <Button size="sm" variant="outline" asChild>
-                                {/* TODO: Link to actual certificate download/view page */}
-                                <Link href={`/certificates/${cert.id}`} target="_blank" rel="noopener noreferrer">
-                                  <TicketCheck className="h-4 w-4 mr-2" />
-                                  View Certificate
-                                </Link>
-                              </Button>
-                            </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
+                      </div>
                     </div>
                   ) : (
                     // No certificates message
@@ -609,46 +611,41 @@ export default async function VolunteerDashboard() {
           {/* --- MODIFIED: Upcoming Events Card --- */}
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle>Upcoming Sessions</CardTitle> {/* Changed title */}
+              <CardTitle>Upcoming Sessions</CardTitle>
               <CardDescription>Your scheduled volunteer commitments</CardDescription>
             </CardHeader>
             <CardContent>
               {upcomingSessions.length > 0 ? (
                 <div className="space-y-4">
-                  {/* Display the first 3 upcoming sessions */}
-                  {upcomingSessions.slice(0, 3).map((session) => (
-                    <div key={session.signupId} className="border rounded-lg p-4 space-y-2">
-                      <Link href={`/projects/${session.projectId}`} className="font-medium hover:text-primary transition-colors block">
-                        {session.projectTitle}
-                      </Link>
-                      <p className="text-sm text-muted-foreground">
-                        Session: {session.sessionDisplayName}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        Starts: {format(session.sessionStartTime, "MMM d, yyyy 'at' h:mm a")}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        Status: <Badge variant={session.status === 'approved' ? 'default' : 'outline'} className={`ml-1 ${session.status === 'approved' ? 'bg-primary/10 text-primary border-primary/30' : ''}`}>
-                          {session.status === "approved" ? "Confirmed" : "Pending"}
-                        </Badge>
-                      </p>
-                      <Button size="sm" variant="ghost" className="mt-2 w-full justify-start px-0" asChild>
-                        <Link href={`/projects/${session.projectId}`}>
-                          View Project Details <ChevronRight className="ml-1 h-4 w-4" />
-                        </Link>
-                      </Button>
+                  {/* Scrollable container with fixed height */}
+                  <div className="max-h-[350px] overflow-y-auto pr-2 custom-scrollbar">
+                    <div className="space-y-4">
+                      {/* Display all upcoming sessions in scrollable area */}
+                      {upcomingSessions.map((session) => (
+                        <div key={session.signupId} className="border rounded-lg p-4 space-y-2">
+                          <Link href={`/projects/${session.projectId}`} className="font-medium hover:text-primary transition-colors block">
+                            {session.projectTitle}
+                          </Link>
+                          <p className="text-sm text-muted-foreground">
+                            Session: {session.sessionDisplayName}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            Starts: {format(session.sessionStartTime, "MMM d, yyyy 'at' h:mm a")}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            Status: <Badge variant={session.status === 'approved' ? 'default' : 'outline'} className={`ml-1 ${session.status === 'approved' ? 'bg-primary/10 text-primary border-primary/30' : ''}`}>
+                              {session.status === "approved" ? "Confirmed" : "Pending"}
+                            </Badge>
+                          </p>
+                          <Button size="sm" variant="ghost" className="mt-2 w-full justify-start px-0" asChild>
+                            <Link href={`/projects/${session.projectId}`}>
+                              View Project Details <ChevronRight className="ml-1 h-4 w-4" />
+                            </Link>
+                          </Button>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-
-                  {/* Link to see all upcoming events */}
-                  {upcomingSessions.length > 3 && (
-                    <Button variant="outline" size="sm" className="w-full" asChild>
-                      {/* TODO: Create a dedicated page for all upcoming events? */}
-                      <Link href="/dashboard/events">
-                        See All ({upcomingSessions.length})
-                      </Link>
-                    </Button>
-                  )}
+                  </div>
                 </div>
               ) : (
                 // No upcoming sessions message

@@ -20,6 +20,8 @@ import {
   CalendarClock,
   CalendarDays,
   Map,
+  GraduationCap,
+  Building,
 } from "lucide-react";
 import { ProjectsMapView } from "@/components/ProjectsMapView";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -453,17 +455,44 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                                   const orgType =
                                     project.organization?.type ||
                                     project.organizations?.type ||
-                                    "Organization";
-                                  const normalizedType =
-                                    orgType.toLowerCase() === "company"
-                                      ? "Company"
-                                      : orgType;
-                                  const icon =
-                                    orgType.toLowerCase() === "company" ? (
-                                      <Building2 className="h-4 w-4 opacity-70" />
-                                    ) : (
-                                      <BadgeCheck className="h-4 w-4 opacity-70" />
-                                    );
+                                    "other";
+                                  
+                                  const getOrgDisplayInfo = (type: string) => {
+                                    switch (type.toLowerCase()) {
+                                      case "company":
+                                        return {
+                                          name: "Company",
+                                          icon: <Building2 className="h-4 w-4 opacity-70" />
+                                        };
+                                      case "nonprofit":
+                                        return {
+                                          name: "Nonprofit",
+                                          icon: <BadgeCheck className="h-4 w-4 opacity-70" />
+                                        };
+                                      case "school":
+                                        return {
+                                          name: "Educational Institution",
+                                          icon: <GraduationCap className="h-4 w-4 opacity-70" />
+                                        };
+                                      case "government":
+                                        return {
+                                          name: "Government Agency",
+                                          icon: <Building className="h-4 w-4 opacity-70" />
+                                        };
+                                      case "other":
+                                        return {
+                                          name: "Organization",
+                                          icon: <BadgeCheck className="h-4 w-4 opacity-70" />
+                                        };
+                                      default:
+                                        return {
+                                          name: "Organization",
+                                          icon: <BadgeCheck className="h-4 w-4 opacity-70" />
+                                        };
+                                    }
+                                  };
+                                  
+                                  const { name, icon } = getOrgDisplayInfo(orgType);
 
                                   return (
                                     <div className="flex items-center">
@@ -475,7 +504,7 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                                         <span className="flex pt-2">
                                           {icon}
                                           <span className="ml-2">
-                                            {normalizedType}
+                                            {name}
                                           </span>
                                         </span>
                                       </span>

@@ -3,7 +3,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Share2, GlobeIcon, UsersIcon, Plus, Building2, BadgeCheck } from "lucide-react";
+import { Share2, GlobeIcon, UsersIcon, Plus, Building2, BadgeCheck, GraduationCap, Building } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import JoinCodeDialog from "./JoinCodeDialog";
@@ -69,12 +69,23 @@ export default function OrganizationHeader({
       {/* Main container - stacking on mobile, row on desktop */}
       <div className="flex flex-col items-center sm:flex-row sm:items-start gap-4 sm:gap-6 w-full">
       {/* Avatar - smaller on mobile */}
-      <Avatar className="h-16 w-16 sm:h-24 sm:w-24 rounded-2xl border-4 border-background shadow-sm flex-shrink-0">
+      <Avatar className="h-16 w-16 sm:h-24 sm:w-24 rounded-full border-4 border-background shadow-sm flex-shrink-0">
         <AvatarImage src={organization.logo_url || undefined} alt={organization.name} />
         <AvatarFallback className="text-base sm:text-xl bg-primary/10 rounded-2xl">
-        {organization.type === 'company' ? 
-          <Building2 className="h-8 w-8 text-primary/60" /> : 
-          getInitials(organization.name)}
+        {(() => {
+          switch (organization.type) {
+            case 'company':
+              return <Building2 className="h-8 w-8 text-primary/60" />;
+            case 'school':
+              return <GraduationCap className="h-8 w-8 text-primary/60" />;
+            case 'government':
+              return <Building className="h-8 w-8 text-primary/60" />;
+            case 'nonprofit':
+            case 'other':
+            default:
+              return getInitials(organization.name);
+          }
+        })()}
         </AvatarFallback>
       </Avatar>
       
@@ -91,7 +102,16 @@ export default function OrganizationHeader({
         
         <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mt-2">
           <Badge variant="outline" className="capitalize">
-          {organization.type}
+          {(() => {
+            switch (organization.type) {
+              case 'nonprofit': return 'Nonprofit';
+              case 'school': return 'Educational';
+              case 'company': return 'Company';
+              case 'government': return 'Government';
+              case 'other': return 'Other';
+              default: return organization.type;
+            }
+          })()}
           </Badge>
           
           {organization.username && (

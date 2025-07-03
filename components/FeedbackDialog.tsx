@@ -152,7 +152,7 @@ export function FeedbackDialog({ onOpenChangeAction, initialType = "issue" }: Fe
         </DialogHeader>
         <div className="py-2 space-y-6">
           <p className="text-sm text-muted-foreground">
-            Have some feedback for letsassist? We would love to hear your thoughts!
+            Have some feedback for Let&apos;s Assist? We would love to hear your thoughts!
           </p>
           
           {/* <p className="text-sm text-muted-foreground">
