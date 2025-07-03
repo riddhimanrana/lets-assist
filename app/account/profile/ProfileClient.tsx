@@ -486,7 +486,7 @@ export default function ProfileClient() {
                             <div className="relative">
                               <FormControl>
                                 <Input
-                                  placeholder="ue username"
+                                  placeholder="Enter your username"
                                   {...field}
                                   maxLength={USERNAME_MAX_LENGTH}
                                   onChange={(e) => {

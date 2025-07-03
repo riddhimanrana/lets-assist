@@ -20,7 +20,7 @@ type OrganizationUpdateData = {
   username: string;
   description: string | undefined;
   website: string | undefined;
-  type: 'nonprofit' | 'school' | 'company';
+  type: 'nonprofit' | 'school' | 'company' | 'government' | 'other';
   logoUrl: string | null | undefined;
 };
 

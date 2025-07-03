@@ -24,7 +24,7 @@ type OrganizationCreationData = {
   username: string;
   description: string;
   website: string;
-  type: 'nonprofit' | 'school' | 'company';
+  type: 'nonprofit' | 'school' | 'company' | 'government' | 'other';
   logoUrl: string | null;
   createdBy: string;
 };
