@@ -174,7 +174,7 @@ export default async function VolunteerRecordPage({
       </div>
 
       {/* Timezone Debug Info - Remove this after debugging */}
-      {/* <TimezoneDebugInfo show={true} className="mb-6" /> */}
+      <TimezoneDebugInfo show={true} className="mb-6" />
 
       <CardContainer className="py-8" containerClassName="w-full">
         <CardBody className="relative h-auto w-full max-w-3xl rounded-xl bg-gradient-to-br from-background via-background to-muted border border-border/40 shadow-2xl">
