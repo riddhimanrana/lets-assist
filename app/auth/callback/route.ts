@@ -103,8 +103,11 @@ export async function GET(request: Request) {
           ? (() => {
               const decoded = decodeURIComponent(redirectAfterAuth);
               try {
-                return new URL(decoded).pathname;
+                // Parse as full URL to extract pathname and search params
+                const url = new URL(decoded);
+                return url.pathname + url.search; // Include both path and query params
               } catch {
+                // If URL parsing fails, assume it's just a path and return as-is
                 return decoded;
               }
             })()
