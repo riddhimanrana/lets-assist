@@ -80,7 +80,7 @@ export function ProjectQRCodeModal({ project, open, onOpenChange }: ProjectQRCod
           endTime,
           isAvailable: availability.isAvailable,
           hoursUntilStart: availability.hoursUntilStart,
-          qrUrl: `${siteUrl}/attend/${project.id}/prepare?session=${project.session_id}&schedule=oneTime`
+          qrUrl: `${siteUrl}/attend/${project.id}/prepare?session=${encodeURIComponent(project.session_id || '')}&schedule=${encodeURIComponent("oneTime")}`
         });
       } 
       else if (project.event_type === "multiDay" && project.schedule.multiDay) {
@@ -97,7 +97,7 @@ export function ProjectQRCodeModal({ project, open, onOpenChange }: ProjectQRCod
               endTime: slot.endTime,
               isAvailable: availability.isAvailable,
               hoursUntilStart: availability.hoursUntilStart,
-              qrUrl: `${siteUrl}/attend/${project.id}/prepare?session=${project.session_id}&schedule=${scheduleId}`
+              qrUrl: `${siteUrl}/attend/${project.id}/prepare?session=${encodeURIComponent(project.session_id || '')}&schedule=${encodeURIComponent(scheduleId)}`
             });
           });
         });
@@ -116,7 +116,7 @@ export function ProjectQRCodeModal({ project, open, onOpenChange }: ProjectQRCod
             endTime: role.endTime,
             isAvailable: availability.isAvailable,
             hoursUntilStart: availability.hoursUntilStart,
-            qrUrl: `${siteUrl}/attend/${project.id}/prepare?session=${project.session_id}&schedule=${role.name}`
+            qrUrl: `${siteUrl}/attend/${project.id}/prepare?session=${encodeURIComponent(project.session_id || '')}&schedule=${encodeURIComponent(role.name)}`
           });
         });
       }
