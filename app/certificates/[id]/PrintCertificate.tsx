@@ -32,10 +32,6 @@ interface CertificateData {
   volunteer_name: string | null;
   project_location: string | null;
   durationText: string;
-  issuedDate: string;
-  eventStart: string;
-  eventEnd: string;
-  userTimezone: string;
 }
 
 export function PrintCertificate({ data }: { data: CertificateData }) {
@@ -47,15 +43,6 @@ export function PrintCertificate({ data }: { data: CertificateData }) {
     setMounted(true);
   }, []);
 
-  // Helper function to get user's timezone (client-side)
-  const getUserTimezone = () => {
-    try {
-      return Intl.DateTimeFormat().resolvedOptions().timeZone;
-    } catch {
-      return "UTC";
-    }
-  };
-
   const handlePrint = () => {
     // Reset the flags at the start of each print attempt
     printCanceledRef.current = false;
@@ -64,6 +51,30 @@ export function PrintCertificate({ data }: { data: CertificateData }) {
     const links = Array.from(document.querySelectorAll("link[rel=stylesheet]"))
       .map((link) => link.outerHTML)
       .join("");
+
+    // Get user's timezone for print formatting
+    const getUserTimezone = () => {
+      try {
+        return Intl.DateTimeFormat().resolvedOptions().timeZone;
+      } catch {
+        return "UTC";
+      }
+    };
+
+    const userTimezone = getUserTimezone();
+
+    // Format dates in user's timezone for print
+    const printEventDate = formatInTimeZone(
+      parseISO(data.event_start),
+      userTimezone,
+      "MMMM d, yyyy",
+    );
+
+    const printIssuedDate = formatInTimeZone(
+      parseISO(data.issued_at),
+      userTimezone,
+      "MMM d, yyyy",
+    );
 
     // Assemble the HTML content for the certificate
     const certificateHtml = `
@@ -94,7 +105,7 @@ export function PrintCertificate({ data }: { data: CertificateData }) {
               </div>
               <div style="text-align:right">
                 <p class="print-text" style="margin:0">Certificate ID: ${data.id}</p>
-                <p class="print-text" style="margin:0">Issued: ${data.issuedDate}</p>
+                <p class="print-text" style="margin:0">Issued: ${printIssuedDate}</p>
               </div>
             </div>
 
@@ -114,7 +125,7 @@ export function PrintCertificate({ data }: { data: CertificateData }) {
               <div style="display:flex;gap:2rem;margin-top:1rem">
               <div style="text-align:center">
                 <span class="print-accent" aria-hidden="true">📅</span>
-                <p class="print-text" style="margin:.5rem 0">${formatInTimeZone(parseISO(data.event_start), getUserTimezone(), "MMMM d, yyyy")}</p>
+                <p class="print-text" style="margin:.5rem 0">${printEventDate}</p>
                 <p class="print-text" style="margin:0;font-size:0.9rem;">Event Date</p>
               </div>
                 ${
@@ -149,6 +160,7 @@ export function PrintCertificate({ data }: { data: CertificateData }) {
               <div>
                 <p class="print-text" style="margin:0">Issued by:</p>
                 <p class="print-text" style="font-weight:bold;margin:.25rem 0">${data.creator_name || "Let's Assist Admin"}</p>
+                <p class="print-text" style="margin:0;font-size:0.9rem;">Issued: ${printIssuedDate}</p>
               </div>
               ${
                 data.is_certified
