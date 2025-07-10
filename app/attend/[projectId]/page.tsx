@@ -80,15 +80,15 @@ export default async function AttendPage(props: Props): Promise<React.ReactEleme
                 <Card className="mx-auto max-w-[375px] sm:max-w-md w-full shadow-lg">
                     <CardHeader className="space-y-1">
                         <div className="flex items-center justify-center mb-4">
-                            <QrCode className="h-12 w-12 text-destructive" />
+                            <QrCode className="h-12 w-12 text-chart-4" />
                         </div>
-                        <CardTitle className="text-2xl text-center">QR Code Verification Failed</CardTitle>
+                        <CardTitle className="text-2xl text-center">Please Scan QR Code Again</CardTitle>
                         <CardDescription className="text-center mt-2">
-                            We couldn&apos;t verify your QR code scan. This could happen if the link has expired or if you&apos;re accessing it outside the expected flow.
+                            If you just logged in or signed up, you&apos;ll need to scan the QR code again to continue with attendance. This is a security measure to ensure you&apos;re accessing the correct session.
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="flex flex-col items-center">
-                        <p className="text-muted-foreground text-center mb-4">Please scan the QR code again using your device&apos;s camera to continue the attendance process.</p>
+                        <p className="text-muted-foreground text-center mb-4">Simply scan the QR code again using your device&apos;s camera to proceed with checking in.</p>
                     </CardContent>
                 </Card>
             </div>
