@@ -30,6 +30,11 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  TimezoneDateDisplay,
+  TimezoneEventDateRange,
+} from "./TimezoneDateDisplay";
+import { TimezoneDebugInfo } from "@/components/TimezoneDebugInfo";
 
 // Define the expected shape of the fetched data based on the 'certificates' table
 interface CertificateData {
@@ -68,15 +73,6 @@ function formatDuration(startISO: string, endISO: string): string {
     return `${hours} hour${hours !== 1 ? "s" : ""}${minutes > 0 ? ` ${minutes} min${minutes !== 1 ? "s" : ""}` : ""}`;
   } catch {
     return "Error";
-  }
-}
-
-// Helper function to get user's timezone
-function getUserTimezone(): string {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone;
-  } catch {
-    return "UTC"; // Fallback to UTC if timezone detection fails
   }
 }
 
@@ -148,25 +144,7 @@ export default async function VolunteerRecordPage({
   // Type assertion after checking for null and converting to unknown first
   const data = record as unknown as CertificateData;
 
-  // Get user's timezone
-  const userTimezone = getUserTimezone();
-
-  // Format dates in user's timezone
-  const eventStart = formatInTimeZone(
-    parseISO(data.event_start),
-    userTimezone,
-    "MMM d, yyyy • h:mm a",
-  );
-  const eventEnd = formatInTimeZone(
-    parseISO(data.event_end),
-    userTimezone,
-    "MMM d, yyyy • h:mm a",
-  );
-  const issuedDate = formatInTimeZone(
-    parseISO(data.issued_at),
-    userTimezone,
-    "MMM d, yyyy",
-  );
+  // Calculate duration (this doesn't need timezone conversion)
   const durationText = formatDuration(data.event_start, data.event_end);
 
   // Format ID for display
@@ -176,10 +154,6 @@ export default async function VolunteerRecordPage({
   const certificateData = {
     ...data,
     durationText,
-    issuedDate,
-    eventStart,
-    eventEnd,
-    userTimezone,
     creator_username: data.creator_profile?.username || null, // Adjusted to access single profile object
   };
 
@@ -198,6 +172,9 @@ export default async function VolunteerRecordPage({
           ID: {shortId}
         </Badge>
       </div>
+
+      {/* Timezone Debug Info - Remove this after debugging */}
+      {/* <TimezoneDebugInfo show={true} className="mb-6" /> */}
 
       <CardContainer className="py-8" containerClassName="w-full">
         <CardBody className="relative h-auto w-full max-w-3xl rounded-xl bg-gradient-to-br from-background via-background to-muted border border-border/40 shadow-2xl">
@@ -348,12 +325,10 @@ export default async function VolunteerRecordPage({
                       <p className="text-sm font-medium text-muted-foreground">
                         Date
                       </p>
-                      <p className="text-base font-semibold mt-0.5">
-                        {eventStart}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        to {eventEnd}
-                      </p>
+                      <TimezoneEventDateRange
+                        startDate={data.event_start}
+                        endDate={data.event_end}
+                      />
                     </div>
                   </CardItem>
                 </div>
@@ -392,9 +367,12 @@ export default async function VolunteerRecordPage({
                 <div className="text-sm text-muted-foreground">
                   <p>
                     Record created:{" "}
-                    <span className="text-foreground font-medium">
-                      {issuedDate}
-                    </span>
+                    <TimezoneDateDisplay
+                      dateString={data.issued_at}
+                      format="MMM d, yyyy"
+                      className="text-foreground font-medium"
+                      fallbackText="Loading..."
+                    />
                   </p>
                   <p className="mt-1 flex items-center">
                     Check-in method:{" "}
