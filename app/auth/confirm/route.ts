@@ -45,5 +45,13 @@ export async function GET(request: NextRequest) {
   }
 
   // For other types (signup, etc)
-  redirect(next + "?confirmed=true");
+  const decodedNext = decodeURIComponent(next);
+  try {
+    // Check if next contains query parameters
+    const url = new URL(decodedNext, request.url);
+    redirect(url.pathname + url.search + (url.search ? '&' : '?') + 'confirmed=true');
+  } catch {
+    // If URL parsing fails, treat as simple path
+    redirect(decodedNext + (decodedNext.includes('?') ? '&' : '?') + 'confirmed=true');
+  }
 }
