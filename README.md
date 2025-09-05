@@ -1,22 +1,18 @@
 # Let's Assist
 
-Let's Assist is a simple, yet intuitive online volunteering portal. It encompasses the key aspects you would need for a complete, online, volunteering-assist experience and lets you give back to your community, your way.
+Let's Assist is a comprehensive online volunteering platform that helps organizations and high school CSF programs manage, automatically track, and coordinate volunteering activities for students and communities. It simplifies the process for organizations to create and manage volunteer events, track student contributions, and verify hours securely using QR codes.
 
 Try it out at [lets-assist.com](https://lets-assist.com/)
 
-## ✨ Features
+## Video Demo
 
-- **User-Friendly Interface:** Intuitive design for easy navigation and a seamless user experience.
-- **Volunteer Profiles:** Detailed profiles showcasing skills, availability, and interests.
-- **Assistance Listings:** Clear and concise listings of assistance requests, including descriptions, locations, and requirements.
-- **Matching Algorithm:** Smart matching system connecting volunteers with relevant opportunities.
-- **Real-Time Communication:** Integrated messaging for direct communication between volunteers and those seeking assistance.
-- **Admin Dashboard:** Tools for managing users, listings, and platform content.
-- **Authentication:** Secure user authentication and authorization.
-- **Responsive Design:** Fully responsive layout for access on various devices.
-- **Theming:** Toggle between light and dark mode.
 
-## 🛠️ Tech Stack
+
+https://github.com/user-attachments/assets/45c80d37-230a-4f90-a321-286f0a1f7764
+
+
+
+## Tech Stack
 
 This project is built using the following technologies:
 
@@ -30,16 +26,7 @@ This project is built using the following technologies:
 - [Cloudflare](https://www.cloudflare.com/): Security, domain and performance optimization.
 - Other libraries: Additional tools enhancing project functionality.
 
-## 📝 Usage
-
-- **Signup/Login:** Create an account or log in to access the platform.
-- **Complete Profile:** Add your skills, availability, and interests to your profile.
-- **Browse Listings:** Find assistance requests that match your skills and interests.
-- **Offer Help:** Contact individuals or organizations to offer your services.
-- **Manage Listings:** Create, update, and manage your assistance requests (if applicable).
-- **Communicate:** Use the integrated messaging system to coordinate with others.
-
-## ❓ FAQ
+## FAQ
 
 <details>
   <summary>What was your inspiration for Let's Assist?</summary>
@@ -76,14 +63,10 @@ A: This is a solo project. Essentially as I was in the creation stage of letsass
     A: Let's Assist is a solo project and I am not looking to bring anyone on board at this time.
 </details>
 
-## 🛡️ License
+## License
 
 This project is licensed under the [GPL-3.0 License](LICENSE)
 
-## 📧 Contact
+## Contact
 
 For questions or feedback, please contact [support@lets-assist.com](mailto:support@lets-assist.com).
-
-## 🙏 Acknowledgements
-
-We would like to thank [Vercel](https://vercel.com) for providing the platform for hosting this project. Check out other open source projects that helped this project [here](https://lets-assist.com/acknowledgements)
