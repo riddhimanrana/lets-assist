@@ -42,6 +42,7 @@ interface CertificateData {
   project_title: string;
   creator_name: string | null;
   is_certified: boolean;
+  type?: "verified" | "self-reported"; // Optional for backward compatibility
   event_start: string; // Assuming ISO string format from Supabase
   event_end: string; // Assuming ISO string format from Supabase
   volunteer_email: string | null;
@@ -55,6 +56,7 @@ interface CertificateData {
   signup_id: string | null;
   volunteer_name: string | null;
   project_location: string | null;
+  description: string | null; // For self-reported description
   creator_profile: { username: string | null } | null; // Updated to single object or null
 }
 
@@ -117,6 +119,7 @@ export default async function VolunteerRecordPage({
       project_title,
       creator_name,
       is_certified,
+      type,
       event_start,
       event_end,
       volunteer_email,
@@ -130,6 +133,7 @@ export default async function VolunteerRecordPage({
       signup_id,
       volunteer_name,
       project_location,
+      description,
       creator_profile:profiles!certificates_creator_id_fkey (username) // Specified foreign key and alias
     `,
     )
@@ -143,6 +147,9 @@ export default async function VolunteerRecordPage({
 
   // Type assertion after checking for null and converting to unknown first
   const data = record as unknown as CertificateData;
+  
+  // Determine if this is a self-reported certificate (default to verified for backward compatibility)
+  const isSelfReported = data.type === "self-reported";
 
   // Calculate duration (this doesn't need timezone conversion)
   const durationText = formatDuration(data.event_start, data.event_end);
@@ -162,26 +169,44 @@ export default async function VolunteerRecordPage({
       <div className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">
-            Volunteer Certificate
+            {isSelfReported ? "Self-Reported" : "Volunteer"} Certificate
           </h1>
           <p className="text-muted-foreground">
-            Official record of volunteer activity
+            {isSelfReported 
+              ? "Self-reported volunteer activity record" 
+              : "Official record of volunteer activity"
+            }
           </p>
         </div>
-        <Badge variant="outline" className="px-3 py-1">
-          ID: {shortId}
-        </Badge>
+        <div className="flex items-center gap-2">
+          {isSelfReported && (
+            <Badge variant="secondary" className="px-3 py-1 bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300">
+              Self-Reported
+            </Badge>
+          )}
+          <Badge variant="outline" className="px-3 py-1">
+            ID: {shortId}
+          </Badge>
+        </div>
       </div>
 
       {/* Timezone Debug Info - Remove this after debugging */}
       {/* <TimezoneDebugInfo show={true} className="mb-6" /> */}
 
       <CardContainer className="py-8" containerClassName="w-full">
-        <CardBody className="relative h-auto w-full max-w-3xl rounded-xl bg-gradient-to-br from-background via-background to-muted border border-border/40 shadow-2xl">
+        <CardBody className={`relative h-auto w-full max-w-3xl rounded-xl border border-border/40 shadow-2xl ${
+          isSelfReported 
+            ? "bg-gradient-to-br from-gray-50 via-gray-100/50 to-gray-200/30 dark:from-gray-800/20 dark:via-gray-700/10 dark:to-gray-600/20" 
+            : "bg-gradient-to-br from-background via-background to-muted"
+        }`}>
           {/* Certificate Header with Glow Effect */}
           <CardItem
             translateZ={20}
-            className="w-full rounded-t-xl bg-gradient-to-r from-primary/10 via-primary/5 to-background p-6"
+            className={`w-full rounded-t-xl p-6 ${
+              isSelfReported 
+                ? "bg-gradient-to-r from-gray-200/40 via-gray-100/30 to-gray-50/20 dark:from-gray-700/30 dark:via-gray-600/20 dark:to-gray-500/10" 
+                : "bg-gradient-to-r from-primary/10 via-primary/5 to-background"
+            }`}
           >
             <div className="relative z-10">
               <div className="flex justify-between items-start">
@@ -206,22 +231,28 @@ export default async function VolunteerRecordPage({
                       translateZ={40}
                       as="div"
                       className="flex items-center gap-2 mt-2 text-muted-foreground"
-                      aria-label={`Issued by ${data.creator_name}`}
+                      aria-label={`${isSelfReported ? "Supervised by" : "Issued by"} ${data.creator_name}`}
                     >
                       <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground/80">
-                        Issued by
+                        {isSelfReported ? "Supervised by" : "Issued by"}
                       </span>
                       <User
-                        className="h-4 w-4 text-primary"
+                        className={`h-4 w-4 ${isSelfReported ? "text-gray-600 dark:text-gray-400" : "text-primary"}`}
                         aria-hidden="true"
                       />
-                      <Link
-                        href={`/profile/${certificateData.creator_username}`}
-                        className="text-sm font-semibold text-foreground hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/60 rounded"
-                        aria-label={`View profile of ${data.creator_name}`}
-                      >
-                        {data.creator_name}
-                      </Link>
+                      {isSelfReported ? (
+                        <span className="text-sm font-semibold text-foreground">
+                          {data.creator_name}
+                        </span>
+                      ) : (
+                        <Link
+                          href={`/profile/${certificateData.creator_username}`}
+                          className="text-sm font-semibold text-foreground hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/60 rounded"
+                          aria-label={`View profile of ${data.creator_name}`}
+                        >
+                          {data.creator_name}
+                        </Link>
+                      )}
                     </CardItem>
                   )}
                 </div>
@@ -355,6 +386,30 @@ export default async function VolunteerRecordPage({
                     </div>
                   </CardItem>
                 )}
+
+                {/* Description for self-reported certificates */}
+                {isSelfReported && data.description && (
+                  <CardItem
+                    translateZ={50}
+                    className="flex items-start gap-3 mt-6 group/item"
+                  >
+                    <div
+                      className="h-10 w-10 rounded-lg bg-gradient-to-br from-gray-200/60 to-gray-100/30 dark:from-gray-600/40 dark:to-gray-700/20
+                      flex items-center justify-center shadow-sm border border-gray-200/50 dark:border-gray-600/30
+                      group-hover/item:shadow-[0_0_15px_rgba(156,163,175,0.2)] transition-all duration-300 flex-shrink-0"
+                    >
+                      <Clipboard className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">
+                        Description
+                      </p>
+                      <p className="text-base font-semibold mt-0.5 leading-relaxed">
+                        {data.description}
+                      </p>
+                    </div>
+                  </CardItem>
+                )}
               </div>
             </CardItem>
 
@@ -374,36 +429,40 @@ export default async function VolunteerRecordPage({
                       fallbackText="Loading..."
                     />
                   </p>
-                  <p className="mt-1 flex items-center">
-                    Check-in method:{" "}
-                    {data.check_in_method?.toLowerCase() === "qr-code" ? (
-                      <QrCode className="mx-1 h-4 w-4 text-primary" />
-                    ) : data.check_in_method?.toLowerCase() === "auto" ? (
-                      <Clock className="mx-1 h-4 w-4 text-primary" />
-                    ) : data.check_in_method?.toLowerCase() ===
-                      "signup-only" ? (
-                      <Clipboard className="mx-1 h-4 w-4 text-primary" />
-                    ) : (
-                      <UserCheck className="mx-1 h-4 w-4 text-primary" />
-                    )}
-                    <span className="text-foreground font-medium ml-1">
-                      {data.check_in_method
-                        ? data.check_in_method.toLowerCase() === "qr-code"
-                          ? "QR Code"
-                          : data.check_in_method.toLowerCase() === "auto"
-                            ? "Automatic Check-in"
-                            : data.check_in_method.toLowerCase() ===
-                                  "signup only" ||
-                                data.check_in_method.toLowerCase() ===
-                                  "signup-only"
-                              ? "Signup Only"
-                              : data.check_in_method
-                        : "Manual"}
-                    </span>
-                  </p>
+                  {!isSelfReported && (
+                    <p className="mt-1 flex items-center">
+                      Check-in method:{" "}
+                      {data.check_in_method?.toLowerCase() === "qr-code" ? (
+                        <QrCode className="mx-1 h-4 w-4 text-primary" />
+                      ) : data.check_in_method?.toLowerCase() === "auto" ? (
+                        <Clock className="mx-1 h-4 w-4 text-primary" />
+                      ) : data.check_in_method?.toLowerCase() ===
+                        "signup-only" ? (
+                        <Clipboard className="mx-1 h-4 w-4 text-primary" />
+                      ) : (
+                        <UserCheck className="mx-1 h-4 w-4 text-primary" />
+                      )}
+                      <span className="text-foreground font-medium ml-1">
+                        {data.check_in_method
+                          ? data.check_in_method.toLowerCase() === "qr-code"
+                            ? "QR Code"
+                            : data.check_in_method.toLowerCase() === "auto"
+                              ? "Automatic Check-in"
+                              : data.check_in_method.toLowerCase() ===
+                                    "signup only" ||
+                                  data.check_in_method.toLowerCase() ===
+                                    "signup-only"
+                                ? "Signup Only"
+                                : data.check_in_method
+                          : "Manual"}
+                      </span>
+                    </p>
+                  )}
                 </div>
 
-                <CertificateCardButton projectId={data.project_id} />
+                {!isSelfReported && data.project_id && (
+                  <CertificateCardButton projectId={data.project_id} />
+                )}
               </div>
             </CardItem>
           </CardItem>
@@ -427,11 +486,18 @@ export default async function VolunteerRecordPage({
 
       <div className="mt-8 text-center">
         <p className="text-sm text-muted-foreground mb-1">
-          This is an official record of volunteer hours from Let&apos;s Assist.
+          {isSelfReported 
+            ? "This is a self-reported record of volunteer hours logged by the user."
+            : "This is an official record of volunteer hours from Let's Assist."
+          }
         </p>
         <p className="text-xs text-muted-foreground">
-          Verification ID:{" "}
-          <span className="font-medium text-primary/80 hover:text-primary transition-colors">
+          {isSelfReported ? "Record" : "Verification"} ID:{" "}
+          <span className={`font-medium transition-colors ${
+            isSelfReported 
+              ? "text-muted-foreground/80 hover:text-muted-foreground" 
+              : "text-primary/80 hover:text-primary"
+          }`}>
             {data.id}
           </span>
         </p>
