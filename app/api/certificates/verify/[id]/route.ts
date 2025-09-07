@@ -33,7 +33,8 @@ export async function GET(
         event_end,
         volunteer_name,
         volunteer_email,
-        issued_at
+        issued_at,
+        type
       `)
       .eq('id', certificateId)
       .single();
@@ -56,6 +57,7 @@ export async function GET(
         id: certificate.id,
         certified: certificate.is_certified,
         issuedAt: certificate.issued_at,
+        type: certificate.type || 'verified', // Default to 'verified' for backward compatibility
         recipient: {
           name: certificate.volunteer_name,
           email: certificate.volunteer_email

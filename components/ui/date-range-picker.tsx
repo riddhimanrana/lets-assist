@@ -56,25 +56,56 @@ export function DateRangePicker({
     let startDate: Date
     
     switch (value) {
-      case "last-week":
-        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-        break
+      case "academic-year":
+        // Academic year: August 1st of current year to July 31st of next year
+        // If we're past August, current academic year started this August
+        // If we're before August, current academic year started last August
+        const currentYear = now.getFullYear()
+        const academicStartYear = now.getMonth() >= 7 ? currentYear : currentYear - 1 // August is month 7 (0-indexed)
+        startDate = new Date(academicStartYear, 7, 1) // August 1st
+        const endDate = new Date(academicStartYear + 1, 6, 31) // July 31st next year
+        const adjustedEndDate = new Date(endDate)
+        adjustedEndDate.setDate(adjustedEndDate.getDate() + 1)
+        onChange?.({ from: startDate, to: adjustedEndDate })
+        return
+      case "academic-semester":
+        // Fall semester: August - December, Spring semester: January - May
+        const currentMonth = now.getMonth()
+        if (currentMonth >= 7) { // August-December (Fall)
+          startDate = new Date(now.getFullYear(), 7, 1) // August 1st
+          const semesterEnd = new Date(now.getFullYear(), 11, 31) // December 31st
+          const adjustedSemesterEnd = new Date(semesterEnd)
+          adjustedSemesterEnd.setDate(adjustedSemesterEnd.getDate() + 1)
+          onChange?.({ from: startDate, to: adjustedSemesterEnd })
+        } else { // January-July (Spring)
+          startDate = new Date(now.getFullYear(), 0, 1) // January 1st
+          const semesterEnd = new Date(now.getFullYear(), 4, 31) // May 31st
+          const adjustedSemesterEnd = new Date(semesterEnd)
+          adjustedSemesterEnd.setDate(adjustedSemesterEnd.getDate() + 1)
+          onChange?.({ from: startDate, to: adjustedSemesterEnd })
+        }
+        return
+      case "summer":
+        // Summer: June 1st - August 31st
+        startDate = new Date(now.getFullYear(), 5, 1) // June 1st
+        const summerEnd = new Date(now.getFullYear(), 7, 31) // August 31st
+        const adjustedSummerEnd = new Date(summerEnd)
+        adjustedSummerEnd.setDate(adjustedSummerEnd.getDate() + 1)
+        onChange?.({ from: startDate, to: adjustedSummerEnd })
+        return
       case "last-month":
         startDate = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate())
-        break
-      case "last-3-months":
-        startDate = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate())
         break
       case "last-6-months":
         startDate = new Date(now.getFullYear(), now.getMonth() - 6, now.getDate())
         break
-      case "last-year":
-        startDate = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate())
-        break
       case "lifetime":
+        // Set a very early date instead of undefined
+        startDate = new Date(2020, 0, 1) // January 1, 2020
+        break
       default:
-        onChange?.(undefined)
-        return
+        startDate = new Date(now.getFullYear(), now.getMonth() - 6, now.getDate())
+        break
     }
     
     const adjustedEndDate = new Date(now);
@@ -96,12 +127,12 @@ export function DateRangePicker({
             <SelectValue placeholder="Quick select" />
           </SelectTrigger>
           <SelectContent>
+            <SelectItem value="academic-year">This Academic Year</SelectItem>
+            <SelectItem value="academic-semester">This Academic Semester</SelectItem>
+            <SelectItem value="summer">Summer</SelectItem>
+            <SelectItem value="last-month">Last Month</SelectItem>
+            <SelectItem value="last-6-months">Last 6 Months</SelectItem>
             <SelectItem value="lifetime">Lifetime</SelectItem>
-            <SelectItem value="last-week">Last week</SelectItem>
-            <SelectItem value="last-month">Last month</SelectItem>
-            <SelectItem value="last-3-months">Last 3 months</SelectItem>
-            <SelectItem value="last-6-months">Last 6 months</SelectItem>
-            <SelectItem value="last-year">Last year</SelectItem>
           </SelectContent>
         </Select>
       )}

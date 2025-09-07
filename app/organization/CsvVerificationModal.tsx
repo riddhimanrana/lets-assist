@@ -22,6 +22,7 @@ interface VerificationResult {
     id: string;
     certified: boolean;
     issuedAt: string;
+    type?: string; // 'verified' or 'self-reported'
     recipient: {
       name: string;
       email: string;
@@ -51,6 +52,7 @@ interface VerificationResult {
       organizer: boolean;
       hours: boolean;
       status: boolean;
+      type: boolean;
     };
   };
   error?: string;
@@ -62,11 +64,15 @@ interface CertificateRow {
   organizationName: string;
   organizerName: string;
   certificationStatus: string;
+  certificateType?: string; // 'verified' or 'self-reported'
   eventStartDate?: string;
   eventEndDate?: string;
   duration?: string;
   location?: string;
   issuedDate?: string;
+  checkInMethod?: string;
+  volunteerName?: string;
+  volunteerEmail?: string;
   valid: boolean;
   issues: string[];
   verificationStatus?: 'pending' | 'verified' | 'failed';
@@ -146,11 +152,15 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
     const organizationName = row[2]?.trim() || '';
     const organizerName = row[3]?.trim() || '';
     const certificationStatus = row[4]?.trim() || '';
-    const eventStartDate = row[5]?.trim() || '';
-    const eventEndDate = row[6]?.trim() || '';
-    const duration = row[7]?.trim() || '';
-    const location = row[8]?.trim() || '';
-    const issuedDate = row[9]?.trim() || '';
+    const certificateType = row[5]?.trim() || ''; // New: 'verified' or 'self-reported'
+    const eventStartDate = row[6]?.trim() || '';
+    const eventEndDate = row[7]?.trim() || '';
+    const duration = row[8]?.trim() || '';
+    const location = row[9]?.trim() || '';
+    const checkInMethod = row[10]?.trim() || '';
+    const volunteerName = row[11]?.trim() || '';
+    const volunteerEmail = row[12]?.trim() || '';
+    const issuedDate = row[13]?.trim() || '';
 
     // Validation rules
     if (!certificateId) issues.push('Missing certificate ID');
@@ -176,6 +186,11 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
     // Check certification status
     if (certificationStatus && !['Certified', 'Participated'].includes(certificationStatus)) {
       issues.push('Invalid certification status (must be "Certified" or "Participated")');
+    }
+
+    // Check certificate type
+    if (certificateType && !['verified', 'self-reported'].includes(certificateType)) {
+      issues.push('Invalid certificate type (must be "verified" or "self-reported")');
     }
 
     // Date validation if provided
@@ -211,10 +226,14 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
       organizationName,
       organizerName,
       certificationStatus,
+      certificateType,
       eventStartDate,
       eventEndDate,
       duration,
       location,
+      checkInMethod,
+      volunteerName,
+      volunteerEmail,
       issuedDate,
       valid: issues.length === 0,
       issues
@@ -239,7 +258,22 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
       }
 
       const headers = parseCsvLine(lines[0]);
-      const expectedHeaders = ['certificate id', 'project title', 'organization name', 'project organizer name', 'certification status'];
+      const expectedHeaders = [
+        'certificate id', 
+        'project title', 
+        'organization name', 
+        'project organizer name', 
+        'certification status',
+        'certificate type',
+        'event start date',
+        'event end date', 
+        'duration',
+        'location',
+        'check in method',
+        'volunteer name',
+        'volunteer email',
+        'issued date'
+      ];
       
       // Check if required headers are present (case insensitive)
       const hasRequiredHeaders = expectedHeaders.every(expected => 
@@ -247,7 +281,7 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
       );
 
       if (!hasRequiredHeaders) {
-        setError('CSV must contain the expected certificate columns: Certificate ID, Project Title, Organization Name, Project Organizer Name, Certification Status');
+        setError('CSV must contain the expected certificate columns: Certificate ID, Project Title, Organization Name, Project Organizer Name, Certification Status, Certificate Type, Event Start Date, Event End Date, Duration, Location, Check In Method, Volunteer Name, Volunteer Email, Issued Date');
         return;
       }
 
@@ -459,6 +493,7 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
         const titleMatch = result.project?.title?.toLowerCase() === row.projectTitle?.toLowerCase();
         const organizerMatch = result.organizer?.name?.toLowerCase() === row.organizerName?.toLowerCase();
         const statusMatch = result.certificate?.certified === (row.certificationStatus === 'Certified');
+        const typeMatch = (result.certificate?.type || 'verified') === (row.certificateType || 'verified');
 
         // Update the row with verification result
         const updatedRow: CertificateRow = {
@@ -473,11 +508,12 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                 title: titleMatch,
                 organizer: organizerMatch,
                 hours: hoursMatch,
-                status: statusMatch
+                status: statusMatch,
+                type: typeMatch
               }
             }
           },
-          isVerified: titleMatch && organizerMatch && hoursMatch && statusMatch
+          isVerified: titleMatch && organizerMatch && hoursMatch && statusMatch && typeMatch
         };
         
         return updatedRow;
@@ -800,6 +836,19 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                                     </div>
                                   </div>
                                 )}
+                                {row.certificateType && (
+                                  <div>
+                                    <span className="font-medium text-muted-foreground">Type:</span>
+                                    <div className="mt-0.5">
+                                      <Badge 
+                                        variant={row.certificateType === 'verified' ? 'default' : 'secondary'}
+                                        className={`text-xs ${row.certificateType === 'self-reported' ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-400' : ''}`}
+                                      >
+                                        {row.certificateType === 'verified' ? 'Verified' : 'Self-Reported'}
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                )}
                                 {row.duration && (
                                   <div>
                                     <span className="font-medium text-muted-foreground">Duration:</span>
@@ -825,6 +874,7 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                                            key === 'organizer' ? 'Organizer Name' :
                                            key === 'hours' ? 'Duration/Hours' :
                                            key === 'status' ? 'Certification Status' :
+                                           key === 'type' ? 'Certificate Type' :
                                            key.replace(/([A-Z])/g, ' $1').trim()}
                                         </span>
                                       </div>
@@ -1121,7 +1171,8 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                 <p className="text-sm sm:text-lg font-medium">Upload a CSV file to begin verification</p>
                 <p className="text-xs sm:text-sm max-w-md mx-auto mt-2">
                   The CSV should contain columns for Certificate ID, Project Title, Organization Name, 
-                  Project Organizer Name, and Certification Status
+                  Project Organizer Name, Certification Status, Certificate Type (verified/self-reported), 
+                  and other certificate details
                 </p>
                 <div className="mt-4 sm:mt-6">
                   <div className="inline-flex items-center justify-center gap-1 px-3 py-1 rounded-md bg-muted/30 text-xs text-muted-foreground">
