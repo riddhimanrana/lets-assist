@@ -19,13 +19,14 @@ import { Project, ProjectSchedule } from "@/types";
 import { getSlotDetails } from "@/utils/project";
 import { Metadata } from "next";
 
-// Define types for certificate data
-interface Certificate {
+// Define types for certificate data returned by the backend
+// Renamed to avoid colliding with the UI Certificate type imported above
+interface BackendCertificate {
   id: string;
   project_title: string;
   creator_name: string | null;
   is_certified: boolean;
-  type?: "verified" | "self-reported"; // Optional for backward compatibility
+  type?: "verified" | "self-reported"; // backend uses 'verified' | 'self-reported'
   event_start: string;
   event_end: string;
   volunteer_email: string | null;
@@ -36,6 +37,27 @@ interface Certificate {
   signup_id: string | null;
   volunteer_name: string | null;
   project_location: string | null;
+}
+
+// Add a local UI certificate type that matches what the components expect.
+// backend 'verified' -> UI 'platform', self-reported stays 'self-reported'
+interface UICertificate {
+  id: string;
+  project_title: string;
+  creator_name: string | null;
+  is_certified: boolean;
+  type?: "platform" | "self-reported";
+  event_start: string;
+  event_end: string;
+  volunteer_email: string | null;
+  organization_name: string | null;
+  project_id: string | null;
+  schedule_id: string | null;
+  issued_at: string;
+  signup_id: string | null;
+  volunteer_name: string | null;
+  project_location: string | null;
+  hours?: number; // computed field added in processing
 }
 
 // Define types for statistics
@@ -231,8 +253,8 @@ export default async function VolunteerDashboard() {
     hoursByMonth: {}
   };
 
-  // Process certificate data
-  const processedCertificates = (certificates || []).map((cert: Certificate) => {
+  // Process certificate data (typed as BackendCertificate from the DB)
+  const processedCertificates = (certificates || []).map((cert: BackendCertificate) => {
     // Calculate hours for this certificate
     const hours = calculateHours(cert.event_start, cert.event_end);
     
@@ -275,15 +297,23 @@ export default async function VolunteerDashboard() {
     };
   });
 
+  // Map backend certificate types to the UI Certificate type expected by components:
+  // backend 'verified' -> UI 'platform', 'self-reported' stays 'self-reported'
+  const uiCertificates: UICertificate[] = processedCertificates.map((c) => ({
+    ...c,
+    // Ensure the "type" matches the UI type union ("platform" | "self-reported" | undefined)
+    type: c.type === "verified" ? "platform" : c.type,
+  }));
+
   // Get unique project count from verified certificates only
   statistics.totalProjects = [...new Set(processedCertificates
-    .filter((c: Certificate & { hours: number }) => (c.type || 'verified') === 'verified')
-    .map((c: Certificate & { hours: number }) => c.project_id)
+    .filter((c: BackendCertificate & { hours: number }) => (c.type || 'verified') === 'verified')
+    .map((c: BackendCertificate & { hours: number }) => c.project_id)
   )].filter(Boolean).length;
 
   // Calculate self-reported hours
   const selfReportedHours = processedCertificates
-    .filter((c: Certificate & { hours: number }) => c.type === 'self-reported')
+    .filter((c: BackendCertificate & { hours: number }) => c.type === 'self-reported')
     .reduce((total, cert) => total + cert.hours, 0);
 
   // Format hours by month for chart data - last 6 months
@@ -595,13 +625,13 @@ export default async function VolunteerDashboard() {
             <div className="flex items-center gap-2">
               <Badge variant="outline" className="gap-2">
                 <Award className="h-4 w-4" />
-                {processedCertificates.length} Total Certificates
+                {uiCertificates.length} Total Certificates
               </Badge>
             </div>
           </div>
 
           {/* Unified Hours Display */}
-          <AllHoursSection certificates={processedCertificates} />
+          <AllHoursSection certificates={uiCertificates} />
         </TabsContent>
 
         {/* Export & Reports Tab */}
@@ -609,10 +639,11 @@ export default async function VolunteerDashboard() {
           {user.email && (
             <ExportSection
               userEmail={user.email}
-              verifiedCount={processedCertificates.filter(cert => (cert.type || 'verified') === 'verified').length}
-              unverifiedCount={processedCertificates.filter(cert => cert.type === 'self-reported').length}
-              totalCertificates={processedCertificates.length}
-              certificatesData={processedCertificates}
+              // For the export UI, use uiCertificates where 'platform' == previously 'verified'
+              verifiedCount={uiCertificates.filter(cert => cert.type === 'platform').length}
+              unverifiedCount={uiCertificates.filter(cert => cert.type === 'self-reported').length}
+              totalCertificates={uiCertificates.length}
+              certificatesData={uiCertificates}
             />
           )}
         </TabsContent>

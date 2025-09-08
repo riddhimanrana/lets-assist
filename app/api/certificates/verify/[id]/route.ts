@@ -57,7 +57,7 @@ export async function GET(
         id: certificate.id,
         certified: certificate.is_certified,
         issuedAt: certificate.issued_at,
-        type: certificate.type || 'verified', // Default to 'verified' for backward compatibility
+        type: certificate.type || 'platform', // Default to 'platform' for backward compatibility
         recipient: {
           name: certificate.volunteer_name,
           email: certificate.volunteer_email
