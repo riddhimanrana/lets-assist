@@ -25,7 +25,7 @@ interface Certificate {
   project_title: string;
   creator_name: string | null;
   is_certified: boolean;
-  type?: "verified" | "self-reported"; // Optional for backward compatibility
+  type?: "platform" | "self-reported"; // Optional for backward compatibility
   event_start: string;
   event_end: string;
   volunteer_email: string | null;
@@ -70,8 +70,8 @@ function formatTotalDuration(totalHours: number): string {
 
 export function AllHoursSection({ certificates }: AllHoursSectionProps) {
   
-  // Separate verified and self-reported certificates (default to verified for backward compatibility)
-  const verifiedCertificates = certificates.filter(cert => (cert.type || "verified") === "verified");
+  // Separate platform and self-reported certificates (default to platform for backward compatibility)
+  const verifiedCertificates = certificates.filter(cert => (cert.type || "platform") === "platform");
   const selfReportedCertificates = certificates.filter(cert => cert.type === "self-reported");
   
   const totalVerified = verifiedCertificates.length;
@@ -90,11 +90,11 @@ export function AllHoursSection({ certificates }: AllHoursSectionProps) {
                 Self-Reported
               </Badge>
             ) : (
-              <Badge variant="default" className="text-xs">Verified</Badge>
+              <Badge variant="default" className="text-xs">Platform</Badge>
             )}
-            {!isSelfReported && cert.is_certified && (
-              <Badge variant="outline" className="text-xs">
-                <Award className="h-3 w-3 mr-1" /> Certified Org
+                        {!isSelfReported && cert.is_certified && (
+              <Badge variant="default" className="text-xs bg-emerald-600 hover:bg-emerald-700">
+                <Award className="h-3 w-3 mr-1" /> Official Org
               </Badge>
             )}
           </div>
@@ -129,10 +129,10 @@ export function AllHoursSection({ certificates }: AllHoursSectionProps) {
         <CardHeader>
           <div className="flex items-center gap-2">
             <CircleCheck className="h-5 w-5 text-primary flex-shrink-0" />
-            <CardTitle>Let&apos;s Assist Verified Hours</CardTitle>
+            <CardTitle>Let&apos;s Assist Platform Hours</CardTitle>
             <Badge variant="secondary">{totalVerified}</Badge>
           </div>
-          <CardDescription>Hours from verified Let&apos;s Assist projects and organizations</CardDescription>
+          <CardDescription>Hours from Let&apos;s Assist platform projects and organizations</CardDescription>
         </CardHeader>
         <CardContent>
           {verifiedCertificates.length > 0 ? (
