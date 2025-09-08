@@ -41,6 +41,9 @@ interface ExportData {
   supervisorContact: string;
   isVerified: boolean;
   type: string;
+  certificationStatus: string;
+  checkInMethod: string;
+  issuedDate: string;
 }
 
 export function ExportSection({ 
@@ -58,7 +61,7 @@ export function ExportSection({
 
   // Convert certificates data to export format
   const convertCertificateToExportData = (cert: any): ExportData => {
-    const isVerified = (cert.type || 'verified') === 'verified';
+    const isVerified = (cert.type || 'platform') === 'platform';
     return {
       id: cert.id,
       projectTitle: cert.project_title || cert.title || "Unknown Project",
@@ -72,7 +75,10 @@ export function ExportSection({
       location: cert.project_location || "Unknown Location",
       supervisorContact: cert.creator_name || "Unknown Supervisor",
       isVerified: isVerified,
-      type: isVerified ? "Verified" : "Self-Reported"
+      type: isVerified ? "platform" : "self-reported", // Use lowercase to match DB values
+      certificationStatus: cert.is_certified ? "Certified" : "Participated",
+      checkInMethod: cert.check_in_method || "Unknown",
+      issuedDate: cert.issued_at ? format(new Date(cert.issued_at), "yyyy-MM-dd") : "Unknown Date"
     };
   };
 
@@ -114,35 +120,39 @@ export function ExportSection({
     setIsExporting(true);
     
     try {
-      // Build CSV with all columns
+      // Build CSV with columns that match the verification modal expectations
       const headers = [
-        "Volunteer Name",
-        "Email", 
+        "Certificate ID",
         "Project Title",
-        "Organization",
-        "Date",
-        "Start Time",
-        "End Time", 
-        "Duration (Hours)",
+        "Organization Name", 
+        "Project Organizer Name",
+        "Certification Status",
+        "Certificate Type",
+        "Event Start Date",
+        "Event End Date",
+        "Duration",
         "Location",
-        "Supervisor Contact",
-        "Type",
-        "Verified"
+        "Check In Method",
+        "Volunteer Name", 
+        "Volunteer Email",
+        "Issued Date"
       ];
 
       const rows = filteredData.map(item => [
-        item.volunteerName,
-        item.volunteerEmail,
-        item.projectTitle,
-        item.organizationName,
-        item.date,
-        item.startTime,
-        item.endTime,
-        item.duration,
-        item.location,
-        item.supervisorContact,
-        item.type,
-        item.isVerified ? "Yes" : "No"
+        item.id, // Certificate ID
+        item.projectTitle, // Project Title
+        item.organizationName, // Organization Name
+        item.supervisorContact, // Project Organizer Name
+        item.certificationStatus, // Certification Status
+        item.type, // Certificate Type
+        item.date + " " + item.startTime, // Event Start Date with time
+        item.date + " " + item.endTime, // Event End Date with time
+        item.duration, // Duration
+        item.location, // Location
+        item.checkInMethod, // Check In Method
+        item.volunteerName, // Volunteer Name
+        item.volunteerEmail, // Volunteer Email
+        item.issuedDate // Issued Date
       ]);
 
       // Generate CSV
@@ -258,6 +268,7 @@ export function ExportSection({
                 <table className="w-full text-sm">
                   <thead className="bg-muted/50 sticky top-0">
                     <tr className="border-b">
+                      <th className="text-left p-3 font-medium">Certificate ID</th>
                       <th className="text-left p-3 font-medium">Project</th>
                       <th className="text-left p-3 font-medium">Organization</th>
                       <th className="text-left p-3 font-medium">Date</th>
@@ -268,13 +279,14 @@ export function ExportSection({
                   <tbody>
                     {filteredData.map((item, index) => (
                       <tr key={item.id} className={index % 2 === 0 ? "bg-background" : "bg-muted/25"}>
+                        <td className="p-3 font-mono text-xs">{item.id}</td>
                         <td className="p-3">{item.projectTitle}</td>
                         <td className="p-3">{item.organizationName}</td>
                         <td className="p-3">{item.date}</td>
                         <td className="p-3">{item.duration}h</td>
                         <td className="p-3">
                           <Badge variant={item.isVerified ? "default" : "secondary"}>
-                            {item.type}
+                            {item.isVerified ? "Verified" : "Self-Reported"}
                           </Badge>
                         </td>
                       </tr>
