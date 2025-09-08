@@ -84,6 +84,68 @@ interface CsvVerificationModalProps {
   children?: React.ReactNode;
 }
 
+// Helper function to format hours from decimal to "Xh Ym" format
+const formatHours = (decimalHours: number): string => {
+  if (decimalHours === 0) return '0h';
+  
+  const hours = Math.floor(decimalHours);
+  const minutes = Math.round((decimalHours - hours) * 60);
+  
+  if (hours === 0) {
+    return `${minutes}m`;
+  } else if (minutes === 0) {
+    return `${hours}h`;
+  } else {
+    return `${hours}h ${minutes}m`;
+  }
+};
+
+// Helper function to get certificate type badge
+const getCertificateTypeBadge = (row: CertificateRow) => {
+  if (!row.isVerified || !row.verificationResult?.certificate) {
+    // Default based on CSV type
+    const csvType = row.certificateType || 'platform';
+    if (csvType === 'self-reported') {
+      return (
+        <Badge variant="secondary" className="text-xs text-chart-4 bg-chart-4/10">
+          Self-Reported
+        </Badge>
+      );
+    }
+    return (
+      <Badge variant="default" className="text-xs text-chart-5 bg-chart-5/10">
+        Platform
+      </Badge>
+    );
+  }
+
+  const cert = row.verificationResult.certificate;
+  const certType = cert.type || 'platform';
+  
+  if (cert.certified && (certType === 'platform' || certType === 'verified')) {
+    // Official: verified org
+    return (
+      <Badge variant="default" className="text-xs text-chart-8 bg-chart-8/10">
+        Official
+      </Badge>
+    );
+  } else if (certType === 'platform' || certType === 'verified') {
+    // Platform: Let's Assist project
+    return (
+      <Badge variant="default" className="text-xs text-chart-5 bg-chart-5/10">
+        Platform
+      </Badge>
+    );
+  } else {
+    // Self-reported
+    return (
+      <Badge variant="secondary" className="text-xs text-chart-4 bg-chart-4/10">
+        Self-Reported
+      </Badge>
+    );
+  }
+};
+
 export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
@@ -419,10 +481,10 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
 
       setSummary({
         total: processedResults.length,
-        certifiedHours: Math.round(certifiedHours),
-        verifiedHours: Math.round(verifiedHours), 
-        selfReportedHours: Math.round(selfReportedHours),
-        totalHours: Math.round(totalHours),
+        certifiedHours: certifiedHours,
+        verifiedHours: verifiedHours, 
+        selfReportedHours: selfReportedHours,
+        totalHours: totalHours,
         invalidFormat: processedResults.filter(r => !r.valid).length
       });
 
@@ -435,7 +497,7 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
       } else {
         toast({
           title: "Verification Complete",
-          description: `Processed ${processedResults.length} records, verified ${Math.round(totalHours)} total hours`,
+          description: `Processed ${processedResults.length} records, verified ${formatHours(totalHours)} total hours`,
           variant: "default",
         });
       }
@@ -703,7 +765,7 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                           <CardContent className="flex items-center gap-1 sm:gap-2 p-2 sm:p-3">
                             <BadgeCheck className="w-4 h-4 sm:w-5 sm:h-5 text-chart-2 flex-shrink-0" />
                             <div className="min-w-0 flex-1">
-                              <div className="text-sm sm:text-lg font-bold text-chart-2 truncate">{summary.certifiedHours}h</div>
+                              <div className="text-sm sm:text-lg font-bold text-chart-2 truncate">{formatHours(summary.certifiedHours)}</div>
                               <div className="text-xs text-muted-foreground truncate">Official</div>
                             </div>
                           </CardContent>
@@ -722,7 +784,7 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                           <CardContent className="flex items-center gap-1 sm:gap-2 p-2 sm:p-3">
                             <CircleCheck className="w-4 h-4 sm:w-5 sm:h-5 text-chart-5 flex-shrink-0" />
                             <div className="min-w-0 flex-1">
-                              <div className="text-sm sm:text-lg font-bold text-chart-5 truncate">{summary.verifiedHours}h</div>
+                              <div className="text-sm sm:text-lg font-bold text-chart-5 truncate">{formatHours(summary.verifiedHours)}</div>
                               <div className="text-xs text-muted-foreground truncate">Platform</div>
                             </div>
                           </CardContent>
@@ -741,7 +803,7 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                           <CardContent className="flex items-center gap-1 sm:gap-2 p-2 sm:p-3">
                             <UserCheck className="w-4 h-4 sm:w-5 sm:h-5 text-chart-4 flex-shrink-0" />
                             <div className="min-w-0 flex-1">
-                              <div className="text-sm sm:text-lg font-bold text-chart-4 truncate">{summary.selfReportedHours}h</div>
+                              <div className="text-sm sm:text-lg font-bold text-chart-4 truncate">{formatHours(summary.selfReportedHours)}</div>
                               <div className="text-xs text-muted-foreground truncate">Self-reported</div>
                             </div>
                           </CardContent>
@@ -758,10 +820,10 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                       <TooltipTrigger asChild>
                         <Card className="min-w-0">
                           <CardContent className="flex items-center gap-1 sm:gap-2 p-2 sm:p-3">
-                            <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-chart-8 flex-shrink-0" />
+                            <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-chart-3 flex-shrink-0" />
                             <div className="min-w-0 flex-1">
-                              <div className="text-sm sm:text-lg font-bold text-chart-8 truncate">{summary.totalHours}h</div>
-                              <div className="text-xs text-muted-foreground truncate">Total Verified</div>
+                              <div className="text-sm sm:text-lg font-bold text-chart-3 truncate">{formatHours(summary.totalHours)}</div>
+                              <div className="text-xs text-muted-foreground truncate">Total Hours</div>
                             </div>
                           </CardContent>
                         </Card>
@@ -862,9 +924,9 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                                       <TooltipProvider>
                                         <Tooltip>
                                           <TooltipTrigger>
-                                            <Badge variant="secondary" className="text-xs h-5 px-1.5 bg-chart-4/10 text-chart-4 flex-shrink-0">
+                                            <Badge variant="secondary" className="text-xs h-5 px-1.5 bg-chart-3/10 text-chart-3 flex-shrink-0">
                                               <UserCheck className="w-3 h-3" />
-                                              <span className="ml-1">Self-Reported</span>
+                                              <span className="ml-1">Self-reported</span>
                                             </Badge>
                                           </TooltipTrigger>
                                           <TooltipContent>
@@ -930,7 +992,7 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                                 {row.certificateType && (
                                   <div>
                                     <span className="font-medium text-muted-foreground">Type:</span>
-                                    <div className="mt-0.5">
+                                    <div className="mt-0.5"> {/* keep badge compact on details card, no forced width */}
                                       <Badge 
                                         variant={row.certificateType === 'verified' ? 'default' : 'secondary'}
                                         className={`text-xs ${row.certificateType === 'self-reported' ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-400' : ''}`}
@@ -943,7 +1005,7 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                                 {row.duration && (
                                   <div>
                                     <span className="font-medium text-muted-foreground">Duration:</span>
-                                    <p className="mt-0.5">{row.duration}h</p>
+                                    <p className="mt-0.5">{formatHours(parseFloat(row.duration))}</p>
                                   </div>
                                 )}
                               </div>
@@ -1026,20 +1088,19 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                 <div className="hidden xl:block">
                   <Card>
                     <div className="overflow-x-auto">
-                      <Table className="min-w-[900px]">
+                      <Table className="min-w-[900px]"> {/* reverted to smaller min width */}
                         <TableHeader className="sticky top-0 z-10">
                           <TableRow>
-                            <TableHead className="w-[120px]">
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <span className="cursor-help text-xs sm:text-sm">Format Status</span>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>Shows if the CSV data format is valid and if the certificate exists in our database</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
+                            <TableHead className="w-[40px]">
+                              <span className="text-xs sm:text-sm"></span>
+                            </TableHead>
+                            <TableHead className="w-[120px]"> {/* smaller fixed width so row doesn't expand */}
+                              <span
+                                className="cursor-help text-xs sm:text-sm whitespace-nowrap"
+                                title="Certificate type: Official (verified orgs), Platform (Let's Assist projects), or Self-Reported"
+                              >
+                                Type
+                              </span>
                             </TableHead>
                             <TableHead className="min-w-[200px] flex-1">
                               <span className="text-xs sm:text-sm">Project Title</span>
@@ -1062,14 +1123,14 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                                 </Tooltip>
                               </TooltipProvider>
                             </TableHead>
-                            <TableHead className="w-[120px]">
+                            <TableHead className="w-[100px]">
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <span className="cursor-help text-xs sm:text-sm">Certification</span>
+                                    <span className="cursor-help text-xs sm:text-sm">Certificate</span>
                                   </TooltipTrigger>
                                   <TooltipContent>
-                                    <p>&quot;Certified&quot; means the hours are officially recognized. &quot;Participated&quot; means attendance without certification.</p>
+                                    <p>Link to view the actual certificate</p>
                                   </TooltipContent>
                                 </Tooltip>
                               </TooltipProvider>
@@ -1087,99 +1148,79 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                                 "hover:bg-muted/50"
                               }
                             >
-                              <TableCell>
-                                <TooltipProvider delayDuration={100}>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <div>
-                                        {!row.valid ? (
-                                          <Badge variant="destructive" className="text-xs">
-                                            <XCircle className="w-3 h-3 mr-1 flex-shrink-0" />
-                                            Invalid Format
-                                          </Badge>
-                                        ) : row.verificationStatus === 'pending' ? (
-                                          <Badge variant="outline" className="text-xs">
-                                            <div className="w-3 h-3 mr-1 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                                            Checking...
-                                          </Badge>
-                                        ) : row.isVerified ? (
-                                          <Badge variant="default" className="text-xs bg-chart-5">
-                                            <CheckCircle className="w-3 h-3 mr-1" />
-                                            Verified
-                                          </Badge>
-                                        ) : row.verificationStatus === 'verified' ? (
-                                          <Badge variant="outline" className="text-xs border-chart-6 text-chart-6">
-                                            <XCircle className="w-3 h-3 mr-1 flex-shrink-0" />
-                                            Data Mismatch
-                                          </Badge>
-                                        ) : row.verificationStatus === 'failed' ? (
-                                          <Badge variant="destructive" className="text-xs">
-                                            <XCircle className="w-3 h-3 mr-1" />
-                                            Not Found
-                                          </Badge>
-                                        ) : (
-                                          <Badge variant="secondary" className="text-xs">
-                                            <CheckCircle className="w-3 h-3 mr-1 flex-shrink-0" />
-                                            Valid Format
-                                          </Badge>
-                                        )}
-                                      </div>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      {!row.valid ? (
+                              {/* Status Indicator Column */}
+                              <TableCell className="text-center">
+                                {!row.valid ? (
+                                  <TooltipProvider delayDuration={100}>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <XCircle className="w-4 h-4 text-destructive cursor-help" />
+                                      </TooltipTrigger>
+                                      <TooltipContent>
                                         <div>
                                           <div className="font-medium mb-1">Format Issues:</div>
                                           <ul className="list-disc pl-4 space-y-0.5">
                                             {row.issues.map((issue, i) => <li key={i} className="text-xs">{issue}</li>)}
                                           </ul>
                                         </div>
-                                      ) : row.isVerified ? (
-                                        <p>Certificate exists and all data matches perfectly</p>
-                                      ) : row.verificationStatus === 'verified' ? (
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                ) : row.verificationStatus === 'pending' ? (
+                                  <div className="w-4 h-4 animate-spin rounded-full border-2 border-current border-t-transparent opacity-60" />
+                                ) : row.isVerified ? (
+                                  <TooltipProvider delayDuration={100}>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <CheckCircle className="w-4 h-4 text-chart-5 cursor-help" />
+                                      </TooltipTrigger>
+                                      <TooltipContent>
                                         <div>
-                                          <div className="font-medium mb-1">Data Comparison:</div>
-                                          {row.verificationResult?.verification?.matches && (
-                                            <ul className="space-y-1">
-                                              <li className="flex items-center gap-1">
-                                                {row.verificationResult.verification.matches.title ? 
-                                                  <CheckCircle className="w-3 h-3 text-chart-5" /> : 
-                                                  <XCircle className="w-3 h-3 text-destructive" />
-                                                }
-                                                <span className="text-xs">Title match</span>
-                                              </li>
-                                              <li className="flex items-center gap-1">
-                                                {row.verificationResult.verification.matches.organizer ? 
-                                                  <CheckCircle className="w-3 h-3 text-chart-5" /> : 
-                                                  <XCircle className="w-3 h-3 text-destructive" />
-                                                }
-                                                <span className="text-xs">Organizer match</span>
-                                              </li>
-                                              <li className="flex items-center gap-1">
-                                                {row.verificationResult.verification.matches.hours ? 
-                                                  <CheckCircle className="w-3 h-3 text-chart-5" /> : 
-                                                  <XCircle className="w-3 h-3 text-destructive" />
-                                                }
-                                                <span className="text-xs">Hours match</span>
-                                              </li>
-                                              <li className="flex items-center gap-1">
-                                                {row.verificationResult.verification.matches.status ? 
-                                                  <CheckCircle className="w-3 h-3 text-chart-5" /> : 
-                                                  <XCircle className="w-3 h-3 text-destructive" />
-                                                }
-                                                <span className="text-xs">Certification status match</span>
-                                              </li>
-                                            </ul>
-                                          )}
+                                          <div className="font-medium mb-1">Data Verified</div>
+                                          <p className="text-xs">All data matches our records</p>
                                         </div>
-                                      ) : row.verificationStatus === 'failed' ? (
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                  
+                                ) : row.verificationStatus === 'verified' ? (
+                                  <TooltipProvider delayDuration={100}>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <AlertCircle className="w-4 h-4 text-chart-6 cursor-help" />
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <div>
+                                          <div className="font-medium mb-1">Data Comparison Issues</div>
+                                          <p className="text-xs">Some data doesn&apos;t match our records</p>
+                                        </div>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                ) : row.verificationStatus === 'failed' ? (
+                                  <TooltipProvider delayDuration={100}>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <XCircle className="w-4 h-4 text-destructive cursor-help" />
+                                      </TooltipTrigger>
+                                      <TooltipContent>
                                         <p>Certificate ID not found in our database</p>
-                                      ) : (
-                                        <p>Data format is valid. Click verify to check against database.</p>
-                                      )}
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                ) : (
+                                  <CheckCircle className="w-4 h-4 text-muted-foreground" />
+                                )}
                               </TableCell>
+                              
+                              {/* Certificate Type Column */}
+                              <TableCell className="whitespace-nowrap"> {/* don't force column width, just prevent badge wrapping */}
+                                <div className="flex items-center justify-start whitespace-nowrap">
+                                  {getCertificateTypeBadge(row)}
+                                </div>
+                              </TableCell>
+                              
+                              {/* Project Title Column */}
                               <TableCell>
                                 <TooltipProvider delayDuration={100}>
                                   <Tooltip>
@@ -1208,41 +1249,41 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                                 </div>
                               </TableCell>
                               <TableCell className="text-xs sm:text-sm font-medium">
-                                {row.duration ? `${row.duration}h` : '-'}
+                                {row.duration ? formatHours(parseFloat(row.duration)) : '-'}
                               </TableCell>
                               <TableCell>
-                                <TooltipProvider delayDuration={100}>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <div>
-                                        {row.certificationStatus ? (
-                                          <Badge 
-                                            variant={row.certificationStatus === 'Certified' ? 'default' : 'secondary'}
-                                            className={`text-xs ${row.certificationStatus === 'Certified' ? 'bg-chart-4 hover:bg-chart-4/80' : ''}`}
-                                          >
-                                            {row.certificationStatus === 'Certified' ? (
-                                              <CircleCheck className="w-3 h-3 mr-1" />
-                                            ) : (
-                                              <CheckCircle className="w-3 h-3 mr-1" />
-                                            )}
-                                            {row.certificationStatus}
-                                          </Badge>
-                                        ) : (
-                                          <span className="text-xs text-muted-foreground">-</span>
-                                        )}
-                                      </div>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      {row.certificationStatus === 'Certified' ? (
-                                        <p>These volunteer hours are officially certified and count toward service requirements</p>
-                                      ) : row.certificationStatus === 'Participated' ? (
-                                        <p>Participated in the event but hours are not officially certified</p>
-                                      ) : (
-                                        <p>No certification status specified</p>
-                                      )}
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
+                                {row.certificateId && row.isVerified ? (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="text-xs h-7 px-2"
+                                    onClick={() => window.open(`/certificates/${row.certificateId}`, '_blank')}
+                                  >
+                                    <FileCheck className="w-3 h-3 mr-1" />
+                                    View
+                                  </Button>
+                                ) : row.certificateId ? (
+                                  <TooltipProvider delayDuration={100}>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          className="text-xs h-7 px-2 opacity-50 cursor-not-allowed"
+                                          disabled
+                                        >
+                                          <FileCheck className="w-3 h-3 mr-1" />
+                                          View
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>Certificate not verified or not found</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">-</span>
+                                )}
                               </TableCell>
                             </TableRow>
                           ))}
