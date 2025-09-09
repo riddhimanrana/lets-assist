@@ -145,11 +145,11 @@ export default function OrganizationHeader({
         </div>
         
         {/* Description - more height on mobile with fade out */}
-        {organization.description && (
+        {/* {organization.description && (
         <p className="mt-3 text-sm text-muted-foreground line-clamp-1 max-w-[400px]">
           {organization.description}
         </p>
-        )}
+        )} */}
       </div>
       </div>
 
