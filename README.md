@@ -6,11 +6,7 @@ Try it out at [lets-assist.com](https://lets-assist.com/)
 
 ## Video Demo
 
-
-
-https://github.com/user-attachments/assets/45c80d37-230a-4f90-a321-286f0a1f7764
-
-
+https://github.com/user-attachments/assets/e4e3fcae-33c7-4de5-8aa9-8e502911abf1
 
 ## Tech Stack
 
@@ -39,7 +35,7 @@ This project is built using the following technologies:
 <details>
 <summary>I thought you said this was a solo project, who are the other contributors?</summary>
   <br>
-A: This is a solo project. Essentially as I was in the creation stage of letsassist, I saw a hackathon and I asked my friends if they wanted to come together to help. We created an initial prototype and submitted that but after that the group disbanded. This was an extremely rough first sketch and after the hackathon I deleted all of it and restarted from scratch with a completely new tech stack, new look and redo(you can check commit history to confirm this)
+A: This is a solo project. Essentially as I was in the creation stage of letsassist, I saw a hackathon and I asked my friends if they wanted to come together to help. We created an initial prototype and submitted that but after that the group disbanded. This was an extremely rough first sketch and after the hackathon I deleted all of it and restarted from scratch with a completely new tech stack, new look, redo, and this version is an actually real useable product, with 5 to 10 times more features than the previous one ever did (you can check commit history to confirm this)
 <br>
 
 [Before](https://youtu.be/OTF20YUN25U?si=5pVTplgBM3Kz02OR) and [After](https://lets-assist.com/)
