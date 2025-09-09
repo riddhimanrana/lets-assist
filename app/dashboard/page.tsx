@@ -585,11 +585,11 @@ export default async function VolunteerDashboard() {
                               <p className="text-xs sm:text-sm text-muted-foreground">
                                 Starts: {format(session.sessionStartTime, "MMM d, yyyy 'at' h:mm a")}
                               </p>
-                              <p className="text-xs sm:text-sm text-muted-foreground flex items-center gap-2">
+                              <div className="text-xs sm:text-sm text-muted-foreground flex items-center gap-2">
                                 Status: <Badge variant={session.status === 'approved' ? 'default' : 'outline'}>
                                   {session.status === "approved" ? "Confirmed" : "Pending"}
                                 </Badge>
-                              </p>
+                              </div>
                             </div>
                           ))}
                         </div>
