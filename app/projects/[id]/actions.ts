@@ -44,7 +44,7 @@ const generateConfirmationEmailHtml = (
       <meta charset="UTF-8">
       <title>Confirm Your Signup</title>
       <style>
-          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;of 5 00;600;700&display=swap');
+          // @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
           * {
               margin: 0;
@@ -167,7 +167,7 @@ const generateLoggedInUserConfirmationEmailHtml = (
       <meta charset="UTF-8">
       <title>Signup Confirmed</title>
       <style>
-          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+          // @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
           * {
               margin: 0;
