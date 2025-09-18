@@ -120,6 +120,7 @@ export default function Navbar({ initialUser }: NavbarProps) {
     full_name: string;
     avatar_url: string;
     username: string;
+    trusted_member: boolean;
   } | null>(null);
   const [isProfileLoading, setIsProfileLoading] = React.useState(true);
   const [showBugDialog, setShowBugDialog] = useState(false);
@@ -150,7 +151,7 @@ export default function Navbar({ initialUser }: NavbarProps) {
 
     const { data: profileData } = await supabase
       .from("profiles")
-      .select("full_name, avatar_url, username")
+      .select("full_name, avatar_url, username, trusted_member")
       .eq("id", user.id)
       .single();
 

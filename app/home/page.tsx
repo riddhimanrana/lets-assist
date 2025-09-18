@@ -23,7 +23,7 @@ export default async function Home() {
   const { data: { user } } = await supabase.auth.getUser();
   const { data: profileData } = await supabase
     .from("profiles")
-    .select("full_name, avatar_url, username")
+    .select("full_name, avatar_url, username, trusted_member")
     .eq("id", user?.id)
     .single();
   const userName = profileData?.full_name || "Anonymous";

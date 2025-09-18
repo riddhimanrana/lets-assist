@@ -2,7 +2,7 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
 
 // Paths that require authentication
-const PROTECTED_PATHS = ["/home", "/projects/create", "/account"];
+const PROTECTED_PATHS = ["/home", "/projects/create", "/account", "/trusted-member"];
 
 // Paths that logged-in users shouldn't access
 const RESTRICTED_PATHS_FOR_LOGGED_IN_USERS = ["/", "/login", "/signup", "/reset-password"];
@@ -19,6 +19,15 @@ function isProtectedPath(path: string) {
 function isProjectCreatorPath(path: string) {
   const matches = path.match(/^\/projects\/([^\/]+)\/(edit|signups|documents|attendance|hours)$/);
   return matches ? { isCreatorPath: true, projectId: matches[1] } : { isCreatorPath: false, projectId: null };
+}
+
+// Function to check if path requires trusted member status
+function requiresTrustedMember(path: string) {
+  const trustedMemberPaths = ["/projects/create", "/organization/create"];
+  return trustedMemberPaths.some(
+    (trustedPath) =>
+      path === trustedPath || path.startsWith(`${trustedPath}/`),
+  );
 }
 
 export async function updateSession(request: NextRequest) {
@@ -124,6 +133,30 @@ export async function updateSession(request: NextRequest) {
       }
     } catch (e) {
       console.error("Exception during project creator check:", e);
+      return NextResponse.redirect(new URL("/home", request.url));
+    }
+  }
+
+  // Check for trusted member routes
+  if (user && requiresTrustedMember(currentPath)) {
+    try {
+      const { data: profile, error } = await supabase
+        .from("profiles")
+        .select("trusted_member")
+        .eq("id", user.id)
+        .single();
+
+      if (error) {
+        console.error("Error fetching profile for trusted member check:", error);
+        return NextResponse.redirect(new URL("/home", request.url));
+      }
+
+      // If user is not a trusted member, redirect to trusted member application page
+      if (!profile?.trusted_member) {
+        return NextResponse.redirect(new URL("/trusted-member", request.url));
+      }
+    } catch (e) {
+      console.error("Exception during trusted member check:", e);
       return NextResponse.redirect(new URL("/home", request.url));
     }
   }

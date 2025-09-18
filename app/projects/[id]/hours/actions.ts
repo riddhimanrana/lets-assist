@@ -269,7 +269,7 @@ export async function publishVolunteerHours(
       .from("projects")
       .select(`
         *,
-        profiles!projects_creator_id_fkey1 (full_name),
+        profiles!projects_creator_id_fkey1 (full_name, trusted_member),
         organization:organizations (name, verified) 
       `)
       .eq("id", projectId)
@@ -285,6 +285,7 @@ export async function publishVolunteerHours(
     const creatorName = project.profiles?.full_name || "Project Organizer"; // Fallback name
     const organizationName = project.organization?.name || null;
     const isOrganizationVerified = project.organization?.verified || false;
+    const isCreatorTrustedMember = project.profiles?.trusted_member || false;
 
     // 3. Filter out invalid entries (though client should prevent this)
     const validVolunteers = sessionData.filter(v => v.isValid && v.checkIn && v.checkOut);
@@ -308,6 +309,7 @@ export async function publishVolunteerHours(
       creator_name: creatorName, // Use fetched creator name
       is_certified: isOrganizationVerified, // Use org verified status
       creator_id: user.id, // Added creator_id
+      creator_trusted_member: isCreatorTrustedMember, // Track if creator was trusted member
       // --- END UPDATED FIELDS ---
       check_in_method: project.verification_method,
       schedule_id: sessionId, // Store the session identifier, sessionId renamed to scheduleId
