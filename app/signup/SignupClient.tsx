@@ -95,8 +95,9 @@ export default function SignupClient({ redirectPath }: SignupClientProps) {
           "Email confirmation is required. Please check your inbox.",
         );
       } else {
+        console.log(errors);
         toast.error(
-          "Sorry, there was an error creating your account. Please try again.",
+          "Sorry, there was an error creating your account. Please try again." + JSON.stringify(errors)
         );
       }
     } else if (result.success) {
