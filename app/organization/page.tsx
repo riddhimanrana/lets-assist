@@ -40,8 +40,9 @@ export default async function OrganizationsPage() {
     return acc;
   }, {} as Record<string, number>);
 
-  // If user is logged in, fetch their organization memberships
+  // If user is logged in, fetch their organization memberships and trusted member status
   let userMemberships: any[] = [];
+  let isTrustedMember = false;
   if (isLoggedIn && user) {
     const { data: memberships } = await supabase
       .from('organization_members')
@@ -64,6 +65,15 @@ export default async function OrganizationsPage() {
       .order('role', { ascending: false }); // Admin first, then staff, then member
 
     userMemberships = memberships || [];
+
+    // Fetch trusted member status
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('trusted_member')
+      .eq('id', user.id)
+      .single();
+    
+    isTrustedMember = profile?.trusted_member || false;
   }
 
   return (
@@ -72,6 +82,7 @@ export default async function OrganizationsPage() {
       memberCounts={orgMemberCounts}
       isLoggedIn={isLoggedIn}
       userMemberships={userMemberships}
+      isTrustedMember={isTrustedMember}
     />
   );
 }

@@ -5,13 +5,14 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Building2, Search, Settings2, Check, Users2, ExternalLink, BadgeCheck } from "lucide-react";
+import { Plus, Building2, Search, Settings2, Check, Users2, ExternalLink, BadgeCheck, HelpCircle } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
 import { JoinOrganizationDialog } from "./JoinOrganizationDialog";
 import { useEffect, useState } from "react";
 import OrganizationCard from "./OrganizationCard";
 import { CsvVerificationModal } from "./CsvVerificationModal";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,13 +28,15 @@ interface OrganizationsDisplayProps {
   memberCounts: Record<string, number>;
   isLoggedIn: boolean;
   userMemberships: any[];
+  isTrustedMember: boolean;
 }
 
 export default function OrganizationsDisplay({ 
   organizations, 
   memberCounts,
   isLoggedIn,
-  userMemberships 
+  userMemberships,
+  isTrustedMember
 }: OrganizationsDisplayProps) {
   const router = useRouter();
   const [search, setSearch] = useState("");
@@ -121,12 +124,40 @@ export default function OrganizationsDisplay({
               <>
                 <CsvVerificationModal />
                 <JoinOrganizationDialog />
-                <Button className="w-full sm:w-auto" asChild>
-                  <Link href="/organization/create">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create Organization
-                  </Link>
-                </Button>
+                {isTrustedMember ? (
+                  <Button className="w-full sm:w-auto" asChild>
+                    <Link href="/organization/create">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Create Organization
+                    </Link>
+                  </Button>
+                ) : (
+                  <TooltipProvider>
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                      <Button disabled className="w-full sm:w-auto opacity-60">
+                        <Plus className="w-4 h-4 mr-2" />
+                        Create Organization
+                      </Button>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="p-1 h-8 w-8"
+                          >
+                            <HelpCircle className="w-4 h-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Apply to become a trusted member to create organizations</p>
+                          <Link href="/trusted-member" className="text-xs underline">
+                            Fill out the trusted member form
+                          </Link>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                  </TooltipProvider>
+                )}
               </>
             )}
             {!isLoggedIn && (
@@ -192,12 +223,40 @@ export default function OrganizationsDisplay({
               {search ? "Try different keywords or filters" : "Be the first to create an organization!"}
             </p>
             {isLoggedIn && !search && (
-              <Button asChild className="mt-4">
-                <Link href="/organization/create">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create Organization
-                </Link>
-              </Button>
+              isTrustedMember ? (
+                <Button asChild className="mt-4">
+                  <Link href="/organization/create">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create Organization
+                  </Link>
+                </Button>
+              ) : (
+                <TooltipProvider>
+                  <div className="flex items-center gap-2 mt-4">
+                    <Button disabled className="opacity-60">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Create Organization
+                    </Button>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="p-1 h-8 w-8"
+                        >
+                          <HelpCircle className="w-4 h-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Apply to become a trusted member to create organizations</p>
+                        <Link href="/trusted-member" className="text-xs underline">
+                          Fill out the trusted member form
+                        </Link>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                </TooltipProvider>
+              )
             )}
           </div>
         ) : (

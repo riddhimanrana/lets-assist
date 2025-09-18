@@ -29,12 +29,17 @@ export default async function CreateProjectPage({
     return redirect("/login?redirect=/projects/create");
   }
 
-  // Get user profile information including profile picture
+  // Get user profile information including trusted_member status
   const { data: userProfile } = await supabase
     .from('profiles')
-    .select('profile_image_url')
+    .select('profile_image_url, trusted_member')
     .eq('id', user.id)
     .single();
+
+  // Check if user is a trusted member
+  if (!userProfile?.trusted_member) {
+    return redirect("/trusted-member");
+  }
 
   // Get organization ID from URL params if provided - fixed approach
   const search = await searchParams;

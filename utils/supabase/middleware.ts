@@ -2,7 +2,7 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
 
 // Paths that require authentication
-const PROTECTED_PATHS = ["/home", "/projects/create", "/account"];
+const PROTECTED_PATHS = ["/home", "/projects/create", "/organization/create", "/account", "/trusted-member"];
 
 // Paths that logged-in users shouldn't access
 const RESTRICTED_PATHS_FOR_LOGGED_IN_USERS = ["/", "/login", "/signup", "/reset-password"];

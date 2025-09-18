@@ -269,7 +269,7 @@ export async function publishVolunteerHours(
       .from("projects")
       .select(`
         *,
-        profiles!projects_creator_id_fkey1 (full_name),
+        profiles!projects_creator_id_fkey1 (full_name, trusted_member),
         organization:organizations (name, verified) 
       `)
       .eq("id", projectId)
@@ -283,6 +283,7 @@ export async function publishVolunteerHours(
     // Type assertion after successful fetch
     const project = projectData as Project;
     const creatorName = project.profiles?.full_name || "Project Organizer"; // Fallback name
+    const creatorIsTrustedMember = project.profiles?.trusted_member || false;
     const organizationName = project.organization?.name || null;
     const isOrganizationVerified = project.organization?.verified || false;
 
@@ -311,6 +312,8 @@ export async function publishVolunteerHours(
       // --- END UPDATED FIELDS ---
       check_in_method: project.verification_method,
       schedule_id: sessionId, // Store the session identifier, sessionId renamed to scheduleId
+      // Add Let's Assist verification for trusted members
+      lets_assist_verified: creatorIsTrustedMember,
     }));
 
     // 5. Insert certificates into the database and get the created certificates for email sending

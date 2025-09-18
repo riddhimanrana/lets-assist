@@ -68,6 +68,7 @@ export interface Profile {
   username: string | null;
   created_at: string | null;
   volunteer_goals?: VolunteerGoalsData | null;
+  trusted_member?: boolean | null;
 }
 
 export type ProjectStatus = "upcoming" | "in-progress" | "completed" | "cancelled";

@@ -18,6 +18,17 @@ export default async function CreateOrganizationPage() {
     redirect("/login?redirect=/organization/create");
   }
 
+  // Check if user is a trusted member
+  const { data: userProfile } = await supabase
+    .from('profiles')
+    .select('trusted_member')
+    .eq('id', user.id)
+    .single();
+
+  if (!userProfile?.trusted_member) {
+    redirect("/trusted-member");
+  }
+
   return (
     <div className="container max-w-4xl py-6 px-4 mx-auto">
       <div className="mb-6">
