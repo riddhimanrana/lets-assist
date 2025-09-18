@@ -5,8 +5,9 @@ import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { format, parseISO } from "date-fns";
-import { Calendar, Clock, MapPin, Users, Award } from "lucide-react"; // Add Award
+import { Calendar, Clock, MapPin, Users, Award, HelpCircle } from "lucide-react"; // Add HelpCircle
 import { NoAvatar } from "@/components/NoAvatar";
 import Link from "next/link";
 import { ProjectStatusBadge } from "@/components/ui/status-badge";
@@ -78,7 +79,7 @@ export default async function UserProjects() {
   // Get user profile
   const { data: profile } = await supabase
     .from("profiles")
-    .select("*")
+    .select("*, trusted_member")
     .eq("id", user.id)
     .single();
 
@@ -407,9 +408,28 @@ export default async function UserProjects() {
               <p className="text-muted-foreground mb-5 max-w-md mx-auto text-sm">
                 You haven&apos;t created any volunteer projects yet.
               </p>
-              <Button asChild size="sm">
-                <Link href="/projects/create">Create First Project</Link>
-              </Button>
+              {profile?.trusted_member ? (
+                <Button asChild size="sm">
+                  <Link href="/projects/create">Create First Project</Link>
+                </Button>
+              ) : (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="inline-flex items-center gap-2">
+                        <Button asChild size="sm" variant="outline" disabled>
+                          <span>Create First Project</span>
+                        </Button>
+                        <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Only trusted members can create projects.</p>
+                      <p><a href="/trusted-member" className="text-blue-400 hover:underline">Apply to become a trusted member →</a></p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
             </div>
           ) : (
             <>
