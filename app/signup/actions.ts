@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { createClient } from "@/utils/supabase/server";
 import { verifyTurnstileToken, isTurnstileEnabled } from "@/lib/turnstile";
+import { randomUUID } from "crypto";
 
 const signupSchema = z.object({
   fullName: z.string().min(3, "Full name must be at least 3 characters"),
@@ -34,6 +35,9 @@ export async function signup(formData: FormData) {
       password: validatedFields.data.password,
       options: {
         data: {
+          // Pass profile fields via user metadata; DB trigger will populate public.profiles
+          full_name: validatedFields.data.fullName,
+          username: `user_${randomUUID().slice(0, 8)}`,
           created_at: new Date().toISOString(),
         },
       },
@@ -63,24 +67,7 @@ export async function signup(formData: FormData) {
       throw new Error("No user returned");
     }
 
-    // 2. Create matching profile with full name
-    const { error: profileError } = await supabase.from("profiles").insert({
-      id: user.id,
-      full_name: validatedFields.data.fullName,
-      username: `user_${user.id?.slice(0, 8)}`, // --- Changed: default username
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    });
-
-    if (profileError) {
-      if (profileError.code === "23503") {
-        return { error: { server: ["ACCEXISTS0"] } };
-      }
-      if (profileError.code === "23505") {
-        return { error: { server: ["NOCNFRM0"] } };
-      }
-      throw profileError;
-    }
+    // Profile row will be created/updated by DB trigger using user metadata
 
     return { success: true };
   } catch (error) {
