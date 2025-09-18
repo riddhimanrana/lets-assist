@@ -479,8 +479,10 @@ export function CertificatesList({ certificates, user }: CertificatesListProps) 
                         <TooltipContent>
                           <p>
                             {cert.is_certified 
-                              ? "Certificate comes from a verified organization"
-                              : "Certificate does not come from a verified organization"
+                              ? cert.organization_name 
+                                ? "Certificate comes from a verified organization"
+                                : "Certificate comes from a trusted member (Let's Assist Verified)"
+                              : "Certificate does not come from a verified organization or trusted member"
                             }
                           </p>
                         </TooltipContent>

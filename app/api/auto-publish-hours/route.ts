@@ -333,6 +333,10 @@ async function processSessionSignups(
     const creatorName = project.profiles?.full_name || "Project Organizer";
     const organizationName = project.organization?.name || null;
     const isOrganizationVerified = project.organization?.verified || false;
+    const isCreatorTrustedMember = (project.profiles as any)?.trusted_member || false;
+    
+    // Certificate is verified if organization is verified OR creator is a trusted member
+    const isCertifiedEvent = isOrganizationVerified || isCreatorTrustedMember;
 
     // Prepare certificate data
     const certificatesToInsert = validVolunteers.map(volunteer => ({
@@ -347,7 +351,7 @@ async function processSessionSignups(
       event_end: volunteer.checkOut,
       organization_name: organizationName,
       creator_name: creatorName,
-      is_certified: isOrganizationVerified,
+      is_certified: isCertifiedEvent,
       creator_id: project.creator_id,
       check_in_method: project.verification_method,
       schedule_id: sessionId,
@@ -464,7 +468,7 @@ async function processExpiredSessions(): Promise<{
         ),
         projects!inner (
           *,
-          profiles!projects_creator_id_fkey1 (full_name),
+          profiles!projects_creator_id_fkey1 (full_name, trusted_member),
           organization:organizations (name, verified)
         )
       `)

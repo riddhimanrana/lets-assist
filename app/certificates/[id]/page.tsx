@@ -267,7 +267,8 @@ export default async function VolunteerRecordPage({
                             tabIndex={0}
                             aria-label="Verified badge"
                           >
-                            <BadgeCheck className="h-3.5 w-3.5 mr-1" /> Verified
+                            <BadgeCheck className="h-3.5 w-3.5 mr-1" /> 
+                            {data.organization_name ? "Verified" : "Let's Assist Verified"}
                           </Badge>
                         </TooltipTrigger>
                         <TooltipContent
@@ -275,8 +276,9 @@ export default async function VolunteerRecordPage({
                           className="max-w-xs"
                           aria-label="Verified badge explanation"
                         >
-                          Verified badges mean this certificate comes from a
-                          verified organization.
+                          {data.organization_name 
+                            ? "This certificate comes from a verified organization on Let's Assist."
+                            : "This certificate comes from a trusted member on Let's Assist."}
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
