@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { CheckCircle, XCircle, Clock, User } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { toast } from "sonner";
+import Link from "next/link";
 import type { User } from "@supabase/supabase-js";
 
 interface TrustedMemberClientProps {
@@ -78,9 +79,9 @@ export default function TrustedMemberClient({
           <div className="mx-auto w-16 h-16 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center mb-4">
             <CheckCircle className="w-8 h-8 text-green-600 dark:text-green-400" />
           </div>
-          <CardTitle className="text-2xl">You're All Set!</CardTitle>
+          <CardTitle className="text-2xl">You&apos;re All Set!</CardTitle>
           <CardDescription>
-            You're a trusted member of Let's Assist
+            You&apos;re a trusted member of Let&apos;s Assist
           </CardDescription>
         </CardHeader>
         <CardContent className="text-center">
@@ -89,11 +90,11 @@ export default function TrustedMemberClient({
             Trusted Member
           </Badge>
           <p className="text-muted-foreground mb-6">
-            You can now create projects and organizations on Let's Assist. 
+            You can now create projects and organizations on Let&apos;s Assist. 
             Your volunteer hours will be automatically verified.
           </p>
           <Button asChild>
-            <a href="/projects/create">Create Project</a>
+            <Link href="/projects/create">Create Project</Link>
           </Button>
         </CardContent>
       </Card>
@@ -167,7 +168,7 @@ export default function TrustedMemberClient({
       <CardHeader>
         <CardTitle className="text-2xl">Trusted Member Application</CardTitle>
         <CardDescription>
-          Apply to become a trusted member and unlock the ability to create projects and organizations on Let's Assist.
+          Apply to become a trusted member and unlock the ability to create projects and organizations on Let&apos;s Assist.
         </CardDescription>
       </CardHeader>
       <CardContent>

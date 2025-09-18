@@ -30,5 +30,6 @@ export interface TrustedMemberApplication {
   created_at: string;
   name: string;
   email: string;
+  reason?: string;
   status: boolean | null; // null = pending, true = accepted, false = denied
 }
