@@ -293,17 +293,17 @@ export default async function VolunteerRecordPage({
                             variant="secondary"
                             className="ml-auto backdrop-blur-sm bg-green-100/10 border border-green-500/20 text-green-600 dark:text-green-400"
                             tabIndex={0}
-                            aria-label="Let's Assist Verified badge"
+                            aria-label="Let&apos;s Assist Verified badge"
                           >
-                            <BadgeCheck className="h-3.5 w-3.5 mr-1" /> Let's Assist Verified
+                            <BadgeCheck className="h-3.5 w-3.5 mr-1" /> Let&apos;s Assist Verified
                           </Badge>
                         </TooltipTrigger>
                         <TooltipContent
                           side="left"
                           className="max-w-xs"
-                          aria-label="Let's Assist Verified badge explanation"
+                          aria-label="Let&apos;s Assist Verified badge explanation"
                         >
-                          Let's Assist Verified certificates are issued by trusted members who have been verified by our platform.
+                          Let&apos;s Assist Verified certificates are issued by trusted members who have been verified by our platform.
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>

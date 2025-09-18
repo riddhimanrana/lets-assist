@@ -68,9 +68,9 @@ export default function TrustedMemberClient({
           <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
             <Shield className="w-8 h-8 text-green-600" />
           </div>
-          <CardTitle className="text-2xl text-green-600">You're All Set!</CardTitle>
+          <CardTitle className="text-2xl text-green-600">You&apos;re All Set!</CardTitle>
           <CardDescription>
-            You are already a trusted member of Let's Assist
+            You are already a trusted member of Let&apos;s Assist
           </CardDescription>
         </CardHeader>
         <CardContent className="text-center">
@@ -80,7 +80,7 @@ export default function TrustedMemberClient({
               <span className="font-medium">Trusted Member Status: Active</span>
             </div>
             <p className="text-green-600 text-sm mt-2">
-              You can now create projects and organizations on Let's Assist.
+              You can now create projects and organizations on Let&apos;s Assist.
             </p>
           </div>
         </CardContent>
