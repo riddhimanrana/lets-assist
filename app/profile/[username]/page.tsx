@@ -23,6 +23,7 @@ interface Profile {
   created_at: string;
   volunteer_hours?: number;
   verified_hours?: number;
+  trusted_member: boolean | null;
 }
 
 interface Certificate {
@@ -236,7 +237,12 @@ function formatHours(hours: number): string {
                 </AvatarFallback>
               </Avatar>
                 <div className="sm:pt-16 flex flex-col justify-center">
-                <h1 className="text-xl sm:text-2xl font-bold">{profile.full_name}</h1>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-xl sm:text-2xl font-bold">{profile.full_name}</h1>
+                  {profile.trusted_member && (
+                    <BadgeCheck className="h-5 w-5 sm:h-6 sm:w-6" fill="hsl(var(--primary))" stroke="hsl(var(--popover))" strokeWidth={2.5} />
+                  )}
+                </div>
                 <p className="text-muted-foreground text-xs">@{profile.username}</p>
                 </div>
             </div>

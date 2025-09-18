@@ -5,7 +5,7 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Building2, Search, Settings2, Check, Users2, ExternalLink, BadgeCheck } from "lucide-react";
+import { Plus, Building2, Search, Settings2, Check, Users2, ExternalLink, BadgeCheck, HelpCircle } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
 import { JoinOrganizationDialog } from "./JoinOrganizationDialog";
@@ -21,19 +21,27 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { NoAvatar } from "@/components/NoAvatar";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface OrganizationsDisplayProps {
   organizations: any[];
   memberCounts: Record<string, number>;
   isLoggedIn: boolean;
   userMemberships: any[];
+  userProfile: any;
 }
 
 export default function OrganizationsDisplay({ 
   organizations, 
   memberCounts,
   isLoggedIn,
-  userMemberships 
+  userMemberships,
+  userProfile 
 }: OrganizationsDisplayProps) {
   const router = useRouter();
   const [search, setSearch] = useState("");
@@ -41,6 +49,45 @@ export default function OrganizationsDisplay({
   const [userOrgs, setUserOrgs] = useState<any[]>([]);
   const [otherOrgs, setOtherOrgs] = useState<any[]>([]);
   const [sortBy, setSortBy] = useState("verified-first");
+
+  // Helper component for create organization button with trusted member check
+  const CreateOrganizationButton = ({ className = "", variant = "default" }: { className?: string, variant?: "default" | "outline" }) => {
+    const isTrustedMember = userProfile?.trusted_member === true;
+    
+    if (isTrustedMember) {
+      return (
+        <Button className={`w-full sm:w-auto ${className}`} variant={variant} asChild>
+          <Link href="/organization/create">
+            <Plus className="w-4 h-4 mr-2" />
+            Create Organization
+          </Link>
+        </Button>
+      );
+    }
+
+    return (
+      <TooltipProvider>
+        <div className="flex items-center gap-2">
+          <Button className={`w-full sm:w-auto ${className}`} variant={variant} disabled>
+            <Plus className="w-4 h-4 mr-2" />
+            Create Organization
+          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>You need to be a trusted member to create organizations.<br />
+                 <Link href="/trusted-member" className="text-primary underline">
+                   Apply for trusted member status
+                 </Link>
+              </p>
+            </TooltipContent>
+          </Tooltip>
+        </div>
+      </TooltipProvider>
+    );
+  };
 
   // Helper function to get user's role for an organization
   const getUserRole = (orgId: string): 'admin' | 'staff' | 'member' | undefined => {
@@ -121,12 +168,7 @@ export default function OrganizationsDisplay({
               <>
                 <CsvVerificationModal />
                 <JoinOrganizationDialog />
-                <Button className="w-full sm:w-auto" asChild>
-                  <Link href="/organization/create">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create Organization
-                  </Link>
-                </Button>
+                <CreateOrganizationButton />
               </>
             )}
             {!isLoggedIn && (
@@ -192,12 +234,7 @@ export default function OrganizationsDisplay({
               {search ? "Try different keywords or filters" : "Be the first to create an organization!"}
             </p>
             {isLoggedIn && !search && (
-              <Button asChild className="mt-4">
-                <Link href="/organization/create">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create Organization
-                </Link>
-              </Button>
+              <CreateOrganizationButton className="mt-4" />
             )}
           </div>
         ) : (

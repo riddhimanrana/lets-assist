@@ -32,7 +32,7 @@ export default async function CreateProjectPage({
   // Get user profile information including profile picture
   const { data: userProfile } = await supabase
     .from('profiles')
-    .select('profile_image_url')
+    .select('profile_image_url, trusted_member')
     .eq('id', user.id)
     .single();
 

@@ -42,6 +42,7 @@ export default async function OrganizationsPage() {
 
   // If user is logged in, fetch their organization memberships
   let userMemberships: any[] = [];
+  let userProfile: any = null;
   if (isLoggedIn && user) {
     const { data: memberships } = await supabase
       .from('organization_members')
@@ -64,6 +65,15 @@ export default async function OrganizationsPage() {
       .order('role', { ascending: false }); // Admin first, then staff, then member
 
     userMemberships = memberships || [];
+
+    // Fetch user profile including trusted_member status
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('trusted_member')
+      .eq('id', user.id)
+      .single();
+
+    userProfile = profile;
   }
 
   return (
@@ -72,6 +82,7 @@ export default async function OrganizationsPage() {
       memberCounts={orgMemberCounts}
       isLoggedIn={isLoggedIn}
       userMemberships={userMemberships}
+      userProfile={userProfile}
     />
   );
 }

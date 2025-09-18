@@ -68,6 +68,7 @@ export interface Profile {
   username: string | null;
   created_at: string | null;
   volunteer_goals?: VolunteerGoalsData | null;
+  trusted_member: boolean | null;
 }
 
 export type ProjectStatus = "upcoming" | "in-progress" | "completed" | "cancelled";
@@ -168,6 +169,16 @@ export interface AnonymousSignup {
     confirmed_at?: string | null;
     created_at: string;
     signup_id: string | null; // Foreign key to project_signups
+}
+
+// Trusted Member Application interface
+export interface TrustedMemberApplication {
+  id: string;
+  created_at: string;
+  name: string;
+  email: string;
+  reason: string;
+  status: boolean | null; // null = pending, true = accepted, false = denied
 }
 
 // Add Signup type definition if it doesn't exist or update it

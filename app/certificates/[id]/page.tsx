@@ -48,6 +48,7 @@ interface CertificateData {
   volunteer_email: string | null;
   user_id: string | null;
   check_in_method: string;
+  creator_trusted_member: boolean;
   created_at: string | null; // Keep for potential use, though issued_at is primary
   organization_name: string | null;
   project_id: string | null;
@@ -134,6 +135,7 @@ export default async function VolunteerRecordPage({
       volunteer_name,
       project_location,
       description,
+      creator_trusted_member,
       creator_profile:profiles!certificates_creator_id_fkey (username) // Specified foreign key and alias
     `,
     )
@@ -277,6 +279,31 @@ export default async function VolunteerRecordPage({
                         >
                           Verified badges mean this certificate comes from a
                           verified organization.
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </CardItem>
+                )}
+                {data.creator_trusted_member && (
+                  <CardItem translateZ={60} as="div">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Badge
+                            variant="secondary"
+                            className="ml-auto backdrop-blur-sm bg-green-100/10 border border-green-500/20 text-green-600 dark:text-green-400"
+                            tabIndex={0}
+                            aria-label="Let's Assist Verified badge"
+                          >
+                            <BadgeCheck className="h-3.5 w-3.5 mr-1" /> Let's Assist Verified
+                          </Badge>
+                        </TooltipTrigger>
+                        <TooltipContent
+                          side="left"
+                          className="max-w-xs"
+                          aria-label="Let's Assist Verified badge explanation"
+                        >
+                          Let's Assist Verified certificates are issued by trusted members who have been verified by our platform.
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
