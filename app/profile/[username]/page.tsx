@@ -14,6 +14,8 @@ import { ProjectStatusBadge } from "@/components/ui/status-badge";
 import { Progress } from "@/components/ui/progress";
 import type { Metadata } from "next";
 import Image from "next/image";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { isTrustedForDisplay } from "@/utils/trust";
 
 interface Profile {
   id: string;
@@ -23,6 +25,7 @@ interface Profile {
   created_at: string;
   volunteer_hours?: number;
   verified_hours?: number;
+  trusted_member?: boolean;
 }
 
 interface Certificate {
@@ -126,6 +129,9 @@ export default async function ProfilePage(
   if (error || !profile) {
     notFound();
   }
+
+  // Determine robust trusted flag for display (owner sees trusted immediately)
+  const isTrusted = await isTrustedForDisplay(profile.id);
 
   // Fetch projects created by this user
   const { data: createdProjects } = await supabase
@@ -236,7 +242,24 @@ function formatHours(hours: number): string {
                 </AvatarFallback>
               </Avatar>
                 <div className="sm:pt-16 flex flex-col justify-center">
-                <h1 className="text-xl sm:text-2xl font-bold">{profile.full_name}</h1>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h1 className="text-xl sm:text-2xl font-bold">{profile.full_name}</h1>
+                  {isTrusted && (
+                    <TooltipProvider delayDuration={150}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Badge variant="default" className="h-6 px-2 py-0 text-xs flex items-center gap-1">
+                            <BadgeCheck className="h-4 w-4" aria-hidden="true" />
+                            Trusted
+                          </Badge>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" align="start">
+                          <p className="max-w-xs text-sm">Trusted Member: verified by Let’s Assist. Projects they create are marked as Verified.</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
+                </div>
                 <p className="text-muted-foreground text-xs">@{profile.username}</p>
                 </div>
             </div>
@@ -424,7 +447,24 @@ function formatHours(hours: number): string {
                 <Card className="h-full hover:shadow-md transition-shadow cursor-pointer">
                   <CardContent className="p-3 sm:p-4">
                   <div className="flex justify-between items-start gap-2 mb-2">
-                    <h3 className="font-semibold text-base sm:text-lg line-clamp-1">{project.title}</h3>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <h3 className="font-semibold text-base sm:text-lg line-clamp-1 truncate">{project.title}</h3>
+                      {isTrusted && (
+                        <TooltipProvider delayDuration={150}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge variant="secondary" className="h-5 px-1.5 py-0 text-[10px] flex items-center gap-1">
+                                <BadgeCheck className="h-3 w-3" aria-hidden="true" />
+                                Verified
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" align="start">
+                              <p className="max-w-xs text-xs">Created by a Trusted Member. This project is Let’s Assist verified.</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+                    </div>
                     <ProjectStatusBadge 
                       status={project.status}
                       size="sm"
