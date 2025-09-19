@@ -68,6 +68,27 @@ export async function createOrganization(data: OrganizationCreationData) {
     return { error: "You must be logged in to create an organization" };
   }
 
+  // Trusted member gating (required regardless of org role)
+  const { data: tmProfile } = await supabase
+    .from("profiles")
+    .select("trusted_member")
+    .eq("id", user.id)
+    .single();
+  if (!tmProfile?.trusted_member) {
+    // If profile flag isn't set, allow if application is accepted
+    const { data: tmApp } = await supabase
+      .from("trusted_member")
+      .select("status")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (tmApp?.status !== true) {
+      return {
+        error:
+          "Only Trusted Members can create organizations. Please visit /trusted-member to apply, and once accepted you can create organizations.",
+      };
+    }
+  }
+
   // Rate limiting: Check organizations created in the last 14 days
   const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
   const { count: orgsCount, error: countError } = await supabase

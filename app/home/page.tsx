@@ -9,6 +9,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { NoAvatar } from "@/components/NoAvatar";
 import { Metadata } from "next";
 import { ProjectsInfiniteScroll } from "@/components/ProjectsInfiniteScroll";
+import { TrustedInfoIcon } from "@/components/TrustedInfoIcon";
 
 export const metadata: Metadata = {
   title: "Home",
@@ -23,10 +24,26 @@ export default async function Home() {
   const { data: { user } } = await supabase.auth.getUser();
   const { data: profileData } = await supabase
     .from("profiles")
-    .select("full_name, avatar_url, username")
+    .select("full_name, avatar_url, username, trusted_member")
     .eq("id", user?.id)
     .single();
   const userName = profileData?.full_name || "Anonymous";
+  let isTrusted = !!profileData?.trusted_member;
+
+  // Determine application status (NULL: pending, TRUE: accepted, FALSE: denied)
+  let applicationStatus: boolean | null | undefined = undefined;
+  if (user) {
+    const { data: tmApp } = await supabase
+      .from("trusted_member")
+      .select("status")
+      .eq("id", user.id)
+      .maybeSingle();
+    applicationStatus = tmApp?.status ?? null; // if no row -> null (treated as pending until they submit)
+    // Consider accepted application as trusted even if profile flag hasn't synced yet
+    if (!isTrusted && tmApp?.status === true) {
+      isTrusted = true;
+    }
+  }
   
   return (
     <div className="min-h-screen">
@@ -47,15 +64,27 @@ export default async function Home() {
               </p>
             </div>
           </div>
-          <Link href="/projects/create" className="w-full md:w-auto">
-            <Button
-              size="lg"
-              className="font-semibold flex items-center gap-1 w-full md:w-auto"
-            >
-              <Plus className="w-4 h-4" /> {/* Add the Plus icon here */}
-              Create Project
-            </Button>
-          </Link>
+          <div className="flex items-center gap-2 w-full md:w-auto">
+            <Link href={isTrusted ? "/projects/create" : "#"} className="w-full md:w-auto pointer-events-auto">
+              <Button
+                size="lg"
+                className="font-semibold flex items-center gap-1 w-full md:w-auto"
+                disabled={!isTrusted}
+              >
+                <Plus className="w-4 h-4" />
+                Create Project
+              </Button>
+            </Link>
+            {!isTrusted && (
+              <TrustedInfoIcon
+                message={
+                  applicationStatus === false
+                    ? "It looks like you've already applied to be a Trusted Member. Please email support@lets-assist.com for further assistance."
+                    : "You must be a Trusted Member to create projects. Apply using the form."
+                }
+              />
+            )}
+          </div>
         </div>
 
         {/* Render the infinite scroll component */}

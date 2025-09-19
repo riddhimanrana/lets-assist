@@ -27,13 +27,19 @@ interface OrganizationsDisplayProps {
   memberCounts: Record<string, number>;
   isLoggedIn: boolean;
   userMemberships: any[];
+  isTrusted?: boolean;
+  applicationStatus?: boolean | null;
 }
+
+import { TrustedInfoIcon } from "@/components/TrustedInfoIcon";
 
 export default function OrganizationsDisplay({ 
   organizations, 
   memberCounts,
   isLoggedIn,
-  userMemberships 
+  userMemberships,
+  isTrusted = false,
+  applicationStatus = undefined,
 }: OrganizationsDisplayProps) {
   const router = useRouter();
   const [search, setSearch] = useState("");
@@ -121,12 +127,30 @@ export default function OrganizationsDisplay({
               <>
                 <CsvVerificationModal />
                 <JoinOrganizationDialog />
-                <Button className="w-full sm:w-auto" asChild>
-                  <Link href="/organization/create">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create Organization
-                  </Link>
-                </Button>
+                <div className="flex items-center gap-2">
+                  {isTrusted || applicationStatus === true ? (
+                    <Button className="w-full sm:w-auto" asChild>
+                      <Link href="/organization/create">
+                        <Plus className="w-4 h-4 mr-2" />
+                        Create Organization
+                      </Link>
+                    </Button>
+                  ) : (
+                    <Button className="w-full sm:w-auto cursor-not-allowed opacity-60" disabled>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Create Organization
+                    </Button>
+                  )}
+                  {!isTrusted && applicationStatus !== true && (
+                    <TrustedInfoIcon
+                      message={
+                        applicationStatus === false
+                          ? "It looks like you've already applied to be a Trusted Member. Please email support@lets-assist.com for further assistance."
+                          : "You must be a Trusted Member to create organizations. Apply using the form."
+                      }
+                    />
+                  )}
+                </div>
               </>
             )}
             {!isLoggedIn && (

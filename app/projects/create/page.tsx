@@ -32,9 +32,43 @@ export default async function CreateProjectPage({
   // Get user profile information including profile picture
   const { data: userProfile } = await supabase
     .from('profiles')
-    .select('profile_image_url')
+    .select('profile_image_url, trusted_member')
     .eq('id', user.id)
     .single();
+
+  // Gate non-trusted users with guidance (allow if TM status already accepted)
+  if (!userProfile?.trusted_member) {
+    const { data: tmApp } = await supabase
+      .from('trusted_member')
+      .select('status')
+      .eq('id', user.id)
+      .maybeSingle();
+    const status = tmApp?.status ?? null;
+    if (status === true) {
+      // Permit access while profile flag syncs
+    } else {
+      return (
+      <div className="container mx-auto p-6 max-w-2xl">
+        <h1 className="text-2xl font-bold mb-2">Create Project</h1>
+        <p className="text-muted-foreground mb-6">
+          Only Trusted Members can create projects.
+        </p>
+        <div className="rounded-md border p-4 space-y-2">
+          {status === false ? (
+            <p>
+              It looks like you have already applied to be a Trusted Member and were not accepted. If you believe this is an error or have questions, please contact support@lets-assist.com.
+            </p>
+          ) : (
+            <p>
+              To request access, please fill out the Trusted Member form. Once your application is accepted, you will be able to create projects.
+            </p>
+          )}
+          <a href="/trusted-member" className="text-primary underline">Go to Trusted Member form</a>
+        </div>
+      </div>
+    );
+    }
+  }
 
   // Get organization ID from URL params if provided - fixed approach
   const search = await searchParams;

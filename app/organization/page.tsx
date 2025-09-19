@@ -11,6 +11,26 @@ export default async function OrganizationsPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   const isLoggedIn = !!user;
+  let isTrusted = false;
+  let applicationStatus: boolean | null | undefined = undefined;
+  if (user) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("trusted_member")
+      .eq("id", user.id)
+      .single();
+    isTrusted = !!profile?.trusted_member;
+
+    const { data: tmApp } = await supabase
+      .from("trusted_member")
+      .select("status")
+      .eq("id", user.id)
+      .maybeSingle();
+    applicationStatus = tmApp?.status ?? null;
+    if (!isTrusted && tmApp?.status === true) {
+      isTrusted = true;
+    }
+  }
   
   // Fetch all organizations
   const { data: organizations } = await supabase
@@ -72,6 +92,8 @@ export default async function OrganizationsPage() {
       memberCounts={orgMemberCounts}
       isLoggedIn={isLoggedIn}
       userMemberships={userMemberships}
+      isTrusted={isTrusted}
+      applicationStatus={applicationStatus}
     />
   );
 }
