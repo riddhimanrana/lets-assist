@@ -17,7 +17,7 @@ export default function GlobalNotificationProvider({
   const [isLoading, setIsLoading] = useState(true);
   const initRef = useRef(false);
   const onboardingCompletedRef = useRef(false); // Guard to prevent re-showing modal
-  const checkIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const authUnsubscribeRef = useRef<(() => void) | undefined>(undefined);
 
   // Simplified onboarding check—only look at the metadata flag
   const checkOnboardingStatus = useCallback(async (user: any) => {
@@ -83,18 +83,24 @@ export default function GlobalNotificationProvider({
     if (initRef.current) return;
     initRef.current = true;
 
+    const supabase = createClient();
+
     // Initial check
     checkUserStatus();
 
-    // Set up periodic checking every 3 seconds to catch auth changes
-    checkIntervalRef.current = setInterval(() => {
-      checkUserStatus();
-    }, 3000);
+    // Subscribe to auth state changes instead of polling
+    const { data: subscription } = supabase.auth.onAuthStateChange((_event, _session) => {
+      // Debounce rapid changes by scheduling a microtask
+      queueMicrotask(() => {
+        checkUserStatus();
+      });
+    });
+    authUnsubscribeRef.current = () => subscription.subscription.unsubscribe();
 
     return () => {
-      if (checkIntervalRef.current) {
-        clearInterval(checkIntervalRef.current);
-      }
+      try {
+        authUnsubscribeRef.current?.();
+      } catch {}
       initRef.current = false;
       onboardingCompletedRef.current = false;
     };

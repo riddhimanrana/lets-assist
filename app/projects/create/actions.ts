@@ -75,6 +75,27 @@ export async function createBasicProject(projectData: any) {
     return { error: "You must be logged in to create a project" };
   }
 
+  // Trusted member gating (no bypass by org roles)
+  const { data: tmProfile } = await supabase
+    .from("profiles")
+    .select("trusted_member")
+    .eq("id", user.id)
+    .single();
+  if (!tmProfile?.trusted_member) {
+    // If profile flag isn't set, allow if application is accepted
+    const { data: tmApp } = await supabase
+      .from("trusted_member")
+      .select("status")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (tmApp?.status !== true) {
+      return {
+        error:
+          "Only Trusted Members can create projects. Please visit /trusted-member to apply, and once accepted you can create projects.",
+      };
+    }
+  }
+
   // Rate limiting: Check projects created in the last 24 hours
   const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const { count: projectsCount, error: countError } = await supabase
