@@ -3,6 +3,7 @@
 import InitialOnboardingModal from "@/components/InitialOnboardingModal";
 import { createClient } from "@/utils/supabase/client";
 import { useEffect, useState, useRef, useCallback } from "react";
+import { usePathname } from "next/navigation";
 import { NotificationListener } from "./NotificationListener";
 
 export default function GlobalNotificationProvider({ 
@@ -10,6 +11,7 @@ export default function GlobalNotificationProvider({
 }: { 
   children: React.ReactNode 
 }) {
+  const pathname = usePathname();
   const [userId, setUserId] = useState<string | null>(null);
   const [showOnboardingModal, setShowOnboardingModal] = useState(false);
   const [currentUserFullName, setCurrentUserFullName] = useState<string | null>(null);
@@ -18,6 +20,12 @@ export default function GlobalNotificationProvider({
   const initRef = useRef(false);
   const onboardingCompletedRef = useRef(false); // Guard to prevent re-showing modal
   const authUnsubscribeRef = useRef<(() => void) | undefined>(undefined);
+
+  // Do not show onboarding modal on critical creation flows where it can block inputs
+  const suppressOnboardingModal = !!(
+    pathname?.startsWith("/projects/create") ||
+    pathname?.startsWith("/organization/create")
+  );
 
   // Simplified onboarding check—only look at the metadata flag
   const checkOnboardingStatus = useCallback(async (user: any) => {
@@ -39,9 +47,14 @@ export default function GlobalNotificationProvider({
         "User"
       );
       setCurrentUserEmail(user.email || null);
-      setShowOnboardingModal(true);
+      if (!suppressOnboardingModal) {
+        setShowOnboardingModal(true);
+      } else {
+        // Ensure it stays hidden on suppressed routes
+        setShowOnboardingModal(false);
+      }
     }
-  }, []);
+  }, [suppressOnboardingModal]);
 
   // Function to check user authentication and onboarding status
   const checkUserStatus = useCallback(async () => {
@@ -106,6 +119,13 @@ export default function GlobalNotificationProvider({
     };
   }, [checkUserStatus]);
 
+  // If user navigates into a suppressed route while the modal is open, hide it
+  useEffect(() => {
+    if (suppressOnboardingModal && showOnboardingModal) {
+      setShowOnboardingModal(false);
+    }
+  }, [suppressOnboardingModal, showOnboardingModal]);
+
   // Force refresh user status (called after onboarding completion)
   const forceRefreshUserStatus = useCallback(async () => {
     await checkUserStatus();
@@ -114,7 +134,7 @@ export default function GlobalNotificationProvider({
   return (
     <>
       {userId && <NotificationListener userId={userId} />}
-      {showOnboardingModal && userId && !isLoading && (
+      {showOnboardingModal && userId && !isLoading && !suppressOnboardingModal && (
         <InitialOnboardingModal
           isOpen={showOnboardingModal}
           onClose={() => {
