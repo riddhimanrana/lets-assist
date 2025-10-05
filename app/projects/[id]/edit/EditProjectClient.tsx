@@ -67,6 +67,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { updateCalendarEventForProject, removeCalendarEventForProject, removeAllVolunteerCalendarEvents } from "@/utils/calendar-helpers";
 
 // Constants for character limits
 const TITLE_LIMIT = 125;
@@ -168,6 +169,15 @@ export default function EditProjectClient({ project }: Props) {
         toast.error(result.error);
       } else {
         toast.success("Project updated successfully");
+        
+        // Update calendar event if details changed (non-blocking)
+        try {
+          await updateCalendarEventForProject(project.id);
+        } catch (calendarError) {
+          console.error("Error updating calendar event:", calendarError);
+          // Don't show error to user - this is non-critical
+        }
+        
         router.push(`/projects/${project.id}`);
         router.refresh();
       }
@@ -192,6 +202,18 @@ export default function EditProjectClient({ project }: Props) {
         toast.error(result.error);
       } else {
         toast.success("Project cancelled successfully");
+        
+        // Remove calendar events (non-blocking)
+        try {
+          // Remove creator's calendar event
+          await removeCalendarEventForProject(project.id);
+          // Remove all volunteer calendar events
+          await removeAllVolunteerCalendarEvents(project.id);
+        } catch (calendarError) {
+          console.error("Error removing calendar events:", calendarError);
+          // Don't show error to user - this is non-critical
+        }
+        
         // Send cancellation notifications to all participants
         try {
           const supabase = createClient();

@@ -452,3 +452,35 @@ export async function checkProfanity(content: { [key: string]: string }) {
     return { success: true, hasProfanity: false };
   }
 }
+
+/**
+ * Fetches a project by ID with all necessary data for calendar integration
+ */
+export async function getProjectById(projectId: string) {
+  try {
+    const supabase = await createClient();
+
+    const { data: project, error } = await supabase
+      .from("projects")
+      .select(`
+        *,
+        profiles:creator_id (
+          id,
+          full_name,
+          email
+        )
+      `)
+      .eq("id", projectId)
+      .single();
+
+    if (error) {
+      console.error("Error fetching project:", error);
+      return { error: "Failed to fetch project" };
+    }
+
+    return { project };
+  } catch (error) {
+    console.error("Error in getProjectById:", error);
+    return { error: "Failed to fetch project" };
+  }
+}

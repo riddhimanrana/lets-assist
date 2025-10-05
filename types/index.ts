@@ -108,6 +108,8 @@ export interface Project {
   session_id?: string | null;
   published?: Record<string, boolean>; // Track which sessions have published certificates
   certificates?: Record<string, string>; // Map of signup_id to certificate_id
+  creator_calendar_event_id?: string | null; // Google Calendar event ID for project creator
+  creator_synced_at?: string | null; // When the event was synced to creator's calendar
 }
 
 export interface AnonymousSignupData {
@@ -183,5 +185,55 @@ export interface Signup {
   check_out_time: string | null;
   email?: string | null; // For anonymous signups
   full_name?: string | null; // For anonymous signups
-  // Add other relevant fields if needed
+  volunteer_calendar_event_id?: string | null; // Google Calendar event ID for volunteer
+  volunteer_synced_at?: string | null; // When the event was synced to volunteer's calendar
+}
+
+// Calendar Integration Types
+export type CalendarProvider = 'google'; // Can extend to 'outlook', 'apple' in future
+
+export interface CalendarConnection {
+  id: string;
+  user_id: string;
+  provider: CalendarProvider;
+  access_token: string; // Encrypted at application level
+  refresh_token: string; // Encrypted at application level
+  token_expires_at: string;
+  calendar_email: string; // The connected Google/calendar account email
+  connected_at: string;
+  last_synced_at: string | null;
+  is_active: boolean;
+  preferences: CalendarPreferences;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CalendarPreferences {
+  default_calendar_id?: string; // For future: which calendar to add events to
+  volunteering_calendar_id?: string; // ID of the "Let's Assist Volunteering" calendar
+  reminder_minutes?: number; // Default: 15 minutes
+  auto_sync_new_projects?: boolean; // Auto-sync when creating projects
+  auto_sync_signups?: boolean; // Auto-sync when signing up
+}
+
+export interface CalendarEvent {
+  id: string; // Google Calendar event ID
+  project_id: string;
+  signup_id?: string; // If it's a volunteer signup event
+  schedule_id: string;
+  event_type: 'creator' | 'volunteer';
+  synced_at: string;
+  last_updated: string;
+}
+
+export interface SyncedEvent {
+  id: string;
+  project_id: string;
+  project_title: string;
+  schedule_id: string;
+  event_type: 'creator' | 'volunteer';
+  start_time: string;
+  end_time: string;
+  synced_at: string;
+  calendar_event_id: string;
 }

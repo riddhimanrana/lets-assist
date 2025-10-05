@@ -18,9 +18,11 @@ import { Loader2, ChevronLeft, ChevronRight, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 // Replace shadcn toast with Sonner
 import { toast } from "sonner";
-import { createProject, uploadCoverImage, uploadProjectDocument, finalizeProject } from "./actions";
+import { createProject, uploadCoverImage, uploadProjectDocument, finalizeProject, getProjectById } from "./actions";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import CalendarSyncSuccessModal from "@/components/CalendarSyncSuccessModal";
+import type { Project } from "@/types";
 // Import Zod schemas
 import { 
   basicInfoSchema, 
@@ -66,6 +68,10 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
   
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Calendar modal states
+  const [showCalendarModal, setShowCalendarModal] = useState(false);
+  const [createdProject, setCreatedProject] = useState<Project | null>(null);
   
   // File handling states
   const [coverImage, setCoverImage] = useState<File | null>(null);
@@ -340,18 +346,32 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
       // Step 4: Finalize project
       await finalizeProject(projectId);
       
-      // Dismiss any loading toasts - NO SUCCESS TOAST HERE
+      // Dismiss any loading toasts
       toast.dismiss();
       
-      // Store success message in sessionStorage before navigating
+      // Show success toast
       const message = hasErrors 
         ? "Project created but some files couldn't be uploaded" 
         : "Project Created Successfully! 🎉";
-      sessionStorage.setItem("project_creation_message", message);
-      sessionStorage.setItem("project_creation_status", hasErrors ? "warning" : "success");
       
-      // Redirect immediately with no success toast
-      router.push(`/projects/${projectId}`);
+      if (hasErrors) {
+        toast.warning(message);
+      } else {
+        toast.success(message);
+      }
+      
+      // Fetch the created project data to pass to calendar modal
+      const projectResult = await getProjectById(projectId);
+      
+      if (projectResult.project) {
+        setCreatedProject(projectResult.project as Project);
+        setShowCalendarModal(true);
+      } else {
+        // If fetch fails, just redirect
+        router.push(`/projects/${projectId}`);
+      }
+      
+      setIsSubmitting(false);
       
     } catch (error) {
       console.error("Error submitting project:", error);
@@ -515,6 +535,22 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
           </Button>
         </div>
       </div>
+
+      {/* Calendar Sync Success Modal */}
+      {createdProject && (
+        <CalendarSyncSuccessModal
+          open={showCalendarModal}
+          onOpenChange={(open) => {
+            setShowCalendarModal(open);
+            if (!open) {
+              // Redirect to project page when modal closes
+              router.push(`/projects/${createdProject.id}`);
+            }
+          }}
+          project={createdProject}
+          mode="creator"
+        />
+      )}
     </>
   );
 }
