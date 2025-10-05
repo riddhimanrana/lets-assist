@@ -13,6 +13,7 @@ import { PostHogProvider } from "./providers";
 import { ToasterTheme } from "@/components/ToasterTheme";
 import { NotificationListener } from "@/components/NotificationListener";
 import GlobalNotificationProvider from "@/components/GlobalNotificationProvider";
+import CalendarOAuthCallbackHandler from "@/components/CalendarOAuthCallbackHandler";
 import { GeistMono } from 'geist/font/mono';
  
 export const metadata: Metadata = {
@@ -92,6 +93,7 @@ export default async function RootLayout({
                 <ToasterTheme />
                 <Footer />
                 <SpeedInsights />
+                <CalendarOAuthCallbackHandler />
                 {/* Remove this duplicate listener - it's already in GlobalNotificationProvider */}
                 {/* {user && <NotificationListener userId={user.id} />} */}
               </div>
