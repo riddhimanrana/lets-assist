@@ -15,6 +15,7 @@ import { Resend } from 'resend';
 // import AnonymousSignupConfirmationEmail from '@/emails/AnonymousSignupConfirmationEmail';
 
 import { NotificationService } from "@/services/notifications";
+import { removeCalendarEventForSignup } from "@/utils/calendar-helpers";
 
 // Instantiate Resend with your API key
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -581,6 +582,7 @@ export async function signUpForProject(
 ) {
   const supabase = await createClient();
   const isAnonymous = !!anonymousData;
+  let createdSignupId: string | undefined = undefined; // Track the created signup ID
 
   try {
     console.log("Starting signup process:", { projectId, scheduleId, isAnonymous });
@@ -668,15 +670,19 @@ export async function signUpForProject(
           anonymous_id: null,
         };
 
-        const { error: signupError } = await supabase
+        const { data: insertedSignup, error: signupError } = await supabase
           .from("project_signups")
-          .insert(signupData);
+          .insert(signupData)
+          .select()
+          .single();
 
-        if (signupError) {
+        if (signupError || !insertedSignup) {
           console.error("Error creating signup for registered user:", signupError);
           return { error: "Failed to sign up. Please try again." };
         }
         
+        // Store the signup ID for return
+        createdSignupId = insertedSignup.id;
         // Send confirmation email to logged-in user
         try {
           // Get user profile for email
@@ -827,6 +833,9 @@ console.log("Checking for existing anonymous signup with email:", emailToCheck);
         return { error: "Failed to complete signup. Please try again." };
       }
 
+      // Store the signup ID for anonymous users too
+      createdSignupId = insertedProjectSignup.id;
+
       const { error: anonUpdateError } = await supabase
         .from("anonymous_signups")
         .update({ signup_id: insertedProjectSignup.id })
@@ -908,8 +917,13 @@ console.log("Checking for existing anonymous signup with email:", emailToCheck);
       revalidatePath(`/profile/${user.id}`);
     }
 
-    // --- Return success ---
-    return { success: true, needsConfirmation: isAnonymous };
+    // --- Return success with signup ID for calendar integration ---
+    return { 
+      success: true, 
+      needsConfirmation: isAnonymous,
+      signupId: createdSignupId,
+      projectId: project.id
+    };
   } catch (error) {
     console.error("Error in signUpForProject:", error);
     return { error: "An unexpected error occurred during signup." };
@@ -1078,6 +1092,14 @@ export async function cancelSignup(signupId: string) {
     if (!hasPermission) {
       return { error: "You don't have permission to cancel this signup" };
     }
+
+      // Remove calendar event if it exists (non-blocking)
+      try {
+        await removeCalendarEventForSignup(signupId);
+      } catch (calendarError) {
+        console.error("Error removing calendar event:", calendarError);
+        // Don't fail the cancellation if calendar removal fails
+      }
 
       const { error: deleteError } = await supabase
       .from("project_signups")

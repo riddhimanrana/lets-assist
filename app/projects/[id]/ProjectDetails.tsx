@@ -82,6 +82,7 @@ import { User } from "@supabase/supabase-js";
 import ProjectInstructionsModal from "./ProjectInstructions";
 import { SignupConfirmationModal } from "@/components/SignupConfirmationModal";
 import { CancelSignupModal } from "@/components/CancelSignupModal";
+import CalendarOptionsModal from "@/components/CalendarOptionsModal";
 
 interface SlotData {
   remainingSlots: Record<string, number>;
@@ -178,6 +179,13 @@ export default function ProjectDetails({
     getProjectStatus(project)
   );
 
+  // Add state for calendar modal after signup
+  const [showCalendarModal, setShowCalendarModal] = useState(false);
+  const [completedSignup, setCompletedSignup] = useState<{
+    signupId: string;
+    scheduleId: string;
+  } | null>(null);
+
   // Remove userRejected state as rejectedSlots handles this per slot
   // const [userRejected, setUserRejected] = useState<boolean>(false);
   
@@ -240,6 +248,43 @@ export default function ProjectDetails({
     
     checkPreviousRejections();
   }, [user, project.id]);
+
+  // Handle reopening signup modal after OAuth
+  useEffect(() => {
+    const modalState = sessionStorage.getItem("signupModalState");
+    
+    // Also check URL params for OAuth callback
+    const urlParams = new URLSearchParams(window.location.search);
+    const oauthSuccess = urlParams.get("success");
+    
+    if (modalState) {
+      try {
+        const { projectId, scheduleId, returnToModal } = JSON.parse(modalState);
+        
+        // Only reopen if it's for this project and we should return to modal
+        if (returnToModal && projectId === project.id && user) {
+          // Clear the state
+          sessionStorage.removeItem("signupModalState");
+          
+          // If returning from OAuth, set the just connected flag
+          if (oauthSuccess === "connected") {
+            sessionStorage.setItem("calendarJustConnected", "true");
+            
+            // Clean URL
+            window.history.replaceState({}, '', `/projects/${project.id}`);
+          }
+          
+          // Reopen the signup modal
+          setPendingScheduleId(scheduleId);
+          setShowSignupConfirmation(true);
+        }
+      } catch (error) {
+        console.error("Error parsing modal state:", error);
+        sessionStorage.removeItem("signupModalState");
+      }
+    }
+  }, [project.id, user]);
+
 
   // Fetch user profile data when user changes
   useEffect(() => {
@@ -469,8 +514,45 @@ export default function ProjectDetails({
           });
           // No UI state change here yet for slots/signup status
         } else {
-          // Standard success toast for registered users
-          toast.success("Successfully signed up!");
+          // Check if user has Google Calendar connected
+          let calendarSynced = false;
+          if (result.signupId && result.projectId) {
+            try {
+              const statusResponse = await fetch("/api/calendar/connection-status");
+              const statusData = await statusResponse.json();
+              
+              // API returns 'connected' not 'isConnected'
+              if (statusData.connected) {
+                // Automatically sync to calendar
+                const syncResponse = await fetch("/api/calendar/add-signup", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    signup_id: result.signupId,
+                    project_id: result.projectId,
+                    schedule_id: scheduleId,
+                  }),
+                });
+                
+                if (syncResponse.ok) {
+                  calendarSynced = true;
+                }
+              }
+            } catch (error) {
+              console.error("Error syncing to calendar:", error);
+              // Don't fail the signup if calendar sync fails
+            }
+          }
+          
+          // Success toast with calendar info
+          toast.success(
+            calendarSynced 
+              ? "Successfully signed up and added to Google Calendar!" 
+              : "Successfully signed up!",
+            {
+              duration: 5000,
+            }
+          );
           
           // Update local state to reflect the successful signup
           setHasSignedUp(prev => ({ ...prev, [scheduleId]: true }));
@@ -610,7 +692,7 @@ export default function ProjectDetails({
     if (loadingStates[scheduleId]) {
       return (
         <>
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          <Loader2 className="h-4 w-4 animate-spin" />
           Processing...
         </>
       );
@@ -1375,6 +1457,7 @@ export default function ProjectDetails({
           onClose={handleCloseModals}
           onConfirm={handleConfirmSignup}
           project={{
+            id: project.id,
             title: project.title,
             date: (() => {
               // Get the appropriate date from the schedule
@@ -1422,6 +1505,7 @@ export default function ProjectDetails({
               return undefined;
             })(),
           }}
+          scheduleId={pendingScheduleId}
           isLoading={loadingStates[pendingScheduleId]}
         />
       )}
@@ -1491,6 +1575,27 @@ export default function ProjectDetails({
           projectId={project.id}
           scheduleId={pendingScheduleId}
           userId={user.id}
+        />
+      )}
+
+      {/* Calendar options modal after successful signup */}
+      {completedSignup && (
+        <CalendarOptionsModal
+          open={showCalendarModal}
+          onOpenChange={setShowCalendarModal}
+          project={project}
+          signup={{
+            id: completedSignup.signupId,
+            schedule_id: completedSignup.scheduleId,
+            project_id: project.id,
+            user_id: user?.id || null,
+            status: 'approved',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            check_in_time: null,
+            check_out_time: null,
+          }}
+          mode="volunteer"
         />
       )}
     </>

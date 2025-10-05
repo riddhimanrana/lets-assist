@@ -37,8 +37,10 @@ import {
   Clock,
   HelpCircle, // For instructions modal
   Mail,
+  Calendar,
+  CalendarCheck,
 } from "lucide-react";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { deleteProject, updateProjectStatus } from "./actions";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -59,6 +61,11 @@ import { differenceInHours, addHours, isBefore, isAfter, parseISO, format } from
 import { getProjectStartDateTime, getProjectEndDateTime } from "@/utils/project";
 import ProjectTimeline from "./ProjectTimeline";
 import { ProjectQRCodeModal } from "./ProjectQRCodeModal";
+import CalendarOptionsModal from "@/components/CalendarOptionsModal";
+import {
+  removeCalendarEventForProject,
+  removeAllVolunteerCalendarEvents,
+} from "@/utils/calendar-helpers";
 
 interface Props {
   project: Project;
@@ -73,6 +80,10 @@ export default function CreatorDashboard({ project }: Props) {
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [timelineOpen, setTimelineOpen] = useState(false);
   const [qrCodeOpen, setQrCodeOpen] = useState(false);
+  
+  // Calendar integration states
+  const [showCalendarModal, setShowCalendarModal] = useState(false);
+  const [isCalendarSynced, setIsCalendarSynced] = useState(!!project.creator_calendar_event_id);
 
   const handleCancelProject = async (reason: string) => {
     try {
@@ -81,6 +92,18 @@ export default function CreatorDashboard({ project }: Props) {
         toast.error(result.error);
       } else {
         toast.success("Project cancelled successfully");
+        
+        // Remove calendar events (non-blocking)
+        try {
+          // Remove creator's calendar event
+          await removeCalendarEventForProject(project.id);
+          // Remove all volunteer calendar events
+          await removeAllVolunteerCalendarEvents(project.id);
+        } catch (calendarError) {
+          console.error("Error removing calendar events:", calendarError);
+          // Don't show error to user - this is non-critical
+        }
+        
         // Send cancellation notifications to all participants
         try {
           const supabase = createClient();
@@ -554,6 +577,46 @@ export default function CreatorDashboard({ project }: Props) {
             {/* Creator Instructions Modal */}
             <ProjectInstructionsModal project={project} isCreator={true} />
 
+            {/* Calendar Sync Button */}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="w-full sm:w-auto">
+                    <Button
+                      variant="outline"
+                      className={`w-full sm:w-auto flex items-center justify-center gap-2 ${
+                        isCalendarSynced 
+                          ? "bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800" 
+                          : ""
+                      }`}
+                      onClick={() => setShowCalendarModal(true)}
+                    >
+                      {isCalendarSynced ? (
+                        <>
+                          <CalendarCheck className="h-4 w-4 text-green-600 dark:text-green-400" />
+                          Synced to Calendar
+                        </>
+                      ) : (
+                        <>
+                          <Calendar className="h-4 w-4" />
+                          Add to Calendar
+                        </>
+                      )}
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-[280px] p-2">
+                  <p>
+                    {isCalendarSynced
+                      ? "This project is synced to your calendar. Click to manage or remove."
+                      : "Add this project to your Google Calendar or download an iCal file"}
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
+            {/* Creator Instructions Modal */}
+
             {/* --- MODIFIED: Manage Hours Button (Conditional) --- */}
             {/* Use the new filtered list */}
             {hasActiveUnpublishedSessions && project.verification_method !== 'auto' && (
@@ -990,6 +1053,14 @@ export default function CreatorDashboard({ project }: Props) {
           onOpenChange={setQrCodeOpen}
         />
       )}
+
+      {/* Calendar Sync Modal */}
+      <CalendarOptionsModal
+        open={showCalendarModal}
+        onOpenChange={setShowCalendarModal}
+        project={project}
+        mode="creator"
+      />
     </div>
   );
 }

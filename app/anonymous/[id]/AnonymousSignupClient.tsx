@@ -16,6 +16,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
+import { cancelSignup } from "@/app/projects/[id]/actions";
 
 // Helper function to format schedule slot (same as before)
 const formatScheduleSlot = (project: Project, slotId: string) => {
@@ -201,30 +202,27 @@ export default function AnonymousSignupClient({
     
     try {
       setIsCancelling(true);
-      const supabase = createClient();
 
-      // First, delete the anonymous_signups record
+      // Use the server action which includes calendar cleanup
+      const result = await cancelSignup(project_signup_id);
+      
+      if (result.error) {
+        toast.error(result.error);
+        setCancelDialogOpen(false);
+        return;
+      }
+
+      // Also clean up the anonymous_signups record
+      const supabase = createClient();
       const { error: anonymousSignupError } = await supabase
         .from("anonymous_signups")
         .delete()
         .eq("id", id);
         
       if (anonymousSignupError) {
-        throw new Error(`Error deleting anonymous signup: ${anonymousSignupError.message}`);
+        console.error("Error deleting anonymous signup:", anonymousSignupError);
+        // Continue anyway - the main signup was cancelled
       }
-
-      // Then, delete the project_signups record
-      const { error: projectSignupError } = await supabase
-        .from("project_signups")
-        .delete()
-        .eq("id", project_signup_id);
-        
-      if (projectSignupError) {
-        throw new Error(`Error deleting project signup: ${projectSignupError.message}`);
-      }
-      
-      
-      
       
       // Close dialog and show success message
       setCancelDialogOpen(false);
