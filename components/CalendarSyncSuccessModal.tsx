@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -38,6 +38,17 @@ export default function CalendarSyncSuccessModal({
   description,
 }: CalendarSyncSuccessModalProps) {
   const [showCalendarOptions, setShowCalendarOptions] = useState(false);
+
+  // Check if we should automatically open the calendar options modal
+  // This happens when returning from OAuth
+  useEffect(() => {
+    const shouldReopen = sessionStorage.getItem("reopenCalendarModal");
+    if (shouldReopen === "true" && open) {
+      sessionStorage.removeItem("reopenCalendarModal");
+      // Automatically open the calendar options modal
+      setShowCalendarOptions(true);
+    }
+  }, [open]);
 
   const handleAddToCalendar = () => {
     setShowCalendarOptions(true);
