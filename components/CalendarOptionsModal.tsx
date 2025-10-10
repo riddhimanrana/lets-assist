@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import {
   Dialog,
@@ -10,7 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Download, Loader2 } from "lucide-react";
+import { Download, Loader2, Check } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import {
   generateProjectICalFile,
@@ -37,66 +37,92 @@ export default function CalendarOptionsModal({
   const [isConnecting, setIsConnecting] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isCheckingConnection, setIsCheckingConnection] = useState(true);
+  const [isConnected, setIsConnected] = useState(false);
+  const [connectedEmail, setConnectedEmail] = useState<string | null>(null);
+
+  // Check calendar connection status when modal opens
+  useEffect(() => {
+    const checkConnection = async () => {
+      if (!open) return;
+      
+      setIsCheckingConnection(true);
+      try {
+        const response = await fetch("/api/calendar/connection-status");
+        const data = await response.json();
+        
+        setIsConnected(data.connected || false);
+        setConnectedEmail(data.calendar_email || null);
+      } catch (error) {
+        console.error("Error checking calendar connection:", error);
+        setIsConnected(false);
+        setConnectedEmail(null);
+      } finally {
+        setIsCheckingConnection(false);
+      }
+    };
+
+    checkConnection();
+  }, [open]);
 
   const handleGoogleCalendar = async () => {
+    // If already connected, sync immediately
+    if (isConnected) {
+      await syncToCalendar();
+      return;
+    }
+
+    // Not connected, initiate OAuth flow
     setIsConnecting(true);
     try {
-      // Check connection status
-      const statusResponse = await fetch("/api/calendar/connection-status");
-      const statusData = await statusResponse.json();
+      // Store current page for redirect back
+      const currentUrl = window.location.href;
+      sessionStorage.setItem("calendarRedirectUrl", currentUrl);
 
-      if (!statusData.isConnected) {
-        // Need to connect first - store current page for redirect back
-        const currentUrl = window.location.href;
-        sessionStorage.setItem("calendarRedirectUrl", currentUrl);
+      // Get OAuth URL
+      const connectResponse = await fetch("/api/calendar/google/connect");
+      const connectData = await connectResponse.json();
 
-        // Get OAuth URL
-        const connectResponse = await fetch("/api/calendar/google/connect");
-        const connectData = await connectResponse.json();
-
-        if (!connectResponse.ok) {
-          throw new Error(connectData.error || "Failed to connect calendar");
-        }
-
-        // Store the signup/project ID to sync after OAuth callback
-        if (mode === "volunteer" && signup) {
-          sessionStorage.setItem(
-            "pendingCalendarSync",
-            JSON.stringify({
-              type: "signup",
-              signupId: signup.id,
-              projectId: project.id,
-              scheduleId: signup.schedule_id,
-            })
-          );
-        } else {
-          sessionStorage.setItem(
-            "pendingCalendarSync",
-            JSON.stringify({
-              type: "project",
-              projectId: project.id,
-            })
-          );
-        }
-
-        // Redirect to Google OAuth
-        window.location.href = connectData.authUrl;
-        return;
+      if (!connectResponse.ok) {
+        throw new Error(connectData.error || "Failed to connect calendar");
       }
 
-      // Already connected, sync immediately
-      await syncToCalendar();
+      // Store the signup/project ID to sync after OAuth callback
+      if (mode === "volunteer" && signup) {
+        sessionStorage.setItem(
+          "pendingCalendarSync",
+          JSON.stringify({
+            type: "signup",
+            signupId: signup.id,
+            projectId: project.id,
+            scheduleId: signup.schedule_id,
+          })
+        );
+      } else {
+        sessionStorage.setItem(
+          "pendingCalendarSync",
+          JSON.stringify({
+            type: "project",
+            projectId: project.id,
+          })
+        );
+      }
+
+      // Store flag to reopen calendar modal after OAuth
+      sessionStorage.setItem("reopenCalendarModal", "true");
+
+      // Redirect to Google OAuth
+      window.location.href = connectData.authUrl;
     } catch (error) {
-      console.error("Failed to add to Google Calendar:", error);
+      console.error("Failed to connect to Google Calendar:", error);
       toast({
-        title: "Calendar Sync Failed",
+        title: "Connection Failed",
         description:
           error instanceof Error
             ? error.message
-            : "Failed to add event to Google Calendar",
+            : "Failed to connect to Google Calendar",
         variant: "destructive",
       });
-    } finally {
       setIsConnecting(false);
     }
   };
@@ -211,15 +237,34 @@ export default function CalendarOptionsModal({
         </DialogHeader>
 
         <div className="space-y-3 mt-6">
+          {/* Connection Status Banner (only show when checking is complete) */}
+          {!isCheckingConnection && isConnected && connectedEmail && (
+            <div className="flex items-center gap-3 p-3 bg-chart-5/10 border border-chart-5/30 rounded-lg">
+              <div className="flex-shrink-0">
+                <div className="h-8 w-8 rounded-full bg-chart-5/20 flex items-center justify-center">
+                  <Check className="h-4 w-4 text-chart-5" />
+                </div>
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium text-chart-5">
+                  Connected to Google Calendar
+                </div>
+                <div className="text-xs text-chart-5/80 truncate">
+                  {connectedEmail}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Google Calendar Option */}
           <Button
             onClick={handleGoogleCalendar}
-            disabled={isConnecting || isSyncing}
+            disabled={isConnecting || isSyncing || isCheckingConnection}
             className="w-full justify-start h-auto p-5 hover:bg-accent hover:text-accent-foreground transition-colors"
             variant="outline"
           >
             <div className="flex items-center gap-4 text-left w-full">
-              {isConnecting || isSyncing ? (
+              {isConnecting || isSyncing || isCheckingConnection ? (
                 <Loader2 className="h-6 w-6 animate-spin flex-shrink-0 text-primary" />
               ) : (
                 <Image
@@ -230,9 +275,13 @@ export default function CalendarOptionsModal({
                 />
               )}
               <div className="flex-1">
-                <p className="font-semibold text-base mb-1">Google Calendar</p>
+                <p className="font-semibold text-base mb-1">
+                  {isConnected ? "Add to Google Calendar" : "Connect Google Calendar"}
+                </p>
                 <p className="text-sm text-muted-foreground leading-relaxed">
-                  Sync automatically and get updates when events change
+                  {isConnected
+                    ? "Sync automatically and get updates when events change"
+                    : "Connect your account to auto-sync this event"}
                 </p>
               </div>
             </div>
