@@ -3,7 +3,7 @@
 import { Project, LocationData } from "@/types";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { cn } from "@/lib/utils";
+import { cn, stripHtml } from "@/lib/utils";
 import {
   Card,
   CardContent,
@@ -124,8 +124,8 @@ export default function EditProjectClient({ project }: Props) {
 
   // Helper function to check if HTML content is empty
   const isHTMLEmpty = (html: string) => {
-    // Remove HTML tags and trim whitespace
-    const text = html.replace(/<[^>]*>/g, '').trim();
+    // Remove HTML tags and trim whitespace using safe stripHtml function
+    const text = stripHtml(html);
     return !text;
   };
 

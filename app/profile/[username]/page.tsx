@@ -16,6 +16,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { isTrustedForDisplay } from "@/utils/trust";
+import { stripHtml } from "@/lib/utils";
 
 interface Profile {
   id: string;
@@ -472,7 +473,7 @@ function formatHours(hours: number): string {
                     />
                   </div>
                   <p className="text-muted-foreground text-xs sm:text-sm mb-2 sm:mb-3 line-clamp-2">
-                    {project.description.replace(/<[^>]*>/g, '')}
+                    {stripHtml(project.description)}
                   </p>
                   <div className="flex items-center text-xs text-muted-foreground">
                     <MapPin className="h-3 w-3 mr-1 flex-shrink-0" />
@@ -516,7 +517,7 @@ function formatHours(hours: number): string {
                     />
                   </div>
                   <p className="text-muted-foreground text-xs sm:text-sm mb-2 sm:mb-3 line-clamp-2">
-                    {project.description.replace(/<[^>]*>/g, '')}
+                    {stripHtml(project.description)}
                   </p>
                   <div className="flex items-center text-xs text-muted-foreground">
                     <MapPin className="h-3 w-3 mr-1 flex-shrink-0" />
