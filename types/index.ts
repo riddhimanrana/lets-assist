@@ -110,6 +110,7 @@ export interface Project {
   certificates?: Record<string, string>; // Map of signup_id to certificate_id
   creator_calendar_event_id?: string | null; // Google Calendar event ID for project creator
   creator_synced_at?: string | null; // When the event was synced to creator's calendar
+  project_timezone?: string; // Timezone where the project is happening (e.g., 'America/Los_Angeles')
 }
 
 export interface AnonymousSignupData {

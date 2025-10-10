@@ -161,15 +161,16 @@ async function getValidAccessToken(
 }
 
 /**
- * Parse date and time into ISO 8601 format
- * Assumes times are in America/New_York timezone
+ * Parse date and time into ISO 8601 format for a specific timezone
+ * Creates a properly formatted datetime for Google Calendar API
  */
-function parseDateTime(dateStr: string, timeStr: string): string {
-  // Create date string in format that will be interpreted as local time
-  // e.g., "2025-10-04T14:30:00"
+function parseDateTime(dateStr: string, timeStr: string, timezone: string): string {
+  // Create date string in format that will be interpreted as the specified timezone
+  // e.g., "2025-10-04T14:30:00" 
   const dateTimeStr = `${dateStr}T${timeStr}:00`;
   
   // Return the ISO string which Google Calendar API expects
+  // Google Calendar will interpret this as the timezone specified in the event
   return dateTimeStr;
 }
 
@@ -180,6 +181,7 @@ function formatProjectToCalendarEvent(
   project: Project,
   scheduleId?: string
 ): GoogleCalendarEvent | GoogleCalendarEvent[] | null {
+  const projectTimezone = project.project_timezone || 'America/Los_Angeles';
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://letsassist.app";
   const projectUrl = `${siteUrl}/projects/${project.id}`;
 
@@ -203,12 +205,12 @@ function formatProjectToCalendarEvent(
     return {
       ...baseEvent,
       start: {
-        dateTime: parseDateTime(schedule.date, schedule.startTime),
-        timeZone: "America/New_York",
+        dateTime: parseDateTime(schedule.date, schedule.startTime, projectTimezone),
+        timeZone: projectTimezone,
       },
       end: {
-        dateTime: parseDateTime(schedule.date, schedule.endTime),
-        timeZone: "America/New_York",
+        dateTime: parseDateTime(schedule.date, schedule.endTime, projectTimezone),
+        timeZone: projectTimezone,
       },
     };
   }
@@ -228,12 +230,12 @@ function formatProjectToCalendarEvent(
         events.push({
           ...baseEvent,
           start: {
-            dateTime: parseDateTime(day.date, slot.startTime),
-            timeZone: "America/New_York",
+            dateTime: parseDateTime(day.date, slot.startTime, projectTimezone),
+            timeZone: projectTimezone,
           },
           end: {
-            dateTime: parseDateTime(day.date, slot.endTime),
-            timeZone: "America/New_York",
+            dateTime: parseDateTime(day.date, slot.endTime, projectTimezone),
+            timeZone: projectTimezone,
           },
         });
       });
@@ -259,12 +261,12 @@ function formatProjectToCalendarEvent(
         ...baseEvent,
         summary: `${project.title} - ${role.name}`,
         start: {
-          dateTime: parseDateTime(schedule.date, role.startTime),
-          timeZone: "America/New_York",
+          dateTime: parseDateTime(schedule.date, role.startTime, projectTimezone),
+          timeZone: projectTimezone,
         },
         end: {
-          dateTime: parseDateTime(schedule.date, role.endTime),
-          timeZone: "America/New_York",
+          dateTime: parseDateTime(schedule.date, role.endTime, projectTimezone),
+          timeZone: projectTimezone,
         },
       });
     });

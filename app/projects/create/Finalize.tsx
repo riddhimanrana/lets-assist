@@ -24,7 +24,11 @@ import {
   FileType,
   AlertTriangle,
   Building2,
-  Info, // Add Info icon import
+  Info,
+  Check,
+  ChevronDown,
+  Download,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
@@ -41,7 +45,13 @@ import {
   DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; // Import Alert components
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 // Maximum file sizes
 const MAX_COVER_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -113,6 +123,117 @@ interface FinalizeProps {
   setCoverImageAction: (file: File | null) => void;
   setDocumentsAction: (docs: File[]) => void;
   onProfanityChange: (hasProfanity: boolean) => void; // Add this line
+}
+
+// Calendar Integration Component
+function CalendarIntegrationSection() {
+  const [calendarConnected, setCalendarConnected] = useState(false);
+  const [connectedEmail, setConnectedEmail] = useState<string | null>(null);
+  const [checkingConnection, setCheckingConnection] = useState(false);
+  const [connectingCalendar, setConnectingCalendar] = useState(false);
+
+  // Check calendar connection status
+  useEffect(() => {
+    const checkCalendarConnection = async () => {
+      setCheckingConnection(true);
+      try {
+        const response = await fetch('/api/calendar/connection-status');
+        const data = await response.json();
+        
+        setCalendarConnected(data.connected || false);
+        setConnectedEmail(data.calendar_email || null);
+      } catch (error) {
+        console.error('Error checking calendar connection:', error);
+        setCalendarConnected(false);
+        setConnectedEmail(null);
+      } finally {
+        setCheckingConnection(false);
+      }
+    };
+
+    checkCalendarConnection();
+  }, []);
+
+  const handleConnectCalendar = async () => {
+    setConnectingCalendar(true);
+    try {
+      const response = await fetch('/api/calendar/google/connect');
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to connect calendar');
+      }
+
+      // Redirect to OAuth
+      window.location.href = data.authUrl;
+    } catch (error) {
+      console.error('Failed to connect calendar:', error);
+      toast.error('Failed to connect Google Calendar. Please try again.');
+      setConnectingCalendar(false);
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      <h3 className="text-lg font-semibold">Calendar Integration</h3>
+      <p className="text-sm text-muted-foreground">
+        Connect your Google Calendar to automatically add this event to a dedicated &quot;Let&apos;s Assist Volunteering&quot; calendar.
+      </p>
+      
+      {checkingConnection ? (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Checking connection...
+        </div>
+      ) : calendarConnected ? (
+        <div className="flex items-center justify-between gap-3 p-3 bg-chart-5/10 border border-chart-5/80 rounded-lg">
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <div className="flex-shrink-0">
+              <div className="h-8 w-8 rounded-full bg-chart-5/20 flex items-center justify-center">
+                <Check className="h-4 w-4 text-chart-5" />
+              </div>
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-medium text-chart-5">
+                Connected to Google Calendar
+              </div>
+              {connectedEmail && (
+                <div className="text-xs text-chart-5/80 truncate">
+                  {connectedEmail}
+                </div>
+              )}
+              <div className="text-xs text-muted-foreground mt-1">
+                Events will be added to your &quot;Let&apos;s Assist Volunteering&quot; calendar
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <Button
+          variant="outline"
+          className="w-full justify-start h-auto p-3"
+          onClick={handleConnectCalendar}
+          disabled={connectingCalendar}
+        >
+          <div className="flex items-center gap-3 w-full">
+            {connectingCalendar ? (
+              <Loader2 className="h-5 w-5 animate-spin flex-shrink-0" />
+            ) : (
+              <Calendar className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
+            )}
+            <div className="text-left flex-1">
+              <div className="text-sm font-medium">
+                Connect Google Calendar
+              </div>
+              <div className="text-xs text-muted-foreground">
+                Auto-sync this project to your calendar when created
+              </div>
+            </div>
+          </div>
+        </Button>
+      )}
+    </div>
+  );
 }
 
 export default function Finalize({ 
@@ -747,6 +868,11 @@ export default function Finalize({
             )}
           </div>
         </div>
+        
+        <Separator />
+
+        {/* Calendar Integration Section */}
+        <CalendarIntegrationSection />
         
         <Separator />
 

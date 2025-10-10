@@ -25,7 +25,12 @@ export default async function CertificatesPage() {
   // fetch this user’s certificates
   const { data: certificates, error: certError } = await supabase
     .from("certificates")
-    .select("*")
+    .select(`
+      *,
+      projects!inner(
+        project_timezone
+      )
+    `)
     .eq("user_id", user.id)
     .order("issued_at", { ascending: false });
   if (certError) {
