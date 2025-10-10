@@ -4,6 +4,9 @@ on:
   schedule:
     - cron: '*/30 * * * *'  # Every 30 minutes
 
+permissions:
+  contents: read
+
 jobs:
   auto-publish:
     runs-on: ubuntu-latest
