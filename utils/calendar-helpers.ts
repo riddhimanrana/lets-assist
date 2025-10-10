@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
+import { deleteGoogleCalendarEvent } from "@/services/calendar";
 
 /**
  * Updates a calendar event when a project is edited.
@@ -87,6 +88,17 @@ export async function removeCalendarEventForProject(projectId: string) {
   try {
     const supabase = await createClient();
 
+    // Get current user
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      console.error("Error getting user:", userError);
+      return { success: false, error: "User not authenticated" };
+    }
+
     // Check if project has a calendar event
     const { data: project } = await supabase
       .from("projects")
@@ -99,29 +111,28 @@ export async function removeCalendarEventForProject(projectId: string) {
       return { success: true, message: "No calendar event to remove" };
     }
 
-    // Call the remove API
-    const response = await fetch(
-      `${process.env.NEXT_PUBLIC_SITE_URL}/api/calendar/remove-event`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          eventId: projectId,
-          eventType: "creator",
-        }),
-      }
+    // Delete from Google Calendar directly
+    const deleted = await deleteGoogleCalendarEvent(
+      user.id,
+      project.creator_calendar_event_id
     );
 
-    if (!response.ok) {
-      const data = await response.json();
-      console.error("Failed to remove calendar event:", data.error);
+    if (!deleted) {
+      console.error("Failed to delete calendar event from Google");
       return {
         success: false,
         error: "Failed to remove calendar event",
       };
     }
+
+    // Update database to clear calendar event ID
+    await supabase
+      .from("projects")
+      .update({
+        creator_calendar_event_id: null,
+        creator_synced_at: null,
+      })
+      .eq("id", projectId);
 
     return {
       success: true,
@@ -157,6 +168,17 @@ export async function removeCalendarEventForSignup(signupId: string) {
   try {
     const supabase = await createClient();
 
+    // Get current user
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      console.error("Error getting user:", userError);
+      return { success: false, error: "User not authenticated" };
+    }
+
     // Check if signup has a calendar event
     const { data: signup } = await supabase
       .from("project_signups")
@@ -169,29 +191,28 @@ export async function removeCalendarEventForSignup(signupId: string) {
       return { success: true, message: "No calendar event to remove" };
     }
 
-    // Call the remove API
-    const response = await fetch(
-      `${process.env.NEXT_PUBLIC_SITE_URL}/api/calendar/remove-event`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          eventId: signupId,
-          eventType: "volunteer",
-        }),
-      }
+    // Delete from Google Calendar directly
+    const deleted = await deleteGoogleCalendarEvent(
+      user.id,
+      signup.volunteer_calendar_event_id
     );
 
-    if (!response.ok) {
-      const data = await response.json();
-      console.error("Failed to remove calendar event:", data.error);
+    if (!deleted) {
+      console.error("Failed to delete calendar event from Google");
       return {
         success: false,
         error: "Failed to remove calendar event",
       };
     }
+
+    // Update database to clear calendar event ID
+    await supabase
+      .from("project_signups")
+      .update({
+        volunteer_calendar_event_id: null,
+        volunteer_synced_at: null,
+      })
+      .eq("id", signupId);
 
     return {
       success: true,
