@@ -103,13 +103,13 @@ export async function removeCalendarEventForProject(projectId: string) {
     const response = await fetch(
       `${process.env.NEXT_PUBLIC_SITE_URL}/api/calendar/remove-event`,
       {
-        method: "POST",
+        method: "DELETE",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          eventId: projectId,
-          eventType: "creator",
+          event_id: projectId,
+          event_type: "creator",
         }),
       }
     );
@@ -173,13 +173,13 @@ export async function removeCalendarEventForSignup(signupId: string) {
     const response = await fetch(
       `${process.env.NEXT_PUBLIC_SITE_URL}/api/calendar/remove-event`,
       {
-        method: "POST",
+        method: "DELETE",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          eventId: signupId,
-          eventType: "volunteer",
+          event_id: signupId,
+          event_type: "volunteer",
         }),
       }
     );
