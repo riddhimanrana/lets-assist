@@ -26,6 +26,14 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { EventFormState } from "@/hooks/use-event-form";
 import LocationAutocomplete from "@/components/ui/location-autocomplete";
 import { LocationData } from "@/types";
+import { COMMON_TIMEZONES, getUserTimezone } from "@/utils/timezone";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface OrganizationOption {
   id: string;
@@ -76,6 +84,14 @@ export default function BasicInfo({
       updateBasicInfoAction('organizationId', null);
     }
   }, [initialOrgId, updateBasicInfoAction, state.basicInfo.organizationId]);
+
+  // Initialize timezone to user's current timezone if not set
+  useEffect(() => {
+    if (!state.basicInfo.projectTimezone) {
+      const userTimezone = getUserTimezone();
+      updateBasicInfoAction('projectTimezone', userTimezone);
+    }
+  }, [updateBasicInfoAction, state.basicInfo.projectTimezone]);
 
   // Find the selected organization or use personal project as default
   const selectedOrg = state.basicInfo.organizationId === null
@@ -266,6 +282,31 @@ export default function BasicInfo({
             aria-invalid={!!errors.location} // Pass aria-invalid
             aria-errormessage={errors.location ? "location-error" : undefined} // Pass aria-errormessage
           />
+        </div>
+
+        {/* Project Timezone */}
+        <div className="space-y-2">
+          <Label htmlFor="timezone">Project Timezone</Label>
+          <p className="text-sm text-muted-foreground">
+            Select the timezone where your project takes place. Event times will be displayed in this timezone with a badge (e.g., PST, EST) to help volunteers in other regions.
+          </p>
+          <Select
+            value={state.basicInfo.projectTimezone || ''}
+            onValueChange={(value) =>
+              updateBasicInfoAction('projectTimezone', value)
+            }
+          >
+            <SelectTrigger id="timezone">
+              <SelectValue placeholder="Select project timezone" />
+            </SelectTrigger>
+            <SelectContent>
+              {COMMON_TIMEZONES.map((timezone) => (
+                <SelectItem key={timezone.value} value={timezone.value}>
+                  {timezone.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Project Description */}

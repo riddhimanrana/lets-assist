@@ -9,6 +9,12 @@ import { Project, EventType, AnonymousSignup } from "@/types";
 import { NotificationService } from "@/services/notifications";
 import { createRejectionNotification, togglePauseSignups, unrejectSignup } from "../actions";
 import { format } from "date-fns";
+import { 
+  formatScheduleDisplay, 
+  formatDateForDisplay, 
+  getUserTimezone,
+  ProjectScheduleTime 
+} from "@/utils/timezone";
 import Link from "next/link";
 import {
   Card,
@@ -432,15 +438,22 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
 
   const formatScheduleSlot = (project: Project, slotId: string) => {
     if (!project) return slotId;
+    
+    const projectTimezone = project.project_timezone || 'America/Los_Angeles'; // Default to ET if not set
   
     if (project.event_type === "oneTime") {
       // Handle oneTime events - the scheduleId is simply "oneTime"
       if (slotId === "oneTime" && project.schedule.oneTime) {
-        // Create date with no timezone offset issues
-        const dateStr = project.schedule.oneTime.date;
-        const [year, month, day] = dateStr.split('-').map(Number);
-        const date = new Date(year, month - 1, day);
-        return `${format(date, "MMMM d, yyyy")} from ${formatTimeTo12Hour(project.schedule.oneTime.startTime)} to ${formatTimeTo12Hour(project.schedule.oneTime.endTime)}`;
+        const scheduleTime: ProjectScheduleTime = {
+          date: project.schedule.oneTime.date,
+          startTime: project.schedule.oneTime.startTime,
+          endTime: project.schedule.oneTime.endTime
+        };
+        
+        const dateDisplay = formatDateForDisplay(scheduleTime.date);
+        const timeDisplay = formatScheduleDisplay(scheduleTime, projectTimezone, undefined, true);
+        
+        return `${dateDisplay} from ${timeDisplay}`;
       }
     }
   
@@ -462,11 +475,16 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
           const slot = day.slots[slotIdx];
           
           if (slot) {
-            // Create date with no timezone offset issues
-            const [year, month, dayNum] = date.split('-').map(Number);
-            // Use Date to correctly handle timezones
-            const utcDate = new Date(year, month - 1, dayNum);
-            return `${format(utcDate, "EEEE, MMMM d, yyyy")} from ${formatTimeTo12Hour(slot.startTime)} to ${formatTimeTo12Hour(slot.endTime)}`;
+            const scheduleTime: ProjectScheduleTime = {
+              date: date,
+              startTime: slot.startTime,
+              endTime: slot.endTime
+            };
+            
+            const dateDisplay = formatDateForDisplay(scheduleTime.date);
+            const timeDisplay = formatScheduleDisplay(scheduleTime, projectTimezone, undefined, true);
+            
+            return `${dateDisplay} from ${timeDisplay}`;
           }
         }
       }
@@ -479,13 +497,24 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
       if (role) {
         const eventDate = project.schedule.sameDayMultiArea?.date;
         if (eventDate) {
-          // Create date with no timezone offset issues
-          const [year, month, day] = eventDate.split('-').map(Number);
-          // Use Date to correctly handle timezones
-          const utcDate = new Date(year, month - 1, day);
-          return `${format(utcDate, "EEEE, MMMM d, yyyy")} - Role: ${role.name} (${formatTimeTo12Hour(role.startTime)} to ${formatTimeTo12Hour(role.endTime)})`;
+          const scheduleTime: ProjectScheduleTime = {
+            date: eventDate,
+            startTime: role.startTime,
+            endTime: role.endTime
+          };
+          
+          const dateDisplay = formatDateForDisplay(scheduleTime.date);
+          const timeDisplay = formatScheduleDisplay(scheduleTime, projectTimezone, undefined, true);
+          
+          return `${dateDisplay} - Role: ${role.name} (${timeDisplay})`;
         } else {
-          return `Role: ${role.name} (${formatTimeTo12Hour(role.startTime)} to ${formatTimeTo12Hour(role.endTime)})`;
+          const scheduleTime: ProjectScheduleTime = {
+            date: new Date().toISOString().split('T')[0], // fallback date
+            startTime: role.startTime,
+            endTime: role.endTime
+          };
+          const timeDisplay = formatScheduleDisplay(scheduleTime, projectTimezone, undefined, true);
+          return `Role: ${role.name} (${timeDisplay})`;
         }
       }
     }

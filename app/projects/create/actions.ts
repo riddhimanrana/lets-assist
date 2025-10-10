@@ -179,6 +179,7 @@ export async function createBasicProject(projectData: any) {
         organization_id: organizationId || null, // Save organization_id if provided
         is_private: organizationId ? projectData.isPrivate : false, // Set is_private based on organization and preference
         published: publishedState, // Add the published state tracking
+        project_timezone: projectData.basicInfo.projectTimezone || 'America/Los_Angeles', // Save project timezone with fallback
       })
       .select("id")
       .single();
@@ -450,5 +451,37 @@ export async function checkProfanity(content: { [key: string]: string }) {
     console.error('Error in profanity check function:', error);
     // If overall check fails, default to allowing content
     return { success: true, hasProfanity: false };
+  }
+}
+
+/**
+ * Fetches a project by ID with all necessary data for calendar integration
+ */
+export async function getProjectById(projectId: string) {
+  try {
+    const supabase = await createClient();
+
+    const { data: project, error } = await supabase
+      .from("projects")
+      .select(`
+        *,
+        profiles:creator_id (
+          id,
+          full_name,
+          email
+        )
+      `)
+      .eq("id", projectId)
+      .single();
+
+    if (error) {
+      console.error("Error fetching project:", error);
+      return { error: "Failed to fetch project" };
+    }
+
+    return { project };
+  } catch (error) {
+    console.error("Error in getProjectById:", error);
+    return { error: "Failed to fetch project" };
   }
 }
