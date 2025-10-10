@@ -369,7 +369,7 @@ export async function publishVolunteerHours(
                 read: false
               });
           } catch (error) {
-            console.error(`Failed to send notification to user ${volunteer.userId}:`, error);
+            console.error('Failed to send notification to user:', { userId: volunteer.userId, error });
           }
         });
 

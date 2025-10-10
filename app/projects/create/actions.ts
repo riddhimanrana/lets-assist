@@ -309,7 +309,7 @@ export async function uploadProjectDocument(projectId: string, documentBase64: s
       });
       
     if (uploadError) {
-      console.error(`Error uploading document ${fileName}:`, uploadError);
+      console.error('Error uploading document:', { fileName, error: uploadError });
       return { error: "Failed to upload document." };
     }
     
