@@ -10,7 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { CheckCircle } from "lucide-react";
+import { Calendar, CheckCircle, MapPin } from "lucide-react";
 import CalendarOptionsModal from "./CalendarOptionsModal";
 import type { Project, Signup } from "@/types";
 
@@ -62,8 +62,8 @@ export default function CalendarSyncSuccessModal({
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <div className="flex items-center gap-3 mb-2">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/20">
-                <CheckCircle className="h-6 w-6 text-green-600 dark:text-green-400" />
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-chart-5 dark:bg-chart-5/20">
+                <CheckCircle className="h-6 w-6 text-chart-5" />
               </div>
               <DialogTitle className="text-xl">
                 {title || defaultTitle}
@@ -78,14 +78,15 @@ export default function CalendarSyncSuccessModal({
             {/* Project/Signup Info */}
             <div className="rounded-lg border p-4 space-y-2">
               <p className="font-semibold">{project.title}</p>
-              {project.location && (
+              {project.location_data && (
                 <p className="text-sm text-muted-foreground">
-                  📍 {project.location}
+                  <MapPin className="inline h-4 w-4 mr-1" />
+                   {project.location_data.text}
                 </p>
               )}
               {project.schedule?.oneTime?.date && (
                 <p className="text-sm text-muted-foreground">
-                  📅{" "}
+                  <Calendar className="inline h-4 w-4 mr-1" />
                   {new Date(project.schedule.oneTime.date).toLocaleDateString(
                     "en-US",
                     {
@@ -100,12 +101,7 @@ export default function CalendarSyncSuccessModal({
             </div>
 
             {/* Calendar Prompt */}
-            <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-              <p className="text-sm text-blue-900 dark:text-blue-100">
-                <strong>💡 Stay organized!</strong> Add this to your calendar to
-                get reminders and never miss an event.
-              </p>
-            </div>
+            
           </div>
 
           <DialogFooter className="flex-col sm:flex-row gap-2">

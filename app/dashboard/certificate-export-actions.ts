@@ -18,6 +18,9 @@ interface CertificateExportData {
   signup_id: string | null;
   volunteer_name: string | null;
   project_location: string | null;
+  projects?: {
+    project_timezone?: string;
+  };
 }
 
 // Helper function to calculate hours between two timestamps
@@ -44,7 +47,12 @@ export async function exportCertificates(
     // Build the query with date filtering
     let query = supabase
       .from("certificates")
-      .select("*")
+      .select(`
+        *,
+        projects!inner(
+          project_timezone
+        )
+      `)
       .eq("volunteer_email", userEmail)
       .order("issued_at", { ascending: false });
 
@@ -91,8 +99,32 @@ export async function exportCertificates(
         cert.organization_name || "N/A",
         cert.creator_name || "N/A",
         cert.is_certified ? "Certified" : "Participated",
-        format(new Date(cert.event_start), "yyyy-MM-dd HH:mm"),
-        format(new Date(cert.event_end), "yyyy-MM-dd HH:mm"),
+        (() => {
+          const timezone = cert.projects?.project_timezone || 'America/Los_Angeles';
+          const dateStr = format(new Date(cert.event_start), "yyyy-MM-dd HH:mm");
+          try {
+            const tzAbbr = new Intl.DateTimeFormat('en-US', { 
+              timeZone: timezone, 
+              timeZoneName: 'short' 
+            }).formatToParts(new Date(cert.event_start)).find(part => part.type === 'timeZoneName')?.value;
+            return tzAbbr ? `${dateStr} ${tzAbbr}` : dateStr;
+          } catch {
+            return dateStr;
+          }
+        })(),
+        (() => {
+          const timezone = cert.projects?.project_timezone || 'America/Los_Angeles';
+          const dateStr = format(new Date(cert.event_end), "yyyy-MM-dd HH:mm");
+          try {
+            const tzAbbr = new Intl.DateTimeFormat('en-US', { 
+              timeZone: timezone, 
+              timeZoneName: 'short' 
+            }).formatToParts(new Date(cert.event_end)).find(part => part.type === 'timeZoneName')?.value;
+            return tzAbbr ? `${dateStr} ${tzAbbr}` : dateStr;
+          } catch {
+            return dateStr;
+          }
+        })(),
         hours.toString(),
         cert.project_location || "N/A",
         format(new Date(cert.issued_at), "yyyy-MM-dd HH:mm")

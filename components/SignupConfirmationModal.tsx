@@ -20,6 +20,7 @@ import { User, Mail, Phone, Calendar, MapPin, Clock, Loader2, Check, ChevronDown
 import Image from "next/image";
 import { getUserProfile } from '@/app/projects/[id]/actions';
 import { toast } from '@/hooks/use-toast';
+import { TimezoneBadge } from '@/components/TimezoneBadge';
 
 interface UserProfile {
   full_name: string | null;
@@ -38,6 +39,7 @@ interface SignupConfirmationModalProps {
     location: string;
     start_time?: string;
     end_time?: string;
+    project_timezone?: string;
   };
   scheduleId: string;
   isLoading?: boolean;
@@ -301,11 +303,16 @@ export function SignupConfirmationModal({
               {(project.start_time || project.end_time) && (
                 <div className="flex items-center gap-3">
                   <Clock className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">
-                    {project.start_time && formatTime(project.start_time)}
-                    {project.start_time && project.end_time && ' - '}
-                    {project.end_time && formatTime(project.end_time)}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm">
+                      {project.start_time && formatTime(project.start_time)}
+                      {project.start_time && project.end_time && ' - '}
+                      {project.end_time && formatTime(project.end_time)}
+                    </span>
+                    {project.project_timezone && (
+                      <TimezoneBadge timezone={project.project_timezone} />
+                    )}
+                  </div>
                 </div>
               )}
               <div className="flex items-center gap-3">

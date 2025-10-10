@@ -64,6 +64,7 @@ export interface EventFormState {
     locationData?: any;
     description: string;
     organizationId: string | null;
+    projectTimezone?: string;
   };
   schedule: {
     oneTime: {
