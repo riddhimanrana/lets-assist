@@ -10,7 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Download, Loader2, Check } from "lucide-react";
+import { Download, Loader2, Check, CheckCircle, MapPin, Calendar as CalendarIcon } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import {
   generateProjectICalFile,
@@ -25,6 +25,7 @@ interface CalendarOptionsModalProps {
   project: Project;
   signup?: Signup;
   mode: "creator" | "volunteer";
+  showSuccessMessage?: boolean; // New prop to show success message
 }
 
 export default function CalendarOptionsModal({
@@ -33,6 +34,7 @@ export default function CalendarOptionsModal({
   project,
   signup,
   mode,
+  showSuccessMessage = false,
 }: CalendarOptionsModalProps) {
   const [isConnecting, setIsConnecting] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -226,17 +228,61 @@ export default function CalendarOptionsModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[480px]">
+      <DialogContent className="sm:max-w-[520px]">
         <DialogHeader>
-          <DialogTitle className="text-xl">Add to Calendar</DialogTitle>
+          {showSuccessMessage ? (
+            <div className="flex items-center gap-3 mb-2">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-chart-5/20">
+                <CheckCircle className="h-6 w-6 text-chart-5" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <DialogTitle className="text-xl">
+                  {mode === "creator" ? "Project Created!" : "Signup Confirmed!"}
+                </DialogTitle>
+              </div>
+            </div>
+          ) : (
+            <DialogTitle className="text-xl">Add to Calendar</DialogTitle>
+          )}
           <DialogDescription className="text-base">
-            Choose how you&apos;d like to add this{" "}
-            {mode === "volunteer" ? "volunteer shift" : "project"} to your
-            calendar
+            {showSuccessMessage ? (
+              <span>Choose how you&apos;d like to add this to your calendar</span>
+            ) : (
+              <span>
+                Choose how you&apos;d like to add this{" "}
+                {mode === "volunteer" ? "volunteer shift" : "project"} to your calendar
+              </span>
+            )}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-3 mt-6">
+        {/* Project Info Card - Only show when success message is shown */}
+        {showSuccessMessage && (
+          <div className="rounded-lg border p-3 space-y-2 bg-muted/30">
+            <p className="font-semibold text-sm break-words">{project.title}</p>
+            {project.location_data && (
+              <p className="text-xs text-muted-foreground flex items-start gap-1">
+                <MapPin className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
+                <span className="break-words">{project.location_data.text}</span>
+              </p>
+            )}
+            {project.schedule?.oneTime?.date && (
+              <p className="text-xs text-muted-foreground flex items-start gap-1">
+                <CalendarIcon className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
+                <span className="break-words">
+                  {new Date(project.schedule.oneTime.date).toLocaleDateString("en-US", {
+                    weekday: "long",
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  })}
+                </span>
+              </p>
+            )}
+          </div>
+        )}
+
+        <div className="space-y-3">
           {/* Connection Status Banner (only show when checking is complete) */}
           {!isCheckingConnection && isConnected && connectedEmail && (
             <div className="flex items-center gap-3 p-3 bg-chart-5/10 border border-chart-5/30 rounded-lg">
@@ -260,25 +306,26 @@ export default function CalendarOptionsModal({
           <Button
             onClick={handleGoogleCalendar}
             disabled={isConnecting || isSyncing || isCheckingConnection}
-            className="w-full justify-start h-auto p-5 hover:bg-accent hover:text-accent-foreground transition-colors"
+            className="w-full justify-start h-auto p-4 hover:bg-accent hover:text-accent-foreground transition-colors"
             variant="outline"
           >
-            <div className="flex items-center gap-4 text-left w-full">
+            <div className="flex items-center gap-3 text-left w-full min-w-0">
               {isConnecting || isSyncing || isCheckingConnection ? (
-                <Loader2 className="h-6 w-6 animate-spin flex-shrink-0 text-primary" />
+                <Loader2 className="h-5 w-5 animate-spin flex-shrink-0 text-primary" />
               ) : (
                 <Image
                   src="/googlecalendar.svg"
                   alt="Google Calendar"
-                  width={24}
-                  height={24}
+                  width={20}
+                  height={20}
+                  className="flex-shrink-0"
                 />
               )}
-              <div className="flex-1">
-                <p className="font-semibold text-base mb-1">
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-sm mb-0.5 break-words">
                   {isConnected ? "Add to Google Calendar" : "Connect Google Calendar"}
                 </p>
-                <p className="text-sm text-muted-foreground leading-relaxed">
+                <p className="text-xs text-muted-foreground leading-relaxed break-words">
                   {isConnected
                     ? "Sync automatically and get updates when events change"
                     : "Connect your account to auto-sync this event"}
@@ -291,23 +338,34 @@ export default function CalendarOptionsModal({
           <Button
             onClick={handleDownloadICalendar}
             disabled={isDownloading}
-            className="w-full justify-start h-auto p-5 hover:bg-accent hover:text-accent-foreground transition-colors"
+            className="w-full justify-start h-auto p-4 hover:bg-accent hover:text-accent-foreground transition-colors"
             variant="outline"
           >
-            <div className="flex items-center gap-4 text-left w-full">
+            <div className="flex items-center gap-3 text-left w-full min-w-0">
               {isDownloading ? (
-                <Loader2 className="h-6 w-6 animate-spin flex-shrink-0 text-primary" />
+                <Loader2 className="h-5 w-5 animate-spin flex-shrink-0 text-primary" />
               ) : (
-                <Download className="h-6 w-6 flex-shrink-0 text-primary" />
+                <Download className="h-5 w-5 flex-shrink-0 text-primary" />
               )}
-              <div className="flex-1">
-                <p className="font-semibold text-base mb-1">Download iCal File</p>
-                <p className="text-sm text-muted-foreground leading-relaxed">
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-sm mb-0.5 break-words">Download iCal File</p>
+                <p className="text-xs text-muted-foreground leading-relaxed break-words">
                   For Apple Calendar, Outlook, and other calendar apps
                 </p>
               </div>
             </div>
           </Button>
+
+          {/* Maybe Later option when showing success message */}
+          {showSuccessMessage && (
+            <Button
+              onClick={() => onOpenChange(false)}
+              variant="ghost"
+              className="w-full"
+            >
+              Maybe Later
+            </Button>
+          )}
         </div>
       </DialogContent>
     </Dialog>

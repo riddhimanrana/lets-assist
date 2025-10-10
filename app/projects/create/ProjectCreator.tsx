@@ -21,7 +21,7 @@ import { toast } from "sonner";
 import { createProject, uploadCoverImage, uploadProjectDocument, finalizeProject, getProjectById } from "./actions";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import CalendarSyncSuccessModal from "@/components/CalendarSyncSuccessModal";
+import CalendarOptionsModal from "@/components/CalendarOptionsModal";
 import type { Project } from "@/types";
 // Import Zod schemas
 import { 
@@ -559,9 +559,9 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
         </div>
       </div>
 
-      {/* Calendar Sync Success Modal */}
+      {/* Calendar Options Modal - shown directly after project creation */}
       {createdProject && (
-        <CalendarSyncSuccessModal
+        <CalendarOptionsModal
           open={showCalendarModal}
           onOpenChange={(open) => {
             setShowCalendarModal(open);
@@ -572,6 +572,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
           }}
           project={createdProject}
           mode="creator"
+          showSuccessMessage={true}
         />
       )}
     </>
