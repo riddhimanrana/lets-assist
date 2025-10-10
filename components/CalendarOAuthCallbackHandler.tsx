@@ -18,6 +18,21 @@ export default function CalendarOAuthCallbackHandler() {
       const pendingSyncData = sessionStorage.getItem("pendingCalendarSync");
       const redirectUrl = sessionStorage.getItem("calendarRedirectUrl");
       const modalState = sessionStorage.getItem("signupModalState");
+      const shouldReopenModal = sessionStorage.getItem("reopenCalendarModal");
+      
+      // If we should reopen the calendar modal, don't process the sync here
+      // The modal will handle it when it opens
+      if (shouldReopenModal === "true") {
+        // Clear the pending sync since the modal will handle the sync action
+        sessionStorage.removeItem("pendingCalendarSync");
+        
+        // Redirect back to the original page
+        if (redirectUrl) {
+          sessionStorage.removeItem("calendarRedirectUrl");
+          router.push(redirectUrl);
+        }
+        return;
+      }
       
       // Handle signup modal reopen
       if (modalState) {

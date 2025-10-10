@@ -21,7 +21,7 @@ import { toast } from "sonner";
 import { createProject, uploadCoverImage, uploadProjectDocument, finalizeProject, getProjectById } from "./actions";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import CalendarSyncSuccessModal from "@/components/CalendarSyncSuccessModal";
+import CalendarOptionsModal from "@/components/CalendarOptionsModal";
 import type { Project } from "@/types";
 // Import Zod schemas
 import { 
@@ -86,6 +86,29 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
   const [validationAttempted, setValidationAttempted] = useState(false);
 
   const [hasProfanity, setHasProfanity] = useState<boolean>(false);
+  
+  // Check if returning from OAuth and should reopen calendar modal
+  useEffect(() => {
+    const shouldReopen = sessionStorage.getItem("reopenCalendarModal");
+    const pendingSync = sessionStorage.getItem("pendingCalendarSync");
+    
+    if (shouldReopen === "true" && pendingSync) {
+      const syncData = JSON.parse(pendingSync);
+      
+      // If this is for a project (creator mode), fetch the project and show the modal
+      if (syncData.type === "project" && syncData.projectId) {
+        const fetchAndShowModal = async () => {
+          const projectResult = await getProjectById(syncData.projectId);
+          if (projectResult.project) {
+            setCreatedProject(projectResult.project as Project);
+            setShowCalendarModal(true);
+          }
+        };
+        
+        fetchAndShowModal();
+      }
+    }
+  }, []);
   
   // Add handler to update profanity state
   const handleProfanityResult = (hasIssues: boolean) => {
@@ -536,9 +559,9 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
         </div>
       </div>
 
-      {/* Calendar Sync Success Modal */}
+      {/* Calendar Options Modal - shown directly after project creation */}
       {createdProject && (
-        <CalendarSyncSuccessModal
+        <CalendarOptionsModal
           open={showCalendarModal}
           onOpenChange={(open) => {
             setShowCalendarModal(open);
@@ -549,6 +572,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
           }}
           project={createdProject}
           mode="creator"
+          showSuccessMessage={true}
         />
       )}
     </>

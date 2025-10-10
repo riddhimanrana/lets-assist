@@ -15,7 +15,7 @@ import { Resend } from 'resend';
 // import AnonymousSignupConfirmationEmail from '@/emails/AnonymousSignupConfirmationEmail';
 
 import { NotificationService } from "@/services/notifications";
-import { removeCalendarEventForSignup } from "@/utils/calendar-helpers";
+import { removeCalendarEventForSignup, removeCalendarEventForProject } from "@/utils/calendar-helpers";
 
 // Instantiate Resend with your API key
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -1192,6 +1192,19 @@ export async function updateProjectStatus(
     return { error: "Failed to update project status" };
   }
 
+  // If cancelling, remove calendar events (non-blocking)
+  if (newStatus === "cancelled") {
+    try {
+      // Remove creator's calendar event
+      await removeCalendarEventForProject(projectId);
+      // Note: We don't remove volunteer calendar events as they may want to keep the record
+      // Volunteers can manually remove their calendar events if needed
+    } catch (calendarError) {
+      console.error("Error removing calendar event:", calendarError);
+      // Don't fail the cancellation if calendar removal fails
+    }
+  }
+
   // Revalidate project pages
   revalidatePath(`/projects/${projectId}`);
   revalidatePath(`/organization/${project.organization?.id}`);
@@ -1262,6 +1275,14 @@ export async function deleteProject(projectId: string) {
         .from('project-images')
         .remove([fileName]);
     }
+  }
+
+  // Remove calendar event if it exists (non-blocking)
+  try {
+    await removeCalendarEventForProject(projectId);
+  } catch (calendarError) {
+    console.error("Error removing calendar event:", calendarError);
+    // Don't fail the deletion if calendar removal fails
   }
 
   // Delete project from database
