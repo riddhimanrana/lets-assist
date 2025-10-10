@@ -6,7 +6,7 @@ Try it out at [lets-assist.com](https://lets-assist.com/)
 
 ## Video Demo
 
-https://github.com/user-attachments/assets/e4e3fcae-33c7-4de5-8aa9-8e502911abf1
+<https://github.com/user-attachments/assets/e4e3fcae-33c7-4de5-8aa9-8e502911abf1>
 
 ## Tech Stack
 
