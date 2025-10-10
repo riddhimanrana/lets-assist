@@ -333,7 +333,7 @@ async function getOrCreateVolunteeringCalendar(
     const calendar = await response.json();
     const calendarId = calendar.id;
 
-    // Set calendar color to green (Basil - #0B8043)
+    // Set calendar color to darker green (Sage - #33B679)
     try {
       await fetch(
         `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}`,
@@ -344,7 +344,7 @@ async function getOrCreateVolunteeringCalendar(
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            colorId: "10", // Basil green in Google Calendar
+            colorId: "11", // Sage green in Google Calendar (one index higher than Basil)
           }),
         }
       );
