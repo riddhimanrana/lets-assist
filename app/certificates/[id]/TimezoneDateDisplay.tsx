@@ -34,7 +34,25 @@ export function TimezoneDateDisplay({
         format,
       );
 
-      setFormattedDate(formatted);
+      // Add timezone abbreviation if the format includes time
+      let finalFormatted = formatted;
+      if (format.includes('h') || format.includes('H')) {
+        try {
+          const tzAbbr = new Intl.DateTimeFormat('en-US', {
+            timeZone: userTimezone,
+            timeZoneName: 'short',
+          }).formatToParts(parseISO(dateString))
+            .find(part => part.type === 'timeZoneName')?.value || '';
+          
+          if (tzAbbr) {
+            finalFormatted = `${formatted} ${tzAbbr}`;
+          }
+        } catch (tzError) {
+          console.warn('Error adding timezone abbreviation:', tzError);
+        }
+      }
+
+      setFormattedDate(finalFormatted);
     } catch (error) {
       console.error("Error formatting date:", error);
       // Fallback to UTC if timezone conversion fails
@@ -76,6 +94,22 @@ export function TimezoneEventDateRange({
       // Get user's timezone
       const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
+      // Get timezone abbreviation
+      const getTzAbbr = () => {
+        try {
+          return new Intl.DateTimeFormat('en-US', {
+            timeZone: userTimezone,
+            timeZoneName: 'short',
+          }).formatToParts(parseISO(startDate))
+            .find(part => part.type === 'timeZoneName')?.value || '';
+        } catch (tzError) {
+          console.warn('Error getting timezone abbreviation:', tzError);
+          return '';
+        }
+      };
+
+      const tzAbbr = getTzAbbr();
+
       // Format both dates in user's timezone
       const formattedStart = formatInTimeZone(
         parseISO(startDate),
@@ -90,8 +124,8 @@ export function TimezoneEventDateRange({
       );
 
       setFormattedDates({
-        start: formattedStart,
-        end: formattedEnd,
+        start: tzAbbr ? `${formattedStart} ${tzAbbr}` : formattedStart,
+        end: tzAbbr ? `${formattedEnd} ${tzAbbr}` : formattedEnd,
       });
     } catch (error) {
       console.error("Error formatting dates:", error);

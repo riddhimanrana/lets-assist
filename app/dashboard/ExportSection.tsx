@@ -69,8 +69,32 @@ export function ExportSection({
       volunteerName: cert.volunteer_name || "Unknown Volunteer",
       volunteerEmail: cert.volunteer_email || userEmail,
       date: cert.event_start ? format(new Date(cert.event_start), "yyyy-MM-dd") : "Unknown Date",
-      startTime: cert.event_start ? format(new Date(cert.event_start), "h:mm a") : "Unknown",
-      endTime: cert.event_end ? format(new Date(cert.event_end), "h:mm a") : "Unknown",
+      startTime: cert.event_start ? (() => {
+        const timezone = cert.projects?.project_timezone || 'America/Los_Angeles';
+        const timeStr = format(new Date(cert.event_start), "h:mm a");
+        try {
+          const tzAbbr = new Intl.DateTimeFormat('en-US', { 
+            timeZone: timezone, 
+            timeZoneName: 'short' 
+          }).formatToParts(new Date(cert.event_start)).find(part => part.type === 'timeZoneName')?.value;
+          return tzAbbr ? `${timeStr} ${tzAbbr}` : timeStr;
+        } catch {
+          return timeStr;
+        }
+      })() : "Unknown",
+      endTime: cert.event_end ? (() => {
+        const timezone = cert.projects?.project_timezone || 'America/Los_Angeles';
+        const timeStr = format(new Date(cert.event_end), "h:mm a");
+        try {
+          const tzAbbr = new Intl.DateTimeFormat('en-US', { 
+            timeZone: timezone, 
+            timeZoneName: 'short' 
+          }).formatToParts(new Date(cert.event_end)).find(part => part.type === 'timeZoneName')?.value;
+          return tzAbbr ? `${timeStr} ${tzAbbr}` : timeStr;
+        } catch {
+          return timeStr;
+        }
+      })() : "Unknown",
       duration: cert.hours ? cert.hours.toString() : "0",
       location: cert.project_location || "Unknown Location",
       supervisorContact: cert.creator_name || "Unknown Supervisor",

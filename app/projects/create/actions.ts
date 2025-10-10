@@ -179,6 +179,7 @@ export async function createBasicProject(projectData: any) {
         organization_id: organizationId || null, // Save organization_id if provided
         is_private: organizationId ? projectData.isPrivate : false, // Set is_private based on organization and preference
         published: publishedState, // Add the published state tracking
+        project_timezone: projectData.basicInfo.projectTimezone || 'America/Los_Angeles', // Save project timezone with fallback
       })
       .select("id")
       .single();

@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import Link from "next/link";
+import { TimezoneBadge } from "@/components/TimezoneBadge";
 
 interface Certificate {
   id: string;
@@ -36,6 +37,9 @@ interface Certificate {
   signup_id: string | null;
   volunteer_name: string | null;
   project_location: string | null;
+  projects?: {
+    project_timezone?: string;
+  };
 }
 
 interface AllHoursSectionProps {
@@ -103,7 +107,13 @@ export function AllHoursSection({ certificates }: AllHoursSectionProps) {
             {cert.organization_name || cert.creator_name || "Unknown Organizer"}
           </p>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground pt-1">
-            <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {format(parseISO(cert.event_start), "MMM d, yyyy")}</span>
+            <div className="flex items-center gap-1.5">
+              <span className="flex items-center gap-1">
+                <Calendar className="h-3 w-3" /> 
+                {format(parseISO(cert.event_start), "MMM d, yyyy")}
+              </span>
+              <TimezoneBadge timezone={cert.projects?.project_timezone || 'America/Los_Angeles'} />
+            </div>
             {formattedDuration !== "0m" && (
               <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {formattedDuration}</span>
             )}

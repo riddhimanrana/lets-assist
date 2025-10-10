@@ -8,6 +8,7 @@ import { CheckCircle2, Clock, Link as LinkIcon, User, Mail, Phone, Calendar, Inf
 import Link from "next/link";
 import { format, addDays, parseISO, differenceInSeconds, differenceInHours, isAfter } from "date-fns";
 import { formatTimeTo12Hour } from "@/lib/utils";
+import { TimezoneBadge } from "@/components/TimezoneBadge";
 import { Project } from "@/types";
 import { useState, useMemo, useEffect } from "react"; // add useEffect
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
@@ -22,13 +23,39 @@ import { cancelSignup } from "@/app/projects/[id]/actions";
 const formatScheduleSlot = (project: Project, slotId: string) => {
   if (!project) return slotId;
 
-  if (project.event_type === "oneTime") {
-    if (slotId === "oneTime" && project.schedule.oneTime) {
-      const dateStr = project.schedule.oneTime.date;
-      const [year, month, day] = dateStr.split('-').map(Number);
-      const date = new Date(year, month - 1, day);
-      return `${format(date, "MMMM d, yyyy")} from ${formatTimeTo12Hour(project.schedule.oneTime.startTime)} to ${formatTimeTo12Hour(project.schedule.oneTime.endTime)}`;
+  const buildTimeDisplay = (time: { date: string; startTime?: string; endTime?: string | null }, roleLabel?: string) => {
+    const { date, startTime, endTime } = time;
+    if (!date) return roleLabel ? roleLabel : "Schedule TBD";
+
+    const parsedDate = parseISO(date);
+    const dateLabel = format(parsedDate, "MMMM d, yyyy");
+
+    if (startTime && endTime) {
+      const startLabel = formatTimeTo12Hour(startTime);
+      const endLabel = formatTimeTo12Hour(endTime);
+      const range = `${startLabel} - ${endLabel}`;
+      return roleLabel ? `${dateLabel} - ${roleLabel} (${range})` : `${dateLabel} from ${range}`;
     }
+
+    if (startTime) {
+      const startLabel = formatTimeTo12Hour(startTime);
+      return roleLabel
+        ? `${dateLabel} - ${roleLabel} (${startLabel})`
+        : `${dateLabel} starting ${startLabel}`;
+    }
+
+    if (endTime) {
+      const endLabel = formatTimeTo12Hour(endTime);
+      return roleLabel
+        ? `${dateLabel} - ${roleLabel} (${endLabel})`
+        : `${dateLabel} ending ${endLabel}`;
+    }
+
+    return roleLabel ? `${dateLabel} - ${roleLabel}` : dateLabel;
+  };
+
+  if (project.event_type === "oneTime" && slotId === "oneTime" && project.schedule.oneTime) {
+    return buildTimeDisplay(project.schedule.oneTime);
   }
 
   if (project.event_type === "multiDay") {
@@ -36,30 +63,22 @@ const formatScheduleSlot = (project: Project, slotId: string) => {
     if (parts.length >= 2) {
       const slotIndex = parts.pop();
       const date = parts.join("-");
-      const day = project.schedule.multiDay?.find(d => d.date === date);
+      const day = project.schedule.multiDay?.find((d) => d.date === date);
       if (day && slotIndex !== undefined) {
         const slotIdx = parseInt(slotIndex, 10);
         const slot = day.slots[slotIdx];
         if (slot) {
-          const [year, month, dayNum] = date.split('-').map(Number);
-          const utcDate = new Date(year, month - 1, dayNum);
-          return `${format(utcDate, "EEEE, MMMM d, yyyy")} from ${formatTimeTo12Hour(slot.startTime)} to ${formatTimeTo12Hour(slot.endTime)}`;
+          return buildTimeDisplay({ date, startTime: slot.startTime, endTime: slot.endTime });
         }
       }
     }
   }
 
   if (project.event_type === "sameDayMultiArea") {
-    const role = project.schedule.sameDayMultiArea?.roles.find(r => r.name === slotId);
+    const role = project.schedule.sameDayMultiArea?.roles.find((r) => r.name === slotId);
     if (role) {
       const eventDate = project.schedule.sameDayMultiArea?.date;
-      if (eventDate) {
-        const [year, month, day] = eventDate.split('-').map(Number);
-        const utcDate = new Date(year, month - 1, day);
-        return `${format(utcDate, "EEEE, MMMM d, yyyy")} - Role: ${role.name} (${formatTimeTo12Hour(role.startTime)} to ${formatTimeTo12Hour(role.endTime)})`;
-      } else {
-        return `Role: ${role.name} (${formatTimeTo12Hour(role.startTime)} to ${formatTimeTo12Hour(role.endTime)})`;
-      }
+      return buildTimeDisplay({ date: eventDate || new Date().toISOString().split("T")[0], startTime: role.startTime, endTime: role.endTime }, role.name);
     }
   }
 
@@ -376,9 +395,14 @@ export default function AnonymousSignupClient({
                 <CardContent className="space-y-4 pt-2">
                   {/* Session info */}
                   <div className="flex flex-col space-y-2 text-sm">
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-center gap-3 flex-wrap">
                       <span className="font-medium text-muted-foreground">Event:</span>
-                      <span>{formatScheduleSlot(project, schedule_id)}</span>
+                      <div className="flex items-center gap-2">
+                        <span>{formatScheduleSlot(project, schedule_id)}</span>
+                        {project.project_timezone && (
+                          <TimezoneBadge timezone={project.project_timezone} />
+                        )}
+                      </div>
                     </div>
                     {check_in_time && (
                       <div className="flex justify-between items-center">
@@ -445,9 +469,14 @@ export default function AnonymousSignupClient({
                 <CardContent className="space-y-4 pt-2">
                   {/* Session info */}
                   <div className="flex flex-col space-y-2 text-sm">
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-center gap-3 flex-wrap">
                       <span className="font-medium text-muted-foreground">Event:</span>
-                      <span>{formatScheduleSlot(project, schedule_id)}</span>
+                      <div className="flex items-center gap-2">
+                        <span>{formatScheduleSlot(project, schedule_id)}</span>
+                        {project.project_timezone && (
+                          <TimezoneBadge timezone={project.project_timezone} />
+                        )}
+                      </div>
                     </div>
                     {check_in_time && (
                       <div className="flex justify-between items-center">
@@ -507,9 +536,14 @@ export default function AnonymousSignupClient({
                 <CardContent className="space-y-4 pt-2">
                   {/* Session info */}
                   <div className="flex flex-col space-y-2 text-sm">
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-center gap-3 flex-wrap">
                       <span className="font-medium text-muted-foreground">Event:</span>
-                      <span>{formatScheduleSlot(project, schedule_id)}</span>
+                      <div className="flex items-center gap-2">
+                        <span>{formatScheduleSlot(project, schedule_id)}</span>
+                        {project.project_timezone && (
+                          <TimezoneBadge timezone={project.project_timezone} />
+                        )}
+                      </div>
                     </div>
                   </div>
                   
@@ -580,9 +614,14 @@ export default function AnonymousSignupClient({
                 </CardHeader>
                 <CardContent className="space-y-4 pt-2">
                   <div className="flex flex-col space-y-2 text-sm">
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-center gap-3 flex-wrap">
                       <span className="font-medium text-muted-foreground">Event:</span>
-                      <span>{formatScheduleSlot(project, schedule_id)}</span>
+                      <div className="flex items-center gap-2">
+                        <span>{formatScheduleSlot(project, schedule_id)}</span>
+                        {project.project_timezone && (
+                          <TimezoneBadge timezone={project.project_timezone} />
+                        )}
+                      </div>
                     </div>
                   </div>
                 </CardContent>
@@ -660,7 +699,12 @@ export default function AnonymousSignupClient({
                 </div>
                 <div>
                   <p className="font-medium">Project Date</p>
-                  <p className="text-muted-foreground text-xs">{formatScheduleSlot(project, schedule_id)}</p>
+                  <div className="text-muted-foreground text-xs flex items-center gap-2">
+                    <span>{formatScheduleSlot(project, schedule_id)}</span>
+                    {project.project_timezone && (
+                      <TimezoneBadge timezone={project.project_timezone} />
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -727,7 +771,14 @@ export default function AnonymousSignupClient({
           <div className="space-y-3 text-sm">
             <h3 className="font-medium text-base mb-2">Project & Slot Details</h3>
              <div className="flex items-center gap-2 text-muted-foreground">
-              <Calendar className="h-4 w-4 flex-shrink-0" /> Slot: <span className="text-foreground font-medium">{formatScheduleSlot(project, schedule_id)}</span>
+              <Calendar className="h-4 w-4 flex-shrink-0" />
+              <span>Slot:</span>
+              <span className="text-foreground font-medium flex items-center gap-2">
+                {formatScheduleSlot(project, schedule_id)}
+                {project.project_timezone && (
+                  <TimezoneBadge timezone={project.project_timezone} />
+                )}
+              </span>
             </div>
             <div className="flex items-center gap-2 text-muted-foreground">
               <Info className="h-4 w-4" /> Status:

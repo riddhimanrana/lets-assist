@@ -83,6 +83,7 @@ import ProjectInstructionsModal from "./ProjectInstructions";
 import { SignupConfirmationModal } from "@/components/SignupConfirmationModal";
 import { CancelSignupModal } from "@/components/CancelSignupModal";
 import CalendarOptionsModal from "@/components/CalendarOptionsModal";
+import { TimezoneBadge } from "@/components/TimezoneBadge";
 
 interface SlotData {
   remainingSlots: Record<string, number>;
@@ -822,10 +823,18 @@ export default function ProjectDetails({
                           <div className="mt-1.5 text-muted-foreground text-sm space-y-1.5">
                           <div className="flex items-center gap-1.5">
                             <Clock className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground/70" />
-                            <span>
-                            {formatTimeTo12Hour(project.schedule.oneTime.startTime)} -{" "}
-                            {formatTimeTo12Hour(project.schedule.oneTime.endTime)}
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span>
+                                {(() => {
+                                  const startLabel = project.schedule.oneTime.startTime ? formatTimeTo12Hour(project.schedule.oneTime.startTime) : "TBD";
+                                  const endLabel = project.schedule.oneTime.endTime ? formatTimeTo12Hour(project.schedule.oneTime.endTime) : undefined;
+                                  return endLabel ? `${startLabel} - ${endLabel}` : startLabel;
+                                })()}
+                              </span>
+                              {project.project_timezone && (
+                                <TimezoneBadge timezone={project.project_timezone} />
+                              )}
+                            </div>
                           </div>
                           
                           <div className="flex items-center">
@@ -891,10 +900,18 @@ export default function ProjectDetails({
                                       <div className="flex flex-col space-y-2">
                                         <div className="flex items-center gap-2 text-muted-foreground text-sm">
                                           <Clock className="h-3.5 w-3.5 flex-shrink-0" />
-                                          <span className="line-clamp-1">
-                                            {formatTimeTo12Hour(slot.startTime)} -{" "}
-                                            {formatTimeTo12Hour(slot.endTime)}
-                                          </span>
+                                          <div className="flex items-center gap-2">
+                                            <span className="line-clamp-1">
+                                              {(() => {
+                                                const startLabel = slot.startTime ? formatTimeTo12Hour(slot.startTime) : "TBD";
+                                                const endLabel = slot.endTime ? formatTimeTo12Hour(slot.endTime) : undefined;
+                                                return endLabel ? `${startLabel} - ${endLabel}` : startLabel;
+                                              })()}
+                                            </span>
+                                            {project.project_timezone && (
+                                              <TimezoneBadge timezone={project.project_timezone} />
+                                            )}
+                                          </div>
                                         </div>
                                         <div className="flex items-center gap-2 text-muted-foreground text-sm">
                                           <Users className="h-3.5 w-3.5 flex-shrink-0" />
@@ -963,9 +980,18 @@ export default function ProjectDetails({
                                   <div className="flex flex-col space-y-2 mt-1">
                                     <div className="flex items-center gap-2 text-muted-foreground text-sm">
                                       <Clock className="h-3.5 w-3.5 flex-shrink-0" />
-                                      <span className="line-clamp-1">
-                                        {formatTimeTo12Hour(role.startTime)} - {formatTimeTo12Hour(role.endTime)}
-                                      </span>
+                                      <div className="flex items-center gap-2">
+                                        <span className="line-clamp-1">
+                                          {(() => {
+                                            const startLabel = role.startTime ? formatTimeTo12Hour(role.startTime) : "TBD";
+                                            const endLabel = role.endTime ? formatTimeTo12Hour(role.endTime) : undefined;
+                                            return endLabel ? `${startLabel} - ${endLabel}` : startLabel;
+                                          })()}
+                                        </span>
+                                        {project.project_timezone && (
+                                          <TimezoneBadge timezone={project.project_timezone} />
+                                        )}
+                                      </div>
                                     </div>
                                     <div className="flex items-center">
                                       <div className="flex items-center gap-1.5">

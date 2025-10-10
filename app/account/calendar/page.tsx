@@ -47,7 +47,7 @@ async function getCalendarData(userId: string) {
       volunteer_synced_at,
       scheduled_start,
       scheduled_end,
-      projects:project_id (
+      project:project_id (
         id,
         title,
         description,
@@ -62,7 +62,14 @@ async function getCalendarData(userId: string) {
   return {
     connection: connection || null,
     creatorProjects: creatorProjects || [],
-    volunteerSignups: volunteerSignups || [],
+    volunteerSignups: (volunteerSignups || []).map((signup: any) => ({
+      id: signup.id,
+      volunteer_calendar_event_id: signup.volunteer_calendar_event_id,
+      volunteer_synced_at: signup.volunteer_synced_at,
+      scheduled_start: signup.scheduled_start,
+      scheduled_end: signup.scheduled_end,
+      projects: Array.isArray(signup.project) ? signup.project[0] : signup.project
+    })),
   };
 }
 

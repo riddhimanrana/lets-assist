@@ -6,11 +6,13 @@ import { VolunteerGoals } from "./VolunteerGoals";
 import { Badge } from "@/components/ui/badge";
 import { ProgressCircle } from "./ProgressCircle";
 import { format, subMonths, parseISO, differenceInMinutes, isBefore, isAfter } from "date-fns";
+import { formatInTimeZone } from "date-fns-tz";
 import { Award, Calendar, Clock, Users, Target, FileCheck, ChevronRight, Download, GalleryVerticalEnd, TicketCheck, Plus, CalendarDays, BarChart3, CircleCheck, UserCheck } from "lucide-react";
 import Link from "next/link";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ActivityChart } from "./ActivityChart";
 import { ExportSection } from "./ExportSection";
 import { AllHoursSection } from "./AllHoursSection";
@@ -18,6 +20,7 @@ import { AddVolunteerHoursModal } from "./AddVolunteerHoursModal";
 import { Project, ProjectSchedule } from "@/types";
 import { getSlotDetails } from "@/utils/project";
 import { Metadata } from "next";
+import { TimezoneBadge } from "@/components/TimezoneBadge";
 
 // Define types for certificate data returned by the backend
 // Renamed to avoid colliding with the UI Certificate type imported above
@@ -37,6 +40,9 @@ interface BackendCertificate {
   signup_id: string | null;
   volunteer_name: string | null;
   project_location: string | null;
+  projects?: {
+    project_timezone?: string;
+  };
 }
 
 // Add a local UI certificate type that matches what the components expect.
@@ -48,6 +54,9 @@ interface UICertificate {
   is_certified: boolean;
   type?: "platform" | "self-reported";
   event_start: string;
+  projects?: {
+    project_timezone?: string;
+  };
   event_end: string;
   volunteer_email: string | null;
   organization_name: string | null;
@@ -86,6 +95,7 @@ interface UpcomingSession {
   sessionDisplayName: string;
   sessionStartTime: Date;
   status: 'approved' | 'pending';
+  project_timezone: string;
 }
 
 export const metadata: Metadata = {
@@ -110,8 +120,8 @@ function calculateHours(startTime: string, endTime: string): number {
 function getCombinedDateTime(dateStr: string, timeStr: string): Date | null {
   if (!dateStr || !timeStr) return null;
   try {
-    // Use date-fns parse which is more robust
-    const dateTime = parseISO(`${dateStr}T${timeStr}`);
+    const isoString = `${dateStr}T${timeStr}`;
+    const dateTime = parseISO(isoString);
     return isNaN(dateTime.getTime()) ? null : dateTime;
   } catch (e) {
     console.error("Error parsing date/time:", e);
@@ -120,19 +130,41 @@ function getCombinedDateTime(dateStr: string, timeStr: string): Date | null {
 }
 
 // Helper function to get session display name
-function getSessionDisplayName(project: Project, startTime: Date | null, details: any): string {
-  if ('name' in details && details.name) {
+function getSessionDisplayName(
+  project: Project,
+  startTime: Date | null,
+  details: any,
+  projectTimezone?: string,
+  slotDate?: string
+): string {
+  const timezone = projectTimezone || project.project_timezone || "UTC";
+
+  if ("name" in details && details.name) {
     return details.name;
-  } else if (project.schedule?.oneTime) {
-    return "Main Event";
-  } else if (project.schedule?.multiDay && startTime) {
-    const formattedDate = format(startTime, "MMM d, yyyy");
-    const formattedStartTime = format(parseISO(`1970-01-01T${details.startTime}`), "h:mm a");
-    const formattedEndTime = format(parseISO(`1970-01-01T${details.endTime}`), "h:mm a");
-    return `${formattedDate} (${formattedStartTime} - ${formattedEndTime})`;
-  } else {
-    return details.schedule_id || "Session";
   }
+
+  if (project.schedule?.oneTime) {
+    return "Main Event";
+  }
+
+  if (startTime) {
+    const formattedDate = formatInTimeZone(startTime, timezone, "MMM d, yyyy");
+    const formattedStartTime = formatInTimeZone(startTime, timezone, "h:mm a");
+    const endDateTime = slotDate && details.endTime
+      ? getCombinedDateTime(slotDate, details.endTime)
+      : null;
+    const formattedEndTime = endDateTime
+      ? formatInTimeZone(endDateTime, timezone, "h:mm a")
+      : null;
+
+    if (formattedEndTime) {
+      return `${formattedDate} (${formattedStartTime} - ${formattedEndTime})`;
+    }
+
+    return `${formattedDate} (${formattedStartTime})`;
+  }
+
+  return details.schedule_id || "Session";
 }
 
 // Helper to calculate duration in decimal hours
@@ -200,9 +232,12 @@ export default async function VolunteerDashboard() {
   // Fetch certificates for this user
   const { data: certificates, error: certificatesError } = await supabase
     .from("certificates")
-    .select("*")
+    .select(`
+      *
+    `)
     .eq("user_id", user.id)
     .order("issued_at", { ascending: false });
+    
 
   if (certificatesError) {
     console.error("Error fetching certificates:", certificatesError);
@@ -234,7 +269,12 @@ export default async function VolunteerDashboard() {
   // Fetch certificates for the dashboard (modified)
   const { data: certificatesData, error: certificatesErrorFetch } = await supabase
     .from("certificates")
-    .select("*")
+    .select(`
+      *,
+      projects!inner(
+        project_timezone
+      )
+    `)
     .eq("volunteer_email", user.email) // Assuming you fetch by email
     .order("issued_at", { ascending: false }); // Sort by most recent
 
@@ -361,7 +401,8 @@ export default async function VolunteerDashboard() {
 
       if (!slotDate || !details.startTime) continue; // Skip if date or start time missing
 
-      const sessionStartTime = getCombinedDateTime(slotDate, details.startTime);
+  const projectTimezone = project.project_timezone || "America/Los_Angeles"; // Default timezone if not set
+  const sessionStartTime = getCombinedDateTime(slotDate, details.startTime);
 
       // Check if the session start time is valid and in the future
       if (sessionStartTime && isAfter(sessionStartTime, now)) {
@@ -370,9 +411,10 @@ export default async function VolunteerDashboard() {
           projectId: project.id,
           projectTitle: project.title,
           scheduleId: signup.schedule_id,
-          sessionDisplayName: getSessionDisplayName(project, sessionStartTime, details),
+          sessionDisplayName: getSessionDisplayName(project, sessionStartTime, details, projectTimezone, slotDate),
           sessionStartTime: sessionStartTime,
           status: signup.status as 'approved' | 'pending',
+          project_timezone: projectTimezone,
         });
       }
     }
@@ -571,30 +613,42 @@ export default async function VolunteerDashboard() {
                 </CardHeader>
                 <CardContent>
                   {upcomingSessions.length > 0 ? (
-                    <div className="space-y-3 sm:space-y-4">
-                      <div className="max-h-[300px] sm:max-h-[350px] overflow-y-auto pr-2 custom-scrollbar">
-                        <div className="space-y-3 sm:space-y-4">
-                          {upcomingSessions.map((session) => (
-                            <div key={session.signupId} className="border rounded-lg p-3 sm:p-4 space-y-2">
-                              <Link href={`/projects/${session.projectId}`} className="font-medium hover:text-primary transition-colors block text-sm sm:text-base">
-                                {session.projectTitle}
-                              </Link>
-                              <p className="text-xs sm:text-sm text-muted-foreground">
-                                Session: {session.sessionDisplayName}
-                              </p>
-                              <p className="text-xs sm:text-sm text-muted-foreground">
-                                Starts: {format(session.sessionStartTime, "MMM d, yyyy 'at' h:mm a")}
-                              </p>
-                              <div className="text-xs sm:text-sm text-muted-foreground flex items-center gap-2">
-                                Status: <Badge variant={session.status === 'approved' ? 'default' : 'outline'}>
-                                  {session.status === "approved" ? "Confirmed" : "Pending"}
-                                </Badge>
+                    <TooltipProvider delayDuration={150}>
+                      <div className="space-y-3 sm:space-y-4">
+                        <div className="max-h-[300px] sm:max-h-[350px] overflow-y-auto pr-2 custom-scrollbar">
+                          <div className="space-y-3 sm:space-y-4">
+                            {upcomingSessions.map((session) => (
+                              <div key={session.signupId} className="border rounded-lg p-3 sm:p-4 space-y-2">
+                                <Link href={`/projects/${session.projectId}`} className="font-medium hover:text-primary transition-colors block text-sm sm:text-base">
+                                  {session.projectTitle}
+                                </Link>
+                                <p className="text-xs sm:text-sm text-muted-foreground">
+                                  Session: {session.sessionDisplayName}
+                                </p>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <p className="text-xs sm:text-sm text-muted-foreground">
+                                    Starts: {formatInTimeZone(session.sessionStartTime, session.project_timezone, "MMM d, yyyy 'at' h:mm a")}
+                                  </p>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <TimezoneBadge timezone={session.project_timezone} />
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p className="text-xs">Times shown in this project&apos;s timezone.</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </div>
+                                <div className="text-xs sm:text-sm text-muted-foreground flex items-center gap-2">
+                                  Status: <Badge variant={session.status === 'approved' ? 'default' : 'outline'}>
+                                    {session.status === "approved" ? "Confirmed" : "Pending"}
+                                  </Badge>
+                                </div>
                               </div>
-                            </div>
-                          ))}
+                            ))}
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    </TooltipProvider>
                   ) : (
                     <div className="flex flex-col items-center justify-center py-6 sm:py-8 text-center">
                       <Calendar className="h-8 w-8 sm:h-10 sm:w-10 text-muted-foreground/30 mb-3" />

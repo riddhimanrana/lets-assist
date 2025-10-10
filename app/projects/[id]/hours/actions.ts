@@ -345,6 +345,38 @@ export async function publishVolunteerHours(
       return { success: false, error: `Failed to update project status: ${updateProjectError.message}` };
     }
 
+    // 6.5. Send in-app notifications to volunteers about their published certificates
+    if (insertedCerts && insertedCerts.length > 0) {
+      console.log(`Sending ${insertedCerts.length} notifications to volunteers`);
+      
+      const notificationPromises = validVolunteers
+        .filter(v => v.userId) // Only send to registered users
+        .map(async (volunteer) => {
+          try {
+            const certificateData = insertedCerts.find(cert => cert.volunteer_name === volunteer.name);
+            if (!certificateData) return;
+
+            await supabase
+              .from('notifications')
+              .insert({
+                user_id: volunteer.userId,
+                title: "Your Volunteer Hours Have Been Published! 🎉",
+                body: `Your volunteer certificate for "${project.title}" is now available. You volunteered for ${Math.floor(volunteer.durationMinutes / 60)} hours and ${volunteer.durationMinutes % 60} minutes.`,
+                type: 'project_updates',
+                severity: 'success',
+                action_url: `/certificates/${certificateData.id}`,
+                displayed: false,
+                read: false
+              });
+          } catch (error) {
+            console.error(`Failed to send notification to user ${volunteer.userId}:`, error);
+          }
+        });
+
+      await Promise.allSettled(notificationPromises);
+      console.log('Finished sending notifications');
+    }
+
     // 7. Send email notifications
     const emailResult = await sendCertificatePublishedEmails(insertedCerts || []);
     

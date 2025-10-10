@@ -53,7 +53,10 @@ function generateCertificatePublishedEmailHtml(
   volunteerName: string,
   projectTitle: string,
   certificateId: string,
-  siteUrl: string
+  siteUrl: string,
+  eventStart?: string,
+  eventEnd?: string,
+  projectTimezone?: string
 ): string {
   const certificateUrl = `${siteUrl}/certificates/${certificateId}`;
   
@@ -185,6 +188,48 @@ function generateCertificatePublishedEmailHtml(
                       <span class="detail-label">Project:</span>
                       <span class="detail-value">${projectTitle}</span>
                   </div>
+                  ${eventStart && eventEnd ? (() => {
+                    try {
+                      const timezone = projectTimezone || 'America/Los_Angeles';
+                      const startDate = new Date(eventStart);
+                      const endDate = new Date(eventEnd);
+                      
+                      // Format date
+                      const dateStr = startDate.toLocaleDateString('en-US', { 
+                        timeZone: timezone,
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric' 
+                      });
+                      
+                      // Format times with timezone abbreviation
+                      const startTimeStr = startDate.toLocaleTimeString('en-US', { 
+                        timeZone: timezone,
+                        hour: 'numeric', 
+                        minute: '2-digit',
+                        timeZoneName: 'short'
+                      });
+                      
+                      const endTimeStr = endDate.toLocaleTimeString('en-US', { 
+                        timeZone: timezone,
+                        hour: 'numeric', 
+                        minute: '2-digit',
+                        timeZoneName: 'short'
+                      });
+                      
+                      return `
+                        <div class="detail-row">
+                            <span class="detail-label">Date:</span>
+                            <span class="detail-value">${dateStr}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Time:</span>
+                            <span class="detail-value">${startTimeStr} - ${endTimeStr}</span>
+                        </div>`;
+                    } catch {
+                      return '';
+                    }
+                  })() : ''}
                   <div class="detail-row">
                       <span class="detail-label">Certificate ID:</span>
                       <span class="detail-value">${certificateId}</span>
@@ -219,7 +264,10 @@ async function sendCertificatePublishedEmails(
     volunteer_name: string | null;
     volunteer_email: string | null;
     project_title: string;
-  }>
+    event_start?: string;
+    event_end?: string;
+  }>,
+  projectTimezone?: string
 ): Promise<{ success: boolean; emailsSent: number; errors: string[] }> {
   if (!process.env.RESEND_API_KEY) {
     console.error("RESEND_API_KEY is not configured");
@@ -244,7 +292,10 @@ async function sendCertificatePublishedEmails(
         cert.volunteer_name,
         cert.project_title,
         cert.id,
-        siteUrl
+        siteUrl,
+        cert.event_start,
+        cert.event_end,
+        projectTimezone
       );
 
       const { error: emailError } = await resend.emails.send({
@@ -357,7 +408,7 @@ async function processSessionSignups(
     const { data: insertedCerts, error: insertError } = await supabase
       .from("certificates")
       .insert(certificatesToInsert)
-      .select("id, volunteer_name, volunteer_email, project_title");
+      .select("id, volunteer_name, volunteer_email, project_title, event_start, event_end");
 
     if (insertError) {
       console.error("Error inserting certificates:", insertError);
@@ -373,6 +424,38 @@ async function processSessionSignups(
     }
 
     console.log(`Successfully created ${certificatesToInsert.length} certificates`);
+
+    // Send in-app notifications to volunteers about their published certificates
+    if (insertedCerts && insertedCerts.length > 0) {
+      console.log(`Sending ${insertedCerts.length} notifications to volunteers`);
+      
+      const notificationPromises = validVolunteers
+        .filter(v => v.userId) // Only send to registered users
+        .map(async (volunteer) => {
+          try {
+            const certificateData = insertedCerts.find(cert => cert.volunteer_name === volunteer.name);
+            if (!certificateData) return;
+
+            await supabase
+              .from('notifications')
+              .insert({
+                user_id: volunteer.userId,
+                title: "Your Volunteer Hours Have Been Published! 🎉",
+                body: `Your volunteer certificate for "${project.title}" is now available. You volunteered for ${Math.floor(volunteer.durationMinutes / 60)} hours and ${volunteer.durationMinutes % 60} minutes.`,
+                type: 'project_updates',
+                severity: 'success',
+                action_url: `/certificates/${certificateData.id}`,
+                displayed: false,
+                read: false
+              });
+          } catch (error) {
+            console.error(`Failed to send notification to user ${volunteer.userId}:`, error);
+          }
+        });
+
+      await Promise.allSettled(notificationPromises);
+      console.log('Finished sending notifications');
+    }
 
     // Update the project's 'published' status
     const currentPublishedState = (project.published || {}) as Record<string, boolean>;
@@ -402,7 +485,7 @@ async function processSessionSignups(
     console.log(`Updated project published status for session ${sessionId}`);
 
     // Send email notifications
-    const emailResult = await sendCertificatePublishedEmails(insertedCerts || []);
+    const emailResult = await sendCertificatePublishedEmails(insertedCerts || [], project.project_timezone);
     
     console.log(`Email sending completed: ${emailResult.emailsSent} sent, ${emailResult.errors.length} errors`);
 

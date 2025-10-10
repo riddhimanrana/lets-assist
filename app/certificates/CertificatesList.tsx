@@ -42,6 +42,9 @@ interface Certificate {
   signup_id: string | null;
   volunteer_name: string | null;
   project_location: string | null;
+  projects?: {
+    project_timezone?: string;
+  };
 }
 
 interface CertificatesListProps {
@@ -219,7 +222,16 @@ export function CertificatesList({ certificates, user }: CertificatesListProps) 
       ${style}
       <h1>All Certificates for ${user.name}</h1>
       <div>Email: ${user.email}</div>
-      <div>Printed: ${new Date().toLocaleString()}</div>
+      <div>Printed: ${new Date().toLocaleString()} ${(() => {
+        try {
+          return new Intl.DateTimeFormat('en-US', { 
+            timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, 
+            timeZoneName: 'short' 
+          }).formatToParts(new Date()).find(part => part.type === 'timeZoneName')?.value || '';
+        } catch {
+          return '';
+        }
+      })()}</div>
       <div><strong>Total Hours: ${totalDuration}</strong></div>
       <table>
         <thead>
@@ -262,7 +274,18 @@ export function CertificatesList({ certificates, user }: CertificatesListProps) 
               <tr>
                 <td>${cert.project_title}</td>
                 <td>${cert.organization_name || cert.creator_name || "-"}</td>
-                <td>${format(parseISO(cert.issued_at), "MMM d, yyyy")}</td>
+                <td>${format(parseISO(cert.issued_at), "MMM d, yyyy")} ${(() => {
+                  const date = parseISO(cert.issued_at);
+                  const timezone = cert.projects?.project_timezone || 'America/Los_Angeles';
+                  try {
+                    return new Intl.DateTimeFormat('en-US', { 
+                      timeZone: timezone, 
+                      timeZoneName: 'short' 
+                    }).formatToParts(date).find(part => part.type === 'timeZoneName')?.value || '';
+                  } catch {
+                    return '';
+                  }
+                })()}</td>
                 <td>${formatTotalDuration(calculateDecimalHours(cert.event_start, cert.event_end))}</td>
                 <td>${cert.is_certified ? "Yes" : "No"}</td>
               </tr>

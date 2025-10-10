@@ -92,6 +92,22 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
+  // Handle admin routes - redirect to 404 if not super admin
+  if (currentPath.startsWith("/admin")) {
+    if (!user) {
+      // Not logged in, redirect to not-found
+      return NextResponse.redirect(new URL("/not-found", request.url));
+    }
+    
+    // Check if user is super admin
+    const isSuperAdmin = user.user_metadata?.is_super_admin === true;
+    
+    if (!isSuperAdmin) {
+      // Not an admin, redirect to not-found
+      return NextResponse.redirect(new URL("/not-found", request.url));
+    }
+  }
+
   // Check for project creator routes
   const { isCreatorPath, projectId } = isProjectCreatorPath(currentPath);
   if (isCreatorPath && projectId) {

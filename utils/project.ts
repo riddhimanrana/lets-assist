@@ -150,11 +150,12 @@ export const canDeleteProject = (project: Project): boolean => {
   // For cancelled projects, use the same 72-hour window rule
   // Either more than 24 hours before start OR more than 48 hours after end
   if (project.status === "cancelled") {
-    return hoursUntilStart > 24 || hoursAfterEnd > 24;
+    return hoursUntilStart > 24 || hoursAfterEnd > 48;
   }
   
   // For active projects, same 72-hour window rule applies
-  if (hoursUntilStart <= 24 || (hoursAfterEnd >= 0 && hoursAfterEnd <= 24)) {
+  // Cannot delete within 24 hours before start OR within 48 hours after end
+  if (hoursUntilStart <= 24 || (hoursAfterEnd >= 0 && hoursAfterEnd <= 48)) {
     return false;
   }
 
