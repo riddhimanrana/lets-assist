@@ -154,11 +154,11 @@ export default function CalendarOptionsModal({
           description: "Your volunteer signup has been added to your calendar",
         });
       } else {
-        // Sync creator project
+        // Sync creator project - use snake_case for API
         const response = await fetch("/api/calendar/sync-project", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ projectId: project.id }),
+          body: JSON.stringify({ project_id: project.id }),
         });
 
         if (!response.ok) {
