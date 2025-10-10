@@ -87,6 +87,29 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
 
   const [hasProfanity, setHasProfanity] = useState<boolean>(false);
   
+  // Check if returning from OAuth and should reopen calendar modal
+  useEffect(() => {
+    const shouldReopen = sessionStorage.getItem("reopenCalendarModal");
+    const pendingSync = sessionStorage.getItem("pendingCalendarSync");
+    
+    if (shouldReopen === "true" && pendingSync) {
+      const syncData = JSON.parse(pendingSync);
+      
+      // If this is for a project (creator mode), fetch the project and show the modal
+      if (syncData.type === "project" && syncData.projectId) {
+        const fetchAndShowModal = async () => {
+          const projectResult = await getProjectById(syncData.projectId);
+          if (projectResult.project) {
+            setCreatedProject(projectResult.project as Project);
+            setShowCalendarModal(true);
+          }
+        };
+        
+        fetchAndShowModal();
+      }
+    }
+  }, []);
+  
   // Add handler to update profanity state
   const handleProfanityResult = (hasIssues: boolean) => {
     setHasProfanity(hasIssues);
