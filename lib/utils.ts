@@ -52,11 +52,11 @@ export function stripHtml(html: string): string {
   // Replace common HTML entities first
   let text = html
     .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'");
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, '&');
   
   // Remove all HTML tags - multiple passes to handle nested/malformed tags
   let previousText = '';
