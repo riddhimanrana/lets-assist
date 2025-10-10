@@ -586,14 +586,14 @@ export default function CreatorDashboard({ project }: Props) {
                       variant="outline"
                       className={`w-full sm:w-auto flex items-center justify-center gap-2 ${
                         isCalendarSynced 
-                          ? "bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800" 
+                          ? "bg-chart-5/10 hover:bg-chart-5/20 border-chart-5/80" 
                           : ""
                       }`}
                       onClick={() => setShowCalendarModal(true)}
                     >
                       {isCalendarSynced ? (
                         <>
-                          <CalendarCheck className="h-4 w-4 text-green-600 dark:text-green-400" />
+                          <CalendarCheck className="h-4 w-4 text-chart-5" />
                           Synced to Calendar
                         </>
                       ) : (
@@ -627,7 +627,7 @@ export default function CreatorDashboard({ project }: Props) {
                       <span className="w-full sm:w-auto">
                         <Button
                           variant="outline"
-                          className="w-full bg-chart-8/30 hover:bg-chart-8/20 border-chart-8/60 sm:w-auto flex items-center justify-center  gap-2"
+                          className="w-full bg-chart-8/10 hover:bg-chart-8/20 border-chart-8/80 sm:w-auto flex items-center justify-center gap-2"
                           onClick={() => router.push(`/projects/${project.id}/hours`)}
                         >
                           <Clock className="h-4 w-4" />
