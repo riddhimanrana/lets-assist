@@ -75,7 +75,7 @@ const PrivacyPage = () => {
               <strong>Data We Access:</strong> We access your Google Calendar to create and manage events for volunteering opportunities you sign up for. We also access your email address to verify your Google account connection.
             </li>
             <li>
-              <strong>How We Use It:</strong> We use your Google Calendar access to automatically add volunteering events to a dedicated "Let&apos;s Assist Volunteering" calendar or your primary calendar. This helps you keep track of your volunteering commitments. We store encrypted access tokens to maintain this connection.
+              <strong>How We Use It:</strong> We use your Google Calendar access to automatically add volunteering events to a dedicated &quot;Let&apos;s Assist Volunteering&quot; calendar or your primary calendar. This helps you keep track of your volunteering commitments. We store encrypted access tokens to maintain this connection.
             </li>
             <li>
               <strong>Data Sharing:</strong> We do not share, transfer, or disclose your Google Calendar data or email address to any third parties. Your Google user data is used solely within Let&apos;s Assist to provide calendar synchronization features and is never sold, rented, or shared with external organizations or advertisers.
