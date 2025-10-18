@@ -1,7 +1,10 @@
-'use server';
+"use server";
 
 import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
+import { zonedTimeToUtc } from "date-fns-tz";
+import type { Project } from "@/types";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 /**
  * Checks in a user (registered or anonymous) by updating their signup record.
@@ -17,7 +20,7 @@ export async function checkInUser(signupId: string, userId?: string) {
     // 1. Fetch the signup record first
     const { data: signup, error: fetchError } = await supabase
       .from('project_signups')
-      .select('id, check_in_time, project_id, user_id, anonymous_id') // Select fields needed for validation/revalidation
+  .select('id, check_in_time, check_out_time, project_id, schedule_id, user_id, anonymous_id') // Select fields needed for validation/revalidation
       .eq('id', signupId)
       .maybeSingle(); // Use maybeSingle as it might not exist
 
@@ -35,16 +38,29 @@ export async function checkInUser(signupId: string, userId?: string) {
     if (signup.check_in_time) {
       console.log("User already checked in for signup:", signupId, "at", signup.check_in_time);
       // Return existing check-in time
-      return { success: true, checkInTime: signup.check_in_time };
+  return { success: true, checkInTime: signup.check_in_time, checkOutTime: signup.check_out_time || null };
     }
 
-    // 3. Update the check_in_time and status
+    const scheduledCheckoutIso = await getScheduledCheckoutTime(
+      supabase,
+      signup.project_id,
+      signup.schedule_id,
+      now
+    );
+
+    const updatePayload: Record<string, string | null> = {
+      check_in_time: now.toISOString(),
+      status: "attended",
+    };
+
+    if (scheduledCheckoutIso) {
+      updatePayload.check_out_time = scheduledCheckoutIso;
+    }
+
+    // 3. Update the check_in_time and status (and default checkout time if available)
     const { error: updateError } = await supabase
       .from('project_signups')
-      .update({
-        check_in_time: now.toISOString(),
-        status: 'attended' // Set status to attended
-      })
+      .update(updatePayload)
       .eq('id', signupId);
 
     if (updateError) {
@@ -56,7 +72,9 @@ export async function checkInUser(signupId: string, userId?: string) {
     // Revalidate the specific project page
     revalidatePath(`/projects/${signup.project_id}`);
     // Revalidate the attendance page itself (might not be strictly necessary but good practice)
-    revalidatePath(`/attend/${signup.project_id}`);
+  revalidatePath(`/attend/${signup.project_id}`);
+  revalidatePath(`/projects/${signup.project_id}/attendance`);
+  revalidatePath(`/projects/${signup.project_id}/hours`);
     // If you have user-specific dashboards/profiles, revalidate them too
     if (signup.user_id) {
        revalidatePath(`/profile`); // Example user profile path
@@ -65,7 +83,7 @@ export async function checkInUser(signupId: string, userId?: string) {
     // Consider revalidating organizer views if applicable
 
     console.log("Check-in successful for signup:", signupId, "at", now.toISOString());
-    return { success: true, checkInTime: now.toISOString() };
+    return { success: true, checkInTime: now.toISOString(), checkOutTime: scheduledCheckoutIso || null };
 
   } catch (error) {
     console.error("Unexpected error during check-in:", error);
@@ -217,8 +235,16 @@ export async function lookupEmailStatus(projectId: string, scheduleId: string, e
  */
 export async function checkInAnonymous(projectId: string, scheduleId: string, email: string) {
     const supabase = await createClient();
-    const now = new Date().toISOString();
+    const nowDate = new Date();
+    const nowIso = nowDate.toISOString();
     const lowerEmail = email.toLowerCase();
+
+    const scheduledCheckoutIso = await getScheduledCheckoutTime(
+      supabase,
+      projectId,
+      scheduleId,
+      nowDate
+    );
 
     // 1. Find anonymous_signups
     let { data: anon, error: anonErr } = await supabase
@@ -238,48 +264,60 @@ export async function checkInAnonymous(projectId: string, scheduleId: string, em
     }
 
     // 2. Find project_signups for this anon and schedule
-    let { data: signup, error: signupErr } = await supabase
-        .from('project_signups')
-        .select('id, check_in_time, schedule_id, status')
-        .eq('anonymous_id', anon.id)
-        .eq('project_id', projectId)
-        .eq('schedule_id', scheduleId)
-        .maybeSingle();
+  let { data: signup, error: signupErr } = await supabase
+    .from('project_signups')
+    .select('id, check_in_time, check_out_time, schedule_id, status')
+    .eq('anonymous_id', anon.id)
+    .eq('project_id', projectId)
+    .eq('schedule_id', scheduleId)
+    .maybeSingle();
 
     if (signupErr) {
         console.error('[checkInAnonymous] Error fetching project_signups:', signupErr);
         return { success: false, error: 'Database error fetching signup.' };
     }
 
-    let checkInTime = now;
+    let checkInTime = nowIso;
+    let checkOutTime = scheduledCheckoutIso || null;
     let signupId: string | undefined = signup?.id;
 
-    if (signup) {
-        // Already have a signup for this session
-        if (signup.check_in_time) {
-            console.log('[checkInAnonymous] Already checked in:', signup.id, signup.check_in_time);
-            checkInTime = signup.check_in_time;
-        } else {
-            // Update check_in_time and status
-            console.log('[checkInAnonymous] Attempting update for signup.id:', signup.id, 'with', { check_in_time: now, status: 'attended' });
-            const { data: updateData, error: updateErr } = await supabase
-                .from('project_signups')
-                .update({ check_in_time: now, status: 'attended' })
-                .eq('id', signup.id)
-                .select(); // Get updated row for debugging
-
-            if (updateErr) {
-                console.error('[checkInAnonymous] Error updating check-in:', updateErr);
-                return { success: false, error: 'Database error updating check-in.' };
-            }
-            if (!updateData || updateData.length === 0) {
-                console.warn('[checkInAnonymous] Update did not modify any rows. Possible reasons: row already updated, wrong id, or RLS.');
-                return { success: false, error: 'No rows updated. Check permissions and signup id.' };
-            }
-            console.log('[checkInAnonymous] Updated check-in for signup:', signup.id, now, 'Updated row:', updateData[0]);
-            checkInTime = now;
-        }
+  if (signup) {
+    // Already have a signup for this session
+    if (signup.check_in_time) {
+      console.log('[checkInAnonymous] Already checked in:', signup.id, signup.check_in_time);
+      checkInTime = signup.check_in_time;
+      checkOutTime = signup.check_out_time || scheduledCheckoutIso || null;
     } else {
+      // Update check_in_time and status
+      console.log('[checkInAnonymous] Attempting update for signup.id:', signup.id, 'with', { check_in_time: nowIso, status: 'attended' });
+      const updatePayload: Record<string, string> = {
+        check_in_time: nowIso,
+        status: 'attended'
+      };
+
+      if (scheduledCheckoutIso) {
+        updatePayload.check_out_time = scheduledCheckoutIso;
+      }
+
+      const { data: updateData, error: updateErr } = await supabase
+        .from('project_signups')
+        .update(updatePayload)
+        .eq('id', signup.id)
+        .select(); // Get updated row for debugging
+
+      if (updateErr) {
+        console.error('[checkInAnonymous] Error updating check-in:', updateErr);
+        return { success: false, error: 'Database error updating check-in.' };
+      }
+      if (!updateData || updateData.length === 0) {
+        console.warn('[checkInAnonymous] Update did not modify any rows. Possible reasons: row already updated, wrong id, or RLS.');
+        return { success: false, error: 'No rows updated. Check permissions and signup id.' };
+      }
+      console.log('[checkInAnonymous] Updated check-in for signup:', signup.id, nowIso, 'Updated row:', updateData[0]);
+      checkInTime = nowIso;
+      checkOutTime = scheduledCheckoutIso || null;
+    }
+  } else {
         // No signup for this session, update existing signup if possible
         // Try to find any signup for this anon/project (not schedule-specific)
         let { data: anySignup, error: anySignupErr } = await supabase
@@ -296,22 +334,29 @@ export async function checkInAnonymous(projectId: string, scheduleId: string, em
 
         if (anySignup) {
             // Update this signup to the new schedule and check-in
+            const updatePayload: Record<string, string> = {
+                schedule_id: scheduleId,
+                check_in_time: nowIso,
+                status: 'attended'
+            };
+
+            if (scheduledCheckoutIso) {
+                updatePayload.check_out_time = scheduledCheckoutIso;
+            }
+
             const { error: updateErr } = await supabase
                 .from('project_signups')
-                .update({
-                    schedule_id: scheduleId,
-                    check_in_time: now,
-                    status: 'attended'
-                })
+                .update(updatePayload)
                 .eq('id', anySignup.id);
 
             if (updateErr) {
                 console.error('[checkInAnonymous] Error updating existing signup to new schedule:', updateErr);
                 return { success: false, error: 'Database error updating signup for new schedule.' };
             }
-            console.log('[checkInAnonymous] Updated existing signup to new schedule:', anySignup.id, scheduleId, now);
+            console.log('[checkInAnonymous] Updated existing signup to new schedule:', anySignup.id, scheduleId, nowIso);
             signupId = anySignup.id;
-            checkInTime = now;
+            checkInTime = nowIso;
+            checkOutTime = scheduledCheckoutIso || null;
         } else {
             // No signup exists at all for this anon/project, cannot update
             console.warn('[checkInAnonymous] No project_signups found for anon:', anon.id, projectId);
@@ -322,12 +367,211 @@ export async function checkInAnonymous(projectId: string, scheduleId: string, em
     // Revalidate relevant paths
     revalidatePath(`/projects/${projectId}`);
     revalidatePath(`/attend/${projectId}`);
+    revalidatePath(`/projects/${projectId}/attendance`);
+    revalidatePath(`/projects/${projectId}/hours`);
 
     return { 
         success: true, 
         signupId: signupId,
         checkInTime: checkInTime,
+        checkOutTime: checkOutTime,
         anonSignupId: anon.id   // include anonymous_signups ID for profile link
     };
+}
+
+/**
+ * Manually checks out a user by setting their check_out_time to the provided time (defaults to now).
+ */
+export async function checkOutUser(signupId: string, overrideTime?: string) {
+  const supabase = await createClient();
+
+  try {
+    const { data: signup, error: fetchError } = await supabase
+      .from('project_signups')
+      .select('id, project_id, check_in_time')
+      .eq('id', signupId)
+      .maybeSingle();
+
+    if (fetchError) {
+      console.error('[checkOutUser] Error fetching signup record:', fetchError);
+      return { success: false, error: 'Database error fetching signup.' };
+    }
+
+    if (!signup) {
+      console.warn('[checkOutUser] Signup record not found for check-out:', signupId);
+      return { success: false, error: 'Signup record not found.' };
+    }
+
+    if (!signup.check_in_time) {
+      return { success: false, error: 'Cannot check out before check-in.' };
+    }
+
+    const checkOutDate = overrideTime ? new Date(overrideTime) : new Date();
+
+    if (Number.isNaN(checkOutDate.getTime())) {
+      return { success: false, error: 'Invalid checkout time provided.' };
+    }
+
+    const checkInDate = new Date(signup.check_in_time);
+    if (checkOutDate.getTime() < checkInDate.getTime()) {
+      checkOutDate.setTime(checkInDate.getTime());
+    }
+
+    const checkOutIso = checkOutDate.toISOString();
+
+    const { error: updateError } = await supabase
+      .from('project_signups')
+      .update({ check_out_time: checkOutIso, status: 'attended' })
+      .eq('id', signupId);
+
+    if (updateError) {
+      console.error('[checkOutUser] Error updating checkout time:', updateError);
+      return { success: false, error: 'Database error during check-out update.' };
+    }
+
+    revalidatePath(`/projects/${signup.project_id}`);
+    revalidatePath(`/projects/${signup.project_id}/attendance`);
+    revalidatePath(`/projects/${signup.project_id}/hours`);
+    revalidatePath(`/attend/${signup.project_id}`);
+
+    return { success: true, checkOutTime: checkOutIso };
+  } catch (error) {
+    console.error('[checkOutUser] Unexpected error during check-out:', error);
+    return { success: false, error: 'An unexpected error occurred.' };
+  }
+}
+
+type MinimalProject = Pick<Project, "event_type" | "schedule" | "project_timezone">;
+
+async function getScheduledCheckoutTime(
+  supabase: SupabaseClient,
+  projectId: string,
+  scheduleId: string,
+  fallbackDate: Date
+): Promise<string | null> {
+  const { data: project, error } = await supabase
+    .from('projects')
+    .select('event_type, schedule, project_timezone')
+    .eq('id', projectId)
+    .single();
+
+  if (error) {
+    console.error('[getScheduledCheckoutTime] Error fetching project schedule:', error);
+    return null;
+  }
+
+  if (!project) {
+    console.warn('[getScheduledCheckoutTime] Project not found for id:', projectId);
+    return null;
+  }
+
+  const typedProject = project as MinimalProject;
+  const schedule = typedProject.schedule as Project['schedule'];
+  if (!schedule) {
+    return null;
+  }
+
+  const timezone = typedProject.project_timezone || undefined;
+  const toDateTime = (dateStr: string, timeStr: string): Date | null => {
+    if (!dateStr || !timeStr) {
+      return null;
+    }
+
+    try {
+      if (timezone) {
+        return zonedTimeToUtc(`${dateStr}T${timeStr}:00`, timezone);
+      }
+
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      const date = new Date(dateStr);
+      if (Number.isNaN(date.getTime())) {
+        return null;
+      }
+      date.setHours(hours, minutes, 0, 0);
+      return date;
+    } catch (err) {
+      console.error('[getScheduledCheckoutTime] Failed to build datetime:', err);
+      return null;
+    }
+  };
+
+  let endDate: Date | null = null;
+
+  if (typedProject.event_type === 'oneTime' && schedule.oneTime) {
+    endDate = toDateTime(schedule.oneTime.date, schedule.oneTime.endTime);
+  } else if (typedProject.event_type === 'multiDay' && schedule.multiDay) {
+    const directParts = scheduleId.split('-');
+    let slot: { endTime: string } | undefined;
+    let dateStr: string | undefined;
+
+    if (directParts.length >= 2) {
+      const slotIndexStr = directParts.pop();
+      const potentialDate = directParts.join('-');
+      const day = schedule.multiDay.find(d => d.date === potentialDate);
+      if (day && slotIndexStr !== undefined) {
+        const idx = Number.parseInt(slotIndexStr, 10);
+        slot = day.slots[idx];
+        dateStr = day.date;
+      }
+    }
+
+    if (!slot) {
+      const altMatch = scheduleId.match(/^day-(\d+)-slot-(\d+)$/);
+      if (altMatch) {
+        const dayIdx = Number.parseInt(altMatch[1], 10);
+        const slotIdx = Number.parseInt(altMatch[2], 10);
+        const day = schedule.multiDay[dayIdx];
+        if (day) {
+          slot = day.slots[slotIdx];
+          dateStr = day.date;
+        }
+      }
+    }
+
+    if (!slot) {
+      // Fallback: brute force search
+      schedule.multiDay.forEach(day => {
+        day.slots.forEach((s, idx) => {
+          const candidateIds = [
+            `${day.date}-${idx}`,
+            `day-${schedule.multiDay!.indexOf(day)}-slot-${idx}`,
+          ];
+          if (candidateIds.includes(scheduleId)) {
+            slot = s;
+            dateStr = day.date;
+          }
+        });
+      });
+    }
+
+    if (slot && dateStr) {
+      endDate = toDateTime(dateStr, slot.endTime);
+    }
+  } else if (typedProject.event_type === 'sameDayMultiArea' && schedule.sameDayMultiArea) {
+    const roleByName = schedule.sameDayMultiArea.roles.find(role => role.name === scheduleId);
+    let role = roleByName;
+
+    if (!role) {
+      const roleMatch = scheduleId.match(/^role-(\d+)$/);
+      if (roleMatch) {
+        const index = Number.parseInt(roleMatch[1], 10);
+        role = schedule.sameDayMultiArea.roles[index];
+      }
+    }
+
+    if (role) {
+      endDate = toDateTime(schedule.sameDayMultiArea.date, role.endTime);
+    }
+  }
+
+  if (!endDate) {
+    return null;
+  }
+
+  if (endDate.getTime() < fallbackDate.getTime()) {
+    return fallbackDate.toISOString();
+  }
+
+  return endDate.toISOString();
 }
 

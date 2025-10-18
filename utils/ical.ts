@@ -86,7 +86,7 @@ function foldLine(line: string): string {
  */
 function generateUID(projectId: string, scheduleId?: string): string {
   const uniquePart = scheduleId ? `${projectId}-${scheduleId}` : projectId;
-  return `${uniquePart}@letsassist.app`;
+  return `${uniquePart}@lets-assist.com`;
 }
 
 /**
