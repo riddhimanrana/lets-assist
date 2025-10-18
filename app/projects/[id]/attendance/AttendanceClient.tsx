@@ -36,7 +36,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { checkInUser } from "@/app/attend/[projectId]/actions";
+import { checkInUser, checkOutUser } from "@/app/attend/[projectId]/actions";
 
 interface Props {
   projectId: string;
@@ -49,7 +49,8 @@ interface Props {
 
 type Attendance = {
   id: string;
-  check_in_time: string;
+  check_in_time: string | null;
+  check_out_time: string | null;
   schedule_id: string;
   user_id: string | null;
   anonymous_id: string | null;
@@ -141,7 +142,7 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
         <div class="session-attendance">
           <h2>${project && formatSessionName(project, session)}</h2>
           <table>
-          <thead><tr><th>Name</th><th>Email</th><th>Type</th><th>Check-in Time</th></thead>
+          <thead><tr><th>Name</th><th>Email</th><th>Type</th><th>Check-in Time</th><th>Check-out Time</th></tr></thead>
           <tbody>
             ${sessionAttendance.map(a => {
               const isRegistered = !!a.user_id;
@@ -149,6 +150,7 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
               const email = isRegistered ? a.profile?.email : a.anonymous_signup?.email;
               const type = isRegistered ? 'Registered' : 'Anonymous';
               const checkInTime = a.check_in_time ? format(parseISO(a.check_in_time), 'MMM d, yyyy h:mm a') : 'N/A';
+              const checkOutTime = a.check_out_time ? format(parseISO(a.check_out_time), 'MMM d, yyyy h:mm a') : 'N/A';
 
               return `
               <tr>
@@ -156,6 +158,7 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
                 <td>${email || 'N/A'}</td>
                 <td>${type}</td>
                 <td>${checkInTime}</td>
+                <td>${checkOutTime}</td>
               </tr>
               `;
             }).join('')}
@@ -305,6 +308,7 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
       .select(`
       id,
       check_in_time,
+  check_out_time,
       schedule_id,
       user_id,
       anonymous_id,
@@ -350,6 +354,20 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
       }
     } catch {
       toast.error("Failed to check in user");
+    }
+  };
+
+  const handleManualCheckOut = async (signupId: string) => {
+    try {
+      const result = await checkOutUser(signupId);
+      if (result.success) {
+        toast.success("User checked out successfully");
+        loadAttendance();
+      } else {
+        toast.error(result.error || "Failed to check out user");
+      }
+    } catch {
+      toast.error("Failed to check out user");
     }
   };
 
@@ -591,6 +609,7 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
                           {getSortIcon("check_in_time")}
                         </div>
                       </TableHead>
+                      <TableHead>Check-out Time</TableHead>
                       <TableHead>Contact</TableHead>
                       <TableHead>Actions</TableHead> {/* Changed from Type to Actions */}
                       
@@ -602,8 +621,8 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
                       const name = isRegistered ? record.profile?.full_name : record.anonymous_signup?.name;
                       const email = isRegistered ? record.profile?.email : record.anonymous_signup?.email;
                       const phone = isRegistered ? record.profile?.phone : record.anonymous_signup?.phone_number;
-                      const username = isRegistered ? record.profile?.username : null;
                       const checkInTime = record.check_in_time ? format(parseISO(record.check_in_time), 'h:mm a') : 'N/A';
+                      const checkOutTime = record.check_out_time ? format(parseISO(record.check_out_time), 'h:mm a') : 'N/A';
 
                       return (
                         <TableRow key={record.id}>
@@ -623,6 +642,19 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
                               {checkInTime}
                               </Badge>
                           </TableCell>
+                          <TableCell>
+                              <Badge
+                              variant={checkOutTime !== "N/A" ? "default" : "outline"}
+                              className="gap-1"
+                              >
+                              {checkOutTime !== "N/A" ? (
+                                <CheckCircle className="h-3 w-3 flex-shrink-0" aria-label="Checked out" />
+                              ) : (
+                                <Clock className="h-3 w-3 flex-shrink-0" aria-label="Not checked out" />
+                              )}
+                              {checkOutTime}
+                              </Badge>
+                          </TableCell>
                           <TableCell><div className="flex flex-col gap-0.5">
                               <span>{email}</span>
                               {isRegistered && phone && (
@@ -635,16 +667,29 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
                               )}
                               </div></TableCell>
                           <TableCell>
-                            <Button
-                              size="sm"
-                              onClick={() => handleManualCheckIn(record.id)}
-                              disabled={!!record.check_in_time || project?.verification_method === 'auto' || project?.verification_method === 'signup-only'}
-                              className={cn(
-                                (record.check_in_time || project?.verification_method === 'auto' || project?.verification_method === 'signup-only') && "opacity-50 cursor-not-allowed"
-                              )}
-                            >
-                              Check in
-                            </Button>
+                            <div className="flex flex-col sm:flex-row gap-2">
+                              <Button
+                                size="sm"
+                                onClick={() => handleManualCheckIn(record.id)}
+                                disabled={!!record.check_in_time || project?.verification_method === 'auto' || project?.verification_method === 'signup-only'}
+                                className={cn(
+                                  (record.check_in_time || project?.verification_method === 'auto' || project?.verification_method === 'signup-only') && "opacity-50 cursor-not-allowed"
+                                )}
+                              >
+                                Check in
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleManualCheckOut(record.id)}
+                                disabled={!record.check_in_time || project?.verification_method === 'auto' || project?.verification_method === 'signup-only'}
+                                className={cn(
+                                  (!record.check_in_time || project?.verification_method === 'auto' || project?.verification_method === 'signup-only') && "opacity-50 cursor-not-allowed"
+                                )}
+                              >
+                                Check out
+                              </Button>
+                            </div>
                           </TableCell>
                           
                         </TableRow>

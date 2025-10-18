@@ -76,9 +76,9 @@ export function AdminClient({ feedback: initialFeedback, applications: initialAp
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [feedbackToDelete, setFeedbackToDelete] = useState<string | null>(null);
 
-  const handleApprove = async (userId: string) => {
-    setLoadingStates((prev) => ({ ...prev, [userId]: true }));
-    
+  const handleApprove = async (userId: string, applicationId: string) => {
+    setLoadingStates((prev) => ({ ...prev, [applicationId]: true }));
+
     const result = await updateTrustedMemberStatus(userId, true);
     
     if (result.error) {
@@ -98,12 +98,12 @@ export function AdminClient({ feedback: initialFeedback, applications: initialAp
       );
     }
     
-    setLoadingStates((prev) => ({ ...prev, [userId]: false }));
+    setLoadingStates((prev) => ({ ...prev, [applicationId]: false }));
   };
 
-  const handleDeny = async (userId: string) => {
-    setLoadingStates((prev) => ({ ...prev, [userId]: true }));
-    
+  const handleDeny = async (userId: string, applicationId: string) => {
+    setLoadingStates((prev) => ({ ...prev, [applicationId]: true }));
+
     const result = await updateTrustedMemberStatus(userId, false);
     
     if (result.error) {
@@ -123,7 +123,7 @@ export function AdminClient({ feedback: initialFeedback, applications: initialAp
       );
     }
     
-    setLoadingStates((prev) => ({ ...prev, [userId]: false }));
+    setLoadingStates((prev) => ({ ...prev, [applicationId]: false }));
   };
 
   const handleDeleteFeedback = async () => {
@@ -359,7 +359,7 @@ export function AdminClient({ feedback: initialFeedback, applications: initialAp
                             <Button
                               variant="default"
                               size="sm"
-                              onClick={() => handleApprove(app.id)}
+                              onClick={() => handleApprove(app.user_id ?? app.id, app.id)}
                               disabled={
                                 loadingStates[app.id] || app.status === true
                               }
@@ -371,7 +371,7 @@ export function AdminClient({ feedback: initialFeedback, applications: initialAp
                             <Button
                               variant="destructive"
                               size="sm"
-                              onClick={() => handleDeny(app.id)}
+                              onClick={() => handleDeny(app.user_id ?? app.id, app.id)}
                               disabled={
                                 loadingStates[app.id] || app.status === false
                               }
