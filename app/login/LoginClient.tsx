@@ -1,5 +1,6 @@
 "use client";
 import { useState, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -24,6 +25,7 @@ import {
 } from "@/components/ui/form";
 import { toast } from "sonner";
 import { TurnstileComponent, TurnstileRef } from "@/components/ui/turnstile";
+import { EmailVerifiedModal } from "@/components/EmailVerifiedModal";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -51,6 +53,9 @@ export default function LoginClient({ redirectPath }: LoginClientProps) {
       turnstileToken: "",
     },
   });
+
+  const searchParams = useSearchParams();
+  const isVerified = searchParams.get('verified') === 'true';
 
   async function onSubmit(data: LoginValues) {
     const turnstileToken = turnstileRef.current?.getResponse();
@@ -88,7 +93,11 @@ export default function LoginClient({ redirectPath }: LoginClientProps) {
         toast.error("Incorrect email or password.");
       }
     } else if (result.success) {
-      window.location.href = redirectPath ? decodeURIComponent(redirectPath) : "/home";
+      if (isVerified) {
+        window.location.href = "/home?confirmed=true";
+      } else {
+        window.location.href = redirectPath ? decodeURIComponent(redirectPath) : "/home";
+      }
     }
 
     setIsLoading(false);
@@ -126,6 +135,7 @@ export default function LoginClient({ redirectPath }: LoginClientProps) {
 
   return (
     <div className="flex items-center justify-center min-h-screen">
+      <EmailVerifiedModal />
       <Card className="mx-auto w-[370px] max-w-full mb-12">
         <CardHeader>
           <CardTitle className="text-2xl">Login</CardTitle>
