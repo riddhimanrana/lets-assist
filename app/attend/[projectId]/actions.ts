@@ -2,7 +2,7 @@
 
 import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
-import { zonedTimeToUtc } from "date-fns-tz";
+import { fromZonedTime } from "date-fns-tz";
 import type { Project } from "@/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -479,7 +479,7 @@ async function getScheduledCheckoutTime(
 
     try {
       if (timezone) {
-        return zonedTimeToUtc(`${dateStr}T${timeStr}:00`, timezone);
+        return fromZonedTime(`${dateStr}T${timeStr}:00`, timezone);
       }
 
       const [hours, minutes] = timeStr.split(':').map(Number);

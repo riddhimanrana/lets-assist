@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
-import { Button } from '@/components/ui/button';
+import { useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -10,17 +10,17 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
+} from "@/components/ui/dialog";
 
 export function EmailConfirmationModal() {
   const searchParams = useSearchParams();
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
-    if (searchParams.get('confirmed') === 'true') {
+    if (searchParams.get("confirmed") === "true") {
       setIsOpen(true);
       // Clean up the URL, so the modal doesn't reappear on refresh
-      window.history.replaceState({}, '', '/home');
+      window.history.replaceState({}, "", "/home");
     }
   }, [searchParams]);
 
@@ -34,7 +34,8 @@ export function EmailConfirmationModal() {
         <DialogHeader>
           <DialogTitle>Email Verified!</DialogTitle>
           <DialogDescription>
-            Welcome to Let's Assist! Your email has been successfully verified.
+            Welcome to Let&apos;s Assist! Your email has been successfully
+            verified.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
