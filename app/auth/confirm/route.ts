@@ -44,14 +44,15 @@ export async function GET(request: NextRequest) {
     return redirect("/auth/verification-success?type=email_change");
   }
 
-  // For other types (signup, etc)
-  const decodedNext = decodeURIComponent(next);
-  try {
-    // Check if next contains query parameters
-    const url = new URL(decodedNext, request.url);
-    redirect(url.pathname + url.search + (url.search ? '&' : '?') + 'confirmed=true');
-  } catch {
-    // If URL parsing fails, treat as simple path
-    redirect(decodedNext + (decodedNext.includes('?') ? '&' : '?') + 'confirmed=true');
+  const userEmail = data.user?.email;
+  // Sign the user out
+  await supabase.auth.signOut();
+
+  // Redirect to the login page with a success message
+  const redirectUrl = new URL('/login', request.url);
+  redirectUrl.searchParams.set('verified', 'true');
+  if (userEmail) {
+    redirectUrl.searchParams.set('email', userEmail);
   }
+  redirect(redirectUrl.toString());
 }

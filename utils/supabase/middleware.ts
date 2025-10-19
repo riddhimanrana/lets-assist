@@ -95,17 +95,10 @@ export async function updateSession(request: NextRequest) {
   // Handle admin routes - redirect to 404 if not super admin
   if (currentPath.startsWith("/admin")) {
     if (!user) {
-      // Not logged in, redirect to not-found
+      // Not logged in, redirect to not-found to avoid leaking the route
       return NextResponse.redirect(new URL("/not-found", request.url));
     }
-    
-    // Check if user is super admin
-    const isSuperAdmin = user.user_metadata?.is_super_admin === true;
-    
-    if (!isSuperAdmin) {
-      // Not an admin, redirect to not-found
-      return NextResponse.redirect(new URL("/not-found", request.url));
-    }
+    // Logged-in users proceed; the admin route performs a service-role check server-side.
   }
 
   // Check for project creator routes
