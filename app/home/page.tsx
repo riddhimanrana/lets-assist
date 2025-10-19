@@ -2,6 +2,7 @@ import React from "react";
 import { Card } from "@/components/ui/card";
 import { createClient } from "@/utils/supabase/server";
 import { EmailVerificationToast } from "@/components/EmailVerificationToast";
+import { EmailConfirmationModal } from "@/components/EmailConfirmationModal";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { Plus } from "lucide-react"; // Import the Plus icon
@@ -47,6 +48,7 @@ export default async function Home() {
   
   return (
     <div className="min-h-screen">
+      <EmailConfirmationModal />
       <EmailVerificationToast />
       <main className="mx-auto px-4 sm:px-8 lg:px-12 py-8">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
