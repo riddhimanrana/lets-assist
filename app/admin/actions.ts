@@ -225,36 +225,44 @@ export async function getTrustedMemberApplications() {
 }
 
 export async function updateTrustedMemberStatus(userId: string, status: boolean) {
-  const supabase = getServiceRoleClient();
+  // Require user and admin as you already do
+  const supabaseUser = await createClient();
+  const { data: { user } } = await supabaseUser.auth.getUser();
+  if (!user) return { error: "Unauthorized" };
 
   const { isAdmin } = await checkSuperAdmin();
-  if (!isAdmin) {
-    return { error: "Unauthorized" };
-  }
+  if (!isAdmin) return { error: "Unauthorized" };
 
-  const { error: userIdError } = await supabase
+  // Perform the write with the service-role client to bypass RLS
+  const service = getServiceRoleClient();
+
+  // Try user_id match first
+  const { error: userIdError } = await service
     .from("trusted_member")
     .update({ status })
     .eq("user_id", userId);
 
   if (userIdError) {
-    const { error: idError } = await supabase
+    // Fallback to id match
+    const { error: idError } = await service
       .from("trusted_member")
       .update({ status })
       .eq("id", userId);
+
     if (idError) {
       console.error("Error updating trusted_member status:", idError);
       return { error: "Failed to update trusted member status" };
     }
   }
 
+  // Send notification with service client (already bypasses RLS)
   if (status === true) {
     await createServerNotification(
       userId,
       "Trusted Member Application Approved! 🎉",
       "Congratulations! Your trusted member application has been approved. You can now create projects and organizations.",
       "success",
-      "/trusted-member",
+      "/trusted-member"
     );
   } else {
     await createServerNotification(
@@ -262,7 +270,7 @@ export async function updateTrustedMemberStatus(userId: string, status: boolean)
       "Trusted Member Application Update",
       "Thank you for your interest in becoming a trusted member. Unfortunately, your application was not approved at this time. Please contact support for more information.",
       "warning",
-      "/trusted-member",
+      "/trusted-member"
     );
   }
 
