@@ -28,27 +28,8 @@ export async function signup(formData: FormData) {
   }
 
   const supabase = await createClient();
-  const supabaseAdmin = createAdminClient();
 
   try {
-    // Check if user already exists
-    const { data: { users }, error: listUsersError } = await supabaseAdmin.auth.admin.listUsers({ email: validatedFields.data.email });
-
-    if (listUsersError) {
-      throw listUsersError;
-    }
-
-    if (users && users.length > 0) {
-      const existingUser = users[0];
-      if (existingUser.email_confirmed_at) {
-        return { error: { server: ["An account with this email already exists. Please log in."] } };
-      } else {
-        // User exists but is not confirmed, resend confirmation email
-        await supabase.auth.resend({ type: 'signup', email: validatedFields.data.email });
-        return { success: true, message: "You have already signed up but not confirmed your email. We have sent you a new confirmation link. Please check your inbox (and junk folder)." };
-      }
-    }
-
     // Pass the CAPTCHA token to Supabase - it will handle verification
     const signUpOptions: any = {
       email: validatedFields.data.email,
@@ -74,6 +55,9 @@ export async function signup(formData: FormData) {
     } = await supabase.auth.signUp(signUpOptions);
 
     if (authError) {
+      if (authError.message.includes("User already registered")) {
+        return { error: { server: ["An account with this email already exists. Please log in."] } };
+      }
       throw authError;
     }
 
