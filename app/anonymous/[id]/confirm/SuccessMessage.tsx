@@ -1,5 +1,12 @@
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { CheckCircle2, Home } from "lucide-react";
 import Link from "next/link";
 
@@ -15,9 +22,11 @@ export function SuccessMessage({ anonymousSignupId }: SuccessMessageProps) {
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
             <CheckCircle2 className="h-8 w-8 text-primary" />
           </div>
-          <CardTitle className="text-2xl font-bold">Email successfully confirmed</CardTitle>
+          <CardTitle className="text-2xl font-bold">
+            Email successfully confirmed
+          </CardTitle>
           <CardDescription>
-            Your spot is locked in and we've notified the organizers.
+            Your spot is locked in and we&apos;ve notified the organizers.
           </CardDescription>
         </CardHeader>
         <CardContent>

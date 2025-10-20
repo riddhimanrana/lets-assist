@@ -83,7 +83,7 @@ export default function SignupClient({ redirectPath }: SignupClientProps) {
         }
       });
 
-      if (errors.server) {
+      if ("server" in errors && errors.server) {
         toast.error(errors.server[0]);
       }
     } else if (result.success) {
