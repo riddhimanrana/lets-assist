@@ -617,15 +617,15 @@ export default function AttendanceClient({
                     <div className={`p-3 rounded-md text-sm border ${
                       lookupResult.found
                         ? lookupResult.isRegistered
-                          ? "bg-blue-500/10 border-blue-500/30 text-blue-700 dark:text-blue-300" // Registered user found
+                          ? "bg-primary/10 border-primary/30 text-primary"
                           : lookupResult.message.includes("approved")
-                            ? "bg-green-500/10 border-green-500/30 text-green-700 dark:text-green-300" // Anonymous approved
+                            ? "bg-green-600/10 border-green-600/30 text-green-600"
                             : lookupResult.message.includes("pending")
-                              ? "bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-400" // Anonymous pending
-                              : "bg-muted border-muted-foreground/30" // Other found cases
-                        : "bg-muted border-muted-foreground/30" // Not found
+                              ? "bg-amber-500/10 border-amber-500/30 text-amber-500"
+                              : "bg-muted border-muted-foreground/30"
+                        : "bg-muted border-muted-foreground/30"
                     }`}>
-                      <p className="mb-2 font-medium">{lookupResult.message}</p>
+                      <p className="mb-2 font-medium break-words">{lookupResult.message}</p>
 
                       {/* Prompt to log in if registered user found */}
                       {lookupResult.isRegistered && (
@@ -633,7 +633,7 @@ export default function AttendanceClient({
                           size="sm"
                           variant="link" // Use link style
                           onClick={() => redirectToAuth('login')}
-                          className="mt-1 p-0 h-auto text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200"
+                          className="mt-1 p-0 h-auto text-primary hover:text-primary/80"
                         >
                           Log in now to check in
                           <LogIn className="h-3 w-3 ml-1.5" />
@@ -647,7 +647,7 @@ export default function AttendanceClient({
                           // Call handleCheckin, passing signupId, true for anonymous, and the lookupEmail
                           onClick={() => handleCheckin(lookupResult.signupId, true, lookupEmail)}
                           disabled={isSubmitting} // Use isSubmitting here
-                          className="mt-2 w-full bg-green-600 hover:bg-green-700 text-white"
+                          className="mt-2 w-full bg-primary hover:bg-primary/90 text-primary-foreground"
                         >
                           {isSubmitting ? ( // Check isSubmitting
                             <>
