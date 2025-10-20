@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { createClient } from "@/utils/supabase/server";
+import { createAdminClient } from "@/utils/supabase/admin";
 import { verifyTurnstileToken, isTurnstileEnabled } from "@/lib/turnstile";
 import { randomUUID } from "crypto";
 
@@ -54,11 +55,8 @@ export async function signup(formData: FormData) {
     } = await supabase.auth.signUp(signUpOptions);
 
     if (authError) {
-      if (authError.code === "23503") {
-        return { error: { server: ["ACCEXISTS0"] } };
-      }
-      if (authError.code === "23505") {
-        return { error: { server: ["NOCNFRM0"] } };
+      if (authError.message.includes("User already registered")) {
+        return { error: { server: ["An account with this email already exists. Please log in."] } };
       }
       throw authError;
     }
@@ -69,14 +67,8 @@ export async function signup(formData: FormData) {
 
     // Profile row will be created/updated by DB trigger using user metadata
 
-    return { success: true };
+    return { success: true, message: "Successfully signed up! Please check your email (and junk folder) to confirm your account." };
   } catch (error) {
-    if (error instanceof Error && error.message.includes("23503")) {
-      return { error: { server: ["ACCEXISTS0"] } };
-    }
-    if (error instanceof Error && error.message.includes("23505")) {
-      return { error: { server: ["NOCNFRM0"] } };
-    }
     return { error: { server: [(error as Error).message] } };
   }
 }
