@@ -72,11 +72,7 @@ export default function SignupClient({ redirectPath }: SignupClientProps) {
     const result = await signup(formData);
 
     if (result.error) {
-      const errors: {
-        email?: string[];
-        password?: string[];
-        server?: string[];
-      } = result.error;
+      const errors = result.error;
 
       Object.keys(errors).forEach((key) => {
         if (key in errors && key in signupSchema.shape) {
@@ -87,24 +83,20 @@ export default function SignupClient({ redirectPath }: SignupClientProps) {
         }
       });
 
-      if (errors.server && errors.server[0] === "ACCEXISTS0") {
-        console.log(errors);
-        toast.warning("This email is already registered. Please sign in.");
-      } else if (errors.server && errors.server[0] === "NOCNFRM0") {
-        toast.warning(
-          "Email confirmation is required. Please check your inbox.",
-        );
-      } else {
-        console.log(errors);
-        toast.error(
-          "Sorry, there was an error creating your account. Please try again." + JSON.stringify(errors)
-        );
+      if (errors.server) {
+        toast.error(errors.server[0]);
       }
     } else if (result.success) {
       form.reset();
-      toast.success("Please check your email for a confirmation link.", {
-        duration: 15000, // duration in milliseconds (15 seconds)
-      });
+      if (result.message) {
+        toast.success(result.message, {
+          duration: 15000,
+        });
+      } else {
+        toast.success("Please check your email for a confirmation link.", {
+          duration: 15000,
+        });
+      }
     }
 
     setIsLoading(false);
