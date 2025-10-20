@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { createClient } from "@/utils/supabase/server";
+import { createAdminClient } from "@/utils/supabase/admin";
 import { verifyTurnstileToken, isTurnstileEnabled } from "@/lib/turnstile";
 import { randomUUID } from "crypto";
 
@@ -27,8 +28,27 @@ export async function signup(formData: FormData) {
   }
 
   const supabase = await createClient();
+  const supabaseAdmin = createAdminClient();
 
   try {
+    // Check if user already exists
+    const { data: { users }, error: listUsersError } = await supabaseAdmin.auth.admin.listUsers({ email: validatedFields.data.email });
+
+    if (listUsersError) {
+      throw listUsersError;
+    }
+
+    if (users && users.length > 0) {
+      const existingUser = users[0];
+      if (existingUser.email_confirmed_at) {
+        return { error: { server: ["An account with this email already exists. Please log in."] } };
+      } else {
+        // User exists but is not confirmed, resend confirmation email
+        await supabase.auth.resend({ type: 'signup', email: validatedFields.data.email });
+        return { success: true, message: "You have already signed up but not confirmed your email. We have sent you a new confirmation link. Please check your inbox (and junk folder)." };
+      }
+    }
+
     // Pass the CAPTCHA token to Supabase - it will handle verification
     const signUpOptions: any = {
       email: validatedFields.data.email,
@@ -54,12 +74,6 @@ export async function signup(formData: FormData) {
     } = await supabase.auth.signUp(signUpOptions);
 
     if (authError) {
-      if (authError.code === "23503") {
-        return { error: { server: ["ACCEXISTS0"] } };
-      }
-      if (authError.code === "23505") {
-        return { error: { server: ["NOCNFRM0"] } };
-      }
       throw authError;
     }
 
@@ -69,14 +83,8 @@ export async function signup(formData: FormData) {
 
     // Profile row will be created/updated by DB trigger using user metadata
 
-    return { success: true };
+    return { success: true, message: "Successfully signed up! Please check your email (and junk folder) to confirm your account." };
   } catch (error) {
-    if (error instanceof Error && error.message.includes("23503")) {
-      return { error: { server: ["ACCEXISTS0"] } };
-    }
-    if (error instanceof Error && error.message.includes("23505")) {
-      return { error: { server: ["NOCNFRM0"] } };
-    }
     return { error: { server: [(error as Error).message] } };
   }
 }

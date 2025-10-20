@@ -43,9 +43,8 @@ export default function CalendarOptionsModal({
   const [isConnected, setIsConnected] = useState(false);
   const [connectedEmail, setConnectedEmail] = useState<string | null>(null);
 
-  // Check calendar connection status when modal opens
   useEffect(() => {
-    const checkConnection = async () => {
+    const checkConnectionAndSync = async () => {
       if (!open) return;
       
       setIsCheckingConnection(true);
@@ -55,6 +54,11 @@ export default function CalendarOptionsModal({
         
         setIsConnected(data.connected || false);
         setConnectedEmail(data.calendar_email || null);
+
+        if (data.connected) {
+          // If connected, automatically sync
+          await syncToCalendar();
+        }
       } catch (error) {
         console.error("Error checking calendar connection:", error);
         setIsConnected(false);
@@ -64,7 +68,7 @@ export default function CalendarOptionsModal({
       }
     };
 
-    checkConnection();
+    checkConnectionAndSync();
   }, [open]);
 
   const handleGoogleCalendar = async () => {
@@ -77,12 +81,12 @@ export default function CalendarOptionsModal({
     // Not connected, initiate OAuth flow
     setIsConnecting(true);
     try {
-      // Store current page for redirect back
-      const currentUrl = window.location.href;
-      sessionStorage.setItem("calendarRedirectUrl", currentUrl);
+      // Store project page for redirect back
+      const projectUrl = `/projects/${project.id}`;
+      sessionStorage.setItem("calendarRedirectUrl", projectUrl);
 
       // Get OAuth URL
-      const connectResponse = await fetch("/api/calendar/google/connect");
+      const connectResponse = await fetch(`/api/calendar/google/connect?return_to=${encodeURIComponent(projectUrl)}`);
       const connectData = await connectResponse.json();
 
       if (!connectResponse.ok) {
@@ -283,56 +287,54 @@ export default function CalendarOptionsModal({
         )}
 
         <div className="space-y-3">
-          {/* Connection Status Banner (only show when checking is complete) */}
-          {!isCheckingConnection && isConnected && connectedEmail && (
-            <div className="flex items-center gap-3 p-3 bg-chart-5/10 border border-chart-5/30 rounded-lg">
-              <div className="flex-shrink-0">
-                <div className="h-8 w-8 rounded-full bg-chart-5/20 flex items-center justify-center">
-                  <Check className="h-4 w-4 text-chart-5" />
-                </div>
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-chart-5">
-                  Connected to Google Calendar
-                </div>
-                <div className="text-xs text-chart-5/80 truncate">
-                  {connectedEmail}
+          {isCheckingConnection ? (
+            <div className="flex items-center justify-center p-8 text-muted-foreground">
+              <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />
+              <span>Loading Google Calendar...</span>
+            </div>
+          ) : isConnected ? (
+            <div className="space-y-3">
+              <div className="flex items-center gap-3 p-4 bg-chart-5/10 border border-chart-5/30 rounded-lg text-chart-5">
+                <CheckCircle className="h-5 w-5 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-sm mb-0.5 break-words">Calendar Connected</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed break-words">
+                    We'll automatically add this to your calendar.
+                  </p>
+                  {connectedEmail && (
+                    <p className="text-xs text-muted-foreground mt-1">Connected as {connectedEmail}</p>
+                  )}
                 </div>
               </div>
             </div>
+          ) : (
+            <Button
+              onClick={handleGoogleCalendar}
+              disabled={isConnecting}
+              className="w-full justify-start h-auto p-4 hover:bg-accent hover:text-accent-foreground transition-colors"
+              variant="outline"
+            >
+              <div className="flex items-center gap-3 text-left w-full min-w-0">
+                {isConnecting ? (
+                  <Loader2 className="h-5 w-5 animate-spin flex-shrink-0 text-primary" />
+                ) : (
+                  <Image
+                    src="/googlecalendar.svg"
+                    alt="Google Calendar"
+                    width={20}
+                    height={20}
+                    className="flex-shrink-0"
+                  />
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-sm mb-0.5 break-words">Connect Google Calendar</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed break-words">
+                    Connect your account to auto-sync this event
+                  </p>
+                </div>
+              </div>
+            </Button>
           )}
-
-          {/* Google Calendar Option */}
-          <Button
-            onClick={handleGoogleCalendar}
-            disabled={isConnecting || isSyncing || isCheckingConnection}
-            className="w-full justify-start h-auto p-4 hover:bg-accent hover:text-accent-foreground transition-colors"
-            variant="outline"
-          >
-            <div className="flex items-center gap-3 text-left w-full min-w-0">
-              {isConnecting || isSyncing || isCheckingConnection ? (
-                <Loader2 className="h-5 w-5 animate-spin flex-shrink-0 text-primary" />
-              ) : (
-                <Image
-                  src="/googlecalendar.svg"
-                  alt="Google Calendar"
-                  width={20}
-                  height={20}
-                  className="flex-shrink-0"
-                />
-              )}
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-sm mb-0.5 break-words">
-                  {isConnected ? "Add to Google Calendar" : "Connect Google Calendar"}
-                </p>
-                <p className="text-xs text-muted-foreground leading-relaxed break-words">
-                  {isConnected
-                    ? "Sync automatically and get updates when events change"
-                    : "Connect your account to auto-sync this event"}
-                </p>
-              </div>
-            </div>
-          </Button>
 
           {/* iCal Download Option */}
           <Button
