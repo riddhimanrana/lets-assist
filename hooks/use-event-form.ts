@@ -126,13 +126,13 @@ const defaultMultiRoleEvent = {
   name: '',
   startTime: '14:00',
   endTime: '16:00',
-  volunteers: 2,
+  volunteers: 0,
 };
 
 const defaultMultiDaySlot = {
   startTime: '09:00',
   endTime: '17:00',
-  volunteers: 2,
+  volunteers: 0,
 };
 
 const initialState: EventFormState = {
@@ -150,7 +150,7 @@ const initialState: EventFormState = {
       date: '',
       startTime: '09:00',
       endTime: '17:00',
-      volunteers: 2,
+      volunteers: 0,
     },
     multiDay: [
       {
@@ -159,7 +159,7 @@ const initialState: EventFormState = {
           {
             startTime: '09:00',
             endTime: '17:00',
-            volunteers: 2,
+            volunteers: 0,
           },
         ],
       },
@@ -173,7 +173,7 @@ const initialState: EventFormState = {
           name: '',
           startTime: '09:00',
           endTime: '17:00',
-          volunteers: 2,
+          volunteers: 0,
         },
       ],
     },

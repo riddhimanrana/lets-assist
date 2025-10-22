@@ -7,8 +7,8 @@ type Props = {
   // searchParams?: { [key: string]: string | string[] | undefined };
 };
 
-export default async function EditProjectPage(params: Props): Promise<React.ReactElement> {
-  const { id } = await params.params;
+export default async function EditProjectPage({ params }: Props): Promise<React.ReactElement> {
+  const { id } = await params;
   const { project, error } = await getProject(id);
 
   if (error || !project) {
