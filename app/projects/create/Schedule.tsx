@@ -218,11 +218,12 @@ export default function Schedule({
                   type="number"
                   min="1"
                   max="1000"
+                  placeholder="Enter number of volunteers"
                   className={cn(
                     "mt-1.5",
                     volunteersError && "border-destructive"
                   )}
-                  value={state.schedule.oneTime.volunteers}
+                  value={state.schedule.oneTime.volunteers || ''}
                   onChange={(e) => {
                     const value = parseInt(e.target.value);
                     updateOneTimeScheduleAction(
@@ -482,7 +483,7 @@ export default function Schedule({
                                       min="1"
                                       max="1000"
                                       placeholder="# volunteers"
-                                      value={slot.volunteers}
+                                      value={slot.volunteers || ''}
                                       onChange={(e) => {
                                         const value = parseInt(e.target.value);
                                         updateMultiDayScheduleAction(
@@ -755,11 +756,12 @@ export default function Schedule({
                               type="number"
                               min="1"
                               max="1000"
+                              placeholder="Enter number of volunteers"
                               className={cn(
                                 "mt-1.5",
                                 volunteersError && "border-destructive"
                               )}
-                              value={role.volunteers}
+                              value={role.volunteers || ''}
                               onChange={(e) => {
                                 const value = parseInt(e.target.value);
                                 updateMultiRoleScheduleAction(

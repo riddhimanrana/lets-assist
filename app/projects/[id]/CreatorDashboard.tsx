@@ -544,14 +544,6 @@ export default function CreatorDashboard({ project }: Props) {
               <Users className="h-4 w-4" />
               Manage Signups
             </Button>
-            <Button
-              variant="outline"
-              className="w-full sm:w-auto flex items-center justify-center gap-2"
-              onClick={() => router.push(`/projects/${project.id}/documents`)}
-            >
-              <FileEdit className="h-4 w-4" />
-              Manage Files
-            </Button>
             
             <TooltipProvider>
               <Tooltip>
