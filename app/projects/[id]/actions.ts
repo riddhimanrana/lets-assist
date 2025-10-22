@@ -11,6 +11,8 @@ import { cookies } from "next/headers";
 import crypto from 'crypto';
 // Import Resend
 import { Resend } from 'resend';
+// Import date-fns utilities
+import { parseISO, isAfter } from 'date-fns';
 // Remove the import for the email template component
 // import AnonymousSignupConfirmationEmail from '@/emails/AnonymousSignupConfirmationEmail';
 
@@ -606,6 +608,31 @@ export async function signUpForProject(
 
     if (project.status === "completed") {
       return { error: "This project has been completed" };
+    }
+    
+    // For multiDay events, validate that the specific day/slot hasn't passed
+    if (project.event_type === "multiDay" && project.schedule.multiDay) {
+      const parts = scheduleId.split("-");
+      if (parts.length >= 2) {
+        const slotIndexStr = parts.pop();
+        const date = parts.join("-");
+        
+        const day = project.schedule.multiDay.find((d: any) => d.date === date);
+        if (day && slotIndexStr) {
+          const slotIdx = parseInt(slotIndexStr, 10);
+          if (!isNaN(slotIdx) && slotIdx >= 0 && slotIdx < day.slots.length) {
+            const slot = day.slots[slotIdx];
+            const dayDate = parseISO(date);
+            const [hours, minutes] = slot.endTime.split(':').map(Number);
+            const slotEndDateTime = new Date(dayDate);
+            slotEndDateTime.setHours(hours, minutes, 0, 0);
+            
+            if (isAfter(new Date(), slotEndDateTime)) {
+              return { error: "This time slot has already passed" };
+            }
+          }
+        }
+      }
     }
 
     // Fix: Don't await getSlotDetails since it's no longer async

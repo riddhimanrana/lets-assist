@@ -1,6 +1,6 @@
 import { Project, ProjectStatus } from "@/types";
 import { SupabaseClient } from "@supabase/supabase-js";
-import { differenceInHours, parseISO, isAfter, isBefore, isEqual, set } from "date-fns";
+import { differenceInHours, parseISO, isAfter, isBefore, isEqual, isPast, set } from "date-fns";
 
 export const getProjectEventDate = (project: Project): Date => {
   switch (project.event_type) {
@@ -122,6 +122,41 @@ export const getProjectStatus = (project: Project): ProjectStatus => {
   }
 
   const now = new Date();
+  
+  // For multiDay events, check if ANY day is still available
+  if (project.event_type === "multiDay") {
+    const hasAvailable = hasAvailableMultiDaySlots(project);
+    
+    if (!hasAvailable) {
+      return "completed";
+    }
+    
+    // Check if any day is currently in progress
+    const multiDaySchedule = project.schedule.multiDay!;
+    for (const day of multiDaySchedule) {
+      const dayDate = parseISO(day.date);
+      
+      for (const slot of day.slots) {
+        const [startHours, startMinutes] = slot.startTime.split(':').map(Number);
+        const [endHours, endMinutes] = slot.endTime.split(':').map(Number);
+        
+        const slotStart = new Date(dayDate);
+        slotStart.setHours(startHours, startMinutes, 0, 0);
+        
+        const slotEnd = new Date(dayDate);
+        slotEnd.setHours(endHours, endMinutes, 0, 0);
+        
+        if ((isAfter(now, slotStart) && isBefore(now, slotEnd)) || isEqual(now, slotStart)) {
+          return "in-progress";
+        }
+      }
+    }
+    
+    // If we have available days but none are in progress, it's upcoming
+    return "upcoming";
+  }
+  
+  // For other event types, use existing logic
   const startDateTime = getProjectStartDateTime(project);
   const endDateTime = getProjectEndDateTime(project);
 
@@ -389,4 +424,96 @@ export function isSlotAvailable(
   console.log("Slots remaining:", slotsRemaining, "for scheduleId:", scheduleId);
   
   return slotsRemaining !== undefined && slotsRemaining > 0;
+}
+
+// Check if a specific multi-day slot has passed
+export function isMultiDaySlotPast(day: { date: string; slots: Array<{endTime: string}> }): boolean {
+  if (!day.slots || day.slots.length === 0) return true;
+  
+  const latestSlot = day.slots[day.slots.length - 1];
+  const dayDate = parseISO(day.date);
+  const [hours, minutes] = latestSlot.endTime.split(':').map(Number);
+  const dayEndDateTime = new Date(dayDate);
+  dayEndDateTime.setHours(hours, minutes, 0, 0);
+  
+  const now = new Date();
+  return isAfter(now, dayEndDateTime);
+}
+
+// Get available days for signup (filters out past days)
+export function getAvailableMultiDaySlots(project: Project): number[] {
+  if (project.event_type !== 'multiDay' || !project.schedule.multiDay) {
+    return [];
+  }
+  
+  return project.schedule.multiDay
+    .map((day, index) => ({ day, index }))
+    .filter(({ day }) => !isMultiDaySlotPast(day))
+    .map(({ index }) => index);
+}
+
+// Check if ANY day is still available
+export function hasAvailableMultiDaySlots(project: Project): boolean {
+  return getAvailableMultiDaySlots(project).length > 0;
+}
+
+// Check if a specific slot within a multi-day event has passed
+export function isMultiDaySlotPastByScheduleId(project: Project, scheduleId: string): boolean {
+  if (project.event_type !== 'multiDay' || !project.schedule.multiDay) {
+    return false;
+  }
+
+  const parts = scheduleId.split("-");
+  if (parts.length < 2) return false;
+  
+  const slotIndexStr = parts.pop();
+  const date = parts.join("-");
+  
+  const day = project.schedule.multiDay.find((d: any) => d.date === date);
+  if (!day || !slotIndexStr) return false;
+  
+  const slotIdx = parseInt(slotIndexStr, 10);
+  if (isNaN(slotIdx) || slotIdx < 0 || slotIdx >= day.slots.length) return false;
+  
+  const slot = day.slots[slotIdx];
+  const dayDate = parseISO(day.date);
+  const [hours, minutes] = slot.endTime.split(':').map(Number);
+  const slotEndDateTime = new Date(dayDate);
+  slotEndDateTime.setHours(hours, minutes, 0, 0);
+  
+  const now = new Date();
+  return isAfter(now, slotEndDateTime);
+}
+
+// Check if a specific slot within a sameDayMultiArea event has passed
+export function isSameDayMultiAreaSlotPast(project: Project, scheduleId: string): boolean {
+  if (project.event_type !== 'sameDayMultiArea' || !project.schedule.sameDayMultiArea) {
+    return false;
+  }
+
+  const role = project.schedule.sameDayMultiArea.roles.find((r: any) => r.name === scheduleId);
+  if (!role) return false;
+  
+  const eventDate = parseISO(project.schedule.sameDayMultiArea.date);
+  const [hours, minutes] = role.endTime.split(':').map(Number);
+  const slotEndDateTime = new Date(eventDate);
+  slotEndDateTime.setHours(hours, minutes, 0, 0);
+  
+  const now = new Date();
+  return isAfter(now, slotEndDateTime);
+}
+
+// Check if a oneTime slot has passed
+export function isOneTimeSlotPast(project: Project): boolean {
+  if (project.event_type !== 'oneTime' || !project.schedule.oneTime) {
+    return false;
+  }
+
+  const eventDate = parseISO(project.schedule.oneTime.date);
+  const [hours, minutes] = project.schedule.oneTime.endTime.split(':').map(Number);
+  const slotEndDateTime = new Date(eventDate);
+  slotEndDateTime.setHours(hours, minutes, 0, 0);
+  
+  const now = new Date();
+  return isAfter(now, slotEndDateTime);
 }
