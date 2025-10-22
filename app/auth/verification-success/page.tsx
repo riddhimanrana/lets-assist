@@ -22,6 +22,7 @@ export const metadata: Metadata = {
 type VerificationSearchParams = {
   type?: string;
   token?: string;
+  email?: string;
   error_description?: string;
   error?: string;
 };
@@ -36,6 +37,7 @@ export default async function VerificationSuccessPage({
   // Await the search parameters to resolve the promise
   const resolvedSearchParams = await searchParams;
   const type = resolvedSearchParams.type || "";
+  const email = resolvedSearchParams.email; // Get email from URL params
   const token = resolvedSearchParams.token; // Extract token if present
   const errorDescription = resolvedSearchParams.error_description;
   const errorCode = resolvedSearchParams.error;
@@ -43,7 +45,7 @@ export default async function VerificationSuccessPage({
   // Error variables
   let hasError = false;
   let errorMessage = "";
-  let verifiedEmail = "";
+  let verifiedEmail = email || "";
   
   // If we have a token, try to process the verification
   if (token) {
@@ -78,7 +80,7 @@ export default async function VerificationSuccessPage({
             <p>The email verification link is invalid or has expired. Please request a new one.</p>
           </CardContent>
           <CardFooter className="flex justify-center gap-2">
-            <Link href="/account/security">
+            <Link href="/signup">
               <Button>Try Again</Button>
             </Link>
           </CardFooter>
@@ -87,12 +89,22 @@ export default async function VerificationSuccessPage({
     );
   }
   
-  // Show success UI
+  // Show success UI based on type
   let title = "Verification Successful";
   let description = "Your account has been verified successfully.";
   let message = "You can now use all features of Let's Assist.";
+  let buttonText = "Go to Home";
+  let buttonLink = "/home";
   
-  if (type === "email_change") {
+  if (type === "signup") {
+    title = "Email Verified Successfully!";
+    description = verifiedEmail 
+      ? `Your email ${verifiedEmail} has been confirmed.`
+      : "Your email has been confirmed.";
+    message = "Your account is now active. Please log in to complete your profile and start exploring volunteering opportunities.";
+    buttonText = "Go to Login";
+    buttonLink = `/login?verified=true${verifiedEmail ? `&email=${encodeURIComponent(verifiedEmail)}` : ''}`;
+  } else if (type === "email_change") {
     title = "Email Changed Successfully";
     description = "Your email address has been updated successfully.";
     
@@ -116,8 +128,8 @@ export default async function VerificationSuccessPage({
           <p>{message}</p>
         </CardContent>
         <CardFooter className="flex justify-center gap-2">
-          <Link href="/home">
-            <Button>Go to Home</Button>
+          <Link href={buttonLink}>
+            <Button>{buttonText}</Button>
           </Link>
         </CardFooter>
       </Card>
