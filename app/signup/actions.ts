@@ -13,6 +13,49 @@ const signupSchema = z.object({
   turnstileToken: z.string().optional(),
 });
 
+type SignupStatus = 
+  | { type: 'confirmed'; message: string }
+  | { type: 'unconfirmed'; message: string }
+  | { type: 'new'; message: string };
+
+export async function checkEmailStatus(email: string): Promise<SignupStatus> {
+  try {
+    const adminClient = createAdminClient();
+    
+    // Use admin client to check if user exists
+    const { data: { users }, error } = await adminClient.auth.admin.listUsers();
+    
+    if (error) {
+      console.error("Error checking email status:", error);
+      throw error;
+    }
+    
+    const existingUser = users.find(u => u.email?.toLowerCase() === email.toLowerCase());
+    
+    if (!existingUser) {
+      return { type: 'new', message: 'Email is available for signup' };
+    }
+    
+    // Check if email is confirmed
+    const isConfirmed = existingUser.email_confirmed_at !== null;
+    
+    if (isConfirmed) {
+      return { 
+        type: 'confirmed', 
+        message: 'An account with this email already exists and is verified.' 
+      };
+    } else {
+      return { 
+        type: 'unconfirmed', 
+        message: 'An account with this email exists but is not verified. We can resend the verification email.' 
+      };
+    }
+  } catch (error) {
+    console.error("Error in checkEmailStatus:", error);
+    throw error;
+  }
+}
+
 export async function signup(formData: FormData) {
   const turnstileToken = formData.get("turnstileToken") as string;
 
@@ -30,6 +73,26 @@ export async function signup(formData: FormData) {
   const supabase = await createClient();
 
   try {
+    const origin = process.env.NEXT_PUBLIC_SITE_URL || "";
+    
+    // Check email status first
+    const emailStatus = await checkEmailStatus(validatedFields.data.email);
+    
+    if (emailStatus.type === 'confirmed') {
+      return { 
+        error: { server: [emailStatus.message] },
+        emailStatus: 'confirmed'
+      };
+    }
+    
+    if (emailStatus.type === 'unconfirmed') {
+      return { 
+        error: { server: [emailStatus.message] },
+        emailStatus: 'unconfirmed',
+        email: validatedFields.data.email
+      };
+    }
+    
     // Pass the CAPTCHA token to Supabase - it will handle verification
     const signUpOptions: any = {
       email: validatedFields.data.email,
@@ -67,9 +130,47 @@ export async function signup(formData: FormData) {
 
     // Profile row will be created/updated by DB trigger using user metadata
 
-    return { success: true, message: "Successfully signed up! Please check your email (and junk folder) to confirm your account." };
+    return { 
+      success: true, 
+      email: validatedFields.data.email,
+      message: "Successfully signed up! Please check your email (and junk folder) to confirm your account." 
+    };
   } catch (error) {
     return { error: { server: [(error as Error).message] } };
+  }
+}
+
+export async function resendVerificationEmail(email: string) {
+  try {
+    const supabase = await createClient();
+    const origin = process.env.NEXT_PUBLIC_SITE_URL || "";
+    
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email: email,
+      options: {
+        emailRedirectTo: `${origin}/auth/confirm`,
+      }
+    });
+    
+    if (error) {
+      console.error("Error resending verification email:", error);
+      return { 
+        success: false, 
+        error: error.message || "Failed to resend verification email" 
+      };
+    }
+    
+    return { 
+      success: true, 
+      message: "Verification email has been resent. Please check your inbox." 
+    };
+  } catch (error) {
+    console.error("Exception in resendVerificationEmail:", error);
+    return { 
+      success: false, 
+      error: (error as Error).message || "An error occurred while resending the email" 
+    };
   }
 }
 
