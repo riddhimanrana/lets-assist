@@ -29,7 +29,7 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${origin}/error`);
   }
 
-  // Normal OAuth flow
+  // Normal OAuth flow or email verification
   if (!error && code) {
     const supabase = await createClient();
     const {
@@ -40,6 +40,16 @@ export async function GET(request: Request) {
     if (!error && session) {
       try {
         const { user } = session;
+        
+        // Check if this is an email verification (signup confirmation)
+        // Detect by checking if the user was just created (within last 5 minutes) and this is their first session
+        const userCreatedAt = new Date(user.created_at);
+        const now = new Date();
+        const timeSinceCreation = now.getTime() - userCreatedAt.getTime();
+        const isRecentSignup = timeSinceCreation < 5 * 60 * 1000; // 5 minutes
+        
+        // Check if user has completed onboarding
+        const hasCompletedOnboarding = user.user_metadata?.has_completed_onboarding === true;
 
         // Check if profile already exists
         const { data: existingProfile } = await supabase
@@ -97,8 +107,21 @@ export async function GET(request: Request) {
             throw updateError;
           }
         }
+        
+        // If this is a recent signup email verification (not OAuth), sign out and redirect to success page
+        if (isRecentSignup && !hasCompletedOnboarding && !redirectAfterAuth) {
+          const userEmail = user.email;
+          await supabase.auth.signOut();
+          
+          const redirectUrl = new URL(`${origin}/auth/verification-success`);
+          redirectUrl.searchParams.set('type', 'signup');
+          if (userEmail) {
+            redirectUrl.searchParams.set('email', userEmail);
+          }
+          return NextResponse.redirect(redirectUrl.toString());
+        }
 
-        // Determine redirect path
+        // Determine redirect path for OAuth or other flows
         const redirectTo = redirectAfterAuth
           ? (() => {
               const decoded = decodeURIComponent(redirectAfterAuth);
