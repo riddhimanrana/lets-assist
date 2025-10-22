@@ -54,7 +54,7 @@ import { toast } from "sonner";
 import { signUpForProject, cancelSignup } from "./actions";
 import { formatTimeTo12Hour, formatBytes } from "@/lib/utils";
 import { createClient } from "@/utils/supabase/client";
-import { getSlotCapacities, getSlotDetails, isSlotAvailable } from "@/utils/project";
+import { getSlotCapacities, getSlotDetails, isSlotAvailable, isMultiDaySlotPast, isMultiDaySlotPastByScheduleId, isSameDayMultiAreaSlotPast, isOneTimeSlotPast } from "@/utils/project";
 import { getProjectStatus, getProjectStartDateTime, getProjectEndDateTime } from "@/utils/project"; // Import the getProjectStatus utility and date utils
 import { useState, useEffect, useCallback } from "react"; // Add useCallback
 import { useRouter } from "next/navigation";
@@ -861,15 +861,14 @@ export default function ProjectDetails({
                             isCreator || 
                             loadingStates["oneTime"] || 
                             calculatedStatus === "cancelled" || 
-                            calculatedStatus === "completed" || 
-                            calculatedStatus === "in-progress" || 
+                            isOneTimeSlotPast(project) ||
                             rejectedSlots["oneTime"] || 
-                            attendedSlots["oneTime"] ||  // Add check for attended status
+                            attendedSlots["oneTime"] ||
                             (!hasSignedUp["oneTime"] && (remainingSlots["oneTime"] === 0))
                           }
-                          className={`flex-shrink-0 gap-2 ${attendedSlots["oneTime"] ? "opacity-50 cursor-not-allowed" : ""}`}
+                          className={`flex-shrink-0 gap-2 ${attendedSlots["oneTime"] || isOneTimeSlotPast(project) ? "opacity-50 cursor-not-allowed" : ""}`}
                         >
-                          {renderSignupButton("oneTime")}
+                          {isOneTimeSlotPast(project) ? "Time Passed" : renderSignupButton("oneTime")}
                         </Button>
                       </div>
                     </CardContent>
@@ -878,83 +877,97 @@ export default function ProjectDetails({
 
                 {project.event_type === "multiDay" && project.schedule.multiDay && (
                   <div className="space-y-3">
-                    {project.schedule.multiDay.map((day, dayIndex) => (
-                      <div key={day.date} className="mb-4">
-                        <h3 className="font-medium mb-2">
-                          {(() => {
-                            const dateStr = day.date;
-                            const [year, month, dayNum] = dateStr.split("-").map(Number);
-                            // Use Date to correctly handle timezones
-                            const date = new Date(year, month - 1, dayNum);
-                            return format(date, "EEEE, MMMM d");
-                          })()}
-                        </h3>
-                        <div className="space-y-2">
-                          {day.slots.map((slot, slotIndex) => {
-                            const scheduleId = `${day.date}-${slotIndex}`;
-                            return (
-                              <Card key={scheduleId} className="bg-card/50 hover:bg-card/80 transition-colors">
-                                <CardContent className="p-4">
-                                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                    <div className="max-w-[400px]">
-                                      <div className="flex flex-col space-y-2">
-                                        <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                                          <Clock className="h-3.5 w-3.5 flex-shrink-0" />
-                                          <div className="flex items-center gap-2">
-                                            <span className="line-clamp-1">
-                                              {(() => {
-                                                const startLabel = slot.startTime ? formatTimeTo12Hour(slot.startTime) : "TBD";
-                                                const endLabel = slot.endTime ? formatTimeTo12Hour(slot.endTime) : undefined;
-                                                return endLabel ? `${startLabel} - ${endLabel}` : startLabel;
-                                              })()}
-                                            </span>
-                                            {project.project_timezone && (
-                                              <TimezoneBadge timezone={project.project_timezone} />
-                                            )}
+                    {project.schedule.multiDay.map((day, dayIndex) => {
+                      const isDayPast = isMultiDaySlotPast(day);
+                      const allSlotsInDayPast = day.slots.every((slot, slotIndex) => {
+                        const scheduleId = `${day.date}-${slotIndex}`;
+                        return isMultiDaySlotPastByScheduleId(project, scheduleId);
+                      });
+                      
+                      return (
+                        <div key={day.date} className="mb-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <h3 className="font-medium">
+                              {(() => {
+                                const dateStr = day.date;
+                                const [year, month, dayNum] = dateStr.split("-").map(Number);
+                                // Use Date to correctly handle timezones
+                                const date = new Date(year, month - 1, dayNum);
+                                return format(date, "EEEE, MMMM d");
+                              })()}
+                            </h3>
+                            {allSlotsInDayPast && (
+                              <Badge variant="secondary" className="ml-2">
+                                Passed
+                              </Badge>
+                            )}
+                          </div>
+                          <div className={`space-y-2 ${allSlotsInDayPast ? "opacity-50" : ""}`}>
+                            {day.slots.map((slot, slotIndex) => {
+                              const scheduleId = `${day.date}-${slotIndex}`;
+                              return (
+                                <Card key={scheduleId} className="bg-card/50 hover:bg-card/80 transition-colors">
+                                  <CardContent className="p-4">
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                      <div className="max-w-[400px]">
+                                        <div className="flex flex-col space-y-2">
+                                          <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                                            <Clock className="h-3.5 w-3.5 flex-shrink-0" />
+                                            <div className="flex items-center gap-2">
+                                              <span className="line-clamp-1">
+                                                {(() => {
+                                                  const startLabel = slot.startTime ? formatTimeTo12Hour(slot.startTime) : "TBD";
+                                                  const endLabel = slot.endTime ? formatTimeTo12Hour(slot.endTime) : undefined;
+                                                  return endLabel ? `${startLabel} - ${endLabel}` : startLabel;
+                                                })()}
+                                              </span>
+                                              {project.project_timezone && (
+                                                <TimezoneBadge timezone={project.project_timezone} />
+                                              )}
+                                            </div>
                                           </div>
-                                        </div>
-                                        <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                                          <Users className="h-3.5 w-3.5 flex-shrink-0" />
-                                          <div className="flex items-center gap-1.5">
-                                            <span className="font-medium">
-                                              {remainingSlots[scheduleId] ?? slot.volunteers}
-                                              <span className="font-normal"> of </span>
-                                              {slot.volunteers}
-                                            </span>
-                                            <span className="font-normal">spots available</span>
+                                          <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                                            <Users className="h-3.5 w-3.5 flex-shrink-0" />
+                                            <div className="flex items-center gap-1.5">
+                                              <span className="font-medium">
+                                                {remainingSlots[scheduleId] ?? slot.volunteers}
+                                                <span className="font-normal"> of </span>
+                                                {slot.volunteers}
+                                              </span>
+                                              <span className="font-normal">spots available</span>
+                                            </div>
+                                            
+                                            {/* Visual indicator for spots */}
+                                            {/* <div className="ml-2 h-1.5 bg-muted rounded-full w-16 overflow-hidden hidden sm:block"> ... </div> */}
                                           </div>
-                                          
-                                          {/* Visual indicator for spots */}
-                                          {/* <div className="ml-2 h-1.5 bg-muted rounded-full w-16 overflow-hidden hidden sm:block"> ... </div> */}
                                         </div>
                                       </div>
+                                      <Button
+                                        variant={hasSignedUp[scheduleId] ? "secondary" : rejectedSlots[scheduleId] ? "destructive" : "default"}
+                                        size="sm"
+                                        onClick={() => handleSignUpClick(scheduleId)}
+                                        disabled={
+                                          isCreator || 
+                                          loadingStates[scheduleId] || 
+                                          calculatedStatus === "cancelled" || 
+                                          rejectedSlots[scheduleId] || 
+                                          attendedSlots[scheduleId] ||
+                                          isMultiDaySlotPastByScheduleId(project, scheduleId) ||
+                                          (!hasSignedUp[scheduleId] && (remainingSlots[scheduleId] === 0))
+                                        }
+                                        className={`flex-shrink-0 gap-2 ${attendedSlots[scheduleId] || isMultiDaySlotPastByScheduleId(project, scheduleId) ? "opacity-50 cursor-not-allowed" : ""}`}
+                                      >
+                                        {isMultiDaySlotPastByScheduleId(project, scheduleId) ? "Time Passed" : renderSignupButton(scheduleId)}
+                                      </Button>
                                     </div>
-                                    <Button
-                                      variant={hasSignedUp[scheduleId] ? "secondary" : rejectedSlots[scheduleId] ? "destructive" : "default"}
-                                      size="sm"
-                                      onClick={() => handleSignUpClick(scheduleId)}
-                                      disabled={
-                                        isCreator || 
-                                        loadingStates[scheduleId] || 
-                                        calculatedStatus === "cancelled" || 
-                                        calculatedStatus === "completed" || 
-                                        calculatedStatus === "in-progress" || 
-                                        rejectedSlots[scheduleId] || 
-                                        attendedSlots[scheduleId] ||  // Add check for attended status
-                                        (!hasSignedUp[scheduleId] && (remainingSlots[scheduleId] === 0))
-                                      }
-                                      className={`flex-shrink-0 gap-2 ${attendedSlots[scheduleId] ? "opacity-50 cursor-not-allowed" : ""}`}
-                                    >
-                                      {renderSignupButton(scheduleId)}
-                                    </Button>
-                                  </div>
                                 </CardContent>
                               </Card>
                             );
                           })}
                         </div>
                       </div>
-                    ))}
+                    );
+                    })}
                   </div>
                 )}
 
@@ -1017,15 +1030,14 @@ export default function ProjectDetails({
                                     isCreator || 
                                     loadingStates[role.name] || 
                                     calculatedStatus === "cancelled" || 
-                                    calculatedStatus === "completed" || 
-                                    calculatedStatus === "in-progress" || 
+                                    isSameDayMultiAreaSlotPast(project, role.name) ||
                                     rejectedSlots[role.name] || 
-                                    attendedSlots[role.name] ||  // Add check for attended status
+                                    attendedSlots[role.name] ||
                                     (!hasSignedUp[role.name] && (remainingSlots[role.name] === 0))
                                   }
-                                  className={`flex-shrink-0 gap-2 ${attendedSlots[role.name] ? "opacity-50 cursor-not-allowed" : ""}`}
+                                  className={`flex-shrink-0 gap-2 ${attendedSlots[role.name] || isSameDayMultiAreaSlotPast(project, role.name) ? "opacity-50 cursor-not-allowed" : ""}`}
                                 >
-                                  {renderSignupButton(role.name)}
+                                  {isSameDayMultiAreaSlotPast(project, role.name) ? "Time Passed" : renderSignupButton(role.name)}
                                 </Button>
                               </div>
                             </CardContent>

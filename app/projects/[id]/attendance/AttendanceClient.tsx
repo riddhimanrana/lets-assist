@@ -611,8 +611,7 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
                       </TableHead>
                       <TableHead>Check-out Time</TableHead>
                       <TableHead>Contact</TableHead>
-                      <TableHead>Actions</TableHead> {/* Changed from Type to Actions */}
-                      
+                      <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -691,7 +690,6 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
                               </Button>
                             </div>
                           </TableCell>
-                          
                         </TableRow>
                       );
                     })}

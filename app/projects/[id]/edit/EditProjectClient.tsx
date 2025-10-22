@@ -1,6 +1,6 @@
 "use client";
 
-import { Project, LocationData } from "@/types";
+import { Project, LocationData, ProjectSchedule, EventType } from "@/types";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { cn, stripHtml } from "@/lib/utils";
@@ -31,12 +31,29 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Separator } from "@/components/ui/separator";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import {
   AlertTriangle,
   ArrowLeft,
   Loader2,
   Trash2,
-  XCircle
+  XCircle,
+  Calendar as CalendarIconLucide,
+  ChevronDown,
+  ChevronRight,
+  Upload,
+  FileText,
+  File,
+  FileImage,
+  Eye,
+  ImageIcon,
+  X
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -68,11 +85,43 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { updateCalendarEventForProject, removeCalendarEventForProject, removeAllVolunteerCalendarEvents } from "@/utils/calendar-helpers";
+import Schedule from "@/app/projects/create/Schedule";
+import { AspectRatio } from "@/components/ui/aspect-ratio";
+import Image from "next/image";
+import { formatBytes } from "@/lib/utils";
+import FilePreview from "@/components/FilePreview";
 
 // Constants for character limits
 const TITLE_LIMIT = 125;
 const LOCATION_LIMIT = 200;
 const DESCRIPTION_LIMIT = 2000;
+
+// Constants for file validations
+const MAX_COVER_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_DOCUMENT_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_DOCUMENTS_COUNT = 5;
+
+// Allowed file types
+const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/jpg"];
+const ALLOWED_DOCUMENT_TYPES = [
+  'application/pdf',
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/jpg',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'text/plain',
+];
+
+// File type icon mapping
+const getFileIcon = (type: string) => {
+  if (type.includes('pdf')) return <FileText className="h-5 w-5" />;
+  if (type.includes('image')) return <FileImage className="h-5 w-5" />;
+  if (type.includes('text')) return <FileText className="h-5 w-5" />;
+  if (type.includes('word')) return <FileText className="h-5 w-5" />;
+  return <File className="h-5 w-5" />;
+};
 
 interface Props {
   project: Project;
@@ -103,6 +152,74 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
+// Helper to initialize schedule state from project
+function initializeScheduleState(project: Project) {
+  const eventType = project.event_type;
+  
+  if (eventType === "oneTime" && project.schedule.oneTime) {
+    return {
+      oneTime: {
+        date: project.schedule.oneTime.date,
+        startTime: project.schedule.oneTime.startTime,
+        endTime: project.schedule.oneTime.endTime,
+        volunteers: project.schedule.oneTime.volunteers,
+      },
+      multiDay: [{ date: "", slots: [{ startTime: "", endTime: "", volunteers: 0 }] }],
+      sameDayMultiArea: {
+        date: "",
+        overallStart: "",
+        overallEnd: "",
+        roles: [{ name: "", startTime: "", endTime: "", volunteers: 0 }],
+      },
+    };
+  } else if (eventType === "multiDay" && project.schedule.multiDay) {
+    return {
+      oneTime: { date: "", startTime: "", endTime: "", volunteers: 0 },
+      multiDay: project.schedule.multiDay.map(day => ({
+        date: day.date,
+        slots: day.slots.map(slot => ({
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+          volunteers: slot.volunteers,
+        })),
+      })),
+      sameDayMultiArea: {
+        date: "",
+        overallStart: "",
+        overallEnd: "",
+        roles: [{ name: "", startTime: "", endTime: "", volunteers: 0 }],
+      },
+    };
+  } else if (eventType === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
+    return {
+      oneTime: { date: "", startTime: "", endTime: "", volunteers: 0 },
+      multiDay: [{ date: "", slots: [{ startTime: "", endTime: "", volunteers: 0 }] }],
+      sameDayMultiArea: {
+        date: project.schedule.sameDayMultiArea.date,
+        overallStart: project.schedule.sameDayMultiArea.overallStart,
+        overallEnd: project.schedule.sameDayMultiArea.overallEnd,
+        roles: project.schedule.sameDayMultiArea.roles.map(role => ({
+          name: role.name,
+          startTime: role.startTime,
+          endTime: role.endTime,
+          volunteers: role.volunteers,
+        })),
+      },
+    };
+  }
+  
+  return {
+    oneTime: { date: "", startTime: "", endTime: "", volunteers: 0 },
+    multiDay: [{ date: "", slots: [{ startTime: "", endTime: "", volunteers: 0 }] }],
+    sameDayMultiArea: {
+      date: "",
+      overallStart: "",
+      overallEnd: "",
+      roles: [{ name: "", startTime: "", endTime: "", volunteers: 0 }],
+    },
+  };
+}
+
 export default function EditProjectClient({ project }: Props) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
@@ -114,6 +231,23 @@ export default function EditProjectClient({ project }: Props) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
+  
+  // Schedule editing state
+  const [scheduleState, setScheduleState] = useState(() => initializeScheduleState(project));
+  const [scheduleErrors, setScheduleErrors] = useState<z.ZodIssue[]>([]);
+  const [isScheduleOpen, setIsScheduleOpen] = useState(false);
+  
+  // Media & Documents state
+  const [isMediaOpen, setIsMediaOpen] = useState(false);
+  const [uploadingCoverImage, setUploadingCoverImage] = useState(false);
+  const [uploadingDocuments, setUploadingDocuments] = useState(false);
+  const [previewDoc, setPreviewDoc] = useState<string | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewDocName, setPreviewDocName] = useState<string>("Document");
+  const [previewDocType, setPreviewDocType] = useState<string>("");
+  const [dragActive, setDragActive] = useState<"cover" | "docs" | null>(null);
+  const [hoverIndex, setHoverIndex] = useState<number | null>(null);
+  const [totalDocumentsSize, setTotalDocumentsSize] = useState<number>(0);
 
   const getCounterColor = (current: number, max: number) => {
     const percentage = (current / max) * 100;
@@ -144,11 +278,102 @@ export default function EditProjectClient({ project }: Props) {
     },
   });
 
-  // Track form changes
+  // Schedule update handlers
+  const updateOneTimeSchedule = (field: keyof typeof scheduleState.oneTime, value: string | number) => {
+    setScheduleState(prev => ({
+      ...prev,
+      oneTime: { ...prev.oneTime, [field]: value }
+    }));
+  };
+
+  const updateMultiDaySchedule = (dayIndex: number, field: string, value: string | number, slotIndex?: number) => {
+    setScheduleState(prev => {
+      const newMultiDay = [...prev.multiDay];
+      if (slotIndex !== undefined) {
+        newMultiDay[dayIndex].slots[slotIndex] = {
+          ...newMultiDay[dayIndex].slots[slotIndex],
+          [field]: value
+        };
+      } else {
+        newMultiDay[dayIndex] = { ...newMultiDay[dayIndex], [field]: value };
+      }
+      return { ...prev, multiDay: newMultiDay };
+    });
+  };
+
+  const updateMultiRoleSchedule = (field: string, value: string | number, roleIndex?: number) => {
+    setScheduleState(prev => {
+      if (roleIndex !== undefined) {
+        const newRoles = [...prev.sameDayMultiArea.roles];
+        newRoles[roleIndex] = { ...newRoles[roleIndex], [field]: value };
+        return {
+          ...prev,
+          sameDayMultiArea: { ...prev.sameDayMultiArea, roles: newRoles }
+        };
+      } else {
+        return {
+          ...prev,
+          sameDayMultiArea: { ...prev.sameDayMultiArea, [field]: value }
+        };
+      }
+    });
+  };
+
+  const addMultiDaySlot = (dayIndex: number) => {
+    setScheduleState(prev => {
+      const newMultiDay = [...prev.multiDay];
+      newMultiDay[dayIndex].slots.push({ startTime: "", endTime: "", volunteers: 0 });
+      return { ...prev, multiDay: newMultiDay };
+    });
+  };
+
+  const addMultiDayEvent = () => {
+    setScheduleState(prev => ({
+      ...prev,
+      multiDay: [...prev.multiDay, { date: "", slots: [{ startTime: "", endTime: "", volunteers: 0 }] }]
+    }));
+  };
+
+  const addRole = () => {
+    setScheduleState(prev => ({
+      ...prev,
+      sameDayMultiArea: {
+        ...prev.sameDayMultiArea,
+        roles: [...prev.sameDayMultiArea.roles, { name: "", startTime: "", endTime: "", volunteers: 0 }]
+      }
+    }));
+  };
+
+  const removeDay = (dayIndex: number) => {
+    setScheduleState(prev => ({
+      ...prev,
+      multiDay: prev.multiDay.filter((_, i) => i !== dayIndex)
+    }));
+  };
+
+  const removeSlot = (dayIndex: number, slotIndex: number) => {
+    setScheduleState(prev => {
+      const newMultiDay = [...prev.multiDay];
+      newMultiDay[dayIndex].slots = newMultiDay[dayIndex].slots.filter((_, i) => i !== slotIndex);
+      return { ...prev, multiDay: newMultiDay };
+    });
+  };
+
+  const removeRole = (roleIndex: number) => {
+    setScheduleState(prev => ({
+      ...prev,
+      sameDayMultiArea: {
+        ...prev.sameDayMultiArea,
+        roles: prev.sameDayMultiArea.roles.filter((_, i) => i !== roleIndex)
+      }
+    }));
+  };
+
+  // Track form changes (including schedule)
   useEffect(() => {
     const subscription = form.watch((value, { name, type }) => {
       const formValues = form.getValues();
-      const isChanged = 
+      const basicInfoChanged = 
         formValues.title !== project.title ||
         formValues.description !== project.description ||
         formValues.location !== project.location ||
@@ -156,15 +381,274 @@ export default function EditProjectClient({ project }: Props) {
         formValues.require_login !== project.require_login ||
         formValues.verification_method !== project.verification_method;
       
-      setHasChanges(isChanged);
+      const initialSchedule = initializeScheduleState(project);
+      const scheduleChanged = JSON.stringify(scheduleState) !== JSON.stringify(initialSchedule);
+      
+      setHasChanges(basicInfoChanged || scheduleChanged);
     });
     return () => subscription.unsubscribe();
-  }, [form, project]);
+  }, [form, project, scheduleState]);
+
+  // Separate effect to track schedule changes independently
+  useEffect(() => {
+    const initialSchedule = initializeScheduleState(project);
+    const scheduleChanged = JSON.stringify(scheduleState) !== JSON.stringify(initialSchedule);
+    
+    const formValues = form.getValues();
+    const basicInfoChanged = 
+      formValues.title !== project.title ||
+      formValues.description !== project.description ||
+      formValues.location !== project.location ||
+      JSON.stringify(formValues.location_data) !== JSON.stringify(project.location_data) ||
+      formValues.require_login !== project.require_login ||
+      formValues.verification_method !== project.verification_method;
+    
+    setHasChanges(basicInfoChanged || scheduleChanged);
+  }, [scheduleState, form, project]);
+
+  // Calculate total documents size
+  useEffect(() => {
+    const totalSize = (project.documents || []).reduce((sum, doc) => sum + (doc.size || 0), 0);
+    setTotalDocumentsSize(totalSize);
+  }, [project.documents]);
+
+  // Media & Documents handlers
+  const validateImage = (file: File): boolean => {
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+      toast.error("Invalid image type. Please use JPEG, PNG, or WebP");
+      return false;
+    }
+    if (file.size > MAX_COVER_IMAGE_SIZE) {
+      toast.error(`Image too large. Maximum size is ${formatBytes(MAX_COVER_IMAGE_SIZE)}`);
+      return false;
+    }
+    return true;
+  };
+
+  const validateDocument = (file: File): boolean => {
+    if (!ALLOWED_DOCUMENT_TYPES.includes(file.type)) {
+      toast.error("Invalid file type");
+      return false;
+    }
+    const currentTotalSize = (project.documents || []).reduce((sum, doc) => sum + (doc.size || 0), 0);
+    if (currentTotalSize + file.size > MAX_DOCUMENT_SIZE) {
+      toast.error("Total document size limit exceeded");
+      return false;
+    }
+    if ((project.documents || []).length >= MAX_DOCUMENTS_COUNT) {
+      toast.error("Maximum number of documents reached");
+      return false;
+    }
+    return true;
+  };
+
+  const handleCoverImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      if (!validateImage(file)) return;
+
+      setUploadingCoverImage(true);
+      const loadingToast = toast.loading("Uploading cover image...");
+      
+      try {
+        const supabase = createClient();
+        const fileExt = file.name.split('.').pop();
+        const timestamp = Date.now();
+        const fileName = `project_${project.id}_cover_${timestamp}.${fileExt}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('project-images')
+          .upload(fileName, file);
+
+        if (uploadError) throw uploadError;
+
+        const { data: urlData } = supabase.storage
+          .from('project-images')
+          .getPublicUrl(fileName);
+
+        const result = await updateProject(project.id, {
+          cover_image_url: urlData.publicUrl
+        });
+
+        if (result.error) throw new Error(result.error);
+
+        toast.dismiss(loadingToast);
+        toast.success("Cover image uploaded successfully");
+        router.refresh();
+      } catch (error) {
+        console.error('Upload error:', error);
+        toast.dismiss(loadingToast);
+        toast.error("Failed to upload cover image");
+      } finally {
+        setUploadingCoverImage(false);
+      }
+    }
+  };
+
+  const removeCoverImage = async () => {
+    if (!project.cover_image_url) return;
+
+    try {
+      const supabase = createClient();
+      const urlParts = new URL(project.cover_image_url);
+      const pathParts = urlParts.pathname.split("/");
+      const fileName = pathParts[pathParts.length - 1];
+
+      const { error: deleteError } = await supabase.storage
+        .from('project-images')
+        .remove([fileName]);
+
+      if (deleteError) console.warn('Storage delete error:', deleteError);
+
+      const result = await updateProject(project.id, {
+        cover_image_url: null
+      });
+
+      if (result.error) throw new Error(result.error);
+
+      toast.success("Cover image removed");
+      router.refresh();
+    } catch (error) {
+      console.error('Delete error:', error);
+      toast.error("Failed to remove cover image");
+    }
+  };
+
+  const handleDocumentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+
+    const files = Array.from(e.target.files);
+    const totalFiles = (project.documents || []).length + files.length;
+    
+    if (totalFiles > MAX_DOCUMENTS_COUNT) {
+      toast.error(`Maximum ${MAX_DOCUMENTS_COUNT} documents allowed`);
+      return;
+    }
+
+    const currentTotalSize = (project.documents || []).reduce((sum, doc) => sum + (doc.size || 0), 0);
+    const newFilesTotalSize = files.reduce((sum, file) => sum + file.size, 0);
+    
+    if (currentTotalSize + newFilesTotalSize > MAX_DOCUMENT_SIZE) {
+      toast.error("Total document size limit exceeded");
+      return;
+    }
+
+    setUploadingDocuments(true);
+    const loadingToast = toast.loading(`Uploading ${files.length} document(s)...`);
+
+    try {
+      const supabase = createClient();
+      const uploadedDocs = [];
+
+      for (const file of files) {
+        if (!validateDocument(file)) continue;
+
+        const fileExt = file.name.split('.').pop();
+        const timestamp = Date.now();
+        const random = Math.random().toString(36).substring(2, 8);
+        const fileName = `project_${project.id}_doc_${timestamp}_${random}.${fileExt}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('project-documents')
+          .upload(fileName, file);
+
+        if (uploadError) throw uploadError;
+
+        const { data: urlData } = supabase.storage
+          .from('project-documents')
+          .getPublicUrl(fileName);
+
+        uploadedDocs.push({
+          name: file.name,
+          originalName: file.name,
+          url: urlData.publicUrl,
+          type: file.type,
+          size: file.size,
+        });
+      }
+
+      const updatedDocs = [...(project.documents || []), ...uploadedDocs];
+      const result = await updateProject(project.id, {
+        documents: updatedDocs,
+      });
+
+      if (result.error) throw new Error(result.error);
+
+      toast.dismiss(loadingToast);
+      toast.success(`${uploadedDocs.length} document(s) uploaded successfully`);
+      router.refresh();
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast.dismiss(loadingToast);
+      toast.error("Failed to upload documents");
+    } finally {
+      setUploadingDocuments(false);
+    }
+  };
+
+  const handleDeleteDocument = async (docUrl: string) => {
+    try {
+      const supabase = createClient();
+      const urlParts = new URL(docUrl);
+      const pathParts = urlParts.pathname.split("/");
+      const fileName = pathParts[pathParts.length - 1];
+
+      const { error: storageError } = await supabase.storage
+        .from('project-documents')
+        .remove([fileName]);
+
+      if (storageError) console.warn('Storage delete error:', storageError);
+
+      const updatedDocs = (project.documents || []).filter(doc => doc.url !== docUrl);
+      const result = await updateProject(project.id, {
+        documents: updatedDocs,
+      });
+
+      if (result.error) throw new Error(result.error);
+
+      toast.success("Document deleted");
+      router.refresh();
+    } catch (error) {
+      console.error('Delete error:', error);
+      toast.error("Failed to delete document");
+    }
+  };
+
+  const openPreview = (url: string, fileName: string = "Document", fileType: string = "") => {
+    setPreviewDoc(url);
+    setPreviewDocName(fileName);
+    setPreviewDocType(fileType);
+    setPreviewOpen(true);
+  };
+
+  const isPreviewable = (type: string) => {
+    return type.includes('pdf') || type.includes('image');
+  };
 
   const onSubmit = async (values: FormValues) => {
     setSaving(true);
+    setScheduleErrors([]);
+    
     try {
-      const result = await updateProject(project.id, values);
+      // Build schedule object based on event type
+      let schedule: ProjectSchedule = {};
+      const eventType = project.event_type;
+      
+      if (eventType === "oneTime") {
+        schedule = { oneTime: scheduleState.oneTime };
+      } else if (eventType === "multiDay") {
+        schedule = { multiDay: scheduleState.multiDay };
+      } else if (eventType === "sameDayMultiArea") {
+        schedule = { sameDayMultiArea: scheduleState.sameDayMultiArea };
+      }
+      
+      // Combine form values with schedule
+      const updates = {
+        ...values,
+        schedule,
+      };
+      
+      const result = await updateProject(project.id, updates);
       if (result.error) {
         toast.error(result.error);
       } else {
@@ -474,6 +958,236 @@ export default function EditProjectClient({ project }: Props) {
                 )}
               />
 
+              <Separator className="my-6" />
+
+              {/* Schedule Section - Collapsible */}
+              <Collapsible open={isScheduleOpen} onOpenChange={setIsScheduleOpen}>
+                <CollapsibleTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="w-full justify-between p-4 hover:bg-muted/50 h-auto"
+                  >
+                    <div className="flex items-center gap-2">
+                      <CalendarIconLucide className="h-5 w-5 text-muted-foreground" />
+                      <h3 className="text-lg font-semibold">Schedule & Timing</h3>
+                    </div>
+                    {isScheduleOpen ? (
+                      <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                    ) : (
+                      <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                    )}
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="space-y-4 pt-4">
+                  <Alert>
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>Important</AlertTitle>
+                    <AlertDescription>
+                      Changing dates or times may affect volunteers who have already signed up. 
+                      Consider notifying them of any changes. Reducing volunteer capacity below 
+                      current signups is not recommended.
+                    </AlertDescription>
+                  </Alert>
+                  <p className="text-sm text-muted-foreground">
+                    Update the dates, times, and volunteer capacity for this project.
+                  </p>
+                  <Schedule
+                    state={{
+                      eventType: project.event_type,
+                      schedule: scheduleState
+                    }}
+                    updateOneTimeScheduleAction={updateOneTimeSchedule}
+                    updateMultiDayScheduleAction={updateMultiDaySchedule}
+                    updateMultiRoleScheduleAction={updateMultiRoleSchedule}
+                    addMultiDaySlotAction={addMultiDaySlot}
+                    addMultiDayEventAction={addMultiDayEvent}
+                    addRoleAction={addRole}
+                    removeDayAction={removeDay}
+                    removeSlotAction={removeSlot}
+                    removeRoleAction={removeRole}
+                    errors={scheduleErrors}
+                  />
+                </CollapsibleContent>
+              </Collapsible>
+
+              <Separator className="my-6" />
+
+              {/* Media & Documents Section - Collapsible */}
+              <Collapsible open={isMediaOpen} onOpenChange={setIsMediaOpen}>
+                <CollapsibleTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="w-full justify-between p-4 hover:bg-muted/50 h-auto"
+                  >
+                    <div className="flex items-center gap-2">
+                      <ImageIcon className="h-5 w-5 text-muted-foreground" />
+                      <h3 className="text-lg font-semibold">Media & Documents</h3>
+                    </div>
+                    {isMediaOpen ? (
+                      <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                    ) : (
+                      <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                    )}
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="space-y-6 pt-4">
+                  {/* Cover Image Upload */}
+                  <div className="space-y-3">
+                    <div>
+                      <h4 className="font-medium text-sm">Cover Image</h4>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Upload a cover image for your project (JPEG, PNG, WebP, max {formatBytes(MAX_COVER_IMAGE_SIZE)})
+                      </p>
+                    </div>
+                    
+                    <div className="border-2 border-dashed rounded-lg p-4 transition-colors hover:border-primary/50 hover:bg-primary/5">
+                      {project.cover_image_url ? (
+                        <div className="w-full max-w-md mx-auto">
+                          <AspectRatio ratio={16/9} className="bg-muted overflow-hidden rounded-md">
+                            <div className="relative w-full h-full">
+                              <Image
+                                src={project.cover_image_url}
+                                alt="Cover image"
+                                fill
+                                className="object-cover rounded-md"
+                              />
+                              <Button
+                                type="button"
+                                variant="destructive"
+                                size="icon"
+                                className="absolute top-2 right-2 h-8 w-8 shadow-lg"
+                                onClick={removeCoverImage}
+                                disabled={uploadingCoverImage}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </AspectRatio>
+                        </div>
+                      ) : (
+                        <label className="flex flex-col items-center justify-center py-6 cursor-pointer">
+                          <div className="rounded-full bg-background p-3 shadow-sm mb-3">
+                            <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                          </div>
+                          <p className="text-sm font-medium mb-1">
+                            {uploadingCoverImage ? "Uploading..." : "Click to upload cover image"}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {uploadingCoverImage ? "Please wait..." : "or drag and drop"}
+                          </p>
+                          <input
+                            type="file"
+                            accept={ALLOWED_IMAGE_TYPES.join(",")}
+                            className="hidden"
+                            onChange={handleCoverImageChange}
+                            disabled={uploadingCoverImage}
+                          />
+                        </label>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Supporting Documents */}
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h4 className="font-medium text-sm">Supporting Documents</h4>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Upload permission slips, waivers, instructions (PDF, Word, Text, Images)
+                        </p>
+                      </div>
+                      <div className="text-xs text-muted-foreground text-right">
+                        <div>{(project.documents || []).length}/{MAX_DOCUMENTS_COUNT} files</div>
+                        <div>{formatBytes(totalDocumentsSize)}/{formatBytes(MAX_DOCUMENT_SIZE)}</div>
+                      </div>
+                    </div>
+
+                    <div className={`border-2 border-dashed rounded-lg p-4 transition-colors ${
+                      (project.documents || []).length >= MAX_DOCUMENTS_COUNT 
+                        ? 'opacity-50 cursor-not-allowed' 
+                        : 'hover:border-primary/50 hover:bg-primary/5'
+                    }`}>
+                      <label className={`flex flex-col items-center justify-center py-6 ${
+                        (project.documents || []).length >= MAX_DOCUMENTS_COUNT ? 'cursor-not-allowed' : 'cursor-pointer'
+                      }`}>
+                        <div className="rounded-full bg-background p-3 shadow-sm mb-3">
+                          <Upload className="h-6 w-6 text-muted-foreground" />
+                        </div>
+                        <p className="text-sm font-medium mb-1">
+                          {(project.documents || []).length >= MAX_DOCUMENTS_COUNT 
+                            ? "Maximum files reached" 
+                            : uploadingDocuments ? "Uploading..." : "Click to upload documents"
+                          }
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {(project.documents || []).length >= MAX_DOCUMENTS_COUNT 
+                            ? `Limit of ${MAX_DOCUMENTS_COUNT} files reached`
+                            : uploadingDocuments ? "Please wait..." : "or drag and drop (multiple files allowed)"
+                          }
+                        </p>
+                        <input
+                          type="file"
+                          multiple
+                          accept={ALLOWED_DOCUMENT_TYPES.join(",")}
+                          className="hidden"
+                          onChange={handleDocumentUpload}
+                          disabled={uploadingDocuments || (project.documents || []).length >= MAX_DOCUMENTS_COUNT}
+                        />
+                      </label>
+                    </div>
+
+                    {/* Documents List */}
+                    {project.documents && project.documents.length > 0 && (
+                      <div className="space-y-2 mt-4">
+                        {project.documents.map((doc, index) => (
+                          <div
+                            key={index}
+                            className={cn(
+                              "flex items-center justify-between p-3 rounded-md transition-colors",
+                              hoverIndex === index ? "bg-muted" : "bg-muted/40"
+                            )}
+                            onMouseEnter={() => setHoverIndex(index)}
+                            onMouseLeave={() => setHoverIndex(null)}
+                          >
+                            <div className="flex items-center gap-3 min-w-0 flex-1">
+                              {getFileIcon(doc.type)}
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-medium truncate">{doc.name}</p>
+                                <p className="text-xs text-muted-foreground">{formatBytes(doc.size)}</p>
+                              </div>
+                            </div>
+                            <div className="flex gap-1 flex-shrink-0">
+                              {isPreviewable(doc.type) && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={() => openPreview(doc.url, doc.name, doc.type)}
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                              )}
+                              <Button
+                                type="button"
+                                variant={hoverIndex === index ? "destructive" : "ghost"}
+                                size="icon"
+                                className="h-8 w-8 transition-colors"
+                                onClick={() => handleDeleteDocument(doc.url)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+
               <div className="flex justify-end gap-4">
                 <Button
                   type="button"
@@ -616,6 +1330,15 @@ export default function EditProjectClient({ project }: Props) {
         isOpen={showCancelDialog}
         onClose={() => setShowCancelDialog(false)}
         onConfirm={handleCancelProject}
+      />
+
+      {/* File Preview */}
+      <FilePreview 
+        url={previewDoc || ""}
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        fileName={previewDocName}
+        fileType={previewDocType}
       />
     </div>
   );
