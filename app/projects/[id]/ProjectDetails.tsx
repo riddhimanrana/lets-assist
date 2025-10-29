@@ -48,6 +48,8 @@ import {
   Mail,
   Pause,
   MailCheck,
+  MoreVertical,
+  Flag,
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -84,6 +86,13 @@ import { SignupConfirmationModal } from "@/components/SignupConfirmationModal";
 import { CancelSignupModal } from "@/components/CancelSignupModal";
 import CalendarOptionsModal from "@/components/CalendarOptionsModal";
 import { TimezoneBadge } from "@/components/TimezoneBadge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ReportContentButton } from "@/components/ReportContentButton";
 
 interface SlotData {
   remainingSlots: Record<string, number>;
@@ -747,13 +756,39 @@ export default function ProjectDetails({
             <div className="flex items-center gap-2 mb-1 sm:mb-0 flex-shrink-0 order-0 sm:order-none justify-between w-full sm:w-auto">
               {/* Use calculatedStatus instead of project.status */}
               <ProjectStatusBadge status={calculatedStatus} className="capitalize" />
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={handleShare}
-              >
-                <Share2 className="h-4 w-4 shrink-0" />
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={handleShare}
+                >
+                  <Share2 className="h-4 w-4 shrink-0" />
+                </Button>
+                
+                {/* Report button - only show for non-creators */}
+                {!isCreator && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="icon">
+                        <MoreVertical className="h-4 w-4" />
+                        <span className="sr-only">More options</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <ReportContentButton
+                        contentType="project"
+                        contentId={project.id}
+                        triggerButton={
+                          <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                            <Flag className="mr-2 h-4 w-4" />
+                            <span>Report Project</span>
+                          </DropdownMenuItem>
+                        }
+                      />
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+              </div>
             </div>
           </div>
         </div>

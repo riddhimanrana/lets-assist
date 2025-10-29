@@ -8,9 +8,11 @@
     "postbuild": "next-sitemap",
     "start": "next start",
     "lint": "next lint",
-    "test:auto-publish": "node scripts/test-auto-publish.js"
+    "test:auto-publish": "node scripts/test-auto-publish.js",
+    "verify:cipa": "tsx scripts/verify-cipa-tables.ts"
   },
   "dependencies": {
+    "@ai-sdk/google": "^2.0.24",
     "@arcgis/core": "^4.32.9",
     "@arcgis/map-components": "^4.32.12",
     "@eslint/eslintrc": "^3.3.0",
@@ -61,6 +63,7 @@
     "@vercel/speed-insights": "^1.2.0",
     "@vis.gl/react-google-maps": "^1.5.2",
     "@yudiel/react-qr-scanner": "^2.2.1",
+    "ai": "^5.0.81",
     "axios": "^1.8.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -82,7 +85,7 @@
     "prettier": "3.4.2",
     "punycode": "^2.3.1",
     "react": "^19.2.0",
-    "react-day-picker": "8.10.1",
+    "react-day-picker": "^9.11.1",
     "react-dom": "^19.2.0",
     "react-easy-crop": "^5.4.1",
     "react-email": "^4.0.7",
@@ -101,7 +104,7 @@
     "use-debounce": "^10.0.4",
     "uuid": "^11.1.0",
     "vaul": "^1.1.2",
-    "zod": "^3.24.2"
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@next/eslint-plugin-next": "^15.2.1",
@@ -117,7 +120,8 @@
     "typescript": "^5.8.2"
   },
   "overrides": {
-    "react-is": "^19.0.0-rc-69d4b800-20241021"
+    "react-is": "^19.0.0-rc-69d4b800-20241021",
+    "zod": "^3.25.76"
   },
   "trustedDependencies": [
     "@vaadin/vaadin-usage-statistics",

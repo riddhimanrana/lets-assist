@@ -64,14 +64,44 @@ interface TrustedMemberApplication {
   profiles: Profile | null;
 }
 
+interface ModerationStats {
+  total: number;
+  pending: number;
+  blocked: number;
+  critical: number;
+  recentWeek: number;
+  monthlyActivity: number;
+}
+
+interface ReportsStats {
+  total: number;
+  pending: number;
+  resolved: number;
+  highPriority: number;
+  recentWeek: number;
+}
+
 interface AdminClientProps {
   feedback: Feedback[];
   applications: TrustedMemberApplication[];
+  moderationStats?: ModerationStats;
+  flaggedContent?: any[];
+  contentReports?: any[];
+  reportsStats?: ReportsStats;
 }
 
-export function AdminClient({ feedback: initialFeedback, applications: initialApplications }: AdminClientProps) {
+export function AdminClient({ 
+  feedback: initialFeedback, 
+  applications: initialApplications,
+  moderationStats,
+  flaggedContent: initialFlaggedContent = [],
+  contentReports: initialContentReports = [],
+  reportsStats,
+}: AdminClientProps) {
   const [feedback, setFeedback] = useState(initialFeedback);
   const [applications, setApplications] = useState(initialApplications);
+  const [flaggedContent, setFlaggedContent] = useState(initialFlaggedContent);
+  const [contentReports, setContentReports] = useState(initialContentReports);
   const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [feedbackToDelete, setFeedbackToDelete] = useState<string | null>(null);
@@ -198,17 +228,23 @@ export function AdminClient({ feedback: initialFeedback, applications: initialAp
       <div className="mb-8">
         <h1 className="text-4xl font-bold">Admin Dashboard</h1>
         <p className="text-muted-foreground mt-2">
-          Manage feedback and trusted member applications
+          Manage feedback, trusted members, and content moderation
         </p>
       </div>
 
       <Tabs defaultValue="feedback" className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
+        <TabsList className="grid w-full max-w-2xl grid-cols-4">
           <TabsTrigger value="feedback">
             Feedback ({feedback.length})
           </TabsTrigger>
           <TabsTrigger value="trusted-members">
             Trusted Members ({applications.length})
+          </TabsTrigger>
+          <TabsTrigger value="flagged">
+            Flagged ({moderationStats?.pending || 0})
+          </TabsTrigger>
+          <TabsTrigger value="reports">
+            Reports ({reportsStats?.pending || 0})
           </TabsTrigger>
         </TabsList>
 
@@ -385,6 +421,85 @@ export function AdminClient({ feedback: initialFeedback, applications: initialAp
                     ))}
                   </TableBody>
                 </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Flagged Content Tab */}
+        <TabsContent value="flagged" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Flagged Content</CardTitle>
+              <CardDescription>
+                Content flagged by the moderation system
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {flaggedContent.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  No flagged content
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {flaggedContent.map((item: any) => (
+                    <Card key={item.id} className="p-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <p className="font-medium">{item.content_type} - {item.flag_type}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-sm text-muted-foreground">Status:</span>
+                            <Badge>{item.status}</Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-2">
+                            Confidence: {Math.round(item.confidence_score * 100)}%
+                          </p>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Reports Tab */}
+        <TabsContent value="reports" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>User Reports</CardTitle>
+              <CardDescription>
+                Reports submitted by users
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {contentReports.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  No reports
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {contentReports.map((report: any) => (
+                    <Card key={report.id} className="p-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <p className="font-medium">{report.reason}</p>
+                          <p className="text-sm text-muted-foreground mt-1">{report.content_type}</p>
+                          {report.description && (
+                            <p className="text-sm mt-2">{report.description}</p>
+                          )}
+                          <div className="flex items-center gap-2 mt-2 flex-wrap">
+                            <span className="text-xs text-muted-foreground">Status:</span>
+                            <Badge>{report.status}</Badge>
+                            <span className="text-xs text-muted-foreground">Priority:</span>
+                            <Badge variant="outline">{report.priority}</Badge>
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
               )}
             </CardContent>
           </Card>

@@ -14,7 +14,8 @@ export const config = {
          * - favicon.ico (favicon file)
          * - images and other static files
          * - auth verify endpoints (callback, confirm) and reset password verification
+         * - api routes for posthog and other external services
          */
-        '/((?!_next/static|_next/image|favicon.ico|auth/callback|auth/confirm|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+        '/((?!_next/static|_next/image|favicon.ico|auth/callback|auth/confirm|api/ingest|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
     ],
 }

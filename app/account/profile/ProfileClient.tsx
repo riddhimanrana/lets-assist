@@ -11,7 +11,7 @@ import {
   AvatarImage,
   AvatarFallback,
 } from "@/components/ui/avatar";
-import { Upload, CircleCheck, XCircle, Trash2 } from "lucide-react";
+import { Upload, CircleCheck, XCircle, Trash2, Shield, AlertTriangle, Calendar, Info } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -29,13 +29,19 @@ import {
   FormDescription,
 } from "@/components/ui/form";
 import { toast } from "sonner";
-import { completeOnboarding, removeProfilePicture, updateNameAndUsername } from "./actions";
+import { completeOnboarding, removeProfilePicture, updateNameAndUsername, updateProfileVisibility, updateDateOfBirth } from "./actions";
 import type { OnboardingValues } from "./actions";
 import { z } from "zod";
 import ImageCropper from "@/components/ImageCropper";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion } from "framer-motion";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { calculateAge } from "@/utils/age-helpers";
+import type { ProfileVisibility } from "@/utils/settings/profile-settings";
 
 // Constants for character limits
 const NAME_MAX_LENGTH = 64;
@@ -217,7 +223,20 @@ export default function ProfileClient() {
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [nameLength, setNameLength] = useState(0);
   const [usernameLength, setUsernameLength] = useState(0);
-  const [phoneNumberLength, setPhoneNumberLength] = useState(0); // Add state for phone number length
+  const [phoneNumberLength, setPhoneNumberLength] = useState(0);
+  
+  // Privacy & Safety state
+  const [profileVisibility, setProfileVisibility] = useState<ProfileVisibility>('private');
+  const [isVisibilityLoading, setIsVisibilityLoading] = useState(false);
+  const [canChangeVisibility, setCanChangeVisibility] = useState(true);
+  const [dateOfBirth, setDateOfBirth] = useState<string | null>(null);
+  const [dobInput, setDobInput] = useState('');
+  const [isUpdatingDob, setIsUpdatingDob] = useState(false);
+  const [dobError, setDobError] = useState<string | null>(null);
+  const [isSchoolAccount, setIsSchoolAccount] = useState(false);
+  const [emailDomain, setEmailDomain] = useState<string | null>(null);
+  const [requiresParentalConsent, setRequiresParentalConsent] = useState(false);
+  const [age, setAge] = useState<number | null>(null);
 
   useEffect(() => {
     async function fetchUserProfile() {
@@ -228,7 +247,7 @@ export default function ProfileClient() {
         } = await supabase.auth.getUser();
         const { data: profileData } = await supabase
           .from("profiles")
-          .select("full_name, avatar_url, username, phone") // Fetch phone
+          .select("full_name, avatar_url, username, phone, profile_visibility, date_of_birth, is_school_account, parental_consent_required, email")
           .eq("id", user?.id)
           .single();
         if (profileData) {
@@ -241,12 +260,32 @@ export default function ProfileClient() {
             fullName: profileData.full_name,
             username: profileData.username,
             avatarUrl: profileData.avatar_url,
-            phoneNumber: formattedPhoneNumber, // Set formatted phone number
+            phoneNumber: formattedPhoneNumber,
           });
           // Initialize character counts
           setNameLength(profileData.full_name?.length || 0);
           setUsernameLength(profileData.username?.length || 0);
-          setPhoneNumberLength(profileData.phone?.length || 0); // Set phone number length (raw digits)
+          setPhoneNumberLength(profileData.phone?.length || 0);
+          
+          // Set privacy data
+          setProfileVisibility((profileData.profile_visibility as ProfileVisibility) || 'private');
+          setDateOfBirth(profileData.date_of_birth);
+          setDobInput(profileData.date_of_birth || '');
+          setIsSchoolAccount(profileData.is_school_account || false);
+          setRequiresParentalConsent(profileData.parental_consent_required || false);
+          
+          // Calculate age and determine if user can change visibility
+          if (profileData.date_of_birth) {
+            const userAge = calculateAge(profileData.date_of_birth);
+            setAge(userAge);
+            setCanChangeVisibility(userAge >= 13);
+          }
+          
+          // Extract email domain
+          if (profileData.email) {
+            const domain = profileData.email.split('@')[1];
+            setEmailDomain(domain);
+          }
         }
       } catch (error) {
         console.error("Error fetching user profile:", error);
@@ -348,6 +387,102 @@ export default function ProfileClient() {
       toast.error("An unexpected error occurred. Please try again.");
     } finally {
       setIsLoading(false);
+    }
+  }
+  
+  // Handler for profile visibility toggle
+  async function handleVisibilityChange(checked: boolean) {
+    const newVisibility: ProfileVisibility = checked ? 'public' : 'private';
+    setIsVisibilityLoading(true);
+    
+    try {
+      const result = await updateProfileVisibility(newVisibility);
+      
+      if (result.error) {
+        // Extract error message from error object
+        const errorMsg = result.error.visibility?.[0] || result.error.server?.[0] || 'Failed to update visibility';
+        toast.error(errorMsg);
+        return;
+      }
+      
+      if (result.success && result.visibility) {
+        setProfileVisibility(result.visibility);
+        toast.success(`Profile is now ${result.visibility}`);
+      }
+    } catch (error) {
+      console.error("Error updating visibility:", error);
+      toast.error("Failed to update profile visibility");
+    } finally {
+      setIsVisibilityLoading(false);
+    }
+  }
+  
+  // Handler for date of birth update
+  async function handleDobSave() {
+    if (!dobInput) {
+      setDobError("Date of birth is required");
+      return;
+    }
+    
+    // Validate date format (YYYY-MM-DD)
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(dobInput)) {
+      setDobError("Please enter date in YYYY-MM-DD format");
+      return;
+    }
+    
+    // Validate date is in the past
+    const inputDate = new Date(dobInput);
+    if (inputDate > new Date()) {
+      setDobError("Date of birth cannot be in the future");
+      return;
+    }
+    
+    setIsUpdatingDob(true);
+    setDobError(null);
+    
+    try {
+      const result = await updateDateOfBirth(dobInput);
+      
+      if (result.error) {
+        // Extract error message from error object
+        const errorMsg = result.error.dateOfBirth?.[0] || result.error.server?.[0] || 'Failed to update date of birth';
+        setDobError(errorMsg);
+        toast.error(errorMsg);
+        return;
+      }
+      
+      if (result.success) {
+        setDateOfBirth(dobInput);
+        
+        // Update age and visibility constraints
+        if (result.age !== undefined) {
+          setAge(result.age);
+          setCanChangeVisibility(result.canChangeVisibility);
+          
+          if (result.age < 13 && result.requiresParentalConsent) {
+            setRequiresParentalConsent(true);
+            toast.warning("Profile locked to private. Parental consent required.");
+          }
+        }
+        
+        if (result.isSchoolAccount !== undefined) {
+          setIsSchoolAccount(result.isSchoolAccount);
+        }
+        
+        if (result.visibility) {
+          setProfileVisibility(result.visibility);
+        }
+        
+        toast.success("Date of birth updated successfully");
+      }
+    } catch (error) {
+      console.error("Error updating DOB:", error);
+      const errorMsg = "Failed to update date of birth";
+      setDobError(errorMsg);
+      toast.error(errorMsg);
+    } finally {
+      setIsUpdatingDob(false);
     }
   }
 
@@ -580,6 +715,146 @@ export default function ProfileClient() {
                     </div>
                   </form>
                 </Form>
+              )}
+            </CardContent>
+          </Card>
+          
+          {/* Privacy & Safety Card */}
+          <Card className="mt-6">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Shield className="h-5 w-5" />
+                <CardTitle>Privacy & Safety</CardTitle>
+              </div>
+              <CardDescription>
+                Manage your profile visibility and age verification
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {isDataLoading ? (
+                <div className="space-y-4">
+                  <Skeleton className="h-16 w-full" />
+                  <Skeleton className="h-16 w-full" />
+                  <Skeleton className="h-16 w-full" />
+                </div>
+              ) : (
+                <>
+                  {/* Profile Visibility Toggle */}
+                  <div className="flex items-start justify-between space-x-4 rounded-lg border p-4">
+                    <div className="flex-1 space-y-1">
+                      <Label htmlFor="profile-visibility" className="text-base font-medium">
+                        Profile Visibility
+                      </Label>
+                      <p className="text-sm text-muted-foreground">
+                        {profileVisibility === 'public' 
+                          ? 'Your profile is visible to everyone' 
+                          : 'Your profile is only visible to you and admins'}
+                      </p>
+                      {!canChangeVisibility && (
+                        <div className="flex items-center gap-1 mt-2">
+                          <Info className="h-3 w-3 text-muted-foreground" />
+                          <span className="text-xs text-muted-foreground">
+                            Profile locked to private (age restriction)
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <Switch
+                      id="profile-visibility"
+                      checked={profileVisibility === 'public'}
+                      onCheckedChange={handleVisibilityChange}
+                      disabled={isVisibilityLoading || !canChangeVisibility}
+                    />
+                  </div>
+
+                  {/* Date of Birth Section */}
+                  <div className="rounded-lg border p-4 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4" />
+                      <Label htmlFor="dob" className="text-base font-medium">
+                        Date of Birth
+                      </Label>
+                      {age !== null && (
+                        <Badge variant="secondary" className="ml-auto">
+                          Age: {age}
+                        </Badge>
+                      )}
+                    </div>
+                    
+                    {dateOfBirth ? (
+                      <div className="space-y-2">
+                        <p className="text-sm text-muted-foreground">
+                          Your date of birth: <span className="font-medium">{new Date(dateOfBirth).toLocaleDateString()}</span>
+                        </p>
+                        {age !== null && age < 13 && (
+                          <Alert variant="warning" className="mt-2">
+                            <AlertTriangle className="h-4 w-4" />
+                            <AlertTitle>Restricted Account</AlertTitle>
+                            <AlertDescription>
+                              Your account is restricted due to age requirements. Your profile is locked to private visibility.
+                            </AlertDescription>
+                          </Alert>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <p className="text-sm text-muted-foreground">
+                          Add your date of birth for age verification
+                        </p>
+                        <div className="flex gap-2">
+                          <Input
+                            id="dob"
+                            type="date"
+                            value={dobInput}
+                            onChange={(e) => {
+                              setDobInput(e.target.value);
+                              setDobError(null);
+                            }}
+                            max={new Date().toISOString().split('T')[0]}
+                            className={dobError ? 'border-destructive' : ''}
+                          />
+                          <Button
+                            onClick={handleDobSave}
+                            disabled={isUpdatingDob || !dobInput}
+                          >
+                            {isUpdatingDob ? 'Saving...' : 'Save'}
+                          </Button>
+                        </div>
+                        {dobError && (
+                          <p className="text-sm text-destructive">{dobError}</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* School Account Badge */}
+                  {isSchoolAccount && emailDomain && (
+                    <Alert>
+                      <Shield className="h-4 w-4" />
+                      <AlertTitle>School Account Verified</AlertTitle>
+                      <AlertDescription>
+                        Your account is verified as a school account from {emailDomain}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  {/* Parental Consent Warning */}
+                  {requiresParentalConsent && (
+                    <Alert variant="warning">
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertTitle>Parental Consent Required</AlertTitle>
+                      <AlertDescription>
+                        We still need a parent or guardian to approve your account.{' '}
+                        <a 
+                          href="/account/parental-consent" 
+                          className="underline font-medium hover:text-primary"
+                        >
+                          Request consent here
+                        </a>
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </>
               )}
             </CardContent>
           </Card>

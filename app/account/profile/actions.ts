@@ -2,6 +2,14 @@
 
 import { z } from "zod";
 import { createClient } from "@/utils/supabase/server";
+import { calculateAge, isUnder13 } from "@/utils/age-helpers";
+import {
+  applyVisibilityConstraints,
+  canChangeProfileVisibility,
+  getDefaultProfileVisibility,
+  isInstitutionEmail,
+  type ProfileVisibility,
+} from "@/utils/settings/profile-settings";
 
 const onboardingSchema = z.object({
   fullName: z
@@ -309,4 +317,173 @@ export async function updateNameAndUsername(fullName?: string, username?: string
   }
   
   return { success: true };
+}
+
+export async function updateProfileVisibility(
+  visibility: ProfileVisibility,
+) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: { server: ["Not authenticated"] } };
+  }
+
+  if (!(["public", "private"] as ProfileVisibility[]).includes(visibility)) {
+    return { error: { visibility: ["Invalid visibility setting"] } };
+  }
+
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("date_of_birth")
+    .eq("id", user.id)
+    .single();
+
+  if (profileError) {
+    console.error("updateProfileVisibility: failed to load profile", profileError);
+    return { error: { server: ["Could not verify profile details"] } };
+  }
+
+  const dateOfBirth: string | null = profile?.date_of_birth ?? null;
+  const canChange = canChangeProfileVisibility(dateOfBirth);
+  const enforcedVisibility = applyVisibilityConstraints(visibility, dateOfBirth);
+
+  if (enforcedVisibility !== visibility) {
+    return {
+      error: {
+        visibility: [
+          "Users under 13 must keep their profile private for safety.",
+        ],
+      },
+      enforcedVisibility,
+      canChangeVisibility: canChange,
+    };
+  }
+
+  const { error: updateError } = await supabase
+    .from("profiles")
+    .update({
+      profile_visibility: enforcedVisibility,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", user.id);
+
+  if (updateError) {
+    console.error("updateProfileVisibility: failed to update profile", updateError);
+    return { error: { server: ["Failed to update profile visibility"] } };
+  }
+
+  return {
+    success: true,
+    visibility: enforcedVisibility,
+    canChangeVisibility: canChange,
+  };
+}
+
+export async function updateDateOfBirth(dateOfBirth: string) {
+  const normalizedDob = dateOfBirth?.trim();
+
+  if (!normalizedDob) {
+    return { error: { dateOfBirth: ["Date of birth is required"] } };
+  }
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(normalizedDob)) {
+    return { error: { dateOfBirth: ["Use YYYY-MM-DD format"] } };
+  }
+
+  const parsedDob = new Date(normalizedDob);
+  if (Number.isNaN(parsedDob.getTime())) {
+    return { error: { dateOfBirth: ["Select a valid date"] } };
+  }
+
+  const todayIso = new Date().toISOString().split("T")[0];
+  if (normalizedDob > todayIso) {
+    return { error: { dateOfBirth: ["Date of birth cannot be in the future"] } };
+  }
+
+  const age = calculateAge(normalizedDob);
+  if (age < 5 || age > 120) {
+    return { error: { dateOfBirth: ["Enter a valid date of birth"] } };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: { server: ["Not authenticated"] } };
+  }
+
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("email, is_school_account, profile_visibility")
+    .eq("id", user.id)
+    .single();
+
+  if (profileError) {
+    console.error("updateDateOfBirth: failed to load profile", profileError);
+    return { error: { server: ["Could not verify profile details"] } };
+  }
+
+  const email = profile?.email ?? user.email ?? "";
+  const existingVisibility =
+    (profile?.profile_visibility as ProfileVisibility) ?? "public";
+
+  const institutionFlag =
+    typeof profile?.is_school_account === "boolean"
+      ? profile.is_school_account
+      : email
+        ? await isInstitutionEmail(email)
+        : false;
+
+  const defaultVisibility = getDefaultProfileVisibility(
+    normalizedDob,
+    institutionFlag,
+  );
+
+  const desiredVisibility:
+    | ProfileVisibility
+    | undefined = (["public", "private"] as ProfileVisibility[]).includes(
+    existingVisibility,
+  )
+    ? existingVisibility
+    : defaultVisibility;
+
+  const enforcedVisibility = applyVisibilityConstraints(
+    desiredVisibility,
+    normalizedDob,
+  );
+
+  const requiresParentalConsent = isUnder13(normalizedDob);
+  const canChange = canChangeProfileVisibility(normalizedDob);
+
+  const { error: updateError } = await supabase
+    .from("profiles")
+    .update({
+      date_of_birth: normalizedDob,
+      profile_visibility: enforcedVisibility,
+      parental_consent_required: requiresParentalConsent,
+      parental_consent_verified: !requiresParentalConsent,
+      age_verified_at: new Date().toISOString(),
+      is_school_account: institutionFlag,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", user.id);
+
+  if (updateError) {
+    console.error("updateDateOfBirth: failed to update profile", updateError);
+    return { error: { server: ["Failed to update date of birth"] } };
+  }
+
+  return {
+    success: true,
+    visibility: enforcedVisibility,
+    requiresParentalConsent,
+    canChangeVisibility: canChange,
+    age,
+    isSchoolAccount: institutionFlag,
+  };
 }

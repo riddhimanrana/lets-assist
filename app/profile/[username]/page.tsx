@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { format, parseISO, differenceInMinutes, isBefore } from "date-fns"; // Added parseISO, differenceInMinutes, isBefore
 import { notFound } from "next/navigation";
 import { NoAvatar } from "@/components/NoAvatar";
-import { CalendarIcon, Calendar, MapPin, BadgeCheck, Users, Clock, Award, ExternalLink } from "lucide-react";
+import { CalendarIcon, Calendar, MapPin, BadgeCheck, Users, Clock, Award, ExternalLink, MoreVertical, Flag } from "lucide-react";
 import Link from "next/link";
 import { Shield, UserRoundCog, UserRound } from "lucide-react";
 import { ProjectStatusBadge } from "@/components/ui/status-badge";
@@ -17,6 +17,14 @@ import Image from "next/image";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { isTrustedForDisplay } from "@/utils/trust";
 import { stripHtml } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+import { ReportContentButton } from "@/components/ReportContentButton";
 
 interface Profile {
   id: string;
@@ -229,7 +237,35 @@ function formatHours(hours: number): string {
     <div className="flex justify-center w-full">
       <div className="container max-w-5xl py-4 sm:py-8 px-4 sm:px-6">
         {/* Profile Header Card */}
-        <Card className="mb-6 sm:mb-8 overflow-hidden">
+        <Card className="mb-6 sm:mb-8 overflow-hidden relative">
+          {/* Three-dot menu in top-right corner */}
+          <div className="absolute top-4 right-4 z-10">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                >
+                  <MoreVertical className="h-4 w-4" />
+                  <span className="sr-only">Open menu</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <ReportContentButton
+                  contentType="profile"
+                  contentId={profile.id}
+                  triggerButton={
+                    <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                      <Flag className="mr-2 h-4 w-4" />
+                      <span>Report Profile</span>
+                    </DropdownMenuItem>
+                  }
+                />
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+          
           <div className="h-24 sm:h-32 bg-gradient-to-r from-primary/40 via-primary/20 to-primary/10"></div>
           <CardHeader className="pt-0 px-4 sm:px-6 pb-2">
             <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 -mt-6 sm:-mt-16">

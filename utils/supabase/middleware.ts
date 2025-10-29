@@ -35,7 +35,7 @@ export async function updateSession(request: NextRequest) {
           return request.cookies.getAll()
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
           supabaseResponse = NextResponse.next({
             request,
           })
@@ -47,17 +47,30 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
+  // IMPORTANT: Do NOT call getUser() on every request - it creates excessive API calls
+  // The session is already validated via cookies, only call getUser() when needed
+  
   // Check for ?noRedirect=1 query parameter
   const searchParams = request.nextUrl.searchParams;
   if (searchParams.get("noRedirect") === "1") {
     return supabaseResponse; // Skip redirects if requested
   }
 
-  // Fetch user session
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
   const currentPath = request.nextUrl.pathname;
+
+  // Only fetch user for routes that actually need auth checks
+  const needsAuthCheck = 
+    isProtectedPath(currentPath) || 
+    isProjectCreatorPath(currentPath).isCreatorPath ||
+    currentPath.startsWith("/admin") ||
+    RESTRICTED_PATHS_FOR_LOGGED_IN_USERS.includes(currentPath);
+
+  let user = null;
+  if (needsAuthCheck) {
+    // Only call getUser() when we actually need to check auth
+    const { data: { user: fetchedUser } } = await supabase.auth.getUser();
+    user = fetchedUser;
+  }
 
 
 // Handle /account redirect - must come first as it's a simple path redirect
