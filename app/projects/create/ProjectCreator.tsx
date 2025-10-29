@@ -9,11 +9,12 @@ import EventType from "./EventType";
 import Schedule from "./Schedule";
 import Finalize from "./Finalize";
 import VerificationSettings from "./VerificationSettings";
+import AIAssistant, { AIParseResult } from "./AIAssistant";
 // shadcn components
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 // icon components
-import { Loader2, ChevronLeft, ChevronRight, AlertCircle } from "lucide-react";
+import { Loader2, ChevronLeft, ChevronRight, AlertCircle, Sparkles } from "lucide-react";
 // utility
 import { cn } from "@/lib/utils";
 // Replace shadcn toast with Sonner
@@ -87,6 +88,9 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
 
   const [hasProfanity, setHasProfanity] = useState<boolean>(false);
   
+  // AI Assistant state
+  const [showAIAssistant, setShowAIAssistant] = useState(false);
+  
   // Check if returning from OAuth and should reopen calendar modal
   useEffect(() => {
     const shouldReopen = sessionStorage.getItem("reopenCalendarModal");
@@ -113,6 +117,122 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
   // Add handler to update profanity state
   const handleProfanityResult = (hasIssues: boolean) => {
     setHasProfanity(hasIssues);
+  };
+
+  // Handle AI-generated data
+  const handleApplyAIData = (data: AIParseResult) => {
+    // Apply basic info
+    if (data.title) {
+      handleBasicInfoUpdate('title', data.title);
+    }
+    if (data.location) {
+      handleBasicInfoUpdate('location', data.location);
+    }
+    if (data.description) {
+      handleBasicInfoUpdate('description', data.description);
+    }
+
+    // Apply event type
+    if (data.eventType) {
+      setEventType(data.eventType);
+    }
+
+    // Apply schedule based on event type
+    if (data.schedule && data.eventType) {
+      if (data.eventType === 'oneTime' && data.schedule.date) {
+        handleOneTimeScheduleUpdate('date', data.schedule.date);
+        if (data.schedule.startTime) handleOneTimeScheduleUpdate('startTime', data.schedule.startTime);
+        if (data.schedule.endTime) handleOneTimeScheduleUpdate('endTime', data.schedule.endTime);
+        if (data.schedule.volunteers) handleOneTimeScheduleUpdate('volunteers', data.schedule.volunteers);
+      } else if (data.eventType === 'multiDay' && Array.isArray(data.schedule)) {
+        // Clear existing days first
+        const currentDays = state.schedule.multiDay.length;
+        for (let i = currentDays - 1; i >= 0; i--) {
+          removeDay(i);
+        }
+        
+        // Add new days from AI
+        data.schedule.forEach((day: any, dayIndex: number) => {
+          if (dayIndex === 0) {
+            // Update first day
+            handleMultiDayScheduleUpdate(0, 'date', day.date);
+            if (Array.isArray(day.slots)) {
+              day.slots.forEach((slot: any, slotIndex: number) => {
+                if (slotIndex === 0) {
+                  handleMultiDayScheduleUpdate(0, 'startTime', slot.startTime, 0);
+                  handleMultiDayScheduleUpdate(0, 'endTime', slot.endTime, 0);
+                  handleMultiDayScheduleUpdate(0, 'volunteers', slot.volunteers, 0);
+                } else {
+                  addMultiDaySlot(0);
+                  handleMultiDayScheduleUpdate(0, 'startTime', slot.startTime, slotIndex);
+                  handleMultiDayScheduleUpdate(0, 'endTime', slot.endTime, slotIndex);
+                  handleMultiDayScheduleUpdate(0, 'volunteers', slot.volunteers, slotIndex);
+                }
+              });
+            }
+          } else {
+            addMultiDayEvent();
+            handleMultiDayScheduleUpdate(dayIndex, 'date', day.date);
+            if (Array.isArray(day.slots)) {
+              day.slots.forEach((slot: any, slotIndex: number) => {
+                if (slotIndex === 0) {
+                  handleMultiDayScheduleUpdate(dayIndex, 'startTime', slot.startTime, 0);
+                  handleMultiDayScheduleUpdate(dayIndex, 'endTime', slot.endTime, 0);
+                  handleMultiDayScheduleUpdate(dayIndex, 'volunteers', slot.volunteers, 0);
+                } else {
+                  addMultiDaySlot(dayIndex);
+                  handleMultiDayScheduleUpdate(dayIndex, 'startTime', slot.startTime, slotIndex);
+                  handleMultiDayScheduleUpdate(dayIndex, 'endTime', slot.endTime, slotIndex);
+                  handleMultiDayScheduleUpdate(dayIndex, 'volunteers', slot.volunteers, slotIndex);
+                }
+              });
+            }
+          }
+        });
+      } else if (data.eventType === 'sameDayMultiArea' && data.schedule.date) {
+        handleMultiRoleScheduleUpdate('date', data.schedule.date);
+        if (data.schedule.overallStart) handleMultiRoleScheduleUpdate('overallStart', data.schedule.overallStart);
+        if (data.schedule.overallEnd) handleMultiRoleScheduleUpdate('overallEnd', data.schedule.overallEnd);
+        
+        // Clear existing roles
+        const currentRoles = state.schedule.sameDayMultiArea.roles.length;
+        for (let i = currentRoles - 1; i > 0; i--) {
+          removeRole(i);
+        }
+        
+        // Add new roles from AI
+        if (Array.isArray(data.schedule.roles)) {
+          data.schedule.roles.forEach((role: any, roleIndex: number) => {
+            if (roleIndex === 0) {
+              handleMultiRoleScheduleUpdate('name', role.name, 0);
+              handleMultiRoleScheduleUpdate('startTime', role.startTime, 0);
+              handleMultiRoleScheduleUpdate('endTime', role.endTime, 0);
+              handleMultiRoleScheduleUpdate('volunteers', role.volunteers, 0);
+            } else {
+              addRole();
+              handleMultiRoleScheduleUpdate('name', role.name, roleIndex);
+              handleMultiRoleScheduleUpdate('startTime', role.startTime, roleIndex);
+              handleMultiRoleScheduleUpdate('endTime', role.endTime, roleIndex);
+              handleMultiRoleScheduleUpdate('volunteers', role.volunteers, roleIndex);
+            }
+          });
+        }
+      }
+    }
+
+    // Apply verification settings
+    if (data.verificationMethod) {
+      updateVerificationMethod(data.verificationMethod);
+    }
+    if (data.requireLogin !== undefined) {
+      updateRequireLogin(data.requireLogin);
+    }
+    if (data.isPrivate !== undefined) {
+      updateIsPrivate(data.isPrivate);
+    }
+
+    // Close AI Assistant
+    setShowAIAssistant(false);
   };
 
   // Clear errors when a field is updated
@@ -505,9 +625,21 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
   return (
     <>
       <div className="mb-6 sm:mb-8">
-        <h1 className="text-3xl sm:text-4xl font-bold mb-4">
-          Create a Volunteering Project
-        </h1>
+        <div className="flex items-start justify-between mb-4">
+          <h1 className="text-3xl sm:text-4xl font-bold">
+            Create a Volunteering Project
+          </h1>
+          {state.step === 1 && (
+            <Button
+              variant="outline"
+              onClick={() => setShowAIAssistant(!showAIAssistant)}
+              className="flex items-center gap-2"
+            >
+              <Sparkles className="h-4 w-4" />
+              <span className="hidden sm:inline">AI Assistant</span>
+            </Button>
+          )}
+        </div>
         
         <Progress value={(state.step / 5) * 100} className="h-2" />
         <div className="grid grid-cols-5 mt-2 text-xs sm:text-sm text-muted-foreground">
@@ -528,6 +660,16 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
           </span>
         </div>
       </div>
+      
+      {/* AI Assistant Component */}
+      {state.step === 1 && (
+        <AIAssistant
+          isOpen={showAIAssistant}
+          onClose={() => setShowAIAssistant(false)}
+          onApplyData={handleApplyAIData}
+        />
+      )}
+      
       <div className="space-y-6 sm:space-y-8">
         {renderStep()}
         <div className="flex justify-between gap-4">
