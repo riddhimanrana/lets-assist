@@ -5,8 +5,7 @@
 
 import { calculateAge } from '@/utils/age-helpers';
 import { createClient } from '@/utils/supabase/server';
-
-export type ProfileVisibility = 'public' | 'private';
+import { ProfileVisibility } from '@/types';
 
 /**
  * Check if email is from an institution domain

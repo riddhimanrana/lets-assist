@@ -3,12 +3,12 @@
 import { z } from "zod";
 import { createClient } from "@/utils/supabase/server";
 import { calculateAge, isUnder13 } from "@/utils/age-helpers";
+import { ProfileVisibility } from "@/types";
 import {
   applyVisibilityConstraints,
   canChangeProfileVisibility,
   getDefaultProfileVisibility,
   isInstitutionEmail,
-  type ProfileVisibility,
 } from "@/utils/settings/profile-settings";
 
 const onboardingSchema = z.object({
