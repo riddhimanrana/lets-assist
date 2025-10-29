@@ -1,6 +1,6 @@
 "use client";
 import { useState, useRef } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -44,6 +44,7 @@ export default function LoginClient({ redirectPath }: LoginClientProps) {
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [turnstileVerified, setTurnstileVerified] = useState(false);
   const turnstileRef = useRef<TurnstileRef>(null);
+  const router = useRouter();
 
   const form = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
@@ -93,11 +94,19 @@ export default function LoginClient({ redirectPath }: LoginClientProps) {
         toast.error("Incorrect email or password.");
       }
     } else if (result.success) {
+      // Don't wait - let onAuthStateChange handle the state update
+      // Just redirect immediately since session is established server-side
+      const redirectUrl = redirectPath ? decodeURIComponent(redirectPath) : "/home";
+      
       if (isVerified) {
-        window.location.href = "/home?confirmed=true";
+        router.push("/home?confirmed=true");
       } else {
-        window.location.href = redirectPath ? decodeURIComponent(redirectPath) : "/home";
+        router.push(redirectUrl);
       }
+
+      // Force a refresh so server components re-evaluate with the new session cookie
+      router.refresh();
+      return;
     }
 
     setIsLoading(false);

@@ -371,7 +371,10 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
                       defaultValue={field.value}
                     >
                       <FormControl>
-                        <SelectTrigger className={!field.value ? "text-muted-foreground" : ""}>
+                        <SelectTrigger 
+                          data-empty={!field.value}
+                          className="data-[empty=true]:text-muted-foreground"
+                        >
                           <SelectValue placeholder="Select organization type" />
                         </SelectTrigger>
                       </FormControl>

@@ -5,12 +5,13 @@ import { EmailVerificationToast } from "@/components/EmailVerificationToast";
 import { EmailConfirmationModal } from "@/components/EmailConfirmationModal";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { Plus } from "lucide-react"; // Import the Plus icon
+import { Plus, Shield } from "lucide-react"; // Import the Plus and Shield icons
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { NoAvatar } from "@/components/NoAvatar";
 import { Metadata } from "next";
 import { ProjectsInfiniteScroll } from "@/components/ProjectsInfiniteScroll";
 import { TrustedInfoIcon } from "@/components/TrustedInfoIcon";
+import { checkSuperAdmin } from "@/app/admin/actions";
 
 export const metadata: Metadata = {
   title: "Home",
@@ -30,6 +31,9 @@ export default async function Home() {
     .single();
   const userName = profileData?.full_name || "Anonymous";
   let isTrusted = !!profileData?.trusted_member;
+
+  // Check if user is super admin
+  const { isAdmin } = await checkSuperAdmin();
 
   // Determine application status (NULL: pending, TRUE: accepted, FALSE: denied)
   let applicationStatus: boolean | null | undefined = undefined;
@@ -67,6 +71,19 @@ export default async function Home() {
             </div>
           </div>
           <div className="flex items-center gap-2 w-full md:w-auto">
+            {/* {isAdmin && (
+              <Link href="/admin/moderation" className="w-full md:w-auto">
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="font-semibold flex items-center gap-2 w-full md:w-auto border-primary/20 hover:bg-primary/5"
+                >
+                  <Shield className="w-4 h-4 text-primary" />
+                  <span className="hidden sm:inline">Admin Dashboard</span>
+                  <span className="sm:hidden">Admin</span>
+                </Button>
+              </Link>
+            )} */}
             <Link href={isTrusted ? "/projects/create" : "#"} className="w-full md:w-auto pointer-events-auto">
               <Button
                 size="lg"
