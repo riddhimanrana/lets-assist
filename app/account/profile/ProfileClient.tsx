@@ -41,7 +41,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { calculateAge } from "@/utils/age-helpers";
-import type { ProfileVisibility } from "@/utils/settings/profile-settings";
+import type { ProfileVisibility } from "@/types";
 
 // Constants for character limits
 const NAME_MAX_LENGTH = 64;
