@@ -12,6 +12,7 @@ import VerificationSettings from "./VerificationSettings";
 import AIAssistant, { AIParseResult } from "./AIAssistant";
 // shadcn components
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 // icon components
 import { Loader2, ChevronLeft, ChevronRight, AlertCircle, Sparkles } from "lucide-react";
@@ -21,9 +22,6 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { createProject, uploadCoverImage, uploadProjectDocument, finalizeProject, getProjectById } from "./actions";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import CalendarOptionsModal from "@/components/CalendarOptionsModal";
-import type { Project } from "@/types";
 // Import Zod schemas
 import { 
   basicInfoSchema, 
@@ -70,10 +68,6 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Calendar modal states
-  const [showCalendarModal, setShowCalendarModal] = useState(false);
-  const [createdProject, setCreatedProject] = useState<Project | null>(null);
-  
   // File handling states
   const [coverImage, setCoverImage] = useState<File | null>(null);
   const [documents, setDocuments] = useState<File[]>([]);
@@ -90,29 +84,6 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
   
   // AI Assistant state
   const [showAIAssistant, setShowAIAssistant] = useState(false);
-  
-  // Check if returning from OAuth and should reopen calendar modal
-  useEffect(() => {
-    const shouldReopen = sessionStorage.getItem("reopenCalendarModal");
-    const pendingSync = sessionStorage.getItem("pendingCalendarSync");
-    
-    if (shouldReopen === "true" && pendingSync) {
-      const syncData = JSON.parse(pendingSync);
-      
-      // If this is for a project (creator mode), fetch the project and show the modal
-      if (syncData.type === "project" && syncData.projectId) {
-        const fetchAndShowModal = async () => {
-          const projectResult = await getProjectById(syncData.projectId);
-          if (projectResult.project) {
-            setCreatedProject(projectResult.project as Project);
-            setShowCalendarModal(true);
-          }
-        };
-        
-        fetchAndShowModal();
-      }
-    }
-  }, []);
   
   // Add handler to update profanity state
   const handleProfanityResult = (hasIssues: boolean) => {
@@ -503,16 +474,8 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
         toast.success(message);
       }
       
-      // Fetch the created project data to pass to calendar modal
-      const projectResult = await getProjectById(projectId);
-      
-      if (projectResult.project) {
-        setCreatedProject(projectResult.project as Project);
-        setShowCalendarModal(true);
-      } else {
-        // If fetch fails, just redirect
-        router.push(`/projects/${projectId}`);
-      }
+      // Redirect immediately to project page (calendar sync will happen there)
+      router.push(`/projects/${projectId}`);
       
       setIsSubmitting(false);
       
@@ -701,22 +664,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
         </div>
       </div>
 
-      {/* Calendar Options Modal - shown directly after project creation */}
-      {createdProject && (
-        <CalendarOptionsModal
-          open={showCalendarModal}
-          onOpenChange={(open) => {
-            setShowCalendarModal(open);
-            if (!open) {
-              // Redirect to project page when modal closes
-              router.push(`/projects/${createdProject.id}`);
-            }
-          }}
-          project={createdProject}
-          mode="creator"
-          showSuccessMessage={true}
-        />
-      )}
+      {/* Calendar Options Modal - removed automatic display after project creation */}
     </>
   );
 }

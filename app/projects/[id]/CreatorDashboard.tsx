@@ -85,6 +85,38 @@ export default function CreatorDashboard({ project }: Props) {
   const [showCalendarModal, setShowCalendarModal] = useState(false);
   const [isCalendarSynced, setIsCalendarSynced] = useState(!!project.creator_calendar_event_id);
 
+  // Auto-sync calendar on page load if user is connected and project isn't synced
+  useEffect(() => {
+    const autoSyncCalendar = async () => {
+      // Only sync if not already synced
+      if (isCalendarSynced) return;
+
+      try {
+        // Check if user is connected to Google Calendar
+        const response = await fetch("/api/calendar/connection-status");
+        const data = await response.json();
+
+        if (data.connected) {
+          // Sync project to calendar
+          const syncResponse = await fetch("/api/calendar/sync-project", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ project_id: project.id }),
+          });
+
+          if (syncResponse.ok) {
+            toast.success("Project synced to Google Calendar");
+            setIsCalendarSynced(true);
+          }
+        }
+      } catch (error) {
+        console.error("Auto calendar sync failed:", error);
+      }
+    };
+
+    autoSyncCalendar();
+  }, [project.id, isCalendarSynced]);
+
   const handleCancelProject = async (reason: string) => {
     try {
       const result = await updateProjectStatus(project.id, "cancelled", reason);
@@ -151,6 +183,7 @@ export default function CreatorDashboard({ project }: Props) {
       } else {
         toast.success("Project deleted successfully");
         router.push("/home");
+        router.refresh(); // Trigger server-side re-fetch of home page data
       }
     } catch (error) {
       toast.error("Failed to delete project");
@@ -1052,6 +1085,7 @@ export default function CreatorDashboard({ project }: Props) {
         onOpenChange={setShowCalendarModal}
         project={project}
         mode="creator"
+        onSyncSuccess={() => setIsCalendarSynced(true)}
       />
     </div>
   );

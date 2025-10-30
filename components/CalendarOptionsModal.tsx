@@ -33,6 +33,7 @@ interface CalendarOptionsModalProps {
   signup?: Signup;
   mode: "creator" | "volunteer";
   showSuccessMessage?: boolean; // New prop to show success message
+  onSyncSuccess?: () => void; // Callback when sync is successful
 }
 
 export default function CalendarOptionsModal({
@@ -42,6 +43,7 @@ export default function CalendarOptionsModal({
   signup,
   mode,
   showSuccessMessage = false,
+  onSyncSuccess,
 }: CalendarOptionsModalProps) {
   const [isConnecting, setIsConnecting] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -51,7 +53,7 @@ export default function CalendarOptionsModal({
   const [connectedEmail, setConnectedEmail] = useState<string | null>(null);
 
   useEffect(() => {
-    const checkConnectionAndSync = async () => {
+    const checkConnection = async () => {
       if (!open) return;
 
       setIsCheckingConnection(true);
@@ -61,11 +63,6 @@ export default function CalendarOptionsModal({
 
         setIsConnected(data.connected || false);
         setConnectedEmail(data.calendar_email || null);
-
-        if (data.connected) {
-          // If connected, automatically sync
-          await syncToCalendar();
-        }
       } catch (error) {
         console.error("Error checking calendar connection:", error);
         setIsConnected(false);
@@ -75,7 +72,7 @@ export default function CalendarOptionsModal({
       }
     };
 
-    checkConnectionAndSync();
+    checkConnection();
   }, [open]);
 
   const handleGoogleCalendar = async () => {
@@ -166,6 +163,9 @@ export default function CalendarOptionsModal({
           title: "✓ Added to Google Calendar",
           description: "Your volunteer signup has been added to your calendar",
         });
+
+        // Call the success callback to update parent state
+        onSyncSuccess?.();
       } else {
         // Sync creator project - use snake_case for API
         const response = await fetch("/api/calendar/sync-project", {
@@ -183,6 +183,9 @@ export default function CalendarOptionsModal({
           title: "Project Synced",
           description: "Your project has been synced to Google Calendar",
         });
+
+        // Call the success callback to update parent state
+        onSyncSuccess?.();
       }
 
       onOpenChange(false);
