@@ -13,6 +13,7 @@ import { ProjectStatus } from "@/types";
 import { ProjectStatusBadge } from "@/components/ui/status-badge";
 import { getProjectStatus } from "@/utils/project";
 import { useRouter } from "next/navigation";
+import { stripHtml } from "@/lib/utils";
 
 interface ProjectsTabProps {
   projects: any[];
@@ -180,7 +181,7 @@ function ProjectCard({ project }: { project: any }) {
           </div>
           
           <p className="text-muted-foreground text-sm line-clamp-2 mb-3">
-            {project.description ? project.description.replace(/<[^>]*>/g, '') : "No description provided."}
+            {project.description ? stripHtml(project.description) : "No description provided."}
           </p>
           
           <div className="flex flex-col gap-1.5">

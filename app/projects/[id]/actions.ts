@@ -11,10 +11,13 @@ import { cookies } from "next/headers";
 import crypto from 'crypto';
 // Import Resend
 import { Resend } from 'resend';
+// Import date-fns utilities
+import { parseISO, isAfter } from 'date-fns';
 // Remove the import for the email template component
 // import AnonymousSignupConfirmationEmail from '@/emails/AnonymousSignupConfirmationEmail';
 
 import { NotificationService } from "@/services/notifications";
+import { removeCalendarEventForSignup, removeCalendarEventForProject } from "@/utils/calendar-helpers";
 
 // Instantiate Resend with your API key
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -44,7 +47,7 @@ const generateConfirmationEmailHtml = (
       <meta charset="UTF-8">
       <title>Confirm Your Signup</title>
       <style>
-          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;of 5 00;600;700&display=swap');
+          // @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
           * {
               margin: 0;
@@ -167,7 +170,7 @@ const generateLoggedInUserConfirmationEmailHtml = (
       <meta charset="UTF-8">
       <title>Signup Confirmed</title>
       <style>
-          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+          // @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
           * {
               margin: 0;
@@ -581,6 +584,7 @@ export async function signUpForProject(
 ) {
   const supabase = await createClient();
   const isAnonymous = !!anonymousData;
+  let createdSignupId: string | undefined = undefined; // Track the created signup ID
 
   try {
     console.log("Starting signup process:", { projectId, scheduleId, isAnonymous });
@@ -604,6 +608,31 @@ export async function signUpForProject(
 
     if (project.status === "completed") {
       return { error: "This project has been completed" };
+    }
+    
+    // For multiDay events, validate that the specific day/slot hasn't passed
+    if (project.event_type === "multiDay" && project.schedule.multiDay) {
+      const parts = scheduleId.split("-");
+      if (parts.length >= 2) {
+        const slotIndexStr = parts.pop();
+        const date = parts.join("-");
+        
+        const day = project.schedule.multiDay.find((d: any) => d.date === date);
+        if (day && slotIndexStr) {
+          const slotIdx = parseInt(slotIndexStr, 10);
+          if (!isNaN(slotIdx) && slotIdx >= 0 && slotIdx < day.slots.length) {
+            const slot = day.slots[slotIdx];
+            const dayDate = parseISO(date);
+            const [hours, minutes] = slot.endTime.split(':').map(Number);
+            const slotEndDateTime = new Date(dayDate);
+            slotEndDateTime.setHours(hours, minutes, 0, 0);
+            
+            if (isAfter(new Date(), slotEndDateTime)) {
+              return { error: "This time slot has already passed" };
+            }
+          }
+        }
+      }
     }
 
     // Fix: Don't await getSlotDetails since it's no longer async
@@ -668,15 +697,19 @@ export async function signUpForProject(
           anonymous_id: null,
         };
 
-        const { error: signupError } = await supabase
+        const { data: insertedSignup, error: signupError } = await supabase
           .from("project_signups")
-          .insert(signupData);
+          .insert(signupData)
+          .select()
+          .single();
 
-        if (signupError) {
+        if (signupError || !insertedSignup) {
           console.error("Error creating signup for registered user:", signupError);
           return { error: "Failed to sign up. Please try again." };
         }
         
+        // Store the signup ID for return
+        createdSignupId = insertedSignup.id;
         // Send confirmation email to logged-in user
         try {
           // Get user profile for email
@@ -827,6 +860,9 @@ console.log("Checking for existing anonymous signup with email:", emailToCheck);
         return { error: "Failed to complete signup. Please try again." };
       }
 
+      // Store the signup ID for anonymous users too
+      createdSignupId = insertedProjectSignup.id;
+
       const { error: anonUpdateError } = await supabase
         .from("anonymous_signups")
         .update({ signup_id: insertedProjectSignup.id })
@@ -908,8 +944,13 @@ console.log("Checking for existing anonymous signup with email:", emailToCheck);
       revalidatePath(`/profile/${user.id}`);
     }
 
-    // --- Return success ---
-    return { success: true, needsConfirmation: isAnonymous };
+    // --- Return success with signup ID for calendar integration ---
+    return { 
+      success: true, 
+      needsConfirmation: isAnonymous,
+      signupId: createdSignupId,
+      projectId: project.id
+    };
   } catch (error) {
     console.error("Error in signUpForProject:", error);
     return { error: "An unexpected error occurred during signup." };
@@ -1079,6 +1120,14 @@ export async function cancelSignup(signupId: string) {
       return { error: "You don't have permission to cancel this signup" };
     }
 
+      // Remove calendar event if it exists (non-blocking)
+      try {
+        await removeCalendarEventForSignup(signupId);
+      } catch (calendarError) {
+        console.error("Error removing calendar event:", calendarError);
+        // Don't fail the cancellation if calendar removal fails
+      }
+
       const { error: deleteError } = await supabase
       .from("project_signups")
       .delete()
@@ -1170,6 +1219,19 @@ export async function updateProjectStatus(
     return { error: "Failed to update project status" };
   }
 
+  // If cancelling, remove calendar events (non-blocking)
+  if (newStatus === "cancelled") {
+    try {
+      // Remove creator's calendar event
+      await removeCalendarEventForProject(projectId);
+      // Note: We don't remove volunteer calendar events as they may want to keep the record
+      // Volunteers can manually remove their calendar events if needed
+    } catch (calendarError) {
+      console.error("Error removing calendar event:", calendarError);
+      // Don't fail the cancellation if calendar removal fails
+    }
+  }
+
   // Revalidate project pages
   revalidatePath(`/projects/${projectId}`);
   revalidatePath(`/organization/${project.organization?.id}`);
@@ -1240,6 +1302,14 @@ export async function deleteProject(projectId: string) {
         .from('project-images')
         .remove([fileName]);
     }
+  }
+
+  // Remove calendar event if it exists (non-blocking)
+  try {
+    await removeCalendarEventForProject(projectId);
+  } catch (calendarError) {
+    console.error("Error removing calendar event:", calendarError);
+    // Don't fail the deletion if calendar removal fails
   }
 
   // Delete project from database

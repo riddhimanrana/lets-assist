@@ -24,7 +24,6 @@ import {
   FileType,
   AlertTriangle,
   Building2,
-  Info, // Add Info icon import
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
@@ -41,7 +40,7 @@ import {
   DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; // Import Alert components
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 // Maximum file sizes
 const MAX_COVER_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB

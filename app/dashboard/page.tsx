@@ -6,22 +6,30 @@ import { VolunteerGoals } from "./VolunteerGoals";
 import { Badge } from "@/components/ui/badge";
 import { ProgressCircle } from "./ProgressCircle";
 import { format, subMonths, parseISO, differenceInMinutes, isBefore, isAfter } from "date-fns";
-import { Award, Calendar, Clock, Users, Target, FileCheck, ChevronRight, Download, GalleryVerticalEnd, TicketCheck} from "lucide-react";
+import { formatInTimeZone } from "date-fns-tz";
+import { Award, Calendar, Clock, Users, Target, FileCheck, ChevronRight, Download, GalleryVerticalEnd, TicketCheck, Plus, CalendarDays, BarChart3, CircleCheck, UserCheck } from "lucide-react";
 import Link from "next/link";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ActivityChart } from "./ActivityChart";
+import { ExportSection } from "./ExportSection";
+import { AllHoursSection } from "./AllHoursSection";
+import { AddVolunteerHoursModal } from "./AddVolunteerHoursModal";
 import { Project, ProjectSchedule } from "@/types";
 import { getSlotDetails } from "@/utils/project";
 import { Metadata } from "next";
+import { TimezoneBadge } from "@/components/TimezoneBadge";
 
-// Define types for certificate data
-interface Certificate {
+// Define types for certificate data returned by the backend
+// Renamed to avoid colliding with the UI Certificate type imported above
+interface BackendCertificate {
   id: string;
   project_title: string;
   creator_name: string | null;
   is_certified: boolean;
+  type?: "verified" | "self-reported"; // backend uses 'verified' | 'self-reported'
   event_start: string;
   event_end: string;
   volunteer_email: string | null;
@@ -32,6 +40,33 @@ interface Certificate {
   signup_id: string | null;
   volunteer_name: string | null;
   project_location: string | null;
+  projects?: {
+    project_timezone?: string;
+  };
+}
+
+// Add a local UI certificate type that matches what the components expect.
+// backend 'verified' -> UI 'platform', self-reported stays 'self-reported'
+interface UICertificate {
+  id: string;
+  project_title: string;
+  creator_name: string | null;
+  is_certified: boolean;
+  type?: "platform" | "self-reported";
+  event_start: string;
+  projects?: {
+    project_timezone?: string;
+  };
+  event_end: string;
+  volunteer_email: string | null;
+  organization_name: string | null;
+  project_id: string | null;
+  schedule_id: string | null;
+  issued_at: string;
+  signup_id: string | null;
+  volunteer_name: string | null;
+  project_location: string | null;
+  hours?: number; // computed field added in processing
 }
 
 // Define types for statistics
@@ -60,6 +95,7 @@ interface UpcomingSession {
   sessionDisplayName: string;
   sessionStartTime: Date;
   status: 'approved' | 'pending';
+  project_timezone: string;
 }
 
 export const metadata: Metadata = {
@@ -84,8 +120,8 @@ function calculateHours(startTime: string, endTime: string): number {
 function getCombinedDateTime(dateStr: string, timeStr: string): Date | null {
   if (!dateStr || !timeStr) return null;
   try {
-    // Use date-fns parse which is more robust
-    const dateTime = parseISO(`${dateStr}T${timeStr}`);
+    const isoString = `${dateStr}T${timeStr}`;
+    const dateTime = parseISO(isoString);
     return isNaN(dateTime.getTime()) ? null : dateTime;
   } catch (e) {
     console.error("Error parsing date/time:", e);
@@ -94,19 +130,41 @@ function getCombinedDateTime(dateStr: string, timeStr: string): Date | null {
 }
 
 // Helper function to get session display name
-function getSessionDisplayName(project: Project, startTime: Date | null, details: any): string {
-  if ('name' in details && details.name) {
+function getSessionDisplayName(
+  project: Project,
+  startTime: Date | null,
+  details: any,
+  projectTimezone?: string,
+  slotDate?: string
+): string {
+  const timezone = projectTimezone || project.project_timezone || "UTC";
+
+  if ("name" in details && details.name) {
     return details.name;
-  } else if (project.schedule?.oneTime) {
-    return "Main Event";
-  } else if (project.schedule?.multiDay && startTime) {
-    const formattedDate = format(startTime, "MMM d, yyyy");
-    const formattedStartTime = format(parseISO(`1970-01-01T${details.startTime}`), "h:mm a");
-    const formattedEndTime = format(parseISO(`1970-01-01T${details.endTime}`), "h:mm a");
-    return `${formattedDate} (${formattedStartTime} - ${formattedEndTime})`;
-  } else {
-    return details.schedule_id || "Session";
   }
+
+  if (project.schedule?.oneTime) {
+    return "Main Event";
+  }
+
+  if (startTime) {
+    const formattedDate = formatInTimeZone(startTime, timezone, "MMM d, yyyy");
+    const formattedStartTime = formatInTimeZone(startTime, timezone, "h:mm a");
+    const endDateTime = slotDate && details.endTime
+      ? getCombinedDateTime(slotDate, details.endTime)
+      : null;
+    const formattedEndTime = endDateTime
+      ? formatInTimeZone(endDateTime, timezone, "h:mm a")
+      : null;
+
+    if (formattedEndTime) {
+      return `${formattedDate} (${formattedStartTime} - ${formattedEndTime})`;
+    }
+
+    return `${formattedDate} (${formattedStartTime})`;
+  }
+
+  return details.schedule_id || "Session";
 }
 
 // Helper to calculate duration in decimal hours
@@ -174,9 +232,12 @@ export default async function VolunteerDashboard() {
   // Fetch certificates for this user
   const { data: certificates, error: certificatesError } = await supabase
     .from("certificates")
-    .select("*")
+    .select(`
+      *
+    `)
     .eq("user_id", user.id)
     .order("issued_at", { ascending: false });
+    
 
   if (certificatesError) {
     console.error("Error fetching certificates:", certificatesError);
@@ -208,7 +269,12 @@ export default async function VolunteerDashboard() {
   // Fetch certificates for the dashboard (modified)
   const { data: certificatesData, error: certificatesErrorFetch } = await supabase
     .from("certificates")
-    .select("*")
+    .select(`
+      *,
+      projects!inner(
+        project_timezone
+      )
+    `)
     .eq("volunteer_email", user.email) // Assuming you fetch by email
     .order("issued_at", { ascending: false }); // Sort by most recent
 
@@ -227,46 +293,68 @@ export default async function VolunteerDashboard() {
     hoursByMonth: {}
   };
 
-  // Process certificate data
-  const processedCertificates = (certificates || []).map((cert: Certificate) => {
+  // Process certificate data (typed as BackendCertificate from the DB)
+  const processedCertificates = (certificates || []).map((cert: BackendCertificate) => {
     // Calculate hours for this certificate
     const hours = calculateHours(cert.event_start, cert.event_end);
     
-    // Increment total stats
-    statistics.totalHours += hours;
-    statistics.totalCertificates++;
+    // Default to 'verified' for existing certificates that don't have the type field
+    const certType = cert.type || 'verified';
     
-    // Only track organizations with actual names, exclude "Independent Projects"
-    if (cert.organization_name) {
-      // Track unique organizations with valid names
-      if (!statistics.organizations.some(org => org.name === cert.organization_name)) {
-        statistics.organizations.push({
-          name: cert.organization_name,
-          hours: hours,
-          projects: 1
-        });
-      } else {
-        const orgIndex = statistics.organizations.findIndex(org => org.name === cert.organization_name);
-        statistics.organizations[orgIndex].hours += hours;
-        statistics.organizations[orgIndex].projects += 1;
+    // Only count verified hours for main statistics
+    if (certType === 'verified') {
+      statistics.totalHours += hours;
+      statistics.totalCertificates++;
+      
+      // Only track organizations with actual names, exclude "Independent Projects"
+      if (cert.organization_name) {
+        // Track unique organizations with valid names
+        if (!statistics.organizations.some(org => org.name === cert.organization_name)) {
+          statistics.organizations.push({
+            name: cert.organization_name,
+            hours: hours,
+            projects: 1
+          });
+        } else {
+          const orgIndex = statistics.organizations.findIndex(org => org.name === cert.organization_name);
+          statistics.organizations[orgIndex].hours += hours;
+          statistics.organizations[orgIndex].projects += 1;
+        }
       }
+      
+      // Track hours by month for verified certificates
+      const monthYear = format(parseISO(cert.issued_at), "MMM yyyy");
+      if (!statistics.hoursByMonth[monthYear]) {
+        statistics.hoursByMonth[monthYear] = 0;
+      }
+      statistics.hoursByMonth[monthYear] += hours;
     }
-    
-    // Track hours by month
-    const monthYear = format(parseISO(cert.issued_at), "MMM yyyy");
-    if (!statistics.hoursByMonth[monthYear]) {
-      statistics.hoursByMonth[monthYear] = 0;
-    }
-    statistics.hoursByMonth[monthYear] += hours;
 
     return {
       ...cert,
+      type: certType as "verified" | "self-reported",
       hours
     };
   });
 
-  // Get unique project count
-  statistics.totalProjects = [...new Set(processedCertificates.map((c: Certificate & { hours: number }) => c.project_id))].filter(Boolean).length;
+  // Map backend certificate types to the UI Certificate type expected by components:
+  // backend 'verified' -> UI 'platform', 'self-reported' stays 'self-reported'
+  const uiCertificates: UICertificate[] = processedCertificates.map((c) => ({
+    ...c,
+    // Ensure the "type" matches the UI type union ("platform" | "self-reported" | undefined)
+    type: c.type === "verified" ? "platform" : c.type,
+  }));
+
+  // Get unique project count from verified certificates only
+  statistics.totalProjects = [...new Set(processedCertificates
+    .filter((c: BackendCertificate & { hours: number }) => (c.type || 'verified') === 'verified')
+    .map((c: BackendCertificate & { hours: number }) => c.project_id)
+  )].filter(Boolean).length;
+
+  // Calculate self-reported hours
+  const selfReportedHours = processedCertificates
+    .filter((c: BackendCertificate & { hours: number }) => c.type === 'self-reported')
+    .reduce((total, cert) => total + cert.hours, 0);
 
   // Format hours by month for chart data - last 6 months
   const now = new Date();
@@ -313,7 +401,8 @@ export default async function VolunteerDashboard() {
 
       if (!slotDate || !details.startTime) continue; // Skip if date or start time missing
 
-      const sessionStartTime = getCombinedDateTime(slotDate, details.startTime);
+  const projectTimezone = project.project_timezone || "America/Los_Angeles"; // Default timezone if not set
+  const sessionStartTime = getCombinedDateTime(slotDate, details.startTime);
 
       // Check if the session start time is valid and in the future
       if (sessionStartTime && isAfter(sessionStartTime, now)) {
@@ -322,9 +411,10 @@ export default async function VolunteerDashboard() {
           projectId: project.id,
           projectTitle: project.title,
           scheduleId: signup.schedule_id,
-          sessionDisplayName: getSessionDisplayName(project, sessionStartTime, details),
+          sessionDisplayName: getSessionDisplayName(project, sessionStartTime, details, projectTimezone, slotDate),
           sessionStartTime: sessionStartTime,
           status: signup.status as 'approved' | 'pending',
+          project_timezone: projectTimezone,
         });
       }
     }
@@ -344,196 +434,116 @@ export default async function VolunteerDashboard() {
           </p>
         </div>
         
-        <div className="flex-shrink-0">
-          <Button asChild>
-            <Link href="/home">
-              Find Opportunities <ChevronRight className="ml-2 h-4 w-4" />
-            </Link>
-          </Button>
+        <div className="flex items-center gap-3">
+          <AddVolunteerHoursModal />
         </div>
       </div>
 
-      {/* Top Stats Row - Update Total Hours Display */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 rounded-full bg-primary/10">
-                <Clock className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Hours</p>
-                {/* Use the new formatting function */}
-                <h2 className="text-3xl font-bold">{formatTotalDuration(statistics.totalHours)}</h2>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Mobile-First Responsive Tabs Layout */}
+      <Tabs defaultValue="overview" className="space-y-6">
+        {/* Mobile Tab Navigation with Icons */}
+        <TabsList className="grid w-full grid-cols-3 h-auto p-1">
+          <TabsTrigger value="overview" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2 px-2 sm:px-4">
+            <BarChart3 className="h-4 w-4" />
+            <span className="text-xs sm:text-sm">Overview</span>
+          </TabsTrigger>
+          <TabsTrigger value="hours" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2 px-2 sm:px-4">
+            <CalendarDays className="h-4 w-4" />
+            <span className="text-xs sm:text-sm">All Hours</span>
+          </TabsTrigger>
+          <TabsTrigger value="export" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2 px-2 sm:px-4">
+            <Download className="h-4 w-4" />
+            <span className="text-xs sm:text-sm">Export</span>
+          </TabsTrigger>
+        </TabsList>
 
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 rounded-full bg-chart-3/10">
-                <Users className="h-6 w-6 text-chart-3" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Projects</p>
-                <h2 className="text-3xl font-bold">{statistics.totalProjects}</h2>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6 pb-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-full bg-chart-4/10">
-                  <Award className="h-6 w-6 text-chart-4" />
+        {/* Overview Tab */}
+        <TabsContent value="overview" className="space-y-6">
+          {/* Stats Grid - 2 cols mobile, 4 cols desktop */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+            {/* Total Verified Hours */}
+            <Card className="col-span-1">
+              <CardContent className="p-4 sm:p-6">
+                <div className="flex flex-col lg:flex-row lg:items-center gap-2 lg:gap-4">
+                  <div className="p-2 sm:p-3 rounded-full bg-primary/10 w-fit">
+                    <CircleCheck className="h-4 w-4 sm:h-6 sm:w-6 text-primary" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">Verified Hours</p>
+                    <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold">{formatTotalDuration(statistics.totalHours)}</h2>
+                    <p className="text-xs text-muted-foreground hidden sm:block">Let&apos;s Assist verified</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Certificates</p>
-                  <h2 className="text-3xl font-bold">{statistics.totalCertificates}</h2>
+              </CardContent>
+            </Card>
+
+            {/* Self-Reported Hours */}
+            <Card className="col-span-1">
+              <CardContent className="p-4 sm:p-6">
+                <div className="flex flex-col lg:flex-row lg:items-center gap-2 lg:gap-4">
+                  <div className="p-2 sm:p-3 rounded-full bg-chart-4/10 dark:bg-chart-4/10 w-fit">
+                    <UserCheck className="h-4 w-4 sm:h-6 sm:w-6 text-chart-4 dark:text-chart-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">Self-Reported</p>
+                    <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold">{selfReportedHours}h</h2>
+                    <p className="text-xs text-muted-foreground hidden sm:block">Unverified hours</p>
+                  </div>
                 </div>
-              </div>
-              <Button
-                asChild
-                size="icon"
-                variant="ghost"
-                aria-label="View all certificates"
-                className="ml-2"
-              >
-                <Link href="/certificates">
-                  <GalleryVerticalEnd className="h-5 w-5" />
-                </Link>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
 
-        <Card>
-          <CardContent className="p-6 pb-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-full bg-chart-5/10">
-                  <Calendar className="h-6 w-6 text-chart-5" />
+            {/* Projects */}
+            <Card className="col-span-1">
+              <CardContent className="p-4 sm:p-6">
+                <div className="flex flex-col lg:flex-row lg:items-center gap-2 lg:gap-4">
+                  <div className="p-2 sm:p-3 rounded-full bg-chart-3/10 w-fit">
+                    <Users className="h-4 w-4 sm:h-6 sm:w-6 text-chart-3" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">Projects</p>
+                    <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold">{statistics.totalProjects}</h2>
+                    <p className="text-xs text-muted-foreground hidden sm:block">Completed</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Upcoming</p>
-                  <h2 className="text-3xl font-bold">{upcomingSessions.length}</h2>
-                </div>
-              </div>
-              <Button
-                asChild
-                size="icon"
-                variant="ghost"
-                aria-label="See all upcoming projects"
-                className="ml-2"
-              >
-                <Link href="/projects">
-                  <ChevronRight className="h-5 w-5" />
-                </Link>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+              </CardContent>
+            </Card>
 
-      {/* Main Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Column */}
-        <div className="col-span-1 lg:col-span-2 space-y-8">
-          {/* Activity Chart */}
-
-                <ActivityChart data={statistics.recentActivity} />
-
-          {/* Certificates / Organizations Tabs */}
-          <Tabs defaultValue="certificates">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="certificates">Recent Certificates</TabsTrigger>
-              <TabsTrigger value="organizations">Organizations</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="certificates">
-              <Card>
-                <CardHeader className="flex flex-row items-start justify-between gap-2">
-                  <div>
-                    <CardTitle>Recent Certificates</CardTitle>
-                    <CardDescription>Your earned volunteering certificates</CardDescription>
+            {/* Upcoming Sessions */}
+            <Card className="col-span-1">
+              <CardContent className="p-4 sm:p-6">
+                <div className="flex flex-col lg:flex-row lg:items-center gap-2 lg:gap-4">
+                  <div className="p-2 sm:p-3 rounded-full bg-chart-5/10 w-fit">
+                    <Calendar className="h-4 w-4 sm:h-6 sm:w-6 text-chart-5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">Upcoming</p>
+                    <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold">{upcomingSessions.length}</h2>
+                    <p className="text-xs text-muted-foreground hidden sm:block">Sessions</p>
                   </div>
                   <Button
                     asChild
-                    size="sm"
-                    variant="outline"
-                    className="mt-1"
-                    aria-label="View all certificates"
+                    size="icon"
+                    variant="ghost"
+                    aria-label="See all upcoming projects"
+                    className="ml-auto hidden lg:flex"
                   >
-                    <Link href="/certificates">
-                      <GalleryVerticalEnd className="h-4 w-4 mr-2" />
-                      View All
+                    <Link href="/projects">
+                      <ChevronRight className="h-5 w-5" />
                     </Link>
                   </Button>
-                </CardHeader>
-                <CardContent>
-                  {certificatesData && certificatesData.length > 0 ? (
-                    <div className="space-y-4">
-                      {/* Use certificatesData directly */}
-                      {certificatesData.map((cert: Certificate) => {
-                        // Calculate and format duration
-                        const durationHours = calculateDecimalHours(cert.event_start, cert.event_end);
-                        const formattedDuration = formatTotalDuration(durationHours);
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
-                        return (
-                          <div key={cert.id} className="border rounded-lg p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                            <div className="flex-1 space-y-1">
-                              <Link href={`/projects/${cert.project_id}`} className="font-medium hover:text-primary transition-colors block">
-                                {cert.project_title}
-                              </Link>
-                              <p className="text-sm text-muted-foreground">
-                                {cert.organization_name || cert.creator_name || "Unknown Organizer"}
-                              </p>
-                              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground pt-1">
-                                <span className="flex items-center gap-1">
-                                  <Calendar className="h-3 w-3" />
-                                  {format(parseISO(cert.event_start), "MMM d, yyyy")}
-                                </span>
-                                {/* Display formatted duration */}
-                                {formattedDuration !== "0m" && (
-                                  <span className="flex items-center gap-1">
-                                    <Clock className="h-3 w-3" />
-                                    {formattedDuration}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                            <div className="flex-shrink-0">
-                              <Button size="sm" variant="outline" asChild>
-                                {/* TODO: Link to actual certificate download/view page */}
-                                <Link href={`/certificates/${cert.id}`} target="_blank" rel="noopener noreferrer">
-                                  <TicketCheck className="h-4 w-4 mr-2" />
-                                  View Certificate
-                                </Link>
-                              </Button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    // No certificates message
-                    <div className="flex flex-col items-center justify-center py-10 text-center">
-                      <FileCheck className="h-10 w-10 text-muted-foreground/30 mb-3" />
-                      <h3 className="font-medium">No Certificates Yet</h3>
-                      <p className="text-sm text-muted-foreground mt-1 max-w-xs">
-                        Complete volunteer opportunities to earn certificates.
-                      </p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-            
-            <TabsContent value="organizations" className="mt-2">
+          {/* Main Content Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+            {/* Left Column - Activity and Organizations */}
+            <div className="col-span-1 lg:col-span-2 space-y-6 lg:space-y-8">
+              <ActivityChart data={statistics.recentActivity} />
+
+              {/* Organizations */}
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle>Organizations</CardTitle>
@@ -543,20 +553,20 @@ export default async function VolunteerDashboard() {
                 </CardHeader>
                 <CardContent>
                   {statistics.organizations.length > 0 ? (
-                    <div className="space-y-6">
+                    <div className="space-y-4 sm:space-y-6">
                       {statistics.organizations.map((org, index) => (
-                        <div key={index} className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <h4 className="font-medium">{org.name}</h4>
+                        <div key={index} className="flex items-center justify-between gap-4">
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-medium truncate">{org.name}</h4>
                             <p className="text-sm text-muted-foreground">
                               {org.projects} {org.projects === 1 ? 'project' : 'projects'} • {org.hours.toFixed(1)} hours
                             </p>
                           </div>
-                          <div className="w-16 h-16">
+                          <div className="w-12 h-12 sm:w-16 sm:h-16 flex-shrink-0">
                             <ProgressCircle 
                               value={(org.hours / statistics.totalHours) * 100} 
-                              size={64} 
-                              strokeWidth={5}
+                              size={48} 
+                              strokeWidth={4}
                               showLabel={false}
                             />
                           </div>
@@ -564,101 +574,134 @@ export default async function VolunteerDashboard() {
                       ))}
                     </div>
                   ) : (
-                    <div className="flex flex-col items-center justify-center py-12 text-center">
-                      <Users className="h-12 w-12 text-muted-foreground/30 mb-4" />
-                      <h3 className="font-medium text-lg">No Organizations Yet</h3>
-                      <p className="text-muted-foreground max-w-md mt-1">
-                        When you volunteer with formal organizations (not including independent projects), they&apos;ll appear here with your contribution statistics.
+                    <div className="flex flex-col items-center justify-center py-8 sm:py-12 text-center">
+                      <Users className="h-8 w-8 sm:h-12 sm:w-12 text-muted-foreground mb-3 sm:mb-4" />
+                      <h3 className="font-medium text-base sm:text-lg">No Organizations Yet</h3>
+                      <p className="text-muted-foreground max-w-md mt-1 text-sm sm:text-base">
+                        When you volunteer with formal organizations, they&apos;ll appear here.
                       </p>
                     </div>
                   )}
                 </CardContent>
               </Card>
-            </TabsContent>
-          </Tabs>
-        </div>
+            </div>
 
-        {/* Right Column */}
-        <div className="space-y-8">
-          {/* Goals */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Target className="h-5 w-5" /> Volunteering Goals
-              </CardTitle>
-              <CardDescription>Set and track your volunteering targets</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <VolunteerGoals
-                userId={user.id}
-                totalHours={statistics.totalHours}
-                totalEvents={statistics.totalProjects}
-              />
-            </CardContent>
-          </Card>
+            {/* Right Column - Goals and Upcoming */}
+            <div className="space-y-6 lg:space-y-8">
+              {/* Enhanced Goals with Date Range */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Target className="h-5 w-5" /> Volunteering Goals
+                  </CardTitle>
+                  <CardDescription>Set and track your volunteering targets</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <VolunteerGoals
+                    userId={user.id}
+                    totalHours={statistics.totalHours}
+                    totalEvents={statistics.totalProjects}
+                  />
+                </CardContent>
+              </Card>
 
-          {/* --- MODIFIED: Upcoming Events Card --- */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle>Upcoming Sessions</CardTitle> {/* Changed title */}
-              <CardDescription>Your scheduled volunteer commitments</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {upcomingSessions.length > 0 ? (
-                <div className="space-y-4">
-                  {/* Display the first 3 upcoming sessions */}
-                  {upcomingSessions.slice(0, 3).map((session) => (
-                    <div key={session.signupId} className="border rounded-lg p-4 space-y-2">
-                      <Link href={`/projects/${session.projectId}`} className="font-medium hover:text-primary transition-colors block">
-                        {session.projectTitle}
-                      </Link>
-                      <p className="text-sm text-muted-foreground">
-                        Session: {session.sessionDisplayName}
+              {/* Upcoming Sessions */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle>Upcoming Sessions</CardTitle>
+                  <CardDescription>Your scheduled volunteer commitments</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {upcomingSessions.length > 0 ? (
+                    <TooltipProvider delayDuration={150}>
+                      <div className="space-y-3 sm:space-y-4">
+                        <div className="max-h-[300px] sm:max-h-[350px] overflow-y-auto pr-2 custom-scrollbar">
+                          <div className="space-y-3 sm:space-y-4">
+                            {upcomingSessions.map((session) => (
+                              <div key={session.signupId} className="border rounded-lg p-3 sm:p-4 space-y-2">
+                                <Link href={`/projects/${session.projectId}`} className="font-medium hover:text-primary transition-colors block text-sm sm:text-base">
+                                  {session.projectTitle}
+                                </Link>
+                                <p className="text-xs sm:text-sm text-muted-foreground">
+                                  Session: {session.sessionDisplayName}
+                                </p>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <p className="text-xs sm:text-sm text-muted-foreground">
+                                    Starts: {formatInTimeZone(session.sessionStartTime, session.project_timezone, "MMM d, yyyy 'at' h:mm a")}
+                                  </p>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <TimezoneBadge timezone={session.project_timezone} />
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p className="text-xs">Times shown in this project&apos;s timezone.</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </div>
+                                <div className="text-xs sm:text-sm text-muted-foreground flex items-center gap-2">
+                                  Status: <Badge variant={session.status === 'approved' ? 'default' : 'outline'}>
+                                    {session.status === "approved" ? "Confirmed" : "Pending"}
+                                  </Badge>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </TooltipProvider>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-6 sm:py-8 text-center">
+                      <Calendar className="h-8 w-8 sm:h-10 sm:w-10 text-muted-foreground/30 mb-3" />
+                      <h3 className="font-medium text-sm sm:text-base">No Upcoming Sessions</h3>
+                      <p className="text-xs sm:text-sm text-muted-foreground mt-1 max-w-xs">
+                        You don&apos;t have any upcoming volunteer commitments
                       </p>
-                      <p className="text-sm text-muted-foreground">
-                        Starts: {format(session.sessionStartTime, "MMM d, yyyy 'at' h:mm a")}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        Status: <Badge variant={session.status === 'approved' ? 'default' : 'outline'} className={`ml-1 ${session.status === 'approved' ? 'bg-primary/10 text-primary border-primary/30' : ''}`}>
-                          {session.status === "approved" ? "Confirmed" : "Pending"}
-                        </Badge>
-                      </p>
-                      <Button size="sm" variant="ghost" className="mt-2 w-full justify-start px-0" asChild>
-                        <Link href={`/projects/${session.projectId}`}>
-                          View Project Details <ChevronRight className="ml-1 h-4 w-4" />
-                        </Link>
+                      <Button className="mt-3 sm:mt-4" variant="outline" size="sm" asChild>
+                        <Link href="/home">Browse Opportunities</Link>
                       </Button>
                     </div>
-                  ))}
-
-                  {/* Link to see all upcoming events */}
-                  {upcomingSessions.length > 3 && (
-                    <Button variant="outline" size="sm" className="w-full" asChild>
-                      {/* TODO: Create a dedicated page for all upcoming events? */}
-                      <Link href="/dashboard/events">
-                        See All ({upcomingSessions.length})
-                      </Link>
-                    </Button>
                   )}
-                </div>
-              ) : (
-                // No upcoming sessions message
-                <div className="flex flex-col items-center justify-center py-8 text-center">
-                  <Calendar className="h-10 w-10 text-muted-foreground/30 mb-3" />
-                  <h3 className="font-medium">No Upcoming Sessions</h3>
-                  <p className="text-sm text-muted-foreground mt-1 max-w-xs">
-                    You don&apos;t have any upcoming volunteer commitments
-                  </p>
-                  <Button className="mt-4" variant="outline" size="sm" asChild>
-                    <Link href="/home">Browse Opportunities</Link>
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-          {/* --- END MODIFIED --- */}
-        </div>
-      </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* Unified Hours Tab - Shows both verified and unverified */}
+        <TabsContent value="hours" className="space-y-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <h2 className="text-xl sm:text-2xl font-bold">All Volunteer Hours</h2>
+              <p className="text-muted-foreground text-sm sm:text-base">
+                Both verified and self-reported volunteer hours
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="gap-2">
+                <Award className="h-4 w-4" />
+                {uiCertificates.length} Total Certificates
+              </Badge>
+            </div>
+          </div>
+
+          {/* Unified Hours Display */}
+          <AllHoursSection certificates={uiCertificates} />
+        </TabsContent>
+
+        {/* Export & Reports Tab */}
+        <TabsContent value="export" className="space-y-6">
+          {user.email && (
+            <ExportSection
+              userEmail={user.email}
+              // For the export UI, use uiCertificates where 'platform' == previously 'verified'
+              verifiedCount={uiCertificates.filter(cert => cert.type === 'platform').length}
+              unverifiedCount={uiCertificates.filter(cert => cert.type === 'self-reported').length}
+              totalCertificates={uiCertificates.length}
+              certificatesData={uiCertificates}
+            />
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

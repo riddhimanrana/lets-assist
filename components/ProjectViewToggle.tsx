@@ -3,6 +3,8 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { getProjectStatus } from "@/utils/project";
+import { TimezoneBadge } from "@/components/TimezoneBadge";
+import { ReportContentButton } from "@/components/ReportContentButton";
 import {
   MapPin,
   Calendar,
@@ -20,6 +22,10 @@ import {
   CalendarClock,
   CalendarDays,
   Map,
+  GraduationCap,
+  Building,
+  MoreVertical,
+  Flag,
 } from "lucide-react";
 import { ProjectsMapView } from "@/components/ProjectsMapView";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -41,6 +47,12 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 type Project = any;
 
@@ -135,10 +147,24 @@ const getEventScheduleSummary = (project: any) => {
   switch (project.event_type) {
     case "oneTime": {
       const dateStr = project.schedule.oneTime?.date;
+      if (!dateStr) {
+        return "Not specified";
+      }
       const [year, month, dayNum] = dateStr.split("-").map(Number);
       const dateFormat = new Date(year, month - 1, dayNum);
       const date = format(dateFormat, "MMM d, yyyy");
-      return `${date}, ${formatTime(project.schedule.oneTime.startTime)} - ${formatTime(project.schedule.oneTime.endTime)}`;
+      const startTime = project.schedule.oneTime?.startTime;
+      const endTime = project.schedule.oneTime?.endTime;
+      if (startTime && endTime) {
+        return `${date}, ${formatTime(startTime)} - ${formatTime(endTime)}`;
+      }
+      if (startTime) {
+        return `${date}, starts ${formatTime(startTime)}`;
+      }
+      if (endTime) {
+        return `${date}, ends ${formatTime(endTime)}`;
+      }
+      return date;
     }
     case "multiDay": {
       const days = project.schedule.multiDay.length;
@@ -245,6 +271,16 @@ const getCreatorAvatarUrl = (project: any) => {
   return project.profiles?.avatar_url;
 };
 
+// Function to check if the project's organization is verified
+const isOrganizationVerified = (project: any) => {
+  if (project.organization) {
+    return project.organization.verified || false;
+  } else if (project.organization_id && project.organizations) {
+    return project.organizations.verified || false;
+  }
+  return false;
+};
+
 export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
   projects,
   onVolunteerSortChange,
@@ -311,6 +347,9 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                 {formatTime(project.schedule.oneTime.startTime)} -{" "}
                 {formatTime(project.schedule.oneTime.endTime)}
               </Badge>
+              {project.project_timezone && (
+                <TimezoneBadge timezone={project.project_timezone} />
+              )}
               <Badge variant="outline" className="gap-1">
                 <Users className="h-3 w-3" />
                 {formatSpots(getRemainingSpots(project))}
@@ -333,6 +372,9 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                   "MMM d",
                 )}
               </Badge>
+              {project.project_timezone && (
+                <TimezoneBadge timezone={project.project_timezone} />
+              )}
               <Badge variant="outline" className="gap-1">
                 <Users className="h-3 w-3" />
                 {formatSpots(remainingSpots)}
@@ -350,6 +392,9 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                   "MMM d, yyyy",
                 )}
               </Badge>
+              {project.project_timezone && (
+                <TimezoneBadge timezone={project.project_timezone} />
+              )}
               <Badge variant="outline" className="gap-1">
                 <Users className="h-3 w-3" />
                 {formatSpots(remainingVolunteers)}
@@ -370,137 +415,194 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
       {view === "card" && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredProjects.map((project: any) => (
-            <Link key={project.id} href={`/projects/${project.id}`}>
-              <Card className="p-6 hover:shadow-lg transition-all cursor-pointer h-full flex flex-col">
-                <h3 className="text-xl font-semibold mb-2 text-ellipsis">
-                  {project.title}
-                </h3>
-                <div className="flex items-center gap-2 mb-4">
-                  <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                  <span className="text-sm text-muted-foreground truncate">
-                    {project.location}
-                  </span>
-                </div>
+            <div key={project.id} className="relative group">
+              <Link href={`/projects/${project.id}`}>
+                <Card className="p-6 hover:shadow-lg transition-all cursor-pointer h-full flex flex-col">
+                  <h3 className="text-xl font-semibold mb-2 line-clamp-2 pr-8">
+                    {project.title}
+                  </h3>
+                  <div className="flex items-center gap-2 mb-4">
+                    <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    <span className="text-sm text-muted-foreground truncate">
+                      {project.location}
+                    </span>
+                  </div>
 
-                <div className="flex flex-wrap gap-2 mb-4">
-                  <Badge variant="outline" className="gap-1">
-                    <Calendar className="h-3 w-3" />
-                    {formatDateDisplay(project)}
-                  </Badge>
-                  <Badge variant="outline" className="gap-1">
-                    <Users className="h-3 w-3" />
-                    {formatSpots(getRemainingSpots(project))}
-                  </Badge>
-                </div>
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    <Badge variant="outline" className="gap-1">
+                      <Calendar className="h-3 w-3" />
+                      {formatDateDisplay(project)}
+                    </Badge>
+                    <Badge variant="outline" className="gap-1">
+                      <Users className="h-3 w-3" />
+                      {formatSpots(getRemainingSpots(project))}
+                    </Badge>
+                  </div>
 
-                {/* User info with hover card - updated to show organization if available */}
-                <div className="mt-auto pt-3">
-                  <HoverCard>
-                    <HoverCardTrigger asChild>
-                      <div className="flex items-center gap-2 cursor-pointer">
-                        <Avatar className="h-7 w-7">
-                          <AvatarImage
-                            src={getCreatorAvatarUrl(project)}
-                            alt={getProjectCreator(project)}
+                  {/* User info with hover card - updated to show organization if available */}
+                  <div className="mt-auto pt-3">
+                    <div className="flex items-center gap-2">
+                      <Avatar className="h-7 w-7">
+                        <AvatarImage
+                          src={getCreatorAvatarUrl(project)}
+                          alt={getProjectCreator(project)}
+                        />
+                        <AvatarFallback>
+                          <NoAvatar
+                            fullName={getProjectCreator(project)}
+                            className="text-sm"
                           />
-                          <AvatarFallback>
-                            <NoAvatar
-                              fullName={getProjectCreator(project)}
-                              className="text-sm"
-                            />
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">
-                            {getProjectCreator(project)}
-                          </p>
-                          {/* <p className="text-xs text-muted-foreground">
-                {project.organization_id ?
-                  (project.organization?.type || project.organizations?.type || "Organization") :
-                  `@${project.profiles?.username || "unknown"}`}
-              </p> */}
-                        </div>
-                      </div>
-                    </HoverCardTrigger>
-                    <HoverCardContent className="w-auto">
-                      <div
-                        className="flex justify-between space-x-4 cursor-pointer"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          if (project.organization_id) {
-                            window.location.href = `/organization/${project.organization?.username || project.organizations?.username || project.organization_id}`;
-                          } else {
-                            window.location.href = `/profile/${project.profiles?.username || "unknown"}`;
-                          }
-                        }}
-                      >
-                        <Avatar className="h-10 w-10">
-                          <AvatarImage
-                            src={getCreatorAvatarUrl(project)}
-                            alt={getProjectCreator(project)}
-                          />
-                          <AvatarFallback>
-                            <NoAvatar fullName={getProjectCreator(project)} />
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="space-y-1 flex-1">
-                          <h4 className="text-sm font-semibold">
-                            {getProjectCreator(project)}
-                          </h4>
-                          <p className="text-xs text-muted-foreground">
-                            {project.organization_id
-                              ? (() => {
-                                  const orgType =
-                                    project.organization?.type ||
-                                    project.organizations?.type ||
-                                    "Organization";
-                                  const normalizedType =
-                                    orgType.toLowerCase() === "company"
-                                      ? "Company"
-                                      : orgType;
-                                  const icon =
-                                    orgType.toLowerCase() === "company" ? (
-                                      <Building2 className="h-4 w-4 opacity-70" />
-                                    ) : (
-                                      <BadgeCheck className="h-4 w-4 opacity-70" />
-                                    );
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1">
+                          <HoverCard>
+                            <HoverCardTrigger asChild>
+                              <p className="text-sm font-medium truncate cursor-pointer">
+                                {getProjectCreator(project)}
+                              </p>
+                            </HoverCardTrigger>
+                            <HoverCardContent className="w-auto">
+                              <div
+                                className="flex justify-between space-x-4 cursor-pointer"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  if (project.organization_id) {
+                                    window.location.href = `/organization/${project.organization?.username || project.organizations?.username || project.organization_id}`;
+                                  } else {
+                                    window.location.href = `/profile/${project.profiles?.username || "unknown"}`;
+                                  }
+                                }}
+                              >
+                                <Avatar className="h-10 w-10">
+                                  <AvatarImage
+                                    src={getCreatorAvatarUrl(project)}
+                                    alt={getProjectCreator(project)}
+                                  />
+                                  <AvatarFallback>
+                                    <NoAvatar fullName={getProjectCreator(project)} />
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div className="space-y-1 flex-1">
+                                  <h4 className="text-sm font-semibold">
+                                    {getProjectCreator(project)}
+                                  </h4>
+                                  <p className="text-xs text-muted-foreground">
+                                    {project.organization_id
+                                      ? (() => {
+                                          const orgType =
+                                            project.organization?.type ||
+                                            project.organizations?.type ||
+                                            "other";
+                                          
+                                          const getOrgDisplayInfo = (type: string) => {
+                                            switch (type.toLowerCase()) {
+                                              case "company":
+                                                return {
+                                                  name: "Company",
+                                                  icon: <Building2 className="h-4 w-4 opacity-70" />
+                                                };
+                                              case "nonprofit":
+                                                return {
+                                                  name: "Nonprofit",
+                                                  icon: <BadgeCheck className="h-4 w-4 opacity-70" />
+                                                };
+                                              case "school":
+                                                return {
+                                                  name: "Educational Institution",
+                                                  icon: <GraduationCap className="h-4 w-4 opacity-70" />
+                                                };
+                                              case "government":
+                                                return {
+                                                  name: "Government Agency",
+                                                  icon: <Building className="h-4 w-4 opacity-70" />
+                                                };
+                                              case "other":
+                                                return {
+                                                  name: "Organization",
+                                                  icon: <BadgeCheck className="h-4 w-4 opacity-70" />
+                                                };
+                                              default:
+                                                return {
+                                                  name: "Organization",
+                                                  icon: <BadgeCheck className="h-4 w-4 opacity-70" />
+                                                };
+                                            }
+                                          };
+                                          
+                                          const { name, icon } = getOrgDisplayInfo(orgType);
 
-                                  return (
-                                    <div className="flex items-center">
-                                      <span>
-                                        @
-                                        {project.organization?.username ||
-                                          project.organizations?.username ||
-                                          "unknown"}
-                                        <span className="flex pt-2">
-                                          {icon}
-                                          <span className="ml-2">
-                                            {normalizedType}
-                                          </span>
-                                        </span>
+                                          return (
+                                            <div className="flex items-center">
+                                              <span>
+                                                @
+                                                {project.organization?.username ||
+                                                  project.organizations?.username ||
+                                                  "unknown"}
+                                                <span className="flex pt-2">
+                                                  {icon}
+                                                  <span className="ml-2">
+                                                    {name}
+                                                  </span>
+                                                </span>
+                                              </span>
+                                            </div>
+                                          );
+                                        })()
+                                      : `@${project.profiles?.username || "unknown"}`}
+                                  </p>
+                                  {!project.organization_id && (
+                                    <div className="flex items-center pt-2">
+                                      <CalendarDays className="mr-2 h-4 w-4 opacity-70" />
+                                      <span className="text-xs text-muted-foreground">
+                                        {project.profiles?.created_at
+                                          ? `Joined ${format(new Date(project.profiles.created_at), "MMMM yyyy")}`
+                                          : "New member"}
                                       </span>
                                     </div>
-                                  );
-                                })()
-                              : `@${project.profiles?.username || "unknown"}`}
-                          </p>
-                          {!project.organization_id && (
-                            <div className="flex items-center pt-2">
-                              <CalendarDays className="mr-2 h-4 w-4 opacity-70" />
-                              <span className="text-xs text-muted-foreground">
-                                {project.profiles?.created_at
-                                  ? `Joined ${format(new Date(project.profiles.created_at), "MMMM yyyy")}`
-                                  : "New member"}
-                              </span>
-                            </div>
+                                  )}
+                                </div>
+                              </div>
+                            </HoverCardContent>
+                          </HoverCard>
+                          {project.organization_id && isOrganizationVerified(project) && (
+                            <BadgeCheck className="h-4 w-4 flex-shrink-0" fill="hsl(var(--primary))" stroke="hsl(var(--popover))" strokeWidth={2.5} />
                           )}
                         </div>
                       </div>
-                    </HoverCardContent>
-                  </HoverCard>
-                </div>
-              </Card>
-            </Link>
+                    </div>
+                  </div>
+                </Card>
+              </Link>
+              
+              {/* Three-dot menu in top-right corner */}
+              <div className="absolute top-4 right-4 z-10">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <MoreVertical className="h-4 w-4" />
+                      <span className="sr-only">Open menu</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <ReportContentButton
+                      contentType="project"
+                      contentId={project.id}
+                      triggerButton={
+                        <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                          <Flag className="mr-2 h-4 w-4" />
+                          <span>Report Project</span>
+                        </DropdownMenuItem>
+                      }
+                    />
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </div>
           ))}
         </div>
       )}
@@ -541,28 +643,27 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                       </div>
                     </div>
                     <div className="flex items-center gap-3 mt-3 project-avatar">
-                      <HoverCard>
-                        <HoverCardTrigger asChild>
-                          <div className="flex items-center gap-2 cursor-pointer">
-                            <Avatar className="h-7 w-7">
-                              <AvatarImage
-                                src={getCreatorAvatarUrl(project)}
-                                alt={getProjectCreator(project)}
-                              />
-                              <AvatarFallback>
-                                <NoAvatar
-                                  fullName={getProjectCreator(project)}
-                                  className="text-sm"
-                                />
-                              </AvatarFallback>
-                            </Avatar>
-                            <span className="text-sm font-medium truncate">
+                      <Avatar className="h-7 w-7">
+                        <AvatarImage
+                          src={getCreatorAvatarUrl(project)}
+                          alt={getProjectCreator(project)}
+                        />
+                        <AvatarFallback>
+                          <NoAvatar
+                            fullName={getProjectCreator(project)}
+                            className="text-sm"
+                          />
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex items-center gap-1">
+                        <HoverCard>
+                          <HoverCardTrigger asChild>
+                            <span className="text-sm font-medium truncate cursor-pointer hover:underline">
                               {getProjectCreator(project)}
                             </span>
-                          </div>
-                        </HoverCardTrigger>
+                          </HoverCardTrigger>
 
-                        <HoverCardContent className="w-auto">
+                          <HoverCardContent className="w-auto">
                           <div
                             className="flex justify-between space-x-4 cursor-pointer"
                             onClick={(e) => {
@@ -586,9 +687,14 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                               </AvatarFallback>
                             </Avatar>
                             <div className="space-y-1 flex-1">
-                              <h4 className="text-sm font-semibold">
-                                {getProjectCreator(project)}
-                              </h4>
+                              <div className="flex items-center gap-1">
+                                <h4 className="text-sm font-semibold">
+                                  {getProjectCreator(project)}
+                                </h4>
+                                {project.organization_id && isOrganizationVerified(project) && (
+                                  <BadgeCheck className="h-4 w-4 flex-shrink-0" fill="hsl(var(--primary))" stroke="hsl(var(--popover))" strokeWidth={2.5} />
+                                )}
+                              </div>
                               <p className="text-sm">
                                 {project.organization_id
                                   ? project.organization?.type ||
@@ -610,7 +716,11 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                           </div>
                         </HoverCardContent>
                       </HoverCard>
+                      {project.organization_id && isOrganizationVerified(project) && (
+                        <BadgeCheck className="h-4 w-4 flex-shrink-0" fill="hsl(var(--primary))" stroke="hsl(var(--popover))" strokeWidth={2.5} />
+                      )}
                     </div>
+                  </div>
                   </div>
                   <Button
                     variant="ghost"
@@ -707,9 +817,14 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                               <NoAvatar fullName={getProjectCreator(project)} />
                             </AvatarFallback>
                           </Avatar>
-                          <span className="text-sm font-medium truncate">
-                            {getProjectCreator(project)}
-                          </span>
+                          <div className="flex items-center gap-1">
+                            <span className="text-sm font-medium truncate">
+                              {getProjectCreator(project)}
+                            </span>
+                            {project.organization_id && isOrganizationVerified(project) && (
+                              <BadgeCheck className="h-4 w-4 flex-shrink-0" fill="hsl(var(--primary))" stroke="hsl(var(--popover))" strokeWidth={2.5} />
+                            )}
+                          </div>
                         </div>
                       </HoverCardTrigger>
 
@@ -734,9 +849,14 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                             </AvatarFallback>
                           </Avatar>
                           <div className="space-y-1 flex-1">
-                            <h4 className="text-sm font-semibold">
-                              {getProjectCreator(project)}
-                            </h4>
+                            <div className="flex items-center gap-1">
+                              <h4 className="text-sm font-semibold">
+                                {getProjectCreator(project)}
+                              </h4>
+                              {project.organization_id && isOrganizationVerified(project) && (
+                                <BadgeCheck className="h-4 w-4 flex-shrink-0" fill="hsl(var(--primary))" stroke="hsl(var(--popover))" strokeWidth={2.5} />
+                              )}
+                            </div>
                             <p className="text-sm">
                               {project.organization_id
                                 ? project.organization?.type ||

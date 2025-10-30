@@ -76,16 +76,7 @@ export function CancelProjectDialog({
             <DialogTitle>Cancel Project</DialogTitle>
           </div>
           <DialogDescription>
-            {canCancel ? (
-              "This action cannot be undone. The project will be marked as cancelled and participants(who have a Let's Assist account) will be notified. Anonymous participants will not be notified."
-            ) : (
-              <span className="flex items-start gap-2 text-destructive mt-1">
-                <AlertTriangle className="h-5 w-5 flex-shrink-0" />
-                <span>
-                  Projects can only be cancelled within 24 hours of their start time.
-                </span>
-              </span>
-            )}
+            This action cannot be undone. The project will be marked as cancelled and participants (who have a Let's Assist account) will be notified. Anonymous participants will not be notified.
           </DialogDescription>
         </DialogHeader>
 
@@ -126,11 +117,11 @@ export function CancelProjectDialog({
           <Button
             variant="destructive"
             onClick={handleConfirm}
-            disabled={!canCancel || isSubmitting || !reason.trim() || reason.length > CHARACTER_LIMIT}
+            disabled={isSubmitting || !reason.trim() || reason.length > CHARACTER_LIMIT}
           >
             {isSubmitting ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Loader2 className="h-4 w-4 animate-spin" />
                 Cancelling...
               </>
             ) : (

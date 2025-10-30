@@ -7,13 +7,24 @@ import { Badge } from "@/components/ui/badge";
 import { format, parseISO, differenceInMinutes, isBefore } from "date-fns"; // Added parseISO, differenceInMinutes, isBefore
 import { notFound } from "next/navigation";
 import { NoAvatar } from "@/components/NoAvatar";
-import { CalendarIcon, Calendar, MapPin, BadgeCheck, Users, Clock, Award, ExternalLink } from "lucide-react";
+import { CalendarIcon, Calendar, MapPin, BadgeCheck, Users, Clock, Award, ExternalLink, MoreVertical, Flag } from "lucide-react";
 import Link from "next/link";
 import { Shield, UserRoundCog, UserRound } from "lucide-react";
 import { ProjectStatusBadge } from "@/components/ui/status-badge";
 import { Progress } from "@/components/ui/progress";
 import type { Metadata } from "next";
 import Image from "next/image";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { isTrustedForDisplay } from "@/utils/trust";
+import { stripHtml } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+import { ReportContentButton } from "@/components/ReportContentButton";
 
 interface Profile {
   id: string;
@@ -23,6 +34,7 @@ interface Profile {
   created_at: string;
   volunteer_hours?: number;
   verified_hours?: number;
+  trusted_member?: boolean;
 }
 
 interface Certificate {
@@ -127,6 +139,9 @@ export default async function ProfilePage(
     notFound();
   }
 
+  // Determine robust trusted flag for display (owner sees trusted immediately)
+  const isTrusted = await isTrustedForDisplay(profile.id);
+
   // Fetch projects created by this user
   const { data: createdProjects } = await supabase
     .from("projects")
@@ -222,7 +237,35 @@ function formatHours(hours: number): string {
     <div className="flex justify-center w-full">
       <div className="container max-w-5xl py-4 sm:py-8 px-4 sm:px-6">
         {/* Profile Header Card */}
-        <Card className="mb-6 sm:mb-8 overflow-hidden">
+        <Card className="mb-6 sm:mb-8 overflow-hidden relative">
+          {/* Three-dot menu in top-right corner */}
+          <div className="absolute top-4 right-4 z-10">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                >
+                  <MoreVertical className="h-4 w-4" />
+                  <span className="sr-only">Open menu</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <ReportContentButton
+                  contentType="profile"
+                  contentId={profile.id}
+                  triggerButton={
+                    <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                      <Flag className="mr-2 h-4 w-4" />
+                      <span>Report Profile</span>
+                    </DropdownMenuItem>
+                  }
+                />
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+          
           <div className="h-24 sm:h-32 bg-gradient-to-r from-primary/40 via-primary/20 to-primary/10"></div>
           <CardHeader className="pt-0 px-4 sm:px-6 pb-2">
             <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 -mt-6 sm:-mt-16">
@@ -236,7 +279,24 @@ function formatHours(hours: number): string {
                 </AvatarFallback>
               </Avatar>
                 <div className="sm:pt-16 flex flex-col justify-center">
-                <h1 className="text-xl sm:text-2xl font-bold">{profile.full_name}</h1>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h1 className="text-xl sm:text-2xl font-bold">{profile.full_name}</h1>
+                  {isTrusted && (
+                    <TooltipProvider delayDuration={150}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Badge variant="default" className="h-6 px-2 py-0 text-xs flex items-center gap-1">
+                            <BadgeCheck className="h-4 w-4" aria-hidden="true" />
+                            Trusted
+                          </Badge>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" align="start">
+                          <p className="max-w-xs text-sm">Trusted Member: verified by Let’s Assist. Projects they create are marked as Verified.</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
+                </div>
                 <p className="text-muted-foreground text-xs">@{profile.username}</p>
                 </div>
             </div>
@@ -424,7 +484,24 @@ function formatHours(hours: number): string {
                 <Card className="h-full hover:shadow-md transition-shadow cursor-pointer">
                   <CardContent className="p-3 sm:p-4">
                   <div className="flex justify-between items-start gap-2 mb-2">
-                    <h3 className="font-semibold text-base sm:text-lg line-clamp-1">{project.title}</h3>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <h3 className="font-semibold text-base sm:text-lg line-clamp-1 truncate">{project.title}</h3>
+                      {isTrusted && (
+                        <TooltipProvider delayDuration={150}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge variant="secondary" className="h-5 px-1.5 py-0 text-[10px] flex items-center gap-1">
+                                <BadgeCheck className="h-3 w-3" aria-hidden="true" />
+                                Verified
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" align="start">
+                              <p className="max-w-xs text-xs">Created by a Trusted Member. This project is Let’s Assist verified.</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+                    </div>
                     <ProjectStatusBadge 
                       status={project.status}
                       size="sm"
@@ -432,7 +509,7 @@ function formatHours(hours: number): string {
                     />
                   </div>
                   <p className="text-muted-foreground text-xs sm:text-sm mb-2 sm:mb-3 line-clamp-2">
-                    {project.description.replace(/<[^>]*>/g, '')}
+                    {stripHtml(project.description)}
                   </p>
                   <div className="flex items-center text-xs text-muted-foreground">
                     <MapPin className="h-3 w-3 mr-1 flex-shrink-0" />
@@ -476,7 +553,7 @@ function formatHours(hours: number): string {
                     />
                   </div>
                   <p className="text-muted-foreground text-xs sm:text-sm mb-2 sm:mb-3 line-clamp-2">
-                    {project.description.replace(/<[^>]*>/g, '')}
+                    {stripHtml(project.description)}
                   </p>
                   <div className="flex items-center text-xs text-muted-foreground">
                     <MapPin className="h-3 w-3 mr-1 flex-shrink-0" />

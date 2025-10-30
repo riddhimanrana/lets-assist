@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     redirect("/error?message=" + encodeURIComponent(error.message));
   }
 
-  // For email change type, update profiles table
+  // For email change type, update profiles table and keep user logged in
   if (type === "email_change" && data?.user) {
     const { error: profileError } = await supabase
       .from("profiles")
@@ -44,6 +44,18 @@ export async function GET(request: NextRequest) {
     return redirect("/auth/verification-success?type=email_change");
   }
 
-  // For other types (signup, etc)
-  redirect(next + "?confirmed=true");
+  // For signup verification, sign out the user and redirect to a full-screen success page
+  const userEmail = data.user?.email;
+  
+  // Sign the user out to prevent auto-login
+  await supabase.auth.signOut();
+
+  // Redirect to a dedicated signup verification success page with explicit URL construction
+  const origin = new URL(request.url).origin;
+  const redirectUrl = new URL(`${origin}/auth/verification-success`);
+  redirectUrl.searchParams.set('type', 'signup');
+  if (userEmail) {
+    redirectUrl.searchParams.set('email', userEmail);
+  }
+  redirect(redirectUrl.toString());
 }

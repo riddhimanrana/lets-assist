@@ -64,10 +64,10 @@ export async function setAttendanceCookie(
       maxAge: 60 * 5, // 5 minutes - short lifespan for verification
       secure: process.env.NODE_ENV === 'production',
     });
-    console.log(`[Server Action] Cookie ${cookieName} set successfully.`);
+    console.log('[Server Action] Cookie set successfully:', { cookieName });
     return { success: true };
   } catch (error) {
-    console.error(`[Server Action] Failed to set cookie ${cookieName}:`, error);
+    console.error('[Server Action] Failed to set cookie:', { cookieName, error });
     return { success: false, error: "Failed to set verification cookie." };
   }
 }
