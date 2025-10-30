@@ -473,8 +473,9 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
       // Reset form state
       setIsSubmitting(false);
       
-      // Redirect immediately after files are uploaded - no delay
-      router.replace(`/projects/${projectId}`);
+      // Force a full page redirect using window.location.href instead of Next.js router
+      // This ensures the page fully loads on production
+      window.location.href = `/projects/${projectId}`;
       
     } catch (error) {
       console.error("Error submitting project:", error);
