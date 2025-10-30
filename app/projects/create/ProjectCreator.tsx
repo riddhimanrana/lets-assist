@@ -386,7 +386,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
     try {
       setIsSubmitting(true);
       
-      // Show loading toast - will be dismissed before redirect
+      // Show loading toast
       const loadingToast = toast.loading("Creating your project...");
       
       // Step 1: Create basic project without files
@@ -407,10 +407,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
       
       // Step 2: Upload cover image if available
       if (coverImage) {
-        // Check size before attempting upload (5MB limit)
-        if (!validateFileSize(coverImage, 5 * 1024 * 1024)) {
-          hasErrors = true;
-        } else {
+        if (validateFileSize(coverImage, 5 * 1024 * 1024)) {
           try {
             const coverBase64 = await fileToBase64(coverImage);
             const coverResult = await uploadCoverImage(projectId, coverBase64);
@@ -422,6 +419,8 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
             console.error("Error processing cover image:", error);
             hasErrors = true;
           }
+        } else {
+          hasErrors = true;
         }
       }
       
@@ -429,9 +428,6 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
       if (documents.length > 0) {      
         for (let i = 0; i < documents.length; i++) {
           const doc = documents[i];
-          
-          // Update loading message but keep same toast ID
-          toast.loading(`Uploading files (${i+1}/${documents.length})...`, { id: loadingToast });
           
           // Check size before attempting upload
           if (!validateFileSize(doc, 10 * 1024 * 1024)) {
@@ -457,13 +453,13 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
         }
       }
       
-      // Step 4: Finalize project
-      await finalizeProject(projectId);
+      // Step 4: Finalize project (non-blocking)
+      finalizeProject(projectId).catch(error => {
+        console.error("Error finalizing project:", error);
+      });
       
-      // Dismiss any loading toasts
-      toast.dismiss();
-      
-      // Show success toast
+      // Dismiss loading toast and show success
+      toast.dismiss(loadingToast);
       const message = hasErrors 
         ? "Project created but some files couldn't be uploaded" 
         : "Project Created Successfully! 🎉";
@@ -474,10 +470,11 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
         toast.success(message);
       }
       
-      // Redirect immediately to project page (calendar sync will happen there)
-      router.push(`/projects/${projectId}`);
-      
+      // Reset form state
       setIsSubmitting(false);
+      
+      // Redirect immediately after files are uploaded - no delay
+      router.replace(`/projects/${projectId}`);
       
     } catch (error) {
       console.error("Error submitting project:", error);
