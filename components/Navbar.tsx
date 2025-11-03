@@ -20,8 +20,6 @@ import {
   Loader2,
 } from "lucide-react";
 import { NoAvatar } from "@/components/NoAvatar";
-import { createClient } from "@/utils/supabase/client";
-import { User as SupabaseUser } from "@supabase/supabase-js";
 import { logout } from "@/app/logout/actions";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -54,12 +52,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DonateDialog } from "@/components/DonateDialog";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import { NotificationPopover } from "@/components/NotificationPopover";
 import { useTheme } from "next-themes";
-import { usePathname } from "next/navigation"; // Added import
+import { usePathname } from "next/navigation";
 import { FeedbackDialog } from "@/components/FeedbackDialog";
+import { useAuth } from "@/hooks/useAuth";
+import { createClient } from "@/utils/supabase/client";
 
 interface SectionProps {
   title: string;
@@ -110,18 +110,15 @@ const features = [
   },
 ];
 
-interface NavbarProps {
-  initialUser: SupabaseUser | null;
-}
-
-export default function Navbar({ initialUser }: NavbarProps) {
-  const [user, setUser] = React.useState<SupabaseUser | null>(initialUser);
+export default function Navbar() {
+  // Use centralized auth hook instead of manual state management
+  const { user, isLoading: isProfileLoading } = useAuth();
+  
   const [profile, setProfile] = React.useState<{
     full_name: string;
     avatar_url: string;
     username: string;
   } | null>(null);
-  const [isProfileLoading, setIsProfileLoading] = React.useState(true);
   const [showBugDialog, setShowBugDialog] = useState(false);
   const [showDonateDialog, setShowDonateDialog] = useState(false);
   const [showFeedbackDialog, setShowFeedbackDialog] = useState(false);
@@ -129,7 +126,7 @@ export default function Navbar({ initialUser }: NavbarProps) {
   const { theme, setTheme } = useTheme();
   // Add loading state for logout
   const [isLoggingOut, setIsLoggingOut] = React.useState(false);
-  const pathname = usePathname(); // Get current pathname
+  const pathname = usePathname();
 
   const supabase = React.useMemo(() => createClient(), []);
 
@@ -150,48 +147,19 @@ export default function Navbar({ initialUser }: NavbarProps) {
       } catch (error) {
         console.debug("Profile fetch exception", error);
         setProfile(null);
-      } finally {
-        setIsProfileLoading(false);
       }
     },
     [supabase],
   );
 
+  // Update profile when user changes
   React.useEffect(() => {
-    if (initialUser) {
-      setUser(initialUser);
-      setIsProfileLoading(true);
-      fetchProfile(initialUser.id);
+    if (user?.id) {
+      fetchProfile(user.id);
     } else {
-      setUser(null);
       setProfile(null);
-      setIsProfileLoading(false);
     }
-  }, [fetchProfile, initialUser]);
-
-  React.useEffect(() => {
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.debug("Auth state changed", event, session?.user?.email);
-
-      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "INITIAL_SESSION") {
-        if (session?.user) {
-          setUser(session.user);
-          setIsProfileLoading(true);
-          await fetchProfile(session.user.id);
-        }
-      } else if (event === "SIGNED_OUT") {
-        setUser(null);
-        setProfile(null);
-        setIsProfileLoading(false);
-      }
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [fetchProfile, supabase]);
+  }, [user?.id, fetchProfile]);
 
   const handleNavigation = () => {
     setIsSheetOpen(false);
@@ -282,60 +250,21 @@ export default function Navbar({ initialUser }: NavbarProps) {
     try {
       setIsLoggingOut(true);
       
-      // Clear client-side user data first to prevent components from trying to access it
-      // setUser(null);
-      // setProfile(null);
-      
+      // Log out via server action
       const result = await logout();
       
       if (result.success) {
+        // useAuth hook will automatically handle cache clearing via auth listener
         // Use a small delay before redirecting to ensure state updates are processed
         setTimeout(() => {
           window.location.href = "/";
         }, 100);
       } else {
         console.error('Logout failed:', result.error);
-        // Restore user state if logout fails
-        // Re-sync via auth listener; fallback fetch for safety
-        supabase.auth
-          .getSession()
-          .then(({ data: { session } }) => {
-            if (session?.user) {
-              setUser(session.user);
-              fetchProfile(session.user.id);
-            } else {
-              setUser(null);
-              setProfile(null);
-              setIsProfileLoading(false);
-            }
-          })
-          .catch(() => {
-            setUser(null);
-            setProfile(null);
-            setIsProfileLoading(false);
-          });
         setIsLoggingOut(false);
       }
     } catch (error) {
       console.error('Logout failed:', error);
-      // Restore user state if logout fails
-      supabase.auth
-        .getSession()
-        .then(({ data: { session } }) => {
-          if (session?.user) {
-            setUser(session.user);
-            fetchProfile(session.user.id);
-          } else {
-            setUser(null);
-            setProfile(null);
-            setIsProfileLoading(false);
-          }
-        })
-        .catch(() => {
-          setUser(null);
-          setProfile(null);
-          setIsProfileLoading(false);
-        });
       setIsLoggingOut(false);
     }
   };

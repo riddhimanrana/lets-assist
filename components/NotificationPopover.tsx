@@ -20,6 +20,7 @@ import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { useAuth } from "@/hooks/useAuth";
 
 type NotificationSeverity = 'info' | 'warning' | 'success';
 
@@ -35,6 +36,7 @@ type Notification = {
 };
 
 export function NotificationPopover() {
+  const { user } = useAuth(); // Use centralized auth hook
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -44,60 +46,47 @@ export function NotificationPopover() {
   const isMobile = useMediaQuery("(max-width: 768px)");
   
   useEffect(() => {
+    if (!user?.id) return; // Wait for user to be available
+    
     if (open) {
       loadNotifications();
     }
     
-    // Get authenticated user ID for subscription
-    const setupRealtimeSubscription = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return null;
-      
-      // Update unread count on page load
-      updateUnreadCount();
-      
-      // Generate a unique channel name for this component
-      const channelName = `notification-popover-${user.id}-${Date.now()}`;
-      console.log(`Setting up notification badge channel: ${channelName}`);
-      
-      const channel = supabase
-        .channel(channelName)
-        .on('postgres_changes', 
-          {
-            event: '*',
-            schema: 'public',
-            table: 'notifications',
-            filter: `user_id=eq.${user.id}`
-          }, 
-          (payload) => {
-            console.log('Notification badge update event:', payload.eventType);
-            if (open) {
-              loadNotifications();
-            } else {
-              updateUnreadCount();
-            }
-          }
-        )
-        .subscribe(status => {
-          console.log(`Badge notification channel status: ${status}`);
-        });
-        
-      return channel;
-    };
+    // Setup realtime subscription using user from auth hook
+    const channelName = `notification-popover-${user.id}-${Date.now()}`;
+    console.log(`Setting up notification badge channel: ${channelName}`);
     
-    // Start the subscription setup
-    const subscriptionPromise = setupRealtimeSubscription();
+    // Update unread count on component load
+    updateUnreadCount();
+    
+    const channel = supabase
+      .channel(channelName)
+      .on('postgres_changes', 
+        {
+          event: '*',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${user.id}`
+        }, 
+        (payload) => {
+          console.log('Notification badge update event:', payload.eventType);
+          if (open) {
+            loadNotifications();
+          } else {
+            updateUnreadCount();
+          }
+        }
+      )
+      .subscribe(status => {
+        console.log(`Badge notification channel status: ${status}`);
+      });
     
     // Cleanup function
     return () => {
-      subscriptionPromise.then(channel => {
-        if (channel) {
-          console.log('Removing notification badge channel');
-          supabase.removeChannel(channel);
-        }
-      });
+      console.log('Removing notification badge channel');
+      supabase.removeChannel(channel);
     };
-  }, [open]);
+  }, [user?.id, open]);
 
   // Auto mark all notifications as read when the popover closes and there are unread notifications
   useEffect(() => {

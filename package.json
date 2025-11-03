@@ -8,6 +8,10 @@
     "postbuild": "next-sitemap",
     "start": "next start",
     "lint": "next lint",
+    "test": "vitest",
+    "test:watch": "vitest --watch",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest --coverage",
     "test:auto-publish": "node scripts/test-auto-publish.js",
     "verify:cipa": "tsx scripts/verify-cipa-tables.ts"
   },
@@ -108,16 +112,23 @@
   },
   "devDependencies": {
     "@next/eslint-plugin-next": "^15.2.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.0",
     "@types/node": "^20.17.24",
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.0.4",
+    "@vitejs/plugin-react": "^5.1.0",
+    "@vitest/ui": "^4.0.6",
     "eslint": "^9.22.0",
     "eslint-config-next": "^16.0.0",
     "eslint-config-prettier": "^10.1.1",
     "fast-glob": "^3.3.3",
+    "jsdom": "^27.1.0",
     "postcss": "^8.5.3",
     "tailwindcss": "^3.4.17",
-    "typescript": "^5.8.2"
+    "typescript": "^5.8.2",
+    "vite": "^7.1.12",
+    "vitest": "^4.0.6"
   },
   "overrides": {
     "react-is": "^19.0.0-rc-69d4b800-20241021",
