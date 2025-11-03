@@ -87,8 +87,8 @@ export default async function RootLayout({
           >
             <PostHogProvider>
               <div className="bg-background text-foreground min-h-screen flex flex-col">
-                {/* Pass server-fetched user to Navbar */}
-                <Navbar initialUser={user} />
+                {/* Navbar now uses centralized useAuth hook */}
+                <Navbar />
                 <main className="flex-1">{children}</main>
                 <ToasterTheme />
                 <Footer />

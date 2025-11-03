@@ -16,7 +16,7 @@ import { Lightbulb, AlertTriangle, MoreHorizontal, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils";
 import { createClient } from "@/utils/supabase/client";
 import { toast } from "sonner";
-import { User as SupabaseUser } from "@supabase/supabase-js";
+import { useAuth } from "@/hooks/useAuth";
 
 interface FeedbackDialogProps {
   onOpenChangeAction: (open: boolean) => void;
@@ -26,12 +26,12 @@ interface FeedbackDialogProps {
 type FeedbackType = "issue" | "idea" | "other";
 
 export function FeedbackDialog({ onOpenChangeAction, initialType = "issue" }: FeedbackDialogProps) {
+  const { user } = useAuth(); // Use centralized auth hook instead of manual getUser()
   const [selectedType, setSelectedType] = React.useState<FeedbackType>(initialType);
   const [email, setEmail] = React.useState("");
   const [title, setTitle] = React.useState("");
   const [feedback, setFeedback] = React.useState("");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
-  const [user, setUser] = React.useState<SupabaseUser | null>(null);
   const [profile, setProfile] = React.useState<{ full_name: string } | null>(null);
 
   const feedbackTypes = [
@@ -59,27 +59,26 @@ export function FeedbackDialog({ onOpenChangeAction, initialType = "issue" }: Fe
   ];
 
   React.useEffect(() => {
-    const getUser = async () => {
+    if (!user?.id) {
+      setProfile(null);
+      setEmail("");
+      return;
+    }
+
+    const getProfile = async () => {
       const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", user.id)
+        .single();
       
-      if (user) {
-        setUser(user);
-        setEmail(user.email || "");
-        
-        // Get profile info
-        const { data: profileData } = await supabase
-          .from("profiles")
-          .select("full_name")
-          .eq("id", user.id)
-          .single();
-        
-        setProfile(profileData);
-      }
+      setProfile(profileData);
+      setEmail(user.email || "");
     };
 
-    getUser();
-  }, []);
+    getProfile();
+  }, [user?.id]);
 
   const handleSubmit = async () => {
     if (!user) {

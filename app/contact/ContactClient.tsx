@@ -11,25 +11,14 @@ import { Button } from "@/components/ui/button";
 import { Lightbulb, Bug, Mail } from "lucide-react";
 import Link from "next/link";
 import { FeedbackDialog } from "@/components/FeedbackDialog";
-import { createClient } from "@/utils/supabase/client";
 import { toast } from "sonner";
-import { useState, useEffect } from "react";
-import { User as SupabaseUser } from "@supabase/supabase-js";
+import { useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function ContactClient() {
+    const { user } = useAuth(); // Use centralized auth hook
     const [showFeedbackDialog, setShowFeedbackDialog] = useState(false);
     const [feedbackType, setFeedbackType] = useState<"issue" | "idea" | "other">("issue");
-    const [user, setUser] = useState<SupabaseUser | null>(null);
-
-    useEffect(() => {
-        const getUser = async () => {
-            const supabase = createClient();
-            const { data: { user } } = await supabase.auth.getUser();
-            setUser(user);
-        };
-
-        getUser();
-    }, []);
 
     const handleSuggestFeature = () => {
         if (!user) {

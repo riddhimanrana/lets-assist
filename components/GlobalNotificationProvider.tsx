@@ -1,10 +1,10 @@
 "use client";
 
 import InitialOnboardingModal from "@/components/InitialOnboardingModal";
-import { createClient } from "@/utils/supabase/client";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { usePathname } from "next/navigation";
 import { NotificationListener } from "./NotificationListener";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function GlobalNotificationProvider({ 
   children 
@@ -12,14 +12,11 @@ export default function GlobalNotificationProvider({
   children: React.ReactNode 
 }) {
   const pathname = usePathname();
-  const [userId, setUserId] = useState<string | null>(null);
+  const { user, isLoading } = useAuth(); // Use centralized auth hook instead of manual getUser()
   const [showOnboardingModal, setShowOnboardingModal] = useState(false);
   const [currentUserFullName, setCurrentUserFullName] = useState<string | null>(null);
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const initRef = useRef(false);
   const onboardingCompletedRef = useRef(false); // Guard to prevent re-showing modal
-  const authUnsubscribeRef = useRef<(() => void) | undefined>(undefined);
 
   // Do not show onboarding modal on critical creation flows where it can block inputs
   const suppressOnboardingModal = !!(
@@ -28,8 +25,12 @@ export default function GlobalNotificationProvider({
   );
 
   // Simplified onboarding check—only look at the metadata flag
-  const checkOnboardingStatus = useCallback(async (user: any) => {
-    if (!user) return;
+  useEffect(() => {
+    if (!user) {
+      setShowOnboardingModal(false);
+      onboardingCompletedRef.current = false;
+      return;
+    }
 
     const completed = user.user_metadata?.has_completed_onboarding === true;
     
@@ -54,70 +55,7 @@ export default function GlobalNotificationProvider({
         setShowOnboardingModal(false);
       }
     }
-  }, [suppressOnboardingModal]);
-
-  // Function to check user authentication and onboarding status
-  const checkUserStatus = useCallback(async () => {
-    try {
-      const supabase = createClient();
-      const { data: { user }, error } = await supabase.auth.getUser();
-      
-      if (error) {
-        console.error("Error fetching user in GlobalNotificationProvider:", error);
-        setUserId(null);
-        setShowOnboardingModal(false);
-        onboardingCompletedRef.current = false;
-        setIsLoading(false);
-        return;
-      }
-      
-      if (user) {
-        console.log("User fetched:", user.id);
-        setUserId(user.id);
-        await checkOnboardingStatus(user);
-      } else {
-        console.log("No active user session.");
-        setUserId(null);
-        setShowOnboardingModal(false);
-        onboardingCompletedRef.current = false;
-      }
-      
-      setIsLoading(false);
-    } catch (err) {
-      console.error("Exception in checkUserStatus:", err);
-      setUserId(null);
-      setShowOnboardingModal(false);
-      onboardingCompletedRef.current = false;
-      setIsLoading(false);
-    }
-  }, [checkOnboardingStatus]);
-
-  useEffect(() => {
-    if (initRef.current) return;
-    initRef.current = true;
-
-    const supabase = createClient();
-
-    // Initial check
-    checkUserStatus();
-
-    // Subscribe to auth state changes instead of polling
-    const { data: subscription } = supabase.auth.onAuthStateChange((_event, _session) => {
-      // Debounce rapid changes by scheduling a microtask
-      queueMicrotask(() => {
-        checkUserStatus();
-      });
-    });
-    authUnsubscribeRef.current = () => subscription.subscription.unsubscribe();
-
-    return () => {
-      try {
-        authUnsubscribeRef.current?.();
-      } catch {}
-      initRef.current = false;
-      onboardingCompletedRef.current = false;
-    };
-  }, [checkUserStatus]);
+  }, [user, suppressOnboardingModal]);
 
   // If user navigates into a suppressed route while the modal is open, hide it
   useEffect(() => {
@@ -128,13 +66,14 @@ export default function GlobalNotificationProvider({
 
   // Force refresh user status (called after onboarding completion)
   const forceRefreshUserStatus = useCallback(async () => {
-    await checkUserStatus();
-  }, [checkUserStatus]);
+    // useAuth hook handles caching automatically - just clear and restart
+    // This is handled by the auth context, no manual refresh needed
+  }, []);
   
   return (
     <>
-      {userId && <NotificationListener userId={userId} />}
-      {showOnboardingModal && userId && !isLoading && !suppressOnboardingModal && (
+      {user?.id && <NotificationListener userId={user.id} />}
+      {showOnboardingModal && user?.id && !isLoading && !suppressOnboardingModal && (
         <InitialOnboardingModal
           isOpen={showOnboardingModal}
           onClose={() => {
@@ -146,7 +85,7 @@ export default function GlobalNotificationProvider({
               forceRefreshUserStatus();
             }, 500);
           }}
-          userId={userId}
+          userId={user.id}
           currentFullName={currentUserFullName}
           currentEmail={currentUserEmail}
         />
