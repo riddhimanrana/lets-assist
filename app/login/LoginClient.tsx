@@ -6,6 +6,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { login, signInWithGoogle } from "./actions";
 import Link from "next/link";
+import { createClient } from "@/utils/supabase/client";
+import { refreshUser } from "@/utils/auth/auth-context";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -58,6 +60,7 @@ export default function LoginClient({ redirectPath }: LoginClientProps) {
   const searchParams = useSearchParams();
   const isVerified = searchParams.get('verified') === 'true';
 
+
   async function onSubmit(data: LoginValues) {
     const turnstileToken = turnstileRef.current?.getResponse();
     
@@ -93,9 +96,19 @@ export default function LoginClient({ redirectPath }: LoginClientProps) {
       } else {
         toast.error("Incorrect email or password.");
       }
+      setIsLoading(false);
     } else if (result.success) {
-      // Don't wait - let onAuthStateChange handle the state update
-      // Just redirect immediately since session is established server-side
+      // Login successful
+      console.log('[LoginClient] Login successful, session established');
+      
+      // Immediately refresh auth cache to update navbar
+      const supabase = createClient();
+      await refreshUser(supabase);
+      console.log('[LoginClient] Auth cache refreshed');
+      
+      // Call refresh to ensure middleware runs and updates cookies
+      router.refresh();
+      
       const redirectUrl = redirectPath ? decodeURIComponent(redirectPath) : "/home";
       
       if (isVerified) {
@@ -104,8 +117,7 @@ export default function LoginClient({ redirectPath }: LoginClientProps) {
         router.push(redirectUrl);
       }
 
-      // Force a refresh so server components re-evaluate with the new session cookie
-      router.refresh();
+      // Don't clear loading state - keep the loading spinner visible
       return;
     }
 
