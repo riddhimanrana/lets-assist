@@ -1,6 +1,7 @@
 "use server";
 
 import { z } from "zod";
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/utils/supabase/server";
 import { verifyTurnstileToken, isTurnstileEnabled } from "@/lib/turnstile";
 
@@ -74,6 +75,9 @@ export async function login(formData: FormData) {
   if (error) {
     return { error: { server: [error.message] } };
   }
+
+  // Revalidate all routes to clear cached auth state
+  revalidatePath("/", "layout");
 
   return { success: true };
 }

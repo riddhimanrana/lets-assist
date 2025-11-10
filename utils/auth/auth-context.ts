@@ -90,12 +90,31 @@ export async function getOrFetchUser(supabase: SupabaseClient): Promise<User | n
         console.log('[Auth Context] Fetching user from Supabase...');
       }
 
+      // First check if there's a session - this reads from storage synchronously
+      // and doesn't make an API call. Prevents "Auth session missing" errors.
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        // No session means user is definitely not logged in
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[Auth Context] No session found');
+        }
+        cachedUser = null;
+        cacheInitialized = true;
+        lastFetchTimestamp = Date.now();
+        lastFetchError = null;
+        return null;
+      }
+
+      // Session exists, now fetch the full user object
       const { data: { user }, error } = await supabase.auth.getUser();
 
       if (error) {
         lastFetchError = error;
         console.error('[Auth Context] Error fetching user:', error);
         cachedUser = null;
+        cacheInitialized = true;
+        lastFetchTimestamp = Date.now();
         return null;
       }
 
@@ -115,6 +134,7 @@ export async function getOrFetchUser(supabase: SupabaseClient): Promise<User | n
       lastFetchError = err;
       console.error('[Auth Context] Exception fetching user:', error);
       cachedUser = null;
+      cacheInitialized = true;
       throw err;
     } finally {
       // Clear the in-flight promise so next call initiates fresh fetch
@@ -224,6 +244,7 @@ export async function refreshUser(supabase: SupabaseClient): Promise<User | null
  */
 export function updateCachedUser(user: User | null): void {
   cachedUser = user;
+  cacheInitialized = true; // Mark cache as initialized when manually updated
   lastFetchTimestamp = Date.now();
   
   if (process.env.NODE_ENV === 'development') {

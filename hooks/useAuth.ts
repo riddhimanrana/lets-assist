@@ -63,6 +63,7 @@ export function useAuth(): AuthState {
   // Create client once and reuse it
   const supabase = useMemo(() => createClient(), []);
 
+  // Effect 1: Initialize auth state (fetch user if needed)
   useEffect(() => {
     let mounted = true;
 
@@ -115,10 +116,21 @@ export function useAuth(): AuthState {
       }
     };
 
-    // Initialize auth state
     initializeAuth();
 
-    // Subscribe to auth state changes
+    return () => {
+      mounted = false;
+    };
+  }, [supabase]); // Only depend on supabase, run once
+
+  // Effect 2: Subscribe to auth state changes (separate from initialization)
+  useEffect(() => {
+    let mounted = true;
+
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[useAuth] Setting up auth state subscription');
+    }
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (!mounted) return;
@@ -161,7 +173,7 @@ export function useAuth(): AuthState {
       mounted = false;
       subscription?.unsubscribe();
     };
-  }, [supabase, isCacheReady]);
+  }, [supabase]); // Only depend on supabase, set up once and never change
 
   // Create refresh function
   const refreshAuthState = useCallback(async () => {
