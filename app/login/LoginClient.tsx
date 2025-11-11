@@ -4,10 +4,11 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { type Session } from "@supabase/supabase-js";
 import { login, signInWithGoogle } from "./actions";
 import Link from "next/link";
 import { createClient } from "@/utils/supabase/client";
-import { refreshUser } from "@/utils/auth/auth-context";
+import { updateCachedUser, initializeUserProfileCache } from "@/utils/auth/auth-context";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -101,20 +102,29 @@ export default function LoginClient({ redirectPath }: LoginClientProps) {
       // Login successful
       console.log('[LoginClient] Login successful, session established');
       
-      // Immediately refresh auth cache to update navbar
-      const supabase = createClient();
-      await refreshUser(supabase);
-      console.log('[LoginClient] Auth cache refreshed');
+      // The server action returns the session directly - use it immediately
+      if (result.session?.user) {
+        console.log('[LoginClient] Session received from server:', result.session.user.email);
+        // Update cache IMMEDIATELY with the session from the server action
+        updateCachedUser(result.session.user);
+        console.log('[LoginClient] Cache updated immediately with user:', result.session.user.email);
+        
+        // Initialize profile and settings cache in background
+        // This fetches profile + settings in a batch query
+        // and subscribes to realtime updates
+        initializeUserProfileCache(result.session.user.id).catch((error) => {
+          console.error('[LoginClient] Failed to initialize profile cache:', error);
+        });
+      }
       
-      // Call refresh to ensure middleware runs and updates cookies
-      router.refresh();
-      
+      // Navigate immediately - don't wait for profile fetch
       const redirectUrl = redirectPath ? decodeURIComponent(redirectPath) : "/home";
       
       if (isVerified) {
         router.push("/home?confirmed=true");
       } else {
-        router.push(redirectUrl);
+        // Use replace for immediate transition without adding to history
+        router.replace(redirectUrl);
       }
 
       // Don't clear loading state - keep the loading spinner visible

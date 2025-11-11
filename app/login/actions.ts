@@ -70,7 +70,7 @@ export async function login(formData: FormData) {
     signInOptions.options = { captchaToken: turnstileToken };
   }
 
-  const { error } = await supabase.auth.signInWithPassword(signInOptions);
+  const { data, error } = await supabase.auth.signInWithPassword(signInOptions);
 
   if (error) {
     return { error: { server: [error.message] } };
@@ -79,5 +79,10 @@ export async function login(formData: FormData) {
   // Revalidate all routes to clear cached auth state
   revalidatePath("/", "layout");
 
-  return { success: true };
+  // Return the session so LoginClient can immediately use it
+  // This is the critical fix - the server action returns the authenticated user
+  return { 
+    success: true, 
+    session: data.session 
+  };
 }

@@ -47,8 +47,10 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  // IMPORTANT: Do NOT call getUser() on every request - it creates excessive API calls
-  // The session is already validated via cookies, only call getUser() when needed
+  // CRITICAL: Always refresh the session to sync server-side auth changes to cookies
+  // This ensures that after login, the session is immediately available to the client
+  // The session refresh is quick and necessary for the SSR auth flow to work properly
+  const { data: { user: refreshedUser } } = await supabase.auth.getUser();
   
   // Check for ?noRedirect=1 query parameter
   const searchParams = request.nextUrl.searchParams;
@@ -57,20 +59,7 @@ export async function updateSession(request: NextRequest) {
   }
 
   const currentPath = request.nextUrl.pathname;
-
-  // Only fetch user for routes that actually need auth checks
-  const needsAuthCheck = 
-    isProtectedPath(currentPath) || 
-    isProjectCreatorPath(currentPath).isCreatorPath ||
-    currentPath.startsWith("/admin") ||
-    RESTRICTED_PATHS_FOR_LOGGED_IN_USERS.includes(currentPath);
-
-  let user = null;
-  if (needsAuthCheck) {
-    // Only call getUser() when we actually need to check auth
-    const { data: { user: fetchedUser } } = await supabase.auth.getUser();
-    user = fetchedUser;
-  }
+  let user = refreshedUser;
 
 
 // Handle /account redirect - must come first as it's a simple path redirect
