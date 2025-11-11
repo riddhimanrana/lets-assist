@@ -35,7 +35,7 @@ export async function updateSession(request: NextRequest) {
           return request.cookies.getAll()
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
           supabaseResponse = NextResponse.next({
             request,
           })
@@ -47,17 +47,19 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
+  // CRITICAL: Always refresh the session to sync server-side auth changes to cookies
+  // This ensures that after login, the session is immediately available to the client
+  // The session refresh is quick and necessary for the SSR auth flow to work properly
+  const { data: { user: refreshedUser } } = await supabase.auth.getUser();
+  
   // Check for ?noRedirect=1 query parameter
   const searchParams = request.nextUrl.searchParams;
   if (searchParams.get("noRedirect") === "1") {
     return supabaseResponse; // Skip redirects if requested
   }
 
-  // Fetch user session
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
   const currentPath = request.nextUrl.pathname;
+  let user = refreshedUser;
 
 
 // Handle /account redirect - must come first as it's a simple path redirect
@@ -90,6 +92,15 @@ export async function updateSession(request: NextRequest) {
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('redirect', request.nextUrl.pathname);
     return NextResponse.redirect(loginUrl);
+  }
+
+  // Handle admin routes - redirect to 404 if not super admin
+  if (currentPath.startsWith("/admin")) {
+    if (!user) {
+      // Not logged in, redirect to not-found to avoid leaking the route
+      return NextResponse.redirect(new URL("/not-found", request.url));
+    }
+    // Logged-in users proceed; the admin route performs a service-role check server-side.
   }
 
   // Check for project creator routes

@@ -37,8 +37,10 @@ import {
   Clock,
   HelpCircle, // For instructions modal
   Mail,
+  Calendar,
+  CalendarCheck,
 } from "lucide-react";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { deleteProject, updateProjectStatus } from "./actions";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -59,6 +61,11 @@ import { differenceInHours, addHours, isBefore, isAfter, parseISO, format } from
 import { getProjectStartDateTime, getProjectEndDateTime } from "@/utils/project";
 import ProjectTimeline from "./ProjectTimeline";
 import { ProjectQRCodeModal } from "./ProjectQRCodeModal";
+import CalendarOptionsModal from "@/components/CalendarOptionsModal";
+import {
+  removeCalendarEventForProject,
+  removeAllVolunteerCalendarEvents,
+} from "@/utils/calendar-helpers";
 
 interface Props {
   project: Project;
@@ -73,6 +80,42 @@ export default function CreatorDashboard({ project }: Props) {
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [timelineOpen, setTimelineOpen] = useState(false);
   const [qrCodeOpen, setQrCodeOpen] = useState(false);
+  
+  // Calendar integration states
+  const [showCalendarModal, setShowCalendarModal] = useState(false);
+  const [isCalendarSynced, setIsCalendarSynced] = useState(!!project.creator_calendar_event_id);
+
+  // Auto-sync calendar on page load if user is connected and project isn't synced
+  useEffect(() => {
+    const autoSyncCalendar = async () => {
+      // Only sync if not already synced
+      if (isCalendarSynced) return;
+
+      try {
+        // Check if user is connected to Google Calendar
+        const response = await fetch("/api/calendar/connection-status");
+        const data = await response.json();
+
+        if (data.connected) {
+          // Sync project to calendar
+          const syncResponse = await fetch("/api/calendar/sync-project", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ project_id: project.id }),
+          });
+
+          if (syncResponse.ok) {
+            toast.success("Project synced to Google Calendar");
+            setIsCalendarSynced(true);
+          }
+        }
+      } catch (error) {
+        console.error("Auto calendar sync failed:", error);
+      }
+    };
+
+    autoSyncCalendar();
+  }, [project.id, isCalendarSynced]);
 
   const handleCancelProject = async (reason: string) => {
     try {
@@ -81,6 +124,18 @@ export default function CreatorDashboard({ project }: Props) {
         toast.error(result.error);
       } else {
         toast.success("Project cancelled successfully");
+        
+        // Remove calendar events (non-blocking)
+        try {
+          // Remove creator's calendar event
+          await removeCalendarEventForProject(project.id);
+          // Remove all volunteer calendar events
+          await removeAllVolunteerCalendarEvents(project.id);
+        } catch (calendarError) {
+          console.error("Error removing calendar events:", calendarError);
+          // Don't show error to user - this is non-critical
+        }
+        
         // Send cancellation notifications to all participants
         try {
           const supabase = createClient();
@@ -128,6 +183,7 @@ export default function CreatorDashboard({ project }: Props) {
       } else {
         toast.success("Project deleted successfully");
         router.push("/home");
+        router.refresh(); // Trigger server-side re-fetch of home page data
       }
     } catch (error) {
       toast.error("Failed to delete project");
@@ -521,14 +577,6 @@ export default function CreatorDashboard({ project }: Props) {
               <Users className="h-4 w-4" />
               Manage Signups
             </Button>
-            <Button
-              variant="outline"
-              className="w-full sm:w-auto flex items-center justify-center gap-2"
-              onClick={() => router.push(`/projects/${project.id}/documents`)}
-            >
-              <FileEdit className="h-4 w-4" />
-              Manage Files
-            </Button>
             
             <TooltipProvider>
               <Tooltip>
@@ -554,6 +602,46 @@ export default function CreatorDashboard({ project }: Props) {
             {/* Creator Instructions Modal */}
             <ProjectInstructionsModal project={project} isCreator={true} />
 
+            {/* Calendar Sync Button */}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="w-full sm:w-auto">
+                    <Button
+                      variant="outline"
+                      className={`w-full sm:w-auto flex items-center justify-center gap-2 ${
+                        isCalendarSynced 
+                          ? "bg-chart-5/10 hover:bg-chart-5/20 border-chart-5/80" 
+                          : ""
+                      }`}
+                      onClick={() => setShowCalendarModal(true)}
+                    >
+                      {isCalendarSynced ? (
+                        <>
+                          <CalendarCheck className="h-4 w-4 text-chart-5" />
+                          Synced to Calendar
+                        </>
+                      ) : (
+                        <>
+                          <Calendar className="h-4 w-4" />
+                          Add to Calendar
+                        </>
+                      )}
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-[280px] p-2">
+                  <p>
+                    {isCalendarSynced
+                      ? "This project is synced to your calendar. Click to manage or remove."
+                      : "Add this project to your Google Calendar or download an iCal file"}
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
+            {/* Creator Instructions Modal */}
+
             {/* --- MODIFIED: Manage Hours Button (Conditional) --- */}
             {/* Use the new filtered list */}
             {hasActiveUnpublishedSessions && project.verification_method !== 'auto' && (
@@ -564,7 +652,7 @@ export default function CreatorDashboard({ project }: Props) {
                       <span className="w-full sm:w-auto">
                         <Button
                           variant="outline"
-                          className="w-full bg-chart-8/30 hover:bg-chart-8/20 border-chart-8/60 sm:w-auto flex items-center justify-center  gap-2"
+                          className="w-full bg-chart-8/10 hover:bg-chart-8/20 border-chart-8/80 sm:w-auto flex items-center justify-center gap-2"
                           onClick={() => router.push(`/projects/${project.id}/hours`)}
                         >
                           <Clock className="h-4 w-4" />
@@ -990,6 +1078,15 @@ export default function CreatorDashboard({ project }: Props) {
           onOpenChange={setQrCodeOpen}
         />
       )}
+
+      {/* Calendar Sync Modal */}
+      <CalendarOptionsModal
+        open={showCalendarModal}
+        onOpenChange={setShowCalendarModal}
+        project={project}
+        mode="creator"
+        onSyncSuccess={() => setIsCalendarSynced(true)}
+      />
     </div>
   );
 }

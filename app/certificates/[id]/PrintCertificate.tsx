@@ -1,8 +1,16 @@
 "use client";
 
-import { Printer, Calendar, Clock, MapPin, Building2, Award } from "lucide-react";
+import {
+  Printer,
+  Calendar,
+  Clock,
+  MapPin,
+  Building2,
+  Award,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format, parseISO } from "date-fns";
+import { formatInTimeZone } from "date-fns-tz";
 import { useEffect, useState, useRef } from "react";
 
 interface CertificateData {
@@ -24,7 +32,6 @@ interface CertificateData {
   volunteer_name: string | null;
   project_location: string | null;
   durationText: string;
-  issuedDate: string;
 }
 
 export function PrintCertificate({ data }: { data: CertificateData }) {
@@ -42,8 +49,32 @@ export function PrintCertificate({ data }: { data: CertificateData }) {
 
     // Collect current stylesheets
     const links = Array.from(document.querySelectorAll("link[rel=stylesheet]"))
-      .map(link => link.outerHTML)
+      .map((link) => link.outerHTML)
       .join("");
+
+    // Get user's timezone for print formatting
+    const getUserTimezone = () => {
+      try {
+        return Intl.DateTimeFormat().resolvedOptions().timeZone;
+      } catch {
+        return "UTC";
+      }
+    };
+
+    const userTimezone = getUserTimezone();
+
+    // Format dates in user's timezone for print
+    const printEventDate = formatInTimeZone(
+      parseISO(data.event_start),
+      userTimezone,
+      "MMMM d, yyyy",
+    );
+
+    const printIssuedDate = formatInTimeZone(
+      parseISO(data.issued_at),
+      userTimezone,
+      "MMM d, yyyy",
+    );
 
     // Assemble the HTML content for the certificate
     const certificateHtml = `
@@ -74,7 +105,7 @@ export function PrintCertificate({ data }: { data: CertificateData }) {
               </div>
               <div style="text-align:right">
                 <p class="print-text" style="margin:0">Certificate ID: ${data.id}</p>
-                <p class="print-text" style="margin:0">Issued: ${data.issuedDate}</p>
+                <p class="print-text" style="margin:0">Issued: ${printIssuedDate}</p>
               </div>
             </div>
 
@@ -92,23 +123,31 @@ export function PrintCertificate({ data }: { data: CertificateData }) {
                 ${data.project_title}
               </h3>
               <div style="display:flex;gap:2rem;margin-top:1rem">
-                <div style="text-align:center">
-                  <span class="print-accent" aria-hidden="true">📅</span>
-                  <p class="print-text" style="margin:.5rem 0">${format(parseISO(data.event_start),"MMMM d, yyyy")}</p>
-                  <p class="print-text" style="margin:0;font-size:0.9rem;">Event Date</p>
-                </div>
-                ${data.organization_name ? `
+              <div style="text-align:center">
+                <span class="print-accent" aria-hidden="true">📅</span>
+                <p class="print-text" style="margin:.5rem 0">${printEventDate}</p>
+                <p class="print-text" style="margin:0;font-size:0.9rem;">Event Date</p>
+              </div>
+                ${
+                  data.organization_name
+                    ? `
                 <div style="text-align:center">
                   <span class="print-accent" aria-hidden="true">🏢</span>
                   <p class="print-text" style="margin:.5rem 0">${data.organization_name}</p>
                   <p class="print-text" style="margin:0;font-size:0.9rem;">Organization</p>
-                </div>` : ""}
-                ${data.project_location ? `
+                </div>`
+                    : ""
+                }
+                ${
+                  data.project_location
+                    ? `
                 <div style="text-align:center">
                   <span class="print-accent" aria-hidden="true">📍</span>
                   <p class="print-text" style="margin:.5rem 0">${data.project_location}</p>
                   <p class="print-text" style="margin:0;font-size:0.9rem;">Location</p>
-                </div>` : ""}
+                </div>`
+                    : ""
+                }
                 <div style="text-align:center">
                   <span class="print-accent" aria-hidden="true">⏰</span>
                   <p class="print-text" style="margin:.5rem 0">${data.durationText}</p>
@@ -121,12 +160,17 @@ export function PrintCertificate({ data }: { data: CertificateData }) {
               <div>
                 <p class="print-text" style="margin:0">Issued by:</p>
                 <p class="print-text" style="font-weight:bold;margin:.25rem 0">${data.creator_name || "Let's Assist Admin"}</p>
+                <p class="print-text" style="margin:0;font-size:0.9rem;">Issued: ${printIssuedDate}</p>
               </div>
-              ${data.is_certified ? `
+              ${
+                data.is_certified
+                  ? `
               <div style="display:flex;align-items:center">
                 <span class="print-accent" aria-hidden="true" style="font-size:2rem;">🏅</span>
                 <span class="print-text print-accent" style="font-weight:bold;margin-left:.5rem">OFFICIALLY VERIFIED</span>
-              </div>` : ""}
+              </div>`
+                  : ""
+              }
               <div style="text-align:right">
                 <p class="print-text" style="margin:0">Verify at:</p>
                 <p class="print-text" style="font-weight:bold;margin:.25rem 0">lets-assist.com/certificates/${data.id}</p>
@@ -141,13 +185,13 @@ export function PrintCertificate({ data }: { data: CertificateData }) {
     `;
 
     // Create an iframe
-    const iframe = document.createElement('iframe');
-    iframe.style.position = 'absolute';
-    iframe.style.width = '0';
-    iframe.style.height = '0';
-    iframe.style.border = '0';
-    iframe.style.visibility = 'hidden'; // Hide the iframe
-    iframe.src = 'about:blank'; // Set src to avoid potential browser issues
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "absolute";
+    iframe.style.width = "0";
+    iframe.style.height = "0";
+    iframe.style.border = "0";
+    iframe.style.visibility = "hidden"; // Hide the iframe
+    iframe.src = "about:blank"; // Set src to avoid potential browser issues
 
     document.body.appendChild(iframe);
 
@@ -192,7 +236,9 @@ export function PrintCertificate({ data }: { data: CertificateData }) {
         }
       } catch (error) {
         console.error("Printing failed:", error);
-        alert("Could not open print dialog. Please try again or check browser settings.");
+        alert(
+          "Could not open print dialog. Please try again or check browser settings.",
+        );
         cleanup();
       }
     };

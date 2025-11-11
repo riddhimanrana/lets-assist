@@ -39,3 +39,37 @@ export function formatBytes(bytes: number, decimals: number = 1): string {
 
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
 }
+
+/**
+ * Safely strip HTML tags from a string
+ * This function properly handles edge cases that simple regex replacement misses
+ * @param html The HTML string to strip
+ * @returns Plain text with all HTML removed
+ */
+export function stripHtml(html: string): string {
+  if (typeof html !== 'string') return '';
+  
+  // Replace common HTML entities first
+  let text = html
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, '&');
+  
+  // Remove all HTML tags - multiple passes to handle nested/malformed tags
+  let previousText = '';
+  while (previousText !== text) {
+    previousText = text;
+    text = text.replace(/<[^>]*>/g, '');
+  }
+  
+  // Remove any remaining < or > characters that might be leftover
+  text = text.replace(/[<>]/g, '');
+  
+  // Clean up whitespace
+  text = text.replace(/\s+/g, ' ').trim();
+  
+  return text;
+}

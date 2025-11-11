@@ -128,6 +128,8 @@ export default function OrganizationTabs({
   currentUserId,
 }: OrganizationTabsProps) {
   const [activeTab, setActiveTab] = useState("overview");
+  // Removed collapsible description per request; keeping state commented for easy restore.
+  // const [showFullDescription, setShowFullDescription] = useState(false);
 
   // Validate input data
   if (!Array.isArray(members)) {
@@ -178,121 +180,107 @@ export default function OrganizationTabs({
       </TabsList>
       
       <TabsContent value="overview" className="space-y-6">
-        <div className="grid gap-6 md:grid-cols-2">
-          <Card>
-            <CardContent className="p-6">
-              <h3 className="text-lg font-semibold mb-4">About</h3>
-              
-              <div className="space-y-4">
+        <div className="grid gap-5 md:gap-6 md:grid-cols-2 items-stretch">
+          {/* About Card */}
+          <Card className="flex flex-col">
+            <CardContent className="p-5 sm:p-6 flex flex-col flex-1">
+              <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">About</h3>
+              <div className="space-y-4 flex-1">
                 <div>
-                  <h4 className="text-sm font-medium text-muted-foreground mb-1">Description</h4>
-                  <p className="text-sm">
-                    {organization.description || "No description provided."}
-                  </p>
+                  <h4 className="text-xs sm:text-sm font-medium text-muted-foreground mb-1">Description</h4>
+                  <div className="relative">
+                    <p className="text-xs sm:text-sm break-words leading-relaxed">
+                      {organization.description || "No description provided."}
+                    </p>
+                    { /* Collapsible description logic removed */ }
                 </div>
-                
-                <div className="grid gap-3">
+                </div>
+                <div className="space-y-3">
                   <div className="flex gap-2">
-                    <Building2 className="h-4 w-4 text-muted-foreground mt-0.5" />
-                    <div>
-                      <h4 className="text-sm font-medium">Organization Type</h4>
-                      <p className="text-sm text-muted-foreground capitalize">
+                    <Building2 className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <h4 className="text-xs sm:text-sm font-medium">Organization Type</h4>
+                      <p className="text-xs sm:text-sm text-muted-foreground capitalize">
                         {organization.type}
                       </p>
                     </div>
                   </div>
-                  
                   {organization.website && (
                     <div className="flex gap-2">
-                      <Globe className="h-4 w-4 text-muted-foreground mt-0.5" />
-                      <div>
-                        <h4 className="text-sm font-medium">Website</h4>
-                        <Link 
-                          href={organization.website.startsWith('http') ? organization.website : `https://${organization.website}`} 
-                          target="_blank" 
+                      <Globe className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <h4 className="text-xs sm:text-sm font-medium">Website</h4>
+                        <Link
+                          href={organization.website.startsWith('http') ? organization.website : `https://${organization.website}`}
+                          target="_blank"
                           rel="noopener noreferrer"
-                          className="text-sm text-primary hover:underline"
+                          className="text-xs sm:text-sm text-primary hover:underline break-all"
                         >
                           {organization.website}
                         </Link>
                       </div>
                     </div>
                   )}
-                  
                   <div className="flex gap-2">
-                    <Calendar className="h-4 w-4 text-muted-foreground mt-0.5" />
-                    <div>
-                      <h4 className="text-sm font-medium">Created</h4>
-                      <p className="text-sm text-muted-foreground">
+                    <Calendar className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <h4 className="text-xs sm:text-sm font-medium">Created</h4>
+                      <p className="text-xs sm:text-sm text-muted-foreground">
                         {format(new Date(organization.created_at), "MMMM d, yyyy")}
                       </p>
                     </div>
                   </div>
                 </div>
+                <div className="mt-auto pt-2" />
               </div>
             </CardContent>
           </Card>
-          
-          <Card>
-            <CardContent className="p-6">
-              <h3 className="text-lg font-semibold mb-4">Quick Stats</h3>
-              
-              <div className="grid gap-6 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <h4 className="text-sm font-medium text-muted-foreground">Members</h4>
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="bg-muted/40 rounded-lg p-3 text-center">
-                      <p className="text-xl font-semibold">{adminCount}</p>
-                      <p className="text-xs text-muted-foreground">Admins</p>
-                    </div>
-                    <div className="bg-muted/40 rounded-lg p-3 text-center">
-                      <p className="text-xl font-semibold">{staffCount}</p>
-                      <p className="text-xs text-muted-foreground">Staff</p>
-                    </div>
-                    <div className="bg-muted/40 rounded-lg p-3 text-center">
-                      <p className="text-xl font-semibold">{members.length}</p>
-                      <p className="text-xs text-muted-foreground">Total</p>
-                    </div>
-                  </div>
+          {/* Quick Stats Card */}
+          <Card className="flex flex-col">
+            <CardContent className="p-5 sm:p-6 flex flex-col flex-1">
+              <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">Quick Stats</h3>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-3 mb-4">
+                <div className="rounded-md border bg-muted/30 p-3 flex flex-col items-center justify-center">
+                  <p className="text-base sm:text-lg font-semibold leading-none">{members.length}</p>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">Members</p>
                 </div>
-                
-                <div className="space-y-2">
-                  <h4 className="text-sm font-medium text-muted-foreground">Projects</h4>
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="bg-muted/40 rounded-lg p-3 text-center">
-                      <p className="text-xl font-semibold">{upcomingProjects}</p>
-                      <p className="text-xs text-muted-foreground">Upcoming</p>
-                    </div>
-                    <div className="bg-muted/40 rounded-lg p-3 text-center">
-                      <p className="text-xl font-semibold">{completedProjects}</p>
-                      <p className="text-xs text-muted-foreground">Completed</p>
-                    </div>
-                    <div className="bg-muted/40 rounded-lg p-3 text-center">
-                      <p className="text-xl font-semibold">{projects.length}</p>
-                      <p className="text-xs text-muted-foreground">Total</p>
-                    </div>
-                  </div>
+                <div className="rounded-md border bg-muted/30 p-3 flex flex-col items-center justify-center">
+                  <p className="text-base sm:text-lg font-semibold leading-none">0</p>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">Hours</p>
+                </div>
+                <div className="rounded-md border bg-muted/30 p-3 flex flex-col items-center justify-center">
+                  <p className="text-base sm:text-lg font-semibold leading-none">{upcomingProjects}</p>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 text-center">Upcoming</p>
+                </div>
+                <div className="rounded-md border bg-muted/30 p-3 flex flex-col items-center justify-center">
+                  <p className="text-base sm:text-lg font-semibold leading-none">{completedProjects}</p>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 text-center">Completed</p>
+                </div>
+                <div className="col-span-2 sm:col-span-3 rounded-md bg-primary/10 p-4 flex flex-col items-center justify-center">
+                  <p className="text-xl sm:text-2xl font-bold text-primary leading-none">{projects.length}</p>
+                  <p className="text-[11px] sm:text-sm font-medium text-primary mt-1">Total Projects</p>
                 </div>
               </div>
-              
               {projects.length > 0 && (
-                <div className="mt-6">
-                  <Separator className="my-4" />
-                  <h4 className="text-sm font-medium mb-3">Recent Projects</h4>
-                  <div className="space-y-2">
+                <div className="mt-auto">
+                  <Separator className="my-3" />
+                  <h4 className="text-xs sm:text-sm font-medium mb-2">Recent Projects</h4>
+                  <div className="space-y-1.5">
                     {projects.slice(0, 3).map((project) => (
-                      <Link 
+                      <Link
                         href={`/projects/${project.id}`}
                         key={project.id}
-                        className="block p-2 rounded-md hover:bg-muted transition-colors"
+                        className="block p-2 rounded-md border hover:bg-muted/70 transition-colors text-xs sm:text-sm"
                       >
-                        <div className="flex justify-between items-center">
-                          <span className="font-medium truncate">{project.title}</span>
-                          <ProjectStatusBadge status={getProjectStatus(project)} className="ml-2" />
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1.5">
+                          <span className="font-medium truncate pr-2">{project.title}</span>
+                          <div className="flex items-center gap-2">
+                            <ProjectStatusBadge status={getProjectStatus(project)} className="flex-shrink-0" />
+                          </div>
                         </div>
                         {project.location && (
-                          <div className="flex items-center text-xs text-muted-foreground mt-1">
-                            <MapPin className="h-3 w-3 mr-1" />
+                          <div className="flex items-center text-[10px] sm:text-xs text-muted-foreground mt-0.5">
+                            <MapPin className="h-3 w-3 mr-1 flex-shrink-0" />
                             <span className="truncate">{project.location}</span>
                           </div>
                         )}
@@ -305,7 +293,7 @@ export default function OrganizationTabs({
           </Card>
         </div>
         
-        {userRole && (
+  {userRole && (
           <Card>
             <CardContent className="p-6">
               <div className="flex items-start gap-4">

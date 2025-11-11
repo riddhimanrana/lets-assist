@@ -9,7 +9,7 @@ import {
   LogOut,
   Settings,
   Heart,
-  Bug,
+  MessageSquare,
   ChevronDown,
   ChevronUp,
   Bell,
@@ -20,8 +20,6 @@ import {
   Loader2,
 } from "lucide-react";
 import { NoAvatar } from "@/components/NoAvatar";
-import { createClient } from "@/utils/supabase/client";
-import { User as SupabaseUser } from "@supabase/supabase-js";
 import { logout } from "@/app/logout/actions";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -53,13 +51,15 @@ import {
   DropdownMenuRadioItem,
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ReportBugDialog } from "@/components/ReportBugDialog";
 import { DonateDialog } from "@/components/DonateDialog";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import { NotificationPopover } from "@/components/NotificationPopover";
 import { useTheme } from "next-themes";
-import { usePathname } from "next/navigation"; // Added import
+import { usePathname } from "next/navigation";
+import { FeedbackDialog } from "@/components/FeedbackDialog";
+import { useAuth } from "@/hooks/useAuth";
+import { createClient } from "@/utils/supabase/client";
 
 interface SectionProps {
   title: string;
@@ -110,56 +110,56 @@ const features = [
   },
 ];
 
-interface NavbarProps {
-  initialUser: SupabaseUser | null;
-}
-
-export default function Navbar({ initialUser }: NavbarProps) {
-  const [user, setUser] = React.useState<SupabaseUser | null>(initialUser);
+export default function Navbar() {
+  // Use centralized auth hook instead of manual state management
+  const { user, isLoading: isProfileLoading } = useAuth();
+  
   const [profile, setProfile] = React.useState<{
     full_name: string;
     avatar_url: string;
     username: string;
   } | null>(null);
-  const [isProfileLoading, setIsProfileLoading] = React.useState(true);
   const [showBugDialog, setShowBugDialog] = useState(false);
   const [showDonateDialog, setShowDonateDialog] = useState(false);
+  const [showFeedbackDialog, setShowFeedbackDialog] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
   const { theme, setTheme } = useTheme();
   // Add loading state for logout
   const [isLoggingOut, setIsLoggingOut] = React.useState(false);
-  const pathname = usePathname(); // Get current pathname
+  const pathname = usePathname();
 
-  // Extract the getUserAndProfile function to reuse it for error handling
-  const getUserAndProfile = async () => {
-    const supabase = createClient();
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
+  const supabase = React.useMemo(() => createClient(), []);
 
-    if (userError || !user) {
-      setUser(null);
-      setProfile(null);
-      setIsProfileLoading(false);
-      return;
-    }
+  const fetchProfile = React.useCallback(
+    async (userId: string) => {
+      try {
+        const { data: profileData, error } = await supabase
+          .from("profiles")
+          .select("full_name, avatar_url, username")
+          .eq("id", userId)
+          .single();
 
-    setUser(user);
+        if (error) {
+          console.debug("Profile fetch error", error);
+        }
 
-    const { data: profileData } = await supabase
-      .from("profiles")
-      .select("full_name, avatar_url, username")
-      .eq("id", user.id)
-      .single();
+        setProfile(profileData ?? null);
+      } catch (error) {
+        console.debug("Profile fetch exception", error);
+        setProfile(null);
+      }
+    },
+    [supabase],
+  );
 
-    setProfile(profileData);
-    setIsProfileLoading(false);
-  };
-
+  // Update profile when user changes
   React.useEffect(() => {
-    getUserAndProfile();
-  }, []);
+    if (user?.id) {
+      fetchProfile(user.id);
+    } else {
+      setProfile(null);
+    }
+  }, [user?.id, fetchProfile]);
 
   const handleNavigation = () => {
     setIsSheetOpen(false);
@@ -250,27 +250,21 @@ export default function Navbar({ initialUser }: NavbarProps) {
     try {
       setIsLoggingOut(true);
       
-      // Clear client-side user data first to prevent components from trying to access it
-      // setUser(null);
-      // setProfile(null);
-      
+      // Log out via server action
       const result = await logout();
       
       if (result.success) {
+        // useAuth hook will automatically handle cache clearing via auth listener
         // Use a small delay before redirecting to ensure state updates are processed
         setTimeout(() => {
           window.location.href = "/";
         }, 100);
       } else {
         console.error('Logout failed:', result.error);
-        // Restore user state if logout fails
-        getUserAndProfile();
         setIsLoggingOut(false);
       }
     } catch (error) {
       console.error('Logout failed:', error);
-      // Restore user state if logout fails
-      getUserAndProfile();
       setIsLoggingOut(false);
     }
   };
@@ -475,11 +469,11 @@ export default function Navbar({ initialUser }: NavbarProps) {
                       className="text-chart-3 focus:text-chart-3 py-2.5 cursor-pointer flex justify-between"
                       onSelect={(e) => {
                         e.preventDefault();
-                        setShowBugDialog(true);
+                        setShowFeedbackDialog(true);
                       }}
                     >
-                      Report a Bug
-                      <Bug className="h-4 w-4" />
+                      Send Feedback
+                      <MessageSquare className="h-4 w-4" />
                     </DropdownMenuItem>
                     <DropdownMenuItem 
                       className="text-chart-4 focus:text-chart-4 py-2.5 cursor-pointer flex justify-between"
@@ -499,7 +493,7 @@ export default function Navbar({ initialUser }: NavbarProps) {
                     >
                       <span>{isLoggingOut ? "Logging out..." : "Log Out"}</span>
                       {isLoggingOut ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <Loader2 className="h-4 w-4" />
                       ) : (
                         <LogOut className="h-4 w-4" />
                       )}
@@ -691,12 +685,12 @@ export default function Navbar({ initialUser }: NavbarProps) {
                     variant="ghost"
                     className="w-full justify-between text-chart-3 hover:text-chart-3 hover:bg-chart-3/10"
                     onClick={() => {
-                      setShowBugDialog(true);
+                      setShowFeedbackDialog(true);
                       handleNavigation();
                     }}
                   >
-                    Report a Bug
-                    <Bug className="h-4 w-4" />
+                    Send Feedback
+                    <MessageSquare className="h-4 w-4" />
                   </Button>
                   <Button
                     variant="ghost"
@@ -716,10 +710,10 @@ export default function Navbar({ initialUser }: NavbarProps) {
         </nav>
       </div>
       <Separator />
-      {showBugDialog && (
-        <ReportBugDialog onOpenChangeAction={setShowBugDialog} />
-      )}
       <DonateDialog open={showDonateDialog} onOpenChange={setShowDonateDialog} />
+      {showFeedbackDialog && (
+        <FeedbackDialog onOpenChangeAction={setShowFeedbackDialog} />
+      )}
     </>
   );
 }

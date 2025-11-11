@@ -12,8 +12,10 @@ import {
 import { createClient } from "@/utils/supabase/client";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function AuthenticationClient() {
+  const { user } = useAuth(); // Use centralized auth hook
   const [isConnecting, setIsConnecting] = useState(false);
   const [isGoogleConnected, setIsGoogleConnected] = useState(false);
   const [linkedGoogleEmail, setLinkedGoogleEmail] = useState<string | null>(
@@ -22,43 +24,42 @@ export default function AuthenticationClient() {
   const supabase = createClient();
   
   useEffect(() => {
-    checkGoogleConnection();
-  }, []); // Added empty dependency array
+    if (user) {
+      checkGoogleConnection();
+    }
+  }, [user]); // Changed dependency from [] to [user]
   
-  const checkGoogleConnection = async () => {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (user && user.identities) {
-      const googleIdentity = user.identities.find(
-        (identity) => identity.provider === "google",
-      );
-      if (googleIdentity) {
-        setIsGoogleConnected(true);
-        // Supabase stores provider-specific data in identity_data
-        // For Google, this typically includes an 'email' field.
-        const email = googleIdentity.identity_data?.email;
-        if (typeof email === "string") {
-          setLinkedGoogleEmail(email);
-        } else {
-          // Fallback or further investigation needed if email isn't directly available
-          // This might happen if the identity_data is structured differently or email is missing
-          console.warn("Google identity found, but email not in identity_data.email. Attempting to use user.email if it matches provider.");
-          // As a fallback, if the primary user email is from google, we can assume it.
-          // This is less direct but can be a placeholder.
-          // A more robust solution might involve calling getUserIdentities() for richer data if needed.
-          if (user.email && googleIdentity.user_id === user.id) { // Check if this identity belongs to the current user
-             // Heuristic: if user.email exists and this identity is for this user, it might be the one.
-             // However, user.email is the primary email, not necessarily the Google linked one if they differ.
-             // For now, we'll prefer the direct identity_data.email.
-             setLinkedGoogleEmail(null); // Or set to user.email if logic dictates
-          } else {
-            setLinkedGoogleEmail(null);
-          }
-        }
+  const checkGoogleConnection = () => {
+    if (!user?.identities) {
+      setIsGoogleConnected(false);
+      return;
+    }
+
+    const googleIdentity = user.identities.find(
+      (identity) => identity.provider === "google",
+    );
+    if (googleIdentity) {
+      setIsGoogleConnected(true);
+      // Supabase stores provider-specific data in identity_data
+      // For Google, this typically includes an 'email' field.
+      const email = googleIdentity.identity_data?.email;
+      if (typeof email === "string") {
+        setLinkedGoogleEmail(email);
       } else {
-        setIsGoogleConnected(false);
-        setLinkedGoogleEmail(null);
+        // Fallback or further investigation needed if email isn't directly available
+        // This might happen if the identity_data is structured differently or email is missing
+        console.warn("Google identity found, but email not in identity_data.email. Attempting to use user.email if it matches provider.");
+        // As a fallback, if the primary user email is from google, we can assume it.
+        // This is less direct but can be a placeholder.
+        // A more robust solution might involve calling getUserIdentities() for richer data if needed.
+        if (user.email && googleIdentity.user_id === user.id) { // Check if this identity belongs to the current user
+           // Heuristic: if user.email exists and this identity is for this user, it might be the one.
+           // However, user.email is the primary email, not necessarily the Google linked one if they differ.
+           // For now, we'll prefer the direct identity_data.email.
+           setLinkedGoogleEmail(null); // Or set to user.email if logic dictates
+        } else {
+          setLinkedGoogleEmail(null);
+        }
       }
     } else {
       setIsGoogleConnected(false);

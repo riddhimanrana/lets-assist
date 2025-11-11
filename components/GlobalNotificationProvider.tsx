@@ -1,123 +1,91 @@
 "use client";
 
 import InitialOnboardingModal from "@/components/InitialOnboardingModal";
-import { createClient } from "@/utils/supabase/client";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
+import { usePathname } from "next/navigation";
 import { NotificationListener } from "./NotificationListener";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function GlobalNotificationProvider({ 
   children 
 }: { 
   children: React.ReactNode 
 }) {
-  const [userId, setUserId] = useState<string | null>(null);
+  const pathname = usePathname();
+  const { user, isLoading } = useAuth(); // Use centralized auth hook instead of manual getUser()
   const [showOnboardingModal, setShowOnboardingModal] = useState(false);
   const [currentUserFullName, setCurrentUserFullName] = useState<string | null>(null);
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
-  const initRef = useRef(false);
-  const onboardingCheckRef = useRef(false);
+  const onboardingCompletedRef = useRef(false); // Guard to prevent re-showing modal
 
+  // Do not show onboarding modal on critical creation flows where it can block inputs
+  const suppressOnboardingModal = !!(
+    pathname?.startsWith("/projects/create") ||
+    pathname?.startsWith("/organization/create")
+  );
+
+  // Simplified onboarding check—only look at the metadata flag
   useEffect(() => {
-    if (initRef.current) return;
-    initRef.current = true;
+    if (!user) {
+      setShowOnboardingModal(false);
+      onboardingCompletedRef.current = false;
+      return;
+    }
 
-    const supabase = createClient();
-
-    // 1) Subscribe to auth changes first so we catch SIGNED_IN immediately
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (event, _session) => {
-        if (['SIGNED_IN','TOKEN_REFRESHED','USER_UPDATED'].includes(event)) {
-          onboardingCheckRef.current = false;
-          // Always fetch the user from the server for authenticity
-          const { data: { user }, error } = await supabase.auth.getUser();
-          if (user) {
-            setUserId(user.id);
-            await checkOnboardingStatus(user, true);
-          } else {
-            setUserId(null);
-            setShowOnboardingModal(false);
-            setCurrentUserFullName(null);
-            setCurrentUserEmail(null);
-            onboardingCheckRef.current = false;
-          }
-        } else if (event === 'SIGNED_OUT') {
-          setUserId(null);
-          setShowOnboardingModal(false);
-          setCurrentUserFullName(null);
-          setCurrentUserEmail(null);
-          onboardingCheckRef.current = false;
-        }
-      }
-    );
-
-    // 2) Simplified onboarding check—only look at the metadata flag
-    const checkOnboardingStatus = async (user: any, forceCheck = false) => {
-      if (!user) return;
-      if (!forceCheck && onboardingCheckRef.current) return;
-      onboardingCheckRef.current = true;
-
-      const completed = user.user_metadata?.has_completed_onboarding === true;
+    const completed = user.user_metadata?.has_completed_onboarding === true;
+    
+    // If onboarding was completed in this session, don't show modal again
+    if (completed || onboardingCompletedRef.current) {
+      setShowOnboardingModal(false);
       if (completed) {
-        setShowOnboardingModal(false);
-      } else {
-        setCurrentUserFullName(
-          user.user_metadata?.full_name ||
-          user.email?.split("@")[0] ||
-          "User"
-        );
-        setCurrentUserEmail(user.email || null);
+        onboardingCompletedRef.current = true;
+      }
+    } else {
+      // Only show modal if onboarding hasn't been completed in this session
+      setCurrentUserFullName(
+        user.user_metadata?.full_name ||
+        user.email?.split("@")[0] ||
+        "User"
+      );
+      setCurrentUserEmail(user.email || null);
+      if (!suppressOnboardingModal) {
         setShowOnboardingModal(true);
-      }
-    };
-
-    // 3) Initial fetch after listener is ready
-    const getUserIdAndCheckOnboarding = async () => {
-      try {
-        const { data: { user }, error } = await supabase.auth.getUser();
-        if (error) {
-          console.error("Error fetching user in GlobalNotificationProvider:", error);
-          setUserId(null);
-          setShowOnboardingModal(false);
-          onboardingCheckRef.current = false;
-          return;
-        }
-        if (user) {
-          console.log("User fetched:", user.id);
-          setUserId(user.id);
-          await checkOnboardingStatus(user);
-        } else {
-          console.log("No active user session.");
-          setUserId(null);
-          setShowOnboardingModal(false);
-          onboardingCheckRef.current = false;
-        }
-      } catch (err) {
-        console.error("Exception in getUserIdAndCheckOnboarding:", err);
-        setUserId(null);
+      } else {
+        // Ensure it stays hidden on suppressed routes
         setShowOnboardingModal(false);
-        onboardingCheckRef.current = false;
       }
-    };
-    getUserIdAndCheckOnboarding();
+    }
+  }, [user, suppressOnboardingModal]);
 
-    return () => {
-      authListener?.subscription.unsubscribe();
-      initRef.current = false;
-      onboardingCheckRef.current = false;
-    };
+  // If user navigates into a suppressed route while the modal is open, hide it
+  useEffect(() => {
+    if (suppressOnboardingModal && showOnboardingModal) {
+      setShowOnboardingModal(false);
+    }
+  }, [suppressOnboardingModal, showOnboardingModal]);
+
+  // Force refresh user status (called after onboarding completion)
+  const forceRefreshUserStatus = useCallback(async () => {
+    // useAuth hook handles caching automatically - just clear and restart
+    // This is handled by the auth context, no manual refresh needed
   }, []);
   
   return (
     <>
-      {userId && <NotificationListener userId={userId} />}
-      {showOnboardingModal && userId && (
+      {user?.id && <NotificationListener userId={user.id} />}
+      {showOnboardingModal && user?.id && !isLoading && !suppressOnboardingModal && (
         <InitialOnboardingModal
           isOpen={showOnboardingModal}
           onClose={() => {
             setShowOnboardingModal(false);
+            onboardingCompletedRef.current = true; // Mark as completed in this session
             console.log("Onboarding modal closed by user.");
+            // Force refresh to ensure UI is updated
+            setTimeout(() => {
+              forceRefreshUserStatus();
+            }, 500);
           }}
-          userId={userId}
+          userId={user.id}
           currentFullName={currentUserFullName}
           currentEmail={currentUserEmail}
         />

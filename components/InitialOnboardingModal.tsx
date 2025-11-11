@@ -151,10 +151,54 @@ export default function InitialOnboardingModal({
       } else {
         toast.success("Welcome to Let's Assist! Your profile has been set up.");
         
+        // Force refresh the user to get updated metadata with multiple retries
+        const supabase = createClient();
+        let retries = 0;
+        const maxRetries = 5;
+        
+        const waitForMetadataUpdate = async (): Promise<boolean> => {
+          try {
+            const { data: { user }, error } = await supabase.auth.getUser();
+            if (error) {
+              console.warn("Error fetching updated user after onboarding:", error);
+              return false;
+            }
+            
+            const hasCompletedOnboarding = user?.user_metadata?.has_completed_onboarding === true;
+            console.log("User metadata check:", user?.user_metadata, "Completed:", hasCompletedOnboarding);
+            
+            if (hasCompletedOnboarding) {
+              console.log("Onboarding metadata successfully updated");
+              return true;
+            }
+            
+            if (retries < maxRetries) {
+              retries++;
+              console.log(`Waiting for metadata update, retry ${retries}/${maxRetries}`);
+              await new Promise(resolve => setTimeout(resolve, 1000));
+              return await waitForMetadataUpdate();
+            }
+            
+            return false;
+          } catch (refreshError) {
+            console.warn("User fetch failed after onboarding:", refreshError);
+            return false;
+          }
+        };
+        
+        // Wait for metadata to be updated
+        const metadataUpdated = await waitForMetadataUpdate();
+        
+        if (metadataUpdated) {
+          console.log("Metadata confirmed updated, closing modal");
+        } else {
+          console.warn("Metadata update timeout, but proceeding anyway");
+        }
+        
         // Close modal immediately after success
         onClose();
         
-        // Refresh page after a short delay to show the toast
+        // Refresh page after a short delay to ensure all UI updates
         setTimeout(() => {
           router.refresh();
         }, 1000);

@@ -104,7 +104,7 @@ export default async function ProjectPage({ params, searchParams }: PageProps): 
     const { data: approvedSignups, error: approvedError } = await supabase
       .from("project_signups")
       // Select all necessary fields for UserDashboard
-      .select("id, schedule_id, status, check_in_time, created_at") 
+      .select("id, schedule_id, status, check_in_time, check_out_time, created_at") 
       .eq("project_id", project.id)
       .eq("user_id", user.id)
       .in("status", ["approved", "attended"]) // Fetch both approved and attended signups

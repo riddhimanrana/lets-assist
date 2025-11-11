@@ -2,7 +2,9 @@
 
 import { z } from "zod";
 import { createClient } from "@/utils/supabase/server";
+import { createAdminClient } from "@/utils/supabase/admin";
 import { verifyTurnstileToken, isTurnstileEnabled } from "@/lib/turnstile";
+import { randomUUID } from "crypto";
 
 const signupSchema = z.object({
   fullName: z.string().min(3, "Full name must be at least 3 characters"),
@@ -10,6 +12,49 @@ const signupSchema = z.object({
   password: z.string().min(8, "Password must be at least 8 characters"),
   turnstileToken: z.string().optional(),
 });
+
+type SignupStatus = 
+  | { type: 'confirmed'; message: string }
+  | { type: 'unconfirmed'; message: string }
+  | { type: 'new'; message: string };
+
+export async function checkEmailStatus(email: string): Promise<SignupStatus> {
+  try {
+    const adminClient = createAdminClient();
+    
+    // Use admin client to check if user exists
+    const { data: { users }, error } = await adminClient.auth.admin.listUsers();
+    
+    if (error) {
+      console.error("Error checking email status:", error);
+      throw error;
+    }
+    
+    const existingUser = users.find(u => u.email?.toLowerCase() === email.toLowerCase());
+    
+    if (!existingUser) {
+      return { type: 'new', message: 'Email is available for signup' };
+    }
+    
+    // Check if email is confirmed
+    const isConfirmed = existingUser.email_confirmed_at !== null;
+    
+    if (isConfirmed) {
+      return { 
+        type: 'confirmed', 
+        message: 'An account with this email already exists and is verified.' 
+      };
+    } else {
+      return { 
+        type: 'unconfirmed', 
+        message: 'An account with this email exists but is not verified. We can resend the verification email.' 
+      };
+    }
+  } catch (error) {
+    console.error("Error in checkEmailStatus:", error);
+    throw error;
+  }
+}
 
 export async function signup(formData: FormData) {
   const turnstileToken = formData.get("turnstileToken") as string;
@@ -28,12 +73,35 @@ export async function signup(formData: FormData) {
   const supabase = await createClient();
 
   try {
+    const origin = process.env.NEXT_PUBLIC_SITE_URL || "";
+    
+    // Check email status first
+    const emailStatus = await checkEmailStatus(validatedFields.data.email);
+    
+    if (emailStatus.type === 'confirmed') {
+      return { 
+        error: { server: [emailStatus.message] },
+        emailStatus: 'confirmed'
+      };
+    }
+    
+    if (emailStatus.type === 'unconfirmed') {
+      return { 
+        error: { server: [emailStatus.message] },
+        emailStatus: 'unconfirmed',
+        email: validatedFields.data.email
+      };
+    }
+    
     // Pass the CAPTCHA token to Supabase - it will handle verification
     const signUpOptions: any = {
       email: validatedFields.data.email,
       password: validatedFields.data.password,
       options: {
         data: {
+          // Pass profile fields via user metadata; DB trigger will populate public.profiles
+          full_name: validatedFields.data.fullName,
+          username: `user_${randomUUID().slice(0, 8)}`,
           created_at: new Date().toISOString(),
         },
       },
@@ -50,11 +118,8 @@ export async function signup(formData: FormData) {
     } = await supabase.auth.signUp(signUpOptions);
 
     if (authError) {
-      if (authError.code === "23503") {
-        return { error: { server: ["ACCEXISTS0"] } };
-      }
-      if (authError.code === "23505") {
-        return { error: { server: ["NOCNFRM0"] } };
+      if (authError.message.includes("User already registered")) {
+        return { error: { server: ["An account with this email already exists. Please log in."] } };
       }
       throw authError;
     }
@@ -63,34 +128,49 @@ export async function signup(formData: FormData) {
       throw new Error("No user returned");
     }
 
-    // 2. Create matching profile with full name
-    const { error: profileError } = await supabase.from("profiles").insert({
-      id: user.id,
-      full_name: validatedFields.data.fullName,
-      username: `user_${user.id?.slice(0, 8)}`, // --- Changed: default username
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    });
+    // Profile row will be created/updated by DB trigger using user metadata
 
-    if (profileError) {
-      if (profileError.code === "23503") {
-        return { error: { server: ["ACCEXISTS0"] } };
-      }
-      if (profileError.code === "23505") {
-        return { error: { server: ["NOCNFRM0"] } };
-      }
-      throw profileError;
-    }
-
-    return { success: true };
+    return { 
+      success: true, 
+      email: validatedFields.data.email,
+      message: "Successfully signed up! Please check your email (and junk folder) to confirm your account." 
+    };
   } catch (error) {
-    if (error instanceof Error && error.message.includes("23503")) {
-      return { error: { server: ["ACCEXISTS0"] } };
-    }
-    if (error instanceof Error && error.message.includes("23505")) {
-      return { error: { server: ["NOCNFRM0"] } };
-    }
     return { error: { server: [(error as Error).message] } };
+  }
+}
+
+export async function resendVerificationEmail(email: string) {
+  try {
+    const supabase = await createClient();
+    const origin = process.env.NEXT_PUBLIC_SITE_URL || "";
+    
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email: email,
+      options: {
+        emailRedirectTo: `${origin}/auth/confirm`,
+      }
+    });
+    
+    if (error) {
+      console.error("Error resending verification email:", error);
+      return { 
+        success: false, 
+        error: error.message || "Failed to resend verification email" 
+      };
+    }
+    
+    return { 
+      success: true, 
+      message: "Verification email has been resent. Please check your inbox." 
+    };
+  } catch (error) {
+    console.error("Exception in resendVerificationEmail:", error);
+    return { 
+      success: false, 
+      error: (error as Error).message || "An error occurred while resending the email" 
+    };
   }
 }
 

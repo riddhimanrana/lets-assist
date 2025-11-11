@@ -1,10 +1,14 @@
 "use client";
 import { useState, useRef } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { type Session } from "@supabase/supabase-js";
 import { login, signInWithGoogle } from "./actions";
 import Link from "next/link";
+import { createClient } from "@/utils/supabase/client";
+import { updateCachedUser, initializeUserProfileCache } from "@/utils/auth/auth-context";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -24,6 +28,7 @@ import {
 } from "@/components/ui/form";
 import { toast } from "sonner";
 import { TurnstileComponent, TurnstileRef } from "@/components/ui/turnstile";
+import { EmailVerifiedModal } from "@/components/EmailVerifiedModal";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -42,6 +47,7 @@ export default function LoginClient({ redirectPath }: LoginClientProps) {
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [turnstileVerified, setTurnstileVerified] = useState(false);
   const turnstileRef = useRef<TurnstileRef>(null);
+  const router = useRouter();
 
   const form = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
@@ -51,6 +57,10 @@ export default function LoginClient({ redirectPath }: LoginClientProps) {
       turnstileToken: "",
     },
   });
+
+  const searchParams = useSearchParams();
+  const isVerified = searchParams.get('verified') === 'true';
+
 
   async function onSubmit(data: LoginValues) {
     const turnstileToken = turnstileRef.current?.getResponse();
@@ -87,8 +97,38 @@ export default function LoginClient({ redirectPath }: LoginClientProps) {
       } else {
         toast.error("Incorrect email or password.");
       }
+      setIsLoading(false);
     } else if (result.success) {
-      window.location.href = redirectPath ? decodeURIComponent(redirectPath) : "/home";
+      // Login successful
+      console.log('[LoginClient] Login successful, session established');
+      
+      // The server action returns the session directly - use it immediately
+      if (result.session?.user) {
+        console.log('[LoginClient] Session received from server:', result.session.user.email);
+        // Update cache IMMEDIATELY with the session from the server action
+        updateCachedUser(result.session.user);
+        console.log('[LoginClient] Cache updated immediately with user:', result.session.user.email);
+        
+        // Initialize profile and settings cache in background
+        // This fetches profile + settings in a batch query
+        // and subscribes to realtime updates
+        initializeUserProfileCache(result.session.user.id).catch((error) => {
+          console.error('[LoginClient] Failed to initialize profile cache:', error);
+        });
+      }
+      
+      // Navigate immediately - don't wait for profile fetch
+      const redirectUrl = redirectPath ? decodeURIComponent(redirectPath) : "/home";
+      
+      if (isVerified) {
+        router.push("/home?confirmed=true");
+      } else {
+        // Use replace for immediate transition without adding to history
+        router.replace(redirectUrl);
+      }
+
+      // Don't clear loading state - keep the loading spinner visible
+      return;
     }
 
     setIsLoading(false);
@@ -126,6 +166,7 @@ export default function LoginClient({ redirectPath }: LoginClientProps) {
 
   return (
     <div className="flex items-center justify-center min-h-screen">
+      <EmailVerifiedModal />
       <Card className="mx-auto w-[370px] max-w-full mb-12">
         <CardHeader>
           <CardTitle className="text-2xl">Login</CardTitle>

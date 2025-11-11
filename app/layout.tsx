@@ -13,7 +13,9 @@ import { PostHogProvider } from "./providers";
 import { ToasterTheme } from "@/components/ToasterTheme";
 import { NotificationListener } from "@/components/NotificationListener";
 import GlobalNotificationProvider from "@/components/GlobalNotificationProvider";
+import CalendarOAuthCallbackHandler from "@/components/CalendarOAuthCallbackHandler";
 import { GeistMono } from 'geist/font/mono';
+import { AuthProvider } from "@/components/AuthProvider";
  
 export const metadata: Metadata = {
   title: {
@@ -85,16 +87,19 @@ export default async function RootLayout({
             disableTransitionOnChange
           >
             <PostHogProvider>
-              <div className="bg-background text-foreground min-h-screen flex flex-col">
-                {/* Pass server-fetched user to Navbar */}
-                <Navbar initialUser={user} />
-                <main className="flex-1">{children}</main>
-                <ToasterTheme />
-                <Footer />
-                <SpeedInsights />
-                {/* Remove this duplicate listener - it's already in GlobalNotificationProvider */}
-                {/* {user && <NotificationListener userId={user.id} />} */}
-              </div>
+              <AuthProvider>
+                <div className="bg-background text-foreground min-h-screen flex flex-col">
+                  {/* Navbar now uses centralized useAuth hook */}
+                  <Navbar />
+                  <main className="flex-1">{children}</main>
+                  <ToasterTheme />
+                  <Footer />
+                  <SpeedInsights />
+                  <CalendarOAuthCallbackHandler />
+                  {/* Remove this duplicate listener - it's already in GlobalNotificationProvider */}
+                  {/* {user && <NotificationListener userId={user.id} />} */}
+                </div>
+              </AuthProvider>
             </PostHogProvider>
           </ThemeProvider>
         </GlobalNotificationProvider>

@@ -41,6 +41,12 @@ export function Footer() {
               Terms
             </Link>
             <Link
+             href="/help"
+              className="text-sm text-muted-foreground hover:text-foreground sm:col-span-2 sm:w-full"
+            >
+              Help
+            </Link>
+            <Link
               href="/contact"
               className="text-sm text-muted-foreground hover:text-foreground"
             >
@@ -52,6 +58,7 @@ export function Footer() {
             >
               Acknowledgements
             </Link>
+            
           </nav>
 
           {/* Copyright with social media icons right aligned */}
@@ -124,6 +131,12 @@ export function Footer() {
                 Terms
               </Link>
               <Link
+             href="/help"
+              className="text-sm text-muted-foreground hover:text-foreground"
+            >
+              Help
+            </Link>
+              <Link
                 href="/contact"
                 className="text-sm text-muted-foreground hover:text-foreground"
               >
@@ -139,7 +152,7 @@ export function Footer() {
 
             <div className="flex items-center space-x-4">
               <Link
-                href="https://instagram.com/letsassist1"
+                href="https://instagram.com/letsassist.app"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-muted-foreground hover:text-foreground"
@@ -148,16 +161,16 @@ export function Footer() {
                 <SiInstagram className="h-4 w-4" />
               </Link>
               <Link
-                href="https://x.com/lets_assist"
+                href="https://x.com/letsassistapp"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-muted-foreground hover:text-foreground"
-                aria-label="Twitter"
+                aria-label="X / Twitter"
               >
                 <SiX className="h-4 w-4" />
               </Link>
               <Link
-                href="mailto:support@letsassist.com"
+                href="mailto:contact@letsassist.com"
                 className="text-muted-foreground hover:text-foreground"
                 aria-label="Email"
               >

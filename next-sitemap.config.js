@@ -10,7 +10,7 @@ module.exports = {
   outDir: "./public",
 
   // ignore API / auth folders
-  exclude: ["/api/*", "/auth/*", "/error/*"],
+  exclude: ["/api/*", "/auth/*", "/error/*", "/admin/*"],
 
   // manually pick up all app routes
   additionalPaths: async (config) => {
@@ -35,7 +35,7 @@ module.exports = {
       {
         userAgent: "*",
         allow: "/",
-        disallow: ["/api/", "/auth/", "/error/"],
+        disallow: ["/api/", "/auth/", "/error/", "/admin/"],
       },
     ],
   },

@@ -9,10 +9,30 @@ export const metadata: Metadata = {
 
 export default async function OrganizationsPage() {
   const supabase = await createClient();
-  const { data: { session } } = await supabase.auth.getSession();
-  const isLoggedIn = !!session;
+  const { data: { user } } = await supabase.auth.getUser();
+  const isLoggedIn = !!user;
+  let isTrusted = false;
+  let applicationStatus: boolean | null | undefined = undefined;
+  if (user) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("trusted_member")
+      .eq("id", user.id)
+      .single();
+    isTrusted = !!profile?.trusted_member;
+
+    const { data: tmApp } = await supabase
+      .from("trusted_member")
+      .select("status")
+      .eq("id", user.id)
+      .maybeSingle();
+    applicationStatus = tmApp?.status ?? null;
+    if (!isTrusted && tmApp?.status === true) {
+      isTrusted = true;
+    }
+  }
   
-  // Fetch organizations with ordering by verified status first
+  // Fetch all organizations
   const { data: organizations } = await supabase
     .from("organizations")
     .select(`
@@ -24,13 +44,12 @@ export default async function OrganizationsPage() {
       logo_url,
       type,
       verified,
-      created_at,
-      organization_members!inner(user_id)
+      created_at
     `)
     .order('verified', { ascending: false })
     .order('created_at', { ascending: false });
 
-  // Get member counts
+  // Get member counts for all organizations
   const { data: memberCounts } = await supabase
     .from("organization_members")
     .select('organization_id', { count: 'exact', head: false });
@@ -41,11 +60,40 @@ export default async function OrganizationsPage() {
     return acc;
   }, {} as Record<string, number>);
 
+  // If user is logged in, fetch their organization memberships
+  let userMemberships: any[] = [];
+  if (isLoggedIn && user) {
+    const { data: memberships } = await supabase
+      .from('organization_members')
+      .select(`
+        role,
+        organization_id,
+        organizations (
+          id,
+          name,
+          username,
+          description,
+          website,
+          logo_url,
+          type,
+          verified,
+          created_at
+        )
+      `)
+      .eq('user_id', user.id)
+      .order('role', { ascending: false }); // Admin first, then staff, then member
+
+    userMemberships = memberships || [];
+  }
+
   return (
     <OrganizationsDisplay
       organizations={organizations || []}
       memberCounts={orgMemberCounts}
       isLoggedIn={isLoggedIn}
+      userMemberships={userMemberships}
+      isTrusted={isTrusted}
+      applicationStatus={applicationStatus}
     />
   );
 }
