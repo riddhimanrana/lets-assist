@@ -32,17 +32,23 @@ export async function GET(request: Request) {
   // Normal OAuth flow or email verification
   if (!error && code) {
     const supabase = await createClient();
+    
+    // First, check if this is an email verification (signup) or OAuth by checking the code without creating a session
+    // For email verification, we want to show success page without logging in
+    // For OAuth, we want to create a session and profile
+    
+    // Try to exchange the code for session info (without storing session)
     const {
       data: { session },
-      error,
+      error: exchangeError,
     } = await supabase.auth.exchangeCodeForSession(code || '');
 
-    if (!error && session) {
+    if (!exchangeError && session) {
       try {
         const { user } = session;
         
         // Check if this is an email verification (signup confirmation)
-        // Detect by checking if the user was just created (within last 5 minutes) and this is their first session
+        // Detect by checking if the user was just created (within last 5 minutes)
         const userCreatedAt = new Date(user.created_at);
         const now = new Date();
         const timeSinceCreation = now.getTime() - userCreatedAt.getTime();
@@ -51,7 +57,22 @@ export async function GET(request: Request) {
         // Check if user has completed onboarding
         const hasCompletedOnboarding = user.user_metadata?.has_completed_onboarding === true;
 
-        // Check if profile already exists
+        // If this is a recent signup email verification (not OAuth), DON'T sign in the user
+        // Just show the success page
+        if (isRecentSignup && !hasCompletedOnboarding && !redirectAfterAuth) {
+          const userEmail = user.email;
+          // Sign out to clear the session that was just created
+          await supabase.auth.signOut();
+          
+          const redirectUrl = new URL(`${origin}/auth/verification-success`);
+          redirectUrl.searchParams.set('type', 'signup');
+          if (userEmail) {
+            redirectUrl.searchParams.set('email', userEmail);
+          }
+          return NextResponse.redirect(redirectUrl.toString());
+        }
+
+        // This is an OAuth flow or existing user - create/update profile
         const { data: existingProfile } = await supabase
           .from("profiles")
           .select("*")
@@ -70,8 +91,8 @@ export async function GET(request: Request) {
 
           // Try to get the highest quality avatar URL available
           const avatarUrl =
-            identityData?.avatar_url?.
-            identityData?.picture?.
+            identityData?.avatar_url ||
+            identityData?.picture ||
             user.user_metadata?.avatar_url ||
             user.user_metadata?.picture;
 
@@ -107,19 +128,6 @@ export async function GET(request: Request) {
             throw updateError;
           }
         }
-        
-        // If this is a recent signup email verification (not OAuth), sign out and redirect to success page
-        if (isRecentSignup && !hasCompletedOnboarding && !redirectAfterAuth) {
-          const userEmail = user.email;
-          await supabase.auth.signOut();
-          
-          const redirectUrl = new URL(`${origin}/auth/verification-success`);
-          redirectUrl.searchParams.set('type', 'signup');
-          if (userEmail) {
-            redirectUrl.searchParams.set('email', userEmail);
-          }
-          return NextResponse.redirect(redirectUrl.toString());
-        }
 
         // Determine redirect path for OAuth or other flows
         const redirectTo = redirectAfterAuth
@@ -151,8 +159,8 @@ export async function GET(request: Request) {
         return NextResponse.redirect(`${origin}/error`);
       }
     } else {
-      console.error("Session error:", error);
-      if (error?.message?.includes("email already exists")) {
+      console.error("Session error:", exchangeError);
+      if (exchangeError?.message?.includes("email already exists")) {
         return NextResponse.redirect(
           `${origin}/login?error=email-password-exists`,
         );

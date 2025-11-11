@@ -23,7 +23,7 @@ import {
   updateCachedUser,
   waitForAuthReady,
   refreshUser,
-  isCacheInitialized,
+  subscribeToCacheChanges,
 } from '@/utils/auth/auth-context';
 import type { AuthState, User } from '@/utils/auth/types';
 
@@ -50,13 +50,13 @@ import type { AuthState, User } from '@/utils/auth/types';
  * ```
  */
 export function useAuth(): AuthState {
-  // Initialize state from cache if available
-  const initialCachedUser = useMemo(() => getCachedUser(), []);
-  const isCacheReady = useMemo(() => isCacheInitialized(), []);
-
+  // Initialize state from cache immediately (not null!)
+  // This is critical for preventing flash of logged-out state
+  const cachedUserInitial = useMemo(() => getCachedUser(), []);
+  
   const [state, setState] = useState<AuthState>({
-    user: initialCachedUser ?? null,
-    isLoading: !isCacheReady, // Only loading if cache hasn't been populated yet
+    user: cachedUserInitial ?? null,  // Use cached user if available
+    isLoading: cachedUserInitial ? false : true,  // Only loading if no cached user
     isError: false,
   });
 
@@ -69,12 +69,16 @@ export function useAuth(): AuthState {
 
     const initializeAuth = async () => {
       try {
-        // Check if cache has been initialized
-        const cacheReady = isCacheInitialized();
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[useAuth] Initializing auth state...');
+        }
 
-        if (cacheReady) {
-          // Cache has been populated, use it (even if it's null)
-          const cachedUser = getCachedUser();
+        // IMPORTANT: Check cache FIRST - it may have been updated by AuthProvider or login flow
+        const cachedUser = getCachedUser();
+        if (cachedUser) {
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[useAuth] Using cached user:', cachedUser.email);
+          }
           if (mounted) {
             setState({
               user: cachedUser,
@@ -82,26 +86,49 @@ export function useAuth(): AuthState {
               isError: false,
             });
           }
+          return;
+        }
+
+        // If no cached user, check the current session
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+        if (sessionError) {
+          console.error('[useAuth] Error getting session:', sessionError);
+          if (mounted) {
+            setState({
+              user: null,
+              isLoading: false,
+              isError: true,
+              error: sessionError,
+            });
+          }
+          return;
+        }
+
+        // If we have an active session, use it and update cache
+        if (session?.user) {
+          updateCachedUser(session.user);
+          if (mounted) {
+            setState({
+              user: session.user,
+              isLoading: false,
+              isError: false,
+            });
+          }
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[useAuth] Session found on mount:', session.user.email);
+          }
         } else {
-          // Cache hasn't been populated yet, need to fetch
-          try {
-            const user = await getOrFetchUser(supabase);
-            if (mounted) {
-              setState({
-                user,
-                isLoading: false,
-                isError: false,
-              });
-            }
-          } catch (error) {
-            if (mounted) {
-              setState({
-                user: null,
-                isLoading: false,
-                isError: true,
-                error: error instanceof Error ? error : new Error(String(error)),
-              });
-            }
+          // No session and no cache - user is logged out
+          if (mounted) {
+            setState({
+              user: null,
+              isLoading: false,
+              isError: false,
+            });
+          }
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[useAuth] No session found');
           }
         }
       } catch (error) {
@@ -123,7 +150,38 @@ export function useAuth(): AuthState {
     };
   }, [supabase]); // Only depend on supabase, run once
 
-  // Effect 2: Subscribe to auth state changes (separate from initialization)
+  // Effect 2a: Subscribe to CACHE changes (fires when updateCachedUser is called)
+  // This is critical for detecting manual cache updates from LoginClient
+  useEffect(() => {
+    let mounted = true;
+
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[useAuth] Setting up cache subscription');
+    }
+
+    // Subscribe to cache changes - this will fire when updateCachedUser is called
+    const unsubscribe = subscribeToCacheChanges((cachedUser) => {
+      if (!mounted) return;
+
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[useAuth] Cache changed:', cachedUser?.email);
+      }
+
+      setState((prev) => ({
+        ...prev,
+        user: cachedUser,
+        isLoading: false,
+        isError: false,
+      }));
+    });
+
+    return () => {
+      mounted = false;
+      unsubscribe();
+    };
+  }, []);
+
+  // Effect 2b: Subscribe to auth state changes (separate from initialization)
   useEffect(() => {
     let mounted = true;
 

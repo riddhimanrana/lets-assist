@@ -27,6 +27,12 @@ let cachedUser: User | null = null;
 let cacheInitialized = false;
 
 /**
+ * Subscribers to cache changes
+ * When cache is updated, all subscribers are notified
+ */
+let cacheSubscribers: Set<(user: User | null) => void> = new Set();
+
+/**
  * Promise-sharing mechanism for concurrent getUser() calls
  * When multiple components call getUser() simultaneously, they all await
  * the same promise instead of making multiple API calls
@@ -230,6 +236,35 @@ export async function refreshUser(supabase: SupabaseClient): Promise<User | null
 }
 
 /**
+ * Subscribe to cache changes
+ * Called by useAuth hook to listen for updates
+ * 
+ * @param callback - Function called when cache updates
+ * @returns Function to unsubscribe
+ */
+export function subscribeToCacheChanges(callback: (user: User | null) => void): () => void {
+  cacheSubscribers.add(callback);
+  
+  return () => {
+    cacheSubscribers.delete(callback);
+  };
+}
+
+/**
+ * Notify all cache subscribers of a change
+ * Internal function called when cache is updated
+ */
+function notifyCacheSubscribers(user: User | null): void {
+  cacheSubscribers.forEach(callback => {
+    try {
+      callback(user);
+    } catch (error) {
+      console.error('[Auth Context] Error in cache subscriber:', error);
+    }
+  });
+}
+
+/**
  * Update cached user manually (useful after auth state changes)
  * Called by auth state change listeners to keep cache in sync
  * 
@@ -250,6 +285,9 @@ export function updateCachedUser(user: User | null): void {
   if (process.env.NODE_ENV === 'development') {
     console.log('[Auth Context] Cache updated manually:', user?.id ?? 'null');
   }
+
+  // CRITICAL: Notify all subscribers (e.g., useAuth hooks) of the cache change
+  notifyCacheSubscribers(user);
 }
 
 /**
@@ -291,5 +329,38 @@ export function getAuthMetrics() {
 export async function waitForAuthReady(): Promise<void> {
   if (userFetchPromise) {
     await userFetchPromise;
+  }
+}
+
+/**
+ * Initialize profile and settings cache after user logs in
+ * Called by LoginClient after successful authentication
+ * 
+ * This fetches profile + settings in a batch query instead of
+ * letting individual components query separately
+ * 
+ * @param userId - The authenticated user ID
+ */
+export async function initializeUserProfileCache(userId: string): Promise<void> {
+  try {
+    // Dynamic import to avoid circular dependencies
+    const { fetchUserDataBatch } = await import('@/utils/auth/batch-fetcher');
+    const { subscribeToProfileUpdates } = await import('@/utils/auth/batch-fetcher');
+    
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Auth Context] Initializing profile cache for:', userId);
+    }
+
+    // Fetch profile and settings in batch
+    await fetchUserDataBatch(userId);
+
+    // Subscribe to realtime updates
+    subscribeToProfileUpdates(userId);
+
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Auth Context] Profile cache initialized');
+    }
+  } catch (error) {
+    console.error('[Auth Context] Failed to initialize profile cache:', error);
   }
 }

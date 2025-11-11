@@ -20,7 +20,7 @@ This project is built using the following technologies:
 - [Supabase](https://supabase.com/): Open-source Firebase alternative with PostgreSQL database.
 - [Catpuccin](https://catppuccin.com/): Soothing color palette for consistent theming.
 - [Cloudflare](https://www.cloudflare.com/): Security, domain and performance optimization.
-- Other libraries: Additional tools enhancing project functionality.
+And many other libraries...
 
 ## FAQ
 
