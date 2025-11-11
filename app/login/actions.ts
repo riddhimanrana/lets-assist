@@ -1,6 +1,7 @@
 "use server";
 
 import { z } from "zod";
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/utils/supabase/server";
 import { verifyTurnstileToken, isTurnstileEnabled } from "@/lib/turnstile";
 
@@ -69,11 +70,19 @@ export async function login(formData: FormData) {
     signInOptions.options = { captchaToken: turnstileToken };
   }
 
-  const { error } = await supabase.auth.signInWithPassword(signInOptions);
+  const { data, error } = await supabase.auth.signInWithPassword(signInOptions);
 
   if (error) {
     return { error: { server: [error.message] } };
   }
 
-  return { success: true };
+  // Revalidate all routes to clear cached auth state
+  revalidatePath("/", "layout");
+
+  // Return the session so LoginClient can immediately use it
+  // This is the critical fix - the server action returns the authenticated user
+  return { 
+    success: true, 
+    session: data.session 
+  };
 }

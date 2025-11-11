@@ -31,6 +31,11 @@ const nextConfig = {
         hostname: "fotdmeakexgrkronxlof.supabase.co",
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "api.lets-assist.com", // supabase custom domain
+        pathname: "/**",
+      }
     ],
   },
   experimental: {

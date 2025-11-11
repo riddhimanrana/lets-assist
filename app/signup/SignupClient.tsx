@@ -4,7 +4,7 @@ import { useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { signup, signInWithGoogle } from "./actions";
+import { signup, signInWithGoogle, resendVerificationEmail } from "./actions";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/form";
 import { toast } from "sonner";
 import { TurnstileComponent, TurnstileRef } from "@/components/ui/turnstile";
+import { useRouter } from "next/navigation";
 
 interface SignupClientProps {
   redirectPath?: string;
@@ -44,6 +45,7 @@ export default function SignupClient({ redirectPath }: SignupClientProps) {
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [turnstileVerified, setTurnstileVerified] = useState(false);
   const turnstileRef = useRef<TurnstileRef>(null);
+  const router = useRouter();
 
   const form = useForm<SignupValues>({
     resolver: zodResolver(signupSchema),
@@ -72,11 +74,46 @@ export default function SignupClient({ redirectPath }: SignupClientProps) {
     const result = await signup(formData);
 
     if (result.error) {
-      const errors: {
-        email?: string[];
-        password?: string[];
-        server?: string[];
-      } = result.error;
+      const errors = result.error;
+
+      // Check if this is a confirmed email error
+      if ('emailStatus' in result && result.emailStatus === 'confirmed') {
+        toast.error("Account already exists", {
+          description: "An account with this email address already exists and is verified. Please log in to access your account.",
+          action: {
+            label: "Go to Login",
+            onClick: () => router.push("/login"),
+          },
+        });
+        setIsLoading(false);
+        turnstileRef.current?.reset();
+        setTurnstileVerified(false);
+        return;
+      }
+
+      // Check if this is an unconfirmed email error
+      if ('emailStatus' in result && result.emailStatus === 'unconfirmed' && 'email' in result) {
+        const unconfirmedEmail = result.email as string;
+        toast.warning("Email not verified", {
+          description: "An account with this email exists but hasn't been verified yet. We can resend the verification email.",
+          action: {
+            label: "Resend Email",
+            onClick: async () => {
+              const resendResult = await resendVerificationEmail(unconfirmedEmail);
+              if (resendResult.success) {
+                toast.success(resendResult.message || "Verification email sent!");
+                router.push(`/signup/success?email=${encodeURIComponent(unconfirmedEmail)}`);
+              } else {
+                toast.error(resendResult.error || "Failed to resend email");
+              }
+            },
+          },
+        });
+        setIsLoading(false);
+        turnstileRef.current?.reset();
+        setTurnstileVerified(false);
+        return;
+      }
 
       Object.keys(errors).forEach((key) => {
         if (key in errors && key in signupSchema.shape) {
@@ -87,23 +124,13 @@ export default function SignupClient({ redirectPath }: SignupClientProps) {
         }
       });
 
-      if (errors.server && errors.server[0] === "ACCEXISTS0") {
-        console.log(errors);
-        toast.warning("This email is already registered. Please sign in.");
-      } else if (errors.server && errors.server[0] === "NOCNFRM0") {
-        toast.warning(
-          "Email confirmation is required. Please check your inbox.",
-        );
-      } else {
-        toast.error(
-          "Sorry, there was an error creating your account. Please try again.",
-        );
+      if ("server" in errors && errors.server) {
+        toast.error(errors.server[0]);
       }
-    } else if (result.success) {
-      form.reset();
-      toast.success("Please check your email for a confirmation link.", {
-        duration: 15000, // duration in milliseconds (15 seconds)
-      });
+    } else if (result.success && result.email) {
+      // Redirect to success page
+      router.push(`/signup/success?email=${encodeURIComponent(result.email)}`);
+      return;
     }
 
     setIsLoading(false);

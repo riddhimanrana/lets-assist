@@ -131,40 +131,31 @@ export async function updateEmailAction(formData: FormData) {
 export async function deleteAccount() {
   try {
     const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const { data: { user }, error: getUserErr } = await supabase.auth.getUser();
 
-    if (!user) {
-      throw new Error("No user found");
-    }
+    if (getUserErr) throw new Error(`Failed to get user: ${getUserErr.message}`);
+    if (!user) throw new Error("No user found");
 
-    // Delete from public.profiles first
-    const { error: profileError } = await supabase
-      .from("profiles")
-      .delete()
-      .eq("id", user.id);
+    // Read server-only envs
+    const adminUrl = process.env.SUPABASE_URL;
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    if (profileError) {
-      throw new Error(`Failed to delete profile: ${profileError.message}`);
-    }
+    if (!adminUrl) throw new Error("SUPABASE_URL is not set");
+    if (!serviceKey) throw new Error("SUPABASE_SERVICE_ROLE_KEY is not set");
 
-    // Create admin client with service role
-    const supabaseAdmin = createAdminClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    );
+    // Optional: debug (do not log secrets)
+    console.info("Admin host:", new URL(adminUrl).host);
+    console.info("Service key prefix:", serviceKey.slice(0, 8));
 
-    // Delete from auth schema using admin client
-    const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(
-      user.id,
-    );
+    const supabaseAdmin = createAdminClient(adminUrl, serviceKey);
+
+    const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(user.id);
 
     if (authError) {
+      console.error("admin.deleteUser failed", { code: authError.status, message: authError.message });
       throw new Error(`Failed to delete user: ${authError.message}`);
     }
 
-    // Clear auth session
     await supabase.auth.signOut();
 
     return { success: true };

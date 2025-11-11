@@ -33,6 +33,12 @@ export default function PrepareClient({ projectId }: PrepareClientProps) {
     const sessionUuid = searchParams.get('session');
     const scheduleId = searchParams.get('schedule');
 
+    console.log('PrepareClient: Raw URL params:', {
+      sessionUuid,
+      scheduleId,
+      fullURL: window.location.href
+    });
+
     if (!sessionUuid || !scheduleId) {
       setErrorMessage('Missing required session or schedule information in the URL.');
       setStatus('error');
@@ -49,7 +55,7 @@ export default function PrepareClient({ projectId }: PrepareClientProps) {
           console.log('PrepareClient: Cookie set successfully. Redirecting client-side...');
           setStatus('success');
           // Redirect client-side to the main attendance page
-          router.replace(`/attend/${projectId}?session=${sessionUuid}&schedule=${scheduleId}`);
+          router.replace(`/attend/${encodeURIComponent(projectId)}?session=${encodeURIComponent(sessionUuid)}&schedule=${encodeURIComponent(scheduleId)}`);
         } else {
           console.error('PrepareClient: Failed to set cookie via server action.', result.error);
           setErrorMessage(result.error || 'Failed to verify attendance link. Please try scanning the QR code again.');

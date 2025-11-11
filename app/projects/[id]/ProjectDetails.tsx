@@ -48,13 +48,15 @@ import {
   Mail,
   Pause,
   MailCheck,
+  MoreVertical,
+  Flag,
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { signUpForProject, cancelSignup } from "./actions";
 import { formatTimeTo12Hour, formatBytes } from "@/lib/utils";
 import { createClient } from "@/utils/supabase/client";
-import { getSlotCapacities, getSlotDetails, isSlotAvailable } from "@/utils/project";
+import { getSlotCapacities, getSlotDetails, isSlotAvailable, isMultiDaySlotPast, isMultiDaySlotPastByScheduleId, isSameDayMultiAreaSlotPast, isOneTimeSlotPast } from "@/utils/project";
 import { getProjectStatus, getProjectStartDateTime, getProjectEndDateTime } from "@/utils/project"; // Import the getProjectStatus utility and date utils
 import { useState, useEffect, useCallback } from "react"; // Add useCallback
 import { useRouter } from "next/navigation";
@@ -82,6 +84,15 @@ import { User } from "@supabase/supabase-js";
 import ProjectInstructionsModal from "./ProjectInstructions";
 import { SignupConfirmationModal } from "@/components/SignupConfirmationModal";
 import { CancelSignupModal } from "@/components/CancelSignupModal";
+import CalendarOptionsModal from "@/components/CalendarOptionsModal";
+import { TimezoneBadge } from "@/components/TimezoneBadge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ReportContentButton } from "@/components/ReportContentButton";
 
 interface SlotData {
   remainingSlots: Record<string, number>;
@@ -178,6 +189,13 @@ export default function ProjectDetails({
     getProjectStatus(project)
   );
 
+  // Add state for calendar modal after signup
+  const [showCalendarModal, setShowCalendarModal] = useState(false);
+  const [completedSignup, setCompletedSignup] = useState<{
+    signupId: string;
+    scheduleId: string;
+  } | null>(null);
+
   // Remove userRejected state as rejectedSlots handles this per slot
   // const [userRejected, setUserRejected] = useState<boolean>(false);
   
@@ -240,6 +258,43 @@ export default function ProjectDetails({
     
     checkPreviousRejections();
   }, [user, project.id]);
+
+  // Handle reopening signup modal after OAuth
+  useEffect(() => {
+    const modalState = sessionStorage.getItem("signupModalState");
+    
+    // Also check URL params for OAuth callback
+    const urlParams = new URLSearchParams(window.location.search);
+    const oauthSuccess = urlParams.get("success");
+    
+    if (modalState) {
+      try {
+        const { projectId, scheduleId, returnToModal } = JSON.parse(modalState);
+        
+        // Only reopen if it's for this project and we should return to modal
+        if (returnToModal && projectId === project.id && user) {
+          // Clear the state
+          sessionStorage.removeItem("signupModalState");
+          
+          // If returning from OAuth, set the just connected flag
+          if (oauthSuccess === "connected") {
+            sessionStorage.setItem("calendarJustConnected", "true");
+            
+            // Clean URL
+            window.history.replaceState({}, '', `/projects/${project.id}`);
+          }
+          
+          // Reopen the signup modal
+          setPendingScheduleId(scheduleId);
+          setShowSignupConfirmation(true);
+        }
+      } catch (error) {
+        console.error("Error parsing modal state:", error);
+        sessionStorage.removeItem("signupModalState");
+      }
+    }
+  }, [project.id, user]);
+
 
   // Fetch user profile data when user changes
   useEffect(() => {
@@ -469,8 +524,45 @@ export default function ProjectDetails({
           });
           // No UI state change here yet for slots/signup status
         } else {
-          // Standard success toast for registered users
-          toast.success("Successfully signed up!");
+          // Check if user has Google Calendar connected
+          let calendarSynced = false;
+          if (result.signupId && result.projectId) {
+            try {
+              const statusResponse = await fetch("/api/calendar/connection-status");
+              const statusData = await statusResponse.json();
+              
+              // API returns 'connected' not 'isConnected'
+              if (statusData.connected) {
+                // Automatically sync to calendar
+                const syncResponse = await fetch("/api/calendar/add-signup", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    signup_id: result.signupId,
+                    project_id: result.projectId,
+                    schedule_id: scheduleId,
+                  }),
+                });
+                
+                if (syncResponse.ok) {
+                  calendarSynced = true;
+                }
+              }
+            } catch (error) {
+              console.error("Error syncing to calendar:", error);
+              // Don't fail the signup if calendar sync fails
+            }
+          }
+          
+          // Success toast with calendar info
+          toast.success(
+            calendarSynced 
+              ? "Successfully signed up and added to Google Calendar!" 
+              : "Successfully signed up!",
+            {
+              duration: 5000,
+            }
+          );
           
           // Update local state to reflect the successful signup
           setHasSignedUp(prev => ({ ...prev, [scheduleId]: true }));
@@ -610,7 +702,7 @@ export default function ProjectDetails({
     if (loadingStates[scheduleId]) {
       return (
         <>
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          <Loader2 className="h-4 w-4 animate-spin" />
           Processing...
         </>
       );
@@ -632,11 +724,7 @@ export default function ProjectDetails({
     <>
       <div className="container mx-auto px-4 py-6 max-w-6xl">
         {/* Render Creator Dashboard if user is creator */}
-        {isCreator && <CreatorDashboard project={project} />}
-        {/* Render User Dashboard if user is logged in, NOT creator, and has signups */}
-        {user && !isCreator && userSignupsData && userSignupsData.length > 0 && (
-          <UserDashboard project={project} user={user} signups={userSignupsData} />
-        )}
+        
 
         {/* Confirmation Alert */}
         {showConfirmationAlert && (
@@ -668,18 +756,48 @@ export default function ProjectDetails({
             <div className="flex items-center gap-2 mb-1 sm:mb-0 flex-shrink-0 order-0 sm:order-none justify-between w-full sm:w-auto">
               {/* Use calculatedStatus instead of project.status */}
               <ProjectStatusBadge status={calculatedStatus} className="capitalize" />
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={handleShare}
-              >
-                <Share2 className="h-4 w-4 shrink-0" />
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={handleShare}
+                >
+                  <Share2 className="h-4 w-4 shrink-0" />
+                </Button>
+                
+                {/* Report button - only show for non-creators */}
+                {!isCreator && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="icon">
+                        <MoreVertical className="h-4 w-4" />
+                        <span className="sr-only">More options</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <ReportContentButton
+                        contentType="project"
+                        contentId={project.id}
+                        triggerButton={
+                          <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                            <Flag className="mr-2 h-4 w-4" />
+                            <span>Report Project</span>
+                          </DropdownMenuItem>
+                        }
+                      />
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+              </div>
             </div>
           </div>
         </div>
 
-
+{isCreator && <CreatorDashboard project={project} />}
+        {/* Render User Dashboard if user is logged in, NOT creator, and has signups */}
+        {user && !isCreator && userSignupsData && userSignupsData.length > 0 && (
+          <UserDashboard project={project} user={user} signups={userSignupsData} />
+        )}
         {/* Project Content */}
         <div className="grid gap-6 lg:grid-cols-5">
           {/* Left Column */}
@@ -740,10 +858,18 @@ export default function ProjectDetails({
                           <div className="mt-1.5 text-muted-foreground text-sm space-y-1.5">
                           <div className="flex items-center gap-1.5">
                             <Clock className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground/70" />
-                            <span>
-                            {formatTimeTo12Hour(project.schedule.oneTime.startTime)} -{" "}
-                            {formatTimeTo12Hour(project.schedule.oneTime.endTime)}
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span>
+                                {(() => {
+                                  const startLabel = project.schedule.oneTime.startTime ? formatTimeTo12Hour(project.schedule.oneTime.startTime) : "TBD";
+                                  const endLabel = project.schedule.oneTime.endTime ? formatTimeTo12Hour(project.schedule.oneTime.endTime) : undefined;
+                                  return endLabel ? `${startLabel} - ${endLabel}` : startLabel;
+                                })()}
+                              </span>
+                              {project.project_timezone && (
+                                <TimezoneBadge timezone={project.project_timezone} />
+                              )}
+                            </div>
                           </div>
                           
                           <div className="flex items-center">
@@ -770,15 +896,14 @@ export default function ProjectDetails({
                             isCreator || 
                             loadingStates["oneTime"] || 
                             calculatedStatus === "cancelled" || 
-                            calculatedStatus === "completed" || 
-                            calculatedStatus === "in-progress" || 
+                            isOneTimeSlotPast(project) ||
                             rejectedSlots["oneTime"] || 
-                            attendedSlots["oneTime"] ||  // Add check for attended status
+                            attendedSlots["oneTime"] ||
                             (!hasSignedUp["oneTime"] && (remainingSlots["oneTime"] === 0))
                           }
-                          className={`flex-shrink-0 gap-2 ${attendedSlots["oneTime"] ? "opacity-50 cursor-not-allowed" : ""}`}
+                          className={`flex-shrink-0 gap-2 ${attendedSlots["oneTime"] || isOneTimeSlotPast(project) ? "opacity-50 cursor-not-allowed" : ""}`}
                         >
-                          {renderSignupButton("oneTime")}
+                          {isOneTimeSlotPast(project) ? "Time Passed" : renderSignupButton("oneTime")}
                         </Button>
                       </div>
                     </CardContent>
@@ -787,75 +912,97 @@ export default function ProjectDetails({
 
                 {project.event_type === "multiDay" && project.schedule.multiDay && (
                   <div className="space-y-3">
-                    {project.schedule.multiDay.map((day, dayIndex) => (
-                      <div key={day.date} className="mb-4">
-                        <h3 className="font-medium mb-2">
-                          {(() => {
-                            const dateStr = day.date;
-                            const [year, month, dayNum] = dateStr.split("-").map(Number);
-                            // Use Date to correctly handle timezones
-                            const date = new Date(year, month - 1, dayNum);
-                            return format(date, "EEEE, MMMM d");
-                          })()}
-                        </h3>
-                        <div className="space-y-2">
-                          {day.slots.map((slot, slotIndex) => {
-                            const scheduleId = `${day.date}-${slotIndex}`;
-                            return (
-                              <Card key={scheduleId} className="bg-card/50 hover:bg-card/80 transition-colors">
-                                <CardContent className="p-4">
-                                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                    <div className="max-w-[400px]">
-                                      <div className="flex flex-col space-y-2">
-                                        <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                                          <Clock className="h-3.5 w-3.5 flex-shrink-0" />
-                                          <span className="line-clamp-1">
-                                            {formatTimeTo12Hour(slot.startTime)} -{" "}
-                                            {formatTimeTo12Hour(slot.endTime)}
-                                          </span>
-                                        </div>
-                                        <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                                          <Users className="h-3.5 w-3.5 flex-shrink-0" />
-                                          <div className="flex items-center gap-1.5">
-                                            <span className="font-medium">
-                                              {remainingSlots[scheduleId] ?? slot.volunteers}
-                                              <span className="font-normal"> of </span>
-                                              {slot.volunteers}
-                                            </span>
-                                            <span className="font-normal">spots available</span>
+                    {project.schedule.multiDay.map((day, dayIndex) => {
+                      const isDayPast = isMultiDaySlotPast(day);
+                      const allSlotsInDayPast = day.slots.every((slot, slotIndex) => {
+                        const scheduleId = `${day.date}-${slotIndex}`;
+                        return isMultiDaySlotPastByScheduleId(project, scheduleId);
+                      });
+                      
+                      return (
+                        <div key={day.date} className="mb-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <h3 className="font-medium">
+                              {(() => {
+                                const dateStr = day.date;
+                                const [year, month, dayNum] = dateStr.split("-").map(Number);
+                                // Use Date to correctly handle timezones
+                                const date = new Date(year, month - 1, dayNum);
+                                return format(date, "EEEE, MMMM d");
+                              })()}
+                            </h3>
+                            {allSlotsInDayPast && (
+                              <Badge variant="secondary" className="ml-2">
+                                Passed
+                              </Badge>
+                            )}
+                          </div>
+                          <div className={`space-y-2 ${allSlotsInDayPast ? "opacity-50" : ""}`}>
+                            {day.slots.map((slot, slotIndex) => {
+                              const scheduleId = `${day.date}-${slotIndex}`;
+                              return (
+                                <Card key={scheduleId} className="bg-card/50 hover:bg-card/80 transition-colors">
+                                  <CardContent className="p-4">
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                      <div className="max-w-[400px]">
+                                        <div className="flex flex-col space-y-2">
+                                          <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                                            <Clock className="h-3.5 w-3.5 flex-shrink-0" />
+                                            <div className="flex items-center gap-2">
+                                              <span className="line-clamp-1">
+                                                {(() => {
+                                                  const startLabel = slot.startTime ? formatTimeTo12Hour(slot.startTime) : "TBD";
+                                                  const endLabel = slot.endTime ? formatTimeTo12Hour(slot.endTime) : undefined;
+                                                  return endLabel ? `${startLabel} - ${endLabel}` : startLabel;
+                                                })()}
+                                              </span>
+                                              {project.project_timezone && (
+                                                <TimezoneBadge timezone={project.project_timezone} />
+                                              )}
+                                            </div>
                                           </div>
-                                          
-                                          {/* Visual indicator for spots */}
-                                          {/* <div className="ml-2 h-1.5 bg-muted rounded-full w-16 overflow-hidden hidden sm:block"> ... </div> */}
+                                          <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                                            <Users className="h-3.5 w-3.5 flex-shrink-0" />
+                                            <div className="flex items-center gap-1.5">
+                                              <span className="font-medium">
+                                                {remainingSlots[scheduleId] ?? slot.volunteers}
+                                                <span className="font-normal"> of </span>
+                                                {slot.volunteers}
+                                              </span>
+                                              <span className="font-normal">spots available</span>
+                                            </div>
+                                            
+                                            {/* Visual indicator for spots */}
+                                            {/* <div className="ml-2 h-1.5 bg-muted rounded-full w-16 overflow-hidden hidden sm:block"> ... </div> */}
+                                          </div>
                                         </div>
                                       </div>
+                                      <Button
+                                        variant={hasSignedUp[scheduleId] ? "secondary" : rejectedSlots[scheduleId] ? "destructive" : "default"}
+                                        size="sm"
+                                        onClick={() => handleSignUpClick(scheduleId)}
+                                        disabled={
+                                          isCreator || 
+                                          loadingStates[scheduleId] || 
+                                          calculatedStatus === "cancelled" || 
+                                          rejectedSlots[scheduleId] || 
+                                          attendedSlots[scheduleId] ||
+                                          isMultiDaySlotPastByScheduleId(project, scheduleId) ||
+                                          (!hasSignedUp[scheduleId] && (remainingSlots[scheduleId] === 0))
+                                        }
+                                        className={`flex-shrink-0 gap-2 ${attendedSlots[scheduleId] || isMultiDaySlotPastByScheduleId(project, scheduleId) ? "opacity-50 cursor-not-allowed" : ""}`}
+                                      >
+                                        {isMultiDaySlotPastByScheduleId(project, scheduleId) ? "Time Passed" : renderSignupButton(scheduleId)}
+                                      </Button>
                                     </div>
-                                    <Button
-                                      variant={hasSignedUp[scheduleId] ? "secondary" : rejectedSlots[scheduleId] ? "destructive" : "default"}
-                                      size="sm"
-                                      onClick={() => handleSignUpClick(scheduleId)}
-                                      disabled={
-                                        isCreator || 
-                                        loadingStates[scheduleId] || 
-                                        calculatedStatus === "cancelled" || 
-                                        calculatedStatus === "completed" || 
-                                        calculatedStatus === "in-progress" || 
-                                        rejectedSlots[scheduleId] || 
-                                        attendedSlots[scheduleId] ||  // Add check for attended status
-                                        (!hasSignedUp[scheduleId] && (remainingSlots[scheduleId] === 0))
-                                      }
-                                      className={`flex-shrink-0 gap-2 ${attendedSlots[scheduleId] ? "opacity-50 cursor-not-allowed" : ""}`}
-                                    >
-                                      {renderSignupButton(scheduleId)}
-                                    </Button>
-                                  </div>
                                 </CardContent>
                               </Card>
                             );
                           })}
                         </div>
                       </div>
-                    ))}
+                    );
+                    })}
                   </div>
                 )}
 
@@ -881,9 +1028,18 @@ export default function ProjectDetails({
                                   <div className="flex flex-col space-y-2 mt-1">
                                     <div className="flex items-center gap-2 text-muted-foreground text-sm">
                                       <Clock className="h-3.5 w-3.5 flex-shrink-0" />
-                                      <span className="line-clamp-1">
-                                        {formatTimeTo12Hour(role.startTime)} - {formatTimeTo12Hour(role.endTime)}
-                                      </span>
+                                      <div className="flex items-center gap-2">
+                                        <span className="line-clamp-1">
+                                          {(() => {
+                                            const startLabel = role.startTime ? formatTimeTo12Hour(role.startTime) : "TBD";
+                                            const endLabel = role.endTime ? formatTimeTo12Hour(role.endTime) : undefined;
+                                            return endLabel ? `${startLabel} - ${endLabel}` : startLabel;
+                                          })()}
+                                        </span>
+                                        {project.project_timezone && (
+                                          <TimezoneBadge timezone={project.project_timezone} />
+                                        )}
+                                      </div>
                                     </div>
                                     <div className="flex items-center">
                                       <div className="flex items-center gap-1.5">
@@ -909,15 +1065,14 @@ export default function ProjectDetails({
                                     isCreator || 
                                     loadingStates[role.name] || 
                                     calculatedStatus === "cancelled" || 
-                                    calculatedStatus === "completed" || 
-                                    calculatedStatus === "in-progress" || 
+                                    isSameDayMultiAreaSlotPast(project, role.name) ||
                                     rejectedSlots[role.name] || 
-                                    attendedSlots[role.name] ||  // Add check for attended status
+                                    attendedSlots[role.name] ||
                                     (!hasSignedUp[role.name] && (remainingSlots[role.name] === 0))
                                   }
-                                  className={`flex-shrink-0 gap-2 ${attendedSlots[role.name] ? "opacity-50 cursor-not-allowed" : ""}`}
+                                  className={`flex-shrink-0 gap-2 ${attendedSlots[role.name] || isSameDayMultiAreaSlotPast(project, role.name) ? "opacity-50 cursor-not-allowed" : ""}`}
                                 >
-                                  {renderSignupButton(role.name)}
+                                  {isSameDayMultiAreaSlotPast(project, role.name) ? "Time Passed" : renderSignupButton(role.name)}
                                 </Button>
                               </div>
                             </CardContent>
@@ -1375,6 +1530,7 @@ export default function ProjectDetails({
           onClose={handleCloseModals}
           onConfirm={handleConfirmSignup}
           project={{
+            id: project.id,
             title: project.title,
             date: (() => {
               // Get the appropriate date from the schedule
@@ -1422,6 +1578,7 @@ export default function ProjectDetails({
               return undefined;
             })(),
           }}
+          scheduleId={pendingScheduleId}
           isLoading={loadingStates[pendingScheduleId]}
         />
       )}
@@ -1491,6 +1648,27 @@ export default function ProjectDetails({
           projectId={project.id}
           scheduleId={pendingScheduleId}
           userId={user.id}
+        />
+      )}
+
+      {/* Calendar options modal after successful signup */}
+      {completedSignup && (
+        <CalendarOptionsModal
+          open={showCalendarModal}
+          onOpenChange={setShowCalendarModal}
+          project={project}
+          signup={{
+            id: completedSignup.signupId,
+            schedule_id: completedSignup.scheduleId,
+            project_id: project.id,
+            user_id: user?.id || null,
+            status: 'approved',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            check_in_time: null,
+            check_out_time: null,
+          }}
+          mode="volunteer"
         />
       )}
     </>

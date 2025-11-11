@@ -441,11 +441,11 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
               </CardTitle>
             </CardHeader>
             <CardContent className="text-sm space-y-2">
-              <p>✅ Your project is live and accepting volunteers</p>
-              <p>✅ Event type: {event_type === "oneTime" ? "One-time event" : 
+              <p>Your project is live and accepting volunteers</p>
+              <p>Event type: {event_type === "oneTime" ? "One-time event" : 
                          event_type === "multiDay" ? "Multi-day event" : 
                          "Multi-role event"}</p>
-              <p>✅ Verification: {verification_method === 'qr-code' ? "QR Code check-in" :
+              <p>Verification: {verification_method === 'qr-code' ? "QR Code check-in" :
                                    verification_method === 'manual' ? "Manual check-in" :
                                    verification_method === 'auto' ? "Automatic check-in" :
                                    "Sign-up only"}</p>
@@ -828,7 +828,7 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
       <DialogTrigger asChild>
         <Button
           variant={"outline"}
-          size={isCreator ? "sm" : "sm"}
+          size={isCreator ? "default": "sm"}
           className={`gap-2 `}
         >
           <HelpCircle className="h-4 w-4" />

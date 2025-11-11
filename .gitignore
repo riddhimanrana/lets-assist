@@ -9,6 +9,8 @@
 # testing
 /coverage
 
+/docs/
+
 # next.js
 /.next/
 /out/
@@ -41,3 +43,9 @@ next-env.d.ts
 # github/vscode settings
 /.github
 /.vscode
+
+# roo code
+/.roo
+
+sitemap.xml
+robots.txt

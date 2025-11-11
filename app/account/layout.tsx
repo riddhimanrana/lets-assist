@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
-import { Search, Menu } from "lucide-react";
+import { Search, Menu, User, Shield, Key, Bell, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { usePathname } from "next/navigation";
@@ -17,18 +17,27 @@ const sidebarItems = [
   {
     title: "Profile",
     href: "/account/profile",
+    icon: User,
   },
   {
     title: "Privacy & Security",
     href: "/account/security",
+    icon: Shield,
   },
   {
     title: "Authentication",
     href: "/account/authentication",
+    icon: Key,
   },
   {
     title: "Notifications",
     href: "/account/notifications",
+    icon: Bell,
+  },
+  {
+    title: "Calendar",
+    href: "/account/calendar",
+    icon: Calendar,
   },
 ];
 
@@ -71,21 +80,25 @@ export default function AccountLayout({
                 />
                 <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               </div>
-              {filteredItems.map((item) => (
-                <Link key={item.href} href={item.href}>
-                  <Button
-                    variant="ghost"
-                    className={`w-full justify-start h-10 ${
-                      pathname === item.href
-                        ? "bg-accent text-accent-foreground font-medium"
-                        : "text-muted-foreground"
-                    }`}
-                    onClick={() => setIsDrawerOpen(false)}
-                  >
-                    {item.title}
-                  </Button>
-                </Link>
-              ))}
+              {filteredItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Link key={item.href} href={item.href}>
+                    <Button
+                      variant="ghost"
+                      className={`w-full justify-start h-10 ${
+                        pathname === item.href
+                          ? "bg-accent text-accent-foreground font-medium"
+                          : "text-muted-foreground"
+                      }`}
+                      onClick={() => setIsDrawerOpen(false)}
+                    >
+                      <Icon className="mr-2 h-4 w-4" />
+                      {item.title}
+                    </Button>
+                  </Link>
+                );
+              })}
             </div>
           </DrawerContent>
         </Drawer>
@@ -115,20 +128,24 @@ export default function AccountLayout({
             </div>
           </div>
           <div className="px-3 space-y-1">
-            {filteredItems.map((item) => (
-              <Link key={item.href} href={item.href}>
-                <Button
-                  variant="ghost"
-                  className={`w-full justify-start ${
-                    pathname === item.href
-                      ? "bg-accent text-accent-foreground font-medium"
-                      : "text-muted-foreground"
-                  }`}
-                >
-                  {item.title}
-                </Button>
-              </Link>
-            ))}
+            {filteredItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <Link key={item.href} href={item.href}>
+                  <Button
+                    variant="ghost"
+                    className={`w-full justify-start ${
+                      pathname === item.href
+                        ? "bg-accent text-accent-foreground font-medium"
+                        : "text-muted-foreground"
+                    }`}
+                  >
+                    <Icon className="mr-2 h-4 w-4" />
+                    {item.title}
+                  </Button>
+                </Link>
+              );
+            })}
           </div>
         </aside>
 

@@ -75,6 +75,27 @@ export async function createBasicProject(projectData: any) {
     return { error: "You must be logged in to create a project" };
   }
 
+  // Trusted member gating (no bypass by org roles)
+  const { data: tmProfile } = await supabase
+    .from("profiles")
+    .select("trusted_member")
+    .eq("id", user.id)
+    .single();
+  if (!tmProfile?.trusted_member) {
+    // If profile flag isn't set, allow if application is accepted
+    const { data: tmApp } = await supabase
+      .from("trusted_member")
+      .select("status")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (tmApp?.status !== true) {
+      return {
+        error:
+          "Only Trusted Members can create projects. Please visit /trusted-member to apply, and once accepted you can create projects.",
+      };
+    }
+  }
+
   // Rate limiting: Check projects created in the last 24 hours
   const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const { count: projectsCount, error: countError } = await supabase
@@ -158,6 +179,7 @@ export async function createBasicProject(projectData: any) {
         organization_id: organizationId || null, // Save organization_id if provided
         is_private: organizationId ? projectData.isPrivate : false, // Set is_private based on organization and preference
         published: publishedState, // Add the published state tracking
+        project_timezone: projectData.basicInfo.projectTimezone || 'America/Los_Angeles', // Save project timezone with fallback
       })
       .select("id")
       .single();
@@ -287,7 +309,7 @@ export async function uploadProjectDocument(projectId: string, documentBase64: s
       });
       
     if (uploadError) {
-      console.error(`Error uploading document ${fileName}:`, uploadError);
+      console.error('Error uploading document:', { fileName, error: uploadError });
       return { error: "Failed to upload document." };
     }
     
@@ -429,5 +451,37 @@ export async function checkProfanity(content: { [key: string]: string }) {
     console.error('Error in profanity check function:', error);
     // If overall check fails, default to allowing content
     return { success: true, hasProfanity: false };
+  }
+}
+
+/**
+ * Fetches a project by ID with all necessary data for calendar integration
+ */
+export async function getProjectById(projectId: string) {
+  try {
+    const supabase = await createClient();
+
+    const { data: project, error } = await supabase
+      .from("projects")
+      .select(`
+        *,
+        profiles:creator_id (
+          id,
+          full_name,
+          email
+        )
+      `)
+      .eq("id", projectId)
+      .single();
+
+    if (error) {
+      console.error("Error fetching project:", error);
+      return { error: "Failed to fetch project" };
+    }
+
+    return { project };
+  } catch (error) {
+    console.error("Error in getProjectById:", error);
+    return { error: "Failed to fetch project" };
   }
 }

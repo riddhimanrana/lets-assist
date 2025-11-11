@@ -4,8 +4,10 @@ import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import InitialOnboardingModal from "./InitialOnboardingModal";
 import { createClient } from "@/utils/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function OnboardingDebugButton() {
+  const { user } = useAuth(); // Use centralized auth hook
   const [showModal, setShowModal] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [userFullName, setUserFullName] = useState<string | null>(null);
@@ -14,39 +16,34 @@ export default function OnboardingDebugButton() {
   const [showDebugInfo, setShowDebugInfo] = useState(false);
 
   const checkCurrentUserState = async () => {
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (user) {
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("username, created_at, phone")
-        .eq("id", user.id)
-        .single();
-      
-      const debugData = {
-        userId: user.id,
-        email: user.email,
-        userMetadata: user.user_metadata,
-        hasCompletedOnboarding: user.user_metadata?.has_completed_onboarding,
-        profileData,
-        hasUsername: profileData?.username && profileData.username.trim().length > 0,
-        accountAge: profileData?.created_at ? 
-          Math.round((new Date().getTime() - new Date(profileData.created_at).getTime()) / (1000 * 60)) + ' minutes' : 'unknown'
-      };
-      
-      setDebugInfo(debugData);
-      console.log("Current user debug info:", debugData);
-    } else {
+    if (!user?.id) {
       setDebugInfo({ error: "No user logged in" });
+      return;
     }
+
+    const supabase = createClient();
+    const { data: profileData } = await supabase
+      .from("profiles")
+      .select("username, created_at, phone")
+      .eq("id", user.id)
+      .single();
+    
+    const debugData = {
+      userId: user.id,
+      email: user.email,
+      userMetadata: user.user_metadata,
+      hasCompletedOnboarding: user.user_metadata?.has_completed_onboarding,
+      profileData,
+      hasUsername: profileData?.username && profileData.username.trim().length > 0,
+      accountAge: profileData?.created_at ? 
+        Math.round((new Date().getTime() - new Date(profileData.created_at).getTime()) / (1000 * 60)) + ' minutes' : 'unknown'
+    };
+    
+    setDebugInfo(debugData);
+    console.log("Current user debug info:", debugData);
   };
 
-  const handleOpenModal = async () => {
-    // Get current user data
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    
+  const handleOpenModal = () => {
     if (user) {
       setUserId(user.id);
       setUserFullName(user.user_metadata?.full_name || user.email?.split("@")[0] || "Test User");
@@ -62,24 +59,25 @@ export default function OnboardingDebugButton() {
   };
 
   const forceResetOnboardingFlag = async () => {
+    if (!user?.id) return;
+
     const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
     
-    if (user) {
-      // Reset the onboarding flag to false to test
-      await supabase.auth.updateUser({
-        data: { has_completed_onboarding: false }
-      });
-      
-      console.log("Reset onboarding flag to false for testing");
-      alert("Reset onboarding flag - refresh page to test");
-      checkCurrentUserState(); // Refresh debug info
-    }
+    // Reset the onboarding flag to false to test
+    await supabase.auth.updateUser({
+      data: { has_completed_onboarding: false }
+    });
+    
+    console.log("Reset onboarding flag to false for testing");
+    alert("Reset onboarding flag - refresh page to test");
+    checkCurrentUserState(); // Refresh debug info
   };
 
   useEffect(() => {
-    checkCurrentUserState();
-  }, []);
+    if (user?.id) {
+      checkCurrentUserState();
+    }
+  }, [user?.id]);
 
   return (
     <>

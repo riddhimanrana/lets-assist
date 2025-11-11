@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Building2, Users2, BarChart, Shield } from "lucide-react";
+import { Building2, Users2, ClipboardList, Shield } from "lucide-react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 
@@ -9,7 +9,7 @@ export const OrganizationsSection = () => {
   const features = [
     { icon: Building2, title: "Streamlined Management", desc: "Efficiently manage events and volunteer coordination" },
     { icon: Users2, title: "Volunteer Database", desc: "Access a pool of verified and eager volunteers" },
-    { icon: BarChart, title: "Analytics & Insights", desc: "Track impact and engagement metrics" },
+    { icon: ClipboardList, title: "Member Data Access", desc: "Easily view and export volunteer hours and participation" },
     { icon: Shield, title: "Verified Platform", desc: "Join a trusted network of organizations" }
   ];
 

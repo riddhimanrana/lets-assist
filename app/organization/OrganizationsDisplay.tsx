@@ -11,6 +11,7 @@ import Link from "next/link";
 import { JoinOrganizationDialog } from "./JoinOrganizationDialog";
 import { useEffect, useState } from "react";
 import OrganizationCard from "./OrganizationCard";
+import { CsvVerificationModal } from "./CsvVerificationModal";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,21 +26,33 @@ interface OrganizationsDisplayProps {
   organizations: any[];
   memberCounts: Record<string, number>;
   isLoggedIn: boolean;
+  userMemberships: any[];
+  isTrusted?: boolean;
+  applicationStatus?: boolean | null;
 }
+
+import { TrustedInfoIcon } from "@/components/TrustedInfoIcon";
 
 export default function OrganizationsDisplay({ 
   organizations, 
   memberCounts,
-  isLoggedIn 
+  isLoggedIn,
+  userMemberships,
+  isTrusted = false,
+  applicationStatus = undefined,
 }: OrganizationsDisplayProps) {
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [filteredOrgs, setFilteredOrgs] = useState(organizations);
   const [userOrgs, setUserOrgs] = useState<any[]>([]);
-  const [adminOrgs, setAdminOrgs] = useState<any[]>([]);
-  const [memberOrgs, setMemberOrgs] = useState<any[]>([]);
   const [otherOrgs, setOtherOrgs] = useState<any[]>([]);
   const [sortBy, setSortBy] = useState("verified-first");
+
+  // Helper function to get user's role for an organization
+  const getUserRole = (orgId: string): 'admin' | 'staff' | 'member' | undefined => {
+    const membership = userMemberships.find(m => m.organizations?.id === orgId);
+    return membership?.role;
+  };
 
   // Simplified search and sort with single useEffect
   useEffect(() => {
@@ -78,28 +91,24 @@ export default function OrganizationsDisplay({
     }
     
     // Separate user's organizations and other organizations
-    if (isLoggedIn && result.length > 0) {
-      // Split user organizations into admin and member categories
-      const adminOrgs = result.filter(org => org.is_member && org.user_role === 'admin');
-      const memberOrgs = result.filter(org => org.is_member && org.user_role !== 'admin');
-      const otherOrgsList = result.filter(org => !org.is_member);
-      
-      // Set user orgs to include both admin and member orgs for proper display
-      setUserOrgs([...adminOrgs, ...memberOrgs]);
-      
-      // Update admin and member orgs state
-      setAdminOrgs(adminOrgs);
-      setMemberOrgs(memberOrgs);
-      setOtherOrgs(otherOrgsList);
-    } else {
-      setUserOrgs([]);
-      setAdminOrgs([]);
-      setMemberOrgs([]);
-      setOtherOrgs(result);
-    }
+    // Create a map of user memberships for quick lookup
+    const membershipMap = new Map();
+    userMemberships.forEach(membership => {
+      if (membership.organizations) {
+        membershipMap.set(membership.organizations.id, membership.role);
+      }
+    });
+    
+    // Separate organizations based on user membership
+    const userOrganizations = userMemberships.map(membership => membership.organizations).filter(Boolean);
+    const otherOrgsList = result.filter(org => !membershipMap.has(org.id));
+    
+    // Update state
+    setUserOrgs(userOrganizations);
+    setOtherOrgs(otherOrgsList);
     
     setFilteredOrgs(result);
-  }, [organizations, search, sortBy, isLoggedIn]);
+  }, [organizations, search, sortBy, isLoggedIn, userMemberships]);
 
   return (
     <div className="mx-auto px-4 sm:px-8 lg:px-12 py-8">
@@ -116,13 +125,32 @@ export default function OrganizationsDisplay({
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
             {isLoggedIn && (
               <>
+                <CsvVerificationModal />
                 <JoinOrganizationDialog />
-                <Button className="w-full sm:w-auto" asChild>
-                  <Link href="/organization/create">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create Organization
-                  </Link>
-                </Button>
+                <div className="flex items-center gap-2">
+                  {isTrusted || applicationStatus === true ? (
+                    <Button className="w-full sm:w-auto" asChild>
+                      <Link href="/organization/create">
+                        <Plus className="w-4 h-4 mr-2" />
+                        Create Organization
+                      </Link>
+                    </Button>
+                  ) : (
+                    <Button className="w-full sm:w-auto cursor-not-allowed opacity-60" disabled>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Create Organization
+                    </Button>
+                  )}
+                  {!isTrusted && applicationStatus !== true && (
+                    <TrustedInfoIcon
+                      message={
+                        applicationStatus === false
+                          ? "It looks like you've already applied to be a Trusted Member. Please email support@lets-assist.com for further assistance."
+                          : "You must be a Trusted Member to create organizations. Apply using the form."
+                      }
+                    />
+                  )}
+                </div>
               </>
             )}
             {!isLoggedIn && (
@@ -198,39 +226,20 @@ export default function OrganizationsDisplay({
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-8">
-            {/* Admin Organizations Section */}
-            {adminOrgs.length > 0 && (
-              <div>
-                <h2 className="text-lg sm:text-xl font-semibold mb-4 flex items-center">
-                  <span className="mr-2">Organizations You Manage</span>
-                  <Badge variant="secondary" className="text-xs">Admin</Badge>
-                </h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                  {adminOrgs.map((org) => (
-                    <OrganizationCard 
-                      key={org.id} 
-                      org={org} 
-                      memberCount={memberCounts[org.id] || 0}
-                      isUserMember={true}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Member Organizations Section */}
-            {memberOrgs.length > 0 && (
+            {/* My Organizations Section */}
+            {userOrgs.length > 0 && (
               <div>
                 <h2 className="text-lg sm:text-xl font-semibold mb-4">
-                  Organizations You&apos;re A Member Of
+                  My Organizations
                 </h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                  {memberOrgs.map((org) => (
+                  {userOrgs.map((org: any) => (
                     <OrganizationCard 
                       key={org.id} 
                       org={org} 
                       memberCount={memberCounts[org.id] || 0}
                       isUserMember={true}
+                      userRole={getUserRole(org.id)}
                     />
                   ))}
                 </div>
@@ -244,7 +253,7 @@ export default function OrganizationsDisplay({
                   Discover Organizations
                 </h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                  {otherOrgs.map((org) => (
+                  {otherOrgs.map((org: any) => (
                     <OrganizationCard 
                       key={org.id} 
                       org={org} 

@@ -42,7 +42,7 @@ const CONSTANTS = {
   },
   DESCRIPTION: {
     MIN: 10,
-    MAX: 300,
+    MAX: 650,
   },
 } as const;
 
@@ -82,7 +82,7 @@ const orgCreationSchema = z.object({
     
     .or(z.literal("")),
   
-  type: z.enum(["nonprofit", "school", "company"], {
+  type: z.enum(["nonprofit", "school", "company", "government", "other"], {
     required_error: "Please select an organization type",
     invalid_type_error: "Please select a valid organization type",
   }),
@@ -371,7 +371,10 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
                       defaultValue={field.value}
                     >
                       <FormControl>
-                        <SelectTrigger className={!field.value ? "text-muted-foreground" : ""}>
+                        <SelectTrigger 
+                          data-empty={!field.value}
+                          className="data-[empty=true]:text-muted-foreground"
+                        >
                           <SelectValue placeholder="Select organization type" />
                         </SelectTrigger>
                       </FormControl>
@@ -381,6 +384,8 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
                           <SelectItem value="nonprofit">Nonprofit Organization</SelectItem>
                           <SelectItem value="school">Educational Institution</SelectItem>
                           <SelectItem value="company">Company/Business</SelectItem>
+                          <SelectItem value="government">Government Agency</SelectItem>
+                          <SelectItem value="other">Other</SelectItem>
                         </SelectGroup>
                       </SelectContent>
                     </Select>
