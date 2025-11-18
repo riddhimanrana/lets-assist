@@ -1,20 +1,21 @@
 "use client";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Building2, Users2, ClipboardList, Shield } from "lucide-react";
+import { Building2, Users2, ClipboardList, Shield, Sparkles, Workflow, FileCheck2 } from "lucide-react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 
 export const OrganizationsSection = () => {
   const features = [
-    { icon: Building2, title: "Streamlined Management", desc: "Efficiently manage events and volunteer coordination" },
-    { icon: Users2, title: "Volunteer Database", desc: "Access a pool of verified and eager volunteers" },
-    { icon: ClipboardList, title: "Member Data Access", desc: "Easily view and export volunteer hours and participation" },
-    { icon: Shield, title: "Verified Platform", desc: "Join a trusted network of organizations" }
+    { icon: Building2, title: "Unified operations", desc: "Spin up projects, manage rosters, and assign leads in seconds." },
+    { icon: Users2, title: "Roles & permissions", desc: "Granular access for directors, staff, and trusted volunteers." },
+    { icon: ClipboardList, title: "Evidence in one place", desc: "Pull live reports with signatures, certificates, and audit logs." },
+    { icon: Shield, title: "District-grade security", desc: "COPPA, FERPA, and internal review workflows baked in." }
   ];
 
   return (
-    <section id="organizations" className="py-16 sm:py-24 relative">
+    <section id="organizations" className="relative py-20 sm:py-24">
       {/* Extended background gradient that connects to adjacent components */}
       <div className="absolute inset-0 bg-gradient-to-b from-transparent to-background z-0"></div>
       
@@ -23,13 +24,13 @@ export const OrganizationsSection = () => {
       <div className="hidden md:block absolute top-[50%] -right-[15%] w-[50%] h-[60%] rounded-full bg-gradient-to-br from-emerald-500/20 to-primary/10 blur-[120px] animate-blob animation-delay-2000 z-0" />
       
       <div className="container px-4 sm:px-6 mx-auto relative z-10">
-        <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
+        <div className="grid items-center gap-12 lg:grid-cols-[1fr_1.1fr]">
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5 }}
-            className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6"
+            className="grid grid-cols-1 gap-4 sm:grid-cols-2"
           >
             {features.map((feature, index) => (
               <motion.div
@@ -38,16 +39,14 @@ export const OrganizationsSection = () => {
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.3, delay: index * 0.1 }}
-                className="p-4 sm:p-6 bg-background/60 backdrop-blur-sm rounded-xl shadow-sm border border-white/5 hover:border-primary/20 group hover:shadow-md transition-all duration-300"
+                className="group relative overflow-hidden rounded-2xl border border-border/60 bg-background/70 p-6 shadow-sm backdrop-blur transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-[0_25px_60px_-40px_rgba(34,197,94,0.55)]"
               >
-                <div className="relative inline-block mb-3 sm:mb-4">
-                  <div className="absolute inset-0 bg-gradient-to-br from-primary/30 to-emerald-500/30 rounded-full blur-md group-hover:blur-lg transition-all duration-300"></div>
-                  <feature.icon className="w-6 h-6 sm:w-8 sm:h-8 text-primary relative z-10" />
-                </div>
-                <h3 className="font-semibold mb-2 text-sm sm:text-base group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-primary group-hover:to-emerald-500 group-hover:bg-clip-text transition-all duration-300">
+                <div className="absolute -top-20 right-0 h-40 w-40 rounded-full bg-primary/5 blur-3xl transition-all duration-300 group-hover:bg-primary/10" />
+                <feature.icon className="relative z-10 h-7 w-7 text-primary" />
+                <h3 className="relative z-10 mt-4 font-overusedgrotesk text-lg text-foreground">
                   {feature.title}
                 </h3>
-                <p className="text-xs sm:text-sm text-muted-foreground">
+                <p className="relative z-10 mt-2 text-sm text-muted-foreground">
                   {feature.desc}
                 </p>
               </motion.div>
@@ -61,28 +60,21 @@ export const OrganizationsSection = () => {
             transition={{ duration: 0.5 }}
             className="lg:pl-8"
           >
-            <motion.span 
-              initial={{ opacity: 0, x: -20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.3 }}
-              className="text-transparent bg-gradient-to-r from-primary via-emerald-500 to-primary bg-clip-text animate-gradient bg-size-200 font-semibold mb-2 block text-sm sm:text-base"
-            >
-              FOR ORGANIZATIONS
-            </motion.span>
-            <h2 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6">
-              Connect with Passionate Volunteers
+            <Badge variant="outline" className="mb-4 inline-flex items-center gap-2 border-primary/40 bg-primary/5 text-primary">
+              <Sparkles className="h-4 w-4" />
+              District & Nonprofit teams
+            </Badge>
+            <h2 className="font-overusedgrotesk text-3xl leading-tight tracking-tight text-foreground sm:text-4xl">
+              Operate every volunteer initiative from one command center.
             </h2>
-            <p className="text-sm sm:text-base text-muted-foreground mb-6 sm:mb-8 backdrop-blur-sm bg-background/0 p-3 rounded-xl">
-              Join our network of non-profits and local organizations to find
-              dedicated volunteers. Our platform helps you manage events, track
-              participation, and make a bigger impact in your community.
+            <p className="mt-6 rounded-2xl border border-border/60 bg-background/70 p-4 text-sm sm:text-base text-muted-foreground">
+              Join the organizations modernizing volunteer engagement. Let&apos;s Assist keeps events, attendance, and compliance in sync so your staff can focus on community impact.
             </p>
             <div className="space-y-3 sm:space-y-4">
               {[
-                "Easy event creation and management",
-                "Automatic hour verification and reporting",
-                "Direct communication with volunteers"
+                { icon: Workflow, copy: "Automated rosters, waitlists, and shift reminders." },
+                { icon: FileCheck2, copy: "Audit trails and exports trusted by school admins." },
+                { icon: Sparkles, copy: "QR verification funnels data into dashboards instantly." }
               ].map((item, index) => (
                 <motion.div 
                   key={index}
@@ -90,24 +82,23 @@ export const OrganizationsSection = () => {
                   whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: true }}
                   transition={{ duration: 0.3, delay: index * 0.1 }}
-                  className="flex items-center gap-2 text-xs sm:text-sm group"
+                  className="flex items-center gap-3 text-sm"
                 >
-                  <span className="w-5 h-5 rounded-full bg-gradient-to-br from-primary/20 to-emerald-500/20 flex items-center justify-center group-hover:from-primary/30 group-hover:to-emerald-500/30 transition-all duration-300">
-                    <span className="w-1.5 h-1.5 rounded-full bg-gradient-to-br from-primary to-emerald-500"></span>
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-primary">
+                    <item.icon className="h-4 w-4" />
                   </span>
-                  <span>{item}</span>
+                  <span>{item.copy}</span>
                 </motion.div>
               ))}
             </div>
-            <div className="mt-6 sm:mt-8">
+            <div className="mt-8 flex flex-wrap items-center gap-4">
               <Link href="/signup">
-              <Button
-                  variant="outline"
-                  size="lg"
-                  className="w-full sm:w-auto"
-                >
+                <Button variant="outline" size="lg" className="w-full sm:w-auto border-primary/50 text-primary hover:bg-primary hover:text-primary-foreground">
                   Partner with Us
                 </Button>
+              </Link>
+              <Link href="#product-demo" className="text-sm text-muted-foreground underline-offset-4 hover:underline">
+                Watch the platform tour
               </Link>
             </div>
           </motion.div>

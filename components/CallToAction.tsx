@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { HoverGradientButton } from "@/components/effects/HoverGradientButton";
 import { HeartHandshake } from "lucide-react";
 import { motion } from "framer-motion";
 import Link from "next/link";
@@ -12,7 +13,7 @@ export const CallToAction = () => {
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-muted/30 to-muted/80"></div>
       
       {/* Show accent circle only on desktop */}
-      <div className="hidden md:block absolute -left-24 bottom-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl"></div>
+      {/* <div className="hidden md:block absolute -left-24 bottom-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl"></div> */}
       {/* <div className="absolute -right-20 top-10 w-72 h-72 bg-emerald-500/10 rounded-full blur-3xl animate-pulse-slow"></div> */}
 
       <div className="container relative mx-auto ">
@@ -43,10 +44,7 @@ export const CallToAction = () => {
             transition={{ delay: 0.2, duration: 0.5 }}
           >
             <Link href="/signup">
-              <Button 
-                size="lg" 
-                className="rounded-full px-8 "
-              >
+              <Button size="lg" className="px-8 rounded-full">
                 Make a Difference
               </Button>
             </Link>
