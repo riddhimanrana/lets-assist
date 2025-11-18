@@ -56,10 +56,15 @@ export async function GET(request: Request) {
         
         // Check if user has completed onboarding
         const hasCompletedOnboarding = user.user_metadata?.has_completed_onboarding === true;
+        
+        // Check if this is an OAuth login (Google, etc.) by checking identities
+        const isOAuthLogin = user.identities && user.identities.length > 0 && 
+                            user.identities.some(identity => identity.provider !== 'email');
 
-        // If this is a recent signup email verification (not OAuth), DON'T sign in the user
+        // ONLY show verification success page for email/password signups (not OAuth)
+        // If this is a recent email/password signup verification, DON'T sign in the user
         // Just show the success page
-        if (isRecentSignup && !hasCompletedOnboarding && !redirectAfterAuth) {
+        if (isRecentSignup && !hasCompletedOnboarding && !redirectAfterAuth && !isOAuthLogin) {
           const userEmail = user.email;
           // Sign out to clear the session that was just created
           await supabase.auth.signOut();

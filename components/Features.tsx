@@ -1,50 +1,43 @@
 "use client";
 
-import {
-  Calendar,
-  Users2,
-  Building2,
-  Search,
-  Award,
-  ClipboardCheck,
-} from "lucide-react";
+import { Award, Building2, CalendarCheck, LayoutDashboard, QrCode, ShieldCheck } from "lucide-react";
 import { motion } from "framer-motion";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
 
 const features = [
   {
-    icon: Search,
-    title: "Easy Discovery",
+    icon: QrCode,
+    title: "QR attendance + hour automation",
     description:
-      "Find volunteering opportunities that match your interests and schedule",
+      "Instant scans verify attendance, calculate hours, and feed certificates without manual spreadsheets.",
+  },
+  {
+    icon: CalendarCheck,
+    title: "Google Calendar integration",
+    description:
+      "Two-way syncing keeps volunteers, guardians, and organizers aligned with real-time reminders.",
   },
   {
     icon: Building2,
-    title: "Connect with Organizations",
-    description: "Partner with local non-profits and community organizations",
+    title: "Organization operations hub",
+    description: "Role-based tooling for districts and nonprofits to manage rosters, documents, and events.",
   },
   {
-    icon: Calendar,
-    title: "Flexible Scheduling",
+    icon: LayoutDashboard,
+    title: "Volunteer mission control",
     description:
-      "Choose from one-time events or ongoing commitments that fit your availability",
+      "Personal dashboards show commitments, upcoming shifts, badges, and verified certificates.",
   },
   {
-    icon: ClipboardCheck,
-    title: "Hour Tracking",
+    icon: ShieldCheck,
+    title: "COPPA-ready workflows",
     description:
-      "Automatically track and verify your volunteering hours for CSF and school requirements",
-  },
-  {
-    icon: Users2,
-    title: "Team Management",
-    description:
-      "Coordinate with other volunteers and manage event roles efficiently",
+      "Guardian consent, student privacy controls, and audit logs designed for K-12 compliance.",
   },
   {
     icon: Award,
-    title: "Achievement System",
-    description: "Earn recognition and track your community service milestones",
+    title: "Auto-certified impact",
+    description: "Generate branded, school-accepted certificates moments after events close.",
   },
 ];
 
@@ -117,11 +110,10 @@ export const Features = () => {
           className="text-center mb-12 px-4 sm:px-6"
         >
           <h2 className="text-2xl sm:text-3xl font-bold mb-4">
-            Why Choose Let&apos;s Assist?
+            Platform pillars that save teams hours every week
           </h2>
           <p className="text-muted-foreground max-w-2xl mx-auto text-sm sm:text-base">
-            Streamline your volunteering journey with our comprehensive platform
-            designed for both volunteers and organizations.
+            We combine polished volunteer experiences with secure, scalable infrastructure—so you can focus on real community impact.
           </p>
         </motion.div>
 

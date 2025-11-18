@@ -28,7 +28,6 @@ import {
 } from "@/components/ui/form";
 import { toast } from "sonner";
 import { TurnstileComponent, TurnstileRef } from "@/components/ui/turnstile";
-import { EmailVerifiedModal } from "@/components/EmailVerifiedModal";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -166,7 +165,6 @@ export default function LoginClient({ redirectPath }: LoginClientProps) {
 
   return (
     <div className="flex items-center justify-center min-h-screen">
-      <EmailVerifiedModal />
       <Card className="mx-auto w-[370px] max-w-full mb-12">
         <CardHeader>
           <CardTitle className="text-2xl">Login</CardTitle>

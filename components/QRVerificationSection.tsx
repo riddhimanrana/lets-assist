@@ -326,27 +326,27 @@ export const QRVerificationSection = () => {
             <Card>
               <CardContent className="p-6 text-center">
                 <Shield className="w-8 h-8 mx-auto mb-3 text-primary" />
-                <h4 className="font-semibold mb-2">Bank-Grade Security</h4>
+                <h4 className="font-semibold mb-2">Roster Integrity</h4>
                 <p className="text-muted-foreground text-sm">
-                  AES-256 encryption with timestamp validation prevents tampering
+                  Verified check-ins roll straight into your attendance reports with guardian visibility baked in.
                 </p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-6 text-center">
                 <Zap className="w-8 h-8 mx-auto mb-3 text-primary" />
-                <h4 className="font-semibold mb-2">Sub-Second Response</h4>
+                <h4 className="font-semibold mb-2">Instant Recaps</h4>
                 <p className="text-muted-foreground text-sm">
-                  Average scan-to-confirmation time under 800 milliseconds
+                  Event leads receive a ready-to-share summary—hours, notes, and photos—before students leave campus.
                 </p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-6 text-center">
                 <Smartphone className="w-8 h-8 mx-auto mb-3 text-primary" />
-                <h4 className="font-semibold mb-2">Universal Compatibility</h4>
+                <h4 className="font-semibold mb-2">Guardian Notifications</h4>
                 <p className="text-muted-foreground text-sm">
-                  Works with any smartphone camera - no app installation required
+                  Families get the mileage text they’re waiting for the moment a volunteer is marked present.
                 </p>
               </CardContent>
             </Card>
@@ -364,20 +364,20 @@ export const QRVerificationSection = () => {
           <h3 className="text-xl font-semibold mb-6">Proven Results</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-3xl mx-auto">
             <div>
-              <h4 className="text-2xl font-bold text-primary mb-1">99.8%</h4>
-              <p className="text-muted-foreground text-sm">Scan Success Rate</p>
+              <h4 className="text-2xl font-bold text-primary mb-1">27</h4>
+              <p className="text-muted-foreground text-sm">Bay Area schools live</p>
             </div>
             <div>
-              <h4 className="text-2xl font-bold text-primary mb-1">90%</h4>
-              <p className="text-muted-foreground text-sm">Time Savings</p>
+              <h4 className="text-2xl font-bold text-primary mb-1">63</h4>
+              <p className="text-muted-foreground text-sm">Community partners connected</p>
             </div>
             <div>
-              <h4 className="text-2xl font-bold text-primary mb-1">Zero</h4>
-              <p className="text-muted-foreground text-sm">Fraud Cases</p>
+              <h4 className="text-2xl font-bold text-primary mb-1">48h</h4>
+              <p className="text-muted-foreground text-sm">Certificate turnaround</p>
             </div>
             <div>
-              <h4 className="text-2xl font-bold text-primary mb-1">50K+</h4>
-              <p className="text-muted-foreground text-sm">Scans Processed</p>
+              <h4 className="text-2xl font-bold text-primary mb-1">120K+</h4>
+              <p className="text-muted-foreground text-sm">Volunteer check-ins logged</p>
             </div>
           </div>
           
