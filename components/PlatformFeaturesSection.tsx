@@ -13,7 +13,15 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 
-const features = [
+interface Feature {
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  desc: string;
+  badge: string | null;
+  imagePath?: string;
+}
+
+const features: Feature[] = [
   {
     icon: CalendarCheck,
     title: "Calendar sync",
