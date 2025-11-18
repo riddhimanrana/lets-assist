@@ -1,10 +1,11 @@
 "use client";
 
-import { HeroSection } from "@/components/Hero";
-import { Features } from "@/components/Features";
-import { StudentSection } from "@/components/StudentSection";
-import { OrganizationsSection } from "@/components/OrganizationsSection";
 import { CallToAction } from "@/components/CallToAction";
+import { HeroVideoStage } from "@/components/HeroVideoStage";
+import BayAreaExamples from "@/components/BayAreaExamples";
+import VolunteerJourneySection from "@/components/VolunteerJourneySection";
+import PlatformFeaturesSection from "@/components/PlatformFeaturesSection";
+import OrgToolingSection from "@/components/OrgToolingSection";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { Button } from "@/components/ui/button";
@@ -65,10 +66,11 @@ function HomeContent() {
   
   return (
     <main className="flex flex-col min-h-screen overflow-x-hidden">
-      <HeroSection />
-      <Features />
-      <StudentSection />
-      <OrganizationsSection />
+      <HeroVideoStage />
+      <BayAreaExamples />
+      <VolunteerJourneySection />
+      <PlatformFeaturesSection />
+      <OrgToolingSection />
       <CallToAction />
     </main>
   );

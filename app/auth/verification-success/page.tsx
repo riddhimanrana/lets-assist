@@ -103,7 +103,7 @@ export default async function VerificationSuccessPage({
       : "Your email has been confirmed.";
     message = "Your account is now active. Please log in to complete your profile and start exploring volunteering opportunities.";
     buttonText = "Go to Login";
-    buttonLink = `/login?verified=true${verifiedEmail ? `&email=${encodeURIComponent(verifiedEmail)}` : ''}`;
+    buttonLink = verifiedEmail ? `/login?email=${encodeURIComponent(verifiedEmail)}` : '/login';
   } else if (type === "email_change") {
     title = "Email Changed Successfully";
     description = "Your email address has been updated successfully.";

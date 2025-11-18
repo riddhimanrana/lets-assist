@@ -175,7 +175,7 @@ const generateCertificatePublishedEmailHtml = (
               </div>
           </div>
           <div class="email-footer">
-              <p>&copy; ${new Date().getFullYear()} Let's Assist, LLC. All rights reserved.</p>
+              <p>&copy; ${new Date().getFullYear()} Riddhiman Rana. All rights reserved.</p>
               <p>Questions? Contact us at <a href="mailto:support@lets-assist.com" style="color: #16a34a; font-weight: 500;">support@lets-assist.com</a></p>
           </div>
       </div>
