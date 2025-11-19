@@ -94,19 +94,19 @@ const CollapsibleSection = ({
 
 const features = [
   {
-    title: "Track Your Hours with Ease",
-    href: "/#hourtracking",
-    description: "Advanced and accurate tracking methods.",
+    title: "Volunteer Journey",
+    href: "/#journey",
+    description: "Browse opportunities, confirm attendance, and earn certificates.",
   },
   {
-    title: "Connect with Organizations",
-    href: "/#whyvolunteer",
-    description: "Find organizations that need your help.",
+    title: "Platform Features",
+    href: "/#features",
+    description: "Calendar sync, dashboards, QR check-ins, and trusted event types.",
   },
   {
-    title: "Team Management",
-    href: "/#organizations",
-    description: "Organizations can create custom management options.",
+    title: "Organization Tooling",
+    href: "/#org-tooling",
+    description: "Role-based member management, certified reports, and QR verification.",
   },
 ];
 
@@ -329,6 +329,16 @@ export default function Navbar() {
                     Organizations
                   </Link>
                 </Button>
+                <Button variant="ghost" asChild>
+                  <Link
+                    className={cn(
+                      pathname === "/faq" ? "text-primary font-semibold" : "text-muted-foreground"
+                    )}
+                    href="/faq"
+                  >
+                    FAQ
+                  </Link>
+                </Button>
                 
               </>
             ) : (
@@ -383,6 +393,13 @@ export default function Navbar() {
                   <Link href="/organization" className={cn(
                       pathname === "/organization" ? "text-primary font-semibold" : "text-muted-foreground"
                     )}>Connected Organizations</Link>
+                </Button>
+                <Button variant="ghost" asChild>
+                  <Link href="/faq" className={cn(
+                      pathname === "/faq" ? "text-primary font-semibold" : "text-muted-foreground"
+                    )}>
+                    FAQ
+                  </Link>
                 </Button>
               </>
             )}
@@ -640,6 +657,14 @@ export default function Navbar() {
                       </Button>
                     </>
                   )}
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-between text-muted-foreground"
+                    onClick={handleNavigation}
+                    asChild
+                  >
+                    <Link href="/faq">FAQ</Link>
+                  </Button>
                 </div>
 
                 {user && (

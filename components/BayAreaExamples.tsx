@@ -29,7 +29,7 @@ const partners = [
 
 export default function BayAreaExamples() {
   return (
-    <section className="py-12 sm:py-16">
+    <section id="partners" className="py-12 sm:py-16">
       <div className="container mx-auto px-4 sm:px-6">
         <div className="mx-auto flex max-w-3xl flex-col items-center gap-3 text-center">
           <p className="text-[0.65rem] font-semibold uppercase tracking-[0.5em] text-muted-foreground/70">

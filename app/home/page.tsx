@@ -56,7 +56,7 @@ export default async function Home() {
       <EmailVerificationToast />
       <main className="mx-auto px-4 sm:px-8 lg:px-12 py-8">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3" data-tour-id="home-greeting">
             <Avatar className="w-10 h-10">
               <AvatarImage src={profileData?.avatar_url} alt={userName} />
               <AvatarFallback>
@@ -70,7 +70,7 @@ export default async function Home() {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 w-full md:w-auto">
+          <div className="flex items-center gap-2 w-full md:w-auto" data-tour-id="home-create-project">
             {/* {isAdmin && (
               <Link href="/admin/moderation" className="w-full md:w-auto">
                 <Button
