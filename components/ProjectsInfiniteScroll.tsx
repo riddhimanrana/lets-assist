@@ -437,7 +437,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
       <>
         <div className="mb-8">
           {/* Search and filter controls */}
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3" data-tour-id="home-project-filters">
             <div className="relative w-full sm:w-auto sm:flex-1 max-w-md">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -706,7 +706,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
           )}
         </div>
 
-        <Card className="bg-muted/40 border-dashed">
+        <Card className="bg-muted/40 border-dashed" data-tour-id="home-project-list">
           <CardContent className="flex flex-col items-center justify-center py-16">
             <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center mb-6">
               {activeFilterCount > 0 ? (
@@ -748,7 +748,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
     <div>
       <div className="mb-8">
         {/* Search and filter controls */}
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3" data-tour-id="home-project-filters">
         <div className="relative w-full sm:w-auto sm:flex-1 max-w-md">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -1009,13 +1009,15 @@ export const ProjectsInfiniteScroll: React.FC = () => {
 
       {/* Only render when client is ready to avoid hydration mismatch */}
       {isClientReady && view !== "map" && (
-        <ProjectViewToggle 
-          projects={sortedProjects} 
-          onVolunteerSortChange={setVolunteersSort}
-          volunteerSort={volunteersSort}
-          view={view}
-          onViewChangeAction={(newView) => setView(newView as "card" | "list" | "table")}
-        />
+        <div data-tour-id="home-project-list">
+          <ProjectViewToggle 
+            projects={sortedProjects} 
+            onVolunteerSortChange={setVolunteersSort}
+            volunteerSort={volunteersSort}
+            view={view}
+            onViewChangeAction={(newView) => setView(newView as "card" | "list" | "table")}
+          />
+        </div>
       )}
 
       {/* Map View */}

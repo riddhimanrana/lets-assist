@@ -256,7 +256,7 @@ function formatHours(hours: number): string {
                   contentType="profile"
                   contentId={profile.id}
                   triggerButton={
-                    <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                    <DropdownMenuItem>
                       <Flag className="mr-2 h-4 w-4" />
                       <span>Report Profile</span>
                     </DropdownMenuItem>

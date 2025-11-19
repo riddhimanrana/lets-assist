@@ -219,14 +219,14 @@ export default function InitialOnboardingModal({
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent
-        className="sm:max-w-[425px]"
+        className="w-full max-w-[95vw] sm:max-w-[425px]"
         onInteractOutside={handleInteractOutside}
         onEscapeKeyDown={handleInteractOutside} // Also prevent Esc key
       >
         <DialogHeader>
           <DialogTitle>Welcome to Let&apos;s Assist!</DialogTitle>
           <DialogDescription>
-            Let&apos;s set up your profile. Note: this modal won&apos;t display again after you complete onboarding.
+            Let&apos;s set up your profile. Note: this won&apos;t display again after you complete onboarding.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>

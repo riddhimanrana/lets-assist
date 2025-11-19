@@ -1,88 +1,135 @@
 "use client";
 
-import InitialOnboardingModal from "@/components/InitialOnboardingModal";
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
+import InitialOnboardingModal from "@/components/InitialOnboardingModal";
+import FirstLoginTour from "@/components/FirstLoginTour";
 import { NotificationListener } from "./NotificationListener";
 import { useAuth } from "@/hooks/useAuth";
+import { createClient } from "@/utils/supabase/client";
+import { updateCachedUser } from "@/utils/auth/auth-context";
 
-export default function GlobalNotificationProvider({ 
-  children 
-}: { 
-  children: React.ReactNode 
+export default function GlobalNotificationProvider({
+  children,
+}: {
+  children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const { user, isLoading } = useAuth(); // Use centralized auth hook instead of manual getUser()
+  const { user, isLoading } = useAuth();
+  const [showIntroTour, setShowIntroTour] = useState(false);
   const [showOnboardingModal, setShowOnboardingModal] = useState(false);
   const [currentUserFullName, setCurrentUserFullName] = useState<string | null>(null);
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
-  const onboardingCompletedRef = useRef(false); // Guard to prevent re-showing modal
+  const onboardingCompletedRef = useRef(false);
+  const introCompletedRef = useRef(false);
 
-  // Do not show onboarding modal on critical creation flows where it can block inputs
   const suppressOnboardingModal = !!(
     pathname?.startsWith("/projects/create") ||
     pathname?.startsWith("/organization/create")
   );
 
-  // Simplified onboarding check—only look at the metadata flag
+  const prepareOnboardingModal = useCallback(() => {
+    if (!user) return;
+    setCurrentUserFullName(
+      user.user_metadata?.full_name || user.email?.split("@")[0] || "User"
+    );
+    setCurrentUserEmail(user.email || null);
+  }, [user]);
+
+  const markIntroTourComplete = useCallback(async () => {
+    try {
+      const supabase = createClient();
+      const { data, error } = await supabase.auth.updateUser({
+        data: { has_completed_intro_tour: true },
+      });
+
+      if (error) {
+        console.error("Failed to mark intro tour complete:", error);
+        return;
+      }
+
+      if (data?.user) {
+        updateCachedUser(data.user);
+      }
+    } catch (error) {
+      console.error("Unexpected error updating intro tour status:", error);
+    }
+  }, []);
+
+  const handleIntroComplete = useCallback(async () => {
+    introCompletedRef.current = true;
+    setShowIntroTour(false);
+    await markIntroTourComplete();
+
+    const needsProfile =
+      !onboardingCompletedRef.current &&
+      user?.user_metadata?.has_completed_onboarding !== true;
+
+    if (needsProfile && !suppressOnboardingModal) {
+      prepareOnboardingModal();
+      setShowOnboardingModal(true);
+    }
+  }, [markIntroTourComplete, prepareOnboardingModal, suppressOnboardingModal, user]);
+
   useEffect(() => {
     if (!user) {
+      setShowIntroTour(false);
       setShowOnboardingModal(false);
       onboardingCompletedRef.current = false;
+      introCompletedRef.current = false;
       return;
     }
 
-    const completed = user.user_metadata?.has_completed_onboarding === true;
-    
-    // If onboarding was completed in this session, don't show modal again
-    if (completed || onboardingCompletedRef.current) {
+    const onboardingCompleted = user.user_metadata?.has_completed_onboarding === true;
+    const introCompleted = user.user_metadata?.has_completed_intro_tour === true;
+
+    onboardingCompletedRef.current = onboardingCompleted;
+    introCompletedRef.current = introCompleted;
+
+    if (!introCompleted && !suppressOnboardingModal) {
+      setShowIntroTour(true);
       setShowOnboardingModal(false);
-      if (completed) {
-        onboardingCompletedRef.current = true;
-      }
+      return;
+    }
+
+    setShowIntroTour(false);
+
+    if (!onboardingCompleted && !suppressOnboardingModal) {
+      prepareOnboardingModal();
+      setShowOnboardingModal(true);
     } else {
-      // Only show modal if onboarding hasn't been completed in this session
-      setCurrentUserFullName(
-        user.user_metadata?.full_name ||
-        user.email?.split("@")[0] ||
-        "User"
-      );
-      setCurrentUserEmail(user.email || null);
-      if (!suppressOnboardingModal) {
-        setShowOnboardingModal(true);
-      } else {
-        // Ensure it stays hidden on suppressed routes
-        setShowOnboardingModal(false);
-      }
-    }
-  }, [user, suppressOnboardingModal]);
-
-  // If user navigates into a suppressed route while the modal is open, hide it
-  useEffect(() => {
-    if (suppressOnboardingModal && showOnboardingModal) {
       setShowOnboardingModal(false);
     }
-  }, [suppressOnboardingModal, showOnboardingModal]);
+  }, [user, suppressOnboardingModal, prepareOnboardingModal]);
 
-  // Force refresh user status (called after onboarding completion)
-  const forceRefreshUserStatus = useCallback(async () => {
-    // useAuth hook handles caching automatically - just clear and restart
-    // This is handled by the auth context, no manual refresh needed
-  }, []);
-  
+  useEffect(() => {
+    if (suppressOnboardingModal) {
+      setShowOnboardingModal(false);
+      if (showIntroTour) {
+        setShowIntroTour(false);
+      }
+    }
+  }, [suppressOnboardingModal, showIntroTour]);
+
   return (
     <>
       {user?.id && <NotificationListener userId={user.id} />}
+      {showIntroTour && user?.id && !isLoading && !suppressOnboardingModal && (
+        <FirstLoginTour
+          isOpen={showIntroTour}
+          onComplete={handleIntroComplete}
+          onSkip={handleIntroComplete}
+        />
+      )}
       {showOnboardingModal && user?.id && !isLoading && !suppressOnboardingModal && (
         <InitialOnboardingModal
           isOpen={showOnboardingModal}
           onClose={() => {
             setShowOnboardingModal(false);
-            onboardingCompletedRef.current = true; // Mark as completed in this session
+            onboardingCompletedRef.current = true;
             console.log("Onboarding modal closed by user.");
-            // Force refresh to ensure UI is updated
             setTimeout(() => {
-              forceRefreshUserStatus();
+              // Trigger any higher-level refreshes if needed
             }, 500);
           }}
           userId={user.id}

@@ -1,5 +1,5 @@
 "use client";
-
+import { Shield } from "lucide-react";
 import { useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -43,6 +43,7 @@ export default function ResetPasswordClient({ error }: ResetPasswordClientProps)
   const [emailSent, setEmailSent] = useState(false);
   const [turnstileVerified, setTurnstileVerified] = useState(false);
   const turnstileRef = useRef<TurnstileRef>(null);
+  const [turnstileReady, setTurnstileReady] = useState(false);
 
   const form = useForm<ResetPasswordValues>({
     resolver: zodResolver(resetPasswordSchema),
@@ -155,23 +156,30 @@ export default function ResetPasswordClient({ error }: ResetPasswordClientProps)
                 )}
               />
               <div className="flex justify-center">
-                <div className="w-[300px] h-[65px] overflow-hidden bg-muted/30 rounded-lg flex items-center justify-center border border-border/50">
-                <TurnstileComponent
-                  ref={turnstileRef}
-                  onVerify={(token) => {
-                    setTurnstileVerified(true);
-                    form.setValue("turnstileToken", token);
-                  }}
-                  onError={() => {
-                    setTurnstileVerified(false);
-                    toast.error("Security verification failed. Please try again.");
-                  }}
-                  onExpire={() => {
-                    setTurnstileVerified(false);
-                    form.setValue("turnstileToken", "");
-                  }}
-                />
-              </div>
+                <div className="relative w-[300px] h-[65px] overflow-hidden bg-muted/30 rounded-lg flex items-center justify-center border border-border/50">
+                  {!turnstileReady && (
+                    <div className="absolute inset-0 z-10 flex items-center justify-center gap-2 rounded-lg bg-background/80 text-[0.7rem] font-semibold uppercase tracking-wide text-muted-foreground">
+                      <Shield className="h-4 w-4 text-muted-foreground/80" />
+                      <span className="text-[0.7rem] font-semibold normal-case tracking-wide">Bot verification loading…</span>
+                    </div>
+                  )}
+                  <TurnstileComponent
+                    ref={turnstileRef}
+                    onLoad={() => setTurnstileReady(true)}
+                    onVerify={(token) => {
+                      setTurnstileVerified(true);
+                      form.setValue("turnstileToken", token);
+                    }}
+                    onError={() => {
+                      setTurnstileVerified(false);
+                      toast.error("Security verification failed. Please try again.");
+                    }}
+                    onExpire={() => {
+                      setTurnstileVerified(false);
+                      form.setValue("turnstileToken", "");
+                    }}
+                  />
+                </div>
               </div>
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? "Sending Reset Link..." : "Send Reset Link"}

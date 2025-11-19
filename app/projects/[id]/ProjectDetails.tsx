@@ -779,7 +779,7 @@ export default function ProjectDetails({
                         contentType="project"
                         contentId={project.id}
                         triggerButton={
-                          <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                          <DropdownMenuItem>
                             <Flag className="mr-2 h-4 w-4" />
                             <span>Report Project</span>
                           </DropdownMenuItem>
