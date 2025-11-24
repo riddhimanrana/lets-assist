@@ -54,7 +54,7 @@ const orgCreationSchema = z.object({
     .refine(value => value.trim().length >= CONSTANTS.NAME.MIN, {
       message: "Name cannot be only whitespace"
     }),
-  
+
   username: z.string()
     .min(CONSTANTS.USERNAME.MIN, `Username must be at least ${CONSTANTS.USERNAME.MIN} characters`)
     .max(CONSTANTS.USERNAME.MAX, `Username cannot exceed ${CONSTANTS.USERNAME.MAX} characters`)
@@ -67,27 +67,29 @@ const orgCreationSchema = z.object({
     .refine(value => !value.startsWith(".") && !value.endsWith("."), {
       message: "Username cannot start or end with a dot"
     }),
-  
+
   description: z.string()
     .min(CONSTANTS.DESCRIPTION.MIN, `Description must be at least ${CONSTANTS.DESCRIPTION.MIN} characters`)
     .max(CONSTANTS.DESCRIPTION.MAX, `Description cannot exceed ${CONSTANTS.DESCRIPTION.MAX} characters`)
     .refine(value => value.trim().length >= CONSTANTS.DESCRIPTION.MIN, {
       message: "Description cannot be only whitespace"
     }),
-  
+
   website: z.string()
     .max(CONSTANTS.WEBSITE.MAX, `Website URL cannot exceed ${CONSTANTS.WEBSITE.MAX} characters`)
     .url("Please enter a valid URL")
     .optional()
-    
+
     .or(z.literal("")),
-  
+
   type: z.enum(["nonprofit", "school", "company", "government", "other"], {
     required_error: "Please select an organization type",
     invalid_type_error: "Please select a valid organization type",
   }),
-  
+
   logoUrl: z.string().nullable().optional(),
+
+  allowedEmailDomains: z.string().optional(),
 });
 
 type OrganizationFormValues = z.infer<typeof orgCreationSchema>;
@@ -110,6 +112,7 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
       website: "",
       type: undefined, // Remove default value to force selection
       logoUrl: null,
+      allowedEmailDomains: "",
     },
   });
 
@@ -121,12 +124,12 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
+
     if (file.size > 5 * 1024 * 1024) {
       toast.error("File size exceeds 5 MB. Please upload a smaller image.");
       return;
     }
-    
+
     const fileUrl = URL.createObjectURL(file);
     setTempImageUrl(fileUrl);
     setShowCropper(true);
@@ -147,7 +150,7 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
       setUsernameAvailable(null);
       return;
     }
-    
+
     setCheckingUsername(true);
     try {
       const isAvailable = await checkOrgUsername(username);
@@ -171,13 +174,16 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
         type: data.type,
         logoUrl: data.logoUrl || null,
         createdBy: userId,
+        allowedEmailDomains: data.allowedEmailDomains
+          ? data.allowedEmailDomains.split(',').map(d => d.trim()).filter(Boolean)
+          : undefined,
       });
-      
+
       if (result.error) {
         toast.error(result.error);
         return;
       }
-      
+
       toast.success("Organization created successfully!");
       router.push(`/organization/${data.username}`);
     } catch (error) {
@@ -316,9 +322,8 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
                         <Textarea
                           {...field}
                           placeholder="Describe your organization"
-                          className={`resize-none ${
-                            field.value && field.value.length < CONSTANTS.DESCRIPTION.MIN ? "border-destructive" : ""
-                          }`}
+                          className={`resize-none ${field.value && field.value.length < CONSTANTS.DESCRIPTION.MIN ? "border-destructive" : ""
+                            }`}
                           rows={4}
                           maxLength={CONSTANTS.DESCRIPTION.MAX}
                         />
@@ -371,7 +376,7 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
                       defaultValue={field.value}
                     >
                       <FormControl>
-                        <SelectTrigger 
+                        <SelectTrigger
                           data-empty={!field.value}
                           className="data-[empty=true]:text-muted-foreground"
                         >
@@ -396,13 +401,32 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
                   </FormItem>
                 )}
               />
+              <FormField
+                control={form.control}
+                name="allowedEmailDomains"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Allowed Email Domains (Optional)</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        placeholder="e.g. school.edu, company.com"
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Comma-separated list of email domains. If set, you can restrict project signups to these domains.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </CardContent>
             <CardFooter>
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 disabled={
-                  isCreating || 
-                  !usernameAvailable || 
+                  isCreating ||
+                  !usernameAvailable ||
                   !form.formState.isValid ||
                   Object.keys(form.formState.errors).length > 0
                 }

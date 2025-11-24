@@ -12,12 +12,34 @@
  * have access to synchronized auth state.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createClient } from '@/utils/supabase/client';
-import { updateCachedUser, clearAuthCache } from '@/utils/auth/auth-context';
+import {
+  updateCachedUser,
+  clearAuthCache,
+  isCacheInitialized,
+  primeAuthCache,
+} from '@/utils/auth/auth-context';
+import type { User } from '@supabase/supabase-js';
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+type AuthProviderProps = {
+  children: React.ReactNode;
+  initialUser?: User | null;
+};
+
+export function AuthProvider({ children, initialUser = null }: AuthProviderProps) {
   const [isInitialized, setIsInitialized] = useState(false);
+  const primedRef = useRef(false);
+
+  // Prime the cache exactly once during the first render to ensure useAuth
+  // starts with the server-provided user (or a confirmed null state).
+  useMemo(() => {
+    if (primedRef.current) return;
+    if (!isCacheInitialized()) {
+      primeAuthCache(initialUser ?? null);
+    }
+    primedRef.current = true;
+  }, [initialUser]);
 
   useEffect(() => {
     const supabase = createClient();

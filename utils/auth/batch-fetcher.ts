@@ -51,15 +51,15 @@ export async function fetchUserDataBatch(
       supabase
         .from('profiles')
         .select(
-          'id, full_name, avatar_url, username, phone, bio, profile_visibility, volunteer_goals, created_at, updated_at',
+          'id, full_name, avatar_url, username, phone, profile_visibility, volunteer_goals, created_at, updated_at, date_of_birth, parental_consent_required, email',
         )
         .eq('id', userId)
-        .single(),
+        .maybeSingle(),
       supabase
         .from('notification_settings')
         .select('*')
         .eq('user_id', userId)
-        .single(),
+        .maybeSingle(),
     ]);
 
     const profile = profileResult.data as UserProfile | null;

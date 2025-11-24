@@ -9,12 +9,12 @@ import { cookies } from "next/headers";
 const MAX_COVER_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/jpg"];
 const ALLOWED_DOCUMENT_TYPES = [
-  "application/pdf", 
-  "application/msword", 
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document", 
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   "text/plain",
-  "image/jpeg", 
-  "image/png", 
+  "image/jpeg",
+  "image/png",
   "image/webp",
   "image/jpg"
 ];
@@ -137,11 +137,11 @@ export async function createBasicProject(projectData: any) {
   try {
     // Initialize published field based on event type
     let publishedState: { [key: string]: boolean } = {};
-    
+
     if (projectData.eventType === "oneTime") {
       // For one-time events, simple oneTime key
       publishedState = { oneTime: false };
-    } 
+    }
     else if (projectData.eventType === "multiDay" && projectData.schedule.multiDay) {
       // For multi-day events, create keys for each day and slot combination
       projectData.schedule.multiDay.forEach((day: { date: string; slots: { startTime: string; endTime: string; }[] }, dayIndex: number) => {
@@ -151,7 +151,7 @@ export async function createBasicProject(projectData: any) {
           publishedState[sessionKey] = false;
         });
       });
-    } 
+    }
     else if (projectData.eventType === "sameDayMultiArea" && projectData.schedule.sameDayMultiArea) {
       // For multi-area events, use role names as keys
       projectData.schedule.sameDayMultiArea.roles.forEach((role: { name: string; startTime: string; endTime: string }) => {
@@ -180,6 +180,7 @@ export async function createBasicProject(projectData: any) {
         is_private: organizationId ? projectData.isPrivate : false, // Set is_private based on organization and preference
         published: publishedState, // Add the published state tracking
         project_timezone: projectData.basicInfo.projectTimezone || 'America/Los_Angeles', // Save project timezone with fallback
+        restrict_to_org_domains: projectData.restrictToOrgDomains || false, // Add domain restriction flag
       })
       .select("id")
       .single();
@@ -200,33 +201,33 @@ export async function createBasicProject(projectData: any) {
 // Handle cover image upload separately - made more similar to profile picture upload
 export async function uploadCoverImage(projectId: string, imageBase64: string) {
   const supabase = await createClient();
-  
+
   try {
     // Skip if no image data - cover images are optional
     if (!imageBase64 || !imageBase64.includes('base64')) {
       return { success: true };
     }
-    
+
     // Process base64 image
     const base64Str = imageBase64.split(",")[1];
     const buffer = Buffer.from(base64Str, "base64");
     const contentType = imageBase64.split(";")[0].split(":")[1];
-    
+
     // Validate content type
     if (!ALLOWED_IMAGE_TYPES.includes(contentType)) {
       return { error: "Invalid cover image type. Please use JPEG, JPG, PNG or WebP." };
     }
-    
+
     // Validate size (approximate from base64)
     const sizeInBytes = Math.ceil(base64Str.length * 0.75);
     if (sizeInBytes > MAX_COVER_IMAGE_SIZE) {
       return { error: "Cover image is too large. Maximum size is 5MB." };
     }
-    
+
     // Create unique filename - now directly in the bucket root
     const timestamp = Date.now();
     const fileName = `project_${projectId}_cover_${timestamp}.${contentType.split('/')[1]}`;
-    
+
     // Upload to Supabase Storage - no subfolder
     const { error: uploadError } = await supabase.storage
       .from('project-images')
@@ -235,17 +236,17 @@ export async function uploadCoverImage(projectId: string, imageBase64: string) {
         cacheControl: '3600',
         upsert: false
       });
-      
+
     if (uploadError) {
       console.error("Error uploading cover image:", uploadError);
       return { error: "Failed to upload cover image." };
     }
-    
+
     // Get public URL
     const { data: publicUrlData } = supabase.storage
       .from('project-images')
       .getPublicUrl(fileName);
-      
+
     // Update project with cover image URL
     const { error: updateError } = await supabase
       .from("projects")
@@ -253,12 +254,12 @@ export async function uploadCoverImage(projectId: string, imageBase64: string) {
         cover_image_url: publicUrlData.publicUrl
       })
       .eq("id", projectId);
-      
+
     if (updateError) {
       console.error("Error linking cover image to project:", updateError);
       return { error: "Failed to link cover image to project." };
     }
-      
+
     return { success: true, url: publicUrlData.publicUrl };
   } catch (error) {
     console.error("Error uploading cover image:", error);
@@ -269,36 +270,36 @@ export async function uploadCoverImage(projectId: string, imageBase64: string) {
 // Improved document upload function with stricter size validation
 export async function uploadProjectDocument(projectId: string, documentBase64: string, fileName: string, fileType: string) {
   const supabase = await createClient();
-  
+
   try {
     // Skip if no document data
     if (!documentBase64 || !documentBase64.includes('base64')) {
       return { success: true };
     }
-    
+
     // Process base64 document - check size first
     const base64Str = documentBase64.split(",")[1];
     const sizeInBytes = Math.ceil(base64Str.length * 0.75);
-    
+
     // More strict size validation (10MB max per document)
     if (sizeInBytes > 10 * 1024 * 1024) {
       return { error: "Document is too large. Maximum size is 10MB." };
     }
-    
+
     const buffer = Buffer.from(base64Str, "base64");
     const contentType = fileType || documentBase64.split(";")[0].split(":")[1];
-    
+
     // Validate content type
     if (!ALLOWED_DOCUMENT_TYPES.includes(contentType)) {
       return { error: "Invalid document type." };
     }
-    
+
     // Create unique filename with a smaller random ID
     const timestamp = Date.now();
     const documentId = uuidv4().substring(0, 8);
     const fileExt = fileName.split('.').pop() || contentType.split('/')[1] || 'file';
     const safeFileName = `project_${projectId}_${documentId}_${timestamp}.${fileExt}`;
-    
+
     // Upload to Supabase Storage
     const { error: uploadError } = await supabase.storage
       .from('project-documents')
@@ -307,26 +308,26 @@ export async function uploadProjectDocument(projectId: string, documentBase64: s
         cacheControl: '3600',
         upsert: false
       });
-      
+
     if (uploadError) {
       console.error('Error uploading document:', { fileName, error: uploadError });
       return { error: "Failed to upload document." };
     }
-    
+
     // Get public URL
     const { data: publicUrlData } = supabase.storage
       .from('project-documents')
       .getPublicUrl(safeFileName);
-      
+
     // Get current documents and append new one
     const { data: projectData } = await supabase
       .from("projects")
       .select("documents")
       .eq("id", projectId)
       .single();
-      
+
     const currentDocs = projectData?.documents || [];
-    
+
     // Add new document
     const newDoc = {
       name: fileName,
@@ -335,7 +336,7 @@ export async function uploadProjectDocument(projectId: string, documentBase64: s
       size: sizeInBytes,
       url: publicUrlData.publicUrl
     };
-    
+
     // Update project with document URLs
     const { error: updateError } = await supabase
       .from("projects")
@@ -343,12 +344,12 @@ export async function uploadProjectDocument(projectId: string, documentBase64: s
         documents: [...currentDocs, newDoc]
       })
       .eq("id", projectId);
-      
+
     if (updateError) {
       console.error("Error linking document to project:", updateError);
       return { error: "Failed to link document to project." };
     }
-      
+
     return { success: true, document: newDoc };
   } catch (error) {
     console.error("Error uploading document:", error);
@@ -375,11 +376,11 @@ export async function createProject(formData: FormData) {
     const projectDataStr = formData.get("projectData") as string;
     if (!projectDataStr) return { error: "Missing project data" };
     const projectData = JSON.parse(projectDataStr);
-    
+
     // Create basic project record
     const basicResult = await createBasicProject(projectData);
     if (basicResult.error) return basicResult;
-    
+
     // Return the project ID - client will handle file uploads separately
     return { success: true, id: basicResult.id };
   } catch (error) {
@@ -399,38 +400,38 @@ export async function checkProfanity(content: { [key: string]: string }) {
         flaggedFor?: string[];
       };
     } = {};
-    
+
     let hasProfanity = false;
-    
+
     // Check each field separately
     for (const [field, text] of Object.entries(content)) {
       if (!text || text.trim() === '') {
         results[field] = { isProfanity: false };
         continue; // Skip empty fields
       }
-      
+
       try {
         const response = await fetch('https://vector.profanity.dev', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ message: text }),
         });
-        
+
         if (!response.ok) {
           // If API call fails for this field, assume no profanity
           results[field] = { isProfanity: false };
           continue;
         }
-        
+
         const result = await response.json();
         console.log(result)
-        
+
         results[field] = {
           isProfanity: !!result.isProfanity,
           score: result.score,
           flaggedFor: result.flaggedFor
         };
-        
+
         // If any field has profanity, mark the overall result as having profanity
         if (result.isProfanity) {
           hasProfanity = true;
@@ -441,11 +442,11 @@ export async function checkProfanity(content: { [key: string]: string }) {
         results[field] = { isProfanity: false };
       }
     }
-    
-    return { 
-      success: true, 
-      hasProfanity, 
-      fieldResults: results 
+
+    return {
+      success: true,
+      hasProfanity,
+      fieldResults: results
     };
   } catch (error) {
     console.error('Error in profanity check function:', error);

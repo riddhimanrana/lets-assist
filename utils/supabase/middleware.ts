@@ -1,11 +1,11 @@
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
 
 // Paths that require authentication
 const PROTECTED_PATHS = ["/home", "/projects/create", "/account"];
 
 // Paths that logged-in users shouldn't access
-const RESTRICTED_PATHS_FOR_LOGGED_IN_USERS = ["/", "/login", "/signup", "/reset-password"];
+const RESTRICTED_PATHS_FOR_LOGGED_IN_USERS = ["/", "/login", "/signup", "/reset-password", "/faq"];
 
 // Function to check if a path requires authentication
 function isProtectedPath(path: string) {
@@ -47,19 +47,34 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  // CRITICAL: Always refresh the session to sync server-side auth changes to cookies
-  // This ensures that after login, the session is immediately available to the client
-  // The session refresh is quick and necessary for the SSR auth flow to work properly
-  const { data: { user: refreshedUser } } = await supabase.auth.getUser();
+  const currentPath = request.nextUrl.pathname;
+  const creatorRouteInfo = isProjectCreatorPath(currentPath);
+  const mustEvaluateAuth =
+    isProtectedPath(currentPath) ||
+    RESTRICTED_PATHS_FOR_LOGGED_IN_USERS.includes(currentPath) ||
+    currentPath.startsWith("/admin") ||
+    currentPath.startsWith("/reset-password") ||
+    creatorRouteInfo.isCreatorPath;
+
+  const hasAuthCookies =
+    request.cookies.has("sb-access-token") ||
+    request.cookies.has("sb-refresh-token");
+
+  let user = null;
+  if (mustEvaluateAuth || hasAuthCookies) {
+    // Refresh the session only when the route logic or auth cookies require it
+    // This avoids unnecessary Supabase calls for anonymous users hitting public pages
+    const {
+      data: { user: refreshedUser },
+    } = await supabase.auth.getUser();
+    user = refreshedUser;
+  }
   
   // Check for ?noRedirect=1 query parameter
   const searchParams = request.nextUrl.searchParams;
   if (searchParams.get("noRedirect") === "1") {
     return supabaseResponse; // Skip redirects if requested
   }
-
-  const currentPath = request.nextUrl.pathname;
-  let user = refreshedUser;
 
 
 // Handle /account redirect - must come first as it's a simple path redirect
@@ -104,7 +119,7 @@ export async function updateSession(request: NextRequest) {
   }
 
   // Check for project creator routes
-  const { isCreatorPath, projectId } = isProjectCreatorPath(currentPath);
+  const { isCreatorPath, projectId } = creatorRouteInfo;
   if (isCreatorPath && projectId) {
     // If not logged in, redirect to login with return URL
     if (!user) {

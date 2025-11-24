@@ -27,9 +27,6 @@ export async function getActiveProjects(
       *
     `);
 
-  // Get current user for visibility checks
-  const { data: { user } } = await supabase.auth.getUser();
-
   // Apply status filter if specified
   if (status) {
     query = query.eq("status", status);
@@ -38,28 +35,6 @@ export async function getActiveProjects(
   // Apply organization filter if specified
   if (organizationId) {
     query = query.eq("organization_id", organizationId);
-  }
-
-  // Handle visibility using is_private boolean
-  if (!user) {
-    // Non-logged in users can only see public projects
-    query = query.eq("is_private", false);
-  } else {
-    // Get user's organizations
-    const { data: userOrgs } = await supabase
-      .from("organization_members")
-      .select("organization_id")
-      .eq("user_id", user.id);
-
-    const orgIds = userOrgs?.map(org => org.organization_id) || [];
-
-    if (orgIds.length > 0) {
-      // User can see public projects OR private organization projects for orgs they belong to
-      query = query.or(`is_private.eq.false,and(is_private.eq.true,organization_id.in.(${orgIds.join(',')}))`);
-    } else {
-      // User can only see public projects if they don't belong to any organizations
-      query = query.eq("is_private", false);
-    }
   }
 
   // Apply pagination

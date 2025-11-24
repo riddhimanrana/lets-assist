@@ -27,6 +27,7 @@ type OrganizationCreationData = {
   type: 'nonprofit' | 'school' | 'company' | 'government' | 'other';
   logoUrl: string | null;
   createdBy: string;
+  allowedEmailDomains?: string[];
 };
 
 /**
@@ -34,22 +35,22 @@ type OrganizationCreationData = {
  */
 export async function checkOrgUsername(username: string): Promise<boolean> {
   const supabase = await createClient();
-  
+
   if (!username || username.length < 3) {
     return false;
   }
-  
+
   const { data, error } = await supabase
     .from("organizations")
     .select("username")
     .eq("username", username)
     .maybeSingle();
-  
+
   if (error) {
     console.error("Error checking username:", error);
     return false;
   }
-  
+
   return !data;
 }
 
@@ -61,7 +62,7 @@ export async function checkOrgUsername(username: string): Promise<boolean> {
  */
 export async function createOrganization(data: OrganizationCreationData) {
   const supabase = await createClient();
-  
+
   // Verify that user is authenticated
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
@@ -127,7 +128,8 @@ export async function createOrganization(data: OrganizationCreationData) {
         type: data.type,
         join_code: joinCode,
         logo_url: null,  // initially set to null
-        created_by: user.id
+        created_by: user.id,
+        allowed_email_domains: data.allowedEmailDomains || null
       })
       .select("id")
       .single();
@@ -135,7 +137,7 @@ export async function createOrganization(data: OrganizationCreationData) {
     if (createError || !organization) {
       throw createError || new Error("Failed to create organization");
     }
-    
+
     // 2. Add the creator as an admin
     const { error: memberError } = await supabase
       .from("organization_members")
@@ -150,27 +152,27 @@ export async function createOrganization(data: OrganizationCreationData) {
     }
 
     let logoUrl = null;
-    
+
     // 3. Process the logo upload AFTER the organization admin is added
     if (data.logoUrl && data.logoUrl.startsWith('data:')) {
       try {
         // Extract the MIME type and verify it's allowed
         const mimeType = data.logoUrl.split(';')[0].split(':')[1];
-        
+
         if (!ALLOWED_FILE_TYPES.includes(mimeType)) {
           console.warn(`Invalid file type: ${mimeType}. Skipping logo upload.`);
           throw new Error(`Invalid file type. Allowed types: JPEG, PNG, WebP`);
         }
-        
+
         // Extract the base64 content and determine file extension
         const base64Data = data.logoUrl.split(',')[1];
-        
+
         // Size check (approximate check for base64)
         const approxFileSize = base64Data.length * 0.75;
         if (approxFileSize > MAX_FILE_SIZE) {
           throw new Error(`File size exceeds the 5MB limit`);
         }
-        
+
         let fileExt;
         if (mimeType === 'image/jpeg' || mimeType === 'image/jpg') {
           fileExt = 'jpg';
@@ -181,32 +183,32 @@ export async function createOrganization(data: OrganizationCreationData) {
         } else {
           fileExt = 'jpg';
         }
-        
+
         // Create a clean filename using organization id and extension
         const fileName = `${organization.id}.${fileExt}`;
-        
+
         // Upload to Supabase storage (ensure the 'organization-logos' bucket exists)
         const { error: uploadError } = await supabase.storage
           .from('organization-logos')
           .upload(
-            fileName, 
+            fileName,
             Buffer.from(base64Data, 'base64'),
             { contentType: mimeType, upsert: true }
           );
-        
+
         if (uploadError) throw uploadError;
-        
+
         // Get the public URL for the uploaded image
         const { data: publicUrlData } = supabase.storage
           .from('organization-logos')
           .getPublicUrl(fileName);
-        
+
         logoUrl = publicUrlData.publicUrl;
         if (!logoUrl) {
           throw new Error("Failed to get public URL for the uploaded logo");
         }
         console.log("Logo uploaded successfully:", logoUrl);
-        
+
         // Update the organization with the new logo URL
         const { error: updateError } = await supabase
           .from("organizations")
@@ -221,13 +223,13 @@ export async function createOrganization(data: OrganizationCreationData) {
         // Continue without interrupting organization creation if logo upload fails.
       }
     }
-    
+
     // Revalidate the organization pages
     revalidatePath(`/organization/${data.username}`);
     revalidatePath('/organization');
-    
-    return { 
-      success: true, 
+
+    return {
+      success: true,
       organizationId: organization.id,
       logoUrl
     };
@@ -239,7 +241,7 @@ export async function createOrganization(data: OrganizationCreationData) {
 
 export async function regenerateJoinCode(organizationId: string) {
   const supabase = await createClient();
-  
+
   // Verify the user is authenticated and is an admin
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
@@ -261,7 +263,7 @@ export async function regenerateJoinCode(organizationId: string) {
 
   // Generate a new join code
   const newJoinCode = generateJoinCode();
-  
+
   // Update the organization with the new code
   const { data, error } = await supabase
     .from("organizations")

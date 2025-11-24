@@ -1,6 +1,5 @@
 import { Metadata } from "next";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { CheckCircle2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -105,13 +104,13 @@ export default async function VerificationSuccessPage({
     buttonText = "Go to Login";
     buttonLink = verifiedEmail ? `/login?email=${encodeURIComponent(verifiedEmail)}` : '/login';
   } else if (type === "email_change") {
-    title = "Email Changed Successfully";
-    description = "Your email address has been updated successfully.";
-    
-    // If we have the verified email, show it
-    message = verifiedEmail 
-      ? `Your email has been updated to ${verifiedEmail}. Please use this email next time you log in.`
-      : "Please use your new email address next time you log in.";
+    title = "Email Change Confirmed";
+    description = verifiedEmail
+      ? `Your email ${verifiedEmail} was confirmed successfully.`
+      : "Your new email has been confirmed.";
+    message = "Sign in again using the updated email to continue.";
+    buttonText = "Go to Login";
+    buttonLink = verifiedEmail ? `/login?email=${encodeURIComponent(verifiedEmail)}` : "/login";
   }
   
   return (

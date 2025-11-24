@@ -148,17 +148,23 @@ export async function signup(formData: FormData) {
   }
 }
 
-export async function resendVerificationEmail(email: string) {
+export async function resendVerificationEmail(email: string, turnstileToken?: string) {
   try {
     const supabase = await createClient();
     const origin = getSiteUrl();
     
+    const options: Record<string, string> = {
+      emailRedirectTo: `${origin}/auth/confirm`,
+    };
+
+    if (turnstileToken) {
+      options.captchaToken = turnstileToken;
+    }
+
     const { error } = await supabase.auth.resend({
       type: 'signup',
       email: email,
-      options: {
-        emailRedirectTo: `${origin}/auth/confirm`,
-      }
+      options,
     });
     
     if (error) {

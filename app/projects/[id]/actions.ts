@@ -7,10 +7,9 @@ import { ProjectStatus } from "@/types";
 // Make sure AnonymousSignup is imported from the correct types definition
 import { type Profile, type Project, type AnonymousSignupData, type ProjectSignup, type SignupStatus, type AnonymousSignup } from "@/types";
 import { cookies } from "next/headers";
-// Import crypto for token generation
 import crypto from 'crypto';
-// Import Resend
-import { Resend } from 'resend';
+// Import centralized email service
+import { sendEmail } from '@/services/email';
 // Import date-fns utilities
 import { parseISO, isAfter } from 'date-fns';
 // Remove the import for the email template component
@@ -19,8 +18,6 @@ import { parseISO, isAfter } from 'date-fns';
 import { NotificationService } from "@/services/notifications";
 import { removeCalendarEventForSignup, removeCalendarEventForProject } from "@/utils/calendar-helpers";
 
-// Instantiate Resend with your API key
-const resend = new Resend(process.env.RESEND_API_KEY);
 // Define your site URL (replace with environment variable ideally)
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 
@@ -319,18 +316,18 @@ function getScheduleDetails(project: Project, scheduleId: string) {
   if (project.event_type === "oneTime") {
     const schedule = project.schedule.oneTime;
     if (!schedule) return { date: "TBD", time: "TBD", timeRange: "TBD" };
-    
+
     const date = new Date(schedule.date).toLocaleDateString('en-US', {
       weekday: 'long',
       year: 'numeric',
       month: 'long',
       day: 'numeric'
     });
-    
-    const timeRange = schedule.startTime && schedule.endTime 
+
+    const timeRange = schedule.startTime && schedule.endTime
       ? `${schedule.startTime} - ${schedule.endTime}`
       : schedule.startTime || "TBD";
-    
+
     return {
       date,
       time: schedule.startTime || "TBD",
@@ -341,25 +338,25 @@ function getScheduleDetails(project: Project, scheduleId: string) {
     if (parts.length >= 2) {
       const slotIndexStr = parts.pop();
       const dateStr = parts.join("-");
-      
+
       const day = project.schedule.multiDay?.find(d => d.date === dateStr);
       if (!day) return { date: "TBD", time: "TBD", timeRange: "TBD" };
-      
+
       const slotIndex = parseInt(slotIndexStr!, 10);
       const slot = day.slots[slotIndex];
       if (!slot) return { date: "TBD", time: "TBD", timeRange: "TBD" };
-      
+
       const date = new Date(dateStr).toLocaleDateString('en-US', {
         weekday: 'long',
         year: 'numeric',
         month: 'long',
         day: 'numeric'
       });
-      
-      const timeRange = slot.startTime && slot.endTime 
+
+      const timeRange = slot.startTime && slot.endTime
         ? `${slot.startTime} - ${slot.endTime}`
         : slot.startTime || "TBD";
-      
+
       return {
         date,
         time: slot.startTime || "TBD",
@@ -369,33 +366,33 @@ function getScheduleDetails(project: Project, scheduleId: string) {
   } else if (project.event_type === "sameDayMultiArea") {
     const schedule = project.schedule.sameDayMultiArea;
     if (!schedule) return { date: "TBD", time: "TBD", timeRange: "TBD" };
-    
+
     const date = new Date(schedule.date).toLocaleDateString('en-US', {
       weekday: 'long',
       year: 'numeric',
       month: 'long',
       day: 'numeric'
     });
-    
+
     const role = schedule.roles.find(r => r.name === scheduleId);
-    const timeRange = role?.startTime && role?.endTime 
+    const timeRange = role?.startTime && role?.endTime
       ? `${role.startTime} - ${role.endTime}`
       : role?.startTime || schedule.overallStart || "TBD";
-    
+
     return {
       date,
       time: role?.startTime || schedule.overallStart || "TBD",
       timeRange
     };
   }
-  
+
   return { date: "TBD", time: "TBD", timeRange: "TBD" };
 }
 
 export async function isProjectCreator(projectId: string) {
   try {
     const supabase = await createClient();
-    
+
     // Get current user
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
@@ -417,10 +414,10 @@ export async function isProjectCreator(projectId: string) {
 
 export async function getProject(projectId: string) {
   const supabase = await createClient();
-  
+
   // Get the current user if logged in
   const { data: { user } } = await supabase.auth.getUser();
-  
+
   // Fetch the project
   const { data: project, error } = await supabase
     .from("projects")
@@ -432,49 +429,50 @@ export async function getProject(projectId: string) {
         username,
         logo_url,
         verified,
-        type
+        type,
+        allowed_email_domains
       )
     `)
     .eq("id", projectId)
     .single();
-  
+
   if (error) {
     console.error("Error fetching project:", error);
     return { error: "Failed to fetch project" };
   }
-  
+
   // Calculate and update the project status
   if (project) {
 
-    
+
     // Check if the project is private and the user has permission to view it
     if (project.is_private) {
       // If it's a private project, check user's organization memberships
       if (!user) {
         return { error: "unauthorized", project: null };
       }
-      
+
       // Get user's organization memberships
       const { data: userOrgs } = await supabase
         .from("organization_members")
         .select("organization_id, role")
         .eq("user_id", user.id);
-      
+
       // Check if user is a member of the project's organization
       const hasAccess = isProjectVisible(project, user.id, userOrgs || []);
-      
+
       if (!hasAccess) {
         return { error: "unauthorized", project: null };
       }
     }
   }
-  
+
   return { project };
 }
 
 export async function getCreatorProfile(userId: string) {
   const supabase = await createClient();
-  
+
   const { data: profile, error } = await supabase
     .from("profiles")
     .select("*")
@@ -492,7 +490,7 @@ export async function getCreatorProfile(userId: string) {
 // Fix: Remove async keyword as this function doesn't perform async operations
 function getSlotDetails(project: Project, scheduleId: string) {
   console.log("Server: Getting slot details for", { scheduleId, projectType: project.event_type });
-  
+
   if (project.event_type === "oneTime") {
     return project.schedule.oneTime;
   } else if (project.event_type === "multiDay") {
@@ -501,23 +499,23 @@ function getSlotDetails(project: Project, scheduleId: string) {
     if (parts.length >= 2) {
       const slotIndexStr = parts.pop(); // Get last element (slot index)
       const date = parts.join("-"); // Rejoin the rest as the date
-      
+
       console.log("Server: Parsing multiDay scheduleId:", { date, slotIndexStr });
-      
+
       const day = project.schedule.multiDay?.find(d => d.date === date);
       if (!day) {
         console.error("Server: Day not found for multiDay event:", { date, scheduleId });
         return null;
       }
-      
+
       const slotIndex = parseInt(slotIndexStr!, 10);
       if (isNaN(slotIndex) || slotIndex < 0 || slotIndex >= day.slots.length) {
-        console.error("Server: Invalid slot index for multiDay event:", { 
-          slotIndexStr, slotIndex, slotsLength: day.slots.length 
+        console.error("Server: Invalid slot index for multiDay event:", {
+          slotIndexStr, slotIndex, slotsLength: day.slots.length
         });
         return null;
       }
-      
+
       return day.slots[slotIndex];
     } else {
       console.error("Server: Invalid multiDay scheduleId format:", scheduleId);
@@ -527,49 +525,49 @@ function getSlotDetails(project: Project, scheduleId: string) {
     const role = project.schedule.sameDayMultiArea?.roles.find(r => r.name === scheduleId);
     return role;
   }
-  
+
   return null;
 }
 
 async function getCurrentSignups(projectId: string, scheduleId: string): Promise<number> {
   const supabase = await createClient();
-  
+
   const { count } = await supabase
     .from("project_signups")
     .select("*", { count: 'exact', head: true })
     .eq("project_id", projectId)
     .eq("schedule_id", scheduleId)
     .in("status", ["approved", "attended"]);
-    
+
   return count || 0;
 }
 
 export async function togglePauseSignups(projectId: string, pauseState: boolean) {
   const supabase = await createClient();
-  
+
   try {
     // Check if user has permission
     const isAllowed = await isProjectCreator(projectId);
-    
+
     if (!isAllowed) {
       return { error: "You don't have permission to modify this project" };
     }
-    
+
     // Update the pause state
     const { error } = await supabase
       .from("projects")
       .update({ pause_signups: pauseState })
       .eq("id", projectId);
-      
+
     if (error) {
       console.error("Error updating pause state:", error);
       return { error: "Failed to update signup status" };
     }
-    
+
     // Revalidate paths to refresh data
     revalidatePath(`/projects/${projectId}`);
     revalidatePath(`/projects/${projectId}/signups`);
-    
+
     return { success: true };
   } catch (error) {
     console.error("Error toggling pause state:", error);
@@ -602,6 +600,7 @@ export async function signUpForProject(
     }
 
     // Check if project is available for signup
+    // Check if project is available for signup
     if (project.status === "cancelled") {
       return { error: "This project has been cancelled" };
     }
@@ -609,14 +608,64 @@ export async function signUpForProject(
     if (project.status === "completed") {
       return { error: "This project has been completed" };
     }
-    
+
+    // --- Domain Restriction Check ---
+    if (project.restrict_to_org_domains && project.organization?.allowed_email_domains && project.organization.allowed_email_domains.length > 0) {
+      const allowedDomains = project.organization.allowed_email_domains as string[];
+      let hasValidEmail = false;
+      const userEmailToCheck = isAnonymous ? anonymousData?.email : (await supabase.auth.getUser()).data.user?.email;
+
+      // Helper to check domain
+      const checkDomain = (email: string) => {
+        const domain = email.split('@')[1]?.toLowerCase();
+        return domain && allowedDomains.includes(domain);
+      };
+
+      if (isAnonymous) {
+        if (userEmailToCheck && checkDomain(userEmailToCheck)) {
+          hasValidEmail = true;
+        }
+      } else {
+        // Logged in user
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          // 1. Check primary email
+          if (user.email && checkDomain(user.email)) {
+            hasValidEmail = true;
+          } else {
+            // 2. Check secondary verified emails
+            const { data: secondaryEmails } = await supabase
+              .from('user_emails')
+              .select('email')
+              .eq('user_id', user.id)
+              .not('verified_at', 'is', null);
+
+            if (secondaryEmails) {
+              for (const record of secondaryEmails) {
+                if (checkDomain(record.email)) {
+                  hasValidEmail = true;
+                  break;
+                }
+              }
+            }
+          }
+        }
+      }
+
+      if (!hasValidEmail) {
+        return {
+          error: `This project is restricted to users with the following email domains: ${allowedDomains.join(', ')}. Please use a verified email with one of these domains.`
+        };
+      }
+    }
+
     // For multiDay events, validate that the specific day/slot hasn't passed
     if (project.event_type === "multiDay" && project.schedule.multiDay) {
       const parts = scheduleId.split("-");
       if (parts.length >= 2) {
         const slotIndexStr = parts.pop();
         const date = parts.join("-");
-        
+
         const day = project.schedule.multiDay.find((d: any) => d.date === date);
         if (day && slotIndexStr) {
           const slotIdx = parseInt(slotIndexStr, 10);
@@ -626,7 +675,7 @@ export async function signUpForProject(
             const [hours, minutes] = slot.endTime.split(':').map(Number);
             const slotEndDateTime = new Date(dayDate);
             slotEndDateTime.setHours(hours, minutes, 0, 0);
-            
+
             if (isAfter(new Date(), slotEndDateTime)) {
               return { error: "This time slot has already passed" };
             }
@@ -670,11 +719,11 @@ export async function signUpForProject(
           .eq("user_id", user.id)
           .eq("status", "rejected")
           .maybeSingle();
-          
+
         if (previousRejection) {
           return { error: "You have been rejected for this project and cannot sign up again." };
         }
-        
+
         const { data: existingSignup } = await supabase
           .from("project_signups")
           .select("id")
@@ -707,7 +756,7 @@ export async function signUpForProject(
           console.error("Error creating signup for registered user:", signupError);
           return { error: "Failed to sign up. Please try again." };
         }
-        
+
         // Store the signup ID for return
         createdSignupId = insertedSignup.id;
         // Send confirmation email to logged-in user
@@ -723,7 +772,7 @@ export async function signUpForProject(
             // Get schedule details for email
             const { date, time, timeRange } = getScheduleDetails(project, scheduleId);
             const projectUrl = `${siteUrl}/projects/${projectId}`;
-            
+
             const emailHtml = generateLoggedInUserConfirmationEmailHtml(
               project.title,
               userProfile.full_name || 'Volunteer',
@@ -733,11 +782,12 @@ export async function signUpForProject(
               projectUrl
             );
 
-            const { data: emailData, error: emailError } = await resend.emails.send({
-              from: "Let's Assist <projects@notifications.lets-assist.com>",
-              to: [userProfile.email],
+            const { data: emailData, error: emailError } = await sendEmail({
+              to: userProfile.email,
               subject: `Signup confirmed for ${project.title}`,
               html: emailHtml,
+              userId: user.id,
+              type: 'transactional' // Signup confirmation is transactional
             });
 
             if (emailError) {
@@ -751,7 +801,7 @@ export async function signUpForProject(
           console.error("Error in email sending process for logged-in user:", emailError);
           // Don't fail the signup if email fails
         }
-        
+
         // Explicitly log success for debugging
         console.log("Successfully created signup for registered user:", {
           userId: user.id,
@@ -781,7 +831,7 @@ export async function signUpForProject(
 
       // Check for an existing anonymous signup for this specific slot with this email for any status
       const emailToCheck = (anonymousData.email ?? "").toLowerCase();
-console.log("Checking for existing anonymous signup with email:", emailToCheck);
+      console.log("Checking for existing anonymous signup with email:", emailToCheck);
 
       // Attempt to retrieve an existing anonymous signup record for the project and email
       const { data: existingAnonSignup } = await supabase
@@ -793,9 +843,9 @@ console.log("Checking for existing anonymous signup with email:", emailToCheck);
         .eq('anonymous_signup.email', emailToCheck)
         .limit(1)
         .maybeSingle();
-      
+
       const signupStatus = existingAnonSignup?.status;
-      
+
       if (signupStatus) {
         if (signupStatus === "pending") {
           return { error: "An unconfirmed signup with this email already exists for this slot. Please check your email." };
@@ -893,11 +943,11 @@ console.log("Checking for existing anonymous signup with email:", emailToCheck);
             anonymousData.name
           );
 
-          const { data, error: emailError } = await resend.emails.send({
-            from: "Let's Assist <projects@notifications.lets-assist.com>",
-            to: [anonymousData.email],
+          const { data, error: emailError } = await sendEmail({
+            to: anonymousData.email,
             subject: `Confirm your signup for ${project.title}`,
             html: emailHtml,
+            type: 'transactional'
           });
 
           if (emailError) {
@@ -945,8 +995,8 @@ console.log("Checking for existing anonymous signup with email:", emailToCheck);
     }
 
     // --- Return success with signup ID for calendar integration ---
-    return { 
-      success: true, 
+    return {
+      success: true,
       needsConfirmation: isAnonymous,
       signupId: createdSignupId,
       projectId: project.id
@@ -1031,7 +1081,7 @@ export async function createRejectionNotification(
 ): Promise<NotificationResult> {
   "use server";
   const supabase = await createClient();
-  
+
   try {
     // Fetch the project title before creating the notification
     const { data: projectData, error: projectFetchError } = await supabase
@@ -1076,7 +1126,7 @@ export async function cancelSignup(signupId: string) {
       .select("*") // Fetch all signup details without join alias
       .eq("id", signupId)
       .maybeSingle();
-    
+
 
     if (signupError || !signup) {
       return { error: "Signup not found" };
@@ -1120,24 +1170,24 @@ export async function cancelSignup(signupId: string) {
       return { error: "You don't have permission to cancel this signup" };
     }
 
-      // Remove calendar event if it exists (non-blocking)
-      try {
-        await removeCalendarEventForSignup(signupId);
-      } catch (calendarError) {
-        console.error("Error removing calendar event:", calendarError);
-        // Don't fail the cancellation if calendar removal fails
-      }
+    // Remove calendar event if it exists (non-blocking)
+    try {
+      await removeCalendarEventForSignup(signupId);
+    } catch (calendarError) {
+      console.error("Error removing calendar event:", calendarError);
+      // Don't fail the cancellation if calendar removal fails
+    }
 
-      const { error: deleteError } = await supabase
+    const { error: deleteError } = await supabase
       .from("project_signups")
       .delete()
       .eq("id", signupId);
 
-      if (deleteError) {
+    if (deleteError) {
       console.error("Failed to delete signup:", deleteError);
-      } else {
+    } else {
       console.log("Signup record deleted successfully.");
-      }
+    }
 
     // Optional: If it was an anonymous signup, maybe update the anonymous_signups table too?
     // e.g., mark it as cancelled? Depends on desired behavior.
@@ -1154,12 +1204,12 @@ export async function cancelSignup(signupId: string) {
 }
 
 export async function updateProjectStatus(
-  projectId: string, 
+  projectId: string,
   newStatus: ProjectStatus,
   cancellationReason?: string
 ) {
   const supabase = await createClient();
-  
+
   // Get current user
   const { data: { user }, error: userError } = await supabase.auth.getUser();
   if (!user || userError) {
@@ -1224,11 +1274,83 @@ export async function updateProjectStatus(
     try {
       // Remove creator's calendar event
       await removeCalendarEventForProject(projectId);
-      // Note: We don't remove volunteer calendar events as they may want to keep the record
-      // Volunteers can manually remove their calendar events if needed
+
+      // --- SEND CANCELLATION EMAILS ---
+      // Fetch all approved signups with user/anonymous details
+      const { data: signups } = await supabase
+        .from("project_signups")
+        .select(`
+          id, 
+          user_id, 
+          anonymous_id,
+          user:profiles!user_id(email, full_name),
+          anonymous_signup:anonymous_signups!anonymous_id(email, name)
+        `)
+        .eq("project_id", projectId)
+        .eq("status", "approved");
+
+      if (signups && signups.length > 0) {
+        console.log(`Sending cancellation emails to ${signups.length} participants`);
+
+        // Prepare email content
+        const emailSubject = `Project Cancelled: ${project.title}`;
+
+        // Send emails in parallel
+        await Promise.all(signups.map(async (signup) => {
+          let email: string | null = null;
+          let name: string = "Volunteer";
+          let userId: string | undefined = undefined;
+
+          if (signup.user_id && signup.user) {
+            // @ts-ignore - Supabase types might be tricky with joins
+            email = signup.user.email;
+            // @ts-ignore
+            name = signup.user.full_name || "Volunteer";
+            userId = signup.user_id;
+          } else if (signup.anonymous_id && signup.anonymous_signup) {
+            // @ts-ignore
+            email = signup.anonymous_signup.email;
+            // @ts-ignore
+            name = signup.anonymous_signup.name || "Volunteer";
+          }
+
+          if (email) {
+            const emailHtml = `
+              <!DOCTYPE html>
+              <html>
+              <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+                <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                  <h2 style="color: #e11d48;">Project Cancelled</h2>
+                  <p>Hi ${name},</p>
+                  <p>We regret to inform you that the project <strong>${project.title}</strong> has been cancelled.</p>
+                  
+                  <div style="background-color: #fff1f2; border-left: 4px solid #e11d48; padding: 15px; margin: 20px 0;">
+                    <p style="margin: 0; font-weight: bold;">Reason for cancellation:</p>
+                    <p style="margin: 5px 0 0 0;">${cancellationReason || "No reason provided."}</p>
+                  </div>
+
+                  <p>We apologize for any inconvenience this may cause.</p>
+                  
+                  <p>Best regards,<br>The Let's Assist Team</p>
+                </div>
+              </body>
+              </html>
+            `;
+
+            await sendEmail({
+              to: email,
+              subject: emailSubject,
+              html: emailHtml,
+              userId: userId,
+              type: 'project_updates' // This allows users to opt-out if they really want, or we could force it as transactional
+            });
+          }
+        }));
+      }
+
     } catch (calendarError) {
-      console.error("Error removing calendar event:", calendarError);
-      // Don't fail the cancellation if calendar removal fails
+      console.error("Error in cancellation cleanup (calendar/email):", calendarError);
+      // Don't fail the cancellation if cleanup fails
     }
   }
 
@@ -1242,7 +1364,7 @@ export async function updateProjectStatus(
 
 export async function deleteProject(projectId: string) {
   const supabase = await createClient();
-  
+
   // Get current user
   const { data: { user }, error: userError } = await supabase.auth.getUser();
   if (!user || userError) {
@@ -1282,7 +1404,7 @@ export async function deleteProject(projectId: string) {
       .list();
 
     if (storageData) {
-      const projectFiles = storageData.filter(file => 
+      const projectFiles = storageData.filter(file =>
         file.name.startsWith(`project_${projectId}`)
       );
 
@@ -1335,7 +1457,7 @@ export async function deleteProject(projectId: string) {
 export async function updateProject(projectId: string, updates: Partial<Project>) {
   try {
     const supabase = await createClient();
-    
+
     // Get current user
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
@@ -1376,54 +1498,54 @@ export async function checkInParticipant(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const supabase = await createClient();
-    
+
     // Get the signup to verify it exists
     const { data: signup, error: fetchError } = await supabase
       .from("project_signups")
       .select("id, project_id")
       .eq("id", signupId)
       .single();
-      
+
     if (fetchError || !signup) {
-      return { 
-        success: false, 
-        error: "Signup record not found" 
+      return {
+        success: false,
+        error: "Signup record not found"
       };
     }
-    
+
     // Update the check-in time
     const now = new Date().toISOString();
     const { error: updateError } = await supabase
       .from("project_signups")
       .update({ check_in_time: now })
       .eq("id", signupId);
-      
+
     if (updateError) {
-      return { 
-        success: false, 
-        error: "Failed to update check-in time" 
+      return {
+        success: false,
+        error: "Failed to update check-in time"
       };
     }
-    
+
     // Revalidate the project page to reflect the changes
     revalidatePath(`/projects/${signup.project_id}`);
-    
+
     return { success: true };
   } catch (error) {
     console.error("Error checking in participant:", error);
-    return { 
-      success: false, 
-      error: "An unexpected error occurred" 
+    return {
+      success: false,
+      error: "An unexpected error occurred"
     };
   }
 }
 
 export async function getUserProfile() {
   const supabase = await createClient();
-  
+
   try {
     const { data: { user }, error: userError } = await supabase.auth.getUser();
-    
+
     if (userError || !user) {
       return { error: "Not authenticated" };
     }

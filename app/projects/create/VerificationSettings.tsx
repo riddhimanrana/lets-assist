@@ -31,7 +31,11 @@ interface VerificationSettingsProps {
   isPrivate: boolean; // Add this for project visibility
   updateVerificationMethodAction: (method: VerificationMethod) => void;
   updateRequireLoginAction: (requireLogin: boolean) => void;
+
   updateIsPrivateAction: (isPrivate: boolean) => void; // Add this action
+  restrictToOrgDomains?: boolean;
+  updateRestrictToOrgDomainsAction?: (restrict: boolean) => void;
+  allowedEmailDomains?: string[] | null;
   errors?: {
     verificationMethod?: string;
     requireLogin?: string;
@@ -46,7 +50,11 @@ export default function VerificationSettings({
   isPrivate,
   updateVerificationMethodAction,
   updateRequireLoginAction,
+
   updateIsPrivateAction,
+  restrictToOrgDomains = false,
+  updateRestrictToOrgDomainsAction,
+  allowedEmailDomains,
   errors = {},
 }: VerificationSettingsProps) {
   return (
@@ -81,30 +89,30 @@ export default function VerificationSettings({
             <label
               htmlFor="qr-code"
               className={cn(
-              "flex flex-col items-start space-y-3 rounded-lg border p-4 hover:bg-accent cursor-pointer transition-colors",
-              verificationMethod === "qr-code" && "border-primary bg-accent",
-              errors.verificationMethod && "border-destructive",
+                "flex flex-col items-start space-y-3 rounded-lg border p-4 hover:bg-accent cursor-pointer transition-colors",
+                verificationMethod === "qr-code" && "border-primary bg-accent",
+                errors.verificationMethod && "border-destructive",
               )}
             >
               <div className="flex w-full justify-between space-x-3">
-              <div className="flex items-center space-x-3">
-                <RadioGroupItem value="qr-code" id="qr-code" />
-                <div className="flex items-center space-x-2">
-                <QrCode className="flex-shrink-0 h-5 w-5 text-primary mt-0.5" />
-                <span className="font-medium">QR Code Self Check-in</span>
+                <div className="flex items-center space-x-3">
+                  <RadioGroupItem value="qr-code" id="qr-code" />
+                  <div className="flex items-center space-x-2">
+                    <QrCode className="flex-shrink-0 h-5 w-5 text-primary mt-0.5" />
+                    <span className="font-medium">QR Code Self Check-in</span>
+                  </div>
                 </div>
-              </div>
-              <Badge
-                variant="secondary"
-                className="pointer-events-none flex items-center h-6"
-              >
-                Recommended
-              </Badge>
+                <Badge
+                  variant="secondary"
+                  className="pointer-events-none flex items-center h-6"
+                >
+                  Recommended
+                </Badge>
               </div>
               <div className="text-[0.9rem] text-muted-foreground ml-8">
-              Volunteers scan QR code and log in to track their own hours.
-              They can leave anytime, with automatic logout at the scheduled
-              end time. Hours can be adjusted if needed.
+                Volunteers scan QR code and log in to track their own hours.
+                They can leave anytime, with automatic logout at the scheduled
+                end time. Hours can be adjusted if needed.
               </div>
             </label>
 
@@ -350,6 +358,69 @@ export default function VerificationSettings({
                   {errors.isPrivate}
                 </div>
               )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Domain Restriction Toggle - Only show if organization has allowed domains */}
+      {isOrganization && allowedEmailDomains && allowedEmailDomains.length > 0 && updateRestrictToOrgDomainsAction && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              Domain Restrictions
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-6 w-6">
+                      <Info className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent className="text-xs font-normal">
+                    <p>
+                      Restrict signups to users with specific email domains.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-6">
+              <div className="flex items-center justify-between space-x-4">
+                <div className="flex items-center space-x-3">
+                  <div
+                    className={cn(
+                      "p-2 rounded-md",
+                      restrictToOrgDomains ? "bg-primary/10" : "bg-muted",
+                    )}
+                  >
+                    {restrictToOrgDomains ? (
+                      <Lock className="h-5 w-5 text-primary" />
+                    ) : (
+                      <Users className="h-5 w-5 text-muted-foreground" />
+                    )}
+                  </div>
+                  <div>
+                    <Label
+                      htmlFor="restrict-domains"
+                      className="text-base font-medium"
+                    >
+                      Restrict to Organization Domains
+                    </Label>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {restrictToOrgDomains
+                        ? `Only users with emails from: ${allowedEmailDomains.join(", ")} can sign up.`
+                        : "Users with any email domain can sign up."}
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  id="restrict-domains"
+                  checked={restrictToOrgDomains}
+                  onCheckedChange={updateRestrictToOrgDomainsAction}
+                />
+              </div>
             </div>
           </CardContent>
         </Card>

@@ -3,7 +3,7 @@
 import { z } from "zod"; // Import Zod
 import { createClient } from "@/utils/supabase/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
-import { cookies } from "next/headers";
+import { deleteUserWithCleanup } from "@/lib/supabase/delete-user-with-cleanup";
 
 // Zod schema for password update - add currentPassword field
 const updatePasswordSchema = z
@@ -149,11 +149,16 @@ export async function deleteAccount() {
 
     const supabaseAdmin = createAdminClient(adminUrl, serviceKey);
 
-    const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(user.id);
+    const report = await deleteUserWithCleanup(supabaseAdmin, user.id, {
+      deleteProjects: true,
+      deleteOrganizations: false,
+    });
 
-    if (authError) {
-      console.error("admin.deleteUser failed", { code: authError.status, message: authError.message });
-      throw new Error(`Failed to delete user: ${authError.message}`);
+    if (report.blockedBySoleAdminOrgs.length > 0) {
+      const orgs = report.blockedBySoleAdminOrgs
+        .map((org) => org.organization_name ?? org.organization_id)
+        .join(", ");
+      throw new Error(`Cannot delete account until another admin is added to: ${orgs}`);
     }
 
     await supabase.auth.signOut();
