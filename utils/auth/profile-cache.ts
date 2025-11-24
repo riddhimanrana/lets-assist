@@ -21,8 +21,10 @@ export interface UserProfile {
   avatar_url: string | null;
   username: string | null;
   phone: string | null;
-  bio: string | null;
   profile_visibility: 'public' | 'private' | 'organization_only' | null;
+  date_of_birth: string | null;
+  parental_consent_required: boolean | null;
+  email: string | null;
   created_at: string;
   updated_at: string | null;
   volunteer_goals: { hours_goal: number; events_goal: number } | null;

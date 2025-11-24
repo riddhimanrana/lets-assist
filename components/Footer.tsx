@@ -68,7 +68,7 @@ export function Footer() {
             </p>
             <div className="flex items-center mr-5 space-x-4">
               <Link
-                href="https://instagram.com/letsassist1"
+                href="https://instagram.com/letsassist.app"
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Instagram"
@@ -76,7 +76,7 @@ export function Footer() {
                 <SiInstagram className="h-5 w-5" />
               </Link>
               <Link
-                href="https://x.com/lets_assist"
+                href="https://x.com/letsassistapp"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-muted-foreground hover:text-foreground"
@@ -85,7 +85,7 @@ export function Footer() {
                 <SiX className="h-5 w-5" />
               </Link>
               <Link
-                href="mailto:contact@letsassist.com"
+                href="mailto:contact@lets-assist.com"
                 className="text-muted-foreground hover:text-foreground"
                 aria-label="Email"
               >
@@ -170,7 +170,7 @@ export function Footer() {
                 <SiX className="h-4 w-4" />
               </Link>
               <Link
-                href="mailto:contact@letsassist.com"
+                href="mailto:contact@lets-assist.com"
                 className="text-muted-foreground hover:text-foreground"
                 aria-label="Email"
               >

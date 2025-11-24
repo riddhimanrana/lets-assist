@@ -21,9 +21,10 @@ import { useEffect, useState, useCallback } from 'react';
 import {
   getCachedUserData,
   subscribeToProfileCache,
+  shouldFetchProfileData,
   type CachedUserData,
 } from '@/utils/auth/profile-cache';
-import { subscribeToProfileUpdates } from '@/utils/auth/batch-fetcher';
+import { subscribeToProfileUpdates, getOrFetchUserData } from '@/utils/auth/batch-fetcher';
 import { useAuth } from '@/hooks/useAuth';
 
 export interface UseUserProfileReturn {
@@ -87,13 +88,52 @@ export function useUserProfile(): UseUserProfileReturn {
     };
   }, [user?.id]);
 
+  // Fetch profile data if cache is empty or stale
+  useEffect(() => {
+    if (!user?.id) {
+      return;
+    }
+
+    if ((cacheData.profile || cacheData.settings) && !shouldFetchProfileData()) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadData = async () => {
+      setIsLoading(true);
+      await getOrFetchUserData(user.id);
+      if (!cancelled) {
+        setIsLoading(false);
+      }
+    };
+
+    loadData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, cacheData.profile, cacheData.settings, cacheData.timestamp]);
+
   // Update loading state based on cache freshness
   useEffect(() => {
-    if (!cacheData.profile && !cacheData.settings && user?.id) {
-      setIsLoading(true);
-    } else if (cacheData.profile || cacheData.settings) {
+    if (!user?.id) {
       setIsLoading(false);
+      return;
     }
+
+    if (cacheData.profile || cacheData.settings) {
+      setIsLoading(false);
+      return;
+    }
+
+    if (cacheData.timestamp === 0) {
+      setIsLoading(true);
+      return;
+    }
+
+    // Cache was populated but still no profile/settings (e.g. user not found)
+    setIsLoading(false);
   }, [cacheData, user?.id]);
 
   return {

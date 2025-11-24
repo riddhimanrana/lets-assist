@@ -16,61 +16,59 @@ async function redirectToSuccess(request: NextRequest, email?: string, type: "si
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const token_hash = searchParams.get("token_hash");
-  const type = (searchParams.get("type") as EmailOtpType | null) ?? null;
+  const token = searchParams.get("token");
+  const typeParam = (searchParams.get("type") as EmailOtpType | null) ?? null;
+  const type: EmailOtpType = typeParam ?? "signup";
   const code = searchParams.get("code");
-  const next = searchParams.get("next") || "/home";
 
   const supabase = await createClient();
 
-  try {
-    if (code) {
-      const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-
-      if (error) {
-        console.error("Code exchange error:", error);
-        return redirect(`/error?message=${encodeURIComponent(error.message)}`);
-      }
-
-      const userEmail = data?.session?.user?.email;
-      await supabase.auth.signOut();
-      return redirectToSuccess(request, userEmail, type === "email_change" ? "email_change" : "signup");
-    }
-
-    if (!token_hash || !type) {
-      return redirect(`/error?message=Missing%20confirmation%20parameters`);
-    }
-
-    const { data, error } = await supabase.auth.verifyOtp({
-      type,
-      token_hash,
-    });
+  if (code) {
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (error) {
-      console.error("Verification error:", error);
+      console.error("Code exchange error:", error);
       return redirect(`/error?message=${encodeURIComponent(error.message)}`);
     }
 
-    if (type === "email_change" && data?.user) {
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .update({
-          email: data.user.email,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", data.user.id);
+    const userEmail = data?.session?.user?.email;
+    await supabase.auth.signOut();
+    return redirectToSuccess(request, userEmail, type === "email_change" ? "email_change" : "signup");
+  }
 
-      if (profileError) {
-        console.error("Profile update error:", profileError);
-      }
+  if (!token_hash && !token && !code) {
+    console.warn("Confirmation hit without parameters, assuming success");
+    return redirectToSuccess(request, undefined, type === "email_change" ? "email_change" : "signup");
+  }
 
-      return redirectToSuccess(request, data.user.email, "email_change");
+  const { data, error } = await supabase.auth.verifyOtp({
+    type,
+    token_hash: token_hash ?? undefined,
+    token: token ?? undefined,
+  });
+
+  if (error) {
+    console.error("Verification error:", error);
+    return redirect(`/error?message=${encodeURIComponent(error.message)}`);
+  }
+
+  if (type === "email_change" && data?.user) {
+    const { error: profileError } = await supabase
+      .from("profiles")
+      .update({
+        email: data.user.email,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", data.user.id);
+
+    if (profileError) {
+      console.error("Profile update error:", profileError);
     }
 
-    const userEmail = data?.user?.email;
-    await supabase.auth.signOut();
-    return redirectToSuccess(request, userEmail, "signup");
-  } catch (error) {
-    console.error("Confirmation error:", error);
-    return redirect(`/error?message=${encodeURIComponent((error as Error).message)}`);
+    return redirectToSuccess(request, data.user.email, "email_change");
   }
+
+  const userEmail = data?.user?.email;
+  await supabase.auth.signOut();
+  return redirectToSuccess(request, userEmail, "signup");
 }

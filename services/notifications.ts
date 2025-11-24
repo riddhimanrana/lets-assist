@@ -1,5 +1,6 @@
 import { createClient } from "@/utils/supabase/client";
 import { toast } from "sonner";
+import { requireUser } from "@/utils/auth/auth-context";
 
 export type NotificationType = 'email_notifications' | 'project_updates' | 'general'
 
@@ -131,15 +132,9 @@ export const NotificationService = {
     const supabase = createClient();
     
     try {
-      // First get the user to ensure auth is current
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      
-      if (userError) {
-        console.error('Auth error:', userError);
-        return;
-      }
-      
-      if (!user || user.id !== userId) {
+      // Resolve user from in-memory cache before hitting Supabase
+      const user = await requireUser(supabase);
+      if (user.id !== userId) {
         console.error('User ID mismatch or missing');
         return;
       }

@@ -71,8 +71,8 @@ export default async function Home() {
             </div>
           </div>
           <div className="flex items-center gap-2 w-full md:w-auto" data-tour-id="home-create-project">
-            {/* {isAdmin && (
-              <Link href="/admin/moderation" className="w-full md:w-auto">
+            {isAdmin && (
+              <Link href="/admin" className="w-full md:w-auto">
                 <Button
                   size="lg"
                   variant="outline"
@@ -83,7 +83,7 @@ export default async function Home() {
                   <span className="sm:hidden">Admin</span>
                 </Button>
               </Link>
-            )} */}
+            )}
             <Link href={isTrusted ? "/projects/create" : "#"} className="w-full md:w-auto pointer-events-auto">
               <Button
                 size="lg"

@@ -113,7 +113,8 @@ const features = [
 export default function Navbar() {
   // Use centralized auth hook instead of manual state management
   const { user, isLoading: isProfileLoading } = useAuth();
-  
+  const isAuthLoading = isProfileLoading;
+
   const [profile, setProfile] = React.useState<{
     full_name: string;
     avatar_url: string;
@@ -169,37 +170,37 @@ export default function Navbar() {
   const ThemeSelector = () => (
     <div className="relative flex items-center border rounded-lg p-0.5 space-x-1">
       <Button
-      variant="ghost"
-      size="icon"
-      className={cn(
-        "relative z-10 h-6 w-6 flex items-center justify-center rounded-md",
-        theme === "light" && "text-primary bg-accent"
-      )}
-      onClick={() => setTheme("light")}
+        variant="ghost"
+        size="icon"
+        className={cn(
+          "relative z-10 h-6 w-6 flex items-center justify-center rounded-md",
+          theme === "light" && "text-primary bg-accent"
+        )}
+        onClick={() => setTheme("light")}
       >
-      <Sun className="h-3 w-3" />
-      </Button>
-      <Button 
-      variant="ghost"
-      size="icon"
-      className={cn(
-        "relative z-10 h-6 w-6 flex items-center justify-center rounded-md",
-        theme === "dark" && "text-primary bg-accent"
-      )}
-      onClick={() => setTheme("dark")}
-      >
-      <Moon className="h-3 w-3" />
+        <Sun className="h-3 w-3" />
       </Button>
       <Button
-      variant="ghost" 
-      size="icon"
-      className={cn(
-        "relative z-10 h-6 w-6 flex items-center justify-center rounded-md",
-        theme === "system" && "text-primary bg-accent"
-      )}
-      onClick={() => setTheme("system")}
+        variant="ghost"
+        size="icon"
+        className={cn(
+          "relative z-10 h-6 w-6 flex items-center justify-center rounded-md",
+          theme === "dark" && "text-primary bg-accent"
+        )}
+        onClick={() => setTheme("dark")}
       >
-      <MonitorSmartphone className="h-3 w-3" />
+        <Moon className="h-3 w-3" />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        className={cn(
+          "relative z-10 h-6 w-6 flex items-center justify-center rounded-md",
+          theme === "system" && "text-primary bg-accent"
+        )}
+        onClick={() => setTheme("system")}
+      >
+        <MonitorSmartphone className="h-3 w-3" />
       </Button>
     </div>
   );
@@ -219,7 +220,7 @@ export default function Navbar() {
         >
           <Sun className="h-4 w-4" />
         </Button>
-        <Button 
+        <Button
           variant="ghost"
           size="icon"
           className={cn(
@@ -231,7 +232,7 @@ export default function Navbar() {
           <Moon className="h-4 w-4" />
         </Button>
         <Button
-          variant="ghost" 
+          variant="ghost"
           size="icon"
           className={cn(
             "relative z-10 h-8 w-8 flex items-center justify-center rounded-md",
@@ -249,10 +250,10 @@ export default function Navbar() {
   const handleLogout = async () => {
     try {
       setIsLoggingOut(true);
-      
+
       // Log out via server action
       const result = await logout();
-      
+
       if (result.success) {
         // useAuth hook will automatically handle cache clearing via auth listener
         // Use a small delay before redirecting to ensure state updates are processed
@@ -281,13 +282,15 @@ export default function Navbar() {
                 width={30}
                 height={30}
               />
-              <span className="text-lg font-bold">letsassist</span>
+              <span className="text-lg font-bold">Let's Assist</span>
             </div>
           </Link>
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-6 ml-auto">
-            {user ? (
+            {isAuthLoading ? (
+              <Skeleton className="h-6 w-48" />
+            ) : user ? (
               <>
                 <Button variant="ghost" asChild>
                   <Link
@@ -329,17 +332,8 @@ export default function Navbar() {
                     Organizations
                   </Link>
                 </Button>
-                <Button variant="ghost" asChild>
-                  <Link
-                    className={cn(
-                      pathname === "/faq" ? "text-primary font-semibold" : "text-muted-foreground"
-                    )}
-                    href="/faq"
-                  >
-                    FAQ
-                  </Link>
-                </Button>
-                
+
+
               </>
             ) : (
               <>
@@ -362,7 +356,7 @@ export default function Navbar() {
                                   height={30}
                                 />
                                 <div className="mb-2 mt-4 text-lg font-medium">
-                                  letsassist
+                                  Let's Assist
                                 </div>
                                 <p className="text-sm leading-tight text-muted-foreground">
                                   Helping communities and volunteers connect
@@ -386,18 +380,18 @@ export default function Navbar() {
                 </NavigationMenu>
                 <Button variant="ghost" asChild>
                   <Link href="/projects" className={cn(
-                      pathname === "/projects" ? "text-primary font-semibold" : "text-muted-foreground"
-                    )}>Volunteering Near Me</Link>
+                    pathname === "/projects" ? "text-primary font-semibold" : "text-muted-foreground"
+                  )}>Volunteering Near Me</Link>
                 </Button>
                 <Button variant="ghost" asChild>
                   <Link href="/organization" className={cn(
-                      pathname === "/organization" ? "text-primary font-semibold" : "text-muted-foreground"
-                    )}>Connected Organizations</Link>
+                    pathname === "/organization" ? "text-primary font-semibold" : "text-muted-foreground"
+                  )}>Connected Organizations</Link>
                 </Button>
                 <Button variant="ghost" asChild>
                   <Link href="/faq" className={cn(
-                      pathname === "/faq" ? "text-primary font-semibold" : "text-muted-foreground"
-                    )}>
+                    pathname === "/faq" ? "text-primary font-semibold" : "text-muted-foreground"
+                  )}>
                     FAQ
                   </Link>
                 </Button>
@@ -405,7 +399,12 @@ export default function Navbar() {
             )}
           </div>
           <div className="hidden sm:flex items-center space-x-6 ml-auto">
-            {user ? (
+            {isAuthLoading ? (
+              <div className="flex items-center space-x-3">
+                <Skeleton className="w-9 h-9 rounded-full" />
+                <Skeleton className="w-20 h-3" />
+              </div>
+            ) : user ? (
               <div className="flex items-center space-x-5 mr-2">
                 <NotificationPopover />
                 <DropdownMenu>
@@ -453,7 +452,7 @@ export default function Navbar() {
                       </Link>
                     </DropdownMenuItem>
 
-                    
+
                     <DropdownMenuItem
                       className="py-2.5 text-muted-foreground cursor-pointer"
                       asChild
@@ -462,7 +461,7 @@ export default function Navbar() {
                         <span>My Profile</span>
                       </Link>
                     </DropdownMenuItem>
-<DropdownMenuItem
+                    <DropdownMenuItem
                       className="py-2.5 text-muted-foreground cursor-pointer"
                       asChild
                     >
@@ -492,7 +491,7 @@ export default function Navbar() {
                       Send Feedback
                       <MessageSquare className="h-4 w-4" />
                     </DropdownMenuItem>
-                    <DropdownMenuItem 
+                    <DropdownMenuItem
                       className="text-chart-4 focus:text-chart-4 py-2.5 cursor-pointer flex justify-between"
                       onSelect={(e) => {
                         e.preventDefault();
@@ -537,9 +536,13 @@ export default function Navbar() {
           <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
             <SheetTitle className="hidden"></SheetTitle>
             <div className="sm:hidden flex items-center ml-auto">
-              {user && <NotificationPopover />}
+              {isAuthLoading ? (
+                <Skeleton className="w-10 h-10 rounded-full" />
+              ) : (
+                user && <NotificationPopover />
+              )}
               {/* Show theme toggle for non-logged in users only */}
-              {!user && <ModeToggle />}
+              {!isAuthLoading && !user && <ModeToggle />}
             </div>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon" className="md:hidden ml-2">
@@ -549,7 +552,12 @@ export default function Navbar() {
             </SheetTrigger>
             <SheetContent side="right" className="w-[85%] sm:w-[380px] pt-10 px-4 pb-4 overflow-y-auto">
               <div className="flex flex-col h-full">
-                {user ? (
+                {isAuthLoading ? (
+                  <div className="grid gap-2 mb-6">
+                    <Skeleton className="w-full h-12 rounded" />
+                    <Skeleton className="w-full h-12 rounded" />
+                  </div>
+                ) : user ? (
                   <>
                     <div className="flex items-center space-x-3 mb-4">
                       {isProfileLoading ? (
@@ -627,14 +635,14 @@ export default function Navbar() {
                       >
                         <Link href="/projects">My Projects</Link>
                       </Button>
-                      
+
                       <Button
                         variant="ghost"
                         className="w-full justify-between text-muted-foreground"
                         asChild
                         onClick={handleNavigation}
                       >
-                        <Link href= "/organization">Organizations</Link>
+                        <Link href="/organization">Organizations</Link>
                       </Button>
                     </>
                   ) : (
@@ -657,14 +665,6 @@ export default function Navbar() {
                       </Button>
                     </>
                   )}
-                  <Button
-                    variant="ghost"
-                    className="w-full justify-between text-muted-foreground"
-                    onClick={handleNavigation}
-                    asChild
-                  >
-                    <Link href="/faq">FAQ</Link>
-                  </Button>
                 </div>
 
                 {user && (
@@ -699,10 +699,10 @@ export default function Navbar() {
 
                 <Separator className="my-4" />
                 <div className="px-4 py-0.5 flex justify-between">
-                <span className="text-sm self-center text-muted-foreground block">
-                Appearance
-                </span>
-                <MobileThemeSelector />
+                  <span className="text-sm self-center text-muted-foreground block">
+                    Appearance
+                  </span>
+                  <MobileThemeSelector />
                 </div>
                 <Separator className="my-4" />
                 <div className="space-y-1">
@@ -732,13 +732,15 @@ export default function Navbar() {
               </div>
             </SheetContent>
           </Sheet>
-        </nav>
-      </div>
+        </nav >
+      </div >
       <Separator />
       <DonateDialog open={showDonateDialog} onOpenChange={setShowDonateDialog} />
-      {showFeedbackDialog && (
-        <FeedbackDialog onOpenChangeAction={setShowFeedbackDialog} />
-      )}
+      {
+        showFeedbackDialog && (
+          <FeedbackDialog onOpenChangeAction={setShowFeedbackDialog} />
+        )
+      }
     </>
   );
 }

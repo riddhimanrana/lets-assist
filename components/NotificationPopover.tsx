@@ -5,13 +5,19 @@ import { Bell, AlertCircle, AlertTriangle, CircleCheck, Loader2, Check, Settings
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Drawer,
-  DrawerClose,
   DrawerContent,
-  DrawerFooter,
   DrawerHeader,
   DrawerTitle,
   DrawerTrigger,
 } from "@/components/ui/drawer";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
@@ -32,7 +38,8 @@ type Notification = {
   severity: NotificationSeverity;
   read: boolean;
   created_at: string;
-  action_url?: string;
+  action_url?: string | null;
+  data?: Record<string, any> | null;
 };
 
 export function NotificationPopover() {
@@ -40,10 +47,31 @@ export function NotificationPopover() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [activeNotification, setActiveNotification] = useState<Notification | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const supabase = createClient();
   const router = useRouter();
   const isMobile = useMediaQuery("(max-width: 768px)");
+
+  const parseNotificationData = (value: unknown): Record<string, any> | null => {
+    if (!value) return null;
+    if (typeof value === "string") {
+      try {
+        return JSON.parse(value);
+      } catch {
+        return null;
+      }
+    }
+    if (typeof value === "object") {
+      return value as Record<string, any>;
+    }
+    return null;
+  };
+
+  const isReportFeedbackNotification = (notification: Notification) => {
+    return notification.data?.modalType === 'report-feedback';
+  };
   
   useEffect(() => {
     if (!user?.id) return; // Wait for user to be available
@@ -99,12 +127,14 @@ export function NotificationPopover() {
   }, [open, notifications]);
 
   async function loadNotifications() {
+    if (!user?.id) return;
     setLoading(true);
     
     try {
       const { data, error } = await supabase
         .from("notifications")
         .select("*")
+        .eq("user_id", user.id)
         .order("created_at", { ascending: false })
         .limit(20);
         
@@ -114,7 +144,11 @@ export function NotificationPopover() {
       }
       
       console.log('Notifications loaded:', data);
-      setNotifications(data || []);
+      const normalized = (data || []).map((notification) => ({
+        ...notification,
+        data: parseNotificationData((notification as any).data),
+      }));
+      setNotifications(normalized as Notification[]);
     } catch (error) {
       console.error("Error loading notifications:", error);
     } finally {
@@ -138,11 +172,13 @@ export function NotificationPopover() {
   }
 
   async function markAllAsRead() {
+    if (!user?.id) return;
     try {
       const { error } = await supabase
         .from("notifications")
         .update({ read: true })
-        .eq("read", false);
+        .eq("read", false)
+        .eq("user_id", user.id);
         
       if (error) throw error;
       
@@ -153,7 +189,18 @@ export function NotificationPopover() {
     }
   }
 
-  function handleNotificationClick(notification: Notification) {
+  async function handleNotificationClick(notification: Notification) {
+    if (!notification.read) {
+      await markAsRead(notification.id);
+    }
+
+    if (isReportFeedbackNotification(notification)) {
+      setActiveNotification(notification);
+      setDetailOpen(true);
+      setOpen(false);
+      return;
+    }
+
     if (notification.action_url) {
       router.push(notification.action_url);
       setOpen(false);
@@ -161,11 +208,13 @@ export function NotificationPopover() {
   }
 
   async function updateUnreadCount() {
+    if (!user?.id) return;
     try {
       const { count, error } = await supabase
         .from("notifications")
         .select("id", { count: 'exact', head: true })
-        .eq("read", false);
+        .eq("read", false)
+        .eq("user_id", user.id);
         
       if (error) throw error;
       
@@ -247,7 +296,7 @@ export function NotificationPopover() {
           </p>
           
           <div className="flex justify-between items-center">
-            {notification.action_url && (
+            {(notification.action_url || isReportFeedbackNotification(notification)) && (
               <span className="text-xs text-primary font-medium hover:underline">
                 View details
               </span>
@@ -306,66 +355,132 @@ export function NotificationPopover() {
     </Button>
   );
 
+  const detailMetadata = activeNotification?.data ?? null;
+  const detailStatus = typeof detailMetadata?.status === 'string' ? detailMetadata.status : null;
+  const detailStatusLabel = detailStatus ? detailStatus.replace(/_/g, ' ') : null;
+  const detailTimestamp = (typeof detailMetadata?.resolvedAt === 'string'
+    ? detailMetadata.resolvedAt
+    : undefined) ?? activeNotification?.created_at;
+  const detailSubtitle = detailTimestamp
+    ? `Updated ${formatTimeAgo(detailTimestamp)}`
+    : 'Notification details';
+
+  const handleDetailDialogChange = (nextOpen: boolean) => {
+    setDetailOpen(nextOpen);
+    if (!nextOpen) {
+      setActiveNotification(null);
+    }
+  };
+
+  const detailDialog = (
+    <Dialog open={detailOpen} onOpenChange={handleDetailDialogChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{activeNotification?.title ?? 'Notification'}</DialogTitle>
+          <DialogDescription>{detailSubtitle}</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          {detailStatusLabel && (
+            <Badge
+              variant={detailStatus === 'resolved' ? 'secondary' : detailStatus === 'dismissed' ? 'outline' : 'default'}
+              className="w-fit uppercase"
+            >
+              {detailStatusLabel}
+            </Badge>
+          )}
+          <p className="text-sm text-foreground whitespace-pre-line">
+            {activeNotification?.body}
+          </p>
+          {detailMetadata?.reportDescription && (
+            <div className="rounded-lg border bg-muted/40 p-3">
+              <p className="text-xs font-medium text-muted-foreground">Your original report</p>
+              <p className="mt-1 text-sm text-foreground whitespace-pre-line">
+                {detailMetadata.reportDescription}
+              </p>
+              {detailMetadata.reportReason && (
+                <p className="mt-2 text-xs text-muted-foreground">Tagged as: {detailMetadata.reportReason}</p>
+              )}
+            </div>
+          )}
+          {detailMetadata?.reportId && (
+            <p className="text-xs text-muted-foreground">Reference ID: {detailMetadata.reportId}</p>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="secondary" onClick={() => handleDetailDialogChange(false)}>
+            Close
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+
   // Render either Popover or Drawer based on screen size
   if (isMobile) {
     return (
-      <Drawer open={open} onOpenChange={setOpen}>
-        <DrawerTrigger asChild>
-          {NotificationButton}
-        </DrawerTrigger>
-        <DrawerContent>
-          <DrawerHeader className="px-0 pt-0">
-            <div className="px-4 py-3 flex justify-between items-center">
-              <DrawerTitle className="font-medium">Notifications</DrawerTitle>
-              <Button
-                variant="ghost"
-                className="text-muted-foreground hover:text-foreground p-2 h-7 w-7"
-                onClick={() => {
-                  router.push("/account/notifications");
-                  setOpen(false);
-                }}
-              >
-                <Settings className="h-4 w-4" />
-              </Button>
+      <>
+        <Drawer open={open} onOpenChange={setOpen}>
+          <DrawerTrigger asChild>
+            {NotificationButton}
+          </DrawerTrigger>
+          <DrawerContent>
+            <DrawerHeader className="px-0 pt-0">
+              <div className="px-4 py-3 flex justify-between items-center">
+                <DrawerTitle className="font-medium">Notifications</DrawerTitle>
+                <Button
+                  variant="ghost"
+                  className="text-muted-foreground hover:text-foreground p-2 h-7 w-7"
+                  onClick={() => {
+                    router.push("/account/notifications");
+                    setOpen(false);
+                  }}
+                >
+                  <Settings className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="h-[1px] w-full bg-border"></div>
+            </DrawerHeader>
+            <div className="pb-6">
+              <NotificationsContent />
             </div>
-            <div className="h-[1px] w-full bg-border"></div>
-          </DrawerHeader>
-          <div className="pb-6">
-            <NotificationsContent />
-          </div>
-        </DrawerContent>
-      </Drawer>
+          </DrawerContent>
+        </Drawer>
+        {detailDialog}
+      </>
     );
   }
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        {NotificationButton}
-      </PopoverTrigger>
-      <PopoverContent align="end" className="w-[360px] p-0">
-      <div>
-        {/* Simple Header */}
-        <div className="px-4 py-3 flex justify-between items-center">
-          <h3 className="text-sm font-medium">Notifications</h3>
-          <Button
-            variant="ghost"
-            className="text-muted-foreground hover:text-foreground p-2 h-7 w-7"
-            onClick={() => {
-              router.push("/account/notifications");
-              setOpen(false);
-            }}
-          >
-            <Settings className="h-4 w-4" />
-          </Button>
+    <>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          {NotificationButton}
+        </PopoverTrigger>
+        <PopoverContent align="end" className="w-[360px] p-0">
+        <div>
+          {/* Simple Header */}
+          <div className="px-4 py-3 flex justify-between items-center">
+            <h3 className="text-sm font-medium">Notifications</h3>
+            <Button
+              variant="ghost"
+              className="text-muted-foreground hover:text-foreground p-2 h-7 w-7"
+              onClick={() => {
+                router.push("/account/notifications");
+                setOpen(false);
+              }}
+            >
+              <Settings className="h-4 w-4" />
+            </Button>
+          </div>
+          
+          {/* Full-width separator */}
+          <div className="h-[1px] w-full bg-border"></div>
         </div>
-        
-        {/* Full-width separator */}
-        <div className="h-[1px] w-full bg-border"></div>
-      </div>
 
-        <NotificationsContent />
-      </PopoverContent>
-    </Popover>
+          <NotificationsContent />
+        </PopoverContent>
+      </Popover>
+      {detailDialog}
+    </>
   );
 }
