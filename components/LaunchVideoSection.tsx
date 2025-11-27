@@ -38,8 +38,13 @@ export const LaunchVideoSection = () => {
                     type="button"
                     whileHover={{ scale: 1.01 }}
                     whileTap={{ scale: 0.99 }}
-                    className="relative block aspect-video w-full overflow-hidden bg-muted"
+                    className="group relative block aspect-video w-full overflow-hidden bg-muted"
                   >
+                    {/* subtle glow behind the video thumbnail */}
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <div className="w-3/4 h-3/4 rounded-2xl bg-gradient-to-r from-indigo-500/30 via-purple-500/20 to-pink-500/10 blur-2xl opacity-0 transform scale-90 transition-all duration-300 group-hover:opacity-90 group-hover:scale-100" />
+                    </div>
+
                     <div
                       className="absolute inset-0 bg-cover bg-center"
                       style={{ backgroundImage: `url(${thumbnailUrl})` }}
@@ -51,9 +56,6 @@ export const LaunchVideoSection = () => {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.2, duration: 0.6 }}
                     >
-                      {/* <span className="inline-flex items-center rounded-full bg-white/15 px-3 py-1 text-xs uppercase tracking-[0.2em]">
-                        Product demo
-                      </span> */}
                       <div className="flex items-center gap-2 rounded-full bg-white/95 px-4 py-2 text-sm font-semibold text-black shadow-lg">
                         <Play className="h-4 w-4" />
                         Watch video

@@ -19,11 +19,11 @@ import { createClient } from '@/utils/supabase/client';
 import {
   getOrFetchUser,
   getCachedUser,
-  clearAuthCache,
   updateCachedUser,
   waitForAuthReady,
   refreshUser,
   subscribeToCacheChanges,
+  isCacheInitialized,
 } from '@/utils/auth/auth-context';
 import type { AuthState, User } from '@/utils/auth/types';
 
@@ -52,11 +52,17 @@ import type { AuthState, User } from '@/utils/auth/types';
 export function useAuth(): AuthState {
   // Initialize state from cache immediately (not null!)
   // This is critical for preventing flash of logged-out state
-  const cachedUserInitial = useMemo(() => getCachedUser(), []);
+  const cacheSnapshot = useMemo(
+    () => ({
+      user: getCachedUser(),
+      initialized: isCacheInitialized(),
+    }),
+    [],
+  );
   
   const [state, setState] = useState<AuthState>({
-    user: cachedUserInitial ?? null,  // Use cached user if available
-    isLoading: cachedUserInitial ? false : true,  // Only loading if no cached user
+    user: cacheSnapshot.user ?? null,  // Use cached user if available
+    isLoading: cacheSnapshot.initialized ? false : true,  // Only loading if cache not primed yet
     isError: false,
   });
 
@@ -68,6 +74,22 @@ export function useAuth(): AuthState {
     let mounted = true;
 
     const initializeAuth = async () => {
+      // If the cache is already primed (from AuthProvider), skip redundant calls
+      if (isCacheInitialized()) {
+        const cachedUser = getCachedUser();
+        if (mounted) {
+          setState({
+            user: cachedUser,
+            isLoading: false,
+            isError: false,
+          });
+        }
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[useAuth] Cache already initialized, skipping session fetch');
+        }
+        return;
+      }
+
       try {
         if (process.env.NODE_ENV === 'development') {
           console.log('[useAuth] Initializing auth state...');
@@ -155,17 +177,9 @@ export function useAuth(): AuthState {
   useEffect(() => {
     let mounted = true;
 
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[useAuth] Setting up cache subscription');
-    }
-
     // Subscribe to cache changes - this will fire when updateCachedUser is called
     const unsubscribe = subscribeToCacheChanges((cachedUser) => {
       if (!mounted) return;
-
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[useAuth] Cache changed:', cachedUser?.email);
-      }
 
       setState((prev) => ({
         ...prev,
@@ -180,58 +194,6 @@ export function useAuth(): AuthState {
       unsubscribe();
     };
   }, []);
-
-  // Effect 2b: Subscribe to auth state changes (separate from initialization)
-  useEffect(() => {
-    let mounted = true;
-
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[useAuth] Setting up auth state subscription');
-    }
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (!mounted) return;
-
-        if (process.env.NODE_ENV === 'development') {
-          console.log('[useAuth] Auth state changed:', event, session?.user?.email);
-        }
-
-        if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'USER_UPDATED') {
-          if (session?.user) {
-            updateCachedUser(session.user);
-            setState((prev) => ({
-              ...prev,
-              user: session.user,
-              isLoading: false,
-              isError: false,
-            }));
-          }
-        } else if (event === 'SIGNED_OUT') {
-          clearAuthCache();
-          setState({
-            user: null,
-            isLoading: false,
-            isError: false,
-          });
-        } else if (event === 'TOKEN_REFRESHED') {
-          // Token was refreshed, update cache if session exists
-          if (session?.user) {
-            updateCachedUser(session.user);
-            setState((prev) => ({
-              ...prev,
-              user: session.user,
-            }));
-          }
-        }
-      }
-    );
-
-    return () => {
-      mounted = false;
-      subscription?.unsubscribe();
-    };
-  }, [supabase]); // Only depend on supabase, set up once and never change
 
   // Create refresh function
   const refreshAuthState = useCallback(async () => {

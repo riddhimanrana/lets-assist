@@ -96,6 +96,7 @@ export interface EventFormState {
   verificationMethod: VerificationMethod;
   requireLogin: boolean;
   isPrivate: boolean;
+  restrictToOrgDomains: boolean;
 }
 
 type EventFormAction =
@@ -105,19 +106,21 @@ type EventFormAction =
   | { type: 'UPDATE_BASIC_INFO'; payload: { field: string; value: any } }
   | { type: 'UPDATE_ONE_TIME_SCHEDULE'; payload: { field: string; value: any } }
   | {
-      type: 'UPDATE_MULTI_DAY_SCHEDULE';
-      payload: { dayIndex: number; field: string; value: any; slotIndex?: number };
-    }
+    type: 'UPDATE_MULTI_DAY_SCHEDULE';
+    payload: { dayIndex: number; field: string; value: any; slotIndex?: number };
+  }
   | {
-      type: 'UPDATE_MULTI_ROLE_SCHEDULE';
-      payload: { field: string; value: any; roleIndex?: number };
-    }
+    type: 'UPDATE_MULTI_ROLE_SCHEDULE';
+    payload: { field: string; value: any; roleIndex?: number };
+  }
   | { type: 'ADD_MULTI_DAY_SLOT'; payload: { dayIndex: number } }
   | { type: 'ADD_MULTI_DAY_EVENT' }
   | { type: 'ADD_ROLE' }
   | { type: 'UPDATE_VERIFICATION_METHOD'; payload: VerificationMethod }
   | { type: 'UPDATE_REQUIRE_LOGIN'; payload: boolean }
+
   | { type: 'UPDATE_IS_PRIVATE'; payload: boolean }
+  | { type: 'UPDATE_RESTRICT_TO_ORG_DOMAINS'; payload: boolean }
   | { type: 'REMOVE_DAY'; payload: { dayIndex: number } }
   | { type: 'REMOVE_SLOT'; payload: { dayIndex: number; slotIndex: number } }
   | { type: 'REMOVE_ROLE'; payload: { roleIndex: number } };
@@ -181,6 +184,7 @@ const initialState: EventFormState = {
   verificationMethod: 'qr-code',
   requireLogin: true,
   isPrivate: false,
+  restrictToOrgDomains: false,
 };
 
 const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
@@ -359,13 +363,19 @@ const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
         isPrivate: action.payload,
       };
     }
+    case 'UPDATE_RESTRICT_TO_ORG_DOMAINS': {
+      return {
+        ...state,
+        restrictToOrgDomains: action.payload,
+      };
+    }
     case 'REMOVE_DAY': {
       const { dayIndex } = action.payload;
       // Make a copy of the multi-day array
       const updatedMultiDay = [...state.schedule.multiDay];
       // Remove the day at the specified index
       updatedMultiDay.splice(dayIndex, 1);
-      
+
       return {
         ...state,
         schedule: {
@@ -380,12 +390,12 @@ const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
       const updatedMultiDay = [...state.schedule.multiDay];
       const updatedDay = { ...updatedMultiDay[dayIndex] };
       const updatedSlots = [...updatedDay.slots];
-      
+
       // Remove the slot at the specified index
       updatedSlots.splice(slotIndex, 1);
       updatedDay.slots = updatedSlots;
       updatedMultiDay[dayIndex] = updatedDay;
-      
+
       return {
         ...state,
         schedule: {
@@ -398,10 +408,10 @@ const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
       const { roleIndex } = action.payload;
       const updatedRoles = [...state.schedule.sameDayMultiArea.roles];
       updatedRoles.splice(roleIndex, 1);
-      
+
       // Recalculate overall times after removing a role
       const { overallStart, overallEnd } = calculateOverallTimes(updatedRoles);
-      
+
       return {
         ...state,
         schedule: {
@@ -427,16 +437,16 @@ export const useEventForm = () => {
 
   const nextStep = () => dispatch({ type: 'NEXT_STEP' });
   const prevStep = () => dispatch({ type: 'PREV_STEP' });
-  
+
   const setEventType = (eventType: EventType) =>
     dispatch({ type: 'SET_EVENT_TYPE', payload: eventType });
-  
+
   const updateBasicInfo = (field: string, value: any) =>
     dispatch({ type: 'UPDATE_BASIC_INFO', payload: { field, value } });
-  
+
   const updateOneTimeSchedule = (field: string, value: any) =>
     dispatch({ type: 'UPDATE_ONE_TIME_SCHEDULE', payload: { field, value } });
-  
+
   const updateMultiDaySchedule = (
     dayIndex: number,
     field: string,
@@ -447,7 +457,7 @@ export const useEventForm = () => {
       type: 'UPDATE_MULTI_DAY_SCHEDULE',
       payload: { dayIndex, field, value, slotIndex },
     });
-  
+
   const updateMultiRoleSchedule = (
     field: string,
     value: any,
@@ -457,29 +467,32 @@ export const useEventForm = () => {
       type: 'UPDATE_MULTI_ROLE_SCHEDULE',
       payload: { field, value, roleIndex },
     });
-  
+
   const addMultiDaySlot = (dayIndex: number) =>
     dispatch({ type: 'ADD_MULTI_DAY_SLOT', payload: { dayIndex } });
-  
+
   const addMultiDayEvent = () => dispatch({ type: 'ADD_MULTI_DAY_EVENT' });
-  
+
   const addRole = () => dispatch({ type: 'ADD_ROLE' });
-  
+
   const updateVerificationMethod = (method: VerificationMethod) =>
     dispatch({ type: 'UPDATE_VERIFICATION_METHOD', payload: method });
-  
+
   const updateRequireLogin = (requireLogin: boolean) =>
     dispatch({ type: 'UPDATE_REQUIRE_LOGIN', payload: requireLogin });
-  
+
   const updateIsPrivate = (isPrivate: boolean) =>
     dispatch({ type: 'UPDATE_IS_PRIVATE', payload: isPrivate });
-  
+
+  const updateRestrictToOrgDomains = (restrict: boolean) =>
+    dispatch({ type: 'UPDATE_RESTRICT_TO_ORG_DOMAINS', payload: restrict });
+
   const removeDay = (dayIndex: number) =>
     dispatch({ type: 'REMOVE_DAY', payload: { dayIndex } });
-  
+
   const removeSlot = (dayIndex: number, slotIndex: number) =>
     dispatch({ type: 'REMOVE_SLOT', payload: { dayIndex, slotIndex } });
-  
+
   const removeRole = (roleIndex: number) =>
     dispatch({ type: 'REMOVE_ROLE', payload: { roleIndex } });
 
@@ -498,6 +511,7 @@ export const useEventForm = () => {
     updateVerificationMethod,
     updateRequireLogin,
     updateIsPrivate,
+    updateRestrictToOrgDomains,
     removeDay,
     removeSlot,
     removeRole,

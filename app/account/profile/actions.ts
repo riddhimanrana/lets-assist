@@ -87,7 +87,16 @@ export async function updateProfileInfo(formData: FormData) {
 
 export async function completeOnboarding(formData: FormData) {
   const supabase = await createClient();
-  const userId = (await supabase.auth.getUser()).data.user?.id;
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    return { error: { server: ["Not authenticated"] } };
+  }
+
+  const userId = user.id;
 
   // Get form values, ensuring undefined for missing fields
   const fullName = formData.get("fullName")?.toString() || undefined;
@@ -121,6 +130,8 @@ export async function completeOnboarding(formData: FormData) {
   if (validUsername !== undefined) updateFields.username = validUsername;
 
   // Only process avatarUrl if it was explicitly included in the form data
+  let metadataAvatarUrl: string | null | undefined = undefined;
+
   if (avatarUrlValue !== null && validAvatarUrl !== undefined) {
     // Process avatar URL only if explicitly included in the form
     if (validAvatarUrl && typeof validAvatarUrl === 'string' && validAvatarUrl.startsWith("data:image")) {
@@ -170,10 +181,12 @@ export async function completeOnboarding(formData: FormData) {
         .getPublicUrl(fileName);
 
       const timestamp = Date.now();
-      updateFields.avatar_url = `${publicUrlData.publicUrl}?v=${timestamp}`;
+      metadataAvatarUrl = `${publicUrlData.publicUrl}?v=${timestamp}`;
+      updateFields.avatar_url = metadataAvatarUrl;
     } else {
       // If avatarUrl was included but null or empty, set avatar_url to null
       updateFields.avatar_url = null;
+      metadataAvatarUrl = null;
     }
   }
 
@@ -187,6 +200,22 @@ export async function completeOnboarding(formData: FormData) {
   if (updateError) {
     console.log(updateError);
     return { error: { server: ["Failed to update profile"] } };
+  }
+
+  if (metadataAvatarUrl !== undefined) {
+    const metadataPayload = {
+      ...(user.user_metadata || {}),
+      avatar_url: metadataAvatarUrl,
+    };
+
+    const { error: metadataError } = await supabase.auth.updateUser({
+      data: metadataPayload,
+    });
+
+    if (metadataError) {
+      console.error("Failed to sync avatar to auth metadata", metadataError);
+      return { error: { server: ["Failed to update user metadata"] } };
+    }
   }
   return { success: true };
 }
@@ -258,6 +287,20 @@ export async function removeProfilePicture() {
   if (updateError) {
     console.error("removeProfilePicture: Error updating profile:", updateError);
     return { error: { server: ["Failed to update profile"] } };
+  }
+
+  const metadataPayload = {
+    ...(user.user_metadata || {}),
+    avatar_url: null,
+  };
+
+  const { error: metadataError } = await supabase.auth.updateUser({
+    data: metadataPayload,
+  });
+
+  if (metadataError) {
+    console.error("removeProfilePicture: Error updating auth metadata:", metadataError);
+    return { error: { server: ["Failed to update user metadata"] } };
   }
 
   return { success: true };
@@ -419,7 +462,7 @@ export async function updateDateOfBirth(dateOfBirth: string) {
 
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select("email, is_school_account, profile_visibility")
+    .select("email, profile_visibility")
     .eq("id", user.id)
     .single();
 
@@ -432,12 +475,7 @@ export async function updateDateOfBirth(dateOfBirth: string) {
   const existingVisibility =
     (profile?.profile_visibility as ProfileVisibility) ?? "public";
 
-  const institutionFlag =
-    typeof profile?.is_school_account === "boolean"
-      ? profile.is_school_account
-      : email
-        ? await isInstitutionEmail(email)
-        : false;
+  const institutionFlag = email ? await isInstitutionEmail(email) : false;
 
   const defaultVisibility = getDefaultProfileVisibility(
     normalizedDob,
@@ -468,7 +506,6 @@ export async function updateDateOfBirth(dateOfBirth: string) {
       parental_consent_required: requiresParentalConsent,
       parental_consent_verified: !requiresParentalConsent,
       age_verified_at: new Date().toISOString(),
-      is_school_account: institutionFlag,
       updated_at: new Date().toISOString(),
     })
     .eq("id", user.id);
@@ -484,6 +521,5 @@ export async function updateDateOfBirth(dateOfBirth: string) {
     requiresParentalConsent,
     canChangeVisibility: canChange,
     age,
-    isSchoolAccount: institutionFlag,
   };
 }

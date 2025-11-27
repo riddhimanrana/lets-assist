@@ -13,6 +13,13 @@ const signupSchema = z.object({
   turnstileToken: z.string().optional(),
 });
 
+const getSiteUrl = () => {
+  return (
+    process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/+$/u, "") ||
+    "http://localhost:3000"
+  );
+};
+
 type SignupStatus = 
   | { type: 'confirmed'; message: string }
   | { type: 'unconfirmed'; message: string }
@@ -73,7 +80,7 @@ export async function signup(formData: FormData) {
   const supabase = await createClient();
 
   try {
-    const origin = process.env.NEXT_PUBLIC_SITE_URL || "";
+    const origin = getSiteUrl();
     
     // Check email status first
     const emailStatus = await checkEmailStatus(validatedFields.data.email);
@@ -104,6 +111,7 @@ export async function signup(formData: FormData) {
           username: `user_${randomUUID().slice(0, 8)}`,
           created_at: new Date().toISOString(),
         },
+        emailRedirectTo: `${origin}/auth/confirm`,
       },
     };
 
@@ -140,17 +148,23 @@ export async function signup(formData: FormData) {
   }
 }
 
-export async function resendVerificationEmail(email: string) {
+export async function resendVerificationEmail(email: string, turnstileToken?: string) {
   try {
     const supabase = await createClient();
-    const origin = process.env.NEXT_PUBLIC_SITE_URL || "";
+    const origin = getSiteUrl();
     
+    const options: Record<string, string> = {
+      emailRedirectTo: `${origin}/auth/confirm`,
+    };
+
+    if (turnstileToken) {
+      options.captchaToken = turnstileToken;
+    }
+
     const { error } = await supabase.auth.resend({
       type: 'signup',
       email: email,
-      options: {
-        emailRedirectTo: `${origin}/auth/confirm`,
-      }
+      options,
     });
     
     if (error) {

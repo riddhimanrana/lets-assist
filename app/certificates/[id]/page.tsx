@@ -478,7 +478,7 @@ export default async function VolunteerRecordPage({
               className="mr-2"
             />
             <span className="text-base font-bold text-foreground">
-              letsassist
+              Let's Assist
             </span>
           </div>
         </CardBody>

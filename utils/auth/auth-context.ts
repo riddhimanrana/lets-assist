@@ -50,6 +50,23 @@ let lastFetchTimestamp: number = 0;
 let lastFetchError: Error | null = null;
 
 /**
+ * Prime the cache with a known user (typically from SSR) before any fetch occurs.
+ * This prevents initial renders from defaulting to a logged-out state while the
+ * client waits for supabase.auth.getSession(). Call this exactly once per page
+ * load with trusted data from the server.
+ */
+export function primeAuthCache(user: User | null, options: { force?: boolean } = {}): void {
+  if (cacheInitialized && !options.force) {
+    return;
+  }
+
+  cachedUser = user;
+  cacheInitialized = true;
+  lastFetchTimestamp = Date.now();
+  lastFetchError = null;
+}
+
+/**
  * Initialize auth context (call once on app startup)
  * Clears any stale cache or pending promises
  */
@@ -363,4 +380,17 @@ export async function initializeUserProfileCache(userId: string): Promise<void> 
   } catch (error) {
     console.error('[Auth Context] Failed to initialize profile cache:', error);
   }
+}
+
+export async function requireUser(supabase: SupabaseClient): Promise<User> {
+  const cached = getCachedUser();
+  if (cached) {
+    return cached;
+  }
+
+  const user = await getOrFetchUser(supabase);
+  if (!user) {
+    throw new Error('User not found');
+  }
+  return user;
 }

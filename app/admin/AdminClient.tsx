@@ -1,43 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Check, X, Trash2, Lightbulb, AlertTriangle, MoreHorizontal } from "lucide-react";
-import { toast } from "sonner";
+import { AdminSidebar } from "./components/AdminSidebar";
+import { OverviewTab } from "./components/OverviewTab";
+import { FeedbackTab } from "./components/FeedbackTab";
+import { TrustedMembersTab } from "./components/TrustedMembersTab";
+import { ModerationTab } from "./components/ModerationTab";
 import { updateTrustedMemberStatus, deleteFeedback } from "./actions";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
 
 type FeedbackType = "issue" | "idea" | "other";
 
 interface Profile {
   full_name: string | null;
+  email: string | null;
   username: string | null;
   avatar_url: string | null;
 }
@@ -81,12 +57,42 @@ interface ReportsStats {
   recentWeek: number;
 }
 
+interface ContentReport {
+  id: string;
+  reason: string;
+  priority: string;
+  content_type: string;
+  description: string;
+  content_details?: {
+    title?: string;
+    full_name?: string;
+  };
+  creator_details?: {
+    avatar_url?: string;
+    full_name: string;
+    username: string;
+  };
+}
+
+interface FlaggedContent {
+  id: string;
+  is_ai_flagged?: boolean;
+  flag_type: string;
+  confidence_score: number;
+  content_type: string;
+  reason?: string;
+  flag_details?: {
+    reasoning?: string;
+    full_analysis?: Record<string, unknown>;
+  };
+}
+
 interface AdminClientProps {
   feedback: Feedback[];
   applications: TrustedMemberApplication[];
   moderationStats?: ModerationStats;
-  flaggedContent?: any[];
-  contentReports?: any[];
+  flaggedContent?: FlaggedContent[];
+  contentReports?: ContentReport[];
   reportsStats?: ReportsStats;
 }
 
@@ -98,434 +104,94 @@ export function AdminClient({
   contentReports: initialContentReports = [],
   reportsStats,
 }: AdminClientProps) {
+  const [activeTab, setActiveTab] = useState("overview");
   const [feedback, setFeedback] = useState(initialFeedback);
   const [applications, setApplications] = useState(initialApplications);
-  const [flaggedContent, setFlaggedContent] = useState(initialFlaggedContent);
-  const [contentReports, setContentReports] = useState(initialContentReports);
-  const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [feedbackToDelete, setFeedbackToDelete] = useState<string | null>(null);
-
-  const handleApprove = async (userId: string, applicationId: string) => {
-    setLoadingStates((prev) => ({ ...prev, [applicationId]: true }));
-
+  
+  const handleApprove = async (id: string, userId: string) => {
     const result = await updateTrustedMemberStatus(userId, true);
-    
     if (result.error) {
-      toast.error("Error", {
-        description: result.error,
-      });
+      toast.error("Error", { description: result.error });
     } else {
-      toast.success("Approved", {
-        description: "Trusted member application approved successfully.",
-      });
-      
-      // Update local state
-      setApplications((prev) =>
-        prev.map((app) =>
-          app.id === userId ? { ...app, status: true } : app
-        )
-      );
+      toast.success("Approved", { description: "Trusted member application approved." });
+      setApplications(prev => prev.map(app => app.id === id ? { ...app, status: true } : app));
     }
-    
-    setLoadingStates((prev) => ({ ...prev, [applicationId]: false }));
   };
 
-  const handleDeny = async (userId: string, applicationId: string) => {
-    setLoadingStates((prev) => ({ ...prev, [applicationId]: true }));
-
+  const handleDeny = async (id: string, userId: string) => {
     const result = await updateTrustedMemberStatus(userId, false);
-    
     if (result.error) {
-      toast.error("Error", {
-        description: result.error,
-      });
+      toast.error("Error", { description: result.error });
     } else {
-      toast.success("Denied", {
-        description: "Trusted member application denied.",
-      });
-      
-      // Update local state
-      setApplications((prev) =>
-        prev.map((app) =>
-          app.id === userId ? { ...app, status: false } : app
-        )
-      );
+      toast.success("Denied", { description: "Trusted member application denied." });
+      setApplications(prev => prev.map(app => app.id === id ? { ...app, status: false } : app));
     }
-    
-    setLoadingStates((prev) => ({ ...prev, [applicationId]: false }));
   };
 
-  const handleDeleteFeedback = async () => {
-    if (!feedbackToDelete) return;
-    
-    setLoadingStates((prev) => ({ ...prev, [feedbackToDelete]: true }));
-    
-    const result = await deleteFeedback(feedbackToDelete);
-    
+  const handleRevoke = async (id: string, userId: string) => {
+    const result = await updateTrustedMemberStatus(userId, false);
     if (result.error) {
-      toast.error("Error", {
-        description: result.error,
-      });
+      toast.error("Error", { description: result.error });
     } else {
-      toast.success("Deleted", {
-        description: "Feedback deleted successfully.",
-      });
-      
-      // Update local state
-      setFeedback((prev) => prev.filter((f) => f.id !== feedbackToDelete));
-    }
-    
-    setLoadingStates((prev) => ({ ...prev, [feedbackToDelete]: false }));
-    setDeleteDialogOpen(false);
-    setFeedbackToDelete(null);
-  };
-
-  const getFeedbackIcon = (type: FeedbackType) => {
-    switch (type) {
-      case "issue":
-        return <AlertTriangle className="h-4 w-4" />;
-      case "idea":
-        return <Lightbulb className="h-4 w-4" />;
-      default:
-        return <MoreHorizontal className="h-4 w-4" />;
+      toast.success("Revoked", { description: "Trusted member status revoked." });
+      setApplications(prev => prev.map(app => app.id === id ? { ...app, status: false } : app));
     }
   };
 
-  const getFeedbackBadgeColor = (type: FeedbackType) => {
-    switch (type) {
-      case "issue":
-        return "destructive";
-      case "idea":
-        return "default";
-      default:
-        return "secondary";
-    }
-  };
-
-  const getStatusBadge = (status: boolean | null) => {
-    if (status === null) {
-      return <Badge variant="secondary">Pending</Badge>;
-    } else if (status === true) {
-      return <Badge variant="default" className="bg-chart-5 hover:bg-chart-5/90">Approved</Badge>;
+  const handleDeleteFeedback = async (id: string) => {
+    const result = await deleteFeedback(id);
+    if (result.error) {
+      toast.error("Error", { description: result.error });
     } else {
-      return <Badge variant="destructive">Denied</Badge>;
+      toast.success("Deleted", { description: "Feedback deleted successfully." });
+      setFeedback(prev => prev.filter(f => f.id !== id));
     }
   };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+  
+  // Map data to components
+  const overviewStats = {
+    feedbackCount: feedback.length,
+    trustedPendingCount: applications.filter(a => a.status === null).length,
+    flaggedPendingCount: moderationStats?.pending || 0,
+    reportsPendingCount: reportsStats?.pending || 0,
   };
 
   return (
-    <div className="container mx-auto py-8 px-4 max-w-7xl">
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold">Admin Dashboard</h1>
-        <p className="text-muted-foreground mt-2">
-          Manage feedback, trusted members, and content moderation
-        </p>
+    <div className="flex h-screen bg-gray-50">
+      <AdminSidebar activeTab={activeTab} onTabChange={setActiveTab} />
+      <div className="flex-1 overflow-auto">
+        {activeTab === "overview" && (
+          <OverviewTab
+            stats={overviewStats}
+            flaggedContent={initialFlaggedContent}
+            reportPreview={initialContentReports.slice(0, 4)}
+            reportsStats={reportsStats || {
+              total: 0,
+              pending: 0,
+              resolved: 0,
+              highPriority: 0,
+              recentWeek: 0,
+            }}
+          />
+        )}
+        {activeTab === "feedback" && (
+          <FeedbackTab
+            feedback={feedback}
+            onDelete={handleDeleteFeedback}
+          />
+        )}
+        {activeTab === "trusted-members" && (
+          <TrustedMembersTab
+            trustedMembers={applications}
+          />
+        )}
+        {activeTab === "moderation" && (
+          <ModerationTab
+            flaggedContent={initialFlaggedContent}
+            contentReports={initialContentReports}
+          />
+        )}
       </div>
-
-      <Tabs defaultValue="feedback" className="w-full">
-        <TabsList className="grid w-full max-w-2xl grid-cols-4">
-          <TabsTrigger value="feedback">
-            Feedback ({feedback.length})
-          </TabsTrigger>
-          <TabsTrigger value="trusted-members">
-            Trusted Members ({applications.length})
-          </TabsTrigger>
-          <TabsTrigger value="flagged">
-            Flagged ({moderationStats?.pending || 0})
-          </TabsTrigger>
-          <TabsTrigger value="reports">
-            Reports ({reportsStats?.pending || 0})
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="feedback" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>User Feedback</CardTitle>
-              <CardDescription>
-                All feedback submitted by users
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {feedback.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  No feedback submitted yet
-                </div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>User</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Title</TableHead>
-                      <TableHead>Feedback</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {feedback.map((item) => (
-                      <TableRow key={item.id}>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Avatar className="h-8 w-8">
-                              <AvatarImage src={item.profiles?.avatar_url || ""} />
-                              <AvatarFallback>
-                                {item.profiles?.full_name?.[0] || "U"}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="flex flex-col">
-                              <span className="text-sm font-medium">
-                                {item.profiles?.full_name || "Unknown"}
-                              </span>
-                              <span className="text-xs text-muted-foreground">
-                                {item.email}
-                              </span>
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={getFeedbackBadgeColor(item.section)}
-                            className="flex items-center gap-1 w-fit"
-                          >
-                            {getFeedbackIcon(item.section)}
-                            {item.section}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="font-medium max-w-xs truncate">
-                          {item.title}
-                        </TableCell>
-                        <TableCell className="max-w-md">
-                          <p className="text-sm text-muted-foreground line-clamp-2">
-                            {item.feedback}
-                          </p>
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {formatDate(item.created_at)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setFeedbackToDelete(item.id);
-                              setDeleteDialogOpen(true);
-                            }}
-                            disabled={loadingStates[item.id]}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="trusted-members" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Trusted Member Applications</CardTitle>
-              <CardDescription>
-                Review and manage trusted member requests
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {applications.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  No applications submitted yet
-                </div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Applicant</TableHead>
-                      <TableHead>Reason</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Submitted</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {applications.map((app) => (
-                      <TableRow key={app.id}>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Avatar className="h-8 w-8">
-                              <AvatarImage src={app.profiles?.avatar_url || ""} />
-                              <AvatarFallback>
-                                {app.profiles?.full_name?.[0] || app.name[0]}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="flex flex-col">
-                              <span className="text-sm font-medium">
-                                {app.profiles?.full_name || app.name}
-                              </span>
-                              <span className="text-xs text-muted-foreground">
-                                {app.email}
-                              </span>
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell className="max-w-md">
-                          <p className="text-sm text-muted-foreground line-clamp-3">
-                            {app.reason}
-                          </p>
-                        </TableCell>
-                        <TableCell>{getStatusBadge(app.status)}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {formatDate(app.created_at)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              variant="default"
-                              size="sm"
-                              onClick={() => handleApprove(app.user_id ?? app.id, app.id)}
-                              disabled={
-                                loadingStates[app.id] || app.status === true
-                              }
-                              className="bg-chart-5 hover:bg-chart-5/90"
-                            >
-                              <Check className="h-4 w-4 mr-1" />
-                              Approve
-                            </Button>
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => handleDeny(app.user_id ?? app.id, app.id)}
-                              disabled={
-                                loadingStates[app.id] || app.status === false
-                              }
-                            >
-                              <X className="h-4 w-4 mr-1" />
-                              Deny
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Flagged Content Tab */}
-        <TabsContent value="flagged" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Flagged Content</CardTitle>
-              <CardDescription>
-                Content flagged by the moderation system
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {flaggedContent.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  No flagged content
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {flaggedContent.map((item: any) => (
-                    <Card key={item.id} className="p-4">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <p className="font-medium">{item.content_type} - {item.flag_type}</p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className="text-sm text-muted-foreground">Status:</span>
-                            <Badge>{item.status}</Badge>
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-2">
-                            Confidence: {Math.round(item.confidence_score * 100)}%
-                          </p>
-                        </div>
-                      </div>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Reports Tab */}
-        <TabsContent value="reports" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>User Reports</CardTitle>
-              <CardDescription>
-                Reports submitted by users
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {contentReports.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  No reports
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {contentReports.map((report: any) => (
-                    <Card key={report.id} className="p-4">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <p className="font-medium">{report.reason}</p>
-                          <p className="text-sm text-muted-foreground mt-1">{report.content_type}</p>
-                          {report.description && (
-                            <p className="text-sm mt-2">{report.description}</p>
-                          )}
-                          <div className="flex items-center gap-2 mt-2 flex-wrap">
-                            <span className="text-xs text-muted-foreground">Status:</span>
-                            <Badge>{report.status}</Badge>
-                            <span className="text-xs text-muted-foreground">Priority:</span>
-                            <Badge variant="outline">{report.priority}</Badge>
-                          </div>
-                        </div>
-                      </div>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete this
-              feedback entry.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteFeedback}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

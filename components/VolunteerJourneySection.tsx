@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { AnimatePresence, motion, useInView } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Search, Mail, QrCode, BarChart3, Award } from "lucide-react";
 import { MiniProjectCard } from "@/components/journey/MiniProjectCard";
@@ -73,11 +73,24 @@ const mockCertificateData = {
 
 export default function VolunteerJourneySection() {
   const [active, setActive] = useState(0);
+  const [autoCycleActive, setAutoCycleActive] = useState(false);
+  const sectionRef = useRef<HTMLDivElement>(null);
+  const sectionInView = useInView(sectionRef, { once: true, amount: 0.3 });
 
   useEffect(() => {
+    if (!autoCycleActive) {
+      return;
+    }
+
     const id = setInterval(() => setActive((s) => (s + 1) % steps.length), 3000);
     return () => clearInterval(id);
-  }, []);
+  }, [autoCycleActive]);
+
+  useEffect(() => {
+    if (sectionInView && !autoCycleActive) {
+      setAutoCycleActive(true);
+    }
+  }, [sectionInView, autoCycleActive]);
 
   const previews = useMemo(
     () => ({
@@ -99,7 +112,7 @@ export default function VolunteerJourneySection() {
   );
 
   return (
-    <section className="py-16 sm:py-20">
+    <section id="journey" ref={sectionRef} className="py-16 sm:py-20">
       <div className="container mx-auto px-4 sm:px-6">
         <motion.div
           initial={{ opacity: 0, y: 18 }}

@@ -460,7 +460,10 @@ export default async function VolunteerDashboard() {
         {/* Overview Tab */}
         <TabsContent value="overview" className="space-y-6">
           {/* Stats Grid - 2 cols mobile, 4 cols desktop */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+          <div
+            className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4"
+            data-tour-id="dashboard-stats"
+          >
             {/* Total Verified Hours */}
             <Card className="col-span-1">
               <CardContent className="p-4 sm:p-6">
@@ -606,7 +609,7 @@ export default async function VolunteerDashboard() {
               </Card>
 
               {/* Upcoming Sessions */}
-              <Card>
+              <Card data-tour-id="dashboard-upcoming">
                 <CardHeader className="pb-2">
                   <CardTitle>Upcoming Sessions</CardTitle>
                   <CardDescription>Your scheduled volunteer commitments</CardDescription>

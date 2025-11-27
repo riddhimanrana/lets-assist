@@ -1,17 +1,18 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { createClient } from "@/utils/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useUserProfile } from "@/hooks/useUserProfile";
 import {
   Avatar as AvatarUI,
   AvatarImage,
   AvatarFallback,
 } from "@/components/ui/avatar";
-import { Upload, CircleCheck, XCircle, Trash2, Shield, AlertTriangle, Calendar, Info } from "lucide-react";
+import { Upload, CircleCheck, XCircle, Shield, AlertTriangle, Calendar, Info, Mail, AlertCircle, MoreHorizontal, Loader2, ShieldCheck, Trash, Trash2, CheckCircle } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -42,6 +43,21 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { calculateAge } from "@/utils/age-helpers";
 import type { ProfileVisibility } from "@/types";
+import {
+    addEmail,
+    unlinkEmail,
+    setPrimaryEmail,
+    getLinkedIdentities,
+    verifyEmail,
+} from "@/utils/auth/account-management";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 // Constants for character limits
 const NAME_MAX_LENGTH = 64;
@@ -49,6 +65,13 @@ const USERNAME_MAX_LENGTH = 32;
 const PHONE_LENGTH = 10; // For raw digits
 const USERNAME_REGEX = /^[a-zA-Z0-9_.-]+$/;
 const PHONE_REGEX = /^\d{3}-\d{3}-\d{4}$/; // Format XXX-XXX-XXXX
+
+interface UserEmail {
+    id: string;
+    email: string;
+    is_primary: boolean;
+    verified_at: string | null;
+}
 
 // Moified schema with character limits and validation
 const onboardingSchema = z.object({
@@ -220,11 +243,10 @@ export default function ProfileClient() {
     avatarUrl: undefined,
     phoneNumber: undefined,
   });
-  const [isDataLoading, setIsDataLoading] = useState(true);
   const [nameLength, setNameLength] = useState(0);
   const [usernameLength, setUsernameLength] = useState(0);
   const [phoneNumberLength, setPhoneNumberLength] = useState(0);
-  
+
   // Privacy & Safety state
   const [profileVisibility, setProfileVisibility] = useState<ProfileVisibility>('private');
   const [isVisibilityLoading, setIsVisibilityLoading] = useState(false);
@@ -233,75 +255,207 @@ export default function ProfileClient() {
   const [dobInput, setDobInput] = useState('');
   const [isUpdatingDob, setIsUpdatingDob] = useState(false);
   const [dobError, setDobError] = useState<string | null>(null);
-  const [isSchoolAccount, setIsSchoolAccount] = useState(false);
   const [emailDomain, setEmailDomain] = useState<string | null>(null);
   const [requiresParentalConsent, setRequiresParentalConsent] = useState(false);
   const [age, setAge] = useState<number | null>(null);
 
-  useEffect(() => {
-    async function fetchUserProfile() {
-      const supabase = createClient();
-      try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        const { data: profileData } = await supabase
-          .from("profiles")
-          .select("full_name, avatar_url, username, phone, profile_visibility, date_of_birth, is_school_account, parental_consent_required, email")
-          .eq("id", user?.id)
-          .single();
-        if (profileData) {
-          // Format phone number for display (XXX-XXX-XXXX)
-          const formattedPhoneNumber = profileData.phone
-            ? `${profileData.phone.substring(0, 3)}-${profileData.phone.substring(3, 6)}-${profileData.phone.substring(6, 10)}`
-            : undefined;
-
-          setDefaultValues({
-            fullName: profileData.full_name,
-            username: profileData.username,
-            avatarUrl: profileData.avatar_url,
-            phoneNumber: formattedPhoneNumber,
-          });
-          // Initialize character counts
-          setNameLength(profileData.full_name?.length || 0);
-          setUsernameLength(profileData.username?.length || 0);
-          setPhoneNumberLength(profileData.phone?.length || 0);
-          
-          // Set privacy data
-          setProfileVisibility((profileData.profile_visibility as ProfileVisibility) || 'private');
-          setDateOfBirth(profileData.date_of_birth);
-          setDobInput(profileData.date_of_birth || '');
-          setIsSchoolAccount(profileData.is_school_account || false);
-          setRequiresParentalConsent(profileData.parental_consent_required || false);
-          
-          // Calculate age and determine if user can change visibility
-          if (profileData.date_of_birth) {
-            const userAge = calculateAge(profileData.date_of_birth);
-            setAge(userAge);
-            setCanChangeVisibility(userAge >= 13);
-          }
-          
-          // Extract email domain
-          if (profileData.email) {
-            const domain = profileData.email.split('@')[1];
-            setEmailDomain(domain);
-          }
-        }
-      } catch (error) {
-        console.error("Error fetching user profile:", error);
-        toast.error("Failed to load profile data");
-      } finally {
-        setIsDataLoading(false);
-      }
-    }
-    fetchUserProfile();
-  }, []);
-
+  // Email management state
+  const [emails, setEmails] = useState<UserEmail[]>([]);
+  const [emailLoading, setEmailLoading] = useState(true);
+  const [newEmail, setNewEmail] = useState("");
+  const [adding, setAdding] = useState(false);
+  const [verificationStep, setVerificationStep] = useState(false);
+  const [verificationCode, setVerificationCode] = useState("");
+  const [pendingEmail, setPendingEmail] = useState("");
+  const [verifying, setVerifying] = useState(false);
+  const [pendingPrimaryEmail, setPendingPrimaryEmail] = useState<string | null>(null);
+  const { user, isLoading: isAuthLoading } = useAuth();
+  const { profile, isLoading: isProfileLoading } = useUserProfile();
+  const isDataLoading = isAuthLoading || isProfileLoading;
   const form = useForm<OnboardingValues>({
     resolver: zodResolver(onboardingSchema),
     defaultValues,
-    values: defaultValues, // This ensures form updates when defaultValues change
+    values: defaultValues,
   });
+
+  useEffect(() => {
+    if (isProfileLoading) {
+      return;
+    }
+
+    if (!profile) {
+      const emptyValues: OnboardingValues = {
+        fullName: "",
+        username: "",
+        avatarUrl: undefined,
+        phoneNumber: undefined,
+      };
+
+      setDefaultValues(emptyValues);
+      form.reset(emptyValues);
+      setNameLength(0);
+      setUsernameLength(0);
+      setPhoneNumberLength(0);
+      setProfileVisibility("private");
+      setDateOfBirth(null);
+      setDobInput("");
+      setRequiresParentalConsent(false);
+      setCanChangeVisibility(true);
+      setAge(null);
+
+      const fallbackDomain = user?.email?.split("@")[1] ?? null;
+      setEmailDomain(fallbackDomain);
+      return;
+    }
+
+    const formattedPhoneNumber = profile.phone
+      ? `${profile.phone.substring(0, 3)}-${profile.phone.substring(3, 6)}-${profile.phone.substring(6, 10)}`
+      : undefined;
+
+    const profileValues: OnboardingValues = {
+      fullName: profile.full_name ?? undefined,
+      username: profile.username ?? undefined,
+      avatarUrl: profile.avatar_url ?? undefined,
+      phoneNumber: formattedPhoneNumber,
+    };
+
+    setDefaultValues(profileValues);
+    form.reset(profileValues);
+
+    setNameLength(profile.full_name?.length || 0);
+    setUsernameLength(profile.username?.length || 0);
+    setPhoneNumberLength(profile.phone?.length || 0);
+
+    setProfileVisibility(
+      (profile.profile_visibility as ProfileVisibility) || "private",
+    );
+    setDateOfBirth(profile.date_of_birth ?? null);
+    setDobInput(profile.date_of_birth || "");
+    setRequiresParentalConsent(Boolean(profile.parental_consent_required));
+
+    if (profile.date_of_birth) {
+      const userAge = calculateAge(profile.date_of_birth);
+      setAge(userAge);
+      setCanChangeVisibility(userAge >= 13);
+    } else {
+      setAge(null);
+      setCanChangeVisibility(true);
+    }
+
+    const emailSource = profile.email || user?.email || null;
+    const domain = emailSource ? emailSource.split("@")[1] ?? null : null;
+    setEmailDomain(domain);
+  }, [profile, isProfileLoading, user?.email, form]);
+
+  const fetchEmails = useCallback(async () => {
+    if (!user) {
+      setEmails([]);
+      setPendingPrimaryEmail(null);
+      setEmailLoading(false);
+      return;
+    }
+
+    setEmailLoading(true);
+
+    try {
+      const data = await getLinkedIdentities();
+      setEmails(data as UserEmail[]);
+      setPendingPrimaryEmail(null);
+    } catch (error) {
+      console.error("Failed to fetch emails:", error);
+      toast.error("Failed to load email addresses");
+    } finally {
+      setEmailLoading(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    fetchEmails();
+  }, [fetchEmails]);
+
+  const handleAddEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newEmail) return;
+
+    setAdding(true);
+    try {
+      const result = await addEmail(newEmail);
+      if (result.error && (result as any).warning) {
+        toast.warning(result.error);
+        setAdding(false);
+        return;
+      }
+
+      if (result.error) {
+        toast.error(result.error);
+        setAdding(false);
+        return;
+      }
+
+      setPendingEmail(newEmail);
+      setVerificationStep(true);
+      toast.success("Verification code sent to " + newEmail);
+    } catch (error: any) {
+      console.error("Error adding email:", error);
+      toast.error(error.message || "Failed to add email");
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  const handleVerifyEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!verificationCode) return;
+
+    setVerifying(true);
+    try {
+      await verifyEmail(pendingEmail, verificationCode);
+      toast.success("Email verified successfully");
+      setVerificationStep(false);
+      setNewEmail("");
+      setVerificationCode("");
+      setPendingEmail("");
+      fetchEmails();
+    } catch (error: any) {
+      console.error("Error verifying email:", error);
+      toast.error(error.message || "Invalid verification code");
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const handleRemoveEmail = async (id: string) => {
+    try {
+      await unlinkEmail(id);
+      toast.success("Email removed successfully");
+      fetchEmails();
+    } catch (error: any) {
+      console.error("Error removing email:", error);
+      toast.error(error.message || "Failed to remove email");
+    }
+  };
+
+  const handleSetPrimary = async (email: string, verified: boolean) => {
+    if (!verified) {
+      toast.error("Only verified emails can be set as primary.");
+      return;
+    }
+
+    try {
+      const result = await setPrimaryEmail(email);
+      if (result.needsConfirmation) {
+        setPendingPrimaryEmail(result.pendingEmail || email);
+        toast.info("Email change pending confirmation. Check your inbox to finish the update.");
+        return;
+      }
+      toast.success("Primary email updated");
+      setPendingPrimaryEmail(null);
+      setTimeout(fetchEmails, 500);
+    } catch (error: any) {
+      console.error("Error setting primary email:", error);
+      toast.error(error.message || "Failed to update primary email");
+    }
+  };
 
   async function handleUsernameBlur(e: React.FocusEvent<HTMLInputElement>) {
     const username = e.target.value.trim();
@@ -338,7 +492,7 @@ export default function ProfileClient() {
 
   async function onSubmit(data: OnboardingValues) {
     setIsLoading(true);
-    
+
     try {
       // Call the updated function with name, username, and phone number
       const result = await updateNameAndUsername(
@@ -346,13 +500,13 @@ export default function ProfileClient() {
         data.username,
         data.phoneNumber // Pass the transformed (digits only) phone number
       );
-      
+
       if (!result) {
         toast.error("Failed to update profile. Please try again.");
         setIsLoading(false); // Ensure loading state is reset
         return;
       }
-      
+
       if (result.error) {
         const errors = result.error;
         Object.keys(errors).forEach((key) => {
@@ -360,17 +514,17 @@ export default function ProfileClient() {
           const formKey = key === 'server' ? 'root.serverError' : key as keyof OnboardingValues;
           // Check if the key exists in the form before setting error
           if (formKey in form.getValues() || formKey === 'root.serverError' || formKey === 'phoneNumber') {
-             form.setError(formKey as any, { // Use 'any' temporarily if type mapping is complex
-               type: "server",
-               message: errors[key as keyof typeof errors]?.[0],
-             });
+            form.setError(formKey as any, { // Use 'any' temporarily if type mapping is complex
+              type: "server",
+              message: errors[key as keyof typeof errors]?.[0],
+            });
           } else {
-             // Handle unexpected error keys, maybe log them or show a generic error
-             console.warn(`Unexpected error key from server: ${key}`);
-             form.setError('root.serverError', {
-                type: "server",
-                message: "An unexpected validation error occurred."
-             });
+            // Handle unexpected error keys, maybe log them or show a generic error
+            console.warn(`Unexpected error key from server: ${key}`);
+            form.setError('root.serverError', {
+              type: "server",
+              message: "An unexpected validation error occurred."
+            });
           }
         });
         toast.error("Failed to update profile. Please check the errors.");
@@ -389,22 +543,22 @@ export default function ProfileClient() {
       setIsLoading(false);
     }
   }
-  
+
   // Handler for profile visibility toggle
   async function handleVisibilityChange(checked: boolean) {
     const newVisibility: ProfileVisibility = checked ? 'public' : 'private';
     setIsVisibilityLoading(true);
-    
+
     try {
       const result = await updateProfileVisibility(newVisibility);
-      
+
       if (result.error) {
         // Extract error message from error object
         const errorMsg = result.error.visibility?.[0] || result.error.server?.[0] || 'Failed to update visibility';
         toast.error(errorMsg);
         return;
       }
-      
+
       if (result.success && result.visibility) {
         setProfileVisibility(result.visibility);
         toast.success(`Profile is now ${result.visibility}`);
@@ -416,34 +570,34 @@ export default function ProfileClient() {
       setIsVisibilityLoading(false);
     }
   }
-  
+
   // Handler for date of birth update
   async function handleDobSave() {
     if (!dobInput) {
       setDobError("Date of birth is required");
       return;
     }
-    
+
     // Validate date format (YYYY-MM-DD)
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
     if (!dateRegex.test(dobInput)) {
       setDobError("Please enter date in YYYY-MM-DD format");
       return;
     }
-    
+
     // Validate date is in the past
     const inputDate = new Date(dobInput);
     if (inputDate > new Date()) {
       setDobError("Date of birth cannot be in the future");
       return;
     }
-    
+
     setIsUpdatingDob(true);
     setDobError(null);
-    
+
     try {
       const result = await updateDateOfBirth(dobInput);
-      
+
       if (result.error) {
         // Extract error message from error object
         const errorMsg = result.error.dateOfBirth?.[0] || result.error.server?.[0] || 'Failed to update date of birth';
@@ -451,29 +605,25 @@ export default function ProfileClient() {
         toast.error(errorMsg);
         return;
       }
-      
+
       if (result.success) {
         setDateOfBirth(dobInput);
-        
+
         // Update age and visibility constraints
         if (result.age !== undefined) {
           setAge(result.age);
           setCanChangeVisibility(result.canChangeVisibility);
-          
+
           if (result.age < 13 && result.requiresParentalConsent) {
             setRequiresParentalConsent(true);
             toast.warning("Profile locked to private. Parental consent required.");
           }
         }
-        
-        if (result.isSchoolAccount !== undefined) {
-          setIsSchoolAccount(result.isSchoolAccount);
-        }
-        
+
         if (result.visibility) {
           setProfileVisibility(result.visibility);
         }
-        
+
         toast.success("Date of birth updated successfully");
       }
     } catch (error) {
@@ -639,7 +789,7 @@ export default function ProfileClient() {
                                   }}
                                   className={
                                     !checkUsernameValid(field.value || "") &&
-                                    field.value
+                                      field.value
                                       ? "border-destructive"
                                       : ""
                                   }
@@ -676,7 +826,7 @@ export default function ProfileClient() {
                           <FormItem>
                             <div className="flex justify-between items-center">
                               <FormLabel>Phone Number (Optional)</FormLabel>
-                               <span
+                              <span
                                 className={`text-xs ${phoneNumberLength > PHONE_LENGTH ? "text-destructive font-semibold" : "text-muted-foreground"}`}
                               >
                                 {phoneNumberLength}/{PHONE_LENGTH}
@@ -718,7 +868,148 @@ export default function ProfileClient() {
               )}
             </CardContent>
           </Card>
-          
+
+          {/* Email Management Section */}
+          {emailLoading ? (
+            <Card>
+              <CardContent className="pt-6 flex justify-center">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle>Email Addresses</CardTitle>
+                <CardDescription>
+                  Manage the email addresses associated with your account.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-3">
+                  {emails.map((email) => {
+                    const isVerified = Boolean(email.verified_at);
+                    return (
+                      <div
+                        key={email.id}
+                        className="flex items-center justify-between gap-3 rounded-lg border bg-card/20 px-4 py-3"
+                      >
+                          <div className="flex items-center gap-3">
+                            <span className="text-sm font-medium text-foreground">
+                              {email.email}
+                            </span>
+                            <Badge
+                              variant={isVerified ? "outline" : "destructive"}
+                              className="text-[0.65rem] font-semibold"
+                            >
+                              {isVerified ? "Verified" : "Unverified"}
+                            </Badge>
+                            {email.is_primary && (
+                              <span className="text-xs font-semibold text-primary">
+                                Primary
+                              </span>
+                            )}
+                            {pendingPrimaryEmail === email.email && (
+                              <span className="text-xs font-semibold text-muted-foreground">
+                                Pending confirmation
+                              </span>
+                            )}
+                          </div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-48">
+                            <DropdownMenuItem
+                              onSelect={() => handleSetPrimary(email.email, isVerified)}
+                              disabled={!isVerified || email.is_primary}
+                              className="gap-2"
+                            >
+                              <ShieldCheck className="h-4 w-4" />
+                              Set as primary
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onSelect={() => handleRemoveEmail(email.id)}
+                              disabled={email.is_primary}
+                              className="gap-2 text-destructive"
+                            >
+                              <Trash className="h-4 w-4 text-destructive" />
+                              Remove email
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {!verificationStep ? (
+                  <form onSubmit={handleAddEmail} className="flex gap-2">
+                    <div className="grid w-full items-center gap-1.5">
+                      <Label htmlFor="email">Add new email</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          id="email"
+                          type="email"
+                          placeholder="Enter email address"
+                          value={newEmail}
+                          onChange={(e) => setNewEmail(e.target.value)}
+                          required
+                        />
+                        <Button type="submit" disabled={adding}>
+                          {adding && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                          Add
+                        </Button>
+                      </div>
+                    </div>
+                  </form>
+                ) : (
+                  <div className="space-y-4 border p-4 rounded-lg bg-muted/20">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <AlertCircle className="h-4 w-4" />
+                      <span>
+                        Verification code sent to <strong>{pendingEmail}</strong>
+                      </span>
+                    </div>
+                    <form onSubmit={handleVerifyEmail} className="flex gap-2">
+                      <div className="grid w-full items-center gap-1.5">
+                        <Label htmlFor="code">Verification Code</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            id="code"
+                            type="text"
+                            placeholder="123456"
+                            value={verificationCode}
+                            onChange={(e) => setVerificationCode(e.target.value)}
+                            required
+                            maxLength={6}
+                          />
+                          <Button type="submit" disabled={verifying}>
+                            {verifying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Verify
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            onClick={() => {
+                              setVerificationStep(false);
+                              setVerificationCode("");
+                              setPendingEmail("");
+                            }}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    </form>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           {/* Privacy & Safety Card */}
           <Card className="mt-6">
             <CardHeader>
@@ -746,8 +1037,8 @@ export default function ProfileClient() {
                         Profile Visibility
                       </Label>
                       <p className="text-sm text-muted-foreground">
-                        {profileVisibility === 'public' 
-                          ? 'Your profile is visible to everyone' 
+                        {profileVisibility === 'public'
+                          ? 'Your profile is visible to everyone'
                           : 'Your profile is only visible to you and admins'}
                       </p>
                       {!canChangeVisibility && (
@@ -780,7 +1071,7 @@ export default function ProfileClient() {
                         </Badge>
                       )}
                     </div>
-                    
+
                     {dateOfBirth ? (
                       <div className="space-y-2">
                         <p className="text-sm text-muted-foreground">
@@ -827,17 +1118,6 @@ export default function ProfileClient() {
                     )}
                   </div>
 
-                  {/* School Account Badge */}
-                  {isSchoolAccount && emailDomain && (
-                    <Alert>
-                      <Shield className="h-4 w-4" />
-                      <AlertTitle>School Account Verified</AlertTitle>
-                      <AlertDescription>
-                        Your account is verified as a school account from {emailDomain}
-                      </AlertDescription>
-                    </Alert>
-                  )}
-
                   {/* Parental Consent Warning */}
                   {requiresParentalConsent && (
                     <Alert variant="warning">
@@ -845,8 +1125,8 @@ export default function ProfileClient() {
                       <AlertTitle>Parental Consent Required</AlertTitle>
                       <AlertDescription>
                         We still need a parent or guardian to approve your account.{' '}
-                        <a 
-                          href="/account/parental-consent" 
+                        <a
+                          href="/account/parental-consent"
                           className="underline font-medium hover:text-primary"
                         >
                           Request consent here

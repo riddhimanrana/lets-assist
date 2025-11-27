@@ -119,7 +119,7 @@ const mockProjects = [
 
 export default function OrgToolingSection() {
   return (
-    <section className="py-16 sm:py-20">
+    <section id="org-tooling" className="py-16 sm:py-20">
       <div className="container mx-auto px-4 sm:px-6">
         <motion.div
           initial={{ opacity: 0, y: 18 }}
@@ -188,7 +188,7 @@ export default function OrgToolingSection() {
               <div>
               <p className="text-sm font-semibold uppercase tracking-[0.3em] text-primary/80">Why teams switch</p>
               <h3 className="mt-2 text-xl font-semibold text-foreground">
-                Built-in tools SignUp Genius doesn’t offer
+                Built-in tools SignUpGenius doesn’t offer
               </h3>
               <p className="mt-2 text-sm text-muted-foreground max-w-prose">
                 Attendance verification, auto-published certificates, member exports, and organization roles are all
@@ -213,7 +213,7 @@ export default function OrgToolingSection() {
               </li>
 
               <li className="flex items-start gap-3 text-muted-foreground/80">
-                <span className="rounded-full border border-border px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap">SignUp Genius</span>
+                <span className="rounded-full border border-border px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap">SignUpGenius</span>
                 <span className="leading-relaxed">Sign-up lists only — no verified hours, certificates, or compliance features</span>
               </li>
               </ul>

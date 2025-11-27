@@ -109,8 +109,7 @@ export function QRCodeScannerModal({
                 formats={["qr_code"]}
                 // Add the track prop here
                 components={{
-                  audio: false,
-                  tracker: boundingBox, // Corrected the syntax here
+                  tracker: boundingBox,
                 }}
                 styles={{
                   container: { width: "100%", height: "100%", paddingTop: "0" },
