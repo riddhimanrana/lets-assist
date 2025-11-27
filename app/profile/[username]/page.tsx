@@ -255,6 +255,8 @@ function formatHours(hours: number): string {
                 <ReportContentButton
                   contentType="profile"
                   contentId={profile.id}
+                  contentTitle={profile.full_name || profile.username}
+                  contentCreator={profile.full_name || profile.username}
                   triggerButton={
                     <DropdownMenuItem>
                       <Flag className="mr-2 h-4 w-4" />

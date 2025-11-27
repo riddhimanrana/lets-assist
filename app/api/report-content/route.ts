@@ -10,7 +10,7 @@ export async function POST(request: Request) {
     
     // Parse request body
     const body = await request.json();
-    const { contentType, contentId, reason, description } = body;
+    const { contentType, contentId, reason, description, url, metadata } = body;
     
     // Validate required fields
     if (!contentType || !contentId || !reason || !description) {
@@ -63,6 +63,19 @@ export async function POST(request: Request) {
       );
     }
     
+    // Build content snapshot with URL and optional metadata
+    const contentSnapshot: Record<string, unknown> = {};
+    if (url) {
+      contentSnapshot.url = url;
+    }
+    if (metadata) {
+      // Store metadata like title, creator, context for richer moderation context
+      if (metadata.title) contentSnapshot.title = metadata.title;
+      if (metadata.creator) contentSnapshot.creator = metadata.creator;
+      if (metadata.context) contentSnapshot.context = metadata.context;
+      if (metadata.reportedAt) contentSnapshot.reportedAt = metadata.reportedAt;
+    }
+    
     // Insert the report into content_reports table
     const { data, error } = await supabase
       .from('content_reports')
@@ -76,6 +89,7 @@ export async function POST(request: Request) {
         priority: 'normal', // Can be adjusted based on reason
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
+        content_snapshot: Object.keys(contentSnapshot).length > 0 ? contentSnapshot : null,
       })
       .select()
       .single();
