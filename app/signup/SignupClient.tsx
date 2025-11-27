@@ -30,6 +30,8 @@ import { useRouter } from "next/navigation";
 
 interface SignupClientProps {
   redirectPath?: string;
+  staffToken?: string;
+  orgUsername?: string;
 }
 
 const signupSchema = z.object({
@@ -41,13 +43,16 @@ const signupSchema = z.object({
 
 type SignupValues = z.infer<typeof signupSchema>;
 
-export default function SignupClient({ redirectPath }: SignupClientProps) {
+export default function SignupClient({ redirectPath, staffToken, orgUsername }: SignupClientProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [turnstileVerified, setTurnstileVerified] = useState(false);
   const turnstileRef = useRef<TurnstileRef>(null);
   const [turnstileReady, setTurnstileReady] = useState(false);
   const router = useRouter();
+
+  // Check if this is a staff invite signup
+  const isStaffInvite = !!(staffToken && orgUsername);
 
   const form = useForm<SignupValues>({
     resolver: zodResolver(signupSchema),
@@ -71,6 +76,14 @@ export default function SignupClient({ redirectPath }: SignupClientProps) {
     
     if (turnstileToken) {
       formData.append("turnstileToken", turnstileToken);
+    }
+
+    // Add staff token if present
+    if (staffToken) {
+      formData.append("staffToken", staffToken);
+    }
+    if (orgUsername) {
+      formData.append("orgUsername", orgUsername);
     }
 
     const result = await signup(formData);
@@ -172,10 +185,12 @@ export default function SignupClient({ redirectPath }: SignupClientProps) {
       <Card className="w-full max-w-sm mx-auto mb-12">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl text-left">
-            Create an account
+            {isStaffInvite ? "Staff Invite" : "Create an account"}
           </CardTitle>
           <CardDescription className="text-left">
-            {redirectPath
+            {isStaffInvite
+              ? `You've been invited to join as staff. Create your account to continue.`
+              : redirectPath
               ? "Sign up to continue with your project signup"
               : "Enter your details below to create your account"}
           </CardDescription>

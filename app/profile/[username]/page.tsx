@@ -128,15 +128,77 @@ export default async function ProfilePage(
   const supabase = await createClient();
   const { username } = await params.params;
   
-  // Fetch user profile data
+  // Fetch user profile data including visibility
   const { data: profile, error } = await supabase
     .from("profiles")
-    .select("*")
+    .select("*, profile_visibility")
     .eq("username", username)
-    .single<Profile>();
+    .single<Profile & { profile_visibility?: string }>();
 
   if (error || !profile) {
     notFound();
+  }
+
+  // Get current user
+  const { data: { user } } = await supabase.auth.getUser();
+  const isOwner = user?.id === profile.id;
+
+  // Check profile visibility unless it's the owner viewing their own profile
+  if (!isOwner && profile.profile_visibility !== 'public') {
+    // Check if viewer has permission (e.g., is org admin/staff for school accounts)
+    // For now, just block access to private profiles
+    if (profile.profile_visibility === 'private' || !profile.profile_visibility) {
+      return (
+        <div className="container mx-auto px-4 py-8">
+          <Card className="max-w-md mx-auto">
+            <CardContent className="pt-6 text-center">
+              <Shield className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+              <h2 className="text-xl font-semibold mb-2">Private Profile</h2>
+              <p className="text-muted-foreground">
+                This profile is set to private and cannot be viewed.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+    
+    // Organization-only profile - check if viewer is in same org
+    if (profile.profile_visibility === 'organization_only') {
+      // Get viewer's organizations
+      const { data: viewerOrgs } = await supabase
+        .from("organization_members")
+        .select("organization_id")
+        .eq("user_id", user?.id || '');
+      
+      // Get profile owner's organizations
+      const { data: ownerOrgs } = await supabase
+        .from("organization_members")
+        .select("organization_id")
+        .eq("user_id", profile.id);
+      
+      const viewerOrgIds = viewerOrgs?.map(o => o.organization_id) || [];
+      const ownerOrgIds = ownerOrgs?.map(o => o.organization_id) || [];
+      
+      // Check for any overlap
+      const hasSharedOrg = viewerOrgIds.some(id => ownerOrgIds.includes(id));
+      
+      if (!hasSharedOrg) {
+        return (
+          <div className="container mx-auto px-4 py-8">
+            <Card className="max-w-md mx-auto">
+              <CardContent className="pt-6 text-center">
+                <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                <h2 className="text-xl font-semibold mb-2">Organization Members Only</h2>
+                <p className="text-muted-foreground">
+                  This profile is only visible to members of the same organization.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        );
+      }
+    }
   }
 
   // Determine robust trusted flag for display (owner sees trusted immediately)

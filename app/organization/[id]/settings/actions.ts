@@ -265,3 +265,168 @@ export async function deleteOrganization(organizationId: string) {
     return { error: error.message || "Failed to delete organization" };
   }
 }
+
+/**
+ * Generate a staff invite link for an organization
+ * This link allows teachers/staff to join directly with staff role
+ */
+export async function generateStaffLink(organizationId: string, expiresInDays: number = 30) {
+  const supabase = await createClient();
+  
+  // Verify that user is authenticated
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return { error: "You must be logged in to generate staff links" };
+  }
+
+  // Verify the user is an admin of the organization
+  const { data: membership } = await supabase
+    .from("organization_members")
+    .select("role")
+    .eq("organization_id", organizationId)
+    .eq("user_id", user.id)
+    .eq("role", "admin")
+    .single();
+
+  if (!membership) {
+    return { error: "Only admins can generate staff invite links" };
+  }
+
+  try {
+    // Generate a new UUID token
+    const token = crypto.randomUUID();
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + expiresInDays);
+
+    // Update the organization with the new staff token
+    const { error: updateError } = await supabase
+      .from("organizations")
+      .update({
+        staff_join_token: token,
+        staff_join_token_created_at: new Date().toISOString(),
+        staff_join_token_expires_at: expiresAt.toISOString(),
+      })
+      .eq("id", organizationId);
+
+    if (updateError) {
+      console.error("Error generating staff link:", updateError);
+      throw updateError;
+    }
+
+    // Revalidate the settings page
+    revalidatePath(`/organization/${organizationId}/settings`);
+
+    return { 
+      success: true, 
+      token,
+      expiresAt: expiresAt.toISOString(),
+    };
+  } catch (error: any) {
+    console.error("Error generating staff link:", error);
+    return { error: error.message || "Failed to generate staff link" };
+  }
+}
+
+/**
+ * Revoke the staff invite link for an organization
+ */
+export async function revokeStaffLink(organizationId: string) {
+  const supabase = await createClient();
+  
+  // Verify that user is authenticated
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return { error: "You must be logged in to revoke staff links" };
+  }
+
+  // Verify the user is an admin of the organization
+  const { data: membership } = await supabase
+    .from("organization_members")
+    .select("role")
+    .eq("organization_id", organizationId)
+    .eq("user_id", user.id)
+    .eq("role", "admin")
+    .single();
+
+  if (!membership) {
+    return { error: "Only admins can revoke staff invite links" };
+  }
+
+  try {
+    const { error: updateError } = await supabase
+      .from("organizations")
+      .update({
+        staff_join_token: null,
+        staff_join_token_created_at: null,
+        staff_join_token_expires_at: null,
+      })
+      .eq("id", organizationId);
+
+    if (updateError) {
+      console.error("Error revoking staff link:", updateError);
+      throw updateError;
+    }
+
+    // Revalidate the settings page
+    revalidatePath(`/organization/${organizationId}/settings`);
+
+    return { success: true };
+  } catch (error: any) {
+    console.error("Error revoking staff link:", error);
+    return { error: error.message || "Failed to revoke staff link" };
+  }
+}
+
+/**
+ * Get staff link details for an organization
+ */
+export async function getStaffLinkDetails(organizationId: string) {
+  const supabase = await createClient();
+  
+  // Verify that user is authenticated
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return { error: "You must be logged in to view staff link details" };
+  }
+
+  // Verify the user is an admin of the organization
+  const { data: membership } = await supabase
+    .from("organization_members")
+    .select("role")
+    .eq("organization_id", organizationId)
+    .eq("user_id", user.id)
+    .eq("role", "admin")
+    .single();
+
+  if (!membership) {
+    return { error: "Only admins can view staff link details" };
+  }
+
+  try {
+    const { data: org, error } = await supabase
+      .from("organizations")
+      .select("staff_join_token, staff_join_token_created_at, staff_join_token_expires_at")
+      .eq("id", organizationId)
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    // Check if token is expired
+    const isExpired = org.staff_join_token_expires_at 
+      ? new Date(org.staff_join_token_expires_at) < new Date()
+      : false;
+
+    return {
+      hasToken: !!org.staff_join_token && !isExpired,
+      token: isExpired ? null : org.staff_join_token,
+      createdAt: org.staff_join_token_created_at,
+      expiresAt: org.staff_join_token_expires_at,
+      isExpired,
+    };
+  } catch (error: any) {
+    console.error("Error getting staff link details:", error);
+    return { error: error.message || "Failed to get staff link details" };
+  }
+}

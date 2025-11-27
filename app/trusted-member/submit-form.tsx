@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { createClient } from "@/utils/supabase/client";
 import { CheckCircle2, Clock, XCircle, ShieldCheck } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -65,6 +66,7 @@ export function SubmitTrustedMemberForm({
   defaultName?: string;
   defaultEmail?: string;
 }) {
+  const { user, isLoading: authLoading } = useAuth(); // Use centralized auth hook
   const [pending, startTransition] = useTransition();
   const [serverError, setServerError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -87,15 +89,17 @@ export function SubmitTrustedMemberForm({
 
   // On mount, check if the user already has an application and its status
   useEffect(() => {
+    // Wait for auth to load
+    if (authLoading) return;
+    
     let mounted = true;
     (async () => {
       try {
-        const supabase = createClient();
-        const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
           if (mounted) setAppStatus("none");
           return;
         }
+        const supabase = createClient();
         // First, check if profile is already trusted
         const { data: profile } = await supabase
           .from("profiles")
@@ -129,7 +133,7 @@ export function SubmitTrustedMemberForm({
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [user, authLoading]); // Re-run when auth state changes
 
   function onSubmit(values: FormValues) {
     setServerError(null);

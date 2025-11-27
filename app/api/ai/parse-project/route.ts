@@ -64,8 +64,7 @@ Given a user's description, extract and return a JSON object with the following 
     }
   },
   "verificationMethod": "qr-code" | "manual" | "auto" | "signup-only",
-  "requireLogin": boolean,
-  "isPrivate": boolean
+  "requireLogin": boolean
 }
 
 Rules:
@@ -79,7 +78,6 @@ Rules:
 - Otherwise use "oneTime"
 - Default verificationMethod to "qr-code" for in-person events
 - Default requireLogin to true
-- Default isPrivate to false unless explicitly mentioned
 - Keep descriptions informative and engaging
 - Extract location information carefully (city, state, address if provided)
 

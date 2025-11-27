@@ -72,6 +72,11 @@ export function NotificationPopover() {
   const isReportFeedbackNotification = (notification: Notification) => {
     return notification.data?.modalType === 'report-feedback';
   };
+
+  // Track if we've fetched unread count on initial mount
+  const initialFetchDone = React.useRef(false);
+  // Stable channel ref to avoid recreating subscriptions
+  const channelRef = React.useRef<ReturnType<typeof supabase.channel> | null>(null);
   
   useEffect(() => {
     if (!user?.id) return; // Wait for user to be available
@@ -80,12 +85,27 @@ export function NotificationPopover() {
       loadNotifications();
     }
     
+    // Only update unread count on initial mount, not on every user change
+    // Realtime subscription will handle updates after that
+    if (!initialFetchDone.current) {
+      updateUnreadCount();
+      initialFetchDone.current = true;
+    }
+    
+    // If channel already exists for this user, don't recreate
+    if (channelRef.current) return;
+    
     // Setup realtime subscription using user from auth hook
-    const channelName = `notification-popover-${user.id}-${Date.now()}`;
+    // Use stable channel name (no Date.now()) to avoid recreating subscriptions
+    const channelName = `notification-popover-${user.id}`;
     console.log(`Setting up notification badge channel: ${channelName}`);
     
-    // Update unread count on component load
-    updateUnreadCount();
+    // Only update unread count on initial mount, not on every user change
+    // Realtime subscription will handle updates after that
+    if (!initialFetchDone.current) {
+      updateUnreadCount();
+      initialFetchDone.current = true;
+    }
     
     const channel = supabase
       .channel(channelName)
@@ -109,12 +129,24 @@ export function NotificationPopover() {
         console.log(`Badge notification channel status: ${status}`);
       });
     
+    channelRef.current = channel;
+    
     // Cleanup function
     return () => {
       console.log('Removing notification badge channel');
-      supabase.removeChannel(channel);
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
     };
-  }, [user?.id, open]);
+  }, [user?.id]); // Remove 'open' from deps - we handle it separately
+
+  // Handle popover open state changes separately
+  useEffect(() => {
+    if (open && user?.id) {
+      loadNotifications();
+    }
+  }, [open, user?.id]);
 
   // Auto mark all notifications as read when the popover closes and there are unread notifications
   useEffect(() => {

@@ -445,9 +445,9 @@ export async function getProject(projectId: string) {
   if (project) {
 
 
-    // Check if the project is private and the user has permission to view it
-    if (project.is_private) {
-      // If it's a private project, check user's organization memberships
+    // Check if the project is organization-only and the user has permission to view it
+    if (project.visibility === 'organization_only') {
+      // If it's an organization-only project, check user's organization memberships
       if (!user) {
         return { error: "unauthorized", project: null };
       }

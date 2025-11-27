@@ -27,6 +27,10 @@ export async function getActiveProjects(
       *
     `);
 
+  // Only show public projects in the public feed
+  // Unlisted projects are accessible via direct link but not listed
+  query = query.eq("visibility", "public");
+
   // Apply status filter if specified
   if (status) {
     query = query.eq("status", status);
@@ -48,15 +52,22 @@ export async function getActiveProjects(
     return [];
   }
 
-  // Get confirmed signups for all projects in a single query
-  const { data: confirmedSignups } = await supabase
-    .from("project_signups")
-    .select(`
-      project_id,
-      schedule_id
-    `)
-    .eq("status", "approved")
-    .in("project_id", projects.map(p => p.id));
+  // Short-circuit: Skip query if no projects to avoid empty in() filter
+  const projectIds = projects.map(p => p.id);
+  let confirmedSignups: { project_id: string; schedule_id: string }[] | null = null;
+  
+  if (projectIds.length > 0) {
+    // Get confirmed signups for all projects in a single query
+    const { data } = await supabase
+      .from("project_signups")
+      .select(`
+        project_id,
+        schedule_id
+      `)
+      .eq("status", "approved")
+      .in("project_id", projectIds);
+    confirmedSignups = data;
+  }
 
   // Process projects and add signup counts
   const processedProjects = projects.map(project => {
@@ -81,14 +92,19 @@ export async function getActiveProjects(
   const creatorIds = Array.from(new Set(projects.map(p => p.creator_id)));
   const orgIds = Array.from(new Set(projects.map(p => p.organization_id).filter(Boolean)));
 
-  // Fetch corresponding profiles
-  const { data: profiles, error: profilesError } = await supabase
-    .from("profiles")
-    .select("id, avatar_url, full_name, username, created_at")
-    .in("id", creatorIds);
+  // Short-circuit: Skip profile query if no creator IDs
+  let profiles: Profile[] | null = null;
+  if (creatorIds.length > 0) {
+    const { data, error: profilesError } = await supabase
+      .from("profiles")
+      .select("id, avatar_url, full_name, username, created_at")
+      .in("id", creatorIds);
 
-  if (profilesError) {
-    console.error("Error fetching profiles:", profilesError);
+    if (profilesError) {
+      console.error("Error fetching profiles:", profilesError);
+    } else {
+      profiles = data;
+    }
   }
 
   // Fetch organizations if needed
