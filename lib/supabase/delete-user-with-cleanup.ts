@@ -1,5 +1,4 @@
 import type {
-  PostgrestFilterBuilder,
   PostgrestResponse,
   SupabaseClient,
 } from "@supabase/supabase-js";
@@ -20,7 +19,7 @@ export type DeleteUserCleanupReport = {
 
 type DeleteStep = {
   label: string;
-  executor: () => Promise<PostgrestResponse<Record<string, unknown>>>;
+  executor: () => any;
   shouldRun?: () => boolean;
 };
 
@@ -61,7 +60,7 @@ export async function deleteUserWithCleanup(
           .from("auth.oauth_authorizations")
           .delete()
           .eq("user_id", userId)
-          .select("*", { count: "exact" }),
+          .select("*"),
     },
     {
       label: "auth.oauth_consents",
@@ -70,7 +69,7 @@ export async function deleteUserWithCleanup(
           .from("auth.oauth_consents")
           .delete()
           .eq("user_id", userId)
-          .select("*", { count: "exact" }),
+          .select("*"),
     },
     {
       label: "auth.mfa_amr_claims",
@@ -80,7 +79,7 @@ export async function deleteUserWithCleanup(
           .from("auth.mfa_amr_claims")
           .delete()
           .in("session_id", sessionIds)
-          .select("*", { count: "exact" }),
+          .select("*"),
     },
     {
       label: "auth.refresh_tokens",
@@ -90,7 +89,7 @@ export async function deleteUserWithCleanup(
           .from("auth.refresh_tokens")
           .delete()
           .in("session_id", sessionIds)
-          .select("*", { count: "exact" }),
+          .select("*"),
     },
     {
       label: "auth.sessions",
@@ -99,7 +98,7 @@ export async function deleteUserWithCleanup(
           .from("auth.sessions")
           .delete()
           .eq("user_id", userId)
-          .select("*", { count: "exact" }),
+          .select("*"),
     },
     {
       label: "auth.mfa_challenges",
@@ -109,7 +108,7 @@ export async function deleteUserWithCleanup(
           .from("auth.mfa_challenges")
           .delete()
           .in("factor_id", factorIds)
-          .select("*", { count: "exact" }),
+          .select("*"),
     },
     {
       label: "auth.mfa_factors",
@@ -118,7 +117,7 @@ export async function deleteUserWithCleanup(
           .from("auth.mfa_factors")
           .delete()
           .eq("user_id", userId)
-          .select("*", { count: "exact" }),
+          .select("*"),
     },
     {
       label: "auth.one_time_tokens",
@@ -127,7 +126,7 @@ export async function deleteUserWithCleanup(
           .from("auth.one_time_tokens")
           .delete()
           .eq("user_id", userId)
-          .select("*", { count: "exact" }),
+          .select("*"),
     },
     {
       label: "auth.identities",
@@ -136,7 +135,7 @@ export async function deleteUserWithCleanup(
           .from("auth.identities")
           .delete()
           .eq("user_id", userId)
-          .select("*", { count: "exact" }),
+          .select("*"),
     },
     {
       label: "public.notifications",
@@ -145,7 +144,7 @@ export async function deleteUserWithCleanup(
           .from("notifications")
           .delete()
           .eq("user_id", userId)
-          .select("*", { count: "exact" }),
+          .select("*"),
     },
     {
       label: "public.notification_settings",
@@ -154,7 +153,7 @@ export async function deleteUserWithCleanup(
           .from("notification_settings")
           .delete()
           .eq("user_id", userId)
-          .select("*", { count: "exact" }),
+          .select("*"),
     },
     {
       label: "public.user_calendar_connections",
@@ -163,7 +162,7 @@ export async function deleteUserWithCleanup(
           .from("user_calendar_connections")
           .delete()
           .eq("user_id", userId)
-          .select("*", { count: "exact" }),
+          .select("*"),
     },
     {
       label: "public.trusted_member",
@@ -172,7 +171,7 @@ export async function deleteUserWithCleanup(
           .from("trusted_member")
           .delete()
           .or(`id.eq.${userId},user_id.eq.${userId}`)
-          .select("*", { count: "exact" }),
+          .select("*"),
     },
     {
       label: "public.content_reports",
@@ -181,7 +180,7 @@ export async function deleteUserWithCleanup(
           .from("content_reports")
           .delete()
           .or(`reporter_id.eq.${userId},target_user_id.eq.${userId}`)
-          .select("*", { count: "exact" }),
+          .select("*"),
     },
     {
       label: "public.feedback",
@@ -190,7 +189,7 @@ export async function deleteUserWithCleanup(
           .from("feedback")
           .delete()
           .eq("user_id", userId)
-          .select("*", { count: "exact" }),
+          .select("*"),
     },
     {
       label: "public.project_signups",
@@ -199,7 +198,7 @@ export async function deleteUserWithCleanup(
           .from("project_signups")
           .delete()
           .eq("user_id", userId)
-          .select("*", { count: "exact" }),
+          .select("*"),
     },
     {
       label: "public.certificates",
@@ -208,7 +207,7 @@ export async function deleteUserWithCleanup(
           .from("certificates")
           .delete()
           .eq("user_id", userId)
-          .select("*", { count: "exact" }),
+          .select("*"),
     },
     {
       label: "public.user_emails",
@@ -217,7 +216,7 @@ export async function deleteUserWithCleanup(
           .from("user_emails")
           .delete()
           .eq("user_id", userId)
-          .select("*", { count: "exact" }),
+          .select("*"),
     },
     {
       label: "public.parental_consents",
@@ -226,7 +225,7 @@ export async function deleteUserWithCleanup(
           .from("parental_consents")
           .delete()
           .eq("user_id", userId)
-          .select("*", { count: "exact" }),
+          .select("*"),
     },
   ];
 
@@ -238,7 +237,7 @@ export async function deleteUserWithCleanup(
           .from("projects")
           .delete()
           .eq("creator_id", userId)
-          .select("*", { count: "exact" }),
+          .select("*"),
     });
   }
 
@@ -250,7 +249,7 @@ export async function deleteUserWithCleanup(
           .from("organizations")
           .delete()
           .eq("created_by", userId)
-          .select("*", { count: "exact" }),
+          .select("*"),
     });
   }
 
@@ -261,7 +260,7 @@ export async function deleteUserWithCleanup(
         .from("organization_members")
         .delete()
         .eq("user_id", userId)
-        .select("*", { count: "exact" }),
+        .select("*"),
   });
 
   steps.push({
@@ -271,7 +270,7 @@ export async function deleteUserWithCleanup(
         .from("profiles")
         .delete()
         .eq("id", userId)
-        .select("*", { count: "exact" }),
+        .select("*"),
   });
 
   for (const step of steps) {
@@ -324,7 +323,7 @@ async function fetchIds(
   supabaseAdmin: SupabaseClient,
   table: string,
   column: string,
-  filter?: (query: PostgrestFilterBuilder<Record<string, unknown>>) => PostgrestFilterBuilder<Record<string, unknown>>,
+  filter?: (query: any) => any,
 ): Promise<string[]> {
   let query = supabaseAdmin.from(table).select(column);
   if (filter) {
@@ -338,7 +337,7 @@ async function fetchIds(
 
   return (data ?? [])
     .map((row) => {
-      const value = (row as Record<string, unknown>)[column];
+      const value = (row as any)[column];
       return typeof value === "string" && value ? value : null;
     })
     .filter((value): value is string => value !== null);

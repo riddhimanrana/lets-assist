@@ -156,6 +156,42 @@ export function AdminClient({
     reportsPendingCount: reportsStats?.pending || 0,
   };
 
-export function AdminClient() {
-  return null;
+  return (
+    <div className="flex h-screen bg-gray-50">
+      <AdminSidebar activeTab={activeTab} onTabChange={setActiveTab} />
+      <div className="flex-1 overflow-auto">
+        {activeTab === "overview" && (
+          <OverviewTab
+            stats={overviewStats}
+            flaggedContent={initialFlaggedContent}
+            reportPreview={initialContentReports.slice(0, 4)}
+            reportsStats={reportsStats || {
+              total: 0,
+              pending: 0,
+              resolved: 0,
+              highPriority: 0,
+              recentWeek: 0,
+            }}
+          />
+        )}
+        {activeTab === "feedback" && (
+          <FeedbackTab
+            feedback={feedback}
+            onDelete={handleDeleteFeedback}
+          />
+        )}
+        {activeTab === "trusted-members" && (
+          <TrustedMembersTab
+            trustedMembers={applications}
+          />
+        )}
+        {activeTab === "moderation" && (
+          <ModerationTab
+            flaggedContent={initialFlaggedContent}
+            contentReports={initialContentReports}
+          />
+        )}
+      </div>
+    </div>
+  );
 }

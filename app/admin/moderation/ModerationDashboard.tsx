@@ -206,7 +206,7 @@ export default function ModerationDashboard({
 
   const handleReportStatusChange = async (
     id: string,
-    status: ReportsFilter | 'escalated',
+    status: ReportsFilter,
     notes?: string,
   ) => {
     setIsActionLoading(true);
@@ -238,7 +238,7 @@ export default function ModerationDashboard({
         loadFlaggedContent(flaggedFilter),
         loadContentReports(reportFilter)
       ]);
-    } catch (error) {
+    } catch {
       toast.error('Failed to run AI scan');
     } finally {
       setIsScanLoading(false);
@@ -250,7 +250,11 @@ export default function ModerationDashboard({
       toast.error('No AI recommendation available');
       return;
     }
-    const action = (report.ai_metadata.suggestedStatus || 'under_review') as 'pending' | 'under_review' | 'resolved' | 'dismissed' | 'escalated';
+    const suggestedStatus = report.ai_metadata.suggestedStatus;
+    const validStatuses: ReportsFilter[] = ['pending', 'under_review', 'resolved', 'dismissed'];
+    const action = validStatuses.includes(suggestedStatus as ReportsFilter)
+      ? (suggestedStatus as ReportsFilter)
+      : 'under_review';
     await handleReportStatusChange(report.id, action, 'Approved AI recommendation');
   };
 
@@ -1000,8 +1004,6 @@ function getStatusIcon(status?: string | null) {
       return <XCircle className="h-4 w-4 text-muted-foreground" />;
     case 'under_review':
       return <Eye className="h-4 w-4 text-blue-500" />;
-    case 'escalated':
-      return <AlertTriangle className="h-4 w-4 text-orange-500" />;
     default:
       return <Clock className="h-4 w-4 text-amber-500" />;
   }

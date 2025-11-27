@@ -38,7 +38,7 @@ export default function GlobalNotificationProvider({
     }
 
     let rafId: number | null = null;
-    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    let timeoutId: number | null = null;
     let cancelled = false;
 
     const waitForGreeting = () => {
