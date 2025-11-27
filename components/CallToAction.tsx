@@ -8,7 +8,7 @@ import Link from "next/link";
 
 export const CallToAction = () => {
   return (
-    <section className="py-20 relative overflow-hidden">
+    <section id="cta" className="py-20 relative overflow-hidden">
       {/* Enhanced background gradient */}
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-muted/30 to-muted/80"></div>
       

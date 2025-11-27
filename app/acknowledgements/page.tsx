@@ -25,7 +25,7 @@ export default function AcknowledgementsPage() {
           Acknowledgements
         </h1>
         <p className="text-muted-foreground">
-          Recognizing the people and resources that made Let&apos;s Assist possible
+          The people and resources that made Let&apos;s Assist possible
         </p>
       </div>
 

@@ -26,7 +26,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { EventFormState } from "@/hooks/use-event-form";
 import LocationAutocomplete from "@/components/ui/location-autocomplete";
 import { LocationData } from "@/types";
-import { COMMON_TIMEZONES, getUserTimezone } from "@/utils/timezone";
+import { COMMON_TIMEZONES, getUserTimezone, getBestMatchingTimezone } from "@/utils/timezone";
 import {
   Select,
   SelectContent,
@@ -88,8 +88,9 @@ export default function BasicInfo({
   // Initialize timezone to user's current timezone if not set
   useEffect(() => {
     if (!state.basicInfo.projectTimezone) {
-      const userTimezone = getUserTimezone();
-      updateBasicInfoAction('projectTimezone', userTimezone);
+      const detectedTimezone = getUserTimezone();
+      const bestMatch = getBestMatchingTimezone(detectedTimezone);
+      updateBasicInfoAction('projectTimezone', bestMatch);
     }
   }, [updateBasicInfoAction, state.basicInfo.projectTimezone]);
 

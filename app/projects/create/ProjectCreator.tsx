@@ -23,11 +23,11 @@ import { toast } from "sonner";
 import { createProject, uploadCoverImage, uploadProjectDocument, finalizeProject, getProjectById } from "./actions";
 import { useRouter } from "next/navigation";
 // Import Zod schemas
-import { 
-  basicInfoSchema, 
-  oneTimeSchema, 
-  multiDaySchema, 
-  multiRoleSchema, 
+import {
+  basicInfoSchema,
+  oneTimeSchema,
+  multiDaySchema,
+  multiRoleSchema,
   verificationSettingsSchema
 } from "@/schemas/event-form-schema";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -41,6 +41,7 @@ interface ProjectCreatorProps {
     name: string;
     logo_url?: string | null;
     role: string;
+    allowed_email_domains?: string[] | null;
   }[];
 }
 
@@ -63,28 +64,30 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
     removeDay,
     removeSlot,
     removeRole,
+
+    updateRestrictToOrgDomains,
   } = useEventForm();
-  
+
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   // File handling states
   const [coverImage, setCoverImage] = useState<File | null>(null);
   const [documents, setDocuments] = useState<File[]>([]);
-  
+
   // Form validation states
   const [basicInfoErrors, setBasicInfoErrors] = useState<z.ZodIssue[]>([]);
   const [scheduleErrors, setScheduleErrors] = useState<z.ZodIssue[]>([]);
   const [verificationErrors, setVerificationErrors] = useState<z.ZodIssue[]>([]);
-  
+
   // Validation tracking - only validate after continue is clicked
   const [validationAttempted, setValidationAttempted] = useState(false);
 
   const [hasProfanity, setHasProfanity] = useState<boolean>(false);
-  
+
   // AI Assistant state
   const [showAIAssistant, setShowAIAssistant] = useState(false);
-  
+
   // Add handler to update profanity state
   const handleProfanityResult = (hasIssues: boolean) => {
     setHasProfanity(hasIssues);
@@ -121,7 +124,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
         for (let i = currentDays - 1; i >= 0; i--) {
           removeDay(i);
         }
-        
+
         // Add new days from AI
         data.schedule.forEach((day: any, dayIndex: number) => {
           if (dayIndex === 0) {
@@ -164,13 +167,13 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
         handleMultiRoleScheduleUpdate('date', data.schedule.date);
         if (data.schedule.overallStart) handleMultiRoleScheduleUpdate('overallStart', data.schedule.overallStart);
         if (data.schedule.overallEnd) handleMultiRoleScheduleUpdate('overallEnd', data.schedule.overallEnd);
-        
+
         // Clear existing roles
         const currentRoles = state.schedule.sameDayMultiArea.roles.length;
         for (let i = currentRoles - 1; i > 0; i--) {
           removeRole(i);
         }
-        
+
         // Add new roles from AI
         if (Array.isArray(data.schedule.roles)) {
           data.schedule.roles.forEach((role: any, roleIndex: number) => {
@@ -248,7 +251,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
     }
     updateMultiRoleSchedule(field, value, roleIndex);
   };
-  
+
   // Function to convert File to base64
   const fileToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -262,16 +265,16 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
   // Validate current step with Zod
   const validateCurrentStep = (): boolean => {
     try {
-      switch(state.step) {
+      switch (state.step) {
         case 1: // Basic Info
           basicInfoSchema.parse(state.basicInfo);
           setBasicInfoErrors([]);
           return true;
-        
+
         case 2: // Event Type
           // No validation needed for event type selection
           return true;
-        
+
         case 3: // Schedule
           if (state.eventType === "oneTime") {
             oneTimeSchema.parse(state.schedule.oneTime);
@@ -282,7 +285,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
           }
           setScheduleErrors([]);
           return true;
-        
+
         case 4: // Verification Settings
           verificationSettingsSchema.parse({
             verificationMethod: state.verificationMethod,
@@ -291,18 +294,18 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
           });
           setVerificationErrors([]);
           return true;
-          
+
         case 5: // Finalize
           // No validation needed for files
           return true;
-          
+
         default:
           return false;
       }
     } catch (error) {
       if (error instanceof z.ZodError) {
         // Store errors according to the current step
-        switch(state.step) {
+        switch (state.step) {
           case 1:
             setBasicInfoErrors(error.issues);
             break;
@@ -323,12 +326,12 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
   // Get field error from Zod issues
   const getFieldError = (fieldPath: string, issues: z.ZodIssue[]): string | undefined => {
     if (!validationAttempted) return undefined;
-    
+
     const error = issues.find(issue => {
       // Match exact field or field in array (e.g., "roles.0.name")
       return issue.path.join('.') === fieldPath ||
-             issue.path.join('.').startsWith(fieldPath + '[') ||
-             issue.path.join('.').startsWith(fieldPath + '.');
+        issue.path.join('.').startsWith(fieldPath + '[') ||
+        issue.path.join('.').startsWith(fieldPath + '.');
     });
     return error?.message;
   };
@@ -337,7 +340,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
   const handleNextStep = () => {
     // Validate current step before proceeding
     const isValid = validateCurrentStep();
-    
+
     if (isValid || state.step === 5) {
       nextStep();
       // Reset validation attempted since we're moving to a new step
@@ -350,17 +353,17 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
       handleNextStep();
       return;
     }
-    
+
     // Check for profanity before allowing submission
     if (hasProfanity) {
       toast.error("Please fix the flagged content before creating your project");
       return;
     }
-    
+
     // Final validation of all steps before submission
     try {
       basicInfoSchema.parse(state.basicInfo);
-      
+
       if (state.eventType === "oneTime") {
         oneTimeSchema.parse(state.schedule.oneTime);
       } else if (state.eventType === "multiDay") {
@@ -368,7 +371,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
       } else if (state.eventType === "sameDayMultiArea") {
         multiRoleSchema.parse(state.schedule.sameDayMultiArea);
       }
-      
+
       verificationSettingsSchema.parse({
         verificationMethod: state.verificationMethod,
         requireLogin: state.requireLogin,
@@ -382,29 +385,29 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
         return;
       }
     }
-    
+
     try {
       setIsSubmitting(true);
-      
+
       // Show loading toast
       const loadingToast = toast.loading("Creating your project...");
-      
+
       // Step 1: Create basic project without files
       const formData = new FormData();
       formData.append("projectData", JSON.stringify(state));
-      
+
       const result = await createProject(formData);
-      
+
       if ("error" in result) {
         toast.dismiss(loadingToast);
         toast.error(result.error);
         setIsSubmitting(false);
         return;
       }
-      
+
       const projectId = result.id;
       let hasErrors = false;
-      
+
       // Step 2: Upload cover image if available
       if (coverImage) {
         if (validateFileSize(coverImage, 5 * 1024 * 1024)) {
@@ -423,25 +426,25 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
           hasErrors = true;
         }
       }
-      
+
       // Step 3: Upload documents one by one with sequential processing
-      if (documents.length > 0) {      
+      if (documents.length > 0) {
         for (let i = 0; i < documents.length; i++) {
           const doc = documents[i];
-          
+
           // Check size before attempting upload
           if (!validateFileSize(doc, 10 * 1024 * 1024)) {
             hasErrors = true;
             continue;
           }
-          
+
           try {
             const docBase64 = await fileToBase64(doc);
             const uploadResult = await uploadProjectDocument(projectId, docBase64, doc.name, doc.type);
-            
+
             // Wait a short delay between uploads to prevent race conditions
             await new Promise(resolve => setTimeout(resolve, 200));
-            
+
             if (uploadResult.error) {
               console.error(`Document ${doc.name}: ${uploadResult.error}`);
               hasErrors = true;
@@ -452,31 +455,31 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
           }
         }
       }
-      
+
       // Step 4: Finalize project (non-blocking)
       finalizeProject(projectId).catch(error => {
         console.error("Error finalizing project:", error);
       });
-      
+
       // Dismiss loading toast and show success
       toast.dismiss(loadingToast);
-      const message = hasErrors 
-        ? "Project created but some files couldn't be uploaded" 
+      const message = hasErrors
+        ? "Project created but some files couldn't be uploaded"
         : "Project Created Successfully! 🎉";
-      
+
       if (hasErrors) {
         toast.warning(message);
       } else {
         toast.success(message);
       }
-      
+
       // Reset form state
       setIsSubmitting(false);
-      
+
       // Force a full page redirect using window.location.href instead of Next.js router
       // This ensures the page fully loads on production
       window.location.href = `/projects/${projectId}`;
-      
+
     } catch (error) {
       console.error("Error submitting project:", error);
       toast.dismiss();
@@ -546,6 +549,12 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
             requireLogin={state.requireLogin}
             isOrganization={isOrganizationProject()}
             isPrivate={state.isPrivate}
+            restrictToOrgDomains={state.restrictToOrgDomains}
+            allowedEmailDomains={
+              state.basicInfo.organizationId
+                ? initialOrgOptions?.find(o => o.id === state.basicInfo.organizationId)?.allowed_email_domains
+                : undefined
+            }
             updateVerificationMethodAction={(method) => {
               if (validationAttempted) {
                 setVerificationErrors(prev => prev.filter(error => !error.path.includes('verificationMethod')));
@@ -564,6 +573,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
               }
               updateIsPrivate(value);
             }}
+            updateRestrictToOrgDomainsAction={updateRestrictToOrgDomains}
             errors={{
               verificationMethod: getFieldError("verificationMethod", verificationErrors)
             }}
@@ -571,8 +581,8 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
         );
       case 5:
         return (
-          <Finalize 
-            state={state} 
+          <Finalize
+            state={state}
             setCoverImageAction={setCoverImage} // Updated prop name
             setDocumentsAction={setDocuments}   // Updated prop name
             onProfanityChange={handleProfanityResult}
@@ -582,7 +592,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
         return null;
     }
   };
-  
+
   return (
     <>
       <div className="mb-6 sm:mb-8">
@@ -597,11 +607,11 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
               className="flex items-center gap-2"
             >
               <Sparkles className="h-4 w-4" />
-              <span className="hidden sm:inline">AI Assistant</span>
+              <span className="hidden sm:inline">AI Auto-fill</span>
             </Button>
           )}
         </div>
-        
+
         <Progress value={(state.step / 5) * 100} className="h-2" />
         <div className="grid grid-cols-5 mt-2 text-xs sm:text-sm text-muted-foreground">
           <span className={cn("text-center sm:text-left truncate", state.step === 1 && "text-primary font-medium")}>
@@ -621,7 +631,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
           </span>
         </div>
       </div>
-      
+
       {/* AI Assistant Component */}
       {state.step === 1 && (
         <AIAssistant
@@ -630,12 +640,12 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
           onApplyData={handleApplyAIData}
         />
       )}
-      
+
       <div className="space-y-6 sm:space-y-8">
         {renderStep()}
         <div className="flex justify-between gap-4">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={prevStep}
             disabled={state.step === 1 || isSubmitting}
             className="w-[120px]"
@@ -643,7 +653,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
             <ChevronLeft className="h-4 w-4 mr-2" />
             Back
           </Button>
-          <Button 
+          <Button
             onClick={handleSubmit}
             disabled={isSubmitting}
             className="w-[120px]"

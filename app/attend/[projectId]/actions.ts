@@ -20,7 +20,7 @@ export async function checkInUser(signupId: string, userId?: string) {
     // 1. Fetch the signup record first
     const { data: signup, error: fetchError } = await supabase
       .from('project_signups')
-  .select('id, check_in_time, check_out_time, project_id, schedule_id, user_id, anonymous_id') // Select fields needed for validation/revalidation
+      .select('id, check_in_time, check_out_time, project_id, schedule_id, user_id, anonymous_id') // Select fields needed for validation/revalidation
       .eq('id', signupId)
       .maybeSingle(); // Use maybeSingle as it might not exist
 
@@ -38,7 +38,7 @@ export async function checkInUser(signupId: string, userId?: string) {
     if (signup.check_in_time) {
       console.log("User already checked in for signup:", signupId, "at", signup.check_in_time);
       // Return existing check-in time
-  return { success: true, checkInTime: signup.check_in_time, checkOutTime: signup.check_out_time || null };
+      return { success: true, checkInTime: signup.check_in_time, checkOutTime: signup.check_out_time || null };
     }
 
     const scheduledCheckoutIso = await getScheduledCheckoutTime(
@@ -72,13 +72,13 @@ export async function checkInUser(signupId: string, userId?: string) {
     // Revalidate the specific project page
     revalidatePath(`/projects/${signup.project_id}`);
     // Revalidate the attendance page itself (might not be strictly necessary but good practice)
-  revalidatePath(`/attend/${signup.project_id}`);
-  revalidatePath(`/projects/${signup.project_id}/attendance`);
-  revalidatePath(`/projects/${signup.project_id}/hours`);
+    revalidatePath(`/attend/${signup.project_id}`);
+    revalidatePath(`/projects/${signup.project_id}/attendance`);
+    revalidatePath(`/projects/${signup.project_id}/hours`);
     // If you have user-specific dashboards/profiles, revalidate them too
     if (signup.user_id) {
-       revalidatePath(`/profile`); // Example user profile path
-       // revalidatePath(`/dashboard`); // Example dashboard path
+      revalidatePath(`/profile`); // Example user profile path
+      // revalidatePath(`/dashboard`); // Example dashboard path
     }
     // Consider revalidating organizer views if applicable
 
@@ -101,7 +101,37 @@ export async function lookupEmailStatus(projectId: string, scheduleId: string, e
   const lowerCaseEmail = email.toLowerCase();
 
   try {
-    // 1. Check if email exists in profiles (registered user)
+    // 0. Fetch project details for domain restrictions
+    const { data: projectData, error: projectError } = await supabase
+      .from("projects")
+      .select(`
+        restrict_to_org_domains,
+        organization_id,
+        organizations (
+          allowed_email_domains
+        )
+      `)
+      .eq("id", projectId)
+      .single();
+
+    let allowedDomains: string[] | null = null;
+    if (!projectError && projectData?.restrict_to_org_domains && projectData.organization_id) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const org = projectData.organizations as any;
+      allowedDomains = (Array.isArray(org) ? org[0]?.allowed_email_domains : org?.allowed_email_domains) as string[] | null;
+    }
+
+    // Helper to check domain
+    const isDomainAllowed = (emailToCheck: string) => {
+      if (!allowedDomains || allowedDomains.length === 0) return true;
+      const domain = emailToCheck.split('@')[1];
+      return allowedDomains.includes(domain);
+    };
+
+    // 1. Try to find a registered user (check primary AND secondary emails)
+    let userId: string | null = null;
+
+    // Check primary email
     const { data: profileData, error: profileError } = await supabase
       .from("profiles")
       .select("id")
@@ -114,13 +144,30 @@ export async function lookupEmailStatus(projectId: string, scheduleId: string, e
     }
 
     if (profileData) {
+      userId = profileData.id;
+    } else {
+      // Check secondary emails
+      const { data: userEmailData, error: userEmailError } = await supabase
+        .from("user_emails")
+        .select("user_id")
+        .eq("email", lowerCaseEmail)
+        .maybeSingle();
+
+      if (userEmailError) {
+        console.error("Error checking user_emails:", userEmailError);
+      } else if (userEmailData) {
+        userId = userEmailData.user_id;
+      }
+    }
+
+    if (userId) {
       // Found registered user - check if they have a signup for this specific project/schedule
       const { data: signupData, error: regSignupError } = await supabase
         .from("project_signups")
         .select("id, status")
         .eq("project_id", projectId)
         .eq("schedule_id", scheduleId)
-        .eq("user_id", profileData.id)
+        .eq("user_id", userId)
         .maybeSingle();
 
       if (regSignupError) {
@@ -140,6 +187,8 @@ export async function lookupEmailStatus(projectId: string, scheduleId: string, e
         };
       } else {
         // Registered user exists but is NOT signed up for this specific session
+        // Note: We do NOT block on domain here, because the user might have ANOTHER email linked that IS allowed.
+        // We let signUpForProject handle the strict check.
         console.log("Registered user found, but no signup for this session.");
         return {
           success: true,
@@ -149,12 +198,17 @@ export async function lookupEmailStatus(projectId: string, scheduleId: string, e
         };
       }
     } else {
-      // 2. Email not found in profiles - check anonymous signups for this project
-      // Fetch project details to check if anonymous signups are allowed (optional but good practice)
-      // const { data: projectData } = await supabase.from('projects').select('require_login').eq('id', projectId).single();
-      // if (projectData?.require_login) {
-      //   return { success: true, found: false, isRegistered: false, message: "No account found, and this project requires login." };
-      // }
+      // 2. User not found - Check anonymous signups
+
+      // Check domain restrictions for anonymous users (since they have no other linked emails)
+      if (!isDomainAllowed(lowerCaseEmail)) {
+        return {
+          success: false,
+          found: false,
+          isRegistered: false,
+          message: `This project is restricted to users with the following email domains: ${allowedDomains?.join(', ')}. Please use a valid organization email.`
+        };
+      }
 
       const { data: anonData, error: anonError } = await supabase
         .from("anonymous_signups")
@@ -234,36 +288,36 @@ export async function lookupEmailStatus(projectId: string, scheduleId: string, e
  * Returns check-in time and success status.
  */
 export async function checkInAnonymous(projectId: string, scheduleId: string, email: string) {
-    const supabase = await createClient();
-    const nowDate = new Date();
-    const nowIso = nowDate.toISOString();
-    const lowerEmail = email.toLowerCase();
+  const supabase = await createClient();
+  const nowDate = new Date();
+  const nowIso = nowDate.toISOString();
+  const lowerEmail = email.toLowerCase();
 
-    const scheduledCheckoutIso = await getScheduledCheckoutTime(
-      supabase,
-      projectId,
-      scheduleId,
-      nowDate
-    );
+  const scheduledCheckoutIso = await getScheduledCheckoutTime(
+    supabase,
+    projectId,
+    scheduleId,
+    nowDate
+  );
 
-    // 1. Find anonymous_signups
-    let { data: anon, error: anonErr } = await supabase
-        .from('anonymous_signups')
-        .select('id, signup_id')
-        .eq('email', lowerEmail)
-        .eq('project_id', projectId)
-        .maybeSingle();
+  // 1. Find anonymous_signups
+  let { data: anon, error: anonErr } = await supabase
+    .from('anonymous_signups')
+    .select('id, signup_id')
+    .eq('email', lowerEmail)
+    .eq('project_id', projectId)
+    .maybeSingle();
 
-    if (anonErr) {
-        console.error('[checkInAnonymous] Error fetching anonymous_signups:', anonErr);
-        return { success: false, error: 'Database error fetching anonymous record.' };
-    }
-    if (!anon) {
-        console.warn('[checkInAnonymous] No anonymous_signups record found for:', lowerEmail, projectId);
-        return { success: false, error: 'Anonymous signup record not found.' };
-    }
+  if (anonErr) {
+    console.error('[checkInAnonymous] Error fetching anonymous_signups:', anonErr);
+    return { success: false, error: 'Database error fetching anonymous record.' };
+  }
+  if (!anon) {
+    console.warn('[checkInAnonymous] No anonymous_signups record found for:', lowerEmail, projectId);
+    return { success: false, error: 'Anonymous signup record not found.' };
+  }
 
-    // 2. Find project_signups for this anon and schedule
+  // 2. Find project_signups for this anon and schedule
   let { data: signup, error: signupErr } = await supabase
     .from('project_signups')
     .select('id, check_in_time, check_out_time, schedule_id, status')
@@ -272,14 +326,14 @@ export async function checkInAnonymous(projectId: string, scheduleId: string, em
     .eq('schedule_id', scheduleId)
     .maybeSingle();
 
-    if (signupErr) {
-        console.error('[checkInAnonymous] Error fetching project_signups:', signupErr);
-        return { success: false, error: 'Database error fetching signup.' };
-    }
+  if (signupErr) {
+    console.error('[checkInAnonymous] Error fetching project_signups:', signupErr);
+    return { success: false, error: 'Database error fetching signup.' };
+  }
 
-    let checkInTime = nowIso;
-    let checkOutTime = scheduledCheckoutIso || null;
-    let signupId: string | undefined = signup?.id;
+  let checkInTime = nowIso;
+  let checkOutTime = scheduledCheckoutIso || null;
+  let signupId: string | undefined = signup?.id;
 
   if (signup) {
     // Already have a signup for this session
@@ -318,65 +372,65 @@ export async function checkInAnonymous(projectId: string, scheduleId: string, em
       checkOutTime = scheduledCheckoutIso || null;
     }
   } else {
-        // No signup for this session, update existing signup if possible
-        // Try to find any signup for this anon/project (not schedule-specific)
-        let { data: anySignup, error: anySignupErr } = await supabase
-            .from('project_signups')
-            .select('id, schedule_id')
-            .eq('anonymous_id', anon.id)
-            .eq('project_id', projectId)
-            .maybeSingle();
+    // No signup for this session, update existing signup if possible
+    // Try to find any signup for this anon/project (not schedule-specific)
+    let { data: anySignup, error: anySignupErr } = await supabase
+      .from('project_signups')
+      .select('id, schedule_id')
+      .eq('anonymous_id', anon.id)
+      .eq('project_id', projectId)
+      .maybeSingle();
 
-        if (anySignupErr) {
-            console.error('[checkInAnonymous] Error fetching any project_signups:', anySignupErr);
-            return { success: false, error: 'Database error fetching any signup.' };
-        }
-
-        if (anySignup) {
-            // Update this signup to the new schedule and check-in
-            const updatePayload: Record<string, string> = {
-                schedule_id: scheduleId,
-                check_in_time: nowIso,
-                status: 'attended'
-            };
-
-            if (scheduledCheckoutIso) {
-                updatePayload.check_out_time = scheduledCheckoutIso;
-            }
-
-            const { error: updateErr } = await supabase
-                .from('project_signups')
-                .update(updatePayload)
-                .eq('id', anySignup.id);
-
-            if (updateErr) {
-                console.error('[checkInAnonymous] Error updating existing signup to new schedule:', updateErr);
-                return { success: false, error: 'Database error updating signup for new schedule.' };
-            }
-            console.log('[checkInAnonymous] Updated existing signup to new schedule:', anySignup.id, scheduleId, nowIso);
-            signupId = anySignup.id;
-            checkInTime = nowIso;
-            checkOutTime = scheduledCheckoutIso || null;
-        } else {
-            // No signup exists at all for this anon/project, cannot update
-            console.warn('[checkInAnonymous] No project_signups found for anon:', anon.id, projectId);
-            return { success: false, error: 'No signup found to update for this anonymous user.' };
-        }
+    if (anySignupErr) {
+      console.error('[checkInAnonymous] Error fetching any project_signups:', anySignupErr);
+      return { success: false, error: 'Database error fetching any signup.' };
     }
 
-    // Revalidate relevant paths
-    revalidatePath(`/projects/${projectId}`);
-    revalidatePath(`/attend/${projectId}`);
-    revalidatePath(`/projects/${projectId}/attendance`);
-    revalidatePath(`/projects/${projectId}/hours`);
+    if (anySignup) {
+      // Update this signup to the new schedule and check-in
+      const updatePayload: Record<string, string> = {
+        schedule_id: scheduleId,
+        check_in_time: nowIso,
+        status: 'attended'
+      };
 
-    return { 
-        success: true, 
-        signupId: signupId,
-        checkInTime: checkInTime,
-        checkOutTime: checkOutTime,
-        anonSignupId: anon.id   // include anonymous_signups ID for profile link
-    };
+      if (scheduledCheckoutIso) {
+        updatePayload.check_out_time = scheduledCheckoutIso;
+      }
+
+      const { error: updateErr } = await supabase
+        .from('project_signups')
+        .update(updatePayload)
+        .eq('id', anySignup.id);
+
+      if (updateErr) {
+        console.error('[checkInAnonymous] Error updating existing signup to new schedule:', updateErr);
+        return { success: false, error: 'Database error updating signup for new schedule.' };
+      }
+      console.log('[checkInAnonymous] Updated existing signup to new schedule:', anySignup.id, scheduleId, nowIso);
+      signupId = anySignup.id;
+      checkInTime = nowIso;
+      checkOutTime = scheduledCheckoutIso || null;
+    } else {
+      // No signup exists at all for this anon/project, cannot update
+      console.warn('[checkInAnonymous] No project_signups found for anon:', anon.id, projectId);
+      return { success: false, error: 'No signup found to update for this anonymous user.' };
+    }
+  }
+
+  // Revalidate relevant paths
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath(`/attend/${projectId}`);
+  revalidatePath(`/projects/${projectId}/attendance`);
+  revalidatePath(`/projects/${projectId}/hours`);
+
+  return {
+    success: true,
+    signupId: signupId,
+    checkInTime: checkInTime,
+    checkOutTime: checkOutTime,
+    anonSignupId: anon.id   // include anonymous_signups ID for profile link
+  };
 }
 
 /**

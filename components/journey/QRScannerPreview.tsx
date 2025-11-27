@@ -24,7 +24,7 @@ export function QRScannerPreview() {
 
   const scanLineAnim = useMemo(() => (prefersReduced ? {} : { y: [0, 144, 0] }), [prefersReduced]);
   const scanLineTransition = useMemo(
-    () => (prefersReduced ? { duration: 0 } : { repeat: Infinity, duration: 2.2, ease: "linear", repeatDelay: 0.4 }),
+    () => (prefersReduced ? { duration: 0 } : { repeat: Infinity, duration: 2.2, ease: "linear" as any, repeatDelay: 0.4 }),
     [prefersReduced]
   );
   return (

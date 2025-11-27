@@ -1,43 +1,14 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
-import {
-  createClient as createSupabaseServiceClient,
-  type SupabaseClient,
-} from "@supabase/supabase-js";
+import { getServiceRoleClient } from "@/utils/supabase/service-role";
 import { redirect } from "next/navigation";
 
 type NotificationSeverity = "info" | "warning" | "success";
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-let cachedServiceRoleClient: SupabaseClient | null = null;
-
-function getServiceRoleClient() {
-  if (!SUPABASE_URL) {
-    throw new Error("NEXT_PUBLIC_SUPABASE_URL is not configured.");
-  }
-
-  if (!SUPABASE_SERVICE_ROLE_KEY) {
-    throw new Error("SUPABASE_SERVICE_ROLE_KEY is not configured.");
-  }
-
-  if (!cachedServiceRoleClient) {
-    cachedServiceRoleClient = createSupabaseServiceClient(
-      SUPABASE_URL,
-      SUPABASE_SERVICE_ROLE_KEY,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        },
-      },
-    );
-  }
-
-  return cachedServiceRoleClient;
-}
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 
 async function fetchAuthUser(userId: string) {
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
@@ -294,6 +265,91 @@ export async function deleteFeedback(feedbackId: string) {
     console.error("Error deleting feedback:", error);
     return { error: "Failed to delete feedback" };
   }
+
+  return { success: true };
+}
+
+export async function searchUsersByEmail(query: string) {
+  const supabase = getServiceRoleClient();
+  const { isAdmin } = await checkSuperAdmin();
+  if (!isAdmin) return { error: "Unauthorized" };
+
+  // Use listUsers to search by email (this is not efficient for large user bases but works for now)
+  // Ideally we'd have a materialized view or a secure function to search users
+  const { data: { users }, error } = await supabase.auth.admin.listUsers({
+    page: 1,
+    perPage: 100 // Limit search scope
+  });
+
+  if (error) {
+    console.error("Error searching users:", error);
+    return { error: "Failed to search users" };
+  }
+
+  const lowerQuery = query.toLowerCase();
+  const matchedUsers = users
+    .filter(u => u.email?.toLowerCase().includes(lowerQuery))
+    .slice(0, 5);
+
+  if (matchedUsers.length === 0) return { data: [] };
+
+  const userIds = matchedUsers.map(u => u.id);
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('id, full_name, username, avatar_url')
+    .in('id', userIds);
+
+  const results = matchedUsers.map(u => {
+    const profile = profiles?.find(p => p.id === u.id);
+    return {
+      id: u.id,
+      email: u.email!,
+      full_name: profile?.full_name,
+      avatar_url: profile?.avatar_url,
+      username: profile?.username
+    };
+  });
+
+  return { data: results };
+}
+
+export async function addTrustedMember(userId: string, email: string, name: string) {
+  const supabase = getServiceRoleClient();
+  const { isAdmin } = await checkSuperAdmin();
+  if (!isAdmin) return { error: "Unauthorized" };
+
+  // Check if already exists
+  const { data: existing } = await supabase
+    .from('trusted_member')
+    .select('id')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (existing) {
+    return { error: "User is already in the trusted member list." };
+  }
+
+  const { error } = await supabase.from('trusted_member').insert({
+    user_id: userId,
+    email,
+    name,
+    reason: 'Added manually by Admin',
+    status: true,
+    created_at: new Date().toISOString()
+  });
+
+  if (error) {
+    console.error("Error adding trusted member:", error);
+    return { error: error.message };
+  }
+
+  await createServerNotification(
+    userId,
+    "You are now a Trusted Member! 🎉",
+    "An admin has granted you trusted member status. You can now create projects and organizations.",
+    "success",
+    "/trusted-member"
+  );
 
   return { success: true };
 }

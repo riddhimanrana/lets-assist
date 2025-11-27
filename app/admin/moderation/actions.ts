@@ -1,13 +1,15 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
+import { getServiceRoleClient } from "@/utils/supabase/service-role";
 import { checkSuperAdmin } from "../actions";
+import { NotificationService } from "@/services/notifications";
 
 /**
  * Get all flagged content for admin review
  */
 export async function getFlaggedContent(status?: 'pending' | 'blocked' | 'confirmed' | 'dismissed') {
-  const supabase = await createClient();
+  const supabase = getServiceRoleClient();
   
   // Check if user is super admin
   const { isAdmin } = await checkSuperAdmin();
@@ -37,9 +39,7 @@ export async function getFlaggedContent(status?: 'pending' | 'blocked' | 'confir
 /**
  * Get moderation logs for a specific user
  */
-export async function getUserModerationLogs(userId: string) {
-  const supabase = await createClient();
-  
+export async function getUserModerationLogs(_userId: string) {
   // moderation_logs table doesn't exist yet, return empty array
   return { data: [] };
 }
@@ -85,20 +85,31 @@ export async function updateFlaggedContentStatus(
  * Get moderation statistics
  */
 export async function getModerationStats() {
-  const supabase = await createClient();
+  const supabase = getServiceRoleClient();
   
   const { isAdmin } = await checkSuperAdmin();
   if (!isAdmin) {
     return { error: "Unauthorized - Admin access required" };
   }
   
-  // Get total counts
+  // Get total counts from content_flags
   const { count: totalFlagged } = await supabase
     .from('content_flags')
     .select('*', { count: 'exact', head: true });
   
-  const { count: pendingCount } = await supabase
+  // Get total count from content_reports (ALL reports, not just pending)
+  const { count: totalReportsCount } = await supabase
+    .from('content_reports')
+    .select('*', { count: 'exact', head: true });
+  
+  const { count: pendingFlagsCount } = await supabase
     .from('content_flags')
+    .select('*', { count: 'exact', head: true })
+    .eq('status', 'pending');
+  
+  // Also count pending content_reports
+  const { count: pendingReportsCount } = await supabase
+    .from('content_reports')
     .select('*', { count: 'exact', head: true })
     .eq('status', 'pending');
   
@@ -107,29 +118,44 @@ export async function getModerationStats() {
     .select('*', { count: 'exact', head: true })
     .eq('status', 'blocked');
   
-  // Get critical count (using confidence_score as a proxy for severity)
-  const { count: criticalCount } = await supabase
+  // Get critical count - high priority reports + high confidence flags
+  const { count: criticalFlagsCount } = await supabase
     .from('content_flags')
     .select('*', { count: 'exact', head: true })
     .gte('confidence_score', 0.8);
   
-  // Get recent violations (last 7 days)
+  const { count: criticalReportsCount } = await supabase
+    .from('content_reports')
+    .select('*', { count: 'exact', head: true })
+    .in('priority', ['high', 'critical']);
+  
+  // Get recent violations (last 7 days) from both tables
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
   
-  const { count: recentCount } = await supabase
+  const { count: recentFlagsCount } = await supabase
     .from('content_flags')
     .select('*', { count: 'exact', head: true })
     .gte('created_at', sevenDaysAgo.toISOString());
   
+  const { count: recentReportsCount } = await supabase
+    .from('content_reports')
+    .select('*', { count: 'exact', head: true })
+    .gte('created_at', sevenDaysAgo.toISOString());
+  
+  // Combine stats from both tables
+  const totalPending = (pendingFlagsCount || 0) + (pendingReportsCount || 0);
+  const totalCritical = (criticalFlagsCount || 0) + (criticalReportsCount || 0);
+  const totalRecent = (recentFlagsCount || 0) + (recentReportsCount || 0);
+  
   return {
     data: {
-      total: totalFlagged || 0,
-      pending: pendingCount || 0,
+      total: (totalFlagged || 0) + (totalReportsCount || 0),
+      pending: totalPending,
       blocked: blockedCount || 0,
-      critical: criticalCount || 0,
-      recentWeek: recentCount || 0,
-      monthlyActivity: 0, // moderation_logs table doesn't exist yet
+      critical: totalCritical,
+      recentWeek: totalRecent,
+      monthlyActivity: 0,
     }
   };
 }
@@ -138,23 +164,34 @@ export async function getModerationStats() {
  * Get repeat offenders (users with multiple violations)
  */
 export async function getRepeatOffenders() {
-  const supabase = await createClient();
-  
   const { isAdmin } = await checkSuperAdmin();
   if (!isAdmin) {
     return { error: "Unauthorized - Admin access required" };
   }
   
   // content_flags doesn't have user_id, so this function is not applicable yet
-  // Return empty array for now
   return { data: [] };
 }
+
+type ProjectSummary = {
+  id: string;
+  title: string | null;
+  creator_id: string | null;
+};
+
+type ProfileSummary = {
+  id: string;
+  full_name: string | null;
+  email?: string | null;
+  username: string | null;
+  avatar_url: string | null;
+};
 
 /**
  * Get all content reports for admin review
  */
 export async function getContentReports(status?: 'pending' | 'under_review' | 'resolved' | 'dismissed' | 'escalated') {
-  const supabase = await createClient();
+  const supabase = getServiceRoleClient();
   
   // Check if user is super admin
   const { isAdmin } = await checkSuperAdmin();
@@ -173,6 +210,11 @@ export async function getContentReports(status?: 'pending' | 'under_review' | 'r
   }
   
   const { data, error } = await query;
+  
+  console.log(`[getContentReports] Fetched ${data?.length || 0} reports with status: ${status || 'any'}`);
+  if (data?.length) {
+    console.log(`[getContentReports] Report IDs:`, data.map(r => r.id));
+  }
   
   if (error) {
     console.error('Error fetching content reports:', error);
@@ -199,12 +241,66 @@ export async function getContentReports(status?: 'pending' | 'under_review' | 'r
       
       const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
       
-      // Enhance data with profile info
-      const enhancedData = data.map(report => ({
-        ...report,
-        reporter: report.reporter_id ? profileMap.get(report.reporter_id) : null,
-        reviewer: report.reviewed_by ? profileMap.get(report.reviewed_by) : null,
-      }));
+      // Fetch content details based on type
+      const projectIds = data.filter(r => r.content_type === 'project').map(r => r.content_id);
+      const profileIds = data.filter(r => r.content_type === 'profile').map(r => r.content_id);
+      
+      let projects: ProjectSummary[] = [];
+      if (projectIds.length > 0) {
+        const { data: p } = await supabase
+          .from('projects')
+          .select('id, title, creator_id')
+          .in('id', projectIds);
+        projects = p || [];
+      }
+
+      let profilesContent: ProfileSummary[] = [];
+      if (profileIds.length > 0) {
+        const { data: p } = await supabase
+          .from('profiles')
+          .select('id, full_name, username, avatar_url')
+          .in('id', profileIds);
+        profilesContent = p || [];
+      }
+
+      // Fetch creators for projects
+      const projectCreatorIds = projects.map(p => p.creator_id).filter(Boolean);
+      let projectCreators: ProfileSummary[] = [];
+      if (projectCreatorIds.length > 0) {
+        const { data: pc } = await supabase
+          .from('profiles')
+          .select('id, full_name, username, avatar_url')
+          .in('id', projectCreatorIds);
+        projectCreators = pc || [];
+      }
+
+      const projectCreatorMap = new Map(projectCreators.map(p => [p.id, p]));
+
+      // Enhance data with profile info and content details
+      const enhancedData = data.map(report => {
+        let contentDetails = null;
+        let creatorDetails = null;
+
+        if (report.content_type === 'project') {
+          const project = projects.find(p => p.id === report.content_id);
+          contentDetails = project;
+          if (project && project.creator_id) {
+            creatorDetails = projectCreatorMap.get(project.creator_id);
+          }
+        } else if (report.content_type === 'profile') {
+          const profile = profilesContent.find(p => p.id === report.content_id);
+          contentDetails = profile;
+          creatorDetails = profile;
+        }
+
+        return {
+          ...report,
+          reporter: report.reporter_id ? profileMap.get(report.reporter_id) : null,
+          reviewer: report.reviewed_by ? profileMap.get(report.reviewed_by) : null,
+          content_details: contentDetails,
+          creator_details: creatorDetails,
+        };
+      });
       
       return { data: enhancedData };
     }
@@ -218,44 +314,139 @@ export async function getContentReports(status?: 'pending' | 'under_review' | 'r
  */
 export async function updateContentReportStatus(
   id: string,
-  status: 'pending' | 'under_review' | 'resolved' | 'dismissed' | 'escalated',
+  status: 'pending' | 'under_review' | 'resolved' | 'dismissed',
   resolutionNotes?: string
 ) {
-  const supabase = await createClient();
+  const viewerSupabase = await createClient();
+  const supabase = getServiceRoleClient(); // Use service role to bypass RLS
   
   const { isAdmin } = await checkSuperAdmin();
   if (!isAdmin) {
     return { error: "Unauthorized - Admin access required" };
   }
   
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await viewerSupabase.auth.getUser();
+  
+  // First check if the report exists (using service role)
+  const { data: existingReports, error: checkError } = await supabase
+    .from('content_reports')
+    .select('id')
+    .eq('id', id);
+  
+  if (checkError) {
+    console.error('Error checking report:', id, checkError);
+    return { error: `Failed to check report: ${checkError.message}` };
+  }
+
+  if (!existingReports || existingReports.length === 0) {
+    console.error('Report not found:', id);
+    return { error: "Report not found" };
+  }
   
   const { data, error } = await supabase
     .from('content_reports')
     .update({ 
       status,
       reviewed_by: user?.id,
-      reviewed_at: new Date().toISOString(),
+      reviewed_at: status === 'resolved' || status === 'dismissed' ? new Date().toISOString() : null,
       resolution_notes: resolutionNotes,
       updated_at: new Date().toISOString(),
     })
     .eq('id', id)
-    .select()
-    .single();
+    .select();
   
   if (error) {
     console.error('Error updating content report:', error);
     return { error: error.message };
   }
   
-  return { data };
+  if (!data || data.length === 0) {
+    console.error('No data returned after update for report:', id);
+    return { error: "Failed to update report" };
+  }
+  
+  return { data: data[0] };
+}
+
+/**
+ * Send feedback to a user regarding their report
+ */
+type ReportSummary = {
+  description?: string | null;
+  reason?: string | null;
+};
+
+export async function sendReportFeedback(
+  reportId: string,
+  userId: string | null | undefined,
+  message: string,
+  status: 'resolved' | 'investigating' | 'dismissed',
+  reportSummary?: ReportSummary
+) {
+  const viewerSupabase = await createClient();
+  const supabase = getServiceRoleClient();
+  
+  const { isAdmin } = await checkSuperAdmin();
+  if (!isAdmin) {
+    return { error: "Unauthorized - Admin access required" };
+  }
+
+  const {
+    data: { user },
+  } = await viewerSupabase.auth.getUser();
+
+  const resolvedAt = new Date().toISOString();
+  const normalizedStatus = status === 'investigating' ? 'under_review' : status;
+
+  const { data: updateData, error: updateError } = await supabase
+    .from('content_reports')
+    .update({
+      status: normalizedStatus,
+      resolution_notes: message,
+      reviewed_by: user?.id ?? null,
+      reviewed_at: resolvedAt,
+      updated_at: resolvedAt,
+    })
+    .eq('id', reportId)
+    .select('id');
+
+  if (updateError) {
+    return { error: updateError.message };
+  }
+  
+  if (!updateData || updateData.length === 0) {
+    return { error: "Report not found" };
+  }
+
+  if (userId) {
+    await NotificationService.createNotification(
+      {
+        title: "Update on your report",
+        body: message,
+        type: "general",
+        severity: "info",
+        data: {
+          modalType: "report-feedback",
+          reportId,
+          message,
+          status: normalizedStatus,
+          resolvedAt,
+          reportDescription: reportSummary?.description,
+          reportReason: reportSummary?.reason,
+        },
+      },
+      userId
+    );
+  }
+
+  return { success: true };
 }
 
 /**
  * Get content reports statistics
  */
 export async function getContentReportsStats() {
-  const supabase = await createClient();
+  const supabase = getServiceRoleClient();
   
   const { isAdmin } = await checkSuperAdmin();
   if (!isAdmin) {
@@ -300,4 +491,259 @@ export async function getContentReportsStats() {
       recentWeek: recentCount || 0,
     }
   };
+}
+
+/**
+ * Trigger an AI moderation scan manually
+ */
+export async function runAiScan() {
+  const { isAdmin } = await checkSuperAdmin();
+  if (!isAdmin) {
+    return { error: "Unauthorized - Admin access required" };
+  }
+
+  try {
+    const { performAiModerationScan } = await import('./ai-scan-logic');
+    const result = await performAiModerationScan();
+    return { success: true, data: result };
+  } catch (e) {
+    console.error('AI scan exception:', e);
+    return { error: `Scan failed: ${e instanceof Error ? e.message : 'Unknown error'}` };
+  }
+}
+
+/**
+ * Get detailed information about a content report with all context
+ * Includes: report details, content details, creator/reporter profiles, etc.
+ */
+export async function getDetailedReportWithContext(reportId: string) {
+  const supabase = getServiceRoleClient();
+  const { isAdmin } = await checkSuperAdmin();
+  if (!isAdmin) {
+    return { error: "Unauthorized - Admin access required", data: undefined };
+  }
+
+  try {
+    console.log(`[getDetailedReportWithContext] Fetching report: ${reportId}`);
+    
+    // Get the report
+    const { data: reportList, error: reportError } = await supabase
+      .from('content_reports')
+      .select('*')
+      .eq('id', reportId);
+
+    console.log(`[getDetailedReportWithContext] Query result:`, { 
+      reportList, 
+      reportError,
+      count: reportList?.length 
+    });
+
+    if (reportError) {
+      console.error(`[getDetailedReportWithContext] Error:`, reportError);
+      return { error: `Failed to fetch report: ${reportError.message}`, data: undefined };
+    }
+
+    if (!reportList || reportList.length === 0) {
+      console.error(`[getDetailedReportWithContext] Report not found with ID: ${reportId}`);
+      return { error: "Report not found", data: undefined };
+    }
+
+    const report = reportList[0];
+    console.log(`[getDetailedReportWithContext] Found report:`, { id: report.id, status: report.status });
+
+    // Get reporter profile
+    const { data: reporterList } = await supabase
+      .from('profiles')
+      .select('id, full_name, username, avatar_url')
+      .eq('id', report.reporter_id);
+
+    const reporterProfile = reporterList?.[0] || null;
+
+    // Get reviewer profile if reviewed
+    const { data: reviewerList } = report.reviewed_by
+      ? await supabase
+          .from('profiles')
+          .select('id, full_name, username')
+          .eq('id', report.reviewed_by)
+      : { data: null };
+
+    const reviewerProfile = reviewerList?.[0] || null;
+
+    // Get content details based on content_type
+    let contentDetails: unknown = null;
+    let creatorProfile = null;
+
+    if (report.content_type === 'project') {
+      const { data: projectList } = await supabase
+        .from('projects')
+        .select('id, title, description, creator_id, organization_id, status, created_at')
+        .eq('id', report.content_id);
+
+      const project = projectList?.[0];
+      if (project) {
+        contentDetails = project;
+        const { data: creatorList } = await supabase
+          .from('profiles')
+          .select('id, full_name, username, avatar_url')
+          .eq('id', project.creator_id);
+        creatorProfile = creatorList?.[0] || null;
+
+        // Get organization if exists
+        if (project.organization_id) {
+          const { data: orgList } = await supabase
+            .from('organizations')
+            .select('id, name, username, type, verified')
+            .eq('id', project.organization_id);
+          if (orgList?.[0]) {
+            (contentDetails as Record<string, unknown>).organization = orgList[0];
+          }
+        }
+      }
+    } else if (report.content_type === 'organization') {
+      const { data: orgList } = await supabase
+        .from('organizations')
+        .select('id, name, username, description, type, verified, created_by')
+        .eq('id', report.content_id);
+
+      const org = orgList?.[0];
+      if (org) {
+        contentDetails = org;
+        const { data: creatorList } = await supabase
+          .from('profiles')
+          .select('id, full_name, username, avatar_url')
+          .eq('id', org.created_by);
+        creatorProfile = creatorList?.[0] || null;
+      }
+    }
+
+    return {
+      success: true,
+      data: {
+        report,
+        reporter: reporterProfile,
+        reviewer: reviewerProfile,
+        content: contentDetails,
+        creator: creatorProfile,
+      },
+    };
+  } catch (e) {
+    console.error('Error fetching detailed report:', e);
+    return {
+      error: `Failed to fetch report: ${e instanceof Error ? e.message : 'Unknown error'}`,
+      data: undefined,
+    };
+  }
+}
+
+/**
+ * Take a moderator action on a content report
+ */
+export async function takeModeratorAction(
+  reportId: string,
+  action: 'warn_user' | 'remove_content' | 'block_content' | 'dismiss' | 'escalate_to_legal',
+  reason?: string
+) {
+  const viewerSupabase = await createClient();
+  const supabase = getServiceRoleClient(); // Use service role to bypass RLS
+  const { isAdmin } = await checkSuperAdmin();
+  if (!isAdmin) {
+    return { error: "Unauthorized - Admin access required" };
+  }
+
+  const { data: { user } } = await viewerSupabase.auth.getUser();
+  if (!user) {
+    return { error: "No authenticated user" };
+  }
+
+  try {
+    // Get the report
+    const { data: report, error: reportError } = await supabase
+      .from('content_reports')
+      .select('*')
+      .eq('id', reportId)
+      .single();
+
+    if (reportError || !report) {
+      return { error: `Report not found: ${reportError?.message}` };
+    }
+
+    // Map actions to corresponding status
+    let newStatus = report.status;
+    let actionNotes = '';
+
+    switch (action) {
+      case 'dismiss':
+        newStatus = 'dismissed';
+        actionNotes = 'Content dismissed by moderator';
+        break;
+      case 'remove_content':
+        newStatus = 'resolved';
+        actionNotes = 'Content removed by moderator';
+        break;
+      case 'block_content':
+        newStatus = 'resolved';
+        actionNotes = 'Content blocked by moderator';
+        break;
+      case 'warn_user':
+        newStatus = 'under_review';
+        actionNotes = 'User warned by moderator - awaiting compliance';
+        break;
+      case 'escalate_to_legal':
+        newStatus = 'under_review';
+        actionNotes = 'Escalated to legal team for review';
+        break;
+    }
+
+    // Update the report with action taken
+    const resolutionNotes = [
+      report.resolution_notes || '',
+      `\n[Action taken] ${new Date().toISOString()}: ${actionNotes}${reason ? ` - ${reason}` : ''}`,
+    ].filter(Boolean).join('');
+
+    const { data, error } = await supabase
+      .from('content_reports')
+      .update({
+        status: newStatus,
+        resolution_notes: resolutionNotes,
+        reviewed_by: user.id,
+        reviewed_at: new Date().toISOString(),
+      })
+      .eq('id', reportId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error taking moderator action on report %s:', reportId, error);
+      return { error: error.message };
+    }
+
+    // If removing/blocking content, also flag it in content_flags
+    if (action === 'remove_content' || action === 'block_content') {
+      const flagType = action === 'remove_content' ? 'removal' : 'suspension';
+      await supabase
+        .from('content_flags')
+        .insert({
+          content_type: report.content_type,
+          content_id: report.content_id,
+          flag_type: flagType,
+          confidence_score: 1.0,
+          flag_source: 'moderator',
+          status: 'confirmed',
+          flag_details: {
+            action,
+            reason,
+            takenBy: user.id,
+          },
+        });
+    }
+
+    return {
+      success: true,
+      data,
+      message: `Action '${action}' taken on report ${reportId}`,
+    };
+  } catch (e) {
+    console.error('Error taking moderator action:', e);
+    return { error: `Failed to take action: ${e instanceof Error ? e.message : 'Unknown error'}` };
+  }
 }

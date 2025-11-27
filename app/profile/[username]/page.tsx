@@ -255,8 +255,10 @@ function formatHours(hours: number): string {
                 <ReportContentButton
                   contentType="profile"
                   contentId={profile.id}
+                  contentTitle={profile.full_name || profile.username}
+                  contentCreator={profile.full_name || profile.username}
                   triggerButton={
-                    <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                    <DropdownMenuItem>
                       <Flag className="mr-2 h-4 w-4" />
                       <span>Report Profile</span>
                     </DropdownMenuItem>

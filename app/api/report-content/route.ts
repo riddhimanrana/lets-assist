@@ -10,7 +10,7 @@ export async function POST(request: Request) {
     
     // Parse request body
     const body = await request.json();
-    const { contentType, contentId, reason, description } = body;
+    const { contentType, contentId, reason, description, url, metadata } = body;
     
     // Validate required fields
     if (!contentType || !contentId || !reason || !description) {
@@ -63,6 +63,29 @@ export async function POST(request: Request) {
       );
     }
     
+    // Build enhanced description with URL and metadata
+    let enhancedDescription = description.trim();
+    if (url || metadata) {
+      const details: string[] = [enhancedDescription];
+      
+      if (url) {
+        details.push(`\n\nContent URL: ${url}`);
+      }
+      
+      if (metadata) {
+        if (metadata.title) details.push(`\nContent Title: ${metadata.title}`);
+        if (metadata.creator) details.push(`\nContent Creator: ${metadata.creator}`);
+        if (metadata.context) details.push(`\nContext: ${metadata.context}`);
+        if (metadata.reportedAt) details.push(`\nReported at: ${metadata.reportedAt}`);
+      }
+      
+      enhancedDescription = details.join('');
+    }
+    
+    // Determine priority based on reason
+    const highPriorityReasons = ['violence', 'hate_speech'];
+    const priority = highPriorityReasons.includes(reason) ? 'high' : 'normal';
+    
     // Insert the report into content_reports table
     const { data, error } = await supabase
       .from('content_reports')
@@ -71,9 +94,9 @@ export async function POST(request: Request) {
         content_type: contentType,
         content_id: contentId,
         reason: reason,
-        description: description.trim(),
+        description: enhancedDescription,
         status: 'pending',
-        priority: 'normal', // Can be adjusted based on reason
+        priority: priority,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
@@ -88,8 +111,17 @@ export async function POST(request: Request) {
       );
     }
     
-    // TODO: Send notification to admins about new report
-    // TODO: If high-priority reason (violence, hate_speech), escalate immediately
+    // Send notification to admins about new report (especially for high-priority reports)
+    if (priority === 'high') {
+      try {
+        // TODO: Implement admin notification service
+        // For now, just log high-priority reports
+        console.warn(`HIGH-PRIORITY REPORT: ${reason} - Content ${contentId} (${contentType})`);
+      } catch (notifError) {
+        console.error('Error sending admin notification:', notifError);
+        // Don't fail the request if notification fails
+      }
+    }
     
     return NextResponse.json({
       success: true,

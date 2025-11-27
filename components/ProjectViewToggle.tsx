@@ -592,8 +592,11 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                     <ReportContentButton
                       contentType="project"
                       contentId={project.id}
+                      contentTitle={project.title}
+                      contentCreator={project.profiles?.full_name || project.profiles?.username || undefined}
+                      contentContext={project.organization?.name || project.organizations?.name || undefined}
                       triggerButton={
-                        <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                        <DropdownMenuItem>
                           <Flag className="mr-2 h-4 w-4" />
                           <span>Report Project</span>
                         </DropdownMenuItem>
