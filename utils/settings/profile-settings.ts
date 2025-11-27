@@ -1,9 +1,8 @@
 /**
- * Profile visibility settings for CIPA compliance
- * Handles age-based profile visibility rules
+ * Profile visibility settings
+ * Simplified version without age-based restrictions
  */
 
-import { calculateAge } from '@/utils/age-helpers';
 import { createClient } from '@/utils/supabase/server';
 import { ProfileVisibility } from '@/types';
 
@@ -26,54 +25,48 @@ export async function isInstitutionEmail(email: string): Promise<boolean> {
 }
 
 /**
- * Get default profile visibility based on age
- * - Under 13: Always private
- * - 13-17: Default private
- * - 18+: Default public
+ * Get educational institution info for a domain
+ */
+export async function getInstitutionByDomain(domain: string) {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from('educational_institutions')
+    .select('*')
+    .eq('domain', domain.toLowerCase())
+    .eq('verified', true)
+    .single();
+
+  return data;
+}
+
+/**
+ * Get default profile visibility
+ * Institution accounts default to private, others to public
  */
 export function getDefaultProfileVisibility(
-  dateOfBirth: string | Date | null,
   isInstitutionAccount: boolean
 ): ProfileVisibility {
-  if (!dateOfBirth) return 'public';
-
-  const age = calculateAge(dateOfBirth);
-
-  // Under 13: Always private
-  if (age < 13) return 'private';
-
-  // 13-17: Default private
-  if (age < 18) return 'private';
-
-  // 18+: Default public
+  // Institution accounts (school emails) default to private
+  if (isInstitutionAccount) return 'private';
+  
+  // Regular accounts default to public
   return 'public';
 }
 
 /**
  * Can user change their profile visibility?
- * Only under 13 users are locked to private
+ * All users can change visibility
  */
-export function canChangeProfileVisibility(dateOfBirth: string | Date | null): boolean {
-  if (!dateOfBirth) return true;
-  const age = calculateAge(dateOfBirth);
-  // Only under 13 cannot change (they're locked to private)
-  return age >= 13;
+export function canChangeProfileVisibility(): boolean {
+  return true;
 }
 
 /**
  * Apply visibility constraints
- * Forces under 13 to private regardless of user preference
+ * No age-based restrictions anymore
  */
 export function applyVisibilityConstraints(
-  visibility: ProfileVisibility,
-  dateOfBirth: string | Date | null
+  visibility: ProfileVisibility
 ): ProfileVisibility {
-  if (!dateOfBirth) return visibility;
-
-  const age = calculateAge(dateOfBirth);
-
-  // Under 13 is always forced private
-  if (age < 13) return 'private';
-
   return visibility;
 }

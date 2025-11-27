@@ -198,13 +198,18 @@ export const isProjectVisible = (
   userId?: string, 
   userOrganizations?: { organization_id: string; role: string }[]
 ): boolean => {
-  // Public projects (is_private=false) are always visible
-  if (!project.is_private) {
+  // Public projects are always visible
+  if (project.visibility === 'public') {
     return true;
   }
 
-  // Private projects (is_private=true) require organization membership check
-  if (project.is_private && project.organization_id) {
+  // Unlisted projects are visible to anyone with the link (always return true for direct access)
+  if (project.visibility === 'unlisted') {
+    return true;
+  }
+
+  // Organization-only projects require membership check
+  if (project.visibility === 'organization_only' && project.organization_id) {
     // Must have user and their organizations to check
     if (!userId || !userOrganizations) {
       return false;

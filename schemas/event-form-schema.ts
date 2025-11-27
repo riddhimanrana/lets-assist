@@ -220,7 +220,7 @@ export const multiRoleSchema = z.object({
 export const verificationSettingsSchema = z.object({
   verificationMethod: z.enum(["qr-code", "manual", "auto", "signup-only"] as const),
   requireLogin: z.boolean(),
-  isPrivate: z.boolean(),
+  visibility: z.enum(["public", "unlisted", "organization_only"] as const),
 });
 
 // Event Form Schema
@@ -234,5 +234,5 @@ export const eventFormSchema = z.object({
   }),
   verificationMethod: z.enum(["qr-code", "manual", "auto", "signup-only"] as const),
   requireLogin: z.boolean(),
-  isPrivate: z.boolean(),
+  visibility: z.enum(["public", "unlisted", "organization_only"] as const),
 });

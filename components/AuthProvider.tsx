@@ -67,17 +67,25 @@ export function AuthProvider({ children, initialUser = null }: AuthProviderProps
       }
     );
 
-    // Initialize auth state on mount
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        updateCachedUser(session.user);
-      }
+    // Only fetch session if cache wasn't primed from SSR
+    // The onAuthStateChange will fire INITIAL_SESSION anyway which updates cache
+    if (!isCacheInitialized()) {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session?.user) {
+          updateCachedUser(session.user);
+        }
+        setIsInitialized(true);
+        
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[AuthProvider] Initialized with session:', session?.user?.email ?? 'no user');
+        }
+      });
+    } else {
       setIsInitialized(true);
-      
       if (process.env.NODE_ENV === 'development') {
-        console.log('[AuthProvider] Initialized with session:', session?.user?.email ?? 'no user');
+        console.log('[AuthProvider] Cache already primed from SSR, skipping getSession');
       }
-    });
+    }
 
     return () => {
       subscription.unsubscribe();

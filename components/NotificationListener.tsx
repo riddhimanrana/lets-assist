@@ -70,11 +70,8 @@ export function NotificationListener({ userId }: NotificationListenerProps) {
       const supabase = createClient();
 
       try {
-        const { error: connError } = await supabase.from('notifications').select('count', { count: 'exact' }).limit(1);
-        if (connError) {
-          console.error('Connection test failed:', connError);
-          throw connError;
-        }
+        // Removed connection test query - it's redundant since we're about to make a real query anyway
+        // The actual notifications query will fail if there's a connection issue
 
         const { data: notifications, error } = await supabase
           .from('notifications')

@@ -177,7 +177,7 @@ export async function createBasicProject(projectData: any) {
         },
         status: "upcoming",
         organization_id: organizationId || null, // Save organization_id if provided
-        is_private: organizationId ? projectData.isPrivate : false, // Set is_private based on organization and preference
+        visibility: projectData.visibility || 'public', // Set visibility (public/unlisted for all, org_only for org projects)
         published: publishedState, // Add the published state tracking
         project_timezone: projectData.basicInfo.projectTimezone || 'America/Los_Angeles', // Save project timezone with fallback
         restrict_to_org_domains: projectData.restrictToOrgDomains || false, // Add domain restriction flag
