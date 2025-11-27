@@ -286,35 +286,50 @@ export async function updateContentReportStatus(
   status: 'pending' | 'under_review' | 'resolved' | 'dismissed' | 'escalated',
   resolutionNotes?: string
 ) {
-  const viewerSupabase = await createClient();
-  const supabase = getServiceRoleClient();
+  const supabase = await createClient();
   
   const { isAdmin } = await checkSuperAdmin();
   if (!isAdmin) {
     return { error: "Unauthorized - Admin access required" };
   }
   
-  const { data: { user } } = await viewerSupabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  // First check if the report exists
+  const { data: existingReport, error: checkError } = await supabase
+    .from('content_reports')
+    .select('id')
+    .eq('id', id)
+    .single();
+  
+  if (checkError || !existingReport) {
+    console.error('Report not found:', id, checkError);
+    return { error: "Report not found" };
+  }
   
   const { data, error } = await supabase
     .from('content_reports')
     .update({ 
       status,
       reviewed_by: user?.id,
-      reviewed_at: new Date().toISOString(),
+      reviewed_at: status === 'resolved' || status === 'dismissed' ? new Date().toISOString() : null,
       resolution_notes: resolutionNotes,
       updated_at: new Date().toISOString(),
     })
     .eq('id', id)
-    .select()
-    .single();
+    .select();
   
   if (error) {
     console.error('Error updating content report:', error);
     return { error: error.message };
   }
   
-  return { data };
+  if (!data || data.length === 0) {
+    console.error('No data returned after update for report:', id);
+    return { error: "Failed to update report" };
+  }
+  
+  return { data: data[0] };
 }
 
 /**
@@ -437,4 +452,33 @@ export async function getContentReportsStats() {
       recentWeek: recentCount || 0,
     }
   };
+}
+
+/**
+ * Trigger an AI moderation scan manually
+ */
+export async function runAiScan() {
+  const { isAdmin } = await checkSuperAdmin();
+  if (!isAdmin) {
+    return { error: "Unauthorized - Admin access required" };
+  }
+
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+  
+  try {
+    const response = await fetch(`${siteUrl}/api/cron/ai-moderation`, {
+      method: 'GET',
+      cache: 'no-store',
+    });
+    
+    if (!response.ok) {
+      return { error: `Scan failed: ${response.statusText}` };
+    }
+    
+    const result = await response.json();
+    return { success: true, data: result };
+  } catch (e) {
+    console.error('AI scan exception:', e);
+    return { error: `Scan failed: ${e instanceof Error ? e.message : 'Unknown error'}` };
+  }
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,7 @@ import {
   Eye,
   Bot,
   ShieldX,
+  ExternalLink,
 } from 'lucide-react';
 import {
   Dialog,
@@ -31,9 +32,11 @@ import {
   updateFlaggedContentStatus,
   getContentReports,
   updateContentReportStatus,
+  runAiScan,
 } from './actions';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { Loader2, Sparkles } from 'lucide-react';
 
 type FlaggedContent = {
   id: string;
@@ -59,6 +62,15 @@ type AiMetadata = {
   tags?: string[];
 };
 
+type ContentDetails = {
+  id?: string;
+  title?: string | null;
+  creator_id?: string | null;
+  full_name?: string | null;
+  username?: string | null;
+  avatar_url?: string | null;
+};
+
 type ContentReport = {
   id: string;
   content_id?: string;
@@ -78,6 +90,8 @@ type ContentReport = {
   user_id?: string | null;
   ai_metadata?: AiMetadata | null;
   content_snapshot?: Record<string, unknown> | null;
+  content_details?: ContentDetails | null;
+  creator_details?: ContentDetails | null;
 };
 
 type FlaggedFilter = 'pending' | 'blocked' | 'confirmed' | 'dismissed';
@@ -120,36 +134,54 @@ export default function ModerationDashboard({
   const [contentReports, setContentReports] = useState(initialReports);
   const [flaggedFilter, setFlaggedFilter] = useState<FlaggedFilter>('pending');
   const [reportFilter, setReportFilter] = useState<ReportsFilter>('pending');
-  const [isPending, startTransition] = useTransition();
+  
+  const [isFlaggedLoading, setIsFlaggedLoading] = useState(false);
+  const [isReportsLoading, setIsReportsLoading] = useState(false);
+  const [isActionLoading, setIsActionLoading] = useState(false);
+  const [isScanLoading, setIsScanLoading] = useState(false);
+
   const [selectedFlag, setSelectedFlag] = useState<FlaggedContent | null>(null);
   const [selectedReport, setSelectedReport] = useState<ContentReport | null>(null);
   const selectedReportAi = selectedReport?.ai_metadata ?? null;
   const selectedReportAiJson = selectedReportAi
     ? {
         verdict: selectedReportAi.verdict,
-        recommendedAction: formatRecommendedAction(selectedReportAi.suggestedStatus),
-        confidence: formatConfidencePercent(selectedReportAi.confidence),
-        priority: selectedReportAi.priority || 'normal',
-        tags: selectedReportAi.tags || [],
+        reasoning: selectedReportAi.reasoning,
+        suggestedStatus: selectedReportAi.suggestedStatus,
+        confidence: selectedReportAi.confidence,
+        priority: selectedReportAi.priority,
+        triagedAt: selectedReportAi.triagedAt,
+        tags: selectedReportAi.tags,
       }
     : null;
+  const [showAiJson, setShowAiJson] = useState(false);
+
+  useEffect(() => {
+    setShowAiJson(false);
+  }, [selectedReport?.id]);
 
   const loadFlaggedContent = async (status: FlaggedFilter) => {
-    startTransition(async () => {
+    setIsFlaggedLoading(true);
+    try {
       const result = await getFlaggedContent(status);
       if (result.data) {
         setFlaggedContent(result.data);
       }
-    });
+    } finally {
+      setIsFlaggedLoading(false);
+    }
   };
 
   const loadContentReports = async (status: ReportsFilter) => {
-    startTransition(async () => {
+    setIsReportsLoading(true);
+    try {
       const result = await getContentReports(status);
       if (result.data) {
         setContentReports(result.data);
       }
-    });
+    } finally {
+      setIsReportsLoading(false);
+    }
   };
 
   const handleFlagStatusUpdate = async (
@@ -157,7 +189,8 @@ export default function ModerationDashboard({
     status: FlaggedFilter,
     notes?: string,
   ) => {
-    startTransition(async () => {
+    setIsActionLoading(true);
+    try {
       const result = await updateFlaggedContentStatus(id, status, notes);
       if (result.error) {
         toast.error('Failed to update status');
@@ -166,7 +199,9 @@ export default function ModerationDashboard({
       toast.success('Status updated successfully');
       await loadFlaggedContent(flaggedFilter);
       setSelectedFlag(null);
-    });
+    } finally {
+      setIsActionLoading(false);
+    }
   };
 
   const handleReportStatusChange = async (
@@ -174,7 +209,8 @@ export default function ModerationDashboard({
     status: ReportsFilter | 'escalated',
     notes?: string,
   ) => {
-    startTransition(async () => {
+    setIsActionLoading(true);
+    try {
       const result = await updateContentReportStatus(id, status, notes);
       if (result.error) {
         toast.error('Failed to update report');
@@ -183,7 +219,39 @@ export default function ModerationDashboard({
       toast.success('Report updated');
       await loadContentReports(reportFilter);
       setSelectedReport(null);
-    });
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
+  const handleRunAiScan = async () => {
+    setIsScanLoading(true);
+    try {
+      const result = await runAiScan();
+      if (result.error) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success('AI scan completed successfully');
+      // Refresh both lists
+      await Promise.all([
+        loadFlaggedContent(flaggedFilter),
+        loadContentReports(reportFilter)
+      ]);
+    } catch (error) {
+      toast.error('Failed to run AI scan');
+    } finally {
+      setIsScanLoading(false);
+    }
+  };
+
+  const handleReportAiApproval = async (report: ContentReport) => {
+    if (!report.ai_metadata) {
+      toast.error('No AI recommendation available');
+      return;
+    }
+    const action = (report.ai_metadata.suggestedStatus || 'under_review') as 'pending' | 'under_review' | 'resolved' | 'dismissed' | 'escalated';
+    await handleReportStatusChange(report.id, action, 'Approved AI recommendation');
   };
 
   const getSeverityColor = (severity?: string): 'secondary' | 'destructive' | 'default' => {
@@ -223,7 +291,28 @@ export default function ModerationDashboard({
   return (
     <TooltipProvider delayDuration={80}>
       <div className="container mx-auto max-w-7xl space-y-8 p-4 md:p-6">
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Moderation Dashboard</h1>
+            <p className="text-muted-foreground">
+              Manage flagged content and user reports.
+            </p>
+          </div>
+          <Button 
+            onClick={handleRunAiScan} 
+            disabled={isScanLoading}
+            className="w-full md:w-auto"
+          >
+            {isScanLoading ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Sparkles className="mr-2 h-4 w-4" />
+            )}
+            Run AI Scan
+          </Button>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Flagged</CardTitle>
@@ -287,7 +376,7 @@ export default function ModerationDashboard({
               <TabsTrigger value="dismissed">Dismissed</TabsTrigger>
             </TabsList>
             <TabsContent value={flaggedFilter} className="space-y-4">
-              {isPending ? (
+              {isFlaggedLoading ? (
                 <div className="flex items-center justify-center py-8">
                   <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
                 </div>
@@ -361,7 +450,7 @@ export default function ModerationDashboard({
                                           handleFlagStatusUpdate(item.id, 'blocked', 'Blocked for policy violation')
                                         }
                                         aria-label="Block content"
-                                        disabled={isPending}
+                                        disabled={isActionLoading}
                                       >
                                         <ShieldX className="h-4 w-4" />
                                       </Button>
@@ -375,7 +464,7 @@ export default function ModerationDashboard({
                                         variant="ghost"
                                         onClick={() => handleFlagStatusUpdate(item.id, 'confirmed', 'Confirmed violation')}
                                         aria-label="Confirm violation"
-                                        disabled={isPending}
+                                        disabled={isActionLoading}
                                       >
                                         <CheckCircle className="h-4 w-4" />
                                       </Button>
@@ -389,7 +478,7 @@ export default function ModerationDashboard({
                                         variant="ghost"
                                         onClick={() => handleFlagStatusUpdate(item.id, 'dismissed', 'False positive')}
                                         aria-label="Dismiss flag"
-                                        disabled={isPending}
+                                        disabled={isActionLoading}
                                       >
                                         <XCircle className="h-4 w-4" />
                                       </Button>
@@ -432,7 +521,7 @@ export default function ModerationDashboard({
               <TabsTrigger value="dismissed">Dismissed</TabsTrigger>
             </TabsList>
             <TabsContent value={reportFilter} className="space-y-4">
-              {isPending ? (
+              {isReportsLoading ? (
                 <div className="flex items-center justify-center py-8">
                   <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
                 </div>
@@ -448,62 +537,107 @@ export default function ModerationDashboard({
                     <TableHeader>
                       <TableRow>
                         <TableHead>Case</TableHead>
-                        <TableHead>AI output</TableHead>
-                        <TableHead className="hidden md:table-cell w-[140px]">Status</TableHead>
-                        <TableHead className="text-right w-[160px]">Actions</TableHead>
+                        <TableHead>AI Resolution</TableHead>
+                        <TableHead className="hidden md:table-cell w-[120px]">Status</TableHead>
+                        <TableHead className="text-right w-[140px]">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {contentReports.map((report) => {
+                          {contentReports.map((report) => {
                         const ai = report.ai_metadata;
                         const canQuickResolve =
                           report.status === 'pending' || report.status === 'under_review' || report.status === null;
+                        
+                        // Determine reportee name from content_details or creator_details
+                        const reporteeName = report.content_type === 'project'
+                          ? (report.content_details?.title || report.creator_details?.full_name || report.creator_details?.username || 'Unknown project')
+                          : (report.creator_details?.full_name || report.creator_details?.username || 'Unknown user');
+                        
                         return (
                           <TableRow key={report.id} className="text-sm">
+                            {/* Case column: type badge + reportee name */}
                             <TableCell>
-                              <div className="flex flex-col gap-1">
-                                <span className="font-semibold capitalize">
-                                  {report.content_type === 'project' ? 'Project' : 'Profile'} report
+                              <div className="flex flex-col gap-1.5">
+                                <Badge 
+                                  variant={report.content_type === 'project' ? 'default' : 'secondary'} 
+                                  className="w-fit text-[11px]"
+                                >
+                                  {report.content_type === 'project' ? '📋 Project' : '👤 Profile'}
+                                </Badge>
+                                <span className="font-medium text-sm">
+                                  {reporteeName}
                                 </span>
                                 <p className="text-xs text-muted-foreground">
-                                  #{report.content_id || '—'} · Submitted {formatSafeDate(report.created_at)}
+                                  Reported {formatSafeDate(report.created_at)}
                                 </p>
-                                {report.reporter && (
-                                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                    <User className="h-3.5 w-3.5" />
-                                    <span>
-                                      {report.reporter.full_name || report.reporter.username || report.reporter.email}
-                                    </span>
-                                  </div>
-                                )}
                               </div>
                             </TableCell>
+                            {/* AI Resolution column */}
                             <TableCell>
                               {ai ? (
                                 <div className="space-y-1">
-                                  <div className="flex items-center gap-2 text-sm font-medium">
-                                    <Bot className="h-4 w-4 text-muted-foreground" />
-                                    {ai.verdict || 'Pending triage'}
+                                  <div className="flex items-center gap-2">
+                                    <Bot className="h-4 w-4 text-emerald-500 shrink-0" />
+                                    <span className="font-medium text-sm">
+                                      {ai.verdict || 'Analyzing...'}
+                                    </span>
                                   </div>
-                                  <p className="text-xs text-muted-foreground">
-                                    Confidence {formatConfidencePercent(ai.confidence)} · Recommended {formatRecommendedAction(ai.suggestedStatus)}
+                                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                    <span className="font-medium">Suggests:</span>
+                                    <Badge variant="outline" className="text-[10px] capitalize">
+                                      {formatRecommendedAction(ai.suggestedStatus)}
+                                    </Badge>
+                                    <span>•</span>
+                                    <span>{formatConfidencePercent(ai.confidence)} confident</span>
+                                  </div>
+                                  <p className="text-xs text-muted-foreground line-clamp-1">
+                                    {ai.reasoning ? getAiReasonSnippet(ai.reasoning) : 'Waiting for reasoning...'}
                                   </p>
-                                  <p className="text-xs text-muted-foreground">Priority {ai.priority || 'normal'}</p>
                                 </div>
                               ) : (
-                                <p className="text-xs text-muted-foreground">Awaiting AI assessment</p>
+                                <div className="flex items-center gap-2 text-muted-foreground">
+                                  <Clock className="h-4 w-4" />
+                                  <span className="text-xs">Awaiting AI scan</span>
+                                </div>
                               )}
                             </TableCell>
-                            <TableCell className="hidden md:table-cell text-right md:text-left">
-                              <div className="flex flex-col gap-0.5 text-xs text-muted-foreground">
-                                <span className="text-sm font-semibold text-foreground">
-                                  {(report.status || 'pending').replace(/_/g, ' ')}
-                                </span>
-                                <span>Priority {report.priority || 'normal'}</span>
+                            {/* Status + Priority column */}
+                            <TableCell className="hidden md:table-cell">
+                              <div className="flex flex-col gap-1.5">
+                                <div className="flex items-center gap-1.5">
+                                  {getStatusIcon(report.status)}
+                                  <span className="text-sm font-medium capitalize">
+                                    {(report.status || 'pending').replace(/_/g, ' ')}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  {getPriorityIcon(report.priority)}
+                                  <span className="text-xs text-muted-foreground capitalize">
+                                    {report.priority || 'normal'}
+                                  </span>
+                                </div>
                               </div>
                             </TableCell>
+                            {/* Actions column */}
                             <TableCell className="text-right">
-                              <div className="flex items-center justify-end gap-1.5">
+                              <div className="flex items-center justify-end gap-1">
+                                {ai && ai.suggestedStatus && canQuickResolve && (
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950"
+                                        onClick={() => handleReportAiApproval(report)}
+                                        aria-label="Approve AI recommendation"
+                                        disabled={isActionLoading}
+                                      >
+                                        <Sparkles className="h-4 w-4" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top">Approve AI</TooltipContent>
+                                  </Tooltip>
+                                )}
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <Button
@@ -515,57 +649,26 @@ export default function ModerationDashboard({
                                       <Eye className="h-4 w-4" />
                                     </Button>
                                   </TooltipTrigger>
-                                  <TooltipContent side="top">View</TooltipContent>
+                                  <TooltipContent side="top">View Details</TooltipContent>
                                 </Tooltip>
                                 {canQuickResolve && (
-                                  <>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Button
-                                          size="icon"
-                                          variant="ghost"
-                                          onClick={() =>
-                                            handleReportStatusChange(report.id, 'resolved', REPORT_RESOLVE_NOTE)
-                                          }
-                                          aria-label="Resolve report"
-                                          disabled={isPending}
-                                        >
-                                          <CheckCircle className="h-4 w-4" />
-                                        </Button>
-                                      </TooltipTrigger>
-                                      <TooltipContent side="top">Resolve</TooltipContent>
-                                    </Tooltip>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Button
-                                          size="icon"
-                                          variant="ghost"
-                                          onClick={() => handleReportStatusChange(report.id, 'under_review')}
-                                          aria-label="Mark for review"
-                                          disabled={isPending}
-                                        >
-                                          <Clock className="h-4 w-4" />
-                                        </Button>
-                                      </TooltipTrigger>
-                                      <TooltipContent side="top">Review</TooltipContent>
-                                    </Tooltip>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Button
-                                          size="icon"
-                                          variant="ghost"
-                                          onClick={() =>
-                                            handleReportStatusChange(report.id, 'dismissed', REPORT_DISMISS_NOTE)
-                                          }
-                                          aria-label="Dismiss report"
-                                          disabled={isPending}
-                                        >
-                                          <XCircle className="h-4 w-4" />
-                                        </Button>
-                                      </TooltipTrigger>
-                                      <TooltipContent side="top">Dismiss</TooltipContent>
-                                    </Tooltip>
-                                  </>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className="text-muted-foreground hover:text-destructive"
+                                        onClick={() =>
+                                          handleReportStatusChange(report.id, 'dismissed', REPORT_DISMISS_NOTE)
+                                        }
+                                        aria-label="Dismiss report"
+                                        disabled={isActionLoading}
+                                      >
+                                        <XCircle className="h-4 w-4" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top">Dismiss</TooltipContent>
+                                  </Tooltip>
                                 )}
                               </div>
                             </TableCell>
@@ -628,7 +731,7 @@ export default function ModerationDashboard({
                   size="sm"
                   variant="destructive"
                   onClick={() => handleFlagStatusUpdate(selectedFlag.id, 'blocked', 'Blocked via detail modal')}
-                  disabled={isPending}
+                  disabled={isActionLoading}
                 >
                   Block content
                 </Button>
@@ -636,7 +739,7 @@ export default function ModerationDashboard({
                   size="sm"
                   variant="outline"
                   onClick={() => handleFlagStatusUpdate(selectedFlag.id, 'confirmed', 'Confirmed via detail modal')}
-                  disabled={isPending}
+                  disabled={isActionLoading}
                 >
                   Confirm violation
                 </Button>
@@ -644,7 +747,7 @@ export default function ModerationDashboard({
                   size="sm"
                   variant="ghost"
                   onClick={() => handleFlagStatusUpdate(selectedFlag.id, 'dismissed', 'Dismissed as false positive')}
-                  disabled={isPending}
+                  disabled={isActionLoading}
                 >
                   Dismiss
                 </Button>
@@ -673,6 +776,41 @@ export default function ModerationDashboard({
                   Submitted {formatSafeDate(selectedReport.created_at, 'PPP p')}
                 </span>
               </div>
+              
+              {/* Reported Content Info */}
+              <div className="rounded-md border border-border/60 bg-gradient-to-r from-muted/40 to-muted/20 p-4">
+                <div className="flex items-start gap-3">
+                  <Badge 
+                    variant={selectedReport.content_type === 'project' ? 'default' : 'secondary'} 
+                    className="shrink-0 mt-0.5"
+                  >
+                    {selectedReport.content_type === 'project' ? '📋 Project' : '👤 Profile'}
+                  </Badge>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-foreground">
+                      {selectedReport.content_type === 'project'
+                        ? (selectedReport.content_details?.title || 'Untitled Project')
+                        : (selectedReport.creator_details?.full_name || selectedReport.creator_details?.username || 'Unknown User')}
+                    </p>
+                    {selectedReport.content_type === 'project' && selectedReport.creator_details && (
+                      <p className="text-sm text-muted-foreground">
+                        Created by {selectedReport.creator_details.full_name || selectedReport.creator_details.username}
+                      </p>
+                    )}
+                    {selectedReport.content_snapshot && (selectedReport.content_snapshot as any)?.url && (
+                      <a 
+                        href={(selectedReport.content_snapshot as any).url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-xs text-primary hover:underline flex items-center gap-1 mt-1"
+                      >
+                        View reported content <ExternalLink className="h-3 w-3" />
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               <div className="rounded-md border border-border/60 bg-muted/30 p-4 space-y-2">
                 <div>
                   <p className="text-sm font-semibold">Reason</p>
@@ -688,7 +826,8 @@ export default function ModerationDashboard({
               {selectedReport.reporter && (
                 <div className="flex items-center gap-2 rounded-md border border-border/60 bg-background/50 p-3 text-sm text-muted-foreground">
                   <User className="h-4 w-4" />
-                  <span>
+                  <span>Reported by: </span>
+                  <span className="font-medium text-foreground">
                     {selectedReport.reporter.full_name || selectedReport.reporter.username || selectedReport.reporter.email}
                   </span>
                 </div>
@@ -738,18 +877,29 @@ export default function ModerationDashboard({
                   )}
                   {selectedReportAiJson && (
                     <div>
-                      <p className="text-xs uppercase text-muted-foreground">AI output (JSON)</p>
-                      <pre className="mt-2 max-h-64 overflow-auto rounded bg-background/60 p-3 text-xs text-muted-foreground">
-                        {JSON.stringify(selectedReportAiJson, null, 2)}
-                      </pre>
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs uppercase text-muted-foreground">AI output (JSON)</p>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setShowAiJson((prev) => !prev)}
+                        >
+                          {showAiJson ? 'Hide deeper view' : 'View deeper'}
+                        </Button>
+                      </div>
+                      {showAiJson && (
+                        <pre className="mt-2 max-h-64 overflow-auto rounded bg-background/60 p-3 text-xs text-muted-foreground">
+                          {JSON.stringify(selectedReportAiJson, null, 2)}
+                        </pre>
+                      )}
                     </div>
                   )}
                 </div>
               )}
-              {selectedReport.content_snapshot && (
+              {selectedReport.content_snapshot && Object.keys(selectedReport.content_snapshot).length > 1 && (
                 <div className="rounded-md border border-border/70 bg-background/50 p-3">
-                  <p className="text-sm font-semibold">Content snapshot</p>
-                  <pre className="mt-2 max-h-64 overflow-auto rounded bg-muted/40 p-3 text-xs text-muted-foreground">
+                  <p className="text-sm font-semibold mb-2">Additional context</p>
+                  <pre className="max-h-40 overflow-auto rounded bg-muted/40 p-3 text-xs text-muted-foreground">
                     {JSON.stringify(selectedReport.content_snapshot, null, 2)}
                   </pre>
                 </div>
@@ -761,10 +911,20 @@ export default function ModerationDashboard({
                 </div>
               )}
               <div className="flex flex-wrap gap-2 border-t border-border/60 pt-4">
+                {selectedReportAi && selectedReportAi.suggestedStatus && (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => handleReportAiApproval(selectedReport)}
+                    disabled={isActionLoading}
+                  >
+                    Approve AI suggestion
+                  </Button>
+                )}
                 <Button
                   size="sm"
                   onClick={() => handleReportStatusChange(selectedReport.id, 'resolved', REPORT_RESOLVE_NOTE)}
-                  disabled={isPending}
+                  disabled={isActionLoading}
                 >
                   Resolve
                 </Button>
@@ -772,7 +932,7 @@ export default function ModerationDashboard({
                   size="sm"
                   variant="outline"
                   onClick={() => handleReportStatusChange(selectedReport.id, 'under_review')}
-                  disabled={isPending}
+                  disabled={isActionLoading}
                 >
                   Keep reviewing
                 </Button>
@@ -780,7 +940,7 @@ export default function ModerationDashboard({
                   size="sm"
                   variant="ghost"
                   onClick={() => handleReportStatusChange(selectedReport.id, 'dismissed', REPORT_DISMISS_NOTE)}
-                  disabled={isPending}
+                  disabled={isActionLoading}
                 >
                   Dismiss
                 </Button>
@@ -819,4 +979,41 @@ function formatRecommendedAction(value?: string | null) {
   }
   const friendly = value.replace(/_/g, ' ');
   return friendly.charAt(0).toUpperCase() + friendly.slice(1);
+}
+
+function getAiReasonSnippet(reasoning?: string | null) {
+  if (!reasoning) {
+    return 'No reasoning captured yet.';
+  }
+  const firstLine = reasoning.split('\n')[0] || reasoning;
+  if (firstLine.length > 120) {
+    return `${firstLine.slice(0, 120)}…`;
+  }
+  return firstLine;
+}
+
+function getStatusIcon(status?: string | null) {
+  switch ((status || 'pending').toLowerCase()) {
+    case 'resolved':
+      return <CheckCircle className="h-4 w-4 text-emerald-500" />;
+    case 'dismissed':
+      return <XCircle className="h-4 w-4 text-muted-foreground" />;
+    case 'under_review':
+      return <Eye className="h-4 w-4 text-blue-500" />;
+    case 'escalated':
+      return <AlertTriangle className="h-4 w-4 text-orange-500" />;
+    default:
+      return <Clock className="h-4 w-4 text-amber-500" />;
+  }
+}
+
+function getPriorityIcon(priority?: string | null) {
+  switch ((priority || 'normal').toLowerCase()) {
+    case 'high':
+      return <AlertTriangle className="h-3.5 w-3.5 text-destructive" />;
+    case 'medium':
+      return <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />;
+    default:
+      return <Clock className="h-3.5 w-3.5 text-muted-foreground" />;
+  }
 }

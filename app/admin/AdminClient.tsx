@@ -13,6 +13,7 @@ type FeedbackType = "issue" | "idea" | "other";
 
 interface Profile {
   full_name: string | null;
+  email: string | null;
   username: string | null;
   avatar_url: string | null;
 }
@@ -155,64 +156,6 @@ export function AdminClient({
     reportsPendingCount: reportsStats?.pending || 0,
   };
 
-  const mappedFeedback = feedback.map(f => ({
-    id: f.id,
-    section: f.section,
-    title: f.title,
-    feedback: f.feedback,
-    created_at: f.created_at,
-    email: f.email,
-    profiles: f.profiles
-  }));
-
-  const mappedTrustedMembers = applications.map(app => ({
-    id: app.id,
-    user_id: app.user_id,
-    status: app.status,
-    created_at: app.created_at,
-    email: app.email,
-    name: app.name,
-    reason: app.reason,
-    profiles: app.profiles
-  }));
-
-  return (
-    <div className="flex min-h-screen bg-muted/10">
-      <AdminSidebar activeTab={activeTab} setActiveTab={setActiveTab} />
-      
-      <main className="flex-1 p-8 overflow-y-auto h-screen">
-        <div className="max-w-6xl mx-auto">
-          {activeTab === "overview" && (
-            <OverviewTab 
-              stats={overviewStats} 
-              setActiveTab={setActiveTab}
-            />
-          )}
-          
-          {activeTab === "feedback" && (
-            <FeedbackTab 
-              feedback={mappedFeedback} 
-              onDelete={handleDeleteFeedback}
-            />
-          )}
-          
-          {activeTab === "trusted-members" && (
-            <TrustedMembersTab 
-              trustedMembers={mappedTrustedMembers} 
-              onApprove={handleApprove}
-              onDeny={handleDeny}
-              onRevoke={handleRevoke}
-            />
-          )}
-          
-          {activeTab === "moderation" && (
-            <ModerationTab 
-              flaggedContent={initialFlaggedContent} 
-              contentReports={initialContentReports} 
-            />
-          )}
-        </div>
-      </main>
-    </div>
-  );
+export function AdminClient() {
+  return null;
 }

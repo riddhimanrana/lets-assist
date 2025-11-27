@@ -52,7 +52,7 @@ export function shouldShowTimezoneBadge(projectTimezone: string, userTimezone?: 
 export function convertProjectTimeToUserTimezone(
   scheduleTime: ProjectScheduleTime,
   projectTimezone: string,
-  userTimezone?: string
+  _userTimezone?: string
 ): DisplayTime {
   return {
     ...scheduleTime,
@@ -148,19 +148,79 @@ export function formatScheduleDisplay(
 }
 
 /**
- * Common project timezones for selection
+ * Common project timezones for selection - simplified list
  */
 export const COMMON_TIMEZONES = [
-  { value: 'America/New_York', label: 'Eastern Time (ET)' },
-  { value: 'America/Chicago', label: 'Central Time (CT)' },
-  { value: 'America/Denver', label: 'Mountain Time (MT)' },
-  { value: 'America/Los_Angeles', label: 'Pacific Time (PT)' },
-  { value: 'America/Phoenix', label: 'Arizona Time (MST)' },
-  { value: 'America/Anchorage', label: 'Alaska Time (AKT)' },
-  { value: 'Pacific/Honolulu', label: 'Hawaii Time (HST)' },
-  { value: 'Europe/London', label: 'Greenwich Mean Time (GMT)' },
-  { value: 'Europe/Paris', label: 'Central European Time (CET)' },
-  { value: 'Asia/Tokyo', label: 'Japan Time (JST)' },
-  { value: 'Australia/Sydney', label: 'Australian Eastern Time (AET)' },
-  { value: 'UTC', label: 'Coordinated Universal Time (UTC)' },
+  // US Timezones
+  { value: 'America/New_York', label: 'Eastern (ET)' },
+  { value: 'America/Chicago', label: 'Central (CT)' },
+  { value: 'America/Denver', label: 'Mountain (MT)' },
+  { value: 'America/Los_Angeles', label: 'Pacific (PT)' },
+  { value: 'America/Phoenix', label: 'Arizona (MST)' },
+  { value: 'America/Anchorage', label: 'Alaska (AKT)' },
+  { value: 'Pacific/Honolulu', label: 'Hawaii (HST)' },
+  // International
+  { value: 'Europe/London', label: 'London (GMT/BST)' },
+  { value: 'Europe/Paris', label: 'Paris (CET)' },
+  { value: 'Asia/Tokyo', label: 'Tokyo (JST)' },
+  { value: 'Asia/Shanghai', label: 'China (CST)' },
+  { value: 'Asia/Kolkata', label: 'India (IST)' },
+  { value: 'Australia/Sydney', label: 'Sydney (AEST)' },
+  { value: 'UTC', label: 'UTC' },
 ];
+
+/**
+ * Map of timezone aliases to help match user's detected timezone to our list
+ */
+const TIMEZONE_ALIASES: Record<string, string> = {
+  'America/Detroit': 'America/New_York',
+  'America/Indiana/Indianapolis': 'America/New_York',
+  'America/Kentucky/Louisville': 'America/New_York',
+  'America/Toronto': 'America/New_York',
+  'America/Montreal': 'America/New_York',
+  'America/Winnipeg': 'America/Chicago',
+  'America/Edmonton': 'America/Denver',
+  'America/Vancouver': 'America/Los_Angeles',
+  'America/Tijuana': 'America/Los_Angeles',
+  'Europe/Berlin': 'Europe/Paris',
+  'Europe/Amsterdam': 'Europe/Paris',
+  'Europe/Rome': 'Europe/Paris',
+  'Europe/Madrid': 'Europe/Paris',
+  'Europe/Brussels': 'Europe/Paris',
+  'Asia/Singapore': 'Asia/Shanghai',
+  'Asia/Hong_Kong': 'Asia/Shanghai',
+  'Asia/Seoul': 'Asia/Tokyo',
+  'Australia/Melbourne': 'Australia/Sydney',
+  'Australia/Brisbane': 'Australia/Sydney',
+};
+
+/**
+ * Get the best matching timezone from our list based on user's detected timezone
+ */
+export function getBestMatchingTimezone(detectedTimezone: string): string {
+  // Check if it's directly in our list
+  if (COMMON_TIMEZONES.some(tz => tz.value === detectedTimezone)) {
+    return detectedTimezone;
+  }
+  
+  // Check aliases
+  if (TIMEZONE_ALIASES[detectedTimezone]) {
+    return TIMEZONE_ALIASES[detectedTimezone];
+  }
+  
+  // Fallback: try to match by region
+  if (detectedTimezone.startsWith('America/')) {
+    return 'America/New_York'; // Default US timezone
+  }
+  if (detectedTimezone.startsWith('Europe/')) {
+    return 'Europe/London';
+  }
+  if (detectedTimezone.startsWith('Asia/')) {
+    return 'Asia/Tokyo';
+  }
+  if (detectedTimezone.startsWith('Australia/') || detectedTimezone.startsWith('Pacific/')) {
+    return 'Australia/Sydney';
+  }
+  
+  return 'UTC';
+}

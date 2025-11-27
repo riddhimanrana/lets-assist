@@ -778,6 +778,9 @@ export default function ProjectDetails({
                       <ReportContentButton
                         contentType="project"
                         contentId={project.id}
+                        contentTitle={project.title}
+                        contentCreator={creator?.full_name || creator?.username || undefined}
+                        contentContext={organization?.name || undefined}
                         triggerButton={
                           <DropdownMenuItem>
                             <Flag className="mr-2 h-4 w-4" />

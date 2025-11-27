@@ -46,6 +46,12 @@ type ReportReason =
 interface ReportContentButtonProps {
   contentType: ContentType;
   contentId: string;
+  /** Optional: title of the project or name of the profile being reported */
+  contentTitle?: string;
+  /** Optional: name of the content creator (for projects) or the profile owner */
+  contentCreator?: string;
+  /** Optional: additional context about the content (e.g., organization name) */
+  contentContext?: string;
   triggerButton?: React.ReactNode;
 }
 
@@ -61,7 +67,14 @@ const REPORT_REASONS: { value: ReportReason; label: string }[] = [
   { value: 'other', label: 'Other' },
 ];
 
-export function ReportContentButton({ contentType, contentId, triggerButton }: ReportContentButtonProps) {
+export function ReportContentButton({ 
+  contentType, 
+  contentId, 
+  contentTitle,
+  contentCreator,
+  contentContext,
+  triggerButton 
+}: ReportContentButtonProps) {
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState<ReportReason | ''>('');
   const [description, setDescription] = useState('');
@@ -96,6 +109,14 @@ export function ReportContentButton({ contentType, contentId, triggerButton }: R
           contentId,
           reason,
           description: description.trim(),
+          url: window.location.href,
+          // Include rich metadata for better moderation context
+          metadata: {
+            title: contentTitle,
+            creator: contentCreator,
+            context: contentContext,
+            reportedAt: new Date().toISOString(),
+          },
         }),
       });
 
