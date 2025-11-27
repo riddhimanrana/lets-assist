@@ -713,7 +713,7 @@ export async function takeModeratorAction(
       .single();
 
     if (error) {
-      console.error(`Error taking moderator action on report ${reportId}:`, error);
+      console.error('Error taking moderator action on report %s:', reportId, error);
       return { error: error.message };
     }
 
