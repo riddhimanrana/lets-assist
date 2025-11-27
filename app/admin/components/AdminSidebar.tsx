@@ -6,14 +6,19 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { LayoutDashboard, MessageSquare, ShieldAlert, Users } from "lucide-react";
 
-export function AdminSidebar() {
+interface AdminSidebarProps {
+  activeTab?: string;
+  onTabChange?: (tab: string) => void;
+}
+
+export function AdminSidebar({ activeTab, onTabChange }: AdminSidebarProps = {}) {
   const pathname = usePathname();
 
   const navItems = [
-    { href: "/admin", label: "Overview", icon: LayoutDashboard, exact: true },
-    { href: "/admin/feedback", label: "Feedback", icon: MessageSquare },
-    { href: "/admin/trusted-members", label: "Trusted Members", icon: Users },
-    { href: "/admin/moderation", label: "Moderation", icon: ShieldAlert },
+    { id: "overview", href: "/admin", label: "Overview", icon: LayoutDashboard, exact: true },
+    { id: "feedback", href: "/admin/feedback", label: "Feedback", icon: MessageSquare },
+    { id: "trusted-members", href: "/admin/trusted-members", label: "Trusted Members", icon: Users },
+    { id: "moderation", href: "/admin/moderation", label: "Moderation", icon: ShieldAlert },
   ];
 
   return (
@@ -24,24 +29,42 @@ export function AdminSidebar() {
       </div>
       <nav className="space-y-1">
         {navItems.map((item) => {
-          const isActive = item.exact 
-            ? pathname === item.href 
-            : pathname.startsWith(item.href);
+          const isActive = activeTab !== undefined
+            ? activeTab === item.id
+            : item.exact 
+              ? pathname === item.href 
+              : pathname.startsWith(item.href);
+
+          const buttonProps = onTabChange
+            ? {
+                onClick: () => onTabChange(item.id),
+                asChild: false,
+              }
+            : {
+                asChild: true,
+              };
 
           return (
             <Button
-              key={item.href}
+              key={item.id}
               variant={isActive ? "secondary" : "ghost"}
               className={cn(
                 "w-full justify-start gap-2",
                 isActive && "bg-secondary"
               )}
-              asChild
+              {...buttonProps}
             >
-              <Link href={item.href}>
-                <item.icon className="h-4 w-4" />
-                {item.label}
-              </Link>
+              {onTabChange ? (
+                <>
+                  <item.icon className="h-4 w-4" />
+                  {item.label}
+                </>
+              ) : (
+                <Link href={item.href}>
+                  <item.icon className="h-4 w-4" />
+                  {item.label}
+                </Link>
+              )}
             </Button>
           );
         })}

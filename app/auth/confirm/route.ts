@@ -41,11 +41,11 @@ export async function GET(request: NextRequest) {
     return redirectToSuccess(request, undefined, type === "email_change" ? "email_change" : "signup");
   }
 
-  const { data, error } = await supabase.auth.verifyOtp({
-    type,
-    token_hash: token_hash ?? undefined,
-    token: token ?? undefined,
-  });
+  const otpParams: any = { type };
+  if (token_hash) otpParams.token_hash = token_hash;
+  if (token) otpParams.token = token;
+
+  const { data, error } = await supabase.auth.verifyOtp(otpParams);
 
   if (error) {
     console.error("Verification error:", error);

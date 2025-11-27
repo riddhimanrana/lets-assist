@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { updateFlaggedContentStatus } from "../moderation/actions";
+import { ReportDetailView } from "./ReportDetailView";
 
 interface ContentReport {
   id: string;
@@ -57,6 +58,7 @@ interface ModerationTabProps {
 export function ModerationTab({ flaggedContent, contentReports }: ModerationTabProps) {
   const [isScanning, setIsScanning] = useState(false);
   const [selectedFlag, setSelectedFlag] = useState<FlaggedContent | null>(null);
+  const [selectedReport, setSelectedReport] = useState<string | null>(null);
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
   const [manualNotes, setManualNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -168,8 +170,24 @@ export function ModerationTab({ flaggedContent, contentReports }: ModerationTabP
           )}
         </TabsContent>
 
-        <TabsContent value="reports">
-          {contentReports.length === 0 ? (
+        <TabsContent value="reports" className="space-y-4">
+          {selectedReport ? (
+            <div className="space-y-4">
+              <Button 
+                variant="outline" 
+                onClick={() => setSelectedReport(null)}
+              >
+                ← Back to List
+              </Button>
+              <ReportDetailView 
+                reportId={selectedReport}
+                onActionTaken={() => {
+                  toast.success("Action completed. Refreshing...");
+                  setTimeout(() => window.location.reload(), 1500);
+                }}
+              />
+            </div>
+          ) : contentReports.length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-10 text-center">
                 <CheckCircle className="h-12 w-12 text-primary mb-4" />
@@ -178,8 +196,45 @@ export function ModerationTab({ flaggedContent, contentReports }: ModerationTabP
               </CardContent>
             </Card>
           ) : (
-            <div className="text-sm text-muted-foreground">
-              {contentReports.length} reports pending review. (Implementation coming soon)
+            <div className="space-y-4">
+              <div className="grid gap-4">
+                {contentReports.map((report) => (
+                  <Card 
+                    key={report.id}
+                    className="cursor-pointer hover:border-primary transition-colors"
+                    onClick={() => setSelectedReport(report.id)}
+                  >
+                    <CardContent className="p-6">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1 space-y-2">
+                          <div className="flex items-center gap-2">
+                            <Badge 
+                              variant={
+                                report.priority === 'critical' ? 'destructive' : 
+                                report.priority === 'high' ? 'secondary' :
+                                'outline'
+                              }
+                            >
+                              {report.priority}
+                            </Badge>
+                            <Badge variant="outline">
+                              {report.content_type}
+                            </Badge>
+                          </div>
+                          <h4 className="font-medium">{report.reason}</h4>
+                          <p className="text-sm text-muted-foreground line-clamp-2">
+                            {report.description}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 ml-4">
+                          <Badge variant="outline">{report.priority}</Badge>
+                          <Eye className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
             </div>
           )}
         </TabsContent>
