@@ -70,29 +70,27 @@ export default function BasicInfo({
   );
   const initRef = useRef(false);
   
-  // Set default organization on initial render only
+  // Set default organization and timezone on initial render only
   useEffect(() => {
     if (initRef.current) return;
     
     initRef.current = true;
     
     // If initialOrgId is provided, use it
-    if (initialOrgId) {
+    if (initialOrgId && state.basicInfo.organizationId !== initialOrgId) {
       updateBasicInfoAction('organizationId', initialOrgId);
     } else if (state.basicInfo.organizationId === undefined) {
       // Otherwise, if no organization is set, default to personal (null)
       updateBasicInfoAction('organizationId', null);
     }
-  }, [initialOrgId, updateBasicInfoAction, state.basicInfo.organizationId]);
-
-  // Initialize timezone to user's current timezone if not set
-  useEffect(() => {
+    
+    // Initialize timezone to user's current timezone if not set
     if (!state.basicInfo.projectTimezone) {
       const detectedTimezone = getUserTimezone();
       const bestMatch = getBestMatchingTimezone(detectedTimezone);
       updateBasicInfoAction('projectTimezone', bestMatch);
     }
-  }, [updateBasicInfoAction, state.basicInfo.projectTimezone]);
+  }, []);
 
   // Find the selected organization or use personal project as default
   const selectedOrg = state.basicInfo.organizationId === null
@@ -106,7 +104,7 @@ export default function BasicInfo({
     if (orgId === "personal") {
       updateBasicInfoAction("organizationId", null);
     } else {
-      updateBasicInfoAction("organizationId", orgId);
+      updateBasicInfoAction("organizationId", orgId); 
     }
     setOpen(false);
   };

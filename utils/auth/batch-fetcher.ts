@@ -7,6 +7,7 @@
  * - Uses Supabase RPC or batched queries for efficiency
  * - Caches results in memory
  * - Called once at login, then subscribes to realtime updates
+ * - Uses promise deduplication to prevent concurrent fetches
  * 
  * Reduces from ~5-10 queries to 1-2 queries per login
  */
@@ -16,15 +17,23 @@ import {
   updateCachedUserData,
   updateFetchTimestamp,
   isCacheValid,
+  getCachedUserData,
   type UserProfile,
   type NotificationSettings,
 } from '@/utils/auth/profile-cache';
-import type { User } from '@supabase/supabase-js';
 
 export interface BatchUserData {
   profile: UserProfile | null;
   settings: NotificationSettings | null;
 }
+
+/**
+ * In-flight fetch promise for deduplication
+ * Prevents multiple concurrent fetches when AuthProvider and useUserProfile
+ * both try to fetch at the same time
+ */
+let fetchInFlightPromise: Promise<BatchUserData> | null = null;
+let fetchInFlightForUserId: string | null = null;
 
 /**
  * Fetch user profile and settings in minimal queries
@@ -37,50 +46,86 @@ export interface BatchUserData {
  * AFTER:
  *   - single batched query or RPC
  * 
+ * Uses promise deduplication - if a fetch is already in-flight for the same user,
+ * returns the existing promise instead of starting a new one.
+ * 
  * @param userId - Authenticated user ID
  * @returns Profile, settings, and preferences
  */
 export async function fetchUserDataBatch(
   userId: string,
 ): Promise<BatchUserData> {
-  const supabase = createClient();
-
-  try {
-    // Parallel queries (executed together by Supabase)
-    const [profileResult, settingsResult] = await Promise.all([
-      supabase
-        .from('profiles')
-        .select(
-          'id, full_name, avatar_url, username, phone, profile_visibility, volunteer_goals, created_at, updated_at, date_of_birth, parental_consent_required, email',
-        )
-        .eq('id', userId)
-        .maybeSingle(),
-      supabase
-        .from('notification_settings')
-        .select('*')
-        .eq('user_id', userId)
-        .maybeSingle(),
-    ]);
-
-    const profile = profileResult.data as UserProfile | null;
-    const settings = settingsResult.data as NotificationSettings | null;
-
+  // If there's already an in-flight request for this user, return it
+  if (fetchInFlightPromise && fetchInFlightForUserId === userId) {
     if (process.env.NODE_ENV === 'development') {
-      console.log('[BatchFetch] Fetched user data:', {
-        profile: profile ? `${profile.full_name} (${profile.username})` : null,
-        hasSettings: !!settings,
-      });
+      console.log('[BatchFetch] Returning in-flight promise (deduplication)');
     }
-
-    // Update cache
-    updateCachedUserData({ profile, settings }, userId);
-    updateFetchTimestamp();
-
-    return { profile, settings };
-  } catch (error) {
-    console.error('[BatchFetch] Error fetching user data:', error);
-    return { profile: null, settings: null };
+    return fetchInFlightPromise;
   }
+
+  // Create the fetch promise
+  fetchInFlightForUserId = userId;
+  fetchInFlightPromise = (async () => {
+    const supabase = createClient();
+
+    try {
+      // Parallel queries (executed together by Supabase)
+      const [profileResult, settingsResult] = await Promise.all([
+        supabase
+          .from('profiles')
+          .select('id, full_name, avatar_url, username, phone, profile_visibility, created_at, updated_at, volunteer_goals')
+          .eq('id', userId)
+          .maybeSingle(),
+        supabase
+          .from('notification_settings')
+          .select('*')
+          .eq('user_id', userId)
+          .maybeSingle(),
+      ]);
+
+      // Check for errors
+      if (profileResult.error) {
+        console.error('[BatchFetch] Profile query error:', {
+          message: profileResult.error.message,
+          code: profileResult.error.code,
+          details: profileResult.error.details,
+          hint: profileResult.error.hint,
+        });
+      }
+      if (settingsResult.error) {
+        console.error('[BatchFetch] Settings query error:', settingsResult.error);
+      }
+
+      const profile = profileResult.data as UserProfile | null;
+      const settings = settingsResult.data as NotificationSettings | null;
+
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[BatchFetch] Fetched user data:', {
+          profile: profile ? `${profile.full_name} (${profile.username})` : null,
+          hasSettings: !!settings,
+          profileError: profileResult.error?.message,
+          settingsError: settingsResult.error?.message,
+        });
+      }
+
+      // Update cache and notify subscribers
+      updateCachedUserData({ profile, settings }, userId);
+      updateFetchTimestamp();
+
+      return { profile, settings };
+    } catch (error) {
+      console.error('[BatchFetch] Error fetching user data:', error);
+      return { profile: null, settings: null };
+    }
+  })();
+
+  // Clear in-flight promise after completion
+  fetchInFlightPromise.finally(() => {
+    fetchInFlightPromise = null;
+    fetchInFlightForUserId = null;
+  });
+
+  return fetchInFlightPromise;
 }
 
 /**
@@ -96,14 +141,14 @@ export async function fetchUserDataBatch(
 export async function getOrFetchUserData(
   userId: string,
 ): Promise<BatchUserData> {
-  // Check if cache is valid
+  // Check if cache is valid and has data
   if (isCacheValid()) {
-    const { profile, settings } = require('@/utils/auth/profile-cache').getCachedUserData();
-    if (profile || settings) {
+    const cachedData = getCachedUserData();
+    if (cachedData.profile || cachedData.settings) {
       if (process.env.NODE_ENV === 'development') {
         console.log('[BatchFetch] Using cached data');
       }
-      return { profile, settings };
+      return { profile: cachedData.profile, settings: cachedData.settings };
     }
   }
 

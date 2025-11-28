@@ -15,6 +15,8 @@
 import type { User } from '@supabase/supabase-js';
 
 // Profile from profiles table
+// Note: email is NOT in profiles table - get it from auth user (useAuth().user?.email)
+// This interface reflects all columns that actually exist in the profiles table
 export interface UserProfile {
   id: string;
   full_name: string | null;
@@ -22,12 +24,11 @@ export interface UserProfile {
   username: string | null;
   phone: string | null;
   profile_visibility: 'public' | 'private' | 'organization_only' | null;
-  date_of_birth: string | null;
-  parental_consent_required: boolean | null;
-  email: string | null;
   created_at: string;
   updated_at: string | null;
-  volunteer_goals: { hours_goal: number; events_goal: number } | null;
+  volunteer_goals: Record<string, any> | null;  // JSONB field
+  // Note: columns like date_of_birth, parental_consent_required might not exist in this table
+  [key: string]: any;  // Allow other columns that might be in the DB
 }
 
 // Notification settings from notification_settings table

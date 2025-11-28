@@ -296,7 +296,7 @@ export default function VerificationSettings({
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
-            Project Visibility
+            Who Can See This Project?
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -304,9 +304,9 @@ export default function VerificationSettings({
                     <Info className="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent className="text-xs font-normal">
+                <TooltipContent className="text-xs font-normal max-w-xs">
                   <p>
-                    Control who can view and find this project.
+                    Choose who can discover and view your project on the Let&apos;s Assist platform.
                   </p>
                 </TooltipContent>
               </Tooltip>
@@ -335,13 +335,13 @@ export default function VerificationSettings({
                   <RadioGroupItem value="public" id="visibility-public" />
                   <div className="flex items-center space-x-2">
                     <Eye className="h-5 w-5" />
-                    <span className="font-medium">Public</span>
+                    <span className="font-medium">Public (Everyone)</span>
                   </div>
                 </div>
+                <Badge variant="default">Recommended</Badge>
               </div>
               <p className="text-sm text-muted-foreground ml-6">
-                Anyone can find and view this project. It appears in search results
-                and discovery feeds.
+                Your project appears on the home feed and in search results. Anyone on the platform can find and sign up for it.
               </p>
             </label>
 
@@ -359,14 +359,13 @@ export default function VerificationSettings({
                   <RadioGroupItem value="unlisted" id="visibility-unlisted" />
                   <div className="flex items-center space-x-2">
                     <Link2 className="h-5 w-5" />
-                    <span className="font-medium">Unlisted</span>
+                    <span className="font-medium">Unlisted (By Link Only)</span>
                   </div>
                 </div>
-                <Badge variant="secondary">Link only</Badge>
+                <Badge variant="secondary">Private Link</Badge>
               </div>
               <p className="text-sm text-muted-foreground ml-6">
-                Only people with the direct link can view this project. It won&apos;t
-                appear in search results or public pages.
+                Only people with the direct link can find your project. Share the link with volunteers via email or social media. Won&apos;t appear in search or feeds.
               </p>
             </label>
 
@@ -385,14 +384,13 @@ export default function VerificationSettings({
                     <RadioGroupItem value="organization_only" id="visibility-org-only" />
                     <div className="flex items-center space-x-2">
                       <Lock className="h-5 w-5" />
-                      <span className="font-medium">Organization Only</span>
+                      <span className="font-medium">Organization Members Only</span>
                     </div>
                   </div>
                   <Badge variant="secondary">Private</Badge>
                 </div>
                 <p className="text-sm text-muted-foreground ml-6">
-                  Only organization members can view and sign up for this project.
-                  Ideal for internal volunteer opportunities.
+                  Only your organization members can see and sign up for this project. Great for internal volunteer opportunities or member-exclusive events.
                 </p>
               </label>
             )}
@@ -407,12 +405,12 @@ export default function VerificationSettings({
         </CardContent>
       </Card>
 
-      {/* Domain Restriction Toggle - Only show if organization has allowed domains */}
+      {/* Domain Restriction Section - Only show if organization has allowed domains */}
       {isOrganization && allowedEmailDomains && allowedEmailDomains.length > 0 && updateRestrictToOrgDomainsAction && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
-              Domain Restrictions
+              Email Domain Requirements
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -420,9 +418,9 @@ export default function VerificationSettings({
                       <Info className="h-4 w-4" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent className="text-xs font-normal">
+                  <TooltipContent className="text-xs font-normal max-w-xs">
                     <p>
-                      Restrict signups to users with specific email domains.
+                      Optionally require volunteers to have an email from your organization&apos;s approved domains to sign up.
                     </p>
                   </TooltipContent>
                 </Tooltip>
@@ -432,7 +430,7 @@ export default function VerificationSettings({
           <CardContent>
             <div className="space-y-6">
               <div className="flex items-center justify-between space-x-4">
-                <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-3 flex-1">
                   <div
                     className={cn(
                       "p-2 rounded-md",
@@ -445,17 +443,17 @@ export default function VerificationSettings({
                       <Users className="h-5 w-5 text-muted-foreground" />
                     )}
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <Label
                       htmlFor="restrict-domains"
-                      className="text-base font-medium"
+                      className="text-base font-medium cursor-pointer"
                     >
-                      Restrict to Organization Domains
+                      Require Organization Email
                     </Label>
                     <p className="text-sm text-muted-foreground mt-1">
                       {restrictToOrgDomains
-                        ? `Only users with emails from: ${allowedEmailDomains.join(", ")} can sign up.`
-                        : "Users with any email domain can sign up."}
+                        ? `✓ Only emails from: ${allowedEmailDomains.join(", ")} can sign up`
+                        : `Optional: Allow emails from any domain to sign up`}
                     </p>
                   </div>
                 </div>

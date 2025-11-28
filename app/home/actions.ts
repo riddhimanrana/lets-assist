@@ -16,7 +16,8 @@ export async function getActiveProjects(
   limit: number = 21, 
   offset: number = 0,
   status?: ProjectStatus,
-  organizationId?: string
+  organizationId?: string,
+  userId?: string
 ): Promise<Project[]> {
   const supabase = await createClient();
 
@@ -27,10 +28,6 @@ export async function getActiveProjects(
       *
     `);
 
-  // Only show public projects in the public feed
-  // Unlisted projects are accessible via direct link but not listed
-  query = query.eq("visibility", "public");
-
   // Apply status filter if specified
   if (status) {
     query = query.eq("status", status);
@@ -39,6 +36,14 @@ export async function getActiveProjects(
   // Apply organization filter if specified
   if (organizationId) {
     query = query.eq("organization_id", organizationId);
+  }
+
+  // Apply visibility filter: only show public projects unless user owns or belongs to organization
+  // If we're showing a specific organization, don't filter by visibility
+  if (!organizationId) {
+    // For public discovery, only show public or unlisted projects
+    // organization_only projects should only be visible to organization members
+    query = query.in("visibility", ["public", "unlisted"]);
   }
 
   // Apply pagination
