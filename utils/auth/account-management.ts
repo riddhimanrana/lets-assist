@@ -56,33 +56,26 @@ export async function setPrimaryEmail(email: string) {
 /**
  * Fetches the current user's linked emails from `user_emails` table.
  * Ensures the auth email is always synced and included.
+ * Uses upsert to reduce from 3 queries to 2 (sync + fetch).
  */
 export async function getLinkedIdentities() {
     const supabase = createClient();
     const user = await requireUser(supabase);
 
-    // Ensure the auth email exists in user_emails table
+    // Upsert auth email in one query instead of check + insert
     if (user.email) {
-        // Check if auth email exists in user_emails
-        const { data: existingEmail } = await supabase
+        await supabase
             .from('user_emails')
-            .select('id')
-            .eq('user_id', user.id)
-            .eq('email', user.email)
-            .maybeSingle();
-
-        // If not, insert it as primary and verified
-        if (!existingEmail) {
-            await supabase
-                .from('user_emails')
-                .insert({
+            .upsert(
+                {
                     user_id: user.id,
                     email: user.email,
                     is_primary: true,
                     verified_at: new Date().toISOString(),
                     verification_token: null
-                });
-        }
+                },
+                { onConflict: 'user_id,email' } // Only upsert if same user+email
+            );
     }
 
     const { data, error } = await supabase

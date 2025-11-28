@@ -319,7 +319,8 @@ export default function ProfileClient() {
     );
     setCanChangeVisibility(true);
 
-    const emailSource = profile.email || user?.email || null;
+    // Email is from auth user, not profile table
+    const emailSource = user?.email || null;
     const domain = emailSource ? emailSource.split("@")[1] ?? null : null;
     setEmailDomain(domain);
   }, [profile, isProfileLoading, user?.email, form]);
