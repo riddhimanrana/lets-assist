@@ -250,7 +250,7 @@ export default function Navbar() {
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-6 ml-auto">
+          <div className="hidden lg:flex items-center space-x-4 ml-auto">
             {isAuthLoading ? (
               <Skeleton className="h-6 w-48" />
             ) : user ? (
@@ -305,7 +305,7 @@ export default function Navbar() {
                     <NavigationMenuItem>
                       <NavigationMenuTrigger className={cn(pathname === "/#features" && "bg-accent text-accent-foreground")}>Features</NavigationMenuTrigger>
                       <NavigationMenuContent>
-                        <ul className="grid gap-3 p-6 md:w-[400px] lg:w-[500px] lg:grid-cols-[.75fr_1fr]">
+                        <ul className="grid gap-3 p-4 w-[320px] lg:w-[500px] lg:p-6 lg:grid-cols-[.75fr_1fr]">
                           <li className="row-span-3">
                             <NavigationMenuLink asChild>
                               <Link
@@ -361,7 +361,7 @@ export default function Navbar() {
               </>
             )}
           </div>
-          <div className="hidden sm:flex items-center space-x-6 ml-auto">
+          <div className="hidden lg:flex items-center space-x-4 ml-auto">
             {isAuthLoading ? (
               <div className="flex items-center space-x-3">
                 <Skeleton className="w-9 h-9 rounded-full" />
@@ -498,7 +498,7 @@ export default function Navbar() {
           {/* Mobile Navigation */}
           <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
             <SheetTitle className="hidden"></SheetTitle>
-            <div className="sm:hidden flex items-center ml-auto">
+            <div className="lg:hidden flex items-center ml-auto">
               {isAuthLoading ? (
                 <Skeleton className="w-10 h-10 rounded-full" />
               ) : (
@@ -508,7 +508,7 @@ export default function Navbar() {
               {!isAuthLoading && !user && <ModeToggle />}
             </div>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="md:hidden ml-2">
+              <Button variant="ghost" size="icon" className="lg:hidden ml-2">
                 <Menu className="h-5 w-5" />
                 <span className="sr-only">Toggle menu</span>
               </Button>

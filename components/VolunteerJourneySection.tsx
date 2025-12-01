@@ -134,7 +134,7 @@ export default function VolunteerJourneySection() {
           </p>
         </motion.div>
 
-        <div className="mx-auto max-w-6xl grid grid-cols-1 gap-6 lg:grid-cols-2 items-start">
+        <div className="mx-auto max-w-6xl grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-2 items-start">
           <div className="order-2 lg:order-1">
             <div className="rounded-2xl border border-border/60 bg-background/80 shadow-md overflow-hidden">
               <AnimatePresence mode="wait">

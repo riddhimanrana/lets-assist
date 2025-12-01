@@ -179,7 +179,7 @@ export const ComprehensiveFeatures = () => {
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true }}
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6 sm:gap-8 px-4 sm:px-6 mb-16"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4 sm:gap-6 md:gap-8 px-4 sm:px-6 mb-16"
         >
           {uniqueFeatures.map((feature, index) => (
             <motion.div key={index} variants={itemVariants} className="group">
@@ -215,7 +215,7 @@ export const ComprehensiveFeatures = () => {
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true }}
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8 px-4 sm:px-6"
+          className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5 md:gap-6 px-4 sm:px-6"
         >
           {advancedCapabilities.map((feature, index) => (
             <motion.div key={index} variants={itemVariants} className="group">
