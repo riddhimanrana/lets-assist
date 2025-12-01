@@ -169,7 +169,7 @@ export default function OrgToolingSection() {
         </motion.div>
 
         <div className="mt-12 space-y-10">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {orgFeatures.map((feat) => (
               <Card key={feat.title} className="h-full border-border/60 bg-background/90 shadow-sm">
                 <CardContent className="p-4">

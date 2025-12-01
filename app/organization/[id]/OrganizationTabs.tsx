@@ -13,7 +13,8 @@ import {
   Globe,
   MapPin,
   ShieldCheck,
-  LogOut
+  LogOut,
+  BarChart3
 } from "lucide-react";
 import { format } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
@@ -28,6 +29,7 @@ import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { ProjectStatusBadge } from "@/components/ui/status-badge";
 import { getProjectStatus } from "@/utils/project";
+import AdminDashboardClient from "./admin/DashboardClient";
 
 interface OrganizationTabsProps {
   organization: any;
@@ -35,6 +37,11 @@ interface OrganizationTabsProps {
   projects: any[];
   userRole: string | null;
   currentUserId: string | undefined;
+  dashboardData?: {
+    metrics: any;
+    topVolunteers: any[];
+    projectsWithStats: any[];
+  };
 }
 
 function LeaveOrganizationDialog({ 
@@ -126,6 +133,7 @@ export default function OrganizationTabs({
   projects,
   userRole,
   currentUserId,
+  dashboardData,
 }: OrganizationTabsProps) {
   const [activeTab, setActiveTab] = useState("overview");
   // Removed collapsible description per request; keeping state commented for easy restore.
@@ -177,6 +185,15 @@ export default function OrganizationTabs({
           <Folders className="h-4 w-4" />
           <span className="text-xs sm:text-sm">Projects</span>
         </TabsTrigger>
+        {userRole === "admin" && (
+          <TabsTrigger 
+            value="admin-dashboard" 
+            className="flex items-center gap-2 data-[state=active]:text-foreground"
+          >
+            <BarChart3 className="h-4 w-4" />
+            <span className="text-xs sm:text-sm">Dashboard</span>
+          </TabsTrigger>
+        )}
       </TabsList>
       
       <TabsContent value="overview" className="space-y-6">
@@ -478,6 +495,29 @@ export default function OrganizationTabs({
           userRole={userRole}
         />
       </TabsContent>
+
+      {userRole === "admin" && (
+        <TabsContent value="admin-dashboard" className="space-y-4">
+          {dashboardData ? (
+            <AdminDashboardClient
+              organizationId={organization.id}
+              organizationName={organization.name}
+              metrics={dashboardData.metrics}
+              topVolunteers={dashboardData.topVolunteers}
+              projects={dashboardData.projectsWithStats}
+            />
+          ) : (
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">Loading dashboard data...</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+      )}
     </Tabs>
   );
 }
