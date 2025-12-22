@@ -66,28 +66,27 @@ function restoreFromStorage(): boolean {
   }
 
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
     const storedTs = localStorage.getItem(STORAGE_TIMESTAMP_KEY);
 
-    if (!stored || !storedTs) {
-      return false; // No cache in storage
+    if (!storedTs) {
+      return false; // No cache metadata in storage
     }
 
     const cacheAge = Date.now() - parseInt(storedTs, 10);
     if (cacheAge > CACHE_TTL_MS) {
       // Cache is stale (older than 5 minutes), don't use it
-      localStorage.removeItem(STORAGE_KEY);
       localStorage.removeItem(STORAGE_TIMESTAMP_KEY);
       return false;
     }
 
-    // Cache is fresh, restore it
-    cachedUser = JSON.parse(stored) as User | null;
+    // Cache is fresh; restore metadata only.
+    // We intentionally do NOT restore the user object itself from storage
+    // to avoid persisting sensitive data in cleartext.
     cacheInitialized = true;
     lastFetchTimestamp = parseInt(storedTs, 10);
     
     if (process.env.NODE_ENV === 'development') {
-      console.log(`[Auth Context] Restored from storage (age: ${cacheAge}ms)`, cachedUser?.id);
+      console.log(`[Auth Context] Restored auth metadata from storage (age: ${cacheAge}ms)`);
     }
     return true;
   } catch (error) {
@@ -97,7 +96,10 @@ function restoreFromStorage(): boolean {
 }
 
 /**
- * Save auth cache to localStorage
+ * Save auth cache metadata to localStorage
+ *
+ * Note: We intentionally do NOT persist the full user object to avoid
+ * storing sensitive authentication data in cleartext in localStorage.
  * Called after every successful fetch
  */
 function saveToStorage(): void {
@@ -106,7 +108,6 @@ function saveToStorage(): void {
   }
 
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(cachedUser));
     localStorage.setItem(STORAGE_TIMESTAMP_KEY, String(lastFetchTimestamp));
   } catch (error) {
     console.error('[Auth Context] Failed to save to storage:', error);
