@@ -81,7 +81,6 @@ export function NotificationPopover() {
   const supabase = createClient();
   const router = useRouter();
   const isMobile = useMediaQuery("(max-width: 768px)");
-  const sentinelRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const scrollPositionRef = useRef<number>(0);
