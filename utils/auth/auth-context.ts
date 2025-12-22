@@ -143,10 +143,8 @@ export function initAuthContext(): void {
   lastFetchTimestamp = 0;
   lastFetchError = null;
   
-  // Try to restore from storage on init (only first time)
-  if (!cacheInitialized) {
-    restoreFromStorage();
-  }
+  // Try to restore from storage on init
+  restoreFromStorage();
 }
 
 /**
