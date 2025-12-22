@@ -105,7 +105,7 @@ export async function getTopVolunteers(
         created_at,
         user_id,
         project_id,
-        profiles!inner(
+        profiles(
           id,
           full_name,
           avatar_url,
@@ -135,8 +135,11 @@ export async function getTopVolunteers(
     }>();
 
     // Process certificates
+    type ProfileType = { id: string; full_name: string | null; avatar_url: string | null; email: string | null };
     for (const cert of certificates || []) {
-      const profile = cert.profiles as { id: string; full_name: string | null; avatar_url: string | null; email: string | null } | null;
+      // profiles can be an object or array depending on the relationship
+      const profileData = cert.profiles;
+      const profile: ProfileType | null = Array.isArray(profileData) ? profileData[0] : profileData;
       if (!profile) continue;
       
       const existing = userMap.get(cert.user_id) || {

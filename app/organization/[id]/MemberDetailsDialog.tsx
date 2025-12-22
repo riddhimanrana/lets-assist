@@ -193,56 +193,60 @@ export default function MemberDetailsDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={() => onClose()}>
-      <DialogContent className="max-w-4xl w-[92vw] sm:w-[95vw] max-h-[85vh] sm:max-h-[90vh] overflow-y-auto p-3 sm:p-6">
-        <DialogHeader className="space-y-3">
-          <DialogTitle className="flex items-center gap-3">
-            <Avatar className="h-10 w-10 sm:h-12 sm:w-12 border border-border flex-shrink-0">
-              <AvatarImage
-                src={profile?.avatar_url || undefined}
-                alt={profile?.full_name || ""}
-              />
-              <AvatarFallback className="bg-primary/10 text-primary">
-                <NoAvatar fullName={profile?.full_name || ""} />
-              </AvatarFallback>
-            </Avatar>
-            <div className="text-left min-w-0 flex-1">
-              <h2 className="text-lg sm:text-xl font-semibold leading-tight truncate">
-                {profile?.full_name || "Unknown User"}
-              </h2>
-              <p className="text-xs sm:text-sm font-mono font-normal text-muted-foreground truncate">
-                @{profile?.username || ""} • {member.role}
-              </p>
+      <DialogContent className="sm:max-w-4xl w-[calc(100vw-1rem)] sm:w-[92vw] max-h-[85vh] sm:max-h-[90vh] overflow-hidden flex flex-col p-0">
+        {/* Fixed Header */}
+        <DialogHeader className="space-y-2 sm:space-y-3 p-3 sm:p-6 pb-2 sm:pb-4 border-b flex-shrink-0">
+          <DialogTitle className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+              <Avatar className="h-9 w-9 sm:h-12 sm:w-12 border border-border flex-shrink-0">
+                <AvatarImage
+                  src={profile?.avatar_url || undefined}
+                  alt={profile?.full_name || ""}
+                />
+                <AvatarFallback className="bg-primary/10 text-primary text-sm sm:text-base">
+                  <NoAvatar fullName={profile?.full_name || ""} />
+                </AvatarFallback>
+              </Avatar>
+              <div className="text-left min-w-0 flex-1">
+                <h2 className="text-sm sm:text-xl font-semibold leading-tight truncate">
+                  {profile?.full_name || "Unknown User"}
+                </h2>
+                <p className="text-[11px] sm:text-sm font-mono font-normal text-muted-foreground truncate">
+                  @{profile?.username || ""} • {member.role}
+                </p>
+              </div>
             </div>
+            {events.length > 0 && (
+              <Button
+                onClick={handleExportMemberData}
+                disabled={isExporting}
+                variant="outline"
+                size="sm"
+                className="gap-1.5 sm:gap-2 self-start sm:self-center flex-shrink-0 h-8 px-2 sm:px-3 text-xs sm:text-sm"
+              >
+                {isExporting ? (
+                  <>
+                    <div className="h-3 w-3 animate-spin rounded-full border-2 border-foreground border-t-transparent" />
+                    <span className="hidden sm:inline">Exporting...</span>
+                    <span className="sm:hidden">...</span>
+                  </>
+                ) : (
+                  <>
+                    <Download className="h-3 w-3" />
+                    <span className="hidden sm:inline">Export Data</span>
+                    <span className="sm:hidden">Export</span>
+                  </>
+                )}
+              </Button>
+            )}
           </DialogTitle>
-          {events.length > 0 && (
-            <Button
-              onClick={handleExportMemberData}
-              disabled={isExporting}
-              variant="outline"
-              size="sm"
-              className="gap-2 self-start"
-            >
-              {isExporting ? (
-                <>
-                  <div className="h-3 w-3 animate-spin rounded-full border-2 border-foreground border-t-transparent" />
-                  <span className="hidden sm:inline">Exporting...</span>
-                  <span className="sm:hidden">...</span>
-                </>
-              ) : (
-                <>
-                  <Download className="h-3 w-3" />
-                  <span className="hidden sm:inline">Export Data</span>
-                  <span className="sm:hidden">Export</span>
-                </>
-              )}
-            </Button>
-          )}
         </DialogHeader>
 
-        <div className="space-y-4 sm:space-y-6">
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto p-3 sm:p-6 pt-3 sm:pt-4 space-y-3 sm:space-y-6">
           {/* Date Range Filter */}
-          <div className="flex flex-col sm:flex-row gap-3 sm:items-center border-b pb-4">
-            <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 sm:items-center border-b pb-3 sm:pb-4">
+            <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">
               Filter by date:
             </span>
             <DateRangePicker
@@ -250,69 +254,69 @@ export default function MemberDetailsDialog({
               onChange={setDateRange}
               placeholder={dateRange?.from ? undefined : "Lifetime (All Time)"}
               showQuickSelect={true}
-              className="w-full sm:w-auto"
+              className="w-full sm:w-auto text-xs sm:text-sm"
             />
           </div>
 
           {/* Summary Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <Card>
-              <CardHeader className="pb-2 px-4 pt-4">
-                <CardTitle className="text-sm font-medium flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-primary" />
-                  Total Hours
+          <div className="grid grid-cols-3 gap-1.5 sm:gap-3">
+            <Card className="overflow-hidden">
+              <CardHeader className="pb-0.5 sm:pb-2 px-2 sm:px-4 pt-2 sm:pt-4">
+                <CardTitle className="text-[10px] sm:text-sm font-medium flex items-center gap-1 sm:gap-2">
+                  <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-primary flex-shrink-0" />
+                  <span className="truncate">Hours</span>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="px-4 pb-4">
-                <div className="text-xl sm:text-2xl font-bold text-primary">
-                  {loading ? <Skeleton className="h-6 sm:h-8 w-12 sm:w-16" /> : formatHours(totalHours)}
+              <CardContent className="px-2 sm:px-4 pb-2 sm:pb-4">
+                <div className="text-base sm:text-2xl font-bold text-primary truncate">
+                  {loading ? <Skeleton className="h-4 sm:h-8 w-8 sm:w-16" /> : formatHours(totalHours)}
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="pb-2 px-4 pt-4">
-                <CardTitle className="text-sm font-medium flex items-center gap-2">
-                  <Award className="h-4 w-4 text-primary" />
-                  Events
+            <Card className="overflow-hidden">
+              <CardHeader className="pb-0.5 sm:pb-2 px-2 sm:px-4 pt-2 sm:pt-4">
+                <CardTitle className="text-[10px] sm:text-sm font-medium flex items-center gap-1 sm:gap-2">
+                  <Award className="h-3 w-3 sm:h-4 sm:w-4 text-primary flex-shrink-0" />
+                  <span className="truncate">Events</span>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="px-4 pb-4">
-                <div className="text-xl sm:text-2xl font-bold">
-                  {loading ? <Skeleton className="h-6 sm:h-8 w-8 sm:w-16" /> : events.length}
+              <CardContent className="px-2 sm:px-4 pb-2 sm:pb-4">
+                <div className="text-base sm:text-2xl font-bold truncate">
+                  {loading ? <Skeleton className="h-4 sm:h-8 w-6 sm:w-16" /> : events.length}
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="pb-2 px-4 pt-4">
-                <CardTitle className="text-sm font-medium flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-primary" />
-                  Member Since
+            <Card className="overflow-hidden">
+              <CardHeader className="pb-0.5 sm:pb-2 px-2 sm:px-4 pt-2 sm:pt-4">
+                <CardTitle className="text-[10px] sm:text-sm font-medium flex items-center gap-1 sm:gap-2">
+                  <Calendar className="h-3 w-3 sm:h-4 sm:w-4 text-primary flex-shrink-0" />
+                  <span className="truncate">Joined</span>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="px-4 pb-4">
-                <div className="text-sm font-medium">
-                  {format(new Date(member.joined_at), "MMM d, yyyy")}
+              <CardContent className="px-2 sm:px-4 pb-2 sm:pb-4">
+                <div className="text-[10px] sm:text-sm font-medium truncate">
+                  {format(new Date(member.joined_at), "MMM yyyy")}
                 </div>
               </CardContent>
             </Card>
           </div>
 
           {/* Events Table */}
-          <div className="space-y-3 sm:space-y-4">
-            <h3 className="text-base sm:text-lg font-semibold">Event Participation</h3>
+          <div className="space-y-2 sm:space-y-3">
+            <h3 className="text-xs sm:text-lg font-semibold">Event Participation</h3>
             
             {error && (
-              <div className="text-center p-3 sm:p-4 text-red-500 bg-red-50 rounded-lg text-sm">
+              <div className="text-center p-2.5 sm:p-4 text-red-500 bg-red-50 rounded-lg text-xs sm:text-sm">
                 {error}
               </div>
             )}
 
             {loading ? (
-              <div className="space-y-2">
+              <div className="space-y-1.5 sm:space-y-2">
                 {[...Array(3)].map((_, i) => (
-                  <Skeleton key={i} className="h-12 sm:h-16 w-full" />
+                  <Skeleton key={i} className="h-10 sm:h-16 w-full" />
                 ))}
               </div>
             ) : events.length > 0 ? (
@@ -392,33 +396,33 @@ export default function MemberDetailsDialog({
                 </div>
 
                 {/* Mobile/Tablet Cards */}
-                <div className="lg:hidden space-y-3">
+                <div className="lg:hidden space-y-2 sm:space-y-3">
                   {events.map((event) => (
-                    <Card key={event.id} className="p-3 sm:p-4">
-                      <div className="space-y-3">
-                        <div className="flex justify-between items-start gap-3">
-                          <h4 className="font-medium text-sm leading-tight flex-1 min-w-0">
+                    <Card key={event.id} className="p-2.5 sm:p-4">
+                      <div className="space-y-2 sm:space-y-3">
+                        <div className="flex justify-between items-start gap-2">
+                          <h4 className="font-medium text-xs sm:text-sm leading-tight flex-1 min-w-0 line-clamp-2">
                             {event.projectTitle}
                           </h4>
                           {event.isCertified ? (
-                            <Badge variant="default" className="gap-1 text-xs flex-shrink-0">
-                              <BadgeCheck className="h-3 w-3" />
+                            <Badge variant="default" className="gap-0.5 sm:gap-1 text-[10px] sm:text-xs flex-shrink-0 px-1.5 sm:px-2">
+                              <BadgeCheck className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                               <span className="hidden sm:inline">Certified</span>
                             </Badge>
                           ) : (
-                            <Badge variant="outline" className="gap-1 text-xs flex-shrink-0">
-                              <CheckCheck className="h-3 w-3" />
+                            <Badge variant="outline" className="gap-0.5 sm:gap-1 text-[10px] sm:text-xs flex-shrink-0 px-1.5 sm:px-2">
+                              <CheckCheck className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                               <span className="hidden sm:inline">Completed</span>
                             </Badge>
                           )}
                         </div>
                         
-                        <div className="flex justify-between items-center text-sm">
-                          <div className="flex items-center gap-3 sm:gap-4">
-                            <div className="text-muted-foreground text-xs sm:text-sm">
+                        <div className="flex justify-between items-center text-xs sm:text-sm">
+                          <div className="flex items-center gap-2 sm:gap-4">
+                            <div className="text-muted-foreground text-[10px] sm:text-sm">
                               {format(new Date(event.eventDate), "MMM d, yyyy")}
                             </div>
-                            <div className="font-semibold text-primary">
+                            <div className="font-semibold text-primary text-xs sm:text-sm">
                               {formatHours(event.hours)}
                             </div>
                           </div>
@@ -428,7 +432,7 @@ export default function MemberDetailsDialog({
                               asChild
                               variant="ghost"
                               size="sm"
-                              className="gap-1 h-7 px-2 text-xs"
+                              className="gap-1 h-6 sm:h-7 px-1.5 sm:px-2 text-[10px] sm:text-xs"
                             >
                               <a 
                                 href={`/certificates/${event.id}`}
@@ -436,7 +440,7 @@ export default function MemberDetailsDialog({
                                 rel="noopener noreferrer"
                                 className="flex items-center gap-1"
                               >
-                                <FileText className="h-3 w-3" />
+                                <FileText className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                                 <span className="hidden sm:inline">Certificate</span>
                                 <span className="sm:hidden">Cert</span>
                                 <ExternalLink className="h-2 w-2" />
@@ -450,10 +454,10 @@ export default function MemberDetailsDialog({
                 </div>
               </>
             ) : !loading && (
-              <div className="text-center p-6 sm:p-8 bg-muted/20 rounded-lg">
-                <Award className="h-10 w-10 sm:h-12 sm:w-12 mx-auto mb-3 sm:mb-4 text-muted-foreground" />
-                <h4 className="text-base sm:text-lg font-medium mb-1">No Events Yet</h4>
-                <p className="text-sm text-muted-foreground">
+              <div className="text-center p-4 sm:p-8 bg-muted/20 rounded-lg">
+                <Award className="h-8 w-8 sm:h-12 sm:w-12 mx-auto mb-2 sm:mb-4 text-muted-foreground" />
+                <h4 className="text-sm sm:text-lg font-medium mb-1">No Events Yet</h4>
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   This member hasn&apos;t participated in any organization events.
                 </p>
               </div>
