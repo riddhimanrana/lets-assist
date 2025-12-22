@@ -12,7 +12,7 @@ import {
   AvatarImage,
   AvatarFallback,
 } from "@/components/ui/avatar";
-import { Upload, CircleCheck, XCircle, Shield, Info, Mail, AlertCircle, MoreHorizontal, Loader2, ShieldCheck, Trash, Trash2, CheckCircle } from "lucide-react";
+import { Upload, CircleCheck, XCircle, Shield, Info, AlertCircle, MoreHorizontal, Loader2, ShieldCheck, Trash, Trash2 } from "lucide-react";
 import {
   Card,
   CardContent,
