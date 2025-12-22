@@ -20,10 +20,10 @@ interface MembersClientProps {
   organizationId: string;
   members: Array<{
     id: string;
-    userId: string;
-    name: string;
-    email: string;
-    avatar: string | null;
+    userId?: string;
+    name?: string;
+    email?: string;
+    avatar?: string | null;
     role: string;
     status: string;
     joinedAt: string;
@@ -47,8 +47,8 @@ export default function MembersClient({
   // Filter members
   const filteredMembers = members.filter((member) => {
     const matchesSearch =
-      member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      member.email.toLowerCase().includes(searchTerm.toLowerCase());
+      (member.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (member.email || "").toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesRole = roleFilter === "all" || member.role === roleFilter;
     const matchesStatus = statusFilter === "all" || member.status === statusFilter;

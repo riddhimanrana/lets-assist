@@ -38,12 +38,13 @@ export async function getActiveProjects(
     query = query.eq("organization_id", organizationId);
   }
 
-  // Apply visibility filter: only show public projects unless user owns or belongs to organization
-  // If we're showing a specific organization, don't filter by visibility
+  // Apply visibility filter: only show public projects in the main feed
+  // If we're showing a specific organization, don't filter by visibility (RLS handles org-only access)
   if (!organizationId) {
-    // For public discovery, only show public or unlisted projects
-    // organization_only projects should only be visible to organization members
-    query = query.in("visibility", ["public", "unlisted"]);
+    // For public discovery, only show public projects
+    // Unlisted projects should only be accessible via direct link, not in feeds
+    // Organization-only projects are only visible to organization members
+    query = query.eq("visibility", "public");
   }
 
   // Apply pagination
