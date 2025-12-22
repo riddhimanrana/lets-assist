@@ -83,7 +83,6 @@ export function NotificationPopover() {
   const isMobile = useMediaQuery("(max-width: 768px)");
   const sentinelRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
   const scrollPositionRef = useRef<number>(0);
 
   const parseNotificationData = (value: unknown): Record<string, any> | null => {
