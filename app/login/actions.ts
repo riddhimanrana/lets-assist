@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/utils/supabase/server";
-import { verifyTurnstileToken, isTurnstileEnabled } from "@/lib/turnstile";
+
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),

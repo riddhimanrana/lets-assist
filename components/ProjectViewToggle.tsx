@@ -1,7 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { Card } from "@/components/ui/card";
 import { getProjectStatus } from "@/utils/project";
 import { TimezoneBadge } from "@/components/TimezoneBadge";
 import { ReportContentButton } from "@/components/ReportContentButton";
@@ -10,18 +9,13 @@ import {
   Calendar,
   Users,
   Clock,
-  LayoutGrid,
-  List,
-  Table2,
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
   ChevronRight,
   Building2,
   BadgeCheck,
-  CalendarClock,
   CalendarDays,
-  Map,
   GraduationCap,
   Building,
   MoreVertical,

@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Check, ChevronsUpDown, Building2, User, AlertCircle } from "lucide-react";
+import { Check, ChevronsUpDown, Building2, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RichTextContent } from "@/components/ui/rich-text-content";
@@ -63,7 +63,7 @@ export default function BasicInfo({
 }: BasicInfoProps) {
   const [open, setOpen] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
-  const [organizationOptions, setOrganizationOptions] = useState<OrganizationOption[]>(
+  const [organizationOptions] = useState<OrganizationOption[]>(
     initialOrganizations.length > 0 
       ? initialOrganizations 
       : [{ id: "personal", name: "Personal Project", logo_url: null, role: "creator" }]

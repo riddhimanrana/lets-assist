@@ -8,7 +8,7 @@ import { Building2, Users2, ExternalLink, BadgeCheck, Shield, UserRoundCog, User
 import { NoAvatar } from "@/components/NoAvatar";
 
 interface OrganizationCardProps {
-  org: any;
+  org: Record<string, any>;
   memberCount: number;
   isUserMember?: boolean;
   userRole?: 'admin' | 'staff' | 'member';

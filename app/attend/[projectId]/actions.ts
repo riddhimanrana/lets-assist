@@ -301,7 +301,7 @@ export async function checkInAnonymous(projectId: string, scheduleId: string, em
   );
 
   // 1. Find anonymous_signups
-  let { data: anon, error: anonErr } = await supabase
+  const { data: anon, error: anonErr } = await supabase
     .from('anonymous_signups')
     .select('id, signup_id')
     .eq('email', lowerEmail)
@@ -318,7 +318,7 @@ export async function checkInAnonymous(projectId: string, scheduleId: string, em
   }
 
   // 2. Find project_signups for this anon and schedule
-  let { data: signup, error: signupErr } = await supabase
+  const { data: signup, error: signupErr } = await supabase
     .from('project_signups')
     .select('id, check_in_time, check_out_time, schedule_id, status')
     .eq('anonymous_id', anon.id)
@@ -374,7 +374,7 @@ export async function checkInAnonymous(projectId: string, scheduleId: string, em
   } else {
     // No signup for this session, update existing signup if possible
     // Try to find any signup for this anon/project (not schedule-specific)
-    let { data: anySignup, error: anySignupErr } = await supabase
+    const { data: anySignup, error: anySignupErr } = await supabase
       .from('project_signups')
       .select('id, schedule_id')
       .eq('anonymous_id', anon.id)

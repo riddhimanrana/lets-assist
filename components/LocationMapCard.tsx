@@ -1,11 +1,9 @@
 "use client";
 
-import { useState } from 'react';
 import { useTheme } from 'next-themes';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LocationData } from '@/types';
-import { Button } from '@/components/ui/button';
-import { ExternalLink, MapPin } from 'lucide-react';
+import { MapPin } from 'lucide-react';
 import { APIProvider, Map, AdvancedMarker, ColorScheme, useApiIsLoaded, RenderingType } from "@vis.gl/react-google-maps";
 
 // Map container styles
@@ -29,7 +27,7 @@ interface LocationMapCardProps {
   locationData?: LocationData;
 }
 
-function MapComponent({ location, locationData }: LocationMapCardProps) {
+function MapComponent({ location: _location, locationData }: LocationMapCardProps) {
   // Get the current theme
   const { resolvedTheme } = useTheme();
   

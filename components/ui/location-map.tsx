@@ -31,14 +31,14 @@ interface LocationMapProps {
 
 export function LocationMap({
   location,
-  readOnly = true,
+  _readOnly = true,
   height = "h-[300px]",
-  showAttribution = true,
+  _showAttribution = true,
 }: LocationMapProps) {
   const mapRef = useRef<google.maps.Map | null>(null)
   const [map, setMap] = useState<google.maps.Map | null>(null)
   const { theme, systemTheme } = useTheme()
-  const [currentMapId, setCurrentMapId] = useState<string>(MAP_ID)
+  // Map ID is constant; not storing it in local state to avoid unused var lint issues
 
   // Determine if dark mode is active
   const isDarkMode = theme === "dark" || (theme === "system" && systemTheme === "dark")

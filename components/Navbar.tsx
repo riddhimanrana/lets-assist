@@ -10,12 +10,8 @@ import {
   Settings,
   Heart,
   MessageSquare,
-  ChevronDown,
-  ChevronUp,
-  Bell,
   Sun,
   Moon,
-  Laptop,
   MonitorSmartphone,
   Loader2,
 } from "lucide-react";
@@ -47,12 +43,10 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DonateDialog } from "@/components/DonateDialog";
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import Image from "next/image";
 import { NotificationPopover } from "@/components/NotificationPopover";
 import { useTheme } from "next-themes";
@@ -61,36 +55,8 @@ import { FeedbackDialog } from "@/components/FeedbackDialog";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserProfile } from "@/hooks/useUserProfile";
 
-interface SectionProps {
-  title: string;
-  children: React.ReactNode;
-  defaultOpen?: boolean;
-}
 
-const CollapsibleSection = ({
-  title,
-  children,
-  defaultOpen = false,
-}: SectionProps) => {
-  const [isOpen, setIsOpen] = React.useState(defaultOpen);
 
-  return (
-    <div className="mb-4">
-      <button
-        className="flex w-full items-center justify-between py-2"
-        onClick={() => setIsOpen(!isOpen)}
-      >
-        <span className="text-base font-bold">{title}</span>
-        {isOpen ? (
-          <ChevronUp className="h-4 w-4" />
-        ) : (
-          <ChevronDown className="h-4 w-4" />
-        )}
-      </button>
-      {isOpen && <div className="mt-1 space-y-1">{children}</div>}
-    </div>
-  );
-};
 
 const features = [
   {
@@ -116,7 +82,7 @@ export default function Navbar() {
   // Use cached profile data instead of making a separate query
   const { profile, isLoading: isProfileLoading } = useUserProfile();
 
-  const [showBugDialog, setShowBugDialog] = useState(false);
+
   const [showDonateDialog, setShowDonateDialog] = useState(false);
   const [showFeedbackDialog, setShowFeedbackDialog] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);

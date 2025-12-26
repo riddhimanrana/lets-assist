@@ -37,7 +37,7 @@ export async function GET(request: Request) {
       if (Date.now() - stateData.timestamp > fiveMinutes) {
         throw new Error("State expired");
       }
-    } catch (err) {
+    } catch {
       return NextResponse.redirect(
         `${process.env.NEXT_PUBLIC_SITE_URL}/account/calendar?error=invalid_state`
       );

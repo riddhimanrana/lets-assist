@@ -6,7 +6,6 @@ import { revalidatePath } from "next/cache";
 import { ProjectStatus } from "@/types";
 // Make sure AnonymousSignup is imported from the correct types definition
 import { type Profile, type Project, type AnonymousSignupData, type ProjectSignup, type SignupStatus, type AnonymousSignup } from "@/types";
-import { cookies } from "next/headers";
 import crypto from 'crypto';
 // Import centralized email service
 import { sendEmail } from '@/services/email';

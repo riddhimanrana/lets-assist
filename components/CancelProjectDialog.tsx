@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { XOctagon, AlertTriangle, Loader2 } from "lucide-react";
+import { XOctagon, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Project } from "@/types";
 import { cn } from "@/lib/utils";

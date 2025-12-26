@@ -1,15 +1,8 @@
 "use client";
 
-import {
-  Printer,
-  Calendar,
-  Clock,
-  MapPin,
-  Building2,
-  Award,
-} from "lucide-react";
+import { Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { format, parseISO } from "date-fns";
+import { parseISO } from "date-fns";
 import { formatInTimeZone } from "date-fns-tz";
 import { useEffect, useState, useRef } from "react";
 

@@ -257,7 +257,7 @@ const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
     }
     case 'UPDATE_MULTI_ROLE_SCHEDULE': {
       const { field, value, roleIndex } = action.payload;
-      let updatedRoles = [...state.schedule.sameDayMultiArea.roles];
+      const updatedRoles = [...state.schedule.sameDayMultiArea.roles];
       let updatedSameDayMultiArea = { ...state.schedule.sameDayMultiArea };
 
       if (roleIndex !== undefined) {

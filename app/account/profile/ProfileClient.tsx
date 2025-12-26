@@ -52,7 +52,6 @@ import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
-    DropdownMenuLabel,
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -249,7 +248,6 @@ export default function ProfileClient() {
   const [profileVisibility, setProfileVisibility] = useState<ProfileVisibility>('private');
   const [isVisibilityLoading, setIsVisibilityLoading] = useState(false);
   const [canChangeVisibility, setCanChangeVisibility] = useState(true);
-  const [emailDomain, setEmailDomain] = useState<string | null>(null);
 
   // Email management state
   const [emails, setEmails] = useState<UserEmail[]>([]);
@@ -291,8 +289,6 @@ export default function ProfileClient() {
       setProfileVisibility("private");
       setCanChangeVisibility(true);
 
-      const fallbackDomain = user?.email?.split("@")[1] ?? null;
-      setEmailDomain(fallbackDomain);
       return;
     }
 
@@ -319,10 +315,7 @@ export default function ProfileClient() {
     );
     setCanChangeVisibility(true);
 
-    // Email is from auth user, not profile table
-    const emailSource = user?.email || null;
-    const domain = emailSource ? emailSource.split("@")[1] ?? null : null;
-    setEmailDomain(domain);
+
   }, [profile, isProfileLoading, user?.email, form]);
 
   const fetchEmails = useCallback(async () => {

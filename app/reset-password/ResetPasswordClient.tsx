@@ -41,7 +41,7 @@ interface ResetPasswordClientProps {
 export default function ResetPasswordClient({ error }: ResetPasswordClientProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
-  const [turnstileVerified, setTurnstileVerified] = useState(false);
+  const [, setTurnstileVerified] = useState(false);
   const turnstileRef = useRef<TurnstileRef>(null);
   const [turnstileReady, setTurnstileReady] = useState(false);
 

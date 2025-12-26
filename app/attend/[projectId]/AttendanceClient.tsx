@@ -8,13 +8,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress"; // Import Progress component
-import { format, parseISO, formatDistance, differenceInMinutes, parse } from "date-fns"; // Add differenceInMinutes, parse
+import { format, parseISO, differenceInMinutes, parse } from "date-fns"; // Add differenceInMinutes, parse
 import { formatTimeTo12Hour } from "@/lib/utils";
 import { getSlotDetails } from "@/utils/project";
 import { toast } from "sonner";
 import {
   CheckCircle,
-  Timer,
   LogIn,
   // UserPlus, // No longer needed
   Loader2,

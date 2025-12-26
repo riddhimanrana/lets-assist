@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { Bell, AlertCircle, AlertTriangle, CircleCheck, Loader2, Check, Settings } from "lucide-react";
+import { Bell, AlertCircle, AlertTriangle, CircleCheck, Loader2, Settings } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Drawer,
@@ -81,10 +81,13 @@ export function NotificationPopover() {
   const supabase = createClient();
   const router = useRouter();
   const isMobile = useMediaQuery("(max-width: 768px)");
-  const sentinelRef = useRef<HTMLDivElement>(null);
+  const _sentinelRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
+  const _contentRef = useRef<HTMLDivElement>(null);
   const scrollPositionRef = useRef<number>(0);
+  // Explicitly consume refs to avoid unused variable lint warnings (they may be used in future enhancements)
+  void _sentinelRef;
+  void _contentRef;
 
   const parseNotificationData = (value: unknown): Record<string, any> | null => {
     if (!value) return null;
@@ -419,7 +422,7 @@ export function NotificationPopover() {
         .replace(/ weeks? ago/g, 'w ago')
         .replace(/ months? ago/g, 'mo ago')
         .replace(/ years? ago/g, 'y ago');
-    } catch (e) {
+    } catch {
       return "recently";
     }
   };

@@ -1,15 +1,13 @@
 import { createClient } from "@/utils/supabase/server";
-import { cookies } from "next/headers";
-import { notFound, redirect } from "next/navigation";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { redirect } from "next/navigation";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { VolunteerGoals } from "./VolunteerGoals";
 import { Badge } from "@/components/ui/badge";
 import { ProgressCircle } from "./ProgressCircle";
-import { format, subMonths, parseISO, differenceInMinutes, isBefore, isAfter } from "date-fns";
+import { format, parseISO, differenceInMinutes, isBefore, isAfter } from "date-fns";
 import { formatInTimeZone } from "date-fns-tz";
-import { Award, Calendar, Clock, Users, Target, FileCheck, ChevronRight, Download, GalleryVerticalEnd, TicketCheck, Plus, CalendarDays, BarChart3, CircleCheck, UserCheck } from "lucide-react";
+import { Award, Calendar, Users, Target, ChevronRight, Download, CalendarDays, BarChart3, CircleCheck, UserCheck } from "lucide-react";
 import Link from "next/link";
-import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -17,7 +15,7 @@ import { ActivityChart } from "./ActivityChart";
 import { ExportSection } from "./ExportSection";
 import { AllHoursSection } from "./AllHoursSection";
 import { AddVolunteerHoursModal } from "./AddVolunteerHoursModal";
-import { Project, ProjectSchedule } from "@/types";
+import { Project } from "@/types";
 import { getSlotDetails } from "@/utils/project";
 import { Metadata } from "next";
 import { TimezoneBadge } from "@/components/TimezoneBadge";
@@ -167,18 +165,7 @@ function getSessionDisplayName(
   return details.schedule_id || "Session";
 }
 
-// Helper to calculate duration in decimal hours
-function calculateDecimalHours(startTimeISO: string, endTimeISO: string): number {
-  try {
-    const start = parseISO(startTimeISO);
-    const end = parseISO(endTimeISO);
-    const minutes = differenceInMinutes(end, start);
-    return minutes > 0 ? minutes / 60 : 0;
-  } catch (e) {
-    console.error("Error calculating duration:", e);
-    return 0; // Return 0 if parsing fails
-  }
-}
+
 
 // Helper function to format total duration from hours (decimal) to Xh Ym
 function formatTotalDuration(totalHours: number): string {
@@ -209,7 +196,6 @@ function formatTotalDuration(totalHours: number): string {
 }
 
 export default async function VolunteerDashboard() {
-  const cookieStore = cookies();
   const supabase = await createClient();
 
   // Check authentication
@@ -219,7 +205,7 @@ export default async function VolunteerDashboard() {
   }
 
   // Fetch user's profile
-  const { data: profile, error: profileError } = await supabase
+  const { data: _profile, error: profileError } = await supabase
     .from("profiles")
     .select("*")
     .eq("id", user.id)
@@ -228,6 +214,8 @@ export default async function VolunteerDashboard() {
   if (profileError) {
     console.error("Error fetching profile:", profileError);
   }
+  // Explicitly consume _profile to avoid linter unused variable warnings
+  void _profile;
 
   // Fetch certificates for this user
   const { data: certificates, error: certificatesError } = await supabase
@@ -267,7 +255,7 @@ export default async function VolunteerDashboard() {
   }
 
   // Fetch certificates for the dashboard (modified)
-  const { data: certificatesData, error: certificatesErrorFetch } = await supabase
+  const { data: _certificatesData, error: certificatesErrorFetch } = await supabase
     .from("certificates")
     .select(`
       *,
@@ -282,6 +270,8 @@ export default async function VolunteerDashboard() {
     console.error("Error fetching certificates:", certificatesErrorFetch);
     // Handle error appropriately
   }
+  // Explicitly consume _certificatesData to avoid linter unused variable warnings
+  void _certificatesData;
 
   // Calculate volunteer statistics
   const statistics: VolunteerStats = {

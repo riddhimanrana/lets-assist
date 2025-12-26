@@ -3,7 +3,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
 import { customAlphabet } from 'nanoid';
-import { redirect } from "next/navigation";
+
 
 // Generate a random 6-digit code
 const generateJoinCode = customAlphabet('0123456789', 6);

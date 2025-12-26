@@ -1,9 +1,6 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { useEventForm } from "@/hooks/use-event-form";
-import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Building2 } from "lucide-react";
 import BasicInfo from "./BasicInfo";
 import EventType from "./EventType";
 import Schedule from "./Schedule";
@@ -11,17 +8,16 @@ import Finalize from "./Finalize";
 import VerificationSettings from "./VerificationSettings";
 import AIAssistant, { AIParseResult } from "./AIAssistant";
 // shadcn components
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 // icon components
-import { Loader2, ChevronLeft, ChevronRight, AlertCircle, Sparkles } from "lucide-react";
+import { Loader2, ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
 // utility
 import { cn } from "@/lib/utils";
 // Replace shadcn toast with Sonner
 import { toast } from "sonner";
-import { createProject, uploadCoverImage, uploadProjectDocument, finalizeProject, getProjectById } from "./actions";
-import { useRouter } from "next/navigation";
+import { createProject, uploadCoverImage, uploadProjectDocument, finalizeProject } from "./actions";
+
 // Import Zod schemas
 import {
   basicInfoSchema,
@@ -30,8 +26,8 @@ import {
   multiRoleSchema,
   verificationSettingsSchema
 } from "@/schemas/event-form-schema";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+
+
 import { z } from "zod";
 
 interface ProjectCreatorProps {
@@ -68,7 +64,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
     updateRestrictToOrgDomains,
   } = useEventForm();
 
-  const router = useRouter();
+
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // File handling states

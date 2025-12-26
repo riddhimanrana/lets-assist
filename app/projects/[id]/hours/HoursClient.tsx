@@ -269,7 +269,7 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses, a
   const handleTimeChange = (signupId: string, field: keyof EditedTime, timeStr: string) => {
     // Get existing date from the current value
     const currentValue = editedTimes[signupId]?.[field];
-    let date = currentValue ? new Date(currentValue) : new Date();
+    const date = currentValue ? new Date(currentValue) : new Date();
     
     // Parse the new time string (format: "HH:mm")
     const [hours, minutes] = timeStr.split(':').map(Number);

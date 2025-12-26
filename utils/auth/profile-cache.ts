@@ -64,7 +64,7 @@ let cachedUserData: CachedUserData = {
  * Subscribers to profile/settings changes
  * Called when cache is updated via realtime or explicit updates
  */
-let profileSubscribers: Set<(data: CachedUserData) => void> = new Set();
+const profileSubscribers: Set<(data: CachedUserData) => void> = new Set();
 
 /**
  * Track when we last fetched profile + settings

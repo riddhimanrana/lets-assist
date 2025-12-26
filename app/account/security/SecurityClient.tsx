@@ -34,8 +34,6 @@ import {
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { deleteAccount, updatePasswordAction, updateEmailAction } from "./actions";
-import { createClient } from "@/utils/supabase/client";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "@/hooks/useAuth";
 
 const updatePasswordSchema = z

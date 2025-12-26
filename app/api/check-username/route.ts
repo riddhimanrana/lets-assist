@@ -18,7 +18,7 @@ export const GET = async (request: Request) => {
     const usernameLc = username.toLowerCase();
     const result = await checkUsernameUnique(usernameLc);
     return NextResponse.json(result);
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 },

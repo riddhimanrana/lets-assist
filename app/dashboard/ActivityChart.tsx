@@ -1,12 +1,10 @@
 "use client";
 
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer } from "recharts"; // YAxis and ResponsiveContainer are still from recharts
-import { TrendingUp } from "lucide-react";
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts"; // YAxis is from recharts
 import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -21,21 +19,7 @@ interface ActivityChartProps {
   data: { month: string; hours: number }[];
 }
 
-// Define the formatter function inside the client component
-const valueFormatter = (value: any): string => {
-  if (typeof value === 'number') {
-    return `${value} hours`;
-  }
-  // Attempt to parse if it's a string that represents a number
-  if (typeof value === 'string') {
-    const parsed = parseFloat(value);
-    if (!isNaN(parsed)) {
-      return `${parsed} hours`;
-    }
-  }
-  // Fallback for other types or unparsable strings
-  return String(value);
-};
+
 
 const chartConfig = {
   hours: {

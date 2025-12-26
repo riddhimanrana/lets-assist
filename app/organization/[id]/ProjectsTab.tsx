@@ -60,10 +60,10 @@ export default function ProjectsTab({
   }, [searchTerm, activeTab, projects]);
 
   // Count projects by status
-  const upcomingCount = projects.filter(p => getProjectStatus(p) === "upcoming").length;
-  const inProgressCount = projects.filter(p => getProjectStatus(p) === "in-progress").length;
-  const completedCount = projects.filter(p => getProjectStatus(p) === "completed").length;
-  const cancelledCount = projects.filter(p => getProjectStatus(p) === "cancelled").length;
+  const _upcomingCount = projects.filter(p => getProjectStatus(p) === "upcoming").length;
+  const _inProgressCount = projects.filter(p => getProjectStatus(p) === "in-progress").length;
+  const _completedCount = projects.filter(p => getProjectStatus(p) === "completed").length;
+  const _cancelledCount = projects.filter(p => getProjectStatus(p) === "cancelled").length;
 
   const canCreateProjects = userRole === "admin" || userRole === "staff";
   

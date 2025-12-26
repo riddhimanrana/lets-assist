@@ -1,24 +1,15 @@
 import { Metadata } from "next";
 import { createClient } from "@/utils/supabase/server";
 import { notFound } from "next/navigation";
-import { format, differenceInMinutes, parseISO, isValid } from "date-fns";
-import { formatInTimeZone } from "date-fns-tz";
+import { differenceInMinutes, parseISO, isValid } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import {
-  Calendar,
-  Clock,
-  MapPin,
-  Building2,
-  User,
-  ExternalLink,
-  Award,
   QrCode,
   UserCheck,
   Clipboard,
   BadgeCheck,
 } from "lucide-react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { CardContainer, CardBody, CardItem } from "@/components/ui/3d-card";
 import { CertificateCardButton } from "./CertificateCardButton";
@@ -34,7 +25,7 @@ import {
   TimezoneDateDisplay,
   TimezoneEventDateRange,
 } from "./TimezoneDateDisplay";
-import { TimezoneDebugInfo } from "@/components/TimezoneDebugInfo";
+
 
 // Define the expected shape of the fetched data based on the 'certificates' table
 interface CertificateData {

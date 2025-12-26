@@ -44,7 +44,7 @@ export default function JoinCodeAdminDisplay({
       setTimeout(() => {
         setIsCopied(false);
       }, 2000);
-    } catch (err) {
+    } catch {
       toast.error("Failed to copy join code");
     }
   };

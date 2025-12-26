@@ -95,7 +95,7 @@ export default function StaffLinkDisplay({
         setIsExpired(false);
         toast.success("Staff invite link generated successfully");
       }
-    } catch (error) {
+    } catch {
       toast.error("Failed to generate staff link");
     } finally {
       setIsLoading(false);
@@ -119,7 +119,7 @@ export default function StaffLinkDisplay({
         setIsExpired(false);
         toast.success("Staff invite link revoked");
       }
-    } catch (error) {
+    } catch {
       toast.error("Failed to revoke staff link");
     } finally {
       setIsLoading(false);
@@ -134,7 +134,7 @@ export default function StaffLinkDisplay({
       setCopied(true);
       toast.success("Link copied to clipboard");
       setTimeout(() => setCopied(false), 2000);
-    } catch (error) {
+    } catch {
       toast.error("Failed to copy link");
     }
   };

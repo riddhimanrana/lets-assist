@@ -1,7 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
-import { differenceInHours, parseISO, isAfter } from "date-fns";
-import { Project, ProjectSignup } from "@/types";
+
 
 // Create a Supabase client for server-side operations without cookies
 function createServiceClient() {
@@ -619,7 +618,7 @@ async function processExpiredSessions(): Promise<{
     const results: AutoPublishResult[] = [];
     let successfulSessions = 0;
 
-    for (const [key, sessionGroup] of sessionGroups) {
+    for (const [, sessionGroup] of sessionGroups) {
       const sessionName = `${sessionGroup.project.title} - ${sessionGroup.sessionId}`;
       console.log(`Processing session: ${sessionName} (${sessionGroup.signups.length} signups)`);
       

@@ -1,11 +1,9 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Building2, Search, Settings2, Check, Users2, ExternalLink, BadgeCheck } from "lucide-react";
+import { Plus, Building2, Search, Settings2, Check } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
 import { JoinOrganizationDialog } from "./JoinOrganizationDialog";
@@ -19,8 +17,6 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { NoAvatar } from "@/components/NoAvatar";
 
 interface OrganizationsDisplayProps {
   organizations: any[];
@@ -41,7 +37,7 @@ export default function OrganizationsDisplay({
   isTrusted = false,
   applicationStatus = undefined,
 }: OrganizationsDisplayProps) {
-  const router = useRouter();
+
   const [search, setSearch] = useState("");
   const [filteredOrgs, setFilteredOrgs] = useState(organizations);
   const [userOrgs, setUserOrgs] = useState<any[]>([]);

@@ -126,7 +126,7 @@ export async function sendVerificationEmail(email: string) {
     }
 
     // Check if email already exists as a primary account in profiles table
-    const { data: existingProfile, error: profileError } = await supabase
+    const { data: existingProfile } = await supabase
         .from("profiles")
         .select("id, email")
         .eq("email", email.toLowerCase())
@@ -137,7 +137,7 @@ export async function sendVerificationEmail(email: string) {
     }
 
     // Check if email already exists in user_emails (globally unique)
-    const { data: existingEmail, error: checkError } = await supabase
+    const { data: existingEmail } = await supabase
         .from("user_emails")
         .select("id, user_id")
         .eq("email", email.toLowerCase())

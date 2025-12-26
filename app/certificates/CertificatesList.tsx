@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { format, parseISO, differenceInMinutes, endOfDay, startOfDay, isEqual } from "date-fns";
-import { Award, Calendar, ChevronRight, Clock, BadgeCheck, ExternalLink, Filter, MapPin, Search, SlidersHorizontal, Printer, X } from "lucide-react";
+import { format, parseISO, differenceInMinutes, endOfDay, startOfDay } from "date-fns";
+import { Award, Calendar, ChevronRight, Clock, BadgeCheck, Filter, MapPin, Search, SlidersHorizontal, Printer, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -111,7 +111,7 @@ export function CertificatesList({ certificates, user }: CertificatesListProps) 
       const start = parseISO(startTime);
       const end = parseISO(endTime);
       return Math.round(differenceInMinutes(end, start) / 60 * 10) / 10; // Round to 1 decimal place
-    } catch (e) {
+    } catch {
       return 0;
     }
   };
@@ -485,9 +485,8 @@ export function CertificatesList({ certificates, user }: CertificatesListProps) 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {sortedCertificates.map((cert) => {
           // Calculate duration in decimal hours
-          const durationHours = calculateDecimalHours(cert.event_start, cert.event_end);
-          // Format the duration
-          const formattedDuration = formatTotalDuration(durationHours);
+          const _durationHours = calculateDecimalHours(cert.event_start, cert.event_end);
+
 
           return (
             <Link key={cert.id} href={`/certificates/${cert.id}`} passHref>

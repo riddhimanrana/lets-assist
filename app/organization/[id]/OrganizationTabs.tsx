@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+
 import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
 import { Button } from "@/components/ui/button"; 
@@ -153,8 +153,7 @@ export default function OrganizationTabs({
   // Calculate stats
   const upcomingProjects = projects.filter(p => getProjectStatus(p) === "upcoming").length;
   const completedProjects = projects.filter(p => getProjectStatus(p) === "completed").length;
-  const adminCount = members.filter(m => m.role === "admin").length;
-  const staffCount = members.filter(m => m.role === "staff").length;
+
 
   return (
     <Tabs 

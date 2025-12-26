@@ -138,7 +138,7 @@ export function debounceAuthChange<T extends (...args: unknown[]) => unknown>(
 ): (...args: Parameters<T>) => void {
   let timeoutId: NodeJS.Timeout | null = null;
   let lastArgs: Parameters<T> | null = null;
-  let lastCallTime = 0;
+  const lastCallTime = 0;
   let lastInvokeTime = 0;
 
   return (...args: Parameters<T>) => {

@@ -174,7 +174,9 @@ export function AddVolunteerHoursModal({ onAdd, trigger }: AddVolunteerHoursModa
           // Use partial reload by calling a revalidation endpoint in future; for now simple reload
           window.location.reload();
         }
-      } catch {}
+      } catch {
+        // Ignore reload errors
+      }
 
       toast.success("Self-reported hours added", {
         description: `${payload.title} • ${calculateDuration() || "Time recorded"}`,

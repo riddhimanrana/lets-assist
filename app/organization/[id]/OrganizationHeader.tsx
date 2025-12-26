@@ -4,12 +4,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Share2, GlobeIcon, UsersIcon, Plus, Building2, BadgeCheck, GraduationCap, Building } from "lucide-react";
-import Link from "next/link";
 import { useState } from "react";
 import JoinCodeDialog from "./JoinCodeDialog";
 import { toast } from "sonner";
-import { JoinOrganizationDialog } from "../JoinOrganizationDialog";
-import { useRouter } from "next/navigation";
 
 interface OrganizationHeaderProps {
   organization: any;

@@ -1,6 +1,6 @@
 "use server";
 import { createClient } from "@/utils/supabase/server";
-import type { Project, ProjectStatus, Organization, ProjectSignup } from "@/types";
+import type { Project, ProjectStatus, Organization } from "@/types";
 import { getProjectStatus } from "@/utils/project";
 
 // Define the Profile type with an id property
@@ -17,7 +17,7 @@ export async function getActiveProjects(
   offset: number = 0,
   status?: ProjectStatus,
   organizationId?: string,
-  userId?: string
+  _userId?: string
 ): Promise<Project[]> {
   const supabase = await createClient();
 
