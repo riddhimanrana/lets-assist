@@ -31,7 +31,6 @@ import {
   Hourglass,
   CheckCircle2,
   Clock,
-  HelpCircle, // For instructions modal
   Mail,
   Calendar,
   CalendarCheck,
@@ -159,7 +158,7 @@ export default function CreatorDashboard({ project }: Props) {
         setShowCancelDialog(false);
         router.refresh();
       }
-    } catch (error) {
+    } catch {
       toast.error("Failed to cancel project");
     }
   };
@@ -181,7 +180,7 @@ export default function CreatorDashboard({ project }: Props) {
         router.push("/home");
         router.refresh(); // Trigger server-side re-fetch of home page data
       }
-    } catch (error) {
+    } catch {
       toast.error("Failed to delete project");
     } finally {
       setIsDeleting(false);
@@ -246,8 +245,8 @@ export default function CreatorDashboard({ project }: Props) {
   const hoursAfterEnd = differenceInHours(now, endDateTime);
 
   const isInDeletionRestrictionPeriod = hoursUntilStart <= 24 && hoursAfterEnd <= 48;
-  const canDelete = canDeleteProject(project);
-  const canCancel = canCancelProject(project);
+  const _canDelete = canDeleteProject(project);
+  const _canCancel = canCancelProject(project);
   const isCancelled = project.status === "cancelled";
 
   // --- Phases ---
@@ -515,7 +514,7 @@ export default function CreatorDashboard({ project }: Props) {
     else if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
       const date = parseISO(project.schedule.sameDayMultiArea.date);
 
-      project.schedule.sameDayMultiArea.roles.forEach((role, roleIndex) => {
+      project.schedule.sameDayMultiArea.roles.forEach((role, _roleIndex) => {
         const [hours, minutes] = role.endTime.split(':').map(Number);
         const roleEndTime = new Date(new Date(date).setHours(hours, minutes)); // Use new Date()
         const hoursSinceEnd = differenceInHours(now, roleEndTime);

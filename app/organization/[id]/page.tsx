@@ -3,7 +3,6 @@ import { createClient } from "@/utils/supabase/server";
 import { Metadata } from "next";
 import OrganizationHeader from "./OrganizationHeader";
 import OrganizationTabs from "./OrganizationTabs";
-import { Separator } from "@/components/ui/separator";
 import {
   getAdminDashboardMetrics,
   getTopVolunteers,

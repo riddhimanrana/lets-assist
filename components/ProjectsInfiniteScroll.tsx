@@ -283,7 +283,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
     if (project.signups && Array.isArray(project.signups)) {
       // Count confirmed signups only
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      filledSpots = project.signups.filter((signup: any) => 
+      filledSpots = project.signups.filter((signup: { status?: string }) => 
         signup.status === "approved"
       ).length;
     } else if (project.slots_filled) {

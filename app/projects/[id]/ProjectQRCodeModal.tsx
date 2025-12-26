@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Project, EventType } from "@/types";
+import { Project } from "@/types";
 
 import { QRCode } from "react-qrcode-logo";
 import { Button } from "@/components/ui/button";

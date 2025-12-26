@@ -154,7 +154,7 @@ export async function updateOrganization(data: OrganizationUpdateData) {
         }
         
         // Upload new logo
-        const { data: uploadData, error: uploadError } = await supabase.storage
+        const { data: _uploadData, error: uploadError } = await supabase.storage
           .from('organization-logos')
           .upload(fileName, Buffer.from(base64Data, 'base64'), {
             contentType: mimeType,

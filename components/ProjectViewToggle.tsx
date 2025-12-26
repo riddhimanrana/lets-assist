@@ -284,6 +284,8 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
 }) => {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+  void selectedProject;
+  void isSheetOpen;
   const [initialViewLoaded, setInitialViewLoaded] = useState(false);
 
   // Update the effect to properly handle view persistence
@@ -317,91 +319,14 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
     setSelectedProject(project);
     setIsSheetOpen(true);
   };
+  void handleMobileProjectClick;
 
   // Filter projects - only show upcoming projects with available spots
   const filteredProjects = projects.filter(
     (project) => isUpcomingProject(project) && getRemainingSpots(project) > 0,
   );
 
-  // Update EventInfo to show remaining spots
-  const EventInfo = ({ project }: { project: any }) => {
-    if (!project.event_type || !project.schedule) return null;
-
-    const getEventBadges = () => {
-      switch (project.event_type) {
-        case "oneTime":
-          return (
-            <>
-              <Badge variant="outline" className="gap-1">
-                <Calendar className="h-3 w-3" />
-                {format(new Date(project.schedule.oneTime.date), "MMM d, yyyy")}
-              </Badge>
-              <Badge variant="outline" className="gap-1">
-                <Clock className="h-3 w-3" />
-                {formatTime(project.schedule.oneTime.startTime)} -{" "}
-                {formatTime(project.schedule.oneTime.endTime)}
-              </Badge>
-              {project.project_timezone && (
-                <TimezoneBadge timezone={project.project_timezone} />
-              )}
-              <Badge variant="outline" className="gap-1">
-                <Users className="h-3 w-3" />
-                {formatSpots(getRemainingSpots(project))}
-              </Badge>
-            </>
-          );
-        case "multiDay":
-          const days = project.schedule.multiDay.length;
-          const remainingSpots = getRemainingSpots(project);
-          return (
-            <>
-              <Badge variant="outline" className="gap-1">
-                <Calendar className="h-3 w-3" />
-                {format(
-                  new Date(project.schedule.multiDay[0].date),
-                  "MMM d",
-                )} -{" "}
-                {format(
-                  new Date(project.schedule.multiDay[days - 1].date),
-                  "MMM d",
-                )}
-              </Badge>
-              {project.project_timezone && (
-                <TimezoneBadge timezone={project.project_timezone} />
-              )}
-              <Badge variant="outline" className="gap-1">
-                <Users className="h-3 w-3" />
-                {formatSpots(remainingSpots)}
-              </Badge>
-            </>
-          );
-        case "sameDayMultiArea":
-          const remainingVolunteers = getRemainingSpots(project);
-          return (
-            <>
-              <Badge variant="outline" className="gap-1">
-                <Calendar className="h-3 w-3" />
-                {format(
-                  new Date(project.schedule.sameDayMultiArea.date),
-                  "MMM d, yyyy",
-                )}
-              </Badge>
-              {project.project_timezone && (
-                <TimezoneBadge timezone={project.project_timezone} />
-              )}
-              <Badge variant="outline" className="gap-1">
-                <Users className="h-3 w-3" />
-                {formatSpots(remainingVolunteers)}
-              </Badge>
-            </>
-          );
-        default:
-          return null;
-      }
-    };
-
-    return <div className="flex flex-wrap gap-2">{getEventBadges()}</div>;
-  };
+  // EventInfo removed (was unused) to remove an unused local definition
 
   return (
     <div>

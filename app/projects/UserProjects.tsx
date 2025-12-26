@@ -6,12 +6,11 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { format, parseISO } from "date-fns";
-import { Calendar, Clock, MapPin, Users, Award } from "lucide-react"; // Add Award
+import { Calendar, MapPin, Users, Award } from "lucide-react"; // Add Award
 import { NoAvatar } from "@/components/NoAvatar";
 import Link from "next/link";
 import { ProjectStatusBadge } from "@/components/ui/status-badge";
 import { redirect } from "next/navigation";
-import { Metadata } from "next";
 import type { Project } from "@/types";
 
 // Formats the date display for different project types
@@ -36,19 +35,6 @@ function formatDateDisplay(project: any) {
     }
     default:
       return "Date not specified";
-  }
-}
-
-// Get formatted time from time string
-function formatTime(timeString: string) {
-  if (!timeString) return "";
-  try {
-    const [hours, minutes] = timeString.split(":").map(Number);
-    const date = new Date();
-    date.setHours(hours, minutes);
-    return format(date, "h:mm a");
-  } catch (error) {
-    return timeString;
   }
 }
 
@@ -81,6 +67,7 @@ export default async function UserProjects() {
     .select("*")
     .eq("id", user.id)
     .single();
+  void profile;
 
   // Get projects user has created
   const { data: createdProjects, error: createdError } = await supabase
