@@ -8,7 +8,7 @@ import { format } from "date-fns";
 import { CalendarIcon, Clock, MapPin, Plus, Search, Calendar, CheckCircle2, AlertCircle, Clock3, LayoutGrid } from "lucide-react";
 import Link from "next/link";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import Image from "next/image";
+
 import { ProjectStatus } from "@/types";
 import { ProjectStatusBadge } from "@/components/ui/status-badge";
 import { getProjectStatus } from "@/utils/project";
@@ -59,11 +59,7 @@ export default function ProjectsTab({
     setFilteredProjects(result);
   }, [searchTerm, activeTab, projects]);
 
-  // Count projects by status
-  const _upcomingCount = projects.filter(p => getProjectStatus(p) === "upcoming").length;
-  const _inProgressCount = projects.filter(p => getProjectStatus(p) === "in-progress").length;
-  const _completedCount = projects.filter(p => getProjectStatus(p) === "completed").length;
-  const _cancelledCount = projects.filter(p => getProjectStatus(p) === "cancelled").length;
+
 
   const canCreateProjects = userRole === "admin" || userRole === "staff";
   

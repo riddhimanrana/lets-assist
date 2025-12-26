@@ -48,7 +48,8 @@ export default function StaffLinkDisplay({
   const [hasToken, setHasToken] = useState(false);
   const [token, setToken] = useState<string | null>(null);
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
-  const [isExpired, setIsExpired] = useState(false);
+  const [_isExpired, setIsExpired] = useState(false);
+  void _isExpired;
   const [expirationDays, setExpirationDays] = useState("30");
   const [copied, setCopied] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);

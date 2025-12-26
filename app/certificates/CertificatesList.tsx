@@ -484,8 +484,7 @@ export function CertificatesList({ certificates, user }: CertificatesListProps) 
       {/* Certificates Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {sortedCertificates.map((cert) => {
-          // Calculate duration in decimal hours
-          const _durationHours = calculateDecimalHours(cert.event_start, cert.event_end);
+
 
 
           return (

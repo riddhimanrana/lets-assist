@@ -103,8 +103,8 @@ export async function createOrganization(data: OrganizationCreationData) {
     // Decide if you want to block creation or allow if count fails. For now, allowing.
   }
 
-  if (orgsCount !== null && orgsCount >= 1) {
-    return { error: "You can only create one organization every 14 days." };
+  if (orgsCount !== null && orgsCount >= 5) {
+    return { error: "You can only create five organizations every 14 days." };
   }
 
   // Double-check username availability

@@ -18,14 +18,10 @@ import {
 import { Project } from "@/types";
 import {
   Edit,
-  Trash2,
   AlertCircle,
   Loader2,
   Users,
-  FileEdit,
-  XCircle,
   AlertTriangle,
-  CalendarClock,
   QrCode,
   UserCheck,
   Zap,

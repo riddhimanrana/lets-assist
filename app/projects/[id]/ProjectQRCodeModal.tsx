@@ -12,7 +12,6 @@ import { Badge } from "@/components/ui/badge";
 import { formatTimeTo12Hour } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { useReactToPrint } from "react-to-print";
-import Image from "next/image";
 
 // Remove the complex token generation function - we'll use cookies/sessions instead
 
