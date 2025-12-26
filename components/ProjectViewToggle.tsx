@@ -2,13 +2,11 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { getProjectStatus } from "@/utils/project";
-import { TimezoneBadge } from "@/components/TimezoneBadge";
 import { ReportContentButton } from "@/components/ReportContentButton";
 import {
   MapPin,
   Calendar,
   Users,
-  Clock,
   ArrowUpDown,
   ArrowUp,
   ArrowDown,

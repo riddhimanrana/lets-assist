@@ -35,21 +35,6 @@ interface Profile {
   trusted_member?: boolean;
 }
 
-interface Certificate {
-  id: string;
-  user_id: string;
-  title: string;
-  issuer: string;
-  created_at: string; // This is likely 'created_at' from dashboard context
-  event_start: string; // Added: Assuming this exists in your DB table
-  event_end: string;   // Added: Assuming this exists in your DB table
-  image_url?: string;
-  verification_url?: string;
-  description?: string;
-  // Add other fields from dashboard's Certificate if they are selected and needed
-  project_title?: string; // From dashboard, might be same as title
-  organization_name?: string; // From dashboard, might be same as issuer
-}
 
 interface Project {
   id: string;
@@ -77,10 +62,6 @@ interface OrganizationMembership {
   organizations: Organization;
 }
 
-interface OrganizationResponse {
-  role: 'admin' | 'staff' | 'member';
-  organizations: Organization;
-}
 
 type Props = {
   params: Promise<{ username: string }>;

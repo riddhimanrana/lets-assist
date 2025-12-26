@@ -9,7 +9,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { AlertCircle, ArrowLeft, CalendarClock, Clock } from "lucide-react";
+import { AlertCircle, ArrowLeft, CalendarClock } from "lucide-react";
 
 // Define session type for easier handling
 type ProjectSession = {

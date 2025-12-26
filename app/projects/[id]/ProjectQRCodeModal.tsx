@@ -140,7 +140,6 @@ export function ProjectQRCodeModal({ project, open, onOpenChange }: ProjectQRCod
   const renderAvailabilityBadge = (session: SessionInfo) => {
     const now = new Date();
     const startDate = parseISO(`${session.date}T${session.startTime}`);
-    const endDate = parseISO(`${session.date}T${session.endTime}`);
 
     if (session.isAvailable) {
       return <Badge variant="default">Available Now</Badge>;

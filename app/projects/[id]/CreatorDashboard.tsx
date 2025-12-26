@@ -256,7 +256,7 @@ export default function CreatorDashboard({ project }: Props) {
   const isCheckInOpen = hoursUntilStart <= 2 && isBefore(now, endDateTime); // Within 2 hours before start until end
 
   // --- Post-Event Editing Window Check ---
-  const isPostEventEditingWindowActive = useMemo(() => {
+  const _isPostEventEditingWindowActive = useMemo(() => {
     if (!endDateTime) return false;
     const hoursSinceEnd = differenceInHours(now, endDateTime);
     // Active if event ended AND within 48 hours
@@ -328,7 +328,7 @@ export default function CreatorDashboard({ project }: Props) {
     return result;
   }, [project, now]);
   
-  const hasSessionsInEditingWindow = sessionsInEditingWindow.length > 0;
+  const _hasSessionsInEditingWindow = sessionsInEditingWindow.length > 0;
   // --- END NEW ---
 
   // Check if attendance management is available (2 hours before event)
@@ -375,7 +375,7 @@ export default function CreatorDashboard({ project }: Props) {
   }, [project]);
   
   // Calculate time until attendance opens for tooltip
-  const timeUntilAttendanceOpens = useMemo(() => {
+  const _timeUntilAttendanceOpens = useMemo(() => {
     if (isAttendanceAvailable) return null;
     
     let earliestSessionTime: Date | null = null;
