@@ -66,7 +66,7 @@ export function ExportSection({
       projectTitle: cert.project_title || cert.title || "Unknown Project",
       organizationName: cert.organization_name || cert.creator_name || "Unknown Organization",
       volunteerName: cert.volunteer_name || "Unknown Volunteer",
-      volunteerEmail: cert.volunteer_email || userEmail,
+      volunteerEmail: cert.volunteer_email || _userEmail,
       date: cert.event_start ? format(new Date(cert.event_start), "yyyy-MM-dd") : "Unknown Date",
       startTime: cert.event_start ? (() => {
         const timezone = cert.projects?.project_timezone || 'America/Los_Angeles';
@@ -108,7 +108,7 @@ export function ExportSection({
   // Convert all certificates data to export format
   const allExportData = useMemo(() => {
     return certificatesData.map(convertCertificateToExportData);
-  }, [certificatesData, userEmail]);
+  }, [certificatesData, _userEmail]);
 
   // Calculate actual counts from processed data
   const actualVerifiedCount = allExportData.filter(item => item.isVerified).length;

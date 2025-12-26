@@ -31,9 +31,9 @@ interface LocationMapProps {
 
 export function LocationMap({
   location,
-  _readOnly = true,
+  readOnly = true,
   height = "h-[300px]",
-  _showAttribution = true,
+  showAttribution = true,
 }: LocationMapProps) {
   const mapRef = useRef<google.maps.Map | null>(null)
   const [map, setMap] = useState<google.maps.Map | null>(null)

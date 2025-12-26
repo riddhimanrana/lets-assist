@@ -8,6 +8,11 @@ import {
   UserCheck,
   Clipboard,
   BadgeCheck,
+  Building2,
+  User,
+  Clock,
+  Calendar,
+  MapPin,
 } from "lucide-react";
 import Link from "next/link";
 import { Separator } from "@/components/ui/separator";

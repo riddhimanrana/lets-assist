@@ -125,7 +125,7 @@ export default async function OrganizationSettingsPage({ params }: Props) {
           {/* Basic Details Section */}
           <EditOrganizationForm 
             organization={organization} 
-            userId={user.id} 
+            _userId={user.id} 
           />
           
           {/* Join Code Management */}

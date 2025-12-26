@@ -1,9 +1,11 @@
 "use client";
 
+// import { useState } from 'react';
 import { useTheme } from 'next-themes';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LocationData } from '@/types';
-import { MapPin } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { ExternalLink, MapPin } from 'lucide-react';
 import { APIProvider, Map, AdvancedMarker, ColorScheme, useApiIsLoaded, RenderingType } from "@vis.gl/react-google-maps";
 
 // Map container styles

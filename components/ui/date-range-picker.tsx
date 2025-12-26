@@ -24,7 +24,7 @@ import {
 interface DateRangePickerProps {
   value?: DateRange | undefined;
   onChange?: (range: DateRange | undefined) => void;
-  _placeholder?: string;
+  placeholder?: string;
   className?: string;
   align?: "start" | "center" | "end";
   showQuickSelect?: boolean;

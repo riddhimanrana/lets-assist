@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { VolunteerGoals } from "./VolunteerGoals";
 import { Badge } from "@/components/ui/badge";
 import { ProgressCircle } from "./ProgressCircle";
-import { format, parseISO, differenceInMinutes, isBefore, isAfter } from "date-fns";
+import { format, parseISO, differenceInMinutes, isBefore, isAfter, subMonths } from "date-fns";
 import { formatInTimeZone } from "date-fns-tz";
 import { Award, Calendar, Users, Target, ChevronRight, Download, CalendarDays, BarChart3, CircleCheck, UserCheck } from "lucide-react";
 import Link from "next/link";
