@@ -1,7 +1,7 @@
 "use client";
 
 import { useReducer, Reducer } from 'react';
-import { EventType, VerificationMethod, ProjectVisibility } from '@/types';
+import type { EventType, VerificationMethod, ProjectVisibility, LocationData } from '@/types';
 
 // --- Helper Functions --- 
 
@@ -61,7 +61,7 @@ export interface EventFormState {
   basicInfo: {
     title: string;
     location: string;
-    locationData?: any;
+    locationData?: LocationData;
     description: string;
     organizationId: string | null;
     projectTimezone?: string;
@@ -103,15 +103,15 @@ type EventFormAction =
   | { type: 'NEXT_STEP' }
   | { type: 'PREV_STEP' }
   | { type: 'SET_EVENT_TYPE'; payload: EventType }
-  | { type: 'UPDATE_BASIC_INFO'; payload: { field: string; value: any } }
-  | { type: 'UPDATE_ONE_TIME_SCHEDULE'; payload: { field: string; value: any } }
+  | { type: 'UPDATE_BASIC_INFO'; payload: { field: string; value: unknown } }
+  | { type: 'UPDATE_ONE_TIME_SCHEDULE'; payload: { field: string; value: unknown } }
   | {
     type: 'UPDATE_MULTI_DAY_SCHEDULE';
-    payload: { dayIndex: number; field: string; value: any; slotIndex?: number };
+    payload: { dayIndex: number; field: string; value: unknown; slotIndex?: number };
   }
   | {
     type: 'UPDATE_MULTI_ROLE_SCHEDULE';
-    payload: { field: string; value: any; roleIndex?: number };
+    payload: { field: string; value: unknown; roleIndex?: number };
   }
   | { type: 'ADD_MULTI_DAY_SLOT'; payload: { dayIndex: number } }
   | { type: 'ADD_MULTI_DAY_EVENT' }
@@ -440,16 +440,16 @@ export const useEventForm = () => {
   const setEventType = (eventType: EventType) =>
     dispatch({ type: 'SET_EVENT_TYPE', payload: eventType });
 
-  const updateBasicInfo = (field: string, value: any) =>
+  const updateBasicInfo = (field: string, value: unknown) =>
     dispatch({ type: 'UPDATE_BASIC_INFO', payload: { field, value } });
 
-  const updateOneTimeSchedule = (field: string, value: any) =>
+  const updateOneTimeSchedule = (field: string, value: unknown) =>
     dispatch({ type: 'UPDATE_ONE_TIME_SCHEDULE', payload: { field, value } });
 
   const updateMultiDaySchedule = (
     dayIndex: number,
     field: string,
-    value: any,
+    value: unknown,
     slotIndex?: number,
   ) =>
     dispatch({
@@ -459,7 +459,7 @@ export const useEventForm = () => {
 
   const updateMultiRoleSchedule = (
     field: string,
-    value: any,
+    value: unknown,
     roleIndex?: number,
   ) =>
     dispatch({
