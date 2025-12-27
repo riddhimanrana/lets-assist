@@ -116,6 +116,8 @@ const onboardingSchema = z.object({
   ),
 });
 
+type OnboardingFormKey = keyof OnboardingValues | 'root.serverError';
+
 interface AvatarProps {
   url: string;
   onUpload: (url: string) => void;
@@ -350,8 +352,8 @@ export default function ProfileClient() {
 
     setAdding(true);
     try {
-      const result = await addEmail(newEmail);
-      if (result.error && (result as any).warning) {
+        const result = await addEmail(newEmail) as { error?: string; warning?: boolean };
+      if (result.warning && result.error) {
         toast.warning(result.error);
         setAdding(false);
         return;
@@ -366,9 +368,9 @@ export default function ProfileClient() {
       setPendingEmail(newEmail);
       setVerificationStep(true);
       toast.success("Verification code sent to " + newEmail);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error adding email:", error);
-      toast.error(error.message || "Failed to add email");
+      toast.error((error as Error)?.message ?? "Failed to add email");
     } finally {
       setAdding(false);
     }
@@ -387,9 +389,9 @@ export default function ProfileClient() {
       setVerificationCode("");
       setPendingEmail("");
       fetchEmails();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error verifying email:", error);
-      toast.error(error.message || "Invalid verification code");
+      toast.error((error as Error)?.message ?? "Invalid verification code");
     } finally {
       setVerifying(false);
     }
@@ -400,9 +402,9 @@ export default function ProfileClient() {
       await unlinkEmail(id);
       toast.success("Email removed successfully");
       fetchEmails();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error removing email:", error);
-      toast.error(error.message || "Failed to remove email");
+      toast.error((error as Error)?.message ?? "Failed to remove email");
     }
   };
 
@@ -422,9 +424,9 @@ export default function ProfileClient() {
       toast.success("Primary email updated");
       setPendingPrimaryEmail(null);
       setTimeout(fetchEmails, 500);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error setting primary email:", error);
-      toast.error(error.message || "Failed to update primary email");
+      toast.error((error as Error)?.message ?? "Failed to update primary email");
     }
   };
 
@@ -481,22 +483,31 @@ export default function ProfileClient() {
       if (result.error) {
         const errors = result.error;
         Object.keys(errors).forEach((key) => {
-          // Map server error keys back to form field names if necessary
-          const formKey = key === 'server' ? 'root.serverError' : key as keyof OnboardingValues;
-          // Check if the key exists in the form before setting error
-          if (formKey in form.getValues() || formKey === 'root.serverError' || formKey === 'phoneNumber') {
-            form.setError(formKey as any, { // Use 'any' temporarily if type mapping is complex
+          const errorMsg = errors[key as keyof typeof errors]?.[0];
+
+          if (key === 'server') {
+            form.setError('root.serverError' as OnboardingFormKey, {
               type: "server",
-              message: errors[key as keyof typeof errors]?.[0],
+              message: errorMsg ?? "An unexpected validation error occurred.",
             });
-          } else {
-            // Handle unexpected error keys, maybe log them or show a generic error
-            console.warn(`Unexpected error key from server: ${key}`);
-            form.setError('root.serverError', {
-              type: "server",
-              message: "An unexpected validation error occurred."
-            });
+            return;
           }
+
+          // If the key maps to an onboarding form field or phoneNumber, set the error on that field.
+          if (key in form.getValues() || key === 'phoneNumber') {
+            form.setError(key as keyof OnboardingValues, {
+              type: "server",
+              message: errorMsg,
+            });
+            return;
+          }
+
+          // Handle unexpected error keys, log them and set a root-level error.
+          console.warn(`Unexpected error key from server: ${key}`);
+          form.setError('root.serverError' as OnboardingFormKey, {
+            type: "server",
+            message: "An unexpected validation error occurred.",
+          });
         });
         toast.error("Failed to update profile. Please check the errors.");
       } else {

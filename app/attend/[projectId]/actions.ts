@@ -276,9 +276,10 @@ export async function lookupEmailStatus(projectId: string, scheduleId: string, e
         return { success: true, found: false, isRegistered: false, message: "No signup found for this email and session." };
       }
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Unexpected error during email lookup:", error);
-    return { success: false, found: false, isRegistered: false, message: "An unexpected error occurred.", error: error.message };
+    const message = error instanceof Error ? error.message : String(error);
+    return { success: false, found: false, isRegistered: false, message: "An unexpected error occurred.", error: message };
   }
 }
 

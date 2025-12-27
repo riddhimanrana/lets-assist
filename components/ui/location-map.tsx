@@ -46,7 +46,7 @@ export function LocationMap({
   // Load Google Maps script
   const { isLoaded, loadError } = useLoadScript({
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
-    libraries: libraries as any,
+    libraries: libraries as string[],
   })
 
   // Update map styling when theme changes
@@ -129,7 +129,6 @@ export function LocationMap({
             streetViewControl: false,
             mapTypeControl: false,
             zoomControl: true,
-            mapTypeId: (window as any).google?.maps?.MapTypeId.ROADMAP,
             mapId: MAP_ID, // Apply your map ID here
           }}
         >

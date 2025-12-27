@@ -170,7 +170,7 @@ export default function UserDashboard({ project, user, signups }: Props) {
         // First check if signup status is valid for processing
         // Using type-safe approach with Array.includes
         const validStatuses = ['approved', 'attended'] as const;
-        if (!validStatuses.includes(signup.status as any)) {
+        if (!validStatuses.includes(signup.status as 'approved' | 'attended')) {
           return null; // Skip signups that are not approved or already attended
         }
 
@@ -752,7 +752,7 @@ export default function UserDashboard({ project, user, signups }: Props) {
   }, [signupStatuses, project, setSelectedScheduleForScan, setIsCameraModalOpen, isSignupOnly, isProjectStartingSoon]);
 
   // Helper function to get a consistent session display name
-  function getSessionDisplayName(project: Project, startTime: Date | null, details: any): string {
+  function getSessionDisplayName(project: Project, startTime: Date | null, details: { name?: string; startTime?: string; endTime?: string }): string {
     // If multiRole event with named roles, keep using the role name
     if ('name' in details && details.name) {
         return details.name;

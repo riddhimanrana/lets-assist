@@ -27,6 +27,15 @@ import { Card } from "@/components/ui/card";
 import { format, parse } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import type { Project, Organization, Profile, MultiDayScheduleDay, MultiDaySlot, SameDayMultiAreaRole } from "@/types";
+
+// Project from API may include a few alternative shapes (e.g., 'organizations' or 'total_confirmed')
+// so create a local augmented type used for client helpers.
+type ProjectWithExtras = Project & {
+  organizations?: Organization;
+  total_confirmed?: number;
+  profiles?: Profile | null;
+};
 import {
   Table,
   TableBody,
@@ -47,7 +56,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-type Project = any;
 
 const STORAGE_KEY = "preferred-project-view";
 const VALID_VIEWS = ["card", "list", "table", "map"] as const;
@@ -56,7 +64,7 @@ type ValidView = (typeof VALID_VIEWS)[number];
 
 // Update the type definition to include "map"
 type ProjectViewToggleProps = {
-  projects: Project[];
+  projects: ProjectWithExtras[];
   onVolunteerSortChange?: (sort: "asc" | "desc" | undefined) => void;
   volunteerSort?: "asc" | "desc" | undefined;
   view: ValidView;
@@ -76,7 +84,7 @@ const formatSpots = (count: number) => {
   return `${count} ${count === 1 ? "spot" : "spots"} left`;
 };
 
-const formatDateDisplay = (project: any) => {
+const formatDateDisplay = (project: ProjectWithExtras) => {
   if (!project.event_type || !project.schedule) return "";
 
   switch (project.event_type) {
@@ -88,7 +96,7 @@ const formatDateDisplay = (project: any) => {
     }
     case "multiDay": {
       const dates = project.schedule.multiDay
-        .map((day: any) => {
+        .map((day: MultiDayScheduleDay) => {
           const [year, month, dayNum] = day.date.split("-").map(Number);
           return new Date(year, month - 1, dayNum);
         })
@@ -134,7 +142,7 @@ const formatDateDisplay = (project: any) => {
 };
 
 // Function to get a summary of event schedule for table view
-const getEventScheduleSummary = (project: any) => {
+const getEventScheduleSummary = (project: ProjectWithExtras) => {
   if (!project.event_type || !project.schedule) return "Not specified";
 
   switch (project.event_type) {
@@ -191,7 +199,7 @@ const getEventScheduleSummary = (project: any) => {
 };
 
 // Get volunteer count from project (total spots)
-const getVolunteerCount = (project: any) => {
+const getVolunteerCount = (project: ProjectWithExtras) => {
   if (!project.event_type || !project.schedule) return 0;
 
   switch (project.event_type) {
@@ -201,9 +209,9 @@ const getVolunteerCount = (project: any) => {
       // Sum all volunteers across all days and slots
       let total = 0;
       if (project.schedule.multiDay) {
-        project.schedule.multiDay.forEach((day: any) => {
+        project.schedule.multiDay.forEach((day: MultiDayScheduleDay) => {
           if (day.slots) {
-            day.slots.forEach((slot: any) => {
+            day.slots.forEach((slot: MultiDaySlot) => {
               total += slot.volunteers || 0;
             });
           }
@@ -215,7 +223,7 @@ const getVolunteerCount = (project: any) => {
       // Sum all volunteers across all roles
       let total = 0;
       if (project.schedule.sameDayMultiArea?.roles) {
-        project.schedule.sameDayMultiArea.roles.forEach((role: any) => {
+        project.schedule.sameDayMultiArea.roles.forEach((role: SameDayMultiAreaRole) => {
           total += role.volunteers || 0;
         });
       }
@@ -227,7 +235,7 @@ const getVolunteerCount = (project: any) => {
 };
 
 // New function to get remaining spots
-const getRemainingSpots = (project: any) => {
+const getRemainingSpots = (project: ProjectWithExtras) => {
   const totalSpots = getVolunteerCount(project);
 
   // Use confirmed_signups from server
@@ -237,14 +245,14 @@ const getRemainingSpots = (project: any) => {
 };
 
 // Function to check if project has upcoming status
-const isUpcomingProject = (project: any) => {
+const isUpcomingProject = (project: ProjectWithExtras) => {
   return (
     project.status === "upcoming" || getProjectStatus(project) === "upcoming"
   );
 };
 
 // Function to get project organization or creator name
-const getProjectCreator = (project: any) => {
+const getProjectCreator = (project: ProjectWithExtras) => {
   if (project.organization) {
     return project.organization.name || "Organization";
   } else if (project.organization_id && project.organizations) {
@@ -255,7 +263,7 @@ const getProjectCreator = (project: any) => {
 };
 
 // Function to get project creator's avatar URL
-const getCreatorAvatarUrl = (project: any) => {
+const getCreatorAvatarUrl = (project: ProjectWithExtras) => {
   if (project.organization) {
     return project.organization.logo_url;
   } else if (project.organization_id && project.organizations) {
@@ -265,7 +273,7 @@ const getCreatorAvatarUrl = (project: any) => {
 };
 
 // Function to check if the project's organization is verified
-const isOrganizationVerified = (project: any) => {
+const isOrganizationVerified = (project: ProjectWithExtras) => {
   if (project.organization) {
     return project.organization.verified || false;
   } else if (project.organization_id && project.organizations) {
@@ -332,7 +340,7 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
       {/* Card View - Cleaner with hover cards */}
       {view === "card" && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredProjects.map((project: any) => (
+          {filteredProjects.map((project: ProjectWithExtras) => (
             <div key={project.id} className="relative group">
               <Link href={`/projects/${project.id}`}>
                 <Card className="p-6 hover:shadow-lg transition-all cursor-pointer h-full flex flex-col">
@@ -531,7 +539,7 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
       {/* List View - Updated with remaining spots and organization name */}
       {view === "list" && (
         <div className="flex flex-col divide-y">
-          {filteredProjects.map((project: any) => (
+          {filteredProjects.map((project: ProjectWithExtras) => (
             <Link key={project.id} href={`/projects/${project.id}`}>
               <div className="group py-6 px-4 -mx-4 hover:bg-muted/50 transition-colors project-list-item">
                 <div className="flex flex-col md:flex-row md:items-start gap-4 md:gap-6">
@@ -690,7 +698,7 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredProjects.map((project: any) => (
+              {filteredProjects.map((project: ProjectWithExtras) => (
                 <TableRow key={project.id}>
                   <TableCell>
                     <div className="max-w-[300px] sm:max-w-none">

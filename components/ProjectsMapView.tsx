@@ -30,15 +30,17 @@ const mapId = "e54dd2f307297bcd";
 const RADIUS_MILES = 25;
 const RADIUS_METERS = RADIUS_MILES * 1609.34; // Convert miles to meters
 
+import type { Project, MultiDayScheduleDay, MultiDaySlot, SameDayMultiAreaRole } from "@/types";
+
 interface ProjectsMapViewProps {
   className?: string;
-  initialProjects?: any[];
-  projects?: any[]; // Add projects prop
+  initialProjects?: Project[];
+  projects?: Project[]; // Add projects prop
 }
 
-function ProjectMapInfoWindow({ project, onClose }: { project: any; onClose: () => void }) {
+function ProjectMapInfoWindow({ project, onClose }: { project: Project; onClose: () => void }) {
   // Format date display for projects
-  const formatDateDisplay = (project: any) => {
+  const formatDateDisplay = (project: Project) => {
     if (!project.event_type || !project.schedule) return "";
 
     switch (project.event_type) {
@@ -47,7 +49,7 @@ function ProjectMapInfoWindow({ project, onClose }: { project: any; onClose: () 
       }
       case "multiDay": {
         const dates = project.schedule.multiDay
-          .map((day: any) => new Date(day.date))
+          .map((day: MultiDayScheduleDay) => new Date(day.date))
           .sort((a: Date, b: Date) => a.getTime() - b.getTime());
         
         // If dates are in same month
@@ -92,7 +94,7 @@ function ProjectMapInfoWindow({ project, onClose }: { project: any; onClose: () 
   };
 
   // Get volunteer count from a project
-  const getVolunteerCount = (project: any): number => {
+  const getVolunteerCount = (project: Project): number => {
     if (!project.event_type || !project.schedule) return 0;
 
     switch (project.event_type) {
@@ -101,9 +103,9 @@ function ProjectMapInfoWindow({ project, onClose }: { project: any; onClose: () 
       case "multiDay": {
         let total = 0;
         if (project.schedule.multiDay) {
-          project.schedule.multiDay.forEach((day: any) => {
+          project.schedule.multiDay.forEach((day: MultiDayScheduleDay) => {
             if (day.slots) {
-              day.slots.forEach((slot: any) => {
+              day.slots.forEach((slot: MultiDaySlot) => {
                 total += slot.volunteers || 0;
               });
             }
@@ -114,7 +116,7 @@ function ProjectMapInfoWindow({ project, onClose }: { project: any; onClose: () 
       case "sameDayMultiArea": {
         let total = 0;
         if (project.schedule.sameDayMultiArea?.roles) {
-          project.schedule.sameDayMultiArea.roles.forEach((role: any) => {
+          project.schedule.sameDayMultiArea.roles.forEach((role: SameDayMultiAreaRole) => {
             total += role.volunteers || 0;
           });
         }
@@ -161,9 +163,9 @@ function ProjectMapInfoWindow({ project, onClose }: { project: any; onClose: () 
 function MapContent({ initialProjects, projects: externalProjects, className }: ProjectsMapViewProps) {
   const { resolvedTheme } = useTheme();
   const [userLocation, setUserLocation] = useState<google.maps.LatLngLiteral | null>(null);
-  const [projects, setProjects] = useState<any[]>(initialProjects ?? externalProjects ?? []);
-  const [filteredProjects, setFilteredProjects] = useState<any[]>([]);
-  const [selectedProject, setSelectedProject] = useState<any | null>(null);
+  const [projects, setProjects] = useState<Project[]>(initialProjects ?? externalProjects ?? []);
+  const [filteredProjects, setFilteredProjects] = useState<Project[]>([]);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [isLocating, setIsLocating] = useState(false);
   const [isLoading, setIsLoading] = useState(!initialProjects);
   const [error, setError] = useState<string | null>(null);
@@ -245,9 +247,9 @@ function MapContent({ initialProjects, projects: externalProjects, className }: 
       
       const data = await response.json();
       setProjects(data);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error fetching projects:', err);
-      setError(err.message || 'Failed to fetch projects');
+      setError((err as Error)?.message ?? 'Failed to fetch projects');
     } finally {
       setIsLoading(false);
     }

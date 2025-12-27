@@ -193,9 +193,10 @@ export async function updateOrganization(data: OrganizationUpdateData) {
     revalidatePath('/organization');
     
     return { success: true };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error updating organization:", error);
-    return { error: error.message || "Failed to update organization" };
+    const message = error instanceof Error ? error.message : "Failed to update organization";
+    return { error: message };
   }
 }
 
@@ -260,9 +261,10 @@ export async function deleteOrganization(organizationId: string) {
     revalidatePath('/organization');
     
     return { success: true };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error deleting organization:", error);
-    return { error: error.message || "Failed to delete organization" };
+    const message = error instanceof Error ? error.message : "Failed to delete organization";
+    return { error: message };
   }
 }
 
@@ -321,9 +323,10 @@ export async function generateStaffLink(organizationId: string, expiresInDays: n
       token,
       expiresAt: expiresAt.toISOString(),
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error generating staff link:", error);
-    return { error: error.message || "Failed to generate staff link" };
+    const message = error instanceof Error ? error.message : "Failed to generate staff link";
+    return { error: message };
   }
 }
 
@@ -371,9 +374,10 @@ export async function revokeStaffLink(organizationId: string) {
     revalidatePath(`/organization/${organizationId}/settings`);
 
     return { success: true };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error revoking staff link:", error);
-    return { error: error.message || "Failed to revoke staff link" };
+    const message = error instanceof Error ? error.message : "Failed to revoke staff link";
+    return { error: message };
   }
 }
 
@@ -425,8 +429,9 @@ export async function getStaffLinkDetails(organizationId: string) {
       expiresAt: org.staff_join_token_expires_at,
       isExpired,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error getting staff link details:", error);
-    return { error: error.message || "Failed to get staff link details" };
+    const message = error instanceof Error ? error.message : "Failed to get staff link details";
+    return { error: message };
   }
 }

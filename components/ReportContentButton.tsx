@@ -146,7 +146,7 @@ export function ReportContentButton({
       return cloneElement(element, {
         onClick: (event: MouseEvent<HTMLElement>) => {
           event.stopPropagation(); // Prevent dropdown from closing
-          const previousOnClick = (element.props as any)?.onClick;
+          const previousOnClick = (element.props as Record<string, unknown>)['onClick'] as ((e: MouseEvent<HTMLElement>) => void) | undefined;
           previousOnClick?.(event);
           if (event.defaultPrevented) {
             return;
@@ -156,7 +156,7 @@ export function ReportContentButton({
         onSelect: (event: Event) => {
           event.preventDefault(); // Prevent dropdown menu from closing
         },
-      } as any);
+      });
     })()
     : (
       <Button

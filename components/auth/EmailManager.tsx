@@ -70,7 +70,7 @@ export function EmailManager() {
         setAdding(true);
         try {
             const result = await addEmail(newEmail);
-            if (result.error && (result as any).warning) {
+            if (result.error && result.warning) {
                 toast.warning(result.error);
                 setAdding(false);
                 return;
@@ -85,9 +85,10 @@ export function EmailManager() {
             setPendingEmail(newEmail);
             setVerificationStep(true);
             toast.success("Verification code sent to " + newEmail);
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error("Error adding email:", error);
-            toast.error(error.message || "Failed to add email");
+            const message = error instanceof Error ? error.message : "Failed to add email";
+            toast.error(message);
         } finally {
             setAdding(false);
         }

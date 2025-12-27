@@ -85,6 +85,8 @@ export interface Organization {
   logo_url?: string;
   type: string;
   verified: boolean;
+  website?: string; // Optional website URL
+  created_at?: string; // Creation timestamp
 }
 
 export interface Project {

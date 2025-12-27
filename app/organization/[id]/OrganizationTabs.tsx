@@ -1,5 +1,6 @@
 "use client";
 
+import type { Organization, OrganizationRole, Project } from "@/types";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import MembersTab from "./MembersTab";
 import ProjectsTab from "./ProjectsTab";
@@ -31,16 +32,66 @@ import { ProjectStatusBadge } from "@/components/ui/status-badge";
 import { getProjectStatus } from "@/utils/project";
 import AdminDashboardClient from "./admin/DashboardClient";
 
+interface MemberProfileShape {
+  full_name: string | null;
+  username: string | null;
+  avatar_url: string | null;
+}
+
+interface Member {
+  id: string;
+  user_id: string;
+  role: OrganizationRole;
+  joined_at: string;
+  profiles?: MemberProfileShape | MemberProfileShape[] | null;
+}
+
+interface ProjectWithStats {
+  id: string;
+  title: string;
+  status: string;
+  visibility: string;
+  verificationMethod: string;
+  eventType: string;
+  location: string | null;
+  createdAt: string;
+  totalSignups: number;
+  approvedSignups: number;
+  participationRate: number;
+  totalHours: number;
+  hoursVerified: number;
+  hoursPending: number;
+}
+
+interface DashboardMetrics {
+  totalVolunteers: number;
+  totalHours: number;
+  activeProjects: number;
+  pendingVerificationHours: number;
+}
+
+interface TopVolunteer {
+  id: string;
+  name: string;
+  avatar: string | null;
+  email: string;
+  totalHours: number;
+  verifiedHours: number;
+  eventsAttended: number;
+  certificatesEarned: number;
+  lastEventDate: Date | null;
+}
+
 interface OrganizationTabsProps {
-  organization: any;
-  members: any[];
-  projects: any[];
-  userRole: string | null;
+  organization: Organization;
+  members: Member[];
+  projects: ProjectWithStats[];
+  userRole: OrganizationRole | null;
   currentUserId: string | undefined;
   dashboardData?: {
-    metrics: any;
-    topVolunteers: any[];
-    projectsWithStats: any[];
+    metrics: DashboardMetrics;
+    topVolunteers: TopVolunteer[];
+    projectsWithStats: ProjectWithStats[];
   };
 }
 
@@ -48,8 +99,8 @@ function LeaveOrganizationDialog({
   organization, 
   userRole 
 }: { 
-  organization: any;
-  userRole: string;
+  organization: Organization;
+  userRole: OrganizationRole;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
@@ -242,7 +293,7 @@ export default function OrganizationTabs({
                     <div className="min-w-0 flex-1">
                       <h4 className="text-xs sm:text-sm font-medium">Created</h4>
                       <p className="text-xs sm:text-sm text-muted-foreground">
-                        {format(new Date(organization.created_at), "MMMM d, yyyy")}
+                        {organization.created_at ? format(new Date(organization.created_at), "MMMM d, yyyy") : "N/A"}
                       </p>
                     </div>
                   </div>

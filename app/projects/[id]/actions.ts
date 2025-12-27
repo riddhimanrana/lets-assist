@@ -665,7 +665,7 @@ export async function signUpForProject(
         const slotIndexStr = parts.pop();
         const date = parts.join("-");
 
-        const day = project.schedule.multiDay.find((d: any) => d.date === date);
+        const day = project.schedule.multiDay.find((d: { date: string; slots: Array<{ endTime: string }> }) => d.date === date);
         if (day && slotIndexStr) {
           const slotIdx = parseInt(slotIndexStr, 10);
           if (!isNaN(slotIdx) && slotIdx >= 0 && slotIdx < day.slots.length) {
@@ -1252,7 +1252,11 @@ export async function updateProjectStatus(
   }
 
   // Update project status
-  const updateData: any = { status: newStatus };
+  const updateData: {
+    status: string;
+    cancelled_at?: string;
+    cancellation_reason?: string;
+  } = { status: newStatus };
   if (newStatus === "cancelled") {
     updateData.cancelled_at = new Date().toISOString();
     updateData.cancellation_reason = cancellationReason;

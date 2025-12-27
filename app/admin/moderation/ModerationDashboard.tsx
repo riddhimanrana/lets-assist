@@ -801,9 +801,9 @@ export default function ModerationDashboard({
                         Created by {selectedReport.creator_details.full_name || selectedReport.creator_details.username}
                       </p>
                     )}
-                    {selectedReport.content_snapshot && (selectedReport.content_snapshot as any)?.url && (
+                    {selectedReport.content_snapshot && typeof selectedReport.content_snapshot === 'object' && 'url' in selectedReport.content_snapshot && typeof (selectedReport.content_snapshot as Record<string, unknown>).url === 'string' && (
                       <a 
-                        href={(selectedReport.content_snapshot as any).url} 
+                        href={(selectedReport.content_snapshot as Record<string, unknown>).url as string} 
                         target="_blank" 
                         rel="noopener noreferrer"
                         className="text-xs text-primary hover:underline flex items-center gap-1 mt-1"

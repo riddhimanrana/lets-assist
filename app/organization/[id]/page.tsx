@@ -82,7 +82,7 @@ export default async function OrganizationPage({ params }: Props): Promise<React
   let userRole = null;
   if (user) {
     const memberRecord = organization.organization_members.find(
-      (member: any) => member.user_id === user.id
+      (member: { user_id: string; role: string }) => member.user_id === user.id
     );
     userRole = memberRecord?.role || null;
   }
@@ -110,7 +110,7 @@ export default async function OrganizationPage({ params }: Props): Promise<React
   const userIds = membersData?.map(member => member.user_id) || [];
   
   // No need to query profiles if there are no members
-  let profilesData: any[] = [];
+  let profilesData: Array<{ id: string; username: string | null; full_name: string | null; avatar_url: string | null }> = [];
   if (userIds.length > 0) {
     // Then fetch profile data for those users
     const { data: profiles, error: profilesError } = await supabase

@@ -218,7 +218,7 @@ export async function createOrganization(data: OrganizationCreationData) {
           .single();
 
 
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error("Error updating organization logo:", error);
         // Continue without interrupting organization creation if logo upload fails.
       }
@@ -233,9 +233,10 @@ export async function createOrganization(data: OrganizationCreationData) {
       organizationId: organization.id,
       logoUrl
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error creating organization:", error);
-    return { error: error.message || "Failed to create organization" };
+    const message = error instanceof Error ? error.message : "Failed to create organization";
+    return { error: message };
   }
 }
 

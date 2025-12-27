@@ -18,11 +18,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+import type { Organization, OrganizationRole } from "@/types";
+
 interface OrganizationsDisplayProps {
-  organizations: any[];
+  organizations: Organization[];
   memberCounts: Record<string, number>;
   isLoggedIn: boolean;
-  userMemberships: any[];
+  userMemberships: Array<{ organizations?: Organization; role?: OrganizationRole }>;
   isTrusted?: boolean;
   applicationStatus?: boolean | null;
 }
@@ -39,9 +41,9 @@ export default function OrganizationsDisplay({
 }: OrganizationsDisplayProps) {
 
   const [search, setSearch] = useState("");
-  const [filteredOrgs, setFilteredOrgs] = useState(organizations);
-  const [userOrgs, setUserOrgs] = useState<any[]>([]);
-  const [otherOrgs, setOtherOrgs] = useState<any[]>([]);
+  const [filteredOrgs, setFilteredOrgs] = useState<Organization[]>(organizations);
+  const [userOrgs, setUserOrgs] = useState<Organization[]>([]);
+  const [otherOrgs, setOtherOrgs] = useState<Organization[]>([]);
   const [sortBy, setSortBy] = useState("verified-first");
 
   // Helper function to get user's role for an organization
@@ -88,7 +90,7 @@ export default function OrganizationsDisplay({
     
     // Separate user's organizations and other organizations
     // Create a map of user memberships for quick lookup
-    const membershipMap = new Map();
+    const membershipMap = new Map<string, OrganizationRole | undefined>();
     userMemberships.forEach(membership => {
       if (membership.organizations) {
         membershipMap.set(membership.organizations.id, membership.role);
@@ -96,7 +98,7 @@ export default function OrganizationsDisplay({
     });
     
     // Separate organizations based on user membership
-    const userOrganizations = userMemberships.map(membership => membership.organizations).filter(Boolean);
+    const userOrganizations = userMemberships.map(membership => membership.organizations).filter(Boolean) as Organization[];
     const otherOrgsList = result.filter(org => !membershipMap.has(org.id));
     
     // Update state
@@ -229,7 +231,7 @@ export default function OrganizationsDisplay({
                   My Organizations
                 </h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                  {userOrgs.map((org: any) => (
+                  {userOrgs.map((org: Organization) => (
                     <OrganizationCard 
                       key={org.id} 
                       org={org} 
@@ -249,7 +251,7 @@ export default function OrganizationsDisplay({
                   Discover Organizations
                 </h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                  {otherOrgs.map((org: any) => (
+                  {otherOrgs.map((org: Organization) => (
                     <OrganizationCard 
                       key={org.id} 
                       org={org} 

@@ -1,5 +1,6 @@
 "use client";
 
+import type { OrganizationRole } from "@/types";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,9 +16,16 @@ import { getProjectStatus } from "@/utils/project";
 import { useRouter } from "next/navigation";
 import { stripHtml } from "@/lib/utils";
 
+interface ProjectWithStatus {
+  id: string;
+  title: string;
+  status?: string;
+  [key: string]: unknown;
+}
+
 interface ProjectsTabProps {
-  projects: any[];
-  userRole: string | null;
+  projects: ProjectWithStatus[];
+  userRole: OrganizationRole | null;
   organizationId: string;
 }
 
@@ -154,7 +162,7 @@ export default function ProjectsTab({
   );
 }
 
-function ProjectCard({ project }: { project: any }) {
+function ProjectCard({ project }: { project: ProjectWithStatus }) {
   const currentStatus = getProjectStatus(project);
 
   return (

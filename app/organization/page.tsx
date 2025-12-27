@@ -61,7 +61,11 @@ export default async function OrganizationsPage() {
   }, {} as Record<string, number>);
 
   // If user is logged in, fetch their organization memberships
-  let userMemberships: any[] = [];
+  let userMemberships: Array<{
+    role: string;
+    organization_id: string;
+    organizations: unknown;
+  }> = [];
   if (isLoggedIn && user) {
     const { data: memberships } = await supabase
       .from('organization_members')

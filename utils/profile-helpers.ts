@@ -1,4 +1,5 @@
 import { Profile, ProfileVisibility } from "@/types";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 /**
  * Determine if a user can view a profile based on visibility settings
@@ -37,7 +38,7 @@ export async function canViewProfile(
 export async function isInSameOrganization(
   userId1: string,
   userId2: string,
-  supabaseClient: any
+  supabaseClient: SupabaseClient
 ): Promise<boolean> {
   const { data: profile1 } = await supabaseClient
     .from('profiles')

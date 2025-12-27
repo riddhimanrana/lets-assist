@@ -13,7 +13,7 @@ export interface NotificationData {
   type: NotificationType;
   severity?: NotificationSeverity; // Add severity field
   actionUrl?: string;
-  data?: Record<string, any>;
+  data?: Record<string, unknown>;
 }
 
 // Keep track of notifications we've created to avoid duplicates
@@ -36,7 +36,7 @@ export const NotificationService = {
           email_notifications: boolean;
           project_updates: boolean;
           general?: boolean;
-          [key: string]: any;
+          [key: string]: unknown;
         }
         // Get user's notification preferences as a single object
         const { data: preferences, error: prefsError } = await supabase

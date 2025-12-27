@@ -456,8 +456,9 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses, a
       const result = await publishVolunteerHours(project.id, sessionId, volunteersData);
 
       if (result.success) {
-        const emailsSent = (result as any).emailsSent || 0;
-        const emailErrors = (result as any).emailErrors || [];
+        const resultWithEmails = result as { success: true; certificatesCreated: number; emailsSent?: number; emailErrors?: string[] };
+        const emailsSent = resultWithEmails.emailsSent || 0;
+        const emailErrors = resultWithEmails.emailErrors || [];
         
         if (emailsSent > 0) {
           toast.success("Hours Published & Emails Sent!", {

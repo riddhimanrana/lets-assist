@@ -50,6 +50,7 @@ import { DateRange } from "react-day-picker";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { cn } from "@/lib/utils";
 import { format, parseISO } from "date-fns";
+import type { Project } from "@/types";
 
 import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
@@ -123,8 +124,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
   }, [inView, isValidating, reachedEnd, data, setSize, size]);
 
   // Helper function to check if a project is within the date range
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const isProjectInDateRange = (project: any, dateRange: DateRange | undefined) => {
+  const isProjectInDateRange = (project: Project, dateRange: DateRange | undefined) => {
     if (!dateRange?.from) return true;
     
     let projectDate: Date | null = null;
@@ -135,7 +135,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
       } else if (project.event_type === "multiDay" && project.schedule?.multiDay?.length > 0) {
         // For multi-day events, check if any day is within the range
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return project.schedule.multiDay.some((day: any) => {
+        return project.schedule.multiDay.some((day) => {
           const dayDate = parseISO(day.date);
           return isWithinDateRange(dayDate, dateRange);
         });
@@ -193,11 +193,9 @@ export const ProjectsInfiniteScroll: React.FC = () => {
   }, []);
 
   // Sort projects by date
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sortByDate = useCallback((projects: any[], direction: "asc" | "desc" | undefined) => {
+  const sortByDate = useCallback((projects: Project[], direction: "asc" | "desc" | undefined) => {
     // Define getProjectDate within sortByDate to avoid dependency cycle
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const getProjectDateInternal = (project: any): Date | null => {
+    const getProjectDateInternal = (project: Project): Date | null => {
       try {
         if (project.event_type === "oneTime" && project.schedule?.oneTime?.date) {
           return parseISO(project.schedule.oneTime.date);
@@ -232,8 +230,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
   }, []);
 
   // Get volunteer count from a project
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const getVolunteerCount = (project: any): number => {
+  const getVolunteerCount = (project: Project): number => {
     if (!project.event_type || !project.schedule) return 0;
 
     switch (project.event_type) {
@@ -272,8 +269,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
   };
 
   // New function to get remaining spots
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const getRemainingSpots = (project: any): number => {
+  const getRemainingSpots = (project: Project): number => {
     // Get total spots
     const totalSpots = getVolunteerCount(project);
     
@@ -297,7 +293,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
   };
 
   // Get all projects and apply client-side filtering
-  const allProjects = data ? ([] as any[]).concat(...data) : [];
+  const allProjects = data ? ([] as Project[]).concat(...data) : [];
   
   const filteredProjects = allProjects.filter((project) => {
     // Search term filter

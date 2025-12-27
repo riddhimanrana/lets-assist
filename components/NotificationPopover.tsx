@@ -39,7 +39,7 @@ type Notification = {
   read: boolean;
   created_at: string;
   action_url?: string | null;
-  data?: Record<string, any> | null;
+  data?: Record<string, unknown> | null;
 };
 
 /**
@@ -47,7 +47,7 @@ type Notification = {
  * without any new calls. Useful for batching rapid realtime events.
  * Example: 5 notification inserts in quick succession → 1 loadNotifications call
  */
-function useDebounce<T extends (...args: any[]) => any>(
+function useDebounce<T extends (...args: unknown[]) => unknown>(
   callback: T,
   delayMs: number = 500
 ): (...args: Parameters<T>) => void {
@@ -89,17 +89,17 @@ export function NotificationPopover() {
   void _sentinelRef;
   void _contentRef;
 
-  const parseNotificationData = (value: unknown): Record<string, any> | null => {
+  const parseNotificationData = (value: unknown): Record<string, unknown> | null => {
     if (!value) return null;
     if (typeof value === "string") {
       try {
-        return JSON.parse(value);
+        return JSON.parse(value) as Record<string, unknown>;
       } catch {
         return null;
       }
     }
     if (typeof value === "object") {
-      return value as Record<string, any>;
+      return value as Record<string, unknown>;
     }
     return null;
   };
@@ -135,7 +135,7 @@ export function NotificationPopover() {
       console.log('Notifications loaded:', data?.length || 0);
       const normalized = (data || []).map((notification) => ({
         ...notification,
-        data: parseNotificationData((notification as any).data),
+        data: parseNotificationData((notification as { data?: unknown }).data),
       }));
       setNotifications(normalized as Notification[]);
       setOffset(0);
@@ -175,7 +175,7 @@ export function NotificationPopover() {
       console.log('Loaded more notifications:', data?.length || 0);
       const normalized = (data || []).map((notification) => ({
         ...notification,
-        data: parseNotificationData((notification as any).data),
+        data: parseNotificationData((notification as { data?: unknown }).data),
       }));
       
       // Store scroll position before state update

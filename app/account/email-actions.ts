@@ -187,10 +187,11 @@ export async function sendVerificationEmail(email: string) {
         }
 
         console.log("Verification email sent successfully:", data);
-    } catch (e: any) {
+    } catch (e: unknown) {
         console.error("Email sending exception:", e);
-        console.error("Exception details:", e.message, e.stack);
-        return { error: `Failed to send verification email: ${e.message || 'Unknown error'}` };
+        const message = e instanceof Error ? e.message : (typeof e === 'object' && e !== null && 'message' in e && typeof (e as Record<string, unknown>).message === 'string' ? (e as Record<string, unknown>).message as string : 'Unknown error');
+        console.error("Exception details:", message);
+        return { error: `Failed to send verification email: ${message}` };
     }
 
     return { success: true };
@@ -297,7 +298,8 @@ export async function setPrimaryEmailAction(email: string): Promise<SetPrimaryEm
     }
 
     const confirmedEmail = updateData?.user?.email?.toLowerCase?.();
-    const pendingEmail = (updateData?.user as any)?.new_email?.toLowerCase?.();
+    const userAsAny = updateData?.user as unknown as Record<string, unknown>;
+    const pendingEmail = (updateData?.user && typeof updateData.user === 'object' && 'new_email' in userAsAny && typeof userAsAny.new_email === 'string') ? (userAsAny.new_email as string).toLowerCase?.() : undefined;
     const needsConfirmation = confirmedEmail !== normalizedEmail && pendingEmail === normalizedEmail;
 
     if (needsConfirmation) {

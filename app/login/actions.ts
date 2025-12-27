@@ -61,7 +61,11 @@ export async function login(formData: FormData) {
   }
 
   // Pass the CAPTCHA token to Supabase - it will handle verification
-  const signInOptions: any = {
+  const signInOptions: {
+    email: string;
+    password: string;
+    options?: { captchaToken: string };
+  } = {
     email: validatedFields.data.email,
     password: validatedFields.data.password,
   };

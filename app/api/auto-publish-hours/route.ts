@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import type { Project, Signup as SignupType } from "@/types";
 import { NextRequest, NextResponse } from "next/server";
 
 
@@ -325,11 +326,23 @@ async function sendCertificatePublishedEmails(
   };
 }
 
+// Local type for signups with nested profile/anonymous_signup data
+interface SignupWithProfiles extends SignupType {
+  profile?: {
+    full_name: string | null;
+    email: string;
+  };
+  anonymous_signup?: {
+    name: string;
+    email: string;
+  };
+}
+
 // Process signups directly into certificates
 async function processSessionSignups(
-  project: any,
+  project: Project,
   sessionId: string,
-  signups: any[],
+  signups: SignupWithProfiles[],
   sessionName: string
 ): Promise<AutoPublishResult> {
   const supabase = createServiceClient();
@@ -498,8 +511,9 @@ async function processSessionSignups(
       errors: emailResult.errors
     };
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Unexpected error in processSessionSignups:", error);
+    const message = error instanceof Error ? error.message : String(error);
     return {
       success: false,
       projectId: project.id,
@@ -507,7 +521,7 @@ async function processSessionSignups(
       sessionName,
       certificatesCreated: 0,
       emailsSent: 0,
-      errors: [error.message || "An unexpected server error occurred"]
+      errors: [message || "An unexpected server error occurred"]
     };
   }
 }
@@ -570,39 +584,49 @@ async function processExpiredSessions(): Promise<{
 
     // Group signups by project_id + schedule_id combination
     const sessionGroups = new Map<string, {
-      project: any;
-      signups: any[];
+      project: Record<string, unknown>;
+      signups: Record<string, unknown>[];
       sessionId: string;
       projectId: string;
     }>();
 
-    eligibleSignups.forEach((signup: any) => {
-      const key = `${signup.project_id}-${signup.schedule_id}`;
+    eligibleSignups.forEach((signup: Record<string, unknown>) => {
+      const s = signup as Record<string, unknown>;
+      const key = `${String(s.project_id)}-${String(s.schedule_id)}`;
       
       if (!sessionGroups.has(key)) {
         // Check if this session is already published
-        const project = signup.projects;
-        const isPublished = project.published && project.published[signup.schedule_id];
+        const project = s.projects as Record<string, unknown> | undefined;
+        const isPublished = project && (project.published as Record<string, boolean> | undefined)?.[String(s.schedule_id)];
         
-        if (!isPublished && project.verification_method && ['manual', 'qr-code'].includes(project.verification_method) && project.status !== 'cancelled') {
+        if (!isPublished && project && typeof project.verification_method === 'string' && ['manual', 'qr-code'].includes(project.verification_method) && project.status !== 'cancelled') {
+          const projectProfiles = Array.isArray(project.profiles) ? (project.profiles as unknown[])[0] : project.profiles;
+          const projectOrg = Array.isArray(project.organization) ? (project.organization as unknown[])[0] : project.organization;
           sessionGroups.set(key, {
             project: {
               ...project,
-              profiles: Array.isArray(project.profiles) ? project.profiles[0] : project.profiles,
-              organization: Array.isArray(project.organization) ? project.organization[0] : project.organization,
+              profiles: projectProfiles,
+              organization: projectOrg,
             },
             signups: [],
-            sessionId: signup.schedule_id,
-            projectId: signup.project_id
+            sessionId: String(s.schedule_id),
+            projectId: String(s.project_id)
           });
         }
       }
 
       if (sessionGroups.has(key)) {
+        const sProfile = Array.isArray((s as { profile?: unknown }).profile)
+          ? ((s as { profile?: unknown[] }).profile ?? [])[0]
+          : (s as { profile?: unknown }).profile;
+        const sAnonymous = Array.isArray((s as { anonymous_signup?: unknown }).anonymous_signup)
+          ? ((s as { anonymous_signup?: unknown[] }).anonymous_signup ?? [])[0]
+          : (s as { anonymous_signup?: unknown }).anonymous_signup;
+
         sessionGroups.get(key)!.signups.push({
-          ...signup,
-          profile: Array.isArray(signup.profile) ? signup.profile[0] : signup.profile,
-          anonymous_signup: Array.isArray(signup.anonymous_signup) ? signup.anonymous_signup[0] : signup.anonymous_signup,
+          ...s,
+          profile: sProfile as { full_name: string | null; email: string } | undefined,
+          anonymous_signup: sAnonymous as { name: string; email: string } | undefined,
         });
       }
     });
@@ -623,7 +647,12 @@ async function processExpiredSessions(): Promise<{
       console.log(`Processing session: ${sessionName} (${sessionGroup.signups.length} signups)`);
       
       try {
-        const result = await processSessionSignups(sessionGroup.project, sessionGroup.sessionId, sessionGroup.signups, sessionName);
+        const result = await processSessionSignups(
+          sessionGroup.project as unknown as Project,
+          sessionGroup.sessionId,
+          (sessionGroup.signups as unknown as SignupWithProfiles[]),
+          sessionName
+        );
         results.push(result);
         
         if (result.success) {
@@ -637,8 +666,9 @@ async function processExpiredSessions(): Promise<{
         if (result.emailsSent > 0) {
           await new Promise(resolve => setTimeout(resolve, 500));
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error(`Error processing session ${sessionGroup.sessionId}:`, error);
+        const message = error instanceof Error ? error.message : String(error);
         results.push({
           success: false,
           projectId: sessionGroup.projectId,
@@ -646,7 +676,7 @@ async function processExpiredSessions(): Promise<{
           sessionName,
           certificatesCreated: 0,
           emailsSent: 0,
-          errors: [error.message || "Unknown error"]
+          errors: [message || "Unknown error"]
         });
       }
     }
@@ -659,7 +689,7 @@ async function processExpiredSessions(): Promise<{
       results
     };
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error in processExpiredSessions:", error);
     return { processedSessions: 0, successfulSessions: 0, results: [] };
   }
@@ -714,10 +744,11 @@ export async function POST(request: NextRequest) {
       results: result.results
     }, { status: 200 });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error in auto-publish API route:", error);
+    const message = error instanceof Error ? error.message : String(error);
     return NextResponse.json(
-      { error: "Internal server error", message: error.message },
+      { error: "Internal server error", message },
       { status: 500 }
     );
   }

@@ -11,10 +11,10 @@ import { NoAvatar } from "@/components/NoAvatar";
 import Link from "next/link";
 import { ProjectStatusBadge } from "@/components/ui/status-badge";
 import { redirect } from "next/navigation";
-import type { Project } from "@/types";
+import type { Project, Profile, Signup, MultiDayScheduleDay } from "@/types";
 
 // Formats the date display for different project types
-function formatDateDisplay(project: any) {
+function formatDateDisplay(project: Project) {
   if (!project.event_type || !project.schedule) return "";
 
   switch (project.event_type) {
@@ -24,7 +24,7 @@ function formatDateDisplay(project: any) {
     }
     case "multiDay": {
       const dates = project.schedule.multiDay
-        .map((day: any) => parseISO(day.date))
+        .map((day: MultiDayScheduleDay) => parseISO(day.date))
         .sort((a: Date, b: Date) => a.getTime() - b.getTime());
 
       return `${format(dates[0], "MMM d")} - ${format(dates[dates.length - 1], "MMM d, yyyy")}`;
@@ -37,6 +37,12 @@ function formatDateDisplay(project: any) {
       return "Date not specified";
   }
 }
+
+// Helper to count approved volunteers from a project's nested `project_signups` (returned by Supabase)
+function approvedVolunteersCount(project: { project_signups?: unknown }) {
+  const signups = Array.isArray(project.project_signups) ? project.project_signups as Signup[] : [];
+  return signups.filter(s => s.status === 'approved').length;
+} 
 
 // Add interface for the project with creator
 interface ProjectWithCreator extends Project {
@@ -114,7 +120,7 @@ export default async function UserProjects() {
     })
     .filter(Boolean);
 
-  let creatorProfiles: Record<string, any> = {};
+  let creatorProfiles: Record<string, Profile> = {};
   if (projectCreatorIds && projectCreatorIds.length > 0) {
     const { data: profiles } = await supabase
       .from("profiles")
@@ -122,7 +128,7 @@ export default async function UserProjects() {
       .in("id", projectCreatorIds);
     
     if (profiles) {
-      creatorProfiles = profiles.reduce((acc: any, profile: any) => {
+      creatorProfiles = (profiles as Profile[]).reduce((acc: Record<string, Profile>, profile: Profile) => {
         acc[profile.id] = profile;
         return acc;
       }, {});
@@ -130,12 +136,13 @@ export default async function UserProjects() {
   }
 
   // Transform and process volunteer projects properly with creator info
-  const volunteeredProjects: ProjectWithCreator[] = signups?.filter(signup => signup.projects).map(signup => {
+  const volunteeredProjects: ProjectWithCreator[] = (signups as Array<{ id: string; status?: string; schedule_id?: string; projects?: Project | Project[] }>)?.filter(signup => signup.projects).map(signup => {
     const projectData = Array.isArray(signup.projects) ? signup.projects[0] : signup.projects;
-    const creator = creatorProfiles[projectData.creator_id];
+    const creator = projectData ? creatorProfiles[projectData.creator_id as string] : undefined;
     
     // Determine if hours are published for this specific signup's schedule_id
-    const areHoursPublished = projectData.published_hours && projectData.published_hours[signup.schedule_id] === true;
+    const projectWithPublished = projectData as { published_hours?: Record<string, boolean> };
+    const areHoursPublished = projectData && projectWithPublished.published_hours && projectWithPublished.published_hours[signup.schedule_id as string] === true;
 
     return {
       ...(projectData as unknown as Project),
@@ -145,7 +152,7 @@ export default async function UserProjects() {
       signup_schedule_id: signup.schedule_id,
       areHoursPublished, // Include this in the returned object
     };
-  }) || [];
+  }) || []; 
 
   // Process projects to add status
   const processedCreatedProjects = createdProjects?.map(project => ({
@@ -409,7 +416,7 @@ export default async function UserProjects() {
                       <CardHeader className="p-4 pb-0 space-y-1.5">
                         <div className="flex justify-between items-start gap-2">
                           <Badge variant="outline" className="text-xs">
-                            {(project.project_signups || []).filter((s: any) => s.status === "approved").length} volunteers
+                            {approvedVolunteersCount(project)} volunteers
                           </Badge>
                           <Badge variant="outline" className="text-xs">{formatDateDisplay(project)}</Badge>
                         </div>
@@ -450,7 +457,7 @@ export default async function UserProjects() {
                         <CardHeader className="p-4 pb-0 space-y-1.5">
                           <div className="flex justify-between items-start gap-2">
                             <Badge variant="outline" className="text-xs">
-                              {(project.project_signups || []).filter((s: any) => s.status === "approved").length} volunteers
+                              {approvedVolunteersCount(project)} volunteers
                             </Badge>
                             <Badge variant="outline" className="text-xs">{formatDateDisplay(project)}</Badge>
                           </div>
@@ -503,7 +510,7 @@ export default async function UserProjects() {
                           </div>
                           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                             <Users className="h-3 w-3" />
-                            <span>{(project.project_signups || []).filter((s: any) => s.status === "approved").length} volunteers participated</span>
+                            <span>{approvedVolunteersCount(project)} volunteers participated</span>
                           </div>
                         </CardContent>
                         <CardFooter className="p-4 pt-3">

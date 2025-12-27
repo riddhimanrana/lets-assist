@@ -390,8 +390,9 @@ export async function publishVolunteerHours(
       emailErrors: emailResult.errors
     };
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Unexpected error in publishVolunteerHours:", error);
-    return { success: false, error: error.message || "An unexpected server error occurred." };
+    const message = error instanceof Error ? error.message : "An unexpected server error occurred.";
+    return { success: false, error: message };
   }
 }

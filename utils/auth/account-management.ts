@@ -9,7 +9,7 @@ import { requireUser } from "@/utils/auth/auth-context";
 export async function addEmail(email: string) {
     // Call server action
     const result = await sendVerificationEmail(email);
-    if (result.error && !(result as any).warning) {
+    if (result.error && !result.warning) {
         throw new Error(result.error);
     }
     return result;

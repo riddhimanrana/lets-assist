@@ -23,7 +23,17 @@ export function NotificationListener({ userId }: NotificationListenerProps) {
   const unmountedRef = useRef(false);
 
   // Modified displayNotificationToast to check if component is still mounted
-  const displayNotificationToast = async (notification: any) => {
+  type NotificationRow = {
+    id: string;
+    title: string;
+    body: string;
+    severity?: 'info' | 'warning' | 'success';
+    action_url?: string | null;
+    created_at?: string;
+    displayed?: boolean;
+  };
+
+  const displayNotificationToast = async (notification: NotificationRow) => {
     if (unmountedRef.current) return;
     if (displayedNotifications.has(notification.id)) return;
 
@@ -50,7 +60,7 @@ export function NotificationListener({ userId }: NotificationListenerProps) {
         .from('notifications')
         .update({ displayed: true })
         .eq('id', notification.id);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error marking notification as displayed:', error);
     }
   };
@@ -109,9 +119,10 @@ export function NotificationListener({ userId }: NotificationListenerProps) {
               table: 'notifications',
               filter: `user_id=eq.${userId}`
             },
-            payload => {
-              if (!unmountedRef.current && payload.new) {
-                displayNotificationToast(payload.new);
+            (payload: { new?: unknown }) => {
+              const newNotification = payload.new as NotificationRow | undefined;
+              if (!unmountedRef.current && newNotification) {
+                displayNotificationToast(newNotification);
               }
             }
           )
@@ -141,7 +152,7 @@ export function NotificationListener({ userId }: NotificationListenerProps) {
 
         channelRef.current = channel;
 
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Error in notification initialization:', error);
         if (!unmountedRef.current && retryCountRef.current < MAX_RETRIES) {
           retryCountRef.current++;

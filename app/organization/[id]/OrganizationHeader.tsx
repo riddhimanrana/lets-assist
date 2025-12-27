@@ -1,5 +1,6 @@
 "use client";
 
+import type { Organization, OrganizationRole } from "@/types";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,8 +13,8 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
 interface OrganizationHeaderProps {
-  organization: any;
-  userRole: string | null;
+  organization: Organization;
+  userRole: OrganizationRole | null;
   memberCount: number;
 }
 

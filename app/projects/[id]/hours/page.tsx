@@ -247,7 +247,11 @@ export default async function HoursPage({ params }: { params: Promise<{ id: stri
   }
 
   // Transform Supabase response arrays to single objects for profile and anonymous_signup
-  const signups: ProjectSignup[] = (signupsData || []).map((s: any) => ({
+  const signups: ProjectSignup[] = (signupsData || []).map((s: {
+    profile?: unknown;
+    anonymous_signup?: unknown;
+    [key: string]: unknown;
+  }) => ({
     ...s,
     profile: Array.isArray(s.profile) ? s.profile[0] : s.profile,
     anonymous_signup: Array.isArray(s.anonymous_signup) ? s.anonymous_signup[0] : s.anonymous_signup,

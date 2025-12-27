@@ -44,7 +44,7 @@ interface OrganizationOption {
 
 interface BasicInfoProps {
   state: EventFormState;
-  updateBasicInfoAction: (field: keyof EventFormState["basicInfo"], value: any) => void;
+  updateBasicInfoAction: (field: keyof EventFormState["basicInfo"], value: unknown) => void;
   initialOrgId?: string;
   initialOrganizations?: OrganizationOption[];
   errors?: {

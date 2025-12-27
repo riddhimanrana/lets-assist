@@ -1,5 +1,6 @@
 "use client";
 
+import type { Organization } from "@/types";
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -70,7 +71,7 @@ const orgUpdateSchema = z.object({
 type OrganizationFormValues = z.infer<typeof orgUpdateSchema>;
 
 interface EditOrganizationFormProps {
-  organization: any;
+  organization: Organization;
   _userId: string;
 }
 

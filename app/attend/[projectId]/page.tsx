@@ -129,7 +129,13 @@ export default async function AttendPage(props: Props): Promise<React.ReactEleme
             <AttendanceClient
               project={project}
               scheduleId={scheduleId}
-              user={user ? { ...user, name: userProfile?.full_name } : null}
+                            user={user ? {
+                                full_name: userProfile?.full_name ?? null,
+                                email: user.email ?? null,
+                                avatar_url: null,
+                                username: null,
+                                created_at: user.created_at ?? null,
+                            } : null}
               existingCheckIn={existingCheckIn}
               scanInfo={scanValidation}
               projectAllowsAnonymous={!project.require_login}

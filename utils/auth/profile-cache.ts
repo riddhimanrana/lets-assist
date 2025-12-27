@@ -26,9 +26,9 @@ export interface UserProfile {
   profile_visibility: 'public' | 'private' | 'organization_only' | null;
   created_at: string;
   updated_at: string | null;
-  volunteer_goals: Record<string, any> | null;  // JSONB field
+  volunteer_goals: Record<string, unknown> | null;  // JSONB field
   // Note: columns like date_of_birth, parental_consent_required might not exist in this table
-  [key: string]: any;  // Allow other columns that might be in the DB
+  [key: string]: unknown;  // Allow other columns that might be in the DB
 }
 
 // Notification settings from notification_settings table

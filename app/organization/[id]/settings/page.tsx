@@ -89,7 +89,7 @@ export default async function OrganizationSettingsPage({ params }: Props) {
 
   // Check if user is an admin
   const isAdmin = organization.organization_members.some(
-    (member: any) => member.user_id === user.id && member.role === 'admin'
+    (member: { user_id: string; role: string }) => member.user_id === user.id && member.role === 'admin'
   );
 
   // If not admin, redirect to organization page

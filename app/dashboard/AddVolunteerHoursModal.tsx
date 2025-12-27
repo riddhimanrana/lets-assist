@@ -53,24 +53,24 @@ export function AddVolunteerHoursModal({ onAdd, trigger }: AddVolunteerHoursModa
     description: "",
   });
 
-  const [errors, setErrors] = useState<Partial<UnverifiedHoursData>>({});
+  const [errors, setErrors] = useState<Partial<Record<keyof UnverifiedHoursData, string>>>({});
 
   const validateForm = (): boolean => {
-    const newErrors: Partial<UnverifiedHoursData> = {};
+    const newErrors: Partial<Record<keyof UnverifiedHoursData, string>> = {};
 
     // Title required
     if (!formData.title.trim()) {
-      (newErrors as any).title = "Title is required";
+      newErrors.title = "Title is required";
     }
 
     // Creator name required
     if (!formData.creatorName.trim()) {
-      (newErrors as any).creatorName = "Creator/Supervisor name is required";
+      newErrors.creatorName = "Creator/Supervisor name is required";
     }
 
     // Date is required
     if (!formData.date) {
-      newErrors.date = "Date is required" as any;
+      newErrors.date = "Date is required";
     }
     
     // Start time is required
@@ -89,7 +89,7 @@ export function AddVolunteerHoursModal({ onAdd, trigger }: AddVolunteerHoursModa
       oneWeekFromNow.setDate(oneWeekFromNow.getDate() + 7);
       
       if (formData.date > oneWeekFromNow) {
-        newErrors.date = "Date cannot be more than a week in the future" as any;
+        newErrors.date = "Date cannot be more than a week in the future";
       }
     }
 
@@ -194,9 +194,10 @@ export function AddVolunteerHoursModal({ onAdd, trigger }: AddVolunteerHoursModa
       });
       setErrors({});
       setIsOpen(false);
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
       toast.error("Failed to add volunteer hours", {
-        description: error.message || "Please try again or contact support if the problem persists.",
+        description: message || "Please try again or contact support if the problem persists.",
       });
     } finally {
       setIsLoading(false);
@@ -239,7 +240,7 @@ export function AddVolunteerHoursModal({ onAdd, trigger }: AddVolunteerHoursModa
               placeholder="e.g., Community Cleanup, Tutoring Session"
               className={errors.title ? "border-destructive" : ""}
             />
-            {errors.title && <p className="text-sm text-destructive">{errors.title as any}</p>}
+            {errors.title && <p className="text-sm text-destructive">{errors.title}</p>}
           </div>
 
           {/* Creator / Supervisor Name */}
@@ -255,7 +256,7 @@ export function AddVolunteerHoursModal({ onAdd, trigger }: AddVolunteerHoursModa
                 placeholder="e.g., Jane Smith"
                 className={errors.creatorName ? "border-destructive" : ""}
               />
-              {errors.creatorName && <p className="text-sm text-destructive">{errors.creatorName as any}</p>}
+              {errors.creatorName && <p className="text-sm text-destructive">{errors.creatorName}</p>}
             </div>
 
           {/* Organization (Optional) */}
@@ -303,7 +304,7 @@ export function AddVolunteerHoursModal({ onAdd, trigger }: AddVolunteerHoursModa
               </PopoverContent>
             </Popover>
             {errors.date && (
-              <p className="text-sm text-destructive">{errors.date as any}</p>
+              <p className="text-sm text-destructive">{errors.date}</p>
             )}
           </div>
 
