@@ -814,58 +814,75 @@ export async function signUpForProject(
         return { error: "An error occurred during signup" };
       }
     } else if (isAnonymous && anonymousData) { // Anonymous user check
-      // First, check if a registered Let's Assist account exists with this email
-      const { data: existingProfile, error: profileError } = await supabase
-        .from('profiles')
-        .select('id, email')
-        .eq('email', anonymousData.email?.toLowerCase())
-        .maybeSingle();
+      const emailToCheck = (anonymousData.email ?? "").toLowerCase();
+      console.log("Checking anonymous signup for email:", emailToCheck);
 
-      if (existingProfile) {
-        return { error: "This email is associated with an existing Let's Assist account. Please log in to sign up for this project." };
-      }
-      if (profileError) {
-        console.error("Error checking for existing profile:", profileError);
+      // First, check if a registered Let's Assist account exists with this email using efficient RPC
+      const { data: emailExists, error: rpcError } = await supabase
+        .rpc('check_email_exists', { email_to_check: emailToCheck });
+
+      if (rpcError) {
+        console.error("Error checking for existing account:", rpcError);
         return { error: "An error occurred while checking email availability." };
       }
 
-      // Check for an existing anonymous signup for this specific slot with this email for any status
-      const emailToCheck = (anonymousData.email ?? "").toLowerCase();
-      console.log("Checking for existing anonymous signup with email:", emailToCheck);
+      if (emailExists) {
+        return { error: "This email is associated with an existing Let's Assist account. Please log in to sign up for this project." };
+      }
 
-      // Attempt to retrieve an existing anonymous signup record for the project and email
-      const { data: existingAnonSignup } = await supabase
-        .from('project_signups')
-        .select('id, status, anonymous_signup:anonymous_signups!project_signups_anonymous_id_fkey(id, email)')
+      // FIXED: Check for existing anonymous signup for THIS SPECIFIC SLOT
+      // For multi-day projects, same email can sign up for different slots, so we need to check per-slot
+      // Query all anonymous_signups for this email + project, then check if any has a signup for this schedule
+      const { data: existingAnonRecords, error: anonLookupError } = await supabase
+        .from('anonymous_signups')
+        .select('id')
         .eq('project_id', projectId)
-        .eq('schedule_id', scheduleId)
-        .not('anonymous_id', 'is', null)
-        .eq('anonymous_signup.email', emailToCheck)
-        .limit(1)
-        .maybeSingle();
+        .eq('email', emailToCheck);
 
-      const signupStatus = existingAnonSignup?.status;
+      if (anonLookupError) {
+        console.error("Error checking for existing anonymous signup:", anonLookupError);
+        return { error: "An error occurred while checking signup status." };
+      }
 
-      if (signupStatus) {
-        if (signupStatus === "pending") {
-          return { error: "An unconfirmed signup with this email already exists for this slot. Please check your email." };
-        } else if (signupStatus === "approved") {
-          return { error: "This email has already signed up and confirmed for this slot." };
-        } else if (signupStatus === "rejected") {
-          return { error: "This email has been rejected by the project coordinator. Contact them for more details." };
+      // Step 2: If any anonymous records exist for this email+project, check if there's a signup for THIS specific schedule
+      if (existingAnonRecords && existingAnonRecords.length > 0) {
+        const anonIds = existingAnonRecords.map(r => r.id);
+        
+        const { data: existingSlotSignup, error: slotError } = await supabase
+          .from('project_signups')
+          .select('id, status, anonymous_id')
+          .eq('project_id', projectId)
+          .eq('schedule_id', scheduleId)
+          .in('anonymous_id', anonIds)
+          .maybeSingle();
+
+        if (slotError) {
+          console.error("Error checking for existing slot signup:", slotError);
+          return { error: "An error occurred while checking signup status." };
         }
+
+        if (existingSlotSignup) {
+          const signupStatus = existingSlotSignup.status;
+
+          if (signupStatus === "pending") {
+            // Return structured response so frontend can offer resend option
+            return { 
+              error: "You've already signed up for this slot but haven't confirmed your email yet.",
+              canResend: true,
+              anonymousSignupId: existingSlotSignup.anonymous_id
+            };
+          } else if (signupStatus === "approved") {
+            return { error: "This email has already signed up and confirmed for this slot." };
+          } else if (signupStatus === "rejected") {
+            return { error: "This email has been rejected by the project coordinator. Contact them for more details." };
+          }
+        }
+        // If no signup for THIS slot exists, allow signup for a different slot (multi-day project)
       }
 
       // Proceed to create new anonymous signup records
       let anonymousSignupId: string | null = null;
       let confirmationToken: string | null = null;
-
-      // Check if a registered account exists with this email using listUsers
-      const { data: userResponse, error: listUsersError } = await supabase.auth.admin.listUsers();
-      const registeredUser = userResponse?.users?.find((u) => u.email === (anonymousData.email || "")) || null;
-      if (registeredUser) {
-        return { error: "This email is associated with an existing Let's Assist account. Please log in to sign up." };
-      }
 
       confirmationToken = crypto.randomUUID();
       const anonSignupData: Omit<AnonymousSignup, "id" | "created_at" | "signup_id" | "confirmed_at"> = {
@@ -1113,7 +1130,7 @@ export async function createRejectionNotification(
   }
 }
 
-export async function cancelSignup(signupId: string) {
+export async function cancelSignup(signupId: string, anonymousSignupId?: string) {
   const supabase = await createClient();
 
   try {
@@ -1132,9 +1149,24 @@ export async function cancelSignup(signupId: string) {
       return { error: "Signup not found" };
     }
 
-    // Permission check: User who signed up OR project creator/org admin/staff
+    // Permission check: User who signed up OR project creator/org admin/staff OR valid anonymous signup owner
     let hasPermission = false;
-    if (user) {
+    
+    // Check if this is an anonymous cancellation with valid anonymousSignupId
+    if (anonymousSignupId && signup.anonymous_id === anonymousSignupId) {
+      // Verify the anonymous signup exists and matches
+      const { data: anonSignup, error: anonError } = await supabase
+        .from("anonymous_signups")
+        .select("id")
+        .eq("id", anonymousSignupId)
+        .maybeSingle();
+      
+      if (!anonError && anonSignup) {
+        hasPermission = true;
+      }
+    }
+    
+    if (!hasPermission && user) {
       if (signup.user_id === user.id) {
         hasPermission = true;
       } else {
@@ -1159,10 +1191,9 @@ export async function cancelSignup(signupId: string) {
           }
         }
       }
-    } else {
-      // How can an unauthenticated user cancel?
-      // Maybe via a link sent to the anonymous email? Requires a token mechanism.
-      // For now, only logged-in users can cancel via the UI.
+    }
+    
+    if (!hasPermission && !user && !anonymousSignupId) {
       return { error: "Authentication required to cancel signup." };
     }
 
@@ -1571,6 +1602,91 @@ export async function getUserProfile() {
   } catch (error) {
     console.error('Error in getUserProfile:', error);
     return { error: "An unexpected error occurred" };
+  }
+}
+
+/**
+ * Resend confirmation email for an anonymous signup
+ * @param anonymousSignupId - The ID of the anonymous signup record
+ * @returns Object with success or error message
+ */
+export async function resendAnonymousConfirmationEmail(anonymousSignupId: string): Promise<{ success?: boolean; error?: string }> {
+  const supabase = await createClient();
+
+  try {
+    // Rate limiting: check if we've sent an email in the last 60 seconds
+    // We'll use the token's creation pattern - regenerating token means new email
+    const { data: anonSignup, error: fetchError } = await supabase
+      .from("anonymous_signups")
+      .select("id, email, name, project_id, confirmed_at, token, created_at")
+      .eq("id", anonymousSignupId)
+      .maybeSingle();
+
+    if (fetchError) {
+      console.error("Error fetching anonymous signup:", fetchError);
+      return { error: "Failed to find signup record." };
+    }
+
+    if (!anonSignup) {
+      return { error: "Signup record not found." };
+    }
+
+    // Check if already confirmed
+    if (anonSignup.confirmed_at) {
+      return { error: "This signup has already been confirmed." };
+    }
+
+    // Get project title for the email
+    const { data: project, error: projectError } = await supabase
+      .from("projects")
+      .select("title")
+      .eq("id", anonSignup.project_id)
+      .single();
+
+    if (projectError || !project) {
+      console.error("Error fetching project:", projectError);
+      return { error: "Failed to fetch project details." };
+    }
+
+    // Generate a new confirmation token for security (invalidates old links)
+    const newToken = crypto.randomUUID();
+
+    // Update the token in the database
+    const { error: updateError } = await supabase
+      .from("anonymous_signups")
+      .update({ token: newToken })
+      .eq("id", anonymousSignupId);
+
+    if (updateError) {
+      console.error("Error updating token:", updateError);
+      return { error: "Failed to generate new confirmation link." };
+    }
+
+    // Send the confirmation email
+    const confirmationUrl = `${siteUrl}/anonymous/${anonymousSignupId}/confirm?token=${newToken}`;
+    const emailHtml = generateConfirmationEmailHtml(
+      confirmationUrl,
+      project.title,
+      anonSignup.name
+    );
+
+    const { error: emailError } = await sendEmail({
+      to: anonSignup.email,
+      subject: `Confirm your signup for ${project.title}`,
+      html: emailHtml,
+      type: 'transactional'
+    });
+
+    if (emailError) {
+      console.error("Error sending confirmation email:", emailError);
+      return { error: "Failed to send confirmation email. Please try again." };
+    }
+
+    console.log("Resent confirmation email to:", anonSignup.email);
+    return { success: true };
+  } catch (error) {
+    console.error("Error in resendAnonymousConfirmationEmail:", error);
+    return { error: "An unexpected error occurred." };
   }
 }
 

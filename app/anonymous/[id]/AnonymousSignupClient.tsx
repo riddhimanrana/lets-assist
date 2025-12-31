@@ -223,7 +223,8 @@ export default function AnonymousSignupClient({
       setIsCancelling(true);
 
       // Use the server action which includes calendar cleanup
-      const result = await cancelSignup(project_signup_id);
+      // Pass the anonymousSignupId (id) to allow anonymous cancellation
+      const result = await cancelSignup(project_signup_id, id);
       
       if (result.error) {
         toast.error(result.error);
