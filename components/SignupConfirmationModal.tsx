@@ -182,7 +182,7 @@ export function SignupConfirmationModal({
           creator_id: '',
           organization_id: null,
           status: 'active' as const,
-          is_private: false,
+          visibility: 'public' as const,
           created_at: '',
           updated_at: '',
           published: {},

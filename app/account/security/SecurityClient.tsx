@@ -36,6 +36,7 @@ import { motion } from "framer-motion";
 import { deleteAccount, updatePasswordAction, updateEmailAction } from "./actions";
 import { createClient } from "@/utils/supabase/client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useAuth } from "@/hooks/useAuth";
 
 const updatePasswordSchema = z
   .object({
@@ -68,6 +69,7 @@ const updateEmailSchema = z.object({
 type UpdateEmailValues = z.infer<typeof updateEmailSchema>;
 
 export default function SecurityClient() {
+  const { user } = useAuth(); // Use centralized auth hook
   const [isDeleting, setIsDeleting] = useState(false);
   const [countdown, setCountdown] = useState(5);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -94,16 +96,12 @@ export default function SecurityClient() {
     },
   });
 
+  // Use cached user email instead of fetching
   useEffect(() => {
-    const fetchUserEmail = async () => {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user?.email) {
-        setCurrentEmail(user.email);
-      }
-    };
-    fetchUserEmail();
-  }, []);
+    if (user?.email) {
+      setCurrentEmail(user.email);
+    }
+  }, [user?.email]);
 
   const handleEmailChange = async (data: UpdateEmailValues) => {
     setIsEmailLoading(true);

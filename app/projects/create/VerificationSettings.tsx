@@ -14,9 +14,12 @@ import {
   Users,
   Lock,
   Clipboard,
+  Eye,
+  EyeOff,
+  Link2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { VerificationMethod } from "@/types";
+import { VerificationMethod, ProjectVisibility } from "@/types";
 import {
   Tooltip,
   TooltipContent,
@@ -28,18 +31,17 @@ interface VerificationSettingsProps {
   verificationMethod: VerificationMethod;
   requireLogin: boolean;
   isOrganization: boolean; // Add this to detect if creating for an organization
-  isPrivate: boolean; // Add this for project visibility
+  visibility: ProjectVisibility; // Project visibility setting
   updateVerificationMethodAction: (method: VerificationMethod) => void;
   updateRequireLoginAction: (requireLogin: boolean) => void;
-
-  updateIsPrivateAction: (isPrivate: boolean) => void; // Add this action
+  updateVisibilityAction: (visibility: ProjectVisibility) => void;
   restrictToOrgDomains?: boolean;
   updateRestrictToOrgDomainsAction?: (restrict: boolean) => void;
   allowedEmailDomains?: string[] | null;
   errors?: {
     verificationMethod?: string;
     requireLogin?: string;
-    isPrivate?: string;
+    visibility?: string;
   };
 }
 
@@ -47,11 +49,10 @@ export default function VerificationSettings({
   verificationMethod,
   requireLogin,
   isOrganization,
-  isPrivate,
+  visibility,
   updateVerificationMethodAction,
   updateRequireLoginAction,
-
-  updateIsPrivateAction,
+  updateVisibilityAction,
   restrictToOrgDomains = false,
   updateRestrictToOrgDomainsAction,
   allowedEmailDomains,
@@ -291,84 +292,125 @@ export default function VerificationSettings({
         </CardContent>
       </Card>
 
-      {/* Only show visibility toggle when creating for an organization */}
-      {isOrganization && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              Project Visibility
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-6 w-6">
-                      <Info className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent className="text-xs font-normal">
-                    <p>
-                      Control who can view this project. Public projects are visible to everyone,
-                      while private projects are only visible to organization members.
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-6">
-              <div className="flex items-center justify-between space-x-4">
-                <div className="flex items-center space-x-3">
-                  <div
-                    className={cn(
-                      "p-2 rounded-md",
-                      isPrivate ? "bg-primary/10" : "bg-muted",
-                      errors.isPrivate && "border border-destructive",
-                    )}
-                  >
-                    {isPrivate ? (
-                      <Lock className="h-5 w-5 text-primary" />
-                    ) : (
-                      <Users className="h-5 w-5 text-muted-foreground" />
-                    )}
-                  </div>
-                  <div>
-                    <Label
-                      htmlFor="is-private"
-                      className="text-base font-medium"
-                    >
-                      {isPrivate ? "Private project" : "Public project"}
-                    </Label>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {isPrivate
-                        ? "Only organization members can view this project"
-                        : "Everyone can view this project"}
-                    </p>
-                  </div>
-                </div>
-                <Switch
-                  id="is-private"
-                  checked={isPrivate}
-                  onCheckedChange={updateIsPrivateAction}
-                />
-              </div>
-
-              {errors.isPrivate && (
-                <div className="text-destructive text-sm flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4" />
-                  {errors.isPrivate}
-                </div>
+      {/* Project Visibility - available to everyone */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            Who Can See This Project?
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-6 w-6">
+                    <Info className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent className="text-xs font-normal max-w-xs">
+                  <p>
+                    Choose who can discover and view your project on the Let&apos;s Assist platform.
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <RadioGroup
+            value={visibility}
+            onValueChange={(value) =>
+              updateVisibilityAction(value as ProjectVisibility)
+            }
+            className="grid gap-4"
+          >
+            {/* Public */}
+            <label
+              htmlFor="visibility-public"
+              className={cn(
+                "flex flex-col items-start space-y-3 rounded-lg border p-4 hover:bg-accent cursor-pointer transition-colors",
+                visibility === "public" && "border-primary bg-accent",
+                errors.visibility && "border-destructive",
               )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+            >
+              <div className="flex w-full justify-between space-x-3">
+                <div className="flex items-center space-x-3">
+                  <RadioGroupItem value="public" id="visibility-public" />
+                  <div className="flex items-center space-x-2">
+                    <Eye className="h-5 w-5" />
+                    <span className="font-medium">Public (Everyone)</span>
+                  </div>
+                </div>
+                <Badge variant="default">Recommended</Badge>
+              </div>
+              <p className="text-sm text-muted-foreground ml-6">
+                Your project appears on the home feed and in search results. Anyone on the platform can find and sign up for it.
+              </p>
+            </label>
 
-      {/* Domain Restriction Toggle - Only show if organization has allowed domains */}
+            {/* Unlisted */}
+            <label
+              htmlFor="visibility-unlisted"
+              className={cn(
+                "flex flex-col items-start space-y-3 rounded-lg border p-4 hover:bg-accent cursor-pointer transition-colors",
+                visibility === "unlisted" && "border-primary bg-accent",
+                errors.visibility && "border-destructive",
+              )}
+            >
+              <div className="flex w-full justify-between space-x-3">
+                <div className="flex items-center space-x-3">
+                  <RadioGroupItem value="unlisted" id="visibility-unlisted" />
+                  <div className="flex items-center space-x-2">
+                    <Link2 className="h-5 w-5" />
+                    <span className="font-medium">Unlisted (By Link Only)</span>
+                  </div>
+                </div>
+                <Badge variant="secondary">Private Link</Badge>
+              </div>
+              <p className="text-sm text-muted-foreground ml-6">
+                Only people with the direct link can find your project. Share the link with volunteers via email or social media. Won&apos;t appear in search or feeds.
+              </p>
+            </label>
+
+            {/* Organization Only - only show for organization projects */}
+            {isOrganization && (
+              <label
+                htmlFor="visibility-org-only"
+                className={cn(
+                  "flex flex-col items-start space-y-3 rounded-lg border p-4 hover:bg-accent cursor-pointer transition-colors",
+                  visibility === "organization_only" && "border-primary bg-accent",
+                  errors.visibility && "border-destructive",
+                )}
+              >
+                <div className="flex w-full justify-between space-x-3">
+                  <div className="flex items-center space-x-3">
+                    <RadioGroupItem value="organization_only" id="visibility-org-only" />
+                    <div className="flex items-center space-x-2">
+                      <Lock className="h-5 w-5" />
+                      <span className="font-medium">Organization Members Only</span>
+                    </div>
+                  </div>
+                  <Badge variant="secondary">Private</Badge>
+                </div>
+                <p className="text-sm text-muted-foreground ml-6">
+                  Only your organization members can see and sign up for this project. Great for internal volunteer opportunities or member-exclusive events.
+                </p>
+              </label>
+            )}
+          </RadioGroup>
+
+          {errors.visibility && (
+            <div className="text-destructive text-sm flex items-center gap-2 mt-4">
+              <AlertTriangle className="h-4 w-4" />
+              {errors.visibility}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Domain Restriction Section - Only show if organization has allowed domains */}
       {isOrganization && allowedEmailDomains && allowedEmailDomains.length > 0 && updateRestrictToOrgDomainsAction && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
-              Domain Restrictions
+              Email Domain Requirements
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -376,9 +418,9 @@ export default function VerificationSettings({
                       <Info className="h-4 w-4" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent className="text-xs font-normal">
+                  <TooltipContent className="text-xs font-normal max-w-xs">
                     <p>
-                      Restrict signups to users with specific email domains.
+                      Optionally require volunteers to have an email from your organization&apos;s approved domains to sign up.
                     </p>
                   </TooltipContent>
                 </Tooltip>
@@ -388,7 +430,7 @@ export default function VerificationSettings({
           <CardContent>
             <div className="space-y-6">
               <div className="flex items-center justify-between space-x-4">
-                <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-3 flex-1">
                   <div
                     className={cn(
                       "p-2 rounded-md",
@@ -401,17 +443,17 @@ export default function VerificationSettings({
                       <Users className="h-5 w-5 text-muted-foreground" />
                     )}
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <Label
                       htmlFor="restrict-domains"
-                      className="text-base font-medium"
+                      className="text-base font-medium cursor-pointer"
                     >
-                      Restrict to Organization Domains
+                      Require Organization Email
                     </Label>
                     <p className="text-sm text-muted-foreground mt-1">
                       {restrictToOrgDomains
-                        ? `Only users with emails from: ${allowedEmailDomains.join(", ")} can sign up.`
-                        : "Users with any email domain can sign up."}
+                        ? `✓ Only emails from: ${allowedEmailDomains.join(", ")} can sign up`
+                        : `Optional: Allow emails from any domain to sign up`}
                     </p>
                   </div>
                 </div>

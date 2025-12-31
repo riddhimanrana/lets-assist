@@ -1,7 +1,7 @@
 "use client";
 
 import { useReducer, Reducer } from 'react';
-import { EventType, VerificationMethod } from '@/types';
+import { EventType, VerificationMethod, ProjectVisibility } from '@/types';
 
 // --- Helper Functions --- 
 
@@ -95,7 +95,7 @@ export interface EventFormState {
   };
   verificationMethod: VerificationMethod;
   requireLogin: boolean;
-  isPrivate: boolean;
+  visibility: ProjectVisibility;
   restrictToOrgDomains: boolean;
 }
 
@@ -118,8 +118,7 @@ type EventFormAction =
   | { type: 'ADD_ROLE' }
   | { type: 'UPDATE_VERIFICATION_METHOD'; payload: VerificationMethod }
   | { type: 'UPDATE_REQUIRE_LOGIN'; payload: boolean }
-
-  | { type: 'UPDATE_IS_PRIVATE'; payload: boolean }
+  | { type: 'UPDATE_VISIBILITY'; payload: ProjectVisibility }
   | { type: 'UPDATE_RESTRICT_TO_ORG_DOMAINS'; payload: boolean }
   | { type: 'REMOVE_DAY'; payload: { dayIndex: number } }
   | { type: 'REMOVE_SLOT'; payload: { dayIndex: number; slotIndex: number } }
@@ -183,7 +182,7 @@ const initialState: EventFormState = {
   },
   verificationMethod: 'qr-code',
   requireLogin: true,
-  isPrivate: false,
+  visibility: 'public',
   restrictToOrgDomains: false,
 };
 
@@ -357,10 +356,10 @@ const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
         requireLogin: action.payload,
       };
     }
-    case 'UPDATE_IS_PRIVATE': {
+    case 'UPDATE_VISIBILITY': {
       return {
         ...state,
-        isPrivate: action.payload,
+        visibility: action.payload,
       };
     }
     case 'UPDATE_RESTRICT_TO_ORG_DOMAINS': {
@@ -481,8 +480,8 @@ export const useEventForm = () => {
   const updateRequireLogin = (requireLogin: boolean) =>
     dispatch({ type: 'UPDATE_REQUIRE_LOGIN', payload: requireLogin });
 
-  const updateIsPrivate = (isPrivate: boolean) =>
-    dispatch({ type: 'UPDATE_IS_PRIVATE', payload: isPrivate });
+  const updateVisibility = (visibility: ProjectVisibility) =>
+    dispatch({ type: 'UPDATE_VISIBILITY', payload: visibility });
 
   const updateRestrictToOrgDomains = (restrict: boolean) =>
     dispatch({ type: 'UPDATE_RESTRICT_TO_ORG_DOMAINS', payload: restrict });
@@ -510,7 +509,7 @@ export const useEventForm = () => {
     addRole,
     updateVerificationMethod,
     updateRequireLogin,
-    updateIsPrivate,
+    updateVisibility,
     updateRestrictToOrgDomains,
     removeDay,
     removeSlot,

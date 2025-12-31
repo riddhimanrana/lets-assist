@@ -90,7 +90,7 @@ const mockProjects = [
     event_type: "oneTime",
     schedule: oneTime(tomorrowISO, "09:00", "12:00"),
     status: "upcoming",
-    is_private: false,
+    visibility: "public" as const,
     creator_id: "u1",
   },
   {
@@ -101,7 +101,7 @@ const mockProjects = [
     event_type: "oneTime",
     schedule: oneTime(yesterdayISO, "11:00", "13:00"),
     status: "completed",
-    is_private: false,
+    visibility: "public" as const,
     creator_id: "u2",
   },
   {
@@ -112,7 +112,7 @@ const mockProjects = [
     event_type: "oneTime",
     schedule: oneTime(todayISO, "08:00", "10:00"),
     status: "upcoming",
-    is_private: false,
+    visibility: "public" as const,
     creator_id: "u3",
   },
 ];
@@ -169,7 +169,7 @@ export default function OrgToolingSection() {
         </motion.div>
 
         <div className="mt-12 space-y-10">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {orgFeatures.map((feat) => (
               <Card key={feat.title} className="h-full border-border/60 bg-background/90 shadow-sm">
                 <CardContent className="p-4">

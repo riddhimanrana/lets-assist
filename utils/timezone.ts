@@ -187,6 +187,8 @@ const TIMEZONE_ALIASES: Record<string, string> = {
   'Europe/Rome': 'Europe/Paris',
   'Europe/Madrid': 'Europe/Paris',
   'Europe/Brussels': 'Europe/Paris',
+  'Asia/Bangalore': 'Asia/Kolkata',
+  'Asia/Calcutta': 'Asia/Kolkata',
   'Asia/Singapore': 'Asia/Shanghai',
   'Asia/Hong_Kong': 'Asia/Shanghai',
   'Asia/Seoul': 'Asia/Tokyo',
@@ -216,6 +218,18 @@ export function getBestMatchingTimezone(detectedTimezone: string): string {
     return 'Europe/London';
   }
   if (detectedTimezone.startsWith('Asia/')) {
+    // Check for India specifically
+    if (detectedTimezone.includes('Kolkata') || detectedTimezone.includes('India')) {
+      return 'Asia/Kolkata';
+    }
+    // Check for other major Asian timezones
+    if (detectedTimezone.includes('Shanghai') || detectedTimezone.includes('Hong_Kong') || detectedTimezone.includes('Singapore')) {
+      return 'Asia/Shanghai';
+    }
+    if (detectedTimezone.includes('Tokyo') || detectedTimezone.includes('Seoul')) {
+      return 'Asia/Tokyo';
+    }
+    // Default to Tokyo for other Asian timezones
     return 'Asia/Tokyo';
   }
   if (detectedTimezone.startsWith('Australia/') || detectedTimezone.startsWith('Pacific/')) {

@@ -22,7 +22,6 @@ export interface AIParseResult {
   schedule?: any;
   verificationMethod?: 'qr-code' | 'manual' | 'auto' | 'signup-only';
   requireLogin?: boolean;
-  isPrivate?: boolean;
 }
 
 // Test data for demo purposes (removed - no longer needed)

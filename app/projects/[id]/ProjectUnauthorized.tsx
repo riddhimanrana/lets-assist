@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { createClient } from "@/utils/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 interface ProjectUnauthorizedProps {
   projectId: string;
@@ -17,26 +17,9 @@ interface ProjectUnauthorizedProps {
 
 export default function ProjectUnauthorized({ projectId }: ProjectUnauthorizedProps) {
   const router = useRouter();
+  const { user, isLoading } = useAuth(); // Use centralized auth hook
   const [isRedirecting, setIsRedirecting] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-
-  // Check if user is logged in
-  useEffect(() => {
-    const checkAuthStatus = async () => {
-      try {
-        const supabase = createClient();
-        const { data: { user } } = await supabase.auth.getUser();
-        setIsLoggedIn(!!user);
-      } catch (error) {
-        console.error("Error checking auth status:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    checkAuthStatus();
-  }, []);
+  const isLoggedIn = !!user;
 
   return (
     <div className="flex items-center justify-center w-full min-h-screen px-4 py-6">

@@ -59,7 +59,7 @@ import { useTheme } from "next-themes";
 import { usePathname } from "next/navigation";
 import { FeedbackDialog } from "@/components/FeedbackDialog";
 import { useAuth } from "@/hooks/useAuth";
-import { createClient } from "@/utils/supabase/client";
+import { useUserProfile } from "@/hooks/useUserProfile";
 
 interface SectionProps {
   title: string;
@@ -112,14 +112,10 @@ const features = [
 
 export default function Navbar() {
   // Use centralized auth hook instead of manual state management
-  const { user, isLoading: isProfileLoading } = useAuth();
-  const isAuthLoading = isProfileLoading;
+  const { user, isLoading: isAuthLoading } = useAuth();
+  // Use cached profile data instead of making a separate query
+  const { profile, isLoading: isProfileLoading } = useUserProfile();
 
-  const [profile, setProfile] = React.useState<{
-    full_name: string;
-    avatar_url: string;
-    username: string;
-  } | null>(null);
   const [showBugDialog, setShowBugDialog] = useState(false);
   const [showDonateDialog, setShowDonateDialog] = useState(false);
   const [showFeedbackDialog, setShowFeedbackDialog] = useState(false);
@@ -128,39 +124,6 @@ export default function Navbar() {
   // Add loading state for logout
   const [isLoggingOut, setIsLoggingOut] = React.useState(false);
   const pathname = usePathname();
-
-  const supabase = React.useMemo(() => createClient(), []);
-
-  const fetchProfile = React.useCallback(
-    async (userId: string) => {
-      try {
-        const { data: profileData, error } = await supabase
-          .from("profiles")
-          .select("full_name, avatar_url, username")
-          .eq("id", userId)
-          .single();
-
-        if (error) {
-          console.debug("Profile fetch error", error);
-        }
-
-        setProfile(profileData ?? null);
-      } catch (error) {
-        console.debug("Profile fetch exception", error);
-        setProfile(null);
-      }
-    },
-    [supabase],
-  );
-
-  // Update profile when user changes
-  React.useEffect(() => {
-    if (user?.id) {
-      fetchProfile(user.id);
-    } else {
-      setProfile(null);
-    }
-  }, [user?.id, fetchProfile]);
 
   const handleNavigation = () => {
     setIsSheetOpen(false);
@@ -287,7 +250,7 @@ export default function Navbar() {
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-6 ml-auto">
+          <div className="hidden lg:flex items-center space-x-4 ml-auto">
             {isAuthLoading ? (
               <Skeleton className="h-6 w-48" />
             ) : user ? (
@@ -342,7 +305,7 @@ export default function Navbar() {
                     <NavigationMenuItem>
                       <NavigationMenuTrigger className={cn(pathname === "/#features" && "bg-accent text-accent-foreground")}>Features</NavigationMenuTrigger>
                       <NavigationMenuContent>
-                        <ul className="grid gap-3 p-6 md:w-[400px] lg:w-[500px] lg:grid-cols-[.75fr_1fr]">
+                        <ul className="grid gap-3 p-4 w-[320px] lg:w-[500px] lg:p-6 lg:grid-cols-[.75fr_1fr]">
                           <li className="row-span-3">
                             <NavigationMenuLink asChild>
                               <Link
@@ -398,7 +361,7 @@ export default function Navbar() {
               </>
             )}
           </div>
-          <div className="hidden sm:flex items-center space-x-6 ml-auto">
+          <div className="hidden lg:flex items-center space-x-4 ml-auto">
             {isAuthLoading ? (
               <div className="flex items-center space-x-3">
                 <Skeleton className="w-9 h-9 rounded-full" />
@@ -419,9 +382,9 @@ export default function Navbar() {
                           className="absolute inset-0 rounded-full bg-muted-foreground/10 scale-105 opacity-0 group-hover:opacity-100 group-hover:scale-125 transition-all duration-200 pointer-events-none"
                         />
                         <Avatar className="w-9 h-9 cursor-pointer relative z-10">
-                          <AvatarImage src={profile?.avatar_url} />
+                          <AvatarImage src={profile?.avatar_url ?? undefined} />
                           <AvatarFallback>
-                            <NoAvatar fullName={profile?.full_name} />
+                            <NoAvatar fullName={profile?.full_name ?? undefined} />
                           </AvatarFallback>
                         </Avatar>
                       </div>
@@ -535,7 +498,7 @@ export default function Navbar() {
           {/* Mobile Navigation */}
           <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
             <SheetTitle className="hidden"></SheetTitle>
-            <div className="sm:hidden flex items-center ml-auto">
+            <div className="lg:hidden flex items-center ml-auto">
               {isAuthLoading ? (
                 <Skeleton className="w-10 h-10 rounded-full" />
               ) : (
@@ -545,7 +508,7 @@ export default function Navbar() {
               {!isAuthLoading && !user && <ModeToggle />}
             </div>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="md:hidden ml-2">
+              <Button variant="ghost" size="icon" className="lg:hidden ml-2">
                 <Menu className="h-5 w-5" />
                 <span className="sr-only">Toggle menu</span>
               </Button>
@@ -564,9 +527,9 @@ export default function Navbar() {
                         <Skeleton className="w-12 h-12 rounded-full" />
                       ) : (
                         <Avatar className="w-12 h-12">
-                          <AvatarImage src={profile?.avatar_url} />
+                          <AvatarImage src={profile?.avatar_url ?? undefined} />
                           <AvatarFallback>
-                            <NoAvatar fullName={profile?.full_name} />
+                            <NoAvatar fullName={profile?.full_name ?? undefined} />
                           </AvatarFallback>
                         </Avatar>
                       )}

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Bell, AlertCircle, AlertTriangle, CircleCheck, Loader2, Check, Settings } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -42,17 +42,49 @@ type Notification = {
   data?: Record<string, any> | null;
 };
 
+/**
+ * Debounce hook: delays execution of a callback until specified ms have passed
+ * without any new calls. Useful for batching rapid realtime events.
+ * Example: 5 notification inserts in quick succession → 1 loadNotifications call
+ */
+function useDebounce<T extends (...args: any[]) => any>(
+  callback: T,
+  delayMs: number = 500
+): (...args: Parameters<T>) => void {
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  return useCallback(
+    (...args: Parameters<T>) => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      timeoutRef.current = setTimeout(() => {
+        callback(...args);
+        timeoutRef.current = null;
+      }, delayMs);
+    },
+    [callback, delayMs]
+  );
+}
+
 export function NotificationPopover() {
   const { user } = useAuth(); // Use centralized auth hook
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [open, setOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [activeNotification, setActiveNotification] = useState<Notification | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [offset, setOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
   const supabase = createClient();
   const router = useRouter();
   const isMobile = useMediaQuery("(max-width: 768px)");
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const scrollPositionRef = useRef<number>(0);
 
   const parseNotificationData = (value: unknown): Record<string, any> | null => {
     if (!value) return null;
@@ -72,20 +104,160 @@ export function NotificationPopover() {
   const isReportFeedbackNotification = (notification: Notification) => {
     return notification.data?.modalType === 'report-feedback';
   };
+
+  // Track if we've fetched unread count on initial mount
+  const initialFetchDone = React.useRef(false);
+  // Stable channel ref to avoid recreating subscriptions
+  const channelRef = React.useRef<ReturnType<typeof supabase.channel> | null>(null);
+
+  // Wrap loadNotifications in useCallback so it doesn't recreate on every render
+  const loadNotifications = useCallback(async () => {
+    if (!user?.id) return;
+    setLoading(true);
+    
+    try {
+      // Load initial 10 notifications with pagination
+      const { data, error } = await supabase
+        .from("notifications")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .range(0, 9); // First 10 items
+        
+      if (error) {
+        console.error("Error loading notifications:", error);
+        throw error;
+      }
+      
+      console.log('Notifications loaded:', data?.length || 0);
+      const normalized = (data || []).map((notification) => ({
+        ...notification,
+        data: parseNotificationData((notification as any).data),
+      }));
+      setNotifications(normalized as Notification[]);
+      setOffset(0);
+      
+      // Check if there are more notifications
+      if (data && data.length < 10) {
+        setHasMore(false);
+      } else {
+        setHasMore(true);
+      }
+    } catch (error) {
+      console.error("Error loading notifications:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.id, supabase]);
+
+  // Load more notifications (for pagination/infinite scroll)
+  const loadMoreNotifications = useCallback(async () => {
+    if (!user?.id || loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    
+    try {
+      const newOffset = offset + 10;
+      const { data, error } = await supabase
+        .from("notifications")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .range(newOffset, newOffset + 9);
+        
+      if (error) {
+        console.error("Error loading more notifications:", error);
+        throw error;
+      }
+      
+      console.log('Loaded more notifications:', data?.length || 0);
+      const normalized = (data || []).map((notification) => ({
+        ...notification,
+        data: parseNotificationData((notification as any).data),
+      }));
+      
+      // Store scroll position before state update
+      const currentScrollPos = scrollPositionRef.current;
+      
+      setNotifications(prev => [...prev, ...normalized as Notification[]]);
+      setOffset(newOffset);
+      
+      // Check if there are more
+      if (!data || data.length < 10) {
+        setHasMore(false);
+      }
+      
+      // Restore scroll position after DOM has rendered new content
+      // Use multiple requestAnimationFrames to ensure rendering is complete
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          const scrollViewport = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement;
+          if (scrollViewport) {
+            console.log('Restoring scroll to:', currentScrollPos);
+            scrollViewport.scrollTop = currentScrollPos;
+          }
+        });
+      });
+    } catch (error) {
+      console.error("Error loading more notifications:", error);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [user?.id, supabase, offset, loadingMore, hasMore]);
+
+  // Wrap updateUnreadCount in useCallback
+  const updateUnreadCount = useCallback(async () => {
+    if (!user?.id) return;
+    try {
+      // Use regular select with limit 1 instead of HEAD request to reduce API calls
+      // HEAD requests still count as full queries, just without response body
+      const { data, error } = await supabase
+        .from("notifications")
+        .select("id", { count: 'exact' })
+        .eq("read", false)
+        .eq("user_id", user.id)
+        .limit(1);
+        
+      if (error) throw error;
+      
+      setUnreadCount(data?.length || 0);
+    } catch (error) {
+      console.error("Error updating unread count:", error);
+    }
+  }, [user?.id, supabase]);
+
+  // Debounced notification reload (batches multiple rapid events into single update)
+  // Example: 5 new notifications arrive in 300ms → triggers only 1 loadNotifications() call
+  const debouncedLoadNotifications = useDebounce(loadNotifications, 300);
+
+  // Debounced unread count update
+  const debouncedUpdateUnreadCount = useDebounce(updateUnreadCount, 300);
+  
+  // Store refs to debounced functions to avoid circular effect dependency
+  const debouncedLoadRef = useRef(debouncedLoadNotifications);
+  const debouncedUnreadRef = useRef(debouncedUpdateUnreadCount);
+  
+  useEffect(() => {
+    debouncedLoadRef.current = debouncedLoadNotifications;
+    debouncedUnreadRef.current = debouncedUpdateUnreadCount;
+  }, [debouncedLoadNotifications, debouncedUpdateUnreadCount]);
   
   useEffect(() => {
     if (!user?.id) return; // Wait for user to be available
     
-    if (open) {
-      loadNotifications();
+    // Only update unread count on initial mount, not on every user change
+    // Realtime subscription will handle updates after that
+    if (!initialFetchDone.current) {
+      updateUnreadCount();
+      initialFetchDone.current = true;
     }
     
-    // Setup realtime subscription using user from auth hook
-    const channelName = `notification-popover-${user.id}-${Date.now()}`;
-    console.log(`Setting up notification badge channel: ${channelName}`);
+    // If channel already exists for this user, don't recreate
+    if (channelRef.current) return;
     
-    // Update unread count on component load
-    updateUnreadCount();
+    // Setup realtime subscription using user from auth hook
+    // Use stable channel name (no Date.now()) to avoid recreating subscriptions
+    const channelName = `notification-popover-${user.id}`;
+    console.log(`Setting up notification badge channel: ${channelName}`);
     
     const channel = supabase
       .channel(channelName)
@@ -98,10 +270,13 @@ export function NotificationPopover() {
         }, 
         (payload) => {
           console.log('Notification badge update event:', payload.eventType);
+          // Debounce the reload to batch rapid events
+          // If user is viewing notifications, reload the list
+          // Otherwise, just update the unread count badge
           if (open) {
-            loadNotifications();
+            debouncedLoadRef.current();
           } else {
-            updateUnreadCount();
+            debouncedUnreadRef.current();
           }
         }
       )
@@ -109,12 +284,26 @@ export function NotificationPopover() {
         console.log(`Badge notification channel status: ${status}`);
       });
     
+    channelRef.current = channel;
+    
     // Cleanup function
     return () => {
       console.log('Removing notification badge channel');
-      supabase.removeChannel(channel);
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
     };
   }, [user?.id, open]);
+
+  // Handle popover open state changes separately
+  useEffect(() => {
+    if (open && user?.id) {
+      setOffset(0);
+      setHasMore(true);
+      loadNotifications();
+    }
+  }, [open, user?.id, loadNotifications]);
 
   // Auto mark all notifications as read when the popover closes and there are unread notifications
   useEffect(() => {
@@ -126,35 +315,18 @@ export function NotificationPopover() {
     }
   }, [open, notifications]);
 
-  async function loadNotifications() {
-    if (!user?.id) return;
-    setLoading(true);
-    
-    try {
-      const { data, error } = await supabase
-        .from("notifications")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(20);
-        
-      if (error) {
-        console.error("Error loading notifications:", error);
-        throw error;
-      }
-      
-      console.log('Notifications loaded:', data);
-      const normalized = (data || []).map((notification) => ({
-        ...notification,
-        data: parseNotificationData((notification as any).data),
-      }));
-      setNotifications(normalized as Notification[]);
-    } catch (error) {
-      console.error("Error loading notifications:", error);
-    } finally {
-      setLoading(false);
-    }
-  }
+  // Track scroll position for restoring after loading more
+  useEffect(() => {
+    const scrollViewport = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement;
+    if (!scrollViewport) return;
+
+    const handleScroll = () => {
+      scrollPositionRef.current = scrollViewport.scrollTop;
+    };
+
+    scrollViewport.addEventListener('scroll', handleScroll);
+    return () => scrollViewport.removeEventListener('scroll', handleScroll);
+  }, []);
 
   async function markAsRead(id: string) {
     try {
@@ -204,23 +376,6 @@ export function NotificationPopover() {
     if (notification.action_url) {
       router.push(notification.action_url);
       setOpen(false);
-    }
-  }
-
-  async function updateUnreadCount() {
-    if (!user?.id) return;
-    try {
-      const { count, error } = await supabase
-        .from("notifications")
-        .select("id", { count: 'exact', head: true })
-        .eq("read", false)
-        .eq("user_id", user.id);
-        
-      if (error) throw error;
-      
-      setUnreadCount(count || 0);
-    } catch (error) {
-      console.error("Error updating unread count:", error);
     }
   }
 
@@ -322,23 +477,46 @@ export function NotificationPopover() {
   // Create a shared content component that works for both Popover and Drawer
   const NotificationsContent = () => (
     <>
-      
-      <ScrollArea className={cn("h-[400px]", isMobile && "h-[calc(60vh-80px)]")}>
-        {loading ? (
-          <div className="flex flex-col justify-center items-center py-16">
-            <div className="relative">
-              <div className="absolute inset-0 rounded-full"></div>
-              <div className="relative rounded-full p-3">
-                <Loader2 className="h-6 w-6 animate-spin font-bold text-primary" />
+      <ScrollArea ref={scrollAreaRef} className={cn("h-[400px]", isMobile && "h-[calc(60vh-80px)]")}>
+        <div className="px-1">
+          {loading ? (
+            <div className="flex flex-col justify-center items-center py-16">
+              <div className="relative">
+                <div className="absolute inset-0 rounded-full"></div>
+                <div className="relative rounded-full p-3">
+                  <Loader2 className="h-6 w-6 animate-spin font-bold text-primary" />
+                </div>
               </div>
+              <p className="text-xs text-muted-foreground mt-4">Loading notifications...</p>
             </div>
-            <p className="text-xs text-muted-foreground mt-4">Loading notifications...</p>
-          </div>
-        ) : notifications.length > 0 ? (
-          notifications.map(renderNotificationItem)
-        ) : (
-          renderEmptyState()
-        )}
+          ) : notifications.length > 0 ? (
+            <div className="space-y-1">
+              {notifications.map(renderNotificationItem)}
+              {hasMore && (
+                <div className="p-3 flex justify-center border-t mt-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={loadMoreNotifications}
+                    disabled={loadingMore}
+                    className="text-xs"
+                  >
+                    {loadingMore ? (
+                      <>
+                        <Loader2 className="h-3 w-3 animate-spin mr-2" />
+                        Loading...
+                      </>
+                    ) : (
+                      'Load more notifications'
+                    )}
+                  </Button>
+                </div>
+              )}
+            </div>
+          ) : (
+            renderEmptyState()
+          )}
+        </div>
       </ScrollArea>
     </>
   );

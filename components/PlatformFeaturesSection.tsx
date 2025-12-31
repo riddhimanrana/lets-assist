@@ -79,7 +79,7 @@ export default function PlatformFeaturesSection() {
           </p>
         </motion.div>
 
-        <div className="mx-auto max-w-5xl grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mx-auto max-w-5xl grid gap-4 sm:gap-5 md:gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {features.map((feat, i) => (
             <motion.div
               key={feat.title}

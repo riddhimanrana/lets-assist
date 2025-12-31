@@ -1,137 +1,66 @@
 /**
- * COPPA Compliance - Minor Restrictions
+ * School Account Utilities
  * 
- * Defines what features are restricted for users under 13
- * to comply with the Children's Online Privacy Protection Act
+ * Helper functions for identifying school accounts based on email domain.
+ * School accounts have some different default settings for privacy.
  */
 
-export const MINOR_RESTRICTIONS = {
-  // Profile visibility
-  publicProfile: false,
-  showEmail: false,
-  showPhone: false,
-  showSocialMedia: false,
-  
-  // Communication
-  directMessaging: false,
-  publicComments: false,
-  
-  // Social features
-  socialSharing: false,
-  followUsers: false,
-  
-  // Analytics and tracking
-  analytics: false,
-  behavioralAds: false,
-  thirdPartyTracking: false,
-  
-  // Data collection
-  locationTracking: false,
-  photoUpload: true, // Allowed but parent must consent
-  
-  // Organization features
-  requireParentalApprovalForOrgs: true,
-  canCreateOrganization: false,
-} as const;
-
-export type MinorRestriction = keyof typeof MINOR_RESTRICTIONS;
+import { createClient } from "@/utils/supabase/server";
 
 /**
- * Check if a minor can access a specific feature
+ * Check if an email belongs to a verified educational institution
  */
-export function canAccessFeature(
-  feature: MinorRestriction,
-  isMinor: boolean,
-  hasParentalConsent: boolean = false
-): boolean {
-  // Non-minors have full access
-  if (!isMinor) return true;
+export async function isSchoolEmail(email: string): Promise<boolean> {
+  if (!email) return false;
   
-  // Minors without parental consent have no access
-  if (!hasParentalConsent) return false;
+  const domain = email.split('@')[1]?.toLowerCase();
+  if (!domain) return false;
   
-  // With parental consent, check specific restriction
-  return MINOR_RESTRICTIONS[feature];
+  const supabase = await createClient();
+  
+  const { data: institution } = await supabase
+    .from("educational_institutions")
+    .select("id")
+    .eq("domain", domain)
+    .eq("verified", true)
+    .single();
+  
+  return !!institution;
 }
 
 /**
- * Get list of restricted features for display
+ * Get the institution info for a school email
  */
-export function getRestrictedFeatures(isMinor: boolean): string[] {
-  if (!isMinor) return [];
+export async function getInstitutionByEmail(email: string) {
+  if (!email) return null;
   
-  return Object.entries(MINOR_RESTRICTIONS)
-    .filter(([_, isRestricted]) => !isRestricted)
-    .map(([feature]) => formatFeatureName(feature));
+  const domain = email.split('@')[1]?.toLowerCase();
+  if (!domain) return null;
+  
+  const supabase = await createClient();
+  
+  const { data: institution } = await supabase
+    .from("educational_institutions")
+    .select("id, name, domain, type")
+    .eq("domain", domain)
+    .eq("verified", true)
+    .single();
+  
+  return institution;
 }
 
 /**
- * Format feature name for display
+ * Default profile visibility for new accounts
+ * School accounts default to private for better privacy
  */
-function formatFeatureName(feature: string): string {
-  return feature
-    .replace(/([A-Z])/g, " $1")
-    .replace(/^./, (str) => str.toUpperCase())
-    .trim();
+export function getDefaultProfileVisibility(isSchoolAccount: boolean): 'public' | 'private' {
+  return isSchoolAccount ? 'private' : 'public';
 }
 
 /**
- * Check if user profile can be viewed publicly
+ * Check if user can create organizations
+ * School accounts (students) typically can't create orgs - they join via staff links
  */
-export function canViewProfile(
-  viewerIsMinor: boolean,
-  profileOwnerIsMinor: boolean,
-  hasParentalConsent: boolean
-): boolean {
-  // Minors' profiles are never public
-  if (profileOwnerIsMinor) {
-    return false;
-  }
-  
-  // Non-minor profiles can be viewed by anyone
-  return true;
-}
-
-/**
- * Get PostHog configuration for user
- */
-export function getAnalyticsConfig(
-  isMinor: boolean,
-  hasParentalConsent: boolean
-) {
-  // Disable all analytics for minors per COPPA
-  if (isMinor) {
-    return {
-      enabled: false,
-      capture_pageview: false,
-      disable_session_recording: true,
-      disable_surveys: true,
-    };
-  }
-  
-  // Full analytics for adults
-  return {
-    enabled: true,
-    capture_pageview: true,
-    disable_session_recording: false,
-    disable_surveys: false,
-  };
-}
-
-/**
- * Check if cookies can be set for user
- */
-export function canSetCookies(
-  cookieType: "essential" | "analytics" | "marketing",
-  isMinor: boolean,
-  hasParentalConsent: boolean
-): boolean {
-  // Essential cookies always allowed
-  if (cookieType === "essential") return true;
-  
-  // No non-essential cookies for minors
-  if (isMinor) return false;
-  
-  // Full cookie access for adults
-  return true;
+export function canCreateOrganization(isSchoolAccount: boolean): boolean {
+  return !isSchoolAccount;
 }

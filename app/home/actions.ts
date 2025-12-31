@@ -16,7 +16,8 @@ export async function getActiveProjects(
   limit: number = 21, 
   offset: number = 0,
   status?: ProjectStatus,
-  organizationId?: string
+  organizationId?: string,
+  userId?: string
 ): Promise<Project[]> {
   const supabase = await createClient();
 
@@ -37,6 +38,15 @@ export async function getActiveProjects(
     query = query.eq("organization_id", organizationId);
   }
 
+  // Apply visibility filter: only show public projects in the main feed
+  // If we're showing a specific organization, don't filter by visibility (RLS handles org-only access)
+  if (!organizationId) {
+    // For public discovery, only show public projects
+    // Unlisted projects should only be accessible via direct link, not in feeds
+    // Organization-only projects are only visible to organization members
+    query = query.eq("visibility", "public");
+  }
+
   // Apply pagination
   query = query.range(offset, offset + limit - 1)
     .order("created_at", { ascending: false });
@@ -48,15 +58,22 @@ export async function getActiveProjects(
     return [];
   }
 
-  // Get confirmed signups for all projects in a single query
-  const { data: confirmedSignups } = await supabase
-    .from("project_signups")
-    .select(`
-      project_id,
-      schedule_id
-    `)
-    .eq("status", "approved")
-    .in("project_id", projects.map(p => p.id));
+  // Short-circuit: Skip query if no projects to avoid empty in() filter
+  const projectIds = projects.map(p => p.id);
+  let confirmedSignups: { project_id: string; schedule_id: string }[] | null = null;
+  
+  if (projectIds.length > 0) {
+    // Get confirmed signups for all projects in a single query
+    const { data } = await supabase
+      .from("project_signups")
+      .select(`
+        project_id,
+        schedule_id
+      `)
+      .eq("status", "approved")
+      .in("project_id", projectIds);
+    confirmedSignups = data;
+  }
 
   // Process projects and add signup counts
   const processedProjects = projects.map(project => {
@@ -81,14 +98,19 @@ export async function getActiveProjects(
   const creatorIds = Array.from(new Set(projects.map(p => p.creator_id)));
   const orgIds = Array.from(new Set(projects.map(p => p.organization_id).filter(Boolean)));
 
-  // Fetch corresponding profiles
-  const { data: profiles, error: profilesError } = await supabase
-    .from("profiles")
-    .select("id, avatar_url, full_name, username, created_at")
-    .in("id", creatorIds);
+  // Short-circuit: Skip profile query if no creator IDs
+  let profiles: Profile[] | null = null;
+  if (creatorIds.length > 0) {
+    const { data, error: profilesError } = await supabase
+      .from("profiles")
+      .select("id, avatar_url, full_name, username, created_at")
+      .in("id", creatorIds);
 
-  if (profilesError) {
-    console.error("Error fetching profiles:", profilesError);
+    if (profilesError) {
+      console.error("Error fetching profiles:", profilesError);
+    } else {
+      profiles = data;
+    }
   }
 
   // Fetch organizations if needed
