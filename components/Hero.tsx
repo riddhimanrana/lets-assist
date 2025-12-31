@@ -80,7 +80,7 @@ export const HeroSection = () => {
 						initial={{ opacity: 0, y: 20 }}
 						animate={{ opacity: 1, y: 0 }}
 						transition={{ delay: 0.6, duration: 0.5 }}
-						className="flex w-full flex-col items-center justify-center gap-4 px-4 sm:w-auto sm:flex-row sm:px-0"
+							className="flex w-full flex-col items-center justify-center gap-4 px-4 sm:w-auto sm:flex-row sm:px-0"
 					>
 						<Link href="/signup" className="w-full max-w-[280px] sm:w-auto">
 							<Button className="group/arrow h-12 w-full transform text-sm font-semibold shadow-sm transition-all duration-200 hover:scale-[1.02] hover:shadow-md sm:h-11">

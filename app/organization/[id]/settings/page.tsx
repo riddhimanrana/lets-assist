@@ -14,6 +14,7 @@ import {
   CardContent 
 } from "@/components/ui/card";
 import JoinCodeAdminDisplay from "./JoinCodeAdminDisplay";
+import StaffLinkDisplay from "./StaffLinkDisplay";
 import DeleteOrganizationDialog from "./DeleteOrganizationDialog";
 import MemberExporter from "./MemberExporter";
 
@@ -142,6 +143,22 @@ export default async function OrganizationSettingsPage({ params }: Props) {
               <JoinCodeAdminDisplay
                 organizationId={organization.id}
                 joinCode={organization.join_code}
+              />
+            </CardContent>
+          </Card>
+          
+          {/* Staff Invite Link */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Staff Invite Link</CardTitle>
+              <CardDescription>
+                Generate a special link for teachers and staff to join with elevated permissions
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <StaffLinkDisplay
+                organizationId={organization.id}
+                organizationUsername={organization.username}
               />
             </CardContent>
           </Card>

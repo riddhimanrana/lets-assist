@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertCircle, AlertTriangle, CircleCheck } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 type NotificationSettings = {
   email_notifications: boolean;
@@ -29,6 +30,7 @@ type Notification = {
 };
 
 export function NotificationsClient() {
+  const { user } = useAuth(); // Use cached auth instead of getUser() calls
   const [settings, setSettings] = useState<NotificationSettings | null>(null);
   const [originalSettings, setOriginalSettings] = useState<NotificationSettings | null>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -51,12 +53,18 @@ export function NotificationsClient() {
   };
 
   useEffect(() => {
+    // Skip if user is not available yet
+    if (!user?.id) return;
+
+    // Capture user id in closure to satisfy TypeScript
+    const userId = user.id;
+
     async function loadSettings() {
       try {
         const { data, error } = await supabase
           .from("notification_settings")
           .select("*")
-          .eq("user_id", (await supabase.auth.getUser()).data.user?.id);
+          .eq("user_id", userId);
 
         if (error) {
           console.error("Error loading notification settings:", error);
@@ -96,7 +104,7 @@ export function NotificationsClient() {
 
     loadSettings();
     loadNotifications();
-  }, []);
+  }, [user?.id]); // Re-run when user changes
 
   const handleChange = (field: keyof NotificationSettings, value: boolean) => {
     if (!settings) return;
@@ -104,14 +112,14 @@ export function NotificationsClient() {
   };
 
   const saveSettings = async () => {
-    if (!settings) return;
+    if (!settings || !user?.id) return;
     
     setSaving(true);
     try {
       const { error } = await supabase
         .from("notification_settings")
         .update(settings)
-        .eq("user_id", (await supabase.auth.getUser()).data.user?.id);
+        .eq("user_id", user.id);
 
       if (error) {
         toast.error("Failed to save notification settings");

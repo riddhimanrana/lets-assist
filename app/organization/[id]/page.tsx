@@ -4,6 +4,11 @@ import { Metadata } from "next";
 import OrganizationHeader from "./OrganizationHeader";
 import OrganizationTabs from "./OrganizationTabs";
 import { Separator } from "@/components/ui/separator";
+import {
+  getAdminDashboardMetrics,
+  getTopVolunteers,
+  getOrgProjectsWithStats,
+} from "./admin/actions";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -138,6 +143,22 @@ export default async function OrganizationPage({ params }: Props): Promise<React
     .select("*")
     .eq("organization_id", organization.id)
     .order("created_at", { ascending: false });
+
+  // Fetch dashboard data if user is admin only
+  let dashboardData = undefined;
+  if (userRole === "admin") {
+    const [metrics, topVolunteers, projectsWithStats] = await Promise.all([
+      getAdminDashboardMetrics(organization.id),
+      getTopVolunteers(organization.id),
+      getOrgProjectsWithStats(organization.id),
+    ]);
+    
+    dashboardData = {
+      metrics,
+      topVolunteers,
+      projectsWithStats,
+    };
+  }
   
   return (
     <div className="flex flex-col w-full">
@@ -157,6 +178,7 @@ export default async function OrganizationPage({ params }: Props): Promise<React
         projects={projects || []}
         userRole={userRole}
         currentUserId={user?.id}
+        dashboardData={dashboardData}
         />
       </div>
       </div>

@@ -2,6 +2,7 @@ export type EventType = "oneTime" | "multiDay" | "sameDayMultiArea";
 export type VerificationMethod = "qr-code" | "auto" | "manual" | "signup-only";
 export type SignupStatus = "approved" | "rejected" | "pending" | "attended";
 export type ProfileVisibility = 'public' | 'private' | 'organization_only';
+export type ProjectVisibility = 'public' | 'unlisted' | 'organization_only';
 
 // New location type to support coordinates
 export interface LocationData {
@@ -98,7 +99,7 @@ export interface Project {
   creator_id: string;
   schedule: ProjectSchedule;
   status: ProjectStatus;
-  is_private: boolean; // Changed from visibility to is_private boolean
+  visibility: ProjectVisibility; // Project visibility: public, unlisted, or organization_only
   organization_id?: string;
   organization?: Organization;
   pause_signups: boolean;

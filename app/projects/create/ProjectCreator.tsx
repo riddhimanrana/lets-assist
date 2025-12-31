@@ -60,7 +60,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
     updateMultiRoleSchedule,
     updateVerificationMethod,
     updateRequireLogin,
-    updateIsPrivate,
+    updateVisibility,
     removeDay,
     removeSlot,
     removeRole,
@@ -201,9 +201,6 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
     if (data.requireLogin !== undefined) {
       updateRequireLogin(data.requireLogin);
     }
-    if (data.isPrivate !== undefined) {
-      updateIsPrivate(data.isPrivate);
-    }
 
     // Close AI Assistant
     setShowAIAssistant(false);
@@ -290,7 +287,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
           verificationSettingsSchema.parse({
             verificationMethod: state.verificationMethod,
             requireLogin: state.requireLogin,
-            isPrivate: state.isPrivate
+            visibility: state.visibility
           });
           setVerificationErrors([]);
           return true;
@@ -375,7 +372,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
       verificationSettingsSchema.parse({
         verificationMethod: state.verificationMethod,
         requireLogin: state.requireLogin,
-        isPrivate: state.isPrivate
+        visibility: state.visibility
       });
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -548,7 +545,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
             verificationMethod={state.verificationMethod}
             requireLogin={state.requireLogin}
             isOrganization={isOrganizationProject()}
-            isPrivate={state.isPrivate}
+            visibility={state.visibility}
             restrictToOrgDomains={state.restrictToOrgDomains}
             allowedEmailDomains={
               state.basicInfo.organizationId
@@ -567,11 +564,11 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
               }
               updateRequireLogin(value);
             }}
-            updateIsPrivateAction={(value) => {
+            updateVisibilityAction={(value) => {
               if (validationAttempted) {
-                setVerificationErrors(prev => prev.filter(error => !error.path.includes('isPrivate')));
+                setVerificationErrors(prev => prev.filter(error => !error.path.includes('visibility')));
               }
-              updateIsPrivate(value);
+              updateVisibility(value);
             }}
             updateRestrictToOrgDomainsAction={updateRestrictToOrgDomains}
             errors={{

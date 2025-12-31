@@ -66,7 +66,7 @@ const mockProjects = [
     event_type: "oneTime",
     schedule: oneTime(tomorrowISO, "09:00", "12:00"), // upcoming
     status: "upcoming",
-    is_private: false,
+    visibility: "public" as const,
     creator_id: "u1",
   },
   {
@@ -77,7 +77,7 @@ const mockProjects = [
     event_type: "oneTime",
     schedule: oneTime(yesterdayISO, "11:00", "13:00"), // completed
     status: "completed",
-    is_private: false,
+    visibility: "public" as const,
     creator_id: "u2",
   },
   {
@@ -88,7 +88,7 @@ const mockProjects = [
     event_type: "oneTime",
     schedule: oneTime(todayISO, "08:00", "10:00"), // depends on current time
     status: "upcoming",
-    is_private: false,
+    visibility: "public" as const,
     creator_id: "u3",
   },
 ];

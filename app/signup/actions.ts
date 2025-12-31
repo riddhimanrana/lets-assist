@@ -11,6 +11,8 @@ const signupSchema = z.object({
   email: z.string().email("Invalid email address"),
   password: z.string().min(8, "Password must be at least 8 characters"),
   turnstileToken: z.string().optional(),
+  staffToken: z.string().optional(),
+  orgUsername: z.string().optional(),
 });
 
 const getSiteUrl = () => {
@@ -65,12 +67,16 @@ export async function checkEmailStatus(email: string): Promise<SignupStatus> {
 
 export async function signup(formData: FormData) {
   const turnstileToken = formData.get("turnstileToken") as string;
+  const staffToken = formData.get("staffToken") as string | undefined;
+  const orgUsername = formData.get("orgUsername") as string | undefined;
 
   const validatedFields = signupSchema.safeParse({
     fullName: formData.get("fullName"),
     email: formData.get("email"),
     password: formData.get("password"),
     turnstileToken,
+    staffToken,
+    orgUsername,
   });
 
   if (!validatedFields.success) {
@@ -138,6 +144,24 @@ export async function signup(formData: FormData) {
 
     // Profile row will be created/updated by DB trigger using user metadata
 
+    // Handle staff token - add user to organization as staff
+    if (staffToken && orgUsername) {
+      try {
+        await handleStaffTokenSignup(user.id, staffToken, orgUsername);
+      } catch (staffError) {
+        console.error("Error processing staff token:", staffError);
+        // Don't fail signup if staff token processing fails
+      }
+    } else {
+      // Check for auto-affiliation based on email domain
+      try {
+        await handleEmailDomainAffiliation(user.id, validatedFields.data.email);
+      } catch (affiliationError) {
+        console.error("Error processing email affiliation:", affiliationError);
+        // Don't fail signup if affiliation processing fails
+      }
+    }
+
     return { 
       success: true, 
       email: validatedFields.data.email,
@@ -145,6 +169,112 @@ export async function signup(formData: FormData) {
     };
   } catch (error) {
     return { error: { server: [(error as Error).message] } };
+  }
+}
+
+/**
+ * Handle staff token signup - add user to organization as staff
+ */
+async function handleStaffTokenSignup(userId: string, staffToken: string, orgUsername: string) {
+  const adminClient = createAdminClient();
+  
+  // Find the organization by username and verify the staff token
+  const { data: org, error: orgError } = await adminClient
+    .from("organizations")
+    .select("id, staff_join_token, staff_join_token_expires_at")
+    .eq("username", orgUsername)
+    .single();
+
+  if (orgError || !org) {
+    console.error("Organization not found for staff token:", orgUsername);
+    return;
+  }
+
+  // Verify the token matches and hasn't expired
+  if (org.staff_join_token !== staffToken) {
+    console.error("Staff token mismatch");
+    return;
+  }
+
+  if (org.staff_join_token_expires_at && new Date(org.staff_join_token_expires_at) < new Date()) {
+    console.error("Staff token expired");
+    return;
+  }
+
+  // Add user to organization as staff
+  const { error: memberError } = await adminClient
+    .from("organization_members")
+    .insert({
+      organization_id: org.id,
+      user_id: userId,
+      role: "staff",
+      joined_at: new Date().toISOString(),
+    });
+
+  if (memberError) {
+    // Check if it's a duplicate - user might already be a member
+    if (memberError.code === "23505") {
+      console.log("User already a member of organization");
+      return;
+    }
+    throw memberError;
+  }
+
+  console.log(`User ${userId} added as staff to organization ${org.id}`);
+}
+
+/**
+ * Handle email domain affiliation - auto-add user to organization based on email domain
+ */
+async function handleEmailDomainAffiliation(userId: string, email: string) {
+  const adminClient = createAdminClient();
+  
+  const domain = email.split("@")[1]?.toLowerCase();
+  if (!domain) return;
+
+  // Check if domain matches an educational institution
+  const { data: institution, error: instError } = await adminClient
+    .from("educational_institutions")
+    .select("id")
+    .eq("domain", domain)
+    .eq("verified", true)
+    .single();
+
+  if (instError || !institution) {
+    // Not a school domain - no auto-affiliation needed
+    return;
+  }
+
+  // Find organizations affiliated with this institution
+  const { data: affiliatedOrgs, error: orgsError } = await adminClient
+    .from("organizations")
+    .select("id")
+    .eq("institution_affiliation", institution.id);
+
+  if (orgsError || !affiliatedOrgs || affiliatedOrgs.length === 0) {
+    // No affiliated organizations - nothing to do
+    return;
+  }
+
+  // Add user to all affiliated organizations as a member
+  for (const org of affiliatedOrgs) {
+    const { error: memberError } = await adminClient
+      .from("organization_members")
+      .insert({
+        organization_id: org.id,
+        user_id: userId,
+        role: "member",
+        joined_at: new Date().toISOString(),
+      });
+
+    if (memberError) {
+      // Skip if already a member (duplicate key)
+      if (memberError.code !== "23505") {
+        console.error(`Error adding user to org ${org.id}:`, memberError);
+      }
+    } else {
+      console.log(`User ${userId} auto-affiliated with organization ${org.id}`);
+    }
   }
 }
 

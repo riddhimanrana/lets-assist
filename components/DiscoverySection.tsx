@@ -157,7 +157,7 @@ export const DiscoverySection = () => {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5, delay: 0.2 }}
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-16"
+          className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5 md:gap-6 mb-16"
         >
           {discoveryFeatures.map((feature, index) => (
             <motion.div
@@ -227,7 +227,7 @@ export const DiscoverySection = () => {
           <h3 className="text-xl font-semibold text-center mb-8">
             Verified Network Results
           </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 md:gap-6">
             {mockOpportunities.map((opportunity, index) => (
               <OpportunityCard key={index} opportunity={opportunity} index={index} />
             ))}
@@ -242,7 +242,7 @@ export const DiscoverySection = () => {
           transition={{ duration: 0.5, delay: 0.8 }}
           className="text-center"
         >
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-3xl mx-auto">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 max-w-3xl mx-auto">
             <div>
               <h4 className="text-2xl font-bold text-primary mb-1">500+</h4>
               <p className="text-muted-foreground text-sm">Verified Organizations</p>
