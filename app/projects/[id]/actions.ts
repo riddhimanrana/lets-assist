@@ -849,13 +849,18 @@ export async function signUpForProject(
 
       // Step 2: If we found an anonymous record for this email, check if they have a signup for THIS specific slot
       if (existingAnonRecord) {
-        const { data: existingSlotSignup } = await supabase
+        const { data: existingSlotSignup, error: slotLookupError } = await supabase
           .from('project_signups')
           .select('id, status')
           .eq('project_id', projectId)
           .eq('schedule_id', scheduleId)
           .eq('anonymous_id', existingAnonRecord.id)
           .maybeSingle();
+
+        if (slotLookupError) {
+          console.error("Error checking for existing slot signup:", slotLookupError);
+          return { error: "An error occurred while checking signup status." };
+        }
 
         if (existingSlotSignup) {
           const signupStatus = existingSlotSignup.status;
