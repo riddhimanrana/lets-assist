@@ -829,32 +829,52 @@ export async function signUpForProject(
         return { error: "An error occurred while checking email availability." };
       }
 
-      // Check for an existing anonymous signup for this specific slot with this email for any status
+      // Check for an existing anonymous signup for this specific slot with this email
       const emailToCheck = (anonymousData.email ?? "").toLowerCase();
       console.log("Checking for existing anonymous signup with email:", emailToCheck);
 
-      // Attempt to retrieve an existing anonymous signup record for the project and email
-      const { data: existingAnonSignup } = await supabase
-        .from('project_signups')
-        .select('id, status, anonymous_signup:anonymous_signups!project_signups_anonymous_id_fkey(id, email)')
+      // FIXED: Use two separate queries to properly check email match
+      // Step 1: Find anonymous_signups record for this email and project
+      const { data: existingAnonRecord, error: anonLookupError } = await supabase
+        .from('anonymous_signups')
+        .select('id')
         .eq('project_id', projectId)
-        .eq('schedule_id', scheduleId)
-        .not('anonymous_id', 'is', null)
-        .eq('anonymous_signup.email', emailToCheck)
-        .limit(1)
+        .eq('email', emailToCheck)
         .maybeSingle();
 
-      const signupStatus = existingAnonSignup?.status;
-
-      if (signupStatus) {
-        if (signupStatus === "pending") {
-          return { error: "An unconfirmed signup with this email already exists for this slot. Please check your email." };
-        } else if (signupStatus === "approved") {
-          return { error: "This email has already signed up and confirmed for this slot." };
-        } else if (signupStatus === "rejected") {
-          return { error: "This email has been rejected by the project coordinator. Contact them for more details." };
-        }
+      if (anonLookupError) {
+        console.error("Error checking for existing anonymous signup:", anonLookupError);
+        return { error: "An error occurred while checking signup status." };
       }
+
+      // Step 2: If we found an anonymous record for this email, check if they have a signup for THIS specific slot
+      if (existingAnonRecord) {
+        const { data: existingSlotSignup } = await supabase
+          .from('project_signups')
+          .select('id, status')
+          .eq('project_id', projectId)
+          .eq('schedule_id', scheduleId)
+          .eq('anonymous_id', existingAnonRecord.id)
+          .maybeSingle();
+
+        if (existingSlotSignup) {
+          const signupStatus = existingSlotSignup.status;
+          
+          if (signupStatus === "pending") {
+            return { error: "An unconfirmed signup with this email already exists for this slot. Please check your email." };
+          } else if (signupStatus === "approved") {
+            return { error: "This email has already signed up and confirmed for this slot." };
+          } else if (signupStatus === "rejected") {
+            return { error: "This email has been rejected by the project coordinator. Contact them for more details." };
+          }
+        }
+        // If no signup for this slot exists, continue to allow signup for a different slot
+      }
+
+      // If we reach here, either:
+      // - No anonymous record exists for this email/project (new user), OR  
+      // - Anonymous record exists but no signup for THIS specific schedule_id (multi-day different slot)
+      // Either way, proceed with creating the signup...
 
       // Proceed to create new anonymous signup records
       let anonymousSignupId: string | null = null;
