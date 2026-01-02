@@ -23,16 +23,18 @@ import {
 import { Input } from "@/components/ui/input";
 import { initialOnboardingSchema, InitialOnboardingValues } from "@/schemas/onboarding-schema";
 import { useState, useEffect } from "react";
-import { completeInitialOnboarding, checkUsernameAvailability } from "./onboarding-actions";
+import { completeInitialOnboarding } from "./onboarding-actions";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
-import { CircleCheck, XCircle } from "lucide-react";
+import { CircleCheck, XCircle, Sparkles, Building2, ArrowRight, Loader2 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
-// Constants for validation - same as ProfileClient
+// Constants for validation
 const USERNAME_MIN_LENGTH = 3;
 const USERNAME_MAX_LENGTH = 32;
-const PHONE_LENGTH = 10; // For raw digits
+const PHONE_LENGTH = 10;
 const USERNAME_REGEX = /^[a-zA-Z0-9_.-]+$/;
 
 interface InitialOnboardingModalProps {
@@ -41,6 +43,7 @@ interface InitialOnboardingModalProps {
   userId: string;
   currentFullName?: string | null;
   currentEmail?: string | null;
+  autoJoinedOrg?: { id: string; name: string } | null;
 }
 
 export default function InitialOnboardingModal({
@@ -49,16 +52,36 @@ export default function InitialOnboardingModal({
   userId,
   currentFullName,
   currentEmail,
+  autoJoinedOrg,
 }: InitialOnboardingModalProps) {
-  console.log("🎯 InitialOnboardingModal rendered:", { isOpen, userId, currentFullName, currentEmail });
-
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const router = useRouter();
-
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
   const [checkingUsername, setCheckingUsername] = useState(false);
   const [usernameLength, setUsernameLength] = useState(0);
   const [phoneNumberLength, setPhoneNumberLength] = useState(0);
+  const [orgLogoUrl, setOrgLogoUrl] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Fetch org logo if auto-joined
+  useEffect(() => {
+    if (autoJoinedOrg?.id) {
+      const supabase = createClient();
+      supabase
+        .from("organizations")
+        .select("logo_url")
+        .eq("id", autoJoinedOrg.id)
+        .single()
+        .then(({ data }) => {
+          if (data?.logo_url) {
+            setOrgLogoUrl(data.logo_url);
+          }
+        });
+    }
+  }, [autoJoinedOrg?.id]);
 
   const form = useForm<InitialOnboardingValues>({
     resolver: zodResolver(initialOnboardingSchema),
@@ -68,7 +91,6 @@ export default function InitialOnboardingModal({
     },
   });
 
-  // Watch username changes to update character count
   const usernameValue = form.watch("username");
   const phoneValue = form.watch("phoneNumber");
 
@@ -77,7 +99,6 @@ export default function InitialOnboardingModal({
   }, [usernameValue]);
 
   useEffect(() => {
-    // Count only digits for phone number length - exactly like ProfileClient
     const digitsOnly = phoneValue?.replace(/\D/g, '') || '';
     setPhoneNumberLength(digitsOnly.length);
   }, [phoneValue]);
@@ -93,9 +114,7 @@ export default function InitialOnboardingModal({
       const res = await fetch(
         `/api/check-username?username=${encodeURIComponent(username)}`,
       );
-      if (!res.ok) {
-        throw new Error("Failed to check username");
-      }
+      if (!res.ok) throw new Error("Failed to check username");
       const data = await res.json();
       setUsernameAvailable(data.available);
     } catch (error) {
@@ -111,10 +130,9 @@ export default function InitialOnboardingModal({
     return USERNAME_REGEX.test(username);
   }
 
-  // Helper function to format phone number input - exact same as ProfileClient
   const formatPhoneNumber = (value: string): string => {
     if (!value) return value;
-    const phoneNumber = value.replace(/[^\d]/g, ""); // Allow only digits
+    const phoneNumber = value.replace(/[^\d]/g, "");
     const phoneNumberLength = phoneNumber.length;
 
     if (phoneNumberLength < 4) return phoneNumber;
@@ -123,7 +141,6 @@ export default function InitialOnboardingModal({
     }
     return `${phoneNumber.slice(0, 3)}-${phoneNumber.slice(3, 6)}-${phoneNumber.slice(6, 10)}`;
   };
-
 
   async function onSubmit(values: InitialOnboardingValues) {
     setIsSubmitting(true);
@@ -151,7 +168,6 @@ export default function InitialOnboardingModal({
       } else {
         toast.success("Welcome to Let's Assist! Your profile has been set up.");
 
-        // Force refresh the user to get updated metadata with multiple retries
         const supabase = createClient();
         let retries = 0;
         const maxRetries = 5;
@@ -165,40 +181,34 @@ export default function InitialOnboardingModal({
             }
 
             const hasCompletedOnboarding = user?.user_metadata?.has_completed_onboarding === true;
-            console.log("User metadata check:", user?.user_metadata, "Completed:", hasCompletedOnboarding);
 
             if (hasCompletedOnboarding) {
-              console.log("Onboarding metadata successfully updated");
+              const autoJoinedOrgName = user?.user_metadata?.auto_joined_org_name;
+              if (autoJoinedOrgName) {
+                setTimeout(() => {
+                  toast.info(`You've been automatically added to ${autoJoinedOrgName} based on your email domain.`, {
+                    duration: 6000,
+                  });
+                }, 1500);
+              }
               return true;
             }
 
             if (retries < maxRetries) {
               retries++;
-              console.log(`Waiting for metadata update, retry ${retries}/${maxRetries}`);
               await new Promise(resolve => setTimeout(resolve, 1000));
               return await waitForMetadataUpdate();
             }
 
             return false;
-          } catch (refreshError) {
-            console.warn("User fetch failed after onboarding:", refreshError);
+          } catch {
             return false;
           }
         };
 
-        // Wait for metadata to be updated
-        const metadataUpdated = await waitForMetadataUpdate();
-
-        if (metadataUpdated) {
-          console.log("Metadata confirmed updated, closing modal");
-        } else {
-          console.warn("Metadata update timeout, but proceeding anyway");
-        }
-
-        // Close modal immediately after success
+        await waitForMetadataUpdate();
         onClose();
 
-        // Refresh page after a short delay to ensure all UI updates
         setTimeout(() => {
           window.location.href = "/";
         }, 1000);
@@ -211,7 +221,6 @@ export default function InitialOnboardingModal({
     }
   }
 
-  // Prevent closing the dialog by clicking outside or pressing Escape
   const handleInteractOutside = (event: Event) => {
     event.preventDefault();
   };
@@ -219,131 +228,211 @@ export default function InitialOnboardingModal({
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent
-        className="w-full max-w-[95vw] sm:max-w-[425px]"
+        className="w-full max-w-[95vw] sm:max-w-[480px] p-0 overflow-hidden gap-0"
         onInteractOutside={handleInteractOutside}
-        onEscapeKeyDown={handleInteractOutside} // Also prevent Esc key
+        onEscapeKeyDown={handleInteractOutside}
       >
-        <DialogHeader>
-          <DialogTitle>Welcome to Let&apos;s Assist!</DialogTitle>
-          <DialogDescription>
-            Let&apos;s set up your profile. Note: this won&apos;t display again after you complete onboarding.
-          </DialogDescription>
-        </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 py-4">
-            <FormField
-              control={form.control}
-              name="username"
-              render={({ field }) => (
-                <FormItem>
-                  <div className="flex justify-between items-center">
-                    <FormLabel>Username</FormLabel>
-                    <span
-                      className={`text-xs ${usernameLength > USERNAME_MAX_LENGTH ? "text-destructive font-semibold" : "text-muted-foreground"}`}
-                    >
-                      {usernameLength}/{USERNAME_MAX_LENGTH}
-                    </span>
+        <AnimatePresence>
+          {mounted && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+            >
+              {/* Header with gradient background */}
+              <div className="relative bg-gradient-to-br from-primary/10 via-primary/5 to-background px-6 pt-8 pb-6 border-b">
+                <motion.div 
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ delay: 0.1, duration: 0.4 }}
+                  className="flex items-center gap-3 mb-4"
+                >
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+                    <Sparkles className="h-6 w-6" />
                   </div>
-                  <div className="relative">
-                    <FormControl>
-                      <Input
-                        placeholder="Choose a unique username"
-                        {...field}
-                        maxLength={USERNAME_MAX_LENGTH}
-                        onChange={(e) => {
-                          const noSpaces = e.target.value.replace(
-                            /\s/g,
-                            "",
-                          );
-                          const lower = noSpaces.toLowerCase();
-                          field.onChange(lower);
-                          setUsernameLength(lower.length);
-                        }}
-                        onBlur={(e) => {
-                          field.onBlur();
-                          handleUsernameBlur(e);
-                        }}
-                        className={
-                          !checkUsernameValid(field.value || "") &&
-                            field.value
-                            ? "border-destructive"
-                            : undefined
-                        }
+                  <div>
+                    <DialogTitle className="text-xl font-semibold">Welcome to Let&apos;s Assist!</DialogTitle>
+                    <DialogDescription className="text-sm">
+                      Let&apos;s set up your profile in seconds
+                    </DialogDescription>
+                  </div>
+                </motion.div>
+
+                {/* Auto-joined organization banner */}
+                {autoJoinedOrg && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2, duration: 0.4 }}
+                    className="flex items-center gap-3 p-3 rounded-lg bg-background/80 backdrop-blur-sm border shadow-sm"
+                  >
+                    <Avatar className="h-10 w-10 border">
+                      <AvatarImage src={orgLogoUrl || undefined} alt={autoJoinedOrg.name} />
+                      <AvatarFallback className="bg-primary/10">
+                        <Building2 className="h-5 w-5 text-primary" />
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-muted-foreground">You&apos;ve been added to</p>
+                      <p className="font-medium text-sm truncate">{autoJoinedOrg.name}</p>
+                    </div>
+                    <CircleCheck className="h-5 w-5 text-primary shrink-0" />
+                  </motion.div>
+                )}
+              </div>
+
+              {/* Form content */}
+              <div className="px-6 py-6">
+                <Form {...form}>
+                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+                    <motion.div
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.15, duration: 0.3 }}
+                    >
+                      <FormField
+                        control={form.control}
+                        name="username"
+                        render={({ field }) => (
+                          <FormItem>
+                            <div className="flex justify-between items-center">
+                              <FormLabel className="text-sm font-medium">Choose your username</FormLabel>
+                              <span
+                                className={`text-xs tabular-nums ${usernameLength > USERNAME_MAX_LENGTH ? "text-destructive font-semibold" : "text-muted-foreground"}`}
+                              >
+                                {usernameLength}/{USERNAME_MAX_LENGTH}
+                              </span>
+                            </div>
+                            <div className="relative">
+                              <FormControl>
+                                <Input
+                                  placeholder="username"
+                                  {...field}
+                                  maxLength={USERNAME_MAX_LENGTH}
+                                  className="h-11 pr-10 transition-all duration-200 focus:ring-2 focus:ring-primary/20"
+                                  onChange={(e) => {
+                                    const noSpaces = e.target.value.replace(/\s/g, "");
+                                    const lower = noSpaces.toLowerCase();
+                                    field.onChange(lower);
+                                    setUsernameLength(lower.length);
+                                  }}
+                                  onBlur={(e) => {
+                                    field.onBlur();
+                                    handleUsernameBlur(e);
+                                  }}
+                                />
+                              </FormControl>
+                              <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                {checkingUsername && (
+                                  <motion.div
+                                    initial={{ scale: 0 }}
+                                    animate={{ scale: 1 }}
+                                    className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"
+                                  />
+                                )}
+                                {usernameAvailable !== null && !checkingUsername && (
+                                  <motion.div
+                                    initial={{ scale: 0 }}
+                                    animate={{ scale: 1 }}
+                                    transition={{ type: "spring", stiffness: 500, damping: 25 }}
+                                  >
+                                    {usernameAvailable ? (
+                                      <CircleCheck className="h-5 w-5 text-primary" />
+                                    ) : (
+                                      <XCircle className="h-5 w-5 text-destructive" />
+                                    )}
+                                  </motion.div>
+                                )}
+                              </div>
+                            </div>
+                            <FormDescription className="text-xs">
+                              Letters, numbers, underscores, dots, and hyphens only
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
                       />
-                    </FormControl>
-                    {checkingUsername && (
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-foreground border-t-transparent" />
-                      </div>
-                    )}
-                    {usernameAvailable !== null &&
-                      !checkingUsername && (
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                          {usernameAvailable ? (
-                            <CircleCheck className="h-5 w-5 text-primary" />
-                          ) : (
-                            <XCircle className="h-5 w-5 text-destructive" />
-                          )}
-                        </div>
-                      )}
-                  </div>
-                  <FormDescription className="flex items-center gap-1.5">
-                    Only letters, numbers, underscores, dots, and
-                    hyphens allowed
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="phoneNumber"
-              render={({ field }) => (
-                <FormItem>
-                  <div className="flex justify-between items-center">
-                    <FormLabel>Phone Number (Optional)</FormLabel>
-                    <span
-                      className={`text-xs ${phoneNumberLength > PHONE_LENGTH ? "text-destructive font-semibold" : "text-muted-foreground"}`}
+                    </motion.div>
+
+                    <motion.div
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.25, duration: 0.3 }}
                     >
-                      {phoneNumberLength}/{PHONE_LENGTH}
-                    </span>
-                  </div>
-                  <FormControl>
-                    <Input
-                      type="tel"
-                      placeholder="XXX-XXX-XXXX"
-                      {...field}
-                      value={field.value || ""}
-                      onChange={(e) => {
-                        const formatted = formatPhoneNumber(e.target.value);
-                        field.onChange(formatted);
-                        setPhoneNumberLength(formatted.replace(/-/g, "").length);
-                      }}
-                      maxLength={12} // Max length for XXX-XXX-XXXX format
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    Enter your 10-digit phone number. This will be used for contact when signing up/creating projects.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <DialogFooter>
-              <Button
-                type="submit"
-                disabled={
-                  isSubmitting ||
-                  checkingUsername ||
-                  Boolean(usernameValue && usernameValue.length >= USERNAME_MIN_LENGTH && usernameAvailable === false)
-                }
-                className="w-full sm:w-auto"
-              >
-                {isSubmitting ? "Setting up your profile..." : "Complete Setup"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
+                      <FormField
+                        control={form.control}
+                        name="phoneNumber"
+                        render={({ field }) => (
+                          <FormItem>
+                            <div className="flex justify-between items-center">
+                              <FormLabel className="text-sm font-medium">
+                                Phone Number <span className="text-muted-foreground font-normal">(optional)</span>
+                              </FormLabel>
+                              <span
+                                className={`text-xs tabular-nums ${phoneNumberLength > PHONE_LENGTH ? "text-destructive font-semibold" : "text-muted-foreground"}`}
+                              >
+                                {phoneNumberLength}/{PHONE_LENGTH}
+                              </span>
+                            </div>
+                            <FormControl>
+                              <Input
+                                type="tel"
+                                placeholder="XXX-XXX-XXXX"
+                                {...field}
+                                value={field.value || ""}
+                                className="h-11 transition-all duration-200 focus:ring-2 focus:ring-primary/20"
+                                onChange={(e) => {
+                                  const formatted = formatPhoneNumber(e.target.value);
+                                  field.onChange(formatted);
+                                  setPhoneNumberLength(formatted.replace(/-/g, "").length);
+                                }}
+                                maxLength={12}
+                              />
+                            </FormControl>
+                            <FormDescription className="text-xs">
+                              Used for project coordination and volunteer signups
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </motion.div>
+
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.35, duration: 0.3 }}
+                    >
+                      <DialogFooter className="pt-2">
+                        <Button
+                          type="submit"
+                          disabled={
+                            isSubmitting ||
+                            checkingUsername ||
+                            Boolean(usernameValue && usernameValue.length >= USERNAME_MIN_LENGTH && usernameAvailable === false)
+                          }
+                          className="w-full h-11 font-medium gap-2 transition-all duration-200"
+                        >
+                          {isSubmitting ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              Setting up your profile...
+                            </>
+                          ) : (
+                            <>
+                              Get Started
+                              <ArrowRight className="h-4 w-4" />
+                            </>
+                          )}
+                        </Button>
+                      </DialogFooter>
+                    </motion.div>
+                  </form>
+                </Form>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </DialogContent>
     </Dialog>
   );

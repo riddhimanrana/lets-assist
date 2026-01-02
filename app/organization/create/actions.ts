@@ -27,8 +27,34 @@ type OrganizationCreationData = {
   type: 'nonprofit' | 'school' | 'company' | 'government' | 'other';
   logoUrl: string | null;
   createdBy: string;
-  allowedEmailDomains?: string[];
+  autoJoinDomain?: string;
 };
+
+/**
+ * Check if a domain is available for auto-join (not used by another organization)
+ */
+export async function checkDomainAvailability(domain: string): Promise<boolean> {
+  const supabase = await createClient();
+
+  if (!domain || domain.length < 3) {
+    return false;
+  }
+
+  const normalizedDomain = domain.toLowerCase().trim();
+
+  const { data, error } = await supabase
+    .from("organizations")
+    .select("id")
+    .eq("auto_join_domain", normalizedDomain)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Error checking domain:", error);
+    return false;
+  }
+
+  return !data;
+}
 
 /**
  * Check if an organization username is available
@@ -113,6 +139,14 @@ export async function createOrganization(data: OrganizationCreationData) {
     return { error: "Username is already taken" };
   }
 
+  // If auto-join domain is provided, verify it's available
+  if (data.autoJoinDomain) {
+    const isDomainAvailable = await checkDomainAvailability(data.autoJoinDomain);
+    if (!isDomainAvailable) {
+      return { error: "This domain is already linked to another organization" };
+    }
+  }
+
   // Generate a random join code
   const joinCode = generateJoinCode();
 
@@ -129,7 +163,7 @@ export async function createOrganization(data: OrganizationCreationData) {
         join_code: joinCode,
         logo_url: null,  // initially set to null
         created_by: user.id,
-        allowed_email_domains: data.allowedEmailDomains || null
+        auto_join_domain: data.autoJoinDomain || null
       })
       .select("id")
       .single();
