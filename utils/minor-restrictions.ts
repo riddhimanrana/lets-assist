@@ -1,37 +1,15 @@
 /**
- * School Account Utilities
+ * Domain-based Organization Utilities
  * 
- * Helper functions for identifying school accounts based on email domain.
- * School accounts have some different default settings for privacy.
+ * Helper functions for checking email domains linked to organizations.
  */
 
 import { createClient } from "@/utils/supabase/server";
 
 /**
- * Check if an email belongs to a verified educational institution
+ * Check if an email domain is linked to an organization with auto-join
  */
-export async function isSchoolEmail(email: string): Promise<boolean> {
-  if (!email) return false;
-  
-  const domain = email.split('@')[1]?.toLowerCase();
-  if (!domain) return false;
-  
-  const supabase = await createClient();
-  
-  const { data: institution } = await supabase
-    .from("educational_institutions")
-    .select("id")
-    .eq("domain", domain)
-    .eq("verified", true)
-    .single();
-  
-  return !!institution;
-}
-
-/**
- * Get the institution info for a school email
- */
-export async function getInstitutionByEmail(email: string) {
+export async function getOrganizationByEmailDomain(email: string) {
   if (!email) return null;
   
   const domain = email.split('@')[1]?.toLowerCase();
@@ -39,28 +17,26 @@ export async function getInstitutionByEmail(email: string) {
   
   const supabase = await createClient();
   
-  const { data: institution } = await supabase
-    .from("educational_institutions")
-    .select("id, name, domain, type")
-    .eq("domain", domain)
-    .eq("verified", true)
+  const { data: org } = await supabase
+    .from("organizations")
+    .select("id, name, username, auto_join_domain")
+    .eq("auto_join_domain", domain)
     .single();
   
-  return institution;
+  return org;
 }
 
 /**
  * Default profile visibility for new accounts
- * School accounts default to private for better privacy
  */
-export function getDefaultProfileVisibility(isSchoolAccount: boolean): 'public' | 'private' {
-  return isSchoolAccount ? 'private' : 'public';
+export function getDefaultProfileVisibility(): 'public' | 'private' {
+  return 'public';
 }
 
 /**
  * Check if user can create organizations
- * School accounts (students) typically can't create orgs - they join via staff links
+ * All users can create organizations (trusted member check handled elsewhere)
  */
-export function canCreateOrganization(isSchoolAccount: boolean): boolean {
-  return !isSchoolAccount;
+export function canCreateOrganization(): boolean {
+  return true;
 }

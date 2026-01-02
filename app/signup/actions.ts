@@ -225,57 +225,54 @@ async function handleStaffTokenSignup(userId: string, staffToken: string, orgUse
 
 /**
  * Handle email domain affiliation - auto-add user to organization based on email domain
+ * Returns the organization ID if the user was auto-added, null otherwise
  */
-async function handleEmailDomainAffiliation(userId: string, email: string) {
+async function handleEmailDomainAffiliation(userId: string, email: string): Promise<string | null> {
   const adminClient = createAdminClient();
   
   const domain = email.split("@")[1]?.toLowerCase();
-  if (!domain) return;
+  if (!domain) return null;
 
-  // Check if domain matches an educational institution
-  const { data: institution, error: instError } = await adminClient
-    .from("educational_institutions")
-    .select("id")
-    .eq("domain", domain)
-    .eq("verified", true)
+  // Check if any organization has auto_join_domain set to this domain
+  const { data: org, error: orgError } = await adminClient
+    .from("organizations")
+    .select("id, name")
+    .eq("auto_join_domain", domain)
     .single();
 
-  if (instError || !institution) {
-    // Not a school domain - no auto-affiliation needed
-    return;
+  if (orgError || !org) {
+    // No organization with this auto-join domain
+    return null;
   }
 
-  // Find organizations affiliated with this institution
-  const { data: affiliatedOrgs, error: orgsError } = await adminClient
-    .from("organizations")
-    .select("id")
-    .eq("institution_affiliation", institution.id);
+  // Add user to the organization as a member
+  const { error: memberError } = await adminClient
+    .from("organization_members")
+    .insert({
+      organization_id: org.id,
+      user_id: userId,
+      role: "member",
+      joined_at: new Date().toISOString(),
+    });
 
-  if (orgsError || !affiliatedOrgs || affiliatedOrgs.length === 0) {
-    // No affiliated organizations - nothing to do
-    return;
-  }
-
-  // Add user to all affiliated organizations as a member
-  for (const org of affiliatedOrgs) {
-    const { error: memberError } = await adminClient
-      .from("organization_members")
-      .insert({
-        organization_id: org.id,
-        user_id: userId,
-        role: "member",
-        joined_at: new Date().toISOString(),
-      });
-
-    if (memberError) {
-      // Skip if already a member (duplicate key)
-      if (memberError.code !== "23505") {
-        console.error(`Error adding user to org ${org.id}:`, memberError);
-      }
-    } else {
-      console.log(`User ${userId} auto-affiliated with organization ${org.id}`);
+  if (memberError) {
+    // Skip if already a member (duplicate key)
+    if (memberError.code !== "23505") {
+      console.error(`Error adding user to org ${org.id}:`, memberError);
     }
+    return null;
   }
+
+  // Store the auto-joined organization info in user metadata for display after onboarding
+  await adminClient.auth.admin.updateUserById(userId, {
+    user_metadata: {
+      auto_joined_org_id: org.id,
+      auto_joined_org_name: org.name,
+    }
+  });
+
+  console.log(`User ${userId} auto-affiliated with organization ${org.id} via domain ${domain}`);
+  return org.id;
 }
 
 export async function resendVerificationEmail(email: string, turnstileToken?: string) {

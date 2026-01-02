@@ -13,7 +13,7 @@ const TermsPage = () => {
       <main className="flex flex-col items-center justify-center w-full flex-1 sm:px-10 md:px-24 text-center">
         <h1 className="text-4xl font-bold mb-2">Terms of Service</h1>
         <p className="text-sm mt-0 mb-8 text-muted-foreground">
-          Last updated February 22, 2025
+          Last updated December 31, 2025
         </p>
 
         <section className="mt-8 text-left max-w-2xl space-y-8">
@@ -30,9 +30,8 @@ const TermsPage = () => {
           <h2 className="text-2xl font-semibold">2. Eligibility</h2>
           <p className="mt-2 leading-relaxed">
             You must be at least 13 years old to use Let&apos;s Assist. By using
-            our services, you confirm that you meet this requirement and have
-            the legal capacity to agree to these Terms. If you are under 18, you
-            must have parental or guardian consent before using our services.
+            our services, you confirm that you are at least 13 years old and have
+            the legal capacity to agree to these Terms.
           </p>
 
           <h2 className="text-2xl font-semibold">3. User Responsibilities</h2>
@@ -72,81 +71,50 @@ const TermsPage = () => {
 
           <h2 className="text-2xl font-semibold">4. Volunteer Opportunities</h2>
           <p className="mt-2 leading-relaxed">
-            Let&apos;s Assist serves as a bridge between volunteers and
-            organizations in need of assistance. While we strive to ensure the
-            quality of listings, we do not verify or guarantee the safety,
-            accuracy, or legitimacy of any volunteer opportunities. Users are
-            responsible for conducting their own research and exercising caution
-            before participating in any activity.
+            Let&apos;s Assist connects volunteers with organizations. We do not
+            verify, guarantee, or endorse any volunteer opportunities. You are
+            solely responsible for evaluating opportunities, conducting your own
+            research, and deciding whether to participate. We are not liable for
+            any issues, injuries, or disputes arising from your participation in
+            volunteering activities.
           </p>
           <p className="mt-2 leading-relaxed">
-            Organizations listing opportunities on Let&apos;s Assist must:
+            Organizations posting opportunities agree to:
           </p>
           <ul className="list-disc pl-5 mt-2 space-y-2">
-            <li>
-              Provide clear and accurate descriptions of their volunteer needs.
-            </li>
-            <li>
-              Not misrepresent the nature of the opportunity or the expected
-              responsibilities.
-            </li>
-            <li>Ensure a safe and welcoming environment for volunteers.</li>
-            <li>Not post misleading, inappropriate, or fraudulent content.</li>
-            <li>
-              Avoid excessive or duplicate postings to maintain platform
-              integrity.
-            </li>
+            <li>Provide accurate descriptions of volunteer needs.</li>
+            <li>Treat volunteers respectfully and safely.</li>
+            <li>Not post fraudulent, misleading, or inappropriate content.</li>
           </ul>
           <p className="mt-2 leading-relaxed">
-            Failure to adhere to these guidelines may result in removal of
-            content and suspension or termination of account access.
+            We reserve the right to remove content and suspend or terminate
+            accounts that violate these guidelines.
           </p>
 
           <h2 className="text-2xl font-semibold">5. Data and Privacy</h2>
           <p className="mt-2 leading-relaxed">
-            By using Let&apos;s Assist, you agree to our Privacy Policy. We
-            collect and process data as described in that policy to enhance user
-            experience and improve our platform. You acknowledge that:
+            By using Let&apos;s Assist, you agree to our Privacy Policy. See that
+            document for details on what data we collect, how we use it, and your
+            rights. You can delete your account and all associated data at any time.
           </p>
-          <ul className="list-disc pl-5 mt-2 space-y-2">
-            <li>
-              We may use analytics tools like PostHog to gather insights on
-              platform usage.
-            </li>
-            <li>Supabase is used for secure data management and storage.</li>
-            <li>
-              Your personal information is protected under our security
-              protocols, but no system is completely immune to potential
-              breaches.
-            </li>
-            <li>
-              You have the right to delete your account and all associated data
-              at any time (see Privacy Policy for details).
-            </li>
-          </ul>
 
           <h2 className="text-2xl font-semibold">6. Limitation of Liability</h2>
           <p className="mt-2 leading-relaxed">
-            Let&apos;s Assist is provided &quot;as is&quot; without warranties
-            of any kind. We make no guarantees about the accuracy, reliability,
-            or availability of our platform and are not liable for:
+            Let&apos;s Assist is provided &quot;as is&quot; without warranties.
+            To the fullest extent permitted by law, we are not liable for any
+            damages, losses, or disputes arising from your use of the platform or
+            interactions with organizations and other users.
           </p>
-          <ul className="list-disc pl-5 mt-2 space-y-2">
-            <li>
-              Any losses or damages resulting from the use or inability to use
-              our services.
-            </li>
-            <li>
-              Issues arising from interactions with third-party organizations or
-              volunteers.
-            </li>
-            <li>
-              Unauthorized access to user data due to unforeseen security
-              vulnerabilities.
-            </li>
-          </ul>
 
-          <h2 className="text-2xl font-semibold">7. Changes to Terms</h2>
+          <h2 className="text-2xl font-semibold">7. Account Suspension</h2>
+          <p className="mt-2 leading-relaxed">
+            We reserve the right to suspend or terminate your account if you
+            violate these Terms, including but not limited to: providing false
+            information, engaging in harassment or misconduct, or misusing the
+            platform.
+          </p>
+
+          <h2 className="text-2xl font-semibold">8. Changes to Terms</h2>
           <p className="mt-2 leading-relaxed">
             We may update these Terms at any time. Continued use of Let&apos;s
             Assist after changes means you accept the updated Terms. We
@@ -154,7 +122,7 @@ const TermsPage = () => {
             modifications.
           </p>
 
-          <h2 className="text-2xl font-semibold">8. Contact</h2>
+          <h2 className="text-2xl font-semibold">9. Contact</h2>
           <p className="mt-2 leading-relaxed">
             For any questions, reach out to us at{" "}
             <Link

@@ -287,33 +287,32 @@ body[data-first-login-tour='true'] .radix-overlay {
           <div className="pointer-events-none fixed inset-0 z-[90]">
             {highlightStyle ? (
               <>
+                {/* Use a single div with a massive box-shadow to create the overlay with a clear cutout */}
                 <div
-                  className="absolute left-0 right-0 bg-slate-950/70 transition-all duration-300 ease-out"
-                  style={{ top: 0, height: highlightStyle.top }}
-                />
-                <div
-                  className="absolute left-0 right-0 bg-slate-950/70 transition-all duration-300 ease-out"
-                  style={{ top: highlightStyle.top + highlightStyle.height, bottom: 0 }}
-                />
-                <div
-                  className="absolute bg-slate-950/70 transition-all duration-300 ease-out"
-                  style={{ top: highlightStyle.top, left: 0, width: highlightStyle.left, height: highlightStyle.height }}
-                />
-                <div
-                  className="absolute bg-slate-950/70 transition-all duration-300 ease-out"
-                  style={{ top: highlightStyle.top, right: 0, width: `calc(100% - ${highlightStyle.left + highlightStyle.width}px)`, height: highlightStyle.height }}
-                />
-                <div
-                  className="absolute border border-primary/60 bg-transparent transition-[top,left,width,height] duration-300 ease-out ring-1 ring-primary/40"
+                  className="absolute transition-all duration-300 ease-out"
                   style={{
-                    ...highlightStyle,
+                    top: highlightStyle.top,
+                    left: highlightStyle.left,
+                    width: highlightStyle.width,
+                    height: highlightStyle.height,
                     borderRadius: highlightStyle.borderRadius,
-                    boxShadow: "0 0 0 2px rgba(15,118,110,0.25)",
+                    boxShadow: "0 0 0 9999px rgba(2, 6, 23, 0.75)",
+                  }}
+                />
+                {/* Border highlight around the cutout */}
+                <div
+                  className="absolute border-2 border-primary/70 transition-[top,left,width,height] duration-300 ease-out ring-2 ring-primary/30"
+                  style={{
+                    top: highlightStyle.top,
+                    left: highlightStyle.left,
+                    width: highlightStyle.width,
+                    height: highlightStyle.height,
+                    borderRadius: highlightStyle.borderRadius,
                   }}
                 />
               </>
             ) : (
-              <div className="absolute inset-0 bg-slate-950/70" />
+              <div className="absolute inset-0 bg-slate-950/75" />
             )}
           </div>,
           highlightPortalRoot
