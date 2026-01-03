@@ -1,4 +1,4 @@
-import { Compass, ListChecks, Bell, UserRound, Target, CalendarDays } from "lucide-react";
+import { Compass, ListChecks, Bell, UserRound, Target, CalendarDays, Building2, Users } from "lucide-react";
 import type { Tour } from "nextstepjs";
 
 export const FIRST_LOGIN_TOUR_STEPS: Tour[] = [
@@ -69,6 +69,27 @@ export const FIRST_LOGIN_TOUR_STEPS: Tour[] = [
         selector: "[data-tour-id='dashboard-upcoming']",
         side: "left",
         pointerPadding: 18,
+        nextRoute: "/organization",
+      },
+      {
+        icon: <Building2 className="h-5 w-5" />,
+        title: "Discover organizations",
+        content: (
+          <>Browse verified organizations and see which ones you're already part of.</>
+        ),
+        selector: "[data-tour-id='org-header']",
+        side: "bottom",
+        pointerPadding: 16,
+      },
+      {
+        icon: <Users className="h-5 w-5" />,
+        title: "Join the community",
+        content: (
+          <>Create or join organizations to collaborate on volunteer projects with teams and track collective impact.</>
+        ),
+        selector: "[data-tour-id='org-actions']",
+        side: "left",
+        pointerPadding: 14,
         showControls: true,
       },
     ],

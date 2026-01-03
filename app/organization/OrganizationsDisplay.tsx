@@ -114,7 +114,7 @@ export default function OrganizationsDisplay({
     <div className="mx-auto px-4 sm:px-8 lg:px-12 py-8">
       <div className="w-full space-y-4 sm:space-y-8">
         {/* Header section */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4" data-tour-id="org-header">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Organizations</h1>
             <p className="text-sm sm:text-base text-muted-foreground mt-1">
@@ -122,7 +122,7 @@ export default function OrganizationsDisplay({
             </p>
           </div>
           
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2" data-tour-id="org-actions">
             {isLoggedIn && (
               <>
                 <CsvVerificationModal />
