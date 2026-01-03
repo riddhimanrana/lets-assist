@@ -784,184 +784,228 @@ export default function ProfileClient() {
 
           {/* Email Management Section */}
           {emailLoading ? (
-            <Card>
+            <Card className="border shadow-sm">
               <CardContent className="pt-6 flex justify-center">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               </CardContent>
             </Card>
           ) : (
-            <Card>
-              <CardHeader>
-                <CardTitle>Email Addresses</CardTitle>
-                <CardDescription>
-                  Manage the email addresses associated with your account.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-3">
-                  {emails.map((email) => {
-                    const isVerified = Boolean(email.verified_at);
-                    return (
-                      <div
-                        key={email.id}
-                        className="flex items-center justify-between gap-3 rounded-lg border bg-card/20 px-4 py-3"
-                      >
-                          <div className="flex items-center gap-3">
-                            <span className="text-sm font-medium text-foreground">
-                              {email.email}
-                            </span>
-                            <Badge
-                              variant={isVerified ? "outline" : "destructive"}
-                              className="text-[0.65rem] font-semibold"
-                            >
-                              {isVerified ? "Verified" : "Unverified"}
-                            </Badge>
-                            {email.is_primary && (
-                              <span className="text-xs font-semibold text-primary">
-                                Primary
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+            >
+              <Card className="border shadow-sm">
+                <CardHeader className="px-5 py-5 sm:px-6">
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
+                      <svg className="h-4 w-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <CardTitle className="text-xl">Email Addresses</CardTitle>
+                      <CardDescription>
+                        Manage email addresses linked to your account
+                      </CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="px-5 sm:px-6 py-4 space-y-4">
+                  <div className="space-y-2">
+                    {emails.map((email, index) => {
+                      const isVerified = Boolean(email.verified_at);
+                      return (
+                        <motion.div
+                          key={email.id}
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: index * 0.05 }}
+                          className="group flex items-center justify-between gap-3 rounded-lg border bg-card hover:bg-accent/5 transition-colors px-4 py-3"
+                        >
+                          <div className="flex items-center gap-3 min-w-0 flex-1">
+                            <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${isVerified ? 'bg-primary/10' : 'bg-destructive/10'}`}>
+                              {isVerified ? (
+                                <CircleCheck className="h-4 w-4 text-primary" />
+                              ) : (
+                                <AlertCircle className="h-4 w-4 text-destructive" />
+                              )}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <span className="text-sm font-medium text-foreground truncate block">
+                                {email.email}
                               </span>
-                            )}
-                            {pendingPrimaryEmail === email.email && (
-                              <span className="text-xs font-semibold text-muted-foreground">
-                                Pending confirmation
-                              </span>
-                            )}
+                              <div className="flex items-center gap-2 mt-0.5">
+                                {email.is_primary && (
+                                  <Badge variant="secondary" className="text-[0.6rem] font-semibold px-1.5 py-0">
+                                    Primary
+                                  </Badge>
+                                )}
+                                {!isVerified && (
+                                  <span className="text-xs text-destructive">Unverified</span>
+                                )}
+                                {pendingPrimaryEmail === email.email && (
+                                  <span className="text-xs text-muted-foreground">Pending confirmation</span>
+                                )}
+                              </div>
+                            </div>
                           </div>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-48">
-                            <DropdownMenuItem
-                              onSelect={() => handleSetPrimary(email.email, isVerified)}
-                              disabled={!isVerified || email.is_primary}
-                              className="gap-2"
-                            >
-                              <ShieldCheck className="h-4 w-4" />
-                              Set as primary
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              onSelect={() => handleRemoveEmail(email.id)}
-                              disabled={email.is_primary}
-                              className="gap-2 text-destructive"
-                            >
-                              <Trash className="h-4 w-4 text-destructive" />
-                              Remove email
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    );
-                  })}
-                </div>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48">
+                              <DropdownMenuItem
+                                onSelect={() => handleSetPrimary(email.email, isVerified)}
+                                disabled={!isVerified || email.is_primary}
+                                className="gap-2"
+                              >
+                                <ShieldCheck className="h-4 w-4" />
+                                Set as primary
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onSelect={() => handleRemoveEmail(email.id)}
+                                disabled={email.is_primary}
+                                className="gap-2 text-destructive focus:text-destructive"
+                              >
+                                <Trash className="h-4 w-4" />
+                                Remove email
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
 
-                {!verificationStep ? (
-                  <form onSubmit={handleAddEmail} className="flex gap-2">
-                    <div className="grid w-full items-center gap-1.5">
-                      <Label htmlFor="email">Add new email</Label>
-                      <div className="flex gap-2">
-                        <Input
-                          id="email"
-                          type="email"
-                          placeholder="Enter email address"
-                          value={newEmail}
-                          onChange={(e) => setNewEmail(e.target.value)}
-                          required
-                        />
-                        <Button type="submit" disabled={adding}>
-                          {adding && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                          Add
-                        </Button>
-                      </div>
-                    </div>
-                  </form>
-                ) : (
-                  <div className="space-y-4 border p-4 rounded-lg bg-muted/20">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <AlertCircle className="h-4 w-4" />
-                      <span>
-                        Verification code sent to <strong>{pendingEmail}</strong>
-                      </span>
-                    </div>
-                    <form onSubmit={handleVerifyEmail} className="flex gap-2">
-                      <div className="grid w-full items-center gap-1.5">
-                        <Label htmlFor="code">Verification Code</Label>
+                  {!verificationStep ? (
+                    <form onSubmit={handleAddEmail} className="pt-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="email" className="text-sm font-medium">Add new email</Label>
                         <div className="flex gap-2">
                           <Input
-                            id="code"
-                            type="text"
-                            placeholder="123456"
-                            value={verificationCode}
-                            onChange={(e) => setVerificationCode(e.target.value)}
+                            id="email"
+                            type="email"
+                            placeholder="you@example.com"
+                            value={newEmail}
+                            onChange={(e) => setNewEmail(e.target.value)}
                             required
-                            maxLength={6}
+                            className="flex-1"
                           />
-                          <Button type="submit" disabled={verifying}>
-                            {verifying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Verify
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            onClick={() => {
-                              setVerificationStep(false);
-                              setVerificationCode("");
-                              setPendingEmail("");
-                            }}
-                          >
-                            Cancel
+                          <Button type="submit" disabled={adding} className="shrink-0">
+                            {adding && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Add Email
                           </Button>
                         </div>
                       </div>
                     </form>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                  ) : (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="space-y-4 border p-4 rounded-lg bg-primary/5 border-primary/20"
+                    >
+                      <div className="flex items-center gap-2 text-sm">
+                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10">
+                          <svg className="h-3 w-3 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                          </svg>
+                        </div>
+                        <span>
+                          Verification code sent to <strong className="text-foreground">{pendingEmail}</strong>
+                        </span>
+                      </div>
+                      <form onSubmit={handleVerifyEmail}>
+                        <div className="space-y-2">
+                          <Label htmlFor="code" className="text-sm font-medium">Enter 6-digit code</Label>
+                          <div className="flex gap-2">
+                            <Input
+                              id="code"
+                              type="text"
+                              placeholder="123456"
+                              value={verificationCode}
+                              onChange={(e) => setVerificationCode(e.target.value)}
+                              required
+                              maxLength={6}
+                              className="flex-1 font-mono tracking-widest"
+                            />
+                            <Button type="submit" disabled={verifying} className="shrink-0">
+                              {verifying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                              Verify
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => {
+                                setVerificationStep(false);
+                                setVerificationCode("");
+                                setPendingEmail("");
+                              }}
+                              className="shrink-0"
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                        </div>
+                      </form>
+                    </motion.div>
+                  )}
+                </CardContent>
+              </Card>
+            </motion.div>
           )}
 
           {/* Privacy & Safety Card */}
-          <Card className="mt-6">
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <Shield className="h-5 w-5" />
-                <CardTitle>Privacy & Safety</CardTitle>
-              </div>
-              <CardDescription>
-                Manage your profile visibility and age verification
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {isDataLoading ? (
-                <div className="space-y-4">
-                  <Skeleton className="h-16 w-full" />
-                  <Skeleton className="h-16 w-full" />
-                  <Skeleton className="h-16 w-full" />
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+          >
+            <Card className="border shadow-sm">
+              <CardHeader className="px-5 py-5 sm:px-6">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
+                    <Shield className="h-4 w-4 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-xl">Privacy & Safety</CardTitle>
+                    <CardDescription>
+                      Control who can see your profile
+                    </CardDescription>
+                  </div>
                 </div>
-              ) : (
-                <>
-                  {/* Profile Visibility Toggle */}
-                  <div className="flex items-start justify-between space-x-4 rounded-lg border p-4">
-                    <div className="flex-1 space-y-1">
-                      <Label htmlFor="profile-visibility" className="text-base font-medium">
-                        Profile Visibility
-                      </Label>
-                      <p className="text-sm text-muted-foreground">
-                        {profileVisibility === 'public'
-                          ? 'Your profile is visible to everyone'
-                          : 'Your profile is only visible to you and admins'}
-                      </p>
-                      {!canChangeVisibility && (
-                        <div className="flex items-center gap-1 mt-2">
-                          <Info className="h-3 w-3 text-muted-foreground" />
-                          <span className="text-xs text-muted-foreground">
-                            Profile locked to private (age restriction)
-                          </span>
-                        </div>
-                      )}
+              </CardHeader>
+              <CardContent className="px-5 sm:px-6 py-4">
+                {isDataLoading ? (
+                  <Skeleton className="h-20 w-full" />
+                ) : (
+                  <div className="flex items-center justify-between gap-4 rounded-lg border bg-card hover:bg-accent/5 transition-colors p-4">
+                    <div className="flex items-center gap-3">
+                      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors ${profileVisibility === 'public' ? 'bg-primary/10' : 'bg-muted'}`}>
+                        {profileVisibility === 'public' ? (
+                          <svg className="h-5 w-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        ) : (
+                          <svg className="h-5 w-5 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                          </svg>
+                        )}
+                      </div>
+                      <div className="space-y-0.5">
+                        <Label htmlFor="profile-visibility" className="text-sm font-medium cursor-pointer">
+                          {profileVisibility === 'public' ? 'Public Profile' : 'Private Profile'}
+                        </Label>
+                        <p className="text-xs text-muted-foreground">
+                          {profileVisibility === 'public'
+                            ? 'Anyone can view your profile and volunteer history'
+                            : 'Only you and organization admins can see your profile'}
+                        </p>
+                      </div>
                     </div>
                     <Switch
                       id="profile-visibility"
@@ -970,10 +1014,10 @@ export default function ProfileClient() {
                       disabled={isVisibilityLoading || !canChangeVisibility}
                     />
                   </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
         </div>
       </div>
     </motion.div>
