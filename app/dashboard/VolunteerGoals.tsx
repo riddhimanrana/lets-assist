@@ -6,11 +6,11 @@ import { Input } from "@/components/ui/input";
 import { ProgressCircle } from "./ProgressCircle";
 import { createClient } from "@/utils/supabase/client";
 import { toast } from "sonner";
-import { PencilIcon, SaveIcon, CheckCircle, Clock, Users, Target, Calendar } from "lucide-react";
+import { PencilIcon, SaveIcon, CheckCircle, Target, Calendar } from "lucide-react";
 import { DateRange } from "react-day-picker";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { startOfMonth, endOfMonth, startOfYear, endOfYear, addMonths, format } from "date-fns";
+
 // Import the type for the goals data
 import { VolunteerGoalsData } from "@/types";
 

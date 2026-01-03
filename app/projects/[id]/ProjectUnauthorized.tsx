@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertCircle, ExternalLink, Lock, LogIn, Shield, Users } from "lucide-react";
@@ -15,7 +15,7 @@ interface ProjectUnauthorizedProps {
   projectId: string;
 }
 
-export default function ProjectUnauthorized({ projectId }: ProjectUnauthorizedProps) {
+export default function ProjectUnauthorized({ projectId: _projectId }: ProjectUnauthorizedProps) {
   const router = useRouter();
   const { user, isLoading } = useAuth(); // Use centralized auth hook
   const [isRedirecting, setIsRedirecting] = useState(false);

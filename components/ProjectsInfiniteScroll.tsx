@@ -22,7 +22,6 @@ import {
   Loader2,
   Calendar,
   SlidersHorizontal,
-  MapPin,
   Users,
   X,
   LayoutGrid,
@@ -50,12 +49,13 @@ import {
 import { DateRange } from "react-day-picker";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { cn } from "@/lib/utils";
-import { format, isAfter, isBefore, isWithinInterval, parseISO } from "date-fns";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { format, parseISO } from "date-fns";
+import type { Project } from "@/types";
+
 import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
 import { ProjectsMapView } from "@/components/ProjectsMapView";
-import { getProjectStatus } from "@/utils/project";
+
 
 const fetcher = (url: string) => axios.get(url).then((res) => res.data);
 
@@ -101,10 +101,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
     rootMargin: '100px', // Start loading a bit earlier
   });
 
-  // Compute if the last page has fewer projects than the limit.
-  const isReachingEnd = useMemo(() => {
-    return data && data[data.length - 1]?.length < limit;
-  }, [data, limit]);
+
 
   const isLoadingMore = isValidating && size > 1;
 
@@ -127,7 +124,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
   }, [inView, isValidating, reachedEnd, data, setSize, size]);
 
   // Helper function to check if a project is within the date range
-  const isProjectInDateRange = (project: any, dateRange: DateRange | undefined) => {
+  const isProjectInDateRange = (project: Project, dateRange: DateRange | undefined) => {
     if (!dateRange?.from) return true;
     
     let projectDate: Date | null = null;
@@ -135,9 +132,10 @@ export const ProjectsInfiniteScroll: React.FC = () => {
     try {
       if (project.event_type === "oneTime" && project.schedule?.oneTime?.date) {
         projectDate = parseISO(project.schedule.oneTime.date);
-      } else if (project.event_type === "multiDay" && project.schedule?.multiDay?.length > 0) {
+      } else if (project.event_type === "multiDay" && project.schedule?.multiDay && project.schedule.multiDay.length > 0) {
         // For multi-day events, check if any day is within the range
-        return project.schedule.multiDay.some((day: any) => {
+         
+        return project.schedule.multiDay.some((day) => {
           const dayDate = parseISO(day.date);
           return isWithinDateRange(dayDate, dateRange);
         });
@@ -175,25 +173,10 @@ export const ProjectsInfiniteScroll: React.FC = () => {
     return targetDate.getTime() === startDate.getTime();
   };
 
-  // Get the earliest date from a project
-  const getProjectDate = useCallback((project: any): Date | null => {
-    try {
-      if (project.event_type === "oneTime" && project.schedule?.oneTime?.date) {
-        return parseISO(project.schedule.oneTime.date);
-      } else if (project.event_type === "multiDay" && project.schedule?.multiDay?.length > 0) {
-        // Get the earliest date from multiDay events
-        const dates = project.schedule.multiDay.map((day: any) => parseISO(day.date));
-        return new Date(Math.min(...dates.map((d: Date) => d.getTime())));
-      } else if (project.event_type === "sameDayMultiArea" && project.schedule?.sameDayMultiArea?.date) {
-        return parseISO(project.schedule.sameDayMultiArea.date);
-      }
-    } catch (e) {
-      console.error("Date parsing error:", e);
-    }
-    return null;
-  }, []);
+
 
   // Sort projects by volunteer count
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sortByVolunteers = useCallback((projects: any[], direction: "asc" | "desc" | undefined) => {
     if (!direction) return projects;
     
@@ -210,14 +193,15 @@ export const ProjectsInfiniteScroll: React.FC = () => {
   }, []);
 
   // Sort projects by date
-  const sortByDate = useCallback((projects: any[], direction: "asc" | "desc" | undefined) => {
+  const sortByDate = useCallback((projects: Project[], direction: "asc" | "desc" | undefined) => {
     // Define getProjectDate within sortByDate to avoid dependency cycle
-    const getProjectDateInternal = (project: any): Date | null => {
+    const getProjectDateInternal = (project: Project): Date | null => {
       try {
         if (project.event_type === "oneTime" && project.schedule?.oneTime?.date) {
           return parseISO(project.schedule.oneTime.date);
-        } else if (project.event_type === "multiDay" && project.schedule?.multiDay?.length > 0) {
+        } else if (project.event_type === "multiDay" && project.schedule?.multiDay && project.schedule.multiDay.length > 0) {
           // Get the earliest date from multiDay events
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const dates = project.schedule.multiDay.map((day: any) => parseISO(day.date));
           return new Date(Math.min(...dates.map((d: Date) => d.getTime())));
         } else if (project.event_type === "sameDayMultiArea" && project.schedule?.sameDayMultiArea?.date) {
@@ -246,7 +230,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
   }, []);
 
   // Get volunteer count from a project
-  const getVolunteerCount = (project: any): number => {
+  const getVolunteerCount = (project: Project): number => {
     if (!project.event_type || !project.schedule) return 0;
 
     switch (project.event_type) {
@@ -256,8 +240,10 @@ export const ProjectsInfiniteScroll: React.FC = () => {
         let total = 0;  // Initialize total here
         // Sum all volunteers across all days and slots
         if (project.schedule.multiDay) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           project.schedule.multiDay.forEach((day: any) => {
             if (day.slots) {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               day.slots.forEach((slot: any) => {
                 total += slot.volunteers || 0;
               });
@@ -270,6 +256,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
         // Sum all volunteers across all roles
         let total = 0;
         if (project.schedule.sameDayMultiArea?.roles) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           project.schedule.sameDayMultiArea.roles.forEach((role: any) => {
             total += role.volunteers || 0;
           });
@@ -282,31 +269,31 @@ export const ProjectsInfiniteScroll: React.FC = () => {
   };
 
   // New function to get remaining spots
-  const getRemainingSpots = (project: any): number => {
+  const getRemainingSpots = (project: Project): number => {
     // Get total spots
     const totalSpots = getVolunteerCount(project);
     
     // Calculate filled spots based on project type
     let filledSpots = 0;
     
-    if (project.signups && Array.isArray(project.signups)) {
+    if ((project as any).signups && Array.isArray((project as any).signups)) {
       // Count confirmed signups only
-      filledSpots = project.signups.filter((signup: any) => 
+      filledSpots = (project as any).signups.filter((signup: { status?: string }) => 
         signup.status === "approved"
       ).length;
-    } else if (project.slots_filled) {
+    } else if ((project as any).slots_filled) {
       // If project has a direct slots_filled count
-      filledSpots = project.slots_filled;
-    } else if (project.registrations && Array.isArray(project.registrations)) {
+      filledSpots = (project as any).slots_filled;
+    } else if ((project as any).registrations && Array.isArray((project as any).registrations)) {
       // Alternative signup structure
-      filledSpots = project.registrations.length;
+      filledSpots = (project as any).registrations.length;
     }
     
     return Math.max(0, totalSpots - filledSpots);
   };
 
   // Get all projects and apply client-side filtering
-  const allProjects = data ? ([] as any[]).concat(...data) : [];
+  const allProjects = data ? ([] as Project[]).concat(...data) : [];
   
   const filteredProjects = allProjects.filter((project) => {
     // Search term filter
@@ -719,7 +706,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
             <p className="text-muted-foreground text-center max-w-md mb-8">
               {activeFilterCount > 0
                 ? "We couldn't find any projects matching your current filters. Try adjusting your search criteria or browse all projects."
-                : "There are currently no volunteer projects available in our database. Be the first to create a project and start making a difference!"}
+                : "There are currently no public volunteer projects available. Be the first to create a project and start making a difference!"}
             </p>
             
             <div className="flex gap-4 flex-wrap justify-center">

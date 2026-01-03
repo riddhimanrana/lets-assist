@@ -1,12 +1,11 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { Project, Signup, Profile } from "@/types";
+import { Project, Signup } from "@/types";
 import { User } from "@supabase/supabase-js";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { getSlotDetails } from "@/utils/project";
 import { getProjectStartDateTime, getProjectEndDateTime } from "@/utils/project";
 import { formatTimeTo12Hour } from "@/lib/utils";
@@ -18,14 +17,11 @@ import {
   parseISO,
   format,
   formatDistanceToNowStrict,
-  parse,
 } from "date-fns";
-import { Clock, CheckCircle, AlertTriangle, Camera, Hourglass, CalendarCheck, Info, ExternalLink,TicketCheck, FileText, Award } from "lucide-react";
-import { Medal } from "lucide-react"; // Use Medal icon instead of Certificate
+import { Clock, CheckCircle, AlertTriangle, Camera, Hourglass, CalendarCheck, Info, TicketCheck, FileText, Award } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation"; // Import useRouter
-import { QRCodeScannerModal } from "@/components/QRCodeScannerModal"; // Import the new component
-import { createClient } from "@/utils/supabase/client";          // 🆕 add supabase client
+import { QRCodeScannerModal } from "@/components/QRCodeScannerModal";
+import { createClient } from "@/utils/supabase/client";
 import {
   Carousel,
   CarouselContent,
@@ -100,7 +96,7 @@ function calculateVolunteerDuration(checkIn: string | null, checkOut: string | n
     } else {
       return { text: `${minutes}m`, isValid: true, totalMinutes: diffMinutes };
     }
-  } catch (error) {
+  } catch {
     return { text: 'Error calculating', isValid: false, totalMinutes: 0 };
   }
 }
@@ -112,8 +108,7 @@ interface Props {
   signups: Signup[]; // Array of user's approved signups for this project
 }
 
-export default function UserDashboard({ project, user, signups }: Props) {
-  const router = useRouter();
+export default function UserDashboard({ project, user: _user, signups }: Props) {
   const [now, setNow] = useState(new Date());
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
   const [selectedScheduleForScan, setSelectedScheduleForScan] = useState<string | null>(null);
@@ -170,7 +165,7 @@ export default function UserDashboard({ project, user, signups }: Props) {
         // First check if signup status is valid for processing
         // Using type-safe approach with Array.includes
         const validStatuses = ['approved', 'attended'] as const;
-        if (!validStatuses.includes(signup.status as any)) {
+        if (!validStatuses.includes(signup.status as 'approved' | 'attended')) {
           return null; // Skip signups that are not approved or already attended
         }
 
@@ -200,6 +195,8 @@ export default function UserDashboard({ project, user, signups }: Props) {
         const endTime = getCombinedDateTime(slotDate, details.endTime);
 
         // Use type-safe comparison for status
+   
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const isAttended = signup.status === 'attended' as any;
         const isApproved = signup.status === 'approved' as any;
         const checkIn = signup.check_in_time ? new Date(signup.check_in_time) : null;
@@ -752,7 +749,7 @@ export default function UserDashboard({ project, user, signups }: Props) {
   }, [signupStatuses, project, setSelectedScheduleForScan, setIsCameraModalOpen, isSignupOnly, isProjectStartingSoon]);
 
   // Helper function to get a consistent session display name
-  function getSessionDisplayName(project: Project, startTime: Date | null, details: any): string {
+  function getSessionDisplayName(project: Project, startTime: Date | null, details: { name?: string; startTime?: string; endTime?: string }): string {
     // If multiRole event with named roles, keep using the role name
     if ('name' in details && details.name) {
         return details.name;
@@ -765,13 +762,13 @@ export default function UserDashboard({ project, user, signups }: Props) {
     else if (project.schedule?.multiDay && startTime) {
         // Format the date from the session start time and include time info
         const formattedDate = format(startTime, "MMMM d, yyyy");
-        const formattedStartTime = formatTimeTo12Hour(details.startTime);
-        const formattedEndTime = formatTimeTo12Hour(details.endTime);
+        const formattedStartTime = details.startTime ? formatTimeTo12Hour(details.startTime) : "";
+        const formattedEndTime = details.endTime ? formatTimeTo12Hour(details.endTime) : "";
         return `${formattedDate} (${formattedStartTime} - ${formattedEndTime})`;
     }
     // Default fallback
     else {
-        return details.schedule_id || "Session";
+        return (details as any).schedule_id || "Session";
     }
   }
 

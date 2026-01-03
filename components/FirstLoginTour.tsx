@@ -288,11 +288,11 @@ body[data-first-login-tour='true'] .radix-overlay {
             {highlightStyle ? (
               <>
                 <div
-                  className="absolute left-0 right-0 bg-slate-950/70 transition-all duration-300 ease-out"
+                  className="absolute left-0 right-0 bg-slate-950 transition-all duration-300 ease-out"
                   style={{ top: 0, height: highlightStyle.top }}
                 />
                 <div
-                  className="absolute left-0 right-0 bg-slate-950/70 transition-all duration-300 ease-out"
+                  className="absolute left-0 right-0 bg-slate-950 transition-all duration-300 ease-out"
                   style={{ top: highlightStyle.top + highlightStyle.height, bottom: 0 }}
                 />
                 <div

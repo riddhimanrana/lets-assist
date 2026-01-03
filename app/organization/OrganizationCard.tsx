@@ -7,8 +7,10 @@ import { Badge } from "@/components/ui/badge";
 import { Building2, Users2, ExternalLink, BadgeCheck, Shield, UserRoundCog, UserRound } from "lucide-react";
 import { NoAvatar } from "@/components/NoAvatar";
 
+import type { Organization } from "@/types";
+
 interface OrganizationCardProps {
-  org: any;
+  org: Organization & { website?: string };
   memberCount: number;
   isUserMember?: boolean;
   userRole?: 'admin' | 'staff' | 'member';

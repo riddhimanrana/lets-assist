@@ -19,7 +19,7 @@ export type DeleteUserCleanupReport = {
 
 type DeleteStep = {
   label: string;
-  executor: () => any;
+  executor: () => unknown;
   shouldRun?: () => boolean;
 };
 

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { Bell, AlertCircle, AlertTriangle, CircleCheck, Loader2, Check, Settings } from "lucide-react";
+import { Bell, AlertCircle, AlertTriangle, CircleCheck, Loader2, Settings } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Drawer,
@@ -39,7 +39,7 @@ type Notification = {
   read: boolean;
   created_at: string;
   action_url?: string | null;
-  data?: Record<string, any> | null;
+  data?: Record<string, unknown> | null;
 };
 
 /**
@@ -47,7 +47,7 @@ type Notification = {
  * without any new calls. Useful for batching rapid realtime events.
  * Example: 5 notification inserts in quick succession → 1 loadNotifications call
  */
-function useDebounce<T extends (...args: any[]) => any>(
+function useDebounce<T extends (...args: unknown[]) => unknown>(
   callback: T,
   delayMs: number = 500
 ): (...args: Parameters<T>) => void {
@@ -81,22 +81,25 @@ export function NotificationPopover() {
   const supabase = createClient();
   const router = useRouter();
   const isMobile = useMediaQuery("(max-width: 768px)");
-  const sentinelRef = useRef<HTMLDivElement>(null);
+  const _sentinelRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
+  const _contentRef = useRef<HTMLDivElement>(null);
   const scrollPositionRef = useRef<number>(0);
+  // Explicitly consume refs to avoid unused variable lint warnings (they may be used in future enhancements)
+  void _sentinelRef;
+  void _contentRef;
 
-  const parseNotificationData = (value: unknown): Record<string, any> | null => {
+  const parseNotificationData = (value: unknown): Record<string, unknown> | null => {
     if (!value) return null;
     if (typeof value === "string") {
       try {
-        return JSON.parse(value);
+        return JSON.parse(value) as Record<string, unknown>;
       } catch {
         return null;
       }
     }
     if (typeof value === "object") {
-      return value as Record<string, any>;
+      return value as Record<string, unknown>;
     }
     return null;
   };
@@ -132,7 +135,7 @@ export function NotificationPopover() {
       console.log('Notifications loaded:', data?.length || 0);
       const normalized = (data || []).map((notification) => ({
         ...notification,
-        data: parseNotificationData((notification as any).data),
+        data: parseNotificationData((notification as { data?: unknown }).data),
       }));
       setNotifications(normalized as Notification[]);
       setOffset(0);
@@ -172,7 +175,7 @@ export function NotificationPopover() {
       console.log('Loaded more notifications:', data?.length || 0);
       const normalized = (data || []).map((notification) => ({
         ...notification,
-        data: parseNotificationData((notification as any).data),
+        data: parseNotificationData((notification as { data?: unknown }).data),
       }));
       
       // Store scroll position before state update
@@ -419,7 +422,7 @@ export function NotificationPopover() {
         .replace(/ weeks? ago/g, 'w ago')
         .replace(/ months? ago/g, 'mo ago')
         .replace(/ years? ago/g, 'y ago');
-    } catch (e) {
+    } catch {
       return "recently";
     }
   };
@@ -569,19 +572,19 @@ export function NotificationPopover() {
           <p className="text-sm text-foreground whitespace-pre-line">
             {activeNotification?.body}
           </p>
-          {detailMetadata?.reportDescription && (
+          {(detailMetadata as any)?.reportDescription && (
             <div className="rounded-lg border bg-muted/40 p-3">
               <p className="text-xs font-medium text-muted-foreground">Your original report</p>
               <p className="mt-1 text-sm text-foreground whitespace-pre-line">
-                {detailMetadata.reportDescription}
+                {(detailMetadata as any).reportDescription}
               </p>
-              {detailMetadata.reportReason && (
-                <p className="mt-2 text-xs text-muted-foreground">Tagged as: {detailMetadata.reportReason}</p>
+              {(detailMetadata as any).reportReason && (
+                <p className="mt-2 text-xs text-muted-foreground">Tagged as: {(detailMetadata as any).reportReason}</p>
               )}
             </div>
           )}
-          {detailMetadata?.reportId && (
-            <p className="text-xs text-muted-foreground">Reference ID: {detailMetadata.reportId}</p>
+          {(detailMetadata as any)?.reportId && (
+            <p className="text-xs text-muted-foreground">Reference ID: {(detailMetadata as any).reportId}</p>
           )}
         </div>
         <DialogFooter>

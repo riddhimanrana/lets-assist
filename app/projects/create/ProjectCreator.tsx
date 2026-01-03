@@ -1,9 +1,6 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { useEventForm } from "@/hooks/use-event-form";
-import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Building2 } from "lucide-react";
 import BasicInfo from "./BasicInfo";
 import EventType from "./EventType";
 import Schedule from "./Schedule";
@@ -11,17 +8,16 @@ import Finalize from "./Finalize";
 import VerificationSettings from "./VerificationSettings";
 import AIAssistant, { AIParseResult } from "./AIAssistant";
 // shadcn components
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 // icon components
-import { Loader2, ChevronLeft, ChevronRight, AlertCircle, Sparkles } from "lucide-react";
+import { Loader2, ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
 // utility
 import { cn } from "@/lib/utils";
 // Replace shadcn toast with Sonner
 import { toast } from "sonner";
-import { createProject, uploadCoverImage, uploadProjectDocument, finalizeProject, getProjectById } from "./actions";
-import { useRouter } from "next/navigation";
+import { createProject, uploadCoverImage, uploadProjectDocument, finalizeProject } from "./actions";
+
 // Import Zod schemas
 import {
   basicInfoSchema,
@@ -30,8 +26,8 @@ import {
   multiRoleSchema,
   verificationSettingsSchema
 } from "@/schemas/event-form-schema";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+
+
 import { z } from "zod";
 
 interface ProjectCreatorProps {
@@ -68,7 +64,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
     updateRestrictToOrgDomains,
   } = useEventForm();
 
-  const router = useRouter();
+
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // File handling states
@@ -111,13 +107,16 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
       setEventType(data.eventType);
     }
 
+   
+   
     // Apply schedule based on event type
+     
     if (data.schedule && data.eventType) {
-      if (data.eventType === 'oneTime' && data.schedule.date) {
-        handleOneTimeScheduleUpdate('date', data.schedule.date);
-        if (data.schedule.startTime) handleOneTimeScheduleUpdate('startTime', data.schedule.startTime);
-        if (data.schedule.endTime) handleOneTimeScheduleUpdate('endTime', data.schedule.endTime);
-        if (data.schedule.volunteers) handleOneTimeScheduleUpdate('volunteers', data.schedule.volunteers);
+      if (data.eventType === 'oneTime' && (data.schedule as any).date) {
+        handleOneTimeScheduleUpdate('date', (data.schedule as any).date);
+        if ((data.schedule as any).startTime) handleOneTimeScheduleUpdate('startTime', (data.schedule as any).startTime);
+        if ((data.schedule as any).endTime) handleOneTimeScheduleUpdate('endTime', (data.schedule as any).endTime);
+        if ((data.schedule as any).volunteers) handleOneTimeScheduleUpdate('volunteers', (data.schedule as any).volunteers);
       } else if (data.eventType === 'multiDay' && Array.isArray(data.schedule)) {
         // Clear existing days first
         const currentDays = state.schedule.multiDay.length;
@@ -126,12 +125,12 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
         }
 
         // Add new days from AI
-        data.schedule.forEach((day: any, dayIndex: number) => {
+        data.schedule.forEach((day: { date?: string; slots?: Array<{ startTime?: string; endTime?: string; volunteers?: number }> }, dayIndex: number) => {
           if (dayIndex === 0) {
             // Update first day
-            handleMultiDayScheduleUpdate(0, 'date', day.date);
+            if (day.date) handleMultiDayScheduleUpdate(0, 'date', day.date);
             if (Array.isArray(day.slots)) {
-              day.slots.forEach((slot: any, slotIndex: number) => {
+              day.slots.forEach((slot, slotIndex: number) => {
                 if (slotIndex === 0) {
                   handleMultiDayScheduleUpdate(0, 'startTime', slot.startTime, 0);
                   handleMultiDayScheduleUpdate(0, 'endTime', slot.endTime, 0);
@@ -148,7 +147,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
             addMultiDayEvent();
             handleMultiDayScheduleUpdate(dayIndex, 'date', day.date);
             if (Array.isArray(day.slots)) {
-              day.slots.forEach((slot: any, slotIndex: number) => {
+              day.slots.forEach((slot: { startTime?: string; endTime?: string; volunteers?: number }, slotIndex: number) => {
                 if (slotIndex === 0) {
                   handleMultiDayScheduleUpdate(dayIndex, 'startTime', slot.startTime, 0);
                   handleMultiDayScheduleUpdate(dayIndex, 'endTime', slot.endTime, 0);
@@ -163,10 +162,10 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
             }
           }
         });
-      } else if (data.eventType === 'sameDayMultiArea' && data.schedule.date) {
-        handleMultiRoleScheduleUpdate('date', data.schedule.date);
-        if (data.schedule.overallStart) handleMultiRoleScheduleUpdate('overallStart', data.schedule.overallStart);
-        if (data.schedule.overallEnd) handleMultiRoleScheduleUpdate('overallEnd', data.schedule.overallEnd);
+      } else if (data.eventType === 'sameDayMultiArea' && (data.schedule as any).date) {
+        handleMultiRoleScheduleUpdate('date', (data.schedule as any).date);
+        if ((data.schedule as any).overallStart) handleMultiRoleScheduleUpdate('overallStart', (data.schedule as any).overallStart);
+        if ((data.schedule as any).overallEnd) handleMultiRoleScheduleUpdate('overallEnd', (data.schedule as any).overallEnd);
 
         // Clear existing roles
         const currentRoles = state.schedule.sameDayMultiArea.roles.length;
@@ -175,8 +174,8 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
         }
 
         // Add new roles from AI
-        if (Array.isArray(data.schedule.roles)) {
-          data.schedule.roles.forEach((role: any, roleIndex: number) => {
+        if (Array.isArray((data.schedule as any).roles)) {
+          (data.schedule as any).roles.forEach((role: { name?: string; startTime?: string; endTime?: string; volunteers?: number }, roleIndex: number) => {
             if (roleIndex === 0) {
               handleMultiRoleScheduleUpdate('name', role.name, 0);
               handleMultiRoleScheduleUpdate('startTime', role.startTime, 0);
@@ -207,7 +206,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
   };
 
   // Clear errors when a field is updated
-  const handleBasicInfoUpdate = (field: string, value: any) => {
+  const handleBasicInfoUpdate = (field: string, value: unknown) => {
     // Clear errors related to this field
     if (validationAttempted) {
       setBasicInfoErrors(prev => prev.filter(error => !error.path.includes(field)));
@@ -215,7 +214,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
     updateBasicInfo(field, value);
   };
 
-  const handleOneTimeScheduleUpdate = (field: string, value: any) => {
+  const handleOneTimeScheduleUpdate = (field: string, value: unknown) => {
     // Clear errors related to this field
     if (validationAttempted) {
       setScheduleErrors(prev => prev.filter(error => !error.path.includes(field)));
@@ -223,7 +222,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
     updateOneTimeSchedule(field, value);
   };
 
-  const handleMultiDayScheduleUpdate = (dayIndex: number, field: string, value: any, slotIndex?: number) => {
+  const handleMultiDayScheduleUpdate = (dayIndex: number, field: string, value: unknown, slotIndex?: number) => {
     // Clear errors related to this field/slot
     if (validationAttempted) {
       setScheduleErrors(prev => prev.filter(error => {
@@ -236,7 +235,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
     updateMultiDaySchedule(dayIndex, field, value, slotIndex);
   };
 
-  const handleMultiRoleScheduleUpdate = (field: string, value: any, roleIndex?: number) => {
+  const handleMultiRoleScheduleUpdate = (field: string, value: unknown, roleIndex?: number) => {
     // Clear errors related to this field/role
     if (validationAttempted) {
       setScheduleErrors(prev => prev.filter(error => {

@@ -11,7 +11,7 @@ import {
   Calendar,
   Clock,
 } from "lucide-react";
-import Image from "next/image";
+
 
 interface Feature {
   icon: React.ComponentType<{ className?: string }>;

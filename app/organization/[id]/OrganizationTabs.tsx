@@ -1,5 +1,6 @@
 "use client";
 
+import type { Organization, OrganizationRole, ProjectStatus } from "@/types";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import MembersTab from "./MembersTab";
 import ProjectsTab from "./ProjectsTab";
@@ -18,7 +19,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+
 import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
 import { Button } from "@/components/ui/button"; 
@@ -28,19 +29,69 @@ import { leaveOrganization } from "../actions";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { ProjectStatusBadge } from "@/components/ui/status-badge";
-import { getProjectStatus } from "@/utils/project";
 import AdminDashboardClient from "./admin/DashboardClient";
 
+interface MemberProfileShape {
+  full_name: string | null;
+  username: string | null;
+  avatar_url: string | null;
+}
+
+interface Member {
+  id: string;
+  user_id: string;
+  role: OrganizationRole;
+  joined_at: string;
+  profiles?: MemberProfileShape | MemberProfileShape[] | null;
+}
+
+interface ProjectWithStats {
+  id: string;
+  title: string;
+  status: ProjectStatus;
+  visibility: string;
+  verificationMethod: string;
+  eventType: string;
+  location: string | null;
+  createdAt: string;
+  totalSignups: number;
+  approvedSignups: number;
+  participationRate: number;
+  totalHours: number;
+  hoursVerified: number;
+  hoursPending: number;
+  [key: string]: unknown;
+}
+
+interface DashboardMetrics {
+  totalVolunteers: number;
+  totalHours: number;
+  activeProjects: number;
+  pendingVerificationHours: number;
+}
+
+interface TopVolunteer {
+  id: string;
+  name: string;
+  avatar: string | null;
+  email: string;
+  totalHours: number;
+  verifiedHours: number;
+  eventsAttended: number;
+  certificatesEarned: number;
+  lastEventDate: Date | null;
+}
+
 interface OrganizationTabsProps {
-  organization: any;
-  members: any[];
-  projects: any[];
-  userRole: string | null;
+  organization: Organization;
+  members: Member[];
+  projects: ProjectWithStats[];
+  userRole: OrganizationRole | null;
   currentUserId: string | undefined;
   dashboardData?: {
-    metrics: any;
-    topVolunteers: any[];
-    projectsWithStats: any[];
+    metrics: DashboardMetrics;
+    topVolunteers: TopVolunteer[];
+    projectsWithStats: ProjectWithStats[];
   };
 }
 
@@ -48,8 +99,8 @@ function LeaveOrganizationDialog({
   organization, 
   userRole 
 }: { 
-  organization: any;
-  userRole: string;
+  organization: Organization;
+  userRole: OrganizationRole;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
@@ -151,10 +202,9 @@ export default function OrganizationTabs({
   }
   
   // Calculate stats
-  const upcomingProjects = projects.filter(p => getProjectStatus(p) === "upcoming").length;
-  const completedProjects = projects.filter(p => getProjectStatus(p) === "completed").length;
-  const adminCount = members.filter(m => m.role === "admin").length;
-  const staffCount = members.filter(m => m.role === "staff").length;
+  const upcomingProjects = projects.filter(p => p.status === "upcoming").length;
+  const completedProjects = projects.filter(p => p.status === "completed").length;
+
 
   return (
     <Tabs 
@@ -243,7 +293,7 @@ export default function OrganizationTabs({
                     <div className="min-w-0 flex-1">
                       <h4 className="text-xs sm:text-sm font-medium">Created</h4>
                       <p className="text-xs sm:text-sm text-muted-foreground">
-                        {format(new Date(organization.created_at), "MMMM d, yyyy")}
+                        {organization.created_at ? format(new Date(organization.created_at), "MMMM d, yyyy") : "N/A"}
                       </p>
                     </div>
                   </div>
@@ -292,7 +342,7 @@ export default function OrganizationTabs({
                         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1.5">
                           <span className="font-medium truncate pr-2">{project.title}</span>
                           <div className="flex items-center gap-2">
-                            <ProjectStatusBadge status={getProjectStatus(project)} className="flex-shrink-0" />
+                            <ProjectStatusBadge status={project.status} className="flex-shrink-0" />
                           </div>
                         </div>
                         {project.location && (

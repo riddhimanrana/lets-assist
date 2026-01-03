@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle, AlertTriangle, CircleCheck } from "lucide-react";
+
 import { useAuth } from "@/hooks/useAuth";
 
 type NotificationSettings = {
@@ -33,24 +33,11 @@ export function NotificationsClient() {
   const { user } = useAuth(); // Use cached auth instead of getUser() calls
   const [settings, setSettings] = useState<NotificationSettings | null>(null);
   const [originalSettings, setOriginalSettings] = useState<NotificationSettings | null>(null);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
-  const [notificationsLoading, setNotificationsLoading] = useState(true);
+  const [, setNotificationsLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const supabase = createClient();
-
-  // Helper function to get icon based on severity
-  const getNotificationIcon = (severity: string = 'info') => {
-    switch (severity) {
-      case 'warning':
-        return <AlertTriangle className="h-5 w-5 text-chart-6" />;
-      case 'success':
-        return <CircleCheck className="h-5 w-5 text-primary" />;
-      case 'info':
-      default:
-        return <AlertCircle className="h-5 w-5 text-chart-3" />;
-    }
-  };
 
   useEffect(() => {
     // Skip if user is not available yet

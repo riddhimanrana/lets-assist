@@ -24,7 +24,7 @@ import {
   shouldFetchProfileData,
   type CachedUserData,
 } from '@/utils/auth/profile-cache';
-import { subscribeToProfileUpdates, getOrFetchUserData } from '@/utils/auth/batch-fetcher';
+import { getOrFetchUserData } from '@/utils/auth/batch-fetcher';
 import { useAuth } from '@/hooks/useAuth';
 
 export interface UseUserProfileReturn {
@@ -56,8 +56,6 @@ export function useUserProfile(): UseUserProfileReturn {
   const fetchInProgressRef = useRef(false);
   // Track the user ID we're fetching for to avoid stale fetches
   const fetchingForUserIdRef = useRef<string | null>(null);
-  // Track if we've set up subscription
-  const subscriptionReadyRef = useRef(false);
 
   // Combined effect: Subscribe to cache changes AND fetch if needed
   // This ensures subscription is set up BEFORE we fetch, avoiding race conditions
@@ -70,7 +68,6 @@ export function useUserProfile(): UseUserProfileReturn {
         userId: null,
       });
       setIsLoading(false);
-      subscriptionReadyRef.current = false;
       return;
     }
 
@@ -88,10 +85,6 @@ export function useUserProfile(): UseUserProfileReturn {
       }
     });
     
-    // Also subscribe to realtime updates
-    const unsubscribeRealtime = subscribeToProfileUpdates(user.id);
-    subscriptionReadyRef.current = true;
-
     // Step 2: Check if we need to fetch
     // Re-read cache in case it was updated between render and effect
     const currentCache = getCachedUserData();
@@ -150,8 +143,6 @@ export function useUserProfile(): UseUserProfileReturn {
 
     return () => {
       unsubscribe();
-      unsubscribeRealtime();
-      subscriptionReadyRef.current = false;
     };
   }, [user?.id]);
 

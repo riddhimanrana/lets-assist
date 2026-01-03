@@ -4,15 +4,12 @@ import React, { useEffect, useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
-// Import AnonymousSignup type
-import { Project, EventType, AnonymousSignup } from "@/types"; 
+import { Project } from "@/types";
 import { NotificationService } from "@/services/notifications";
-import { createRejectionNotification, togglePauseSignups, unrejectSignup } from "../actions";
-import { format } from "date-fns";
+import { togglePauseSignups, unrejectSignup } from "../actions";
 import { 
   formatScheduleDisplay, 
-  formatDateForDisplay, 
-  getUserTimezone,
+  formatDateForDisplay,
   ProjectScheduleTime 
 } from "@/utils/timezone";
 import Link from "next/link";
@@ -33,15 +30,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
 import { CheckCircle2, XCircle, Clock, ArrowLeft, Loader2, UserRoundSearch, ArrowUpDown, ChevronUp, ChevronDown, Printer, RefreshCw, Pause, Play, UserCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -429,13 +418,6 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
     }
   };
 
-  const formatTimeTo12Hour = (time: string) => {
-    const [hours, minutes] = time.split(':').map(Number);
-    const period = hours >= 12 ? 'PM' : 'AM';
-    const adjustedHours = hours % 12 || 12;
-    return `${adjustedHours}:${minutes.toString().padStart(2, '0')} ${period}`;
-  };
-
   const formatScheduleSlot = (project: Project, slotId: string) => {
     if (!project) return slotId;
     
@@ -523,7 +505,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
   };
 
   // Update status badge logic
-  const getStatusBadge = (status: Signup['status'], confirmed_at?: string | null) => {
+  const getStatusBadge = (status: Signup['status'], _confirmed_at?: string | null) => {
     if (status === "rejected") {
       return (
         <Badge variant="destructive" className="gap-1">

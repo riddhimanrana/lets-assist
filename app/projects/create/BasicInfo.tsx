@@ -44,7 +44,7 @@ interface OrganizationOption {
 
 interface BasicInfoProps {
   state: EventFormState;
-  updateBasicInfoAction: (field: keyof EventFormState["basicInfo"], value: any) => void;
+  updateBasicInfoAction: (field: keyof EventFormState["basicInfo"], value: unknown) => void;
   initialOrgId?: string;
   initialOrganizations?: OrganizationOption[];
   errors?: {
@@ -63,7 +63,7 @@ export default function BasicInfo({
 }: BasicInfoProps) {
   const [open, setOpen] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
-  const [organizationOptions, setOrganizationOptions] = useState<OrganizationOption[]>(
+  const [organizationOptions] = useState<OrganizationOption[]>(
     initialOrganizations.length > 0 
       ? initialOrganizations 
       : [{ id: "personal", name: "Personal Project", logo_url: null, role: "creator" }]

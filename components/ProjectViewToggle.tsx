@@ -1,27 +1,19 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { Card } from "@/components/ui/card";
 import { getProjectStatus } from "@/utils/project";
-import { TimezoneBadge } from "@/components/TimezoneBadge";
 import { ReportContentButton } from "@/components/ReportContentButton";
 import {
   MapPin,
   Calendar,
   Users,
-  Clock,
-  LayoutGrid,
-  List,
-  Table2,
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
   ChevronRight,
   Building2,
   BadgeCheck,
-  CalendarClock,
   CalendarDays,
-  Map,
   GraduationCap,
   Building,
   MoreVertical,
@@ -31,9 +23,19 @@ import { ProjectsMapView } from "@/components/ProjectsMapView";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { NoAvatar } from "@/components/NoAvatar";
 import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import { format, parse } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import type { Project, Organization, Profile, MultiDayScheduleDay, MultiDaySlot, SameDayMultiAreaRole } from "@/types";
+
+// Project from API may include a few alternative shapes (e.g., 'organizations' or 'total_confirmed')
+// so create a local augmented type used for client helpers.
+type ProjectWithExtras = Project & {
+  organizations?: Organization;
+  total_confirmed?: number;
+  profiles?: Profile | null;
+};
 import {
   Table,
   TableBody,
@@ -54,7 +56,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-type Project = any;
 
 const STORAGE_KEY = "preferred-project-view";
 const VALID_VIEWS = ["card", "list", "table", "map"] as const;
@@ -63,7 +64,7 @@ type ValidView = (typeof VALID_VIEWS)[number];
 
 // Update the type definition to include "map"
 type ProjectViewToggleProps = {
-  projects: Project[];
+  projects: ProjectWithExtras[];
   onVolunteerSortChange?: (sort: "asc" | "desc" | undefined) => void;
   volunteerSort?: "asc" | "desc" | undefined;
   view: ValidView;
@@ -83,19 +84,21 @@ const formatSpots = (count: number) => {
   return `${count} ${count === 1 ? "spot" : "spots"} left`;
 };
 
-const formatDateDisplay = (project: any) => {
+const formatDateDisplay = (project: ProjectWithExtras) => {
   if (!project.event_type || !project.schedule) return "";
 
   switch (project.event_type) {
     case "oneTime": {
       const dateStr = project.schedule.oneTime?.date;
+      if (!dateStr) return "";
       const [year, month, dayNum] = dateStr.split("-").map(Number);
       const date = new Date(year, month - 1, dayNum);
       return format(date, "MMM d");
     }
     case "multiDay": {
+      if (!project.schedule.multiDay) return "";
       const dates = project.schedule.multiDay
-        .map((day: any) => {
+        .map((day: MultiDayScheduleDay) => {
           const [year, month, dayNum] = day.date.split("-").map(Number);
           return new Date(year, month - 1, dayNum);
         })
@@ -131,6 +134,7 @@ const formatDateDisplay = (project: any) => {
     }
     case "sameDayMultiArea": {
       const dateStr = project.schedule.sameDayMultiArea?.date;
+      if (!dateStr) return "";
       const [year, month, dayNum] = dateStr.split("-").map(Number);
       const date = new Date(year, month - 1, dayNum);
       return format(date, "MMM d");
@@ -141,7 +145,7 @@ const formatDateDisplay = (project: any) => {
 };
 
 // Function to get a summary of event schedule for table view
-const getEventScheduleSummary = (project: any) => {
+const getEventScheduleSummary = (project: ProjectWithExtras) => {
   if (!project.event_type || !project.schedule) return "Not specified";
 
   switch (project.event_type) {
@@ -167,6 +171,7 @@ const getEventScheduleSummary = (project: any) => {
       return date;
     }
     case "multiDay": {
+      if (!project.schedule.multiDay || project.schedule.multiDay.length === 0) return "";
       const days = project.schedule.multiDay.length;
       const startDateStr = project.schedule.multiDay[0].date;
       const endDateStr = project.schedule.multiDay[days - 1].date;
@@ -185,6 +190,7 @@ const getEventScheduleSummary = (project: any) => {
       return `${days} days (${startDate} - ${endDate})`;
     }
     case "sameDayMultiArea": {
+      if (!project.schedule.sameDayMultiArea?.date) return "";
       const dateStr = project.schedule.sameDayMultiArea.date;
       const [year, month, dayNum] = dateStr.split("-").map(Number);
       const dateFormat = new Date(year, month - 1, dayNum);
@@ -198,19 +204,19 @@ const getEventScheduleSummary = (project: any) => {
 };
 
 // Get volunteer count from project (total spots)
-const getVolunteerCount = (project: any) => {
+const getVolunteerCount = (project: ProjectWithExtras) => {
   if (!project.event_type || !project.schedule) return 0;
 
   switch (project.event_type) {
     case "oneTime":
-      return project.schedule.oneTime.volunteers || 0;
+      return project.schedule.oneTime?.volunteers || 0;
     case "multiDay": {
       // Sum all volunteers across all days and slots
       let total = 0;
       if (project.schedule.multiDay) {
-        project.schedule.multiDay.forEach((day: any) => {
+        project.schedule.multiDay.forEach((day: MultiDayScheduleDay) => {
           if (day.slots) {
-            day.slots.forEach((slot: any) => {
+            day.slots.forEach((slot: MultiDaySlot) => {
               total += slot.volunteers || 0;
             });
           }
@@ -222,7 +228,7 @@ const getVolunteerCount = (project: any) => {
       // Sum all volunteers across all roles
       let total = 0;
       if (project.schedule.sameDayMultiArea?.roles) {
-        project.schedule.sameDayMultiArea.roles.forEach((role: any) => {
+        project.schedule.sameDayMultiArea.roles.forEach((role: SameDayMultiAreaRole) => {
           total += role.volunteers || 0;
         });
       }
@@ -234,7 +240,7 @@ const getVolunteerCount = (project: any) => {
 };
 
 // New function to get remaining spots
-const getRemainingSpots = (project: any) => {
+const getRemainingSpots = (project: ProjectWithExtras) => {
   const totalSpots = getVolunteerCount(project);
 
   // Use confirmed_signups from server
@@ -244,14 +250,14 @@ const getRemainingSpots = (project: any) => {
 };
 
 // Function to check if project has upcoming status
-const isUpcomingProject = (project: any) => {
+const isUpcomingProject = (project: ProjectWithExtras) => {
   return (
     project.status === "upcoming" || getProjectStatus(project) === "upcoming"
   );
 };
 
 // Function to get project organization or creator name
-const getProjectCreator = (project: any) => {
+const getProjectCreator = (project: ProjectWithExtras) => {
   if (project.organization) {
     return project.organization.name || "Organization";
   } else if (project.organization_id && project.organizations) {
@@ -262,17 +268,17 @@ const getProjectCreator = (project: any) => {
 };
 
 // Function to get project creator's avatar URL
-const getCreatorAvatarUrl = (project: any) => {
+const getCreatorAvatarUrl = (project: ProjectWithExtras) => {
   if (project.organization) {
-    return project.organization.logo_url;
+    return project.organization.logo_url || undefined;
   } else if (project.organization_id && project.organizations) {
-    return project.organizations.logo_url;
+    return project.organizations.logo_url || undefined;
   }
-  return project.profiles?.avatar_url;
+  return project.profiles?.avatar_url || undefined;
 };
 
 // Function to check if the project's organization is verified
-const isOrganizationVerified = (project: any) => {
+const isOrganizationVerified = (project: ProjectWithExtras) => {
   if (project.organization) {
     return project.organization.verified || false;
   } else if (project.organization_id && project.organizations) {
@@ -290,6 +296,8 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
 }) => {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+  void selectedProject;
+  void isSheetOpen;
   const [initialViewLoaded, setInitialViewLoaded] = useState(false);
 
   // Update the effect to properly handle view persistence
@@ -323,98 +331,21 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
     setSelectedProject(project);
     setIsSheetOpen(true);
   };
+  void handleMobileProjectClick;
 
   // Filter projects - only show upcoming projects with available spots
   const filteredProjects = projects.filter(
     (project) => isUpcomingProject(project) && getRemainingSpots(project) > 0,
   );
 
-  // Update EventInfo to show remaining spots
-  const EventInfo = ({ project }: { project: any }) => {
-    if (!project.event_type || !project.schedule) return null;
-
-    const getEventBadges = () => {
-      switch (project.event_type) {
-        case "oneTime":
-          return (
-            <>
-              <Badge variant="outline" className="gap-1">
-                <Calendar className="h-3 w-3" />
-                {format(new Date(project.schedule.oneTime.date), "MMM d, yyyy")}
-              </Badge>
-              <Badge variant="outline" className="gap-1">
-                <Clock className="h-3 w-3" />
-                {formatTime(project.schedule.oneTime.startTime)} -{" "}
-                {formatTime(project.schedule.oneTime.endTime)}
-              </Badge>
-              {project.project_timezone && (
-                <TimezoneBadge timezone={project.project_timezone} />
-              )}
-              <Badge variant="outline" className="gap-1">
-                <Users className="h-3 w-3" />
-                {formatSpots(getRemainingSpots(project))}
-              </Badge>
-            </>
-          );
-        case "multiDay":
-          const days = project.schedule.multiDay.length;
-          const remainingSpots = getRemainingSpots(project);
-          return (
-            <>
-              <Badge variant="outline" className="gap-1">
-                <Calendar className="h-3 w-3" />
-                {format(
-                  new Date(project.schedule.multiDay[0].date),
-                  "MMM d",
-                )} -{" "}
-                {format(
-                  new Date(project.schedule.multiDay[days - 1].date),
-                  "MMM d",
-                )}
-              </Badge>
-              {project.project_timezone && (
-                <TimezoneBadge timezone={project.project_timezone} />
-              )}
-              <Badge variant="outline" className="gap-1">
-                <Users className="h-3 w-3" />
-                {formatSpots(remainingSpots)}
-              </Badge>
-            </>
-          );
-        case "sameDayMultiArea":
-          const remainingVolunteers = getRemainingSpots(project);
-          return (
-            <>
-              <Badge variant="outline" className="gap-1">
-                <Calendar className="h-3 w-3" />
-                {format(
-                  new Date(project.schedule.sameDayMultiArea.date),
-                  "MMM d, yyyy",
-                )}
-              </Badge>
-              {project.project_timezone && (
-                <TimezoneBadge timezone={project.project_timezone} />
-              )}
-              <Badge variant="outline" className="gap-1">
-                <Users className="h-3 w-3" />
-                {formatSpots(remainingVolunteers)}
-              </Badge>
-            </>
-          );
-        default:
-          return null;
-      }
-    };
-
-    return <div className="flex flex-wrap gap-2">{getEventBadges()}</div>;
-  };
+  // EventInfo removed (was unused) to remove an unused local definition
 
   return (
     <div>
       {/* Card View - Cleaner with hover cards */}
       {view === "card" && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredProjects.map((project: any) => (
+          {filteredProjects.map((project: ProjectWithExtras) => (
             <div key={project.id} className="relative group">
               <Link href={`/projects/${project.id}`}>
                 <Card className="p-6 hover:shadow-lg transition-all cursor-pointer h-full flex flex-col">
@@ -613,7 +544,7 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
       {/* List View - Updated with remaining spots and organization name */}
       {view === "list" && (
         <div className="flex flex-col divide-y">
-          {filteredProjects.map((project: any) => (
+          {filteredProjects.map((project: ProjectWithExtras) => (
             <Link key={project.id} href={`/projects/${project.id}`}>
               <div className="group py-6 px-4 -mx-4 hover:bg-muted/50 transition-colors project-list-item">
                 <div className="flex flex-col md:flex-row md:items-start gap-4 md:gap-6">
@@ -772,7 +703,7 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredProjects.map((project: any) => (
+              {filteredProjects.map((project: ProjectWithExtras) => (
                 <TableRow key={project.id}>
                   <TableCell>
                     <div className="max-w-[300px] sm:max-w-none">

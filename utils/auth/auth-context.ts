@@ -36,7 +36,7 @@ let cacheInitialized = false;
  * Subscribers to cache changes
  * When cache is updated, all subscribers are notified
  */
-let cacheSubscribers: Set<(user: User | null) => void> = new Set();
+const cacheSubscribers: Set<(user: User | null) => void> = new Set();
 
 /**
  * Promise-sharing mechanism for concurrent getUser() calls

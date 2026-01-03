@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const token_hash = searchParams.get("token_hash");
   const token = searchParams.get("token");
+  const email = searchParams.get("email");
   const typeParam = (searchParams.get("type") as EmailOtpType | null) ?? null;
   const type: EmailOtpType = typeParam ?? "signup";
   const code = searchParams.get("code");
@@ -41,11 +42,15 @@ export async function GET(request: NextRequest) {
     return redirectToSuccess(request, undefined, type === "email_change" ? "email_change" : "signup");
   }
 
-  const otpParams: any = { type };
-  if (token_hash) otpParams.token_hash = token_hash;
-  if (token) otpParams.token = token;
-
-  const { data, error } = await supabase.auth.verifyOtp(otpParams);
+  let data, error;
+  if (token_hash) {
+    ({ data, error } = await supabase.auth.verifyOtp({ type, token_hash }));
+  } else if (token && email) {
+    ({ data, error } = await supabase.auth.verifyOtp({ type, email, token }));
+  } else {
+    console.error("Verification error: missing token_hash or token+email");
+    return redirect(`/error?message=${encodeURIComponent("Invalid verification parameters")}`);
+  }
 
   if (error) {
     console.error("Verification error:", error);

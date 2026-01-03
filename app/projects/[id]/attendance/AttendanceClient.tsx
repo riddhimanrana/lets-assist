@@ -6,8 +6,8 @@ import { Search, ArrowLeft, Clock, CheckCircle, Printer, RefreshCw, ArrowUpDown,
 import { createClient } from "@/utils/supabase/client";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Project } from "@/types";
-import { format, parseISO, addHours, isBefore } from "date-fns";
-import Link from "next/link";
+import { format, parseISO, addHours } from "date-fns";
+
 import {
   Card,
   CardContent,

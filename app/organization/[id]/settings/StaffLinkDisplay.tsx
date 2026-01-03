@@ -48,7 +48,8 @@ export default function StaffLinkDisplay({
   const [hasToken, setHasToken] = useState(false);
   const [token, setToken] = useState<string | null>(null);
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
-  const [isExpired, setIsExpired] = useState(false);
+  const [_isExpired, setIsExpired] = useState(false);
+  void _isExpired;
   const [expirationDays, setExpirationDays] = useState("30");
   const [copied, setCopied] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
@@ -95,7 +96,7 @@ export default function StaffLinkDisplay({
         setIsExpired(false);
         toast.success("Staff invite link generated successfully");
       }
-    } catch (error) {
+    } catch {
       toast.error("Failed to generate staff link");
     } finally {
       setIsLoading(false);
@@ -119,7 +120,7 @@ export default function StaffLinkDisplay({
         setIsExpired(false);
         toast.success("Staff invite link revoked");
       }
-    } catch (error) {
+    } catch {
       toast.error("Failed to revoke staff link");
     } finally {
       setIsLoading(false);
@@ -134,7 +135,7 @@ export default function StaffLinkDisplay({
       setCopied(true);
       toast.success("Link copied to clipboard");
       setTimeout(() => setCopied(false), 2000);
-    } catch (error) {
+    } catch {
       toast.error("Failed to copy link");
     }
   };

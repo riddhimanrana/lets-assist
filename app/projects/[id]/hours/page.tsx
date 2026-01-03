@@ -9,7 +9,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { AlertCircle, ArrowLeft, CalendarClock, Clock } from "lucide-react";
+import { AlertCircle, ArrowLeft, CalendarClock } from "lucide-react";
 
 // Define session type for easier handling
 type ProjectSession = {
@@ -247,7 +247,11 @@ export default async function HoursPage({ params }: { params: Promise<{ id: stri
   }
 
   // Transform Supabase response arrays to single objects for profile and anonymous_signup
-  const signups: ProjectSignup[] = (signupsData || []).map((s: any) => ({
+  const signups = (signupsData || []).map((s: {
+    profile?: unknown;
+    anonymous_signup?: unknown;
+    [key: string]: unknown;
+  }) => ({
     ...s,
     profile: Array.isArray(s.profile) ? s.profile[0] : s.profile,
     anonymous_signup: Array.isArray(s.anonymous_signup) ? s.anonymous_signup[0] : s.anonymous_signup,
@@ -316,7 +320,7 @@ export default async function HoursPage({ params }: { params: Promise<{ id: stri
   return (
     <HoursClient
       project={project as Project}
-      initialSignups={signups}
+      initialSignups={signups as any}
       hoursUntilWindowCloses={hoursUntilWindowCloses}
       activeSessions={activeSessions}
     />

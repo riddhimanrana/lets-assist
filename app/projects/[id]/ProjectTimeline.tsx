@@ -27,7 +27,6 @@ import {
   TimelineHeader,
   TimelineIcon,
   TimelineTitle,
-  TimelineDescription,
   TimelineContent,
 } from "@/components/ui/timeline"; // Adjust path if needed
 

@@ -1,21 +1,20 @@
 "use client";
 
 import React, { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { 
   Calendar, 
-  Clock, 
   Building2, 
   User, 
   Search, 
-  Filter, 
   Trash2, 
   AlertTriangle,
   FileCheck,
-  Plus
+  Plus,
+  Clock
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import {
@@ -46,9 +45,9 @@ interface UnverifiedHour {
 }
 
 interface UnverifiedHoursSectionProps {
-  userId?: string;
+  _userId?: string;
   unverifiedHours?: UnverifiedHour[];
-  onAdd?: (data: any) => void;
+  onAdd?: (data: unknown) => void;
   onDelete?: (id: string) => void;
 }
 
@@ -106,7 +105,7 @@ function formatTime12Hour(time24: string): string {
 }
 
 export function UnverifiedHoursSection({ 
-  userId, 
+  _userId, 
   unverifiedHours = mockUnverifiedHours, 
   onAdd, 
   onDelete 

@@ -19,13 +19,15 @@ import { createClient } from '@/utils/supabase/client';
 import {
   getOrFetchUser,
   getCachedUser,
-  updateCachedUser,
   waitForAuthReady,
   refreshUser,
   subscribeToCacheChanges,
   isCacheInitialized,
 } from '@/utils/auth/auth-context';
-import type { AuthState, User } from '@/utils/auth/types';
+import type { AuthState } from '@/utils/auth/types';
+
+// Avoid spamming the console when multiple components mount simultaneously.
+let loggedCachePrimedOnce = false;
 
 /**
  * Custom React hook for managing auth state
@@ -62,7 +64,11 @@ export function useAuth(): AuthState {
   
   const [state, setState] = useState<AuthState>({
     user: cacheSnapshot.user ?? null,  // Use cached user if available
-    isLoading: cacheSnapshot.initialized ? false : true,  // Only loading if cache not primed yet
+    // If cache was primed with a null user, still treat auth as loading so
+    // the client can reconcile with the latest session without SSR/CSR drift.
+    isLoading: cacheSnapshot.initialized
+      ? cacheSnapshot.user === null
+      : true,
     isError: false,
   });
 
@@ -77,17 +83,26 @@ export function useAuth(): AuthState {
       // If the cache is already primed (from AuthProvider), skip redundant calls
       if (isCacheInitialized()) {
         const cachedUser = getCachedUser();
-        if (mounted) {
-          setState({
-            user: cachedUser,
-            isLoading: false,
-            isError: false,
-          });
+
+        // If we already have a cached user, align state immediately and bail.
+        if (cachedUser) {
+          if (mounted) {
+            setState({
+              user: cachedUser,
+              isLoading: false,
+              isError: false,
+            });
+          }
+          if (process.env.NODE_ENV === 'development' && !loggedCachePrimedOnce) {
+            loggedCachePrimedOnce = true;
+            console.log('[useAuth] Cache already initialized with user, skipping session fetch');
+          }
+          return;
         }
-        if (process.env.NODE_ENV === 'development') {
-          console.log('[useAuth] Cache already initialized, skipping session fetch');
-        }
-        return;
+
+        // If the cache was primed with `null`, we still need to check the
+        // browser session to avoid SSR/CSR divergence (e.g., cookies present
+        // on the client but not on the server). Fall through to fetch.
       }
 
       try {
@@ -112,36 +127,21 @@ export function useAuth(): AuthState {
         }
 
         // If no cached user, check the current session
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        // Deduplicated fetch (shared promise) so multiple hooks don't double-call auth.
+        const fetchedUser = await getOrFetchUser(supabase);
 
-        if (sessionError) {
-          console.error('[useAuth] Error getting session:', sessionError);
+        if (fetchedUser) {
           if (mounted) {
             setState({
-              user: null,
-              isLoading: false,
-              isError: true,
-              error: sessionError,
-            });
-          }
-          return;
-        }
-
-        // If we have an active session, use it and update cache
-        if (session?.user) {
-          updateCachedUser(session.user);
-          if (mounted) {
-            setState({
-              user: session.user,
+              user: fetchedUser,
               isLoading: false,
               isError: false,
             });
           }
           if (process.env.NODE_ENV === 'development') {
-            console.log('[useAuth] Session found on mount:', session.user.email);
+            console.log('[useAuth] Session found on mount:', fetchedUser.email);
           }
         } else {
-          // No session and no cache - user is logged out
           if (mounted) {
             setState({
               user: null,

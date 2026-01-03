@@ -1,11 +1,9 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Building2, Search, Settings2, Check, Users2, ExternalLink, BadgeCheck } from "lucide-react";
+import { Plus, Building2, Search, Settings2, Check } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
 import { JoinOrganizationDialog } from "./JoinOrganizationDialog";
@@ -19,14 +17,14 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { NoAvatar } from "@/components/NoAvatar";
+
+import type { Organization, OrganizationRole } from "@/types";
 
 interface OrganizationsDisplayProps {
-  organizations: any[];
+  organizations: Organization[];
   memberCounts: Record<string, number>;
   isLoggedIn: boolean;
-  userMemberships: any[];
+  userMemberships: Array<{ organizations?: Organization; role?: OrganizationRole }>;
   isTrusted?: boolean;
   applicationStatus?: boolean | null;
 }
@@ -41,11 +39,11 @@ export default function OrganizationsDisplay({
   isTrusted = false,
   applicationStatus = undefined,
 }: OrganizationsDisplayProps) {
-  const router = useRouter();
+
   const [search, setSearch] = useState("");
-  const [filteredOrgs, setFilteredOrgs] = useState(organizations);
-  const [userOrgs, setUserOrgs] = useState<any[]>([]);
-  const [otherOrgs, setOtherOrgs] = useState<any[]>([]);
+  const [filteredOrgs, setFilteredOrgs] = useState<Organization[]>(organizations);
+  const [userOrgs, setUserOrgs] = useState<Organization[]>([]);
+  const [otherOrgs, setOtherOrgs] = useState<Organization[]>([]);
   const [sortBy, setSortBy] = useState("verified-first");
 
   // Helper function to get user's role for an organization
@@ -74,16 +72,16 @@ export default function OrganizationsDisplay({
       case "verified-first":
         result.sort((a, b) => {
           if (a.verified === b.verified) {
-            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+            return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
           }
           return b.verified ? 1 : -1;
         });
         break;
       case "newest":
-        result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        result.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
         break;
       case "oldest":
-        result.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+        result.sort((a, b) => new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime());
         break;
       case "alphabetical":
         result.sort((a, b) => a.name.localeCompare(b.name));
@@ -92,7 +90,7 @@ export default function OrganizationsDisplay({
     
     // Separate user's organizations and other organizations
     // Create a map of user memberships for quick lookup
-    const membershipMap = new Map();
+    const membershipMap = new Map<string, OrganizationRole | undefined>();
     userMemberships.forEach(membership => {
       if (membership.organizations) {
         membershipMap.set(membership.organizations.id, membership.role);
@@ -100,7 +98,7 @@ export default function OrganizationsDisplay({
     });
     
     // Separate organizations based on user membership
-    const userOrganizations = userMemberships.map(membership => membership.organizations).filter(Boolean);
+    const userOrganizations = userMemberships.map(membership => membership.organizations).filter(Boolean) as Organization[];
     const otherOrgsList = result.filter(org => !membershipMap.has(org.id));
     
     // Update state
@@ -233,7 +231,7 @@ export default function OrganizationsDisplay({
                   My Organizations
                 </h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                  {userOrgs.map((org: any) => (
+                  {userOrgs.map((org: Organization) => (
                     <OrganizationCard 
                       key={org.id} 
                       org={org} 
@@ -253,7 +251,7 @@ export default function OrganizationsDisplay({
                   Discover Organizations
                 </h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                  {otherOrgs.map((org: any) => (
+                  {otherOrgs.map((org: Organization) => (
                     <OrganizationCard 
                       key={org.id} 
                       org={org} 

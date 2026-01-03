@@ -24,8 +24,6 @@ import {
   ChevronRight,
   Sparkles,
   Loader2,
-  ArrowLeft,
-  Link as LinkIcon,
   Wrench,
 } from 'lucide-react';
 import {

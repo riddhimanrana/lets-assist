@@ -7,13 +7,11 @@ import { Badge } from "@/components/ui/badge";
 import { format, parseISO, differenceInMinutes, isBefore } from "date-fns"; // Added parseISO, differenceInMinutes, isBefore
 import { notFound } from "next/navigation";
 import { NoAvatar } from "@/components/NoAvatar";
-import { CalendarIcon, Calendar, MapPin, BadgeCheck, Users, Clock, Award, ExternalLink, MoreVertical, Flag } from "lucide-react";
+import { CalendarIcon, Calendar, MapPin, BadgeCheck, Users, Clock, MoreVertical, Flag } from "lucide-react";
 import Link from "next/link";
 import { Shield, UserRoundCog, UserRound } from "lucide-react";
 import { ProjectStatusBadge } from "@/components/ui/status-badge";
-import { Progress } from "@/components/ui/progress";
 import type { Metadata } from "next";
-import Image from "next/image";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { isTrustedForDisplay } from "@/utils/trust";
 import { stripHtml } from "@/lib/utils";
@@ -37,21 +35,6 @@ interface Profile {
   trusted_member?: boolean;
 }
 
-interface Certificate {
-  id: string;
-  user_id: string;
-  title: string;
-  issuer: string;
-  created_at: string; // This is likely 'created_at' from dashboard context
-  event_start: string; // Added: Assuming this exists in your DB table
-  event_end: string;   // Added: Assuming this exists in your DB table
-  image_url?: string;
-  verification_url?: string;
-  description?: string;
-  // Add other fields from dashboard's Certificate if they are selected and needed
-  project_title?: string; // From dashboard, might be same as title
-  organization_name?: string; // From dashboard, might be same as issuer
-}
 
 interface Project {
   id: string;
@@ -79,10 +62,6 @@ interface OrganizationMembership {
   organizations: Organization;
 }
 
-interface OrganizationResponse {
-  role: 'admin' | 'staff' | 'member';
-  organizations: Organization;
-}
 
 type Props = {
   params: Promise<{ username: string }>;
@@ -288,7 +267,6 @@ function formatHours(hours: number): string {
   })) || [];
 
   // Stats calculation
-  const upcomingCreatedProjects = createdProjects?.filter(p => p.status === "upcoming").length || 0;
   const completedCreatedProjects = createdProjects?.filter(p => p.status === "completed").length || 0;
   const totalCreatedProjects = createdProjects?.length || 0;
   

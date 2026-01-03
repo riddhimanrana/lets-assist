@@ -37,6 +37,12 @@ interface MemberEventDetail {
   organizationName: string;
 }
 
+type MemberProfileShape = {
+  full_name: string | null;
+  username: string | null;
+  avatar_url: string | null;
+};
+
 interface MemberDetailsDialogProps {
   isOpen: boolean;
   onClose: () => void;
@@ -45,12 +51,7 @@ interface MemberDetailsDialogProps {
     user_id: string;
     role: string;
     joined_at: string;
-    profiles?: {
-      id: string;
-      username: string;
-      full_name: string;
-      avatar_url?: string;
-    };
+    profiles?: MemberProfileShape | MemberProfileShape[] | null;
   } | null;
   organizationId: string;
 }

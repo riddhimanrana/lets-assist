@@ -5,9 +5,9 @@
 
 import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
-import { SyncedEvent } from "@/types";
+import type { SyncedEvent, MultiDayScheduleDay, SameDayMultiAreaRole } from "@/types";
 
-export async function GET(request: Request) {
+export async function GET(_request: Request) {
   try {
     const supabase = await createClient();
 
@@ -109,7 +109,7 @@ export async function GET(request: Request) {
           endTime = `${s.date}T${s.endTime}`;
         } else if (project.event_type === "multiDay" && project.schedule.multiDay) {
           const [date, slotIndex] = signup.schedule_id.split("-");
-          const day = project.schedule.multiDay.find((d: any) => d.date === date);
+          const day = project.schedule.multiDay.find((d: MultiDayScheduleDay) => d.date === date);
           if (day) {
             const slot = day.slots[parseInt(slotIndex)];
             startTime = `${date}T${slot.startTime}`;
@@ -117,7 +117,7 @@ export async function GET(request: Request) {
           }
         } else if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
           const s = project.schedule.sameDayMultiArea;
-          const role = s.roles.find((r: any) => r.name === signup.schedule_id);
+          const role = s.roles.find((r: SameDayMultiAreaRole) => r.name === signup.schedule_id);
           if (role) {
             startTime = `${s.date}T${role.startTime}`;
             endTime = `${s.date}T${role.endTime}`;

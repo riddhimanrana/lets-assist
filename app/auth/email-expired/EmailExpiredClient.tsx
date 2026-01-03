@@ -81,7 +81,7 @@ export default function EmailExpiredClient({
           toast.error(result.error || "Failed to resend email");
         }
       }
-    } catch (error) {
+    } catch {
       toast.error("An unexpected error occurred. Please try again.");
     } finally {
       setIsResending(false);

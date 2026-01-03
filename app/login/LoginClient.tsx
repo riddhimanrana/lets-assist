@@ -5,10 +5,10 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { type Session } from "@supabase/supabase-js";
+
 import { login, signInWithGoogle } from "./actions";
 import Link from "next/link";
-import { createClient } from "@/utils/supabase/client";
+
 import { updateCachedUser, initializeUserProfileCache } from "@/utils/auth/auth-context";
 import { Button } from "@/components/ui/button";
 import {
@@ -45,7 +45,7 @@ interface LoginClientProps {
 export default function LoginClient({ redirectPath }: LoginClientProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-  const [turnstileVerified, setTurnstileVerified] = useState(false);
+  const [, setTurnstileVerified] = useState(false);
   const turnstileRef = useRef<TurnstileRef>(null);
   const [turnstileReady, setTurnstileReady] = useState(false);
   const router = useRouter();

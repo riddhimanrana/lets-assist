@@ -1,5 +1,6 @@
 "use client";
 
+import type { Organization } from "@/types";
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -19,7 +20,6 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Form,
   FormControl,
@@ -33,7 +33,6 @@ import { updateOrganization, checkUsernameAvailability } from "./actions";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import ImageCropper from "@/components/ImageCropper";
-import Link from "next/link";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 // Constants
@@ -72,11 +71,11 @@ const orgUpdateSchema = z.object({
 type OrganizationFormValues = z.infer<typeof orgUpdateSchema>;
 
 interface EditOrganizationFormProps {
-  organization: any;
-  userId: string;
+  organization: Organization;
+  _userId: string;
 }
 
-export default function EditOrganizationForm({ organization, userId }: EditOrganizationFormProps) {
+export default function EditOrganizationForm({ organization, _userId }: EditOrganizationFormProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
@@ -97,7 +96,7 @@ export default function EditOrganizationForm({ organization, userId }: EditOrgan
       username: organization.username || "",
       description: organization.description || "",
       website: organization.website || "",
-      type: organization.type || "nonprofit",
+      type: (organization.type as "nonprofit" | "school" | "company" | "government" | "other") || "nonprofit",
       logoUrl: organization.logo_url || null,
     },
   });
@@ -106,10 +105,10 @@ export default function EditOrganizationForm({ organization, userId }: EditOrgan
   const formValues = form.watch();
   
   useEffect(() => {
-    const subscription = form.watch((value, { name, type }) => {
+    const subscription = form.watch((value, { name: _name, type: _type }) => {
       // Check if any field has changed from initial values
       const hasFormChanges = Object.keys(value).some(key => {
-        const initialValue = organization[key === 'logoUrl' ? 'logo_url' : key];
+        const initialValue = (organization as any)[key === 'logoUrl' ? 'logo_url' : key];
         const currentValue = value[key as keyof OrganizationFormValues];
         
         // Handle empty strings and null values

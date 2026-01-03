@@ -1,5 +1,6 @@
 "use client";
 
+import type { Organization } from "@/types";
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,7 +31,7 @@ import { Separator } from "@/components/ui/separator";
 import QRCode from "react-qr-code";
 
 interface JoinCodeDialogProps {
-  organization: any;
+  organization: Organization;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }

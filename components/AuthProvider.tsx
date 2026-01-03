@@ -13,7 +13,7 @@
  * have access to synchronized auth state.
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import {
   updateCachedUser,
@@ -31,7 +31,6 @@ type AuthProviderProps = {
 };
 
 export function AuthProvider({ children, initialUser = null }: AuthProviderProps) {
-  const [isInitialized, setIsInitialized] = useState(false);
   const primedRef = useRef(false);
   // Track if we've initialized profile cache for current user
   const profileInitializedForRef = useRef<string | null>(null);
@@ -103,7 +102,6 @@ export function AuthProvider({ children, initialUser = null }: AuthProviderProps
             });
           }
         }
-        setIsInitialized(true);
         
         if (process.env.NODE_ENV === 'development') {
           console.log('[AuthProvider] Initialized with session:', session?.user?.email ?? 'no user');
@@ -118,7 +116,6 @@ export function AuthProvider({ children, initialUser = null }: AuthProviderProps
           console.error('[AuthProvider] Failed to initialize profile cache:', error);
         });
       }
-      setIsInitialized(true);
       if (process.env.NODE_ENV === 'development') {
         console.log('[AuthProvider] Cache already primed from SSR, skipping getSession');
       }

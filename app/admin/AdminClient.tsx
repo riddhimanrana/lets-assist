@@ -6,7 +6,7 @@ import { OverviewTab } from "./components/OverviewTab";
 import { FeedbackTab } from "./components/FeedbackTab";
 import { TrustedMembersTab } from "./components/TrustedMembersTab";
 import { ModerationTab } from "./components/ModerationTab";
-import { updateTrustedMemberStatus, deleteFeedback } from "./actions";
+import { deleteFeedback } from "./actions";
 import { toast } from "sonner";
 
 type FeedbackType = "issue" | "idea" | "other";
@@ -106,37 +106,9 @@ export function AdminClient({
 }: AdminClientProps) {
   const [activeTab, setActiveTab] = useState("overview");
   const [feedback, setFeedback] = useState(initialFeedback);
-  const [applications, setApplications] = useState(initialApplications);
+  const [applications] = useState(initialApplications);
   
-  const handleApprove = async (id: string, userId: string) => {
-    const result = await updateTrustedMemberStatus(userId, true);
-    if (result.error) {
-      toast.error("Error", { description: result.error });
-    } else {
-      toast.success("Approved", { description: "Trusted member application approved." });
-      setApplications(prev => prev.map(app => app.id === id ? { ...app, status: true } : app));
-    }
-  };
 
-  const handleDeny = async (id: string, userId: string) => {
-    const result = await updateTrustedMemberStatus(userId, false);
-    if (result.error) {
-      toast.error("Error", { description: result.error });
-    } else {
-      toast.success("Denied", { description: "Trusted member application denied." });
-      setApplications(prev => prev.map(app => app.id === id ? { ...app, status: false } : app));
-    }
-  };
-
-  const handleRevoke = async (id: string, userId: string) => {
-    const result = await updateTrustedMemberStatus(userId, false);
-    if (result.error) {
-      toast.error("Error", { description: result.error });
-    } else {
-      toast.success("Revoked", { description: "Trusted member status revoked." });
-      setApplications(prev => prev.map(app => app.id === id ? { ...app, status: false } : app));
-    }
-  };
 
   const handleDeleteFeedback = async (id: string) => {
     const result = await deleteFeedback(id);

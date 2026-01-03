@@ -9,7 +9,6 @@ import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { DateRange } from "react-day-picker";
 import { 
   Download, 
-  Calendar, 
   FileText, 
   FileSpreadsheet,
   CheckCircle,
@@ -18,7 +17,7 @@ import {
   CalendarDays,
   Check
 } from "lucide-react";
-import { format, subMonths } from "date-fns";
+import { format } from "date-fns";
 import {
   Dialog,
   DialogContent,
@@ -36,7 +35,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { HoursTypeToggle, type HoursType } from "./HoursTypeToggle";
+
 
 interface DateRangeExportProps {
   userEmail: string;
@@ -63,10 +62,10 @@ const dateRangePresets = [
 ];
 
 export function DateRangeExport({ 
-  userEmail, 
+  userEmail: _userEmail, 
   verifiedCount = 0, 
   unverifiedCount = 0, 
-  totalCertificates = 0 
+  totalCertificates: _totalCertificates = 0 
 }: DateRangeExportProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);

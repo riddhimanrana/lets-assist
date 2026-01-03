@@ -101,7 +101,7 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
   const [checkingUsername, setCheckingUsername] = useState(false);
   const [tempImageUrl, setTempImageUrl] = useState<string>("");
   const [showCropper, setShowCropper] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
+  const [isUploading] = useState(false);
 
   const form = useForm<OrganizationFormValues>({
     resolver: zodResolver(orgCreationSchema),
@@ -118,7 +118,7 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
 
   // Track character counts
   const nameLength = form.watch("name")?.length || 0;
-  const usernameLength = form.watch("username")?.length || 0;
+
   const descriptionLength = form.watch("description")?.length || 0;
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {

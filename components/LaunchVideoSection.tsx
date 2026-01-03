@@ -1,11 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
-import { Play, ExternalLink } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Play } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -13,9 +11,8 @@ import {
 } from "@/components/ui/dialog";
 
 const videoId = "0Smto1UOqTY";
-const youtubeUrl = `https://www.youtube.com/watch?v=${videoId}`;
 const embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0`;
-const thumbnailUrl = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+const thumbnailUrl = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`; 
 
 export const LaunchVideoSection = () => {
   const [open, setOpen] = useState(false);

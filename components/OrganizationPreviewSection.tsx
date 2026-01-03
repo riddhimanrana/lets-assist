@@ -126,8 +126,8 @@ export default function OrganizationPreviewSection() {
               <div className="mt-6">
                 <OrganizationTabs
                   organization={mockOrganization}
-                  members={mockMembers}
-                  projects={mockProjects}
+                  members={mockMembers as any}
+                  projects={mockProjects as any}
                   userRole={null}
                   currentUserId={undefined}
                 />

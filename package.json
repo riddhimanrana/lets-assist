@@ -118,7 +118,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",
     "@vitest/ui": "^4.0.14",
-    "baseline-browser-mapping": "^2.8.32",
+    "baseline-browser-mapping": "^2.9.11",
     "eslint": "^9.39.1",
     "eslint-config-next": "^16.0.5",
     "eslint-config-prettier": "^10.1.8",

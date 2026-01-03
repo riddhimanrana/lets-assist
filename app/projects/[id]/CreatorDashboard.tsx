@@ -18,14 +18,10 @@ import {
 import { Project } from "@/types";
 import {
   Edit,
-  Trash2,
   AlertCircle,
   Loader2,
   Users,
-  FileEdit,
-  XCircle,
   AlertTriangle,
-  CalendarClock,
   QrCode,
   UserCheck,
   Zap,
@@ -35,7 +31,6 @@ import {
   Hourglass,
   CheckCircle2,
   Clock,
-  HelpCircle, // For instructions modal
   Mail,
   Calendar,
   CalendarCheck,
@@ -55,7 +50,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { canCancelProject, canDeleteProject } from "@/utils/project";
+import { canDeleteProject } from "@/utils/project";
 import { CancelProjectDialog } from "@/components/CancelProjectDialog";
 import { differenceInHours, addHours, isBefore, isAfter, parseISO, format } from "date-fns";
 import { getProjectStartDateTime, getProjectEndDateTime } from "@/utils/project";
@@ -163,7 +158,7 @@ export default function CreatorDashboard({ project }: Props) {
         setShowCancelDialog(false);
         router.refresh();
       }
-    } catch (error) {
+    } catch {
       toast.error("Failed to cancel project");
     }
   };
@@ -185,7 +180,7 @@ export default function CreatorDashboard({ project }: Props) {
         router.push("/home");
         router.refresh(); // Trigger server-side re-fetch of home page data
       }
-    } catch (error) {
+    } catch {
       toast.error("Failed to delete project");
     } finally {
       setIsDeleting(false);
@@ -219,8 +214,13 @@ export default function CreatorDashboard({ project }: Props) {
 
       // Extract emails from the signups
       const emails = signups
-        .map((signup: any) => signup.profiles?.email)
-        .filter(email => email) // Remove any null/undefined emails
+        .map((signup: any) => {
+          if (Array.isArray(signup.profiles)) {
+            return signup.profiles[0]?.email;
+          }
+          return signup.profiles?.email;
+        })
+        .filter((email): email is string => !!email) // Remove any null/undefined emails
         .join(',');
 
       if (!emails) {
@@ -250,8 +250,6 @@ export default function CreatorDashboard({ project }: Props) {
   const hoursAfterEnd = differenceInHours(now, endDateTime);
 
   const isInDeletionRestrictionPeriod = hoursUntilStart <= 24 && hoursAfterEnd <= 48;
-  const canDelete = canDeleteProject(project);
-  const canCancel = canCancelProject(project);
   const isCancelled = project.status === "cancelled";
 
   // --- Phases ---
@@ -260,81 +258,6 @@ export default function CreatorDashboard({ project }: Props) {
   const isCompleted = isAfter(now, endDateTime);
   const isCheckInOpen = hoursUntilStart <= 2 && isBefore(now, endDateTime); // Within 2 hours before start until end
 
-  // --- Post-Event Editing Window Check ---
-  const isPostEventEditingWindowActive = useMemo(() => {
-    if (!endDateTime) return false;
-    const hoursSinceEnd = differenceInHours(now, endDateTime);
-    // Active if event ended AND within 48 hours
-    return isAfter(now, endDateTime) && hoursSinceEnd >= 0 && hoursSinceEnd < 48;
-  }, [now, endDateTime]);
-
-  // --- NEW: Session-specific Editing Window Check ---
-  const sessionsInEditingWindow = useMemo(() => {
-    const result: { id: string; name: string; hoursRemaining: number }[] = [];
-    
-    // Check one-time events
-    if (project.event_type === "oneTime" && project.schedule.oneTime) {
-      const date = parseISO(project.schedule.oneTime.date);
-      const [hours, minutes] = project.schedule.oneTime.endTime.split(':').map(Number);
-      const sessionEndTime = new Date(date.setHours(hours, minutes));
-      const hoursSinceEnd = differenceInHours(now, sessionEndTime);
-      
-      if (isAfter(now, sessionEndTime) && hoursSinceEnd >= 0 && hoursSinceEnd < 48) {
-        result.push({
-          id: "oneTime",
-          name: `Event on ${format(date, "MMM d")}`,
-          hoursRemaining: 48 - hoursSinceEnd
-        });
-      }
-    }
-    
-    // Check multi-day events
-    else if (project.event_type === "multiDay" && project.schedule.multiDay) {
-      project.schedule.multiDay.forEach((day, dayIndex) => {
-        const dayDate = parseISO(day.date);
-        
-        day.slots.forEach((slot, slotIndex) => {
-          const [hours, minutes] = slot.endTime.split(':').map(Number);
-          const slotEndTime = new Date(new Date(dayDate).setHours(hours, minutes));
-          const hoursSinceEnd = differenceInHours(now, slotEndTime);
-          
-          if (isAfter(now, slotEndTime) && hoursSinceEnd >= 0 && hoursSinceEnd < 48) {
-            const sessionId = `day-${dayIndex}-slot-${slotIndex}`;
-            result.push({
-              id: sessionId,
-              name: `${format(dayDate, "MMM d")} (${slot.startTime} - ${slot.endTime})`,
-              hoursRemaining: 48 - hoursSinceEnd
-            });
-          }
-        });
-      });
-    }
-    
-    // Check same-day multi-area events
-    else if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
-      const date = parseISO(project.schedule.sameDayMultiArea.date);
-      
-      project.schedule.sameDayMultiArea.roles.forEach((role, roleIndex) => {
-        const [hours, minutes] = role.endTime.split(':').map(Number);
-        const roleEndTime = new Date(new Date(date).setHours(hours, minutes));
-        const hoursSinceEnd = differenceInHours(now, roleEndTime);
-        
-        if (isAfter(now, roleEndTime) && hoursSinceEnd >= 0 && hoursSinceEnd < 48) {
-          const sessionId = `role-${roleIndex}`;
-          result.push({
-            id: sessionId,
-            name: `${role.name} (${role.startTime} - ${role.endTime})`,
-            hoursRemaining: 48 - hoursSinceEnd
-          });
-        }
-      });
-    }
-    
-    return result;
-  }, [project, now]);
-  
-  const hasSessionsInEditingWindow = sessionsInEditingWindow.length > 0;
-  // --- END NEW ---
 
   // Check if attendance management is available (2 hours before event)
   const isAttendanceAvailable = useMemo(() => {
@@ -380,60 +303,6 @@ export default function CreatorDashboard({ project }: Props) {
   }, [project]);
   
   // Calculate time until attendance opens for tooltip
-  const timeUntilAttendanceOpens = useMemo(() => {
-    if (isAttendanceAvailable) return null;
-    
-    let earliestSessionTime: Date | null = null;
-    
-    if (project.event_type === "oneTime" && project.schedule.oneTime) {
-      const { date, startTime } = project.schedule.oneTime;
-      const [year, month, day] = date.split('-').map(Number);
-      const [hours, minutes] = startTime.split(':').map(Number);
-      
-      earliestSessionTime = new Date(year, month - 1, day, hours, minutes);
-    } 
-    else if (project.event_type === "multiDay" && project.schedule.multiDay) {
-      project.schedule.multiDay.forEach(day => {
-        const [year, month, dayNum] = day.date.split('-').map(Number);
-        
-        day.slots.forEach(slot => {
-          const [hours, minutes] = slot.startTime.split(':').map(Number);
-          const sessionStart = new Date(year, month - 1, dayNum, hours, minutes);
-          
-          if (!earliestSessionTime || isBefore(sessionStart, earliestSessionTime)) {
-            earliestSessionTime = sessionStart;
-          }
-        });
-      });
-    }
-    else if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
-      const { date, roles } = project.schedule.sameDayMultiArea;
-      const [year, month, day] = date.split('-').map(Number);
-      
-      roles.forEach(role => {
-        const [hours, minutes] = role.startTime.split(':').map(Number);
-        const sessionStart = new Date(year, month - 1, day, hours, minutes);
-        
-        if (!earliestSessionTime || isBefore(sessionStart, earliestSessionTime)) {
-          earliestSessionTime = sessionStart;
-        }
-      });
-    }
-    
-    if (earliestSessionTime) {
-      const openTime = addHours(earliestSessionTime, -2);
-      const diffMs = openTime.getTime() - now.getTime();
-      
-      if (diffMs > 0) {
-        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-        const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-        
-        return `${diffHours}h ${diffMinutes}m before event starts`;
-      }
-    }
-    
-    return "Not yet available";
-  }, [project, isAttendanceAvailable]);
 
   // --- Helper function to get the key used in the 'published' object ---
   const getPublishStateKey = (sessionId: string): string => {
@@ -519,7 +388,7 @@ export default function CreatorDashboard({ project }: Props) {
     else if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
       const date = parseISO(project.schedule.sameDayMultiArea.date);
 
-      project.schedule.sameDayMultiArea.roles.forEach((role, roleIndex) => {
+      project.schedule.sameDayMultiArea.roles.forEach((role, _roleIndex) => {
         const [hours, minutes] = role.endTime.split(':').map(Number);
         const roleEndTime = new Date(new Date(date).setHours(hours, minutes)); // Use new Date()
         const hoursSinceEnd = differenceInHours(now, roleEndTime);

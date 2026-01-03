@@ -1,5 +1,6 @@
 "use client";
 
+import type { Organization } from "@/types";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,7 +19,7 @@ import { deleteOrganization } from "./actions";
 import { useRouter } from "next/navigation";
 
 interface DeleteOrganizationDialogProps {
-  organization: any;
+  organization: Organization;
 }
 
 export default function DeleteOrganizationDialog({

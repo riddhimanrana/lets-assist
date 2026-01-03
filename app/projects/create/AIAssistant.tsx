@@ -19,7 +19,7 @@ export interface AIParseResult {
   location?: string;
   description?: string;
   eventType?: EventType;
-  schedule?: any;
+  schedule?: unknown;
   verificationMethod?: 'qr-code' | 'manual' | 'auto' | 'signup-only';
   requireLogin?: boolean;
 }

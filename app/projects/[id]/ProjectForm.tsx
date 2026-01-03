@@ -6,7 +6,6 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-  FormDescription, // Import FormDescription
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -68,7 +67,7 @@ const formatPhoneNumber = (value: string): string => {
 };
 
 
-export function ProjectSignupForm({ onSubmit, onCancel, isSubmitting }: ProjectFormProps) {
+export function ProjectSignupForm({ onSubmit, isSubmitting }: ProjectFormProps) {
   const [phoneNumberLength, setPhoneNumberLength] = useState(0); // State for phone number length
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),

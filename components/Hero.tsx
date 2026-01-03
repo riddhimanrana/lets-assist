@@ -1,7 +1,7 @@
 "use client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { HoverGradientButton } from "@/components/effects/HoverGradientButton";
+
 import { ArrowRight, CalendarCheck, CheckCircle, Search } from "lucide-react";
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
@@ -45,7 +45,7 @@ export const HeroSection = () => {
 						>
 							<span className="inline-flex h-2 w-2 rounded-full bg-primary" aria-hidden="true" />
 							<span className="font-semibold text-primary">New</span>
-							<span className="text-center text-foreground/80">Submitted to 2025 Congressional App Challenge</span>
+							<span className="text-center text-foreground/80">Won Special Recognition at 2025 Congressional App Challenge</span>
 						</Badge>
 					</div>
 

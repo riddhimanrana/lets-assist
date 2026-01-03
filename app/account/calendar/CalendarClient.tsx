@@ -49,17 +49,17 @@ interface CalendarClientProps {
   }>;
   volunteerSignups: Array<{
     id: string;
-    volunteer_calendar_event_id: string;
-    volunteer_synced_at: string;
-    scheduled_start: string;
-    scheduled_end: string;
+    volunteer_calendar_event_id: string | null;
+    volunteer_synced_at: string | null;
+    scheduled_start: string | null;
+    scheduled_end: string | null;
     projects: {
       id: string;
       title: string;
       description: string | null;
       location: string | null;
       schedule_type: string;
-    };
+    } | null;
   }>;
 }
 
@@ -330,29 +330,31 @@ export default function CalendarClient({
                   Your Volunteer Signups ({volunteerSignups.length})
                 </h3>
                 <div className="space-y-2">
-                  {volunteerSignups.map((signup) => (
+                  {volunteerSignups.filter(signup => signup.projects !== null).map((signup) => (
                     <div
                       key={signup.id}
                       className="flex items-start justify-between p-3 border rounded-lg hover:bg-accent/50 transition-colors"
                     >
                       <div className="flex-1 min-w-0">
                         <p className="font-medium truncate">
-                          {signup.projects.title}
+                          {signup.projects!.title}
                         </p>
                         <p className="text-sm text-muted-foreground">
-                          {formatDate(signup.scheduled_start)}
+                          {signup.scheduled_start && formatDate(signup.scheduled_start)}
                           {signup.scheduled_end &&
                             signup.scheduled_end !== signup.scheduled_start &&
                             ` - ${formatDate(signup.scheduled_end)}`}
                         </p>
-                        {signup.projects.location && (
+                        {signup.projects!.location && (
                           <p className="text-xs text-muted-foreground mt-1">
-                            📍 {signup.projects.location}
+                            📍 {signup.projects!.location}
                           </p>
                         )}
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Synced {formatDate(signup.volunteer_synced_at)}
-                        </p>
+                        {signup.volunteer_synced_at && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Synced {formatDate(signup.volunteer_synced_at)}
+                          </p>
+                        )}
                       </div>
                       <Button
                         variant="ghost"

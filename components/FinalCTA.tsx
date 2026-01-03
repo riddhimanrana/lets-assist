@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { ArrowRight, Users, Building2, GraduationCap, Calendar, Zap, Shield } from "lucide-react";
+import { ArrowRight, Users, Building2, GraduationCap, Zap, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";

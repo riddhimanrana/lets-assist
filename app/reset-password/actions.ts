@@ -2,7 +2,6 @@
 
 import { z } from "zod";
 import { createClient } from "@/utils/supabase/server";
-import { verifyTurnstileToken, isTurnstileEnabled } from "@/lib/turnstile";
 
 const resetPasswordSchema = z.object({
   email: z.string().email("Please enter a valid email address"),

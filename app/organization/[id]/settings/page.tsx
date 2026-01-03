@@ -16,7 +16,7 @@ import {
 import JoinCodeAdminDisplay from "./JoinCodeAdminDisplay";
 import StaffLinkDisplay from "./StaffLinkDisplay";
 import DeleteOrganizationDialog from "./DeleteOrganizationDialog";
-import MemberExporter from "./MemberExporter";
+
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -89,7 +89,7 @@ export default async function OrganizationSettingsPage({ params }: Props) {
 
   // Check if user is an admin
   const isAdmin = organization.organization_members.some(
-    (member: any) => member.user_id === user.id && member.role === 'admin'
+    (member: { user_id: string; role: string }) => member.user_id === user.id && member.role === 'admin'
   );
 
   // If not admin, redirect to organization page
@@ -125,7 +125,7 @@ export default async function OrganizationSettingsPage({ params }: Props) {
           {/* Basic Details Section */}
           <EditOrganizationForm 
             organization={organization} 
-            userId={user.id} 
+            _userId={user.id} 
           />
           
           {/* Join Code Management */}

@@ -3,7 +3,6 @@
 import { useState, useTransition } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   AlertTriangle, 
@@ -12,13 +11,20 @@ import {
   CheckCircle,
   User,
   Calendar,
-  Eye,
 } from 'lucide-react';
 import { getOrgFlaggedContent } from './actions';
 import { format } from 'date-fns';
-import { toast } from 'sonner';
 
-type FlaggedContent = any;
+
+interface FlaggedContent {
+  id: string;
+  content_type: string;
+  created_at: string;
+  severity: string;
+  status: string;
+  [key: string]: unknown;
+}
+
 type ModerationStats = {
   total: number;
   pending: number;
@@ -43,7 +49,7 @@ export default function OrgModerationDashboard({
 
   const loadFlaggedContent = async (status: string) => {
     startTransition(async () => {
-      const result = await getOrgFlaggedContent(organizationId, status as any);
+      const result = await getOrgFlaggedContent(organizationId, status as 'pending_review' | 'blocked' | 'dismissed');
       if (result.data) {
         setFlaggedContent(result.data);
       }
@@ -152,12 +158,18 @@ export default function OrgModerationDashboard({
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {flaggedContent.map((item) => (
-                    <Card key={item.id} className="overflow-hidden">
+                  {flaggedContent.map((item) => {
+                    const it = item as FlaggedContent & {
+                      reason?: unknown;
+                      categories?: Record<string, boolean> | null;
+                      profiles?: { full_name?: string | null; username?: string | null; email?: string | null } | null;
+                    };
+                    return (
+                    <Card key={it.id} className="overflow-hidden">
                       <div className="flex items-start gap-4 p-6">
                         {/* Type Icon */}
                         <div className="text-4xl">
-                          {getContentTypeIcon(item.content_type)}
+                          {getContentTypeIcon(it.content_type)}
                         </div>
 
                         {/* Content Details */}
@@ -165,15 +177,15 @@ export default function OrgModerationDashboard({
                           <div className="flex items-start justify-between">
                             <div>
                               <div className="flex items-center gap-2">
-                                <Badge variant={getSeverityColor(item.severity)}>
-                                  {item.severity?.toUpperCase()}
+                                <Badge variant={getSeverityColor(it.severity)}>
+                                  {it.severity?.toUpperCase()}
                                 </Badge>
                                 <span className="text-sm text-muted-foreground">
-                                  {format(new Date(item.created_at), 'PPp')}
+                                  {format(new Date(it.created_at), 'PPp')}
                                 </span>
                               </div>
                               <p className="mt-1 text-sm text-muted-foreground">
-                                {item.content_type === 'image' ? 'Image Content' : 'Text Content'}
+                                {it.content_type === 'image' ? 'Image Content' : 'Text Content'}
                               </p>
                             </div>
                           </div>
@@ -181,13 +193,13 @@ export default function OrgModerationDashboard({
                           {/* Reason */}
                           <div>
                             <p className="text-sm font-medium">Flagged for:</p>
-                            <p className="text-sm text-muted-foreground">{item.reason}</p>
+                            <p className="text-sm text-muted-foreground">{String(it.reason ?? "")}</p>
                           </div>
 
                           {/* Categories */}
-                          {item.categories && Object.keys(item.categories).length > 0 && (
+                          {it.categories && Object.keys(it.categories).length > 0 && (
                             <div className="flex flex-wrap gap-2">
-                              {Object.entries(item.categories).map(([key, value]) =>
+                              {Object.entries(it.categories).map(([key, value]) =>
                                 value ? (
                                   <Badge key={key} variant="outline" className="text-xs">
                                     {key.replace('_', ' ')}
@@ -198,11 +210,11 @@ export default function OrgModerationDashboard({
                           )}
 
                           {/* User Info */}
-                          {item.profiles && (
+                          {it.profiles && (
                             <div className="flex items-center gap-2 pt-2 text-sm text-muted-foreground">
                               <User className="h-4 w-4" />
                               <span>
-                                {item.profiles.full_name || item.profiles.username || item.profiles.email}
+                                {it.profiles.full_name || it.profiles.username || it.profiles.email}
                               </span>
                             </div>
                           )}
@@ -218,7 +230,7 @@ export default function OrgModerationDashboard({
                         </div>
                       </div>
                     </Card>
-                  ))}
+                  )})}
                 </div>
               )}
             </TabsContent>

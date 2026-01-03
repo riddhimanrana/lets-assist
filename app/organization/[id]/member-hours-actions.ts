@@ -75,7 +75,8 @@ export async function getMemberVolunteerHours(
       .eq("user_id", user.id)
       .single();
 
-    const isAdminOrStaff = userMembership?.role === "admin" || userMembership?.role === "staff";
+    const _isAdminOrStaff = userMembership?.role === "admin" || userMembership?.role === "staff";
+    void _isAdminOrStaff;
     
     // Get all organization projects to filter certificates
     const { data: orgProjects } = await supabase

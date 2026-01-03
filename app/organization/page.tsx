@@ -61,7 +61,11 @@ export default async function OrganizationsPage() {
   }, {} as Record<string, number>);
 
   // If user is logged in, fetch their organization memberships
-  let userMemberships: any[] = [];
+  let userMemberships: Array<{
+    role: string;
+    organization_id: string;
+    organizations: any;
+  }> = [];
   if (isLoggedIn && user) {
     const { data: memberships } = await supabase
       .from('organization_members')
@@ -91,7 +95,7 @@ export default async function OrganizationsPage() {
       organizations={organizations || []}
       memberCounts={orgMemberCounts}
       isLoggedIn={isLoggedIn}
-      userMemberships={userMemberships}
+      userMemberships={userMemberships as any}
       isTrusted={isTrusted}
       applicationStatus={applicationStatus}
     />

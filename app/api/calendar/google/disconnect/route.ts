@@ -30,7 +30,7 @@ export async function POST(request: Request) {
     try {
       const body = await request.json();
       revoke_access = body.revoke_access ?? true;
-    } catch (error) {
+    } catch {
       // No body provided, use default
     }
 
@@ -55,8 +55,8 @@ export async function POST(request: Request) {
       try {
         const decryptedRefreshToken = decrypt(connection.refresh_token);
         await revokeGoogleCalendarAccess(decryptedRefreshToken);
-      } catch (error) {
-        console.error("Failed to revoke Google access:", error);
+      } catch (_error) {
+        console.error("Failed to revoke Google access:", _error);
         // Continue anyway - we still want to deactivate locally
       }
     }

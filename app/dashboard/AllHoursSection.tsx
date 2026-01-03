@@ -12,8 +12,6 @@ import {
   TicketCheck,
   FileCheck,
   AlertTriangle,
-  ArrowRight,
-  ExternalLink,
   CircleCheck,
   UserCheck
 } from "lucide-react";
@@ -46,13 +44,7 @@ interface AllHoursSectionProps {
   certificates: Certificate[];
 }
 
-function formatTime12Hour(time24: string): string {
-  const [hours, minutes] = time24.split(':');
-  const hour = parseInt(hours);
-  const ampm = hour >= 12 ? 'PM' : 'AM';
-  const hour12 = hour % 12 || 12;
-  return `${hour12}:${minutes} ${ampm}`;
-}
+
 
 // Client-side utility functions
 function calculateDecimalHours(startTimeISO: string, endTimeISO: string): number {

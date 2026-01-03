@@ -2,8 +2,8 @@
 
 import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
-import { v4 as uuidv4 } from "uuid";
 import { cookies } from "next/headers";
+import { v4 as uuidv4 } from 'uuid';
 
 // File size and type validation constants
 const MAX_COVER_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB

@@ -3,7 +3,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
 import { customAlphabet } from 'nanoid';
-import { redirect } from "next/navigation";
+
 
 // Generate a random 6-digit code
 const generateJoinCode = customAlphabet('0123456789', 6);
@@ -103,8 +103,8 @@ export async function createOrganization(data: OrganizationCreationData) {
     // Decide if you want to block creation or allow if count fails. For now, allowing.
   }
 
-  if (orgsCount !== null && orgsCount >= 1) {
-    return { error: "You can only create one organization every 14 days." };
+  if (orgsCount !== null && orgsCount >= 5) {
+    return { error: "You can only create five organizations every 14 days." };
   }
 
   // Double-check username availability
@@ -210,7 +210,7 @@ export async function createOrganization(data: OrganizationCreationData) {
         console.log("Logo uploaded successfully:", logoUrl);
 
         // Update the organization with the new logo URL
-        const { error: updateError } = await supabase
+        await supabase
           .from("organizations")
           .update({ logo_url: logoUrl })
           .eq("id", organization.id)
@@ -218,7 +218,7 @@ export async function createOrganization(data: OrganizationCreationData) {
           .single();
 
 
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error("Error updating organization logo:", error);
         // Continue without interrupting organization creation if logo upload fails.
       }
@@ -233,9 +233,10 @@ export async function createOrganization(data: OrganizationCreationData) {
       organizationId: organization.id,
       logoUrl
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error creating organization:", error);
-    return { error: error.message || "Failed to create organization" };
+    const message = error instanceof Error ? error.message : "Failed to create organization";
+    return { error: message };
   }
 }
 

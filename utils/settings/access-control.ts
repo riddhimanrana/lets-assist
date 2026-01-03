@@ -68,7 +68,7 @@ export async function canAccessProject(
  * All authenticated users can create projects (trusted member check handled elsewhere)
  */
 export async function canCreateProject(
-  userId: string,
+  _userId: string,
 ): Promise<AccessControlResult> {
   return { canAccess: true };
 }
@@ -167,7 +167,7 @@ export async function canViewSchoolProfile(
 /**
  * Check if user is a super admin
  */
-export async function isSuperAdmin(userId: string): Promise<boolean> {
+export async function isSuperAdmin(_userId: string): Promise<boolean> {
   // TODO: Implement super admin check based on your admin system
   // For now, return false - you may have an admin table or role
   return false;

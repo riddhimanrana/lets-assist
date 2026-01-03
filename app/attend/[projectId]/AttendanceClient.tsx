@@ -2,19 +2,18 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Project } from "@/types";
+import type { Project, Profile, OneTimeSchedule, MultiDaySlot, SameDayMultiAreaRole } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress"; // Import Progress component
-import { format, parseISO, formatDistance, differenceInMinutes, parse } from "date-fns"; // Add differenceInMinutes, parse
+import { format, parseISO, differenceInMinutes, parse } from "date-fns"; // Add differenceInMinutes, parse
 import { formatTimeTo12Hour } from "@/lib/utils";
 import { getSlotDetails } from "@/utils/project";
 import { toast } from "sonner";
 import {
   CheckCircle,
-  Timer,
   LogIn,
   // UserPlus, // No longer needed
   Loader2,
@@ -34,8 +33,8 @@ import { checkInUser, lookupEmailStatus, checkInAnonymous } from "./actions";
 interface AttendanceClientProps {
   project: Project;
   scheduleId: string;
-  user: any; // Can be null if not logged in
-  existingCheckIn: any; // Can be null if no signup or not checked in yet for the *logged-in user*
+  user: Profile | null; // Can be null if not logged in
+  existingCheckIn: { id: string; check_in_time: string | null } | null; // Minimal shape used by this component
   scanInfo: {
     valid: boolean;
     isMobileDevice: boolean;
@@ -96,7 +95,7 @@ export default function AttendanceClient({
   const [remainingTimeFormatted, setRemainingTimeFormatted] = useState("");
 
   // Session details state
-  const [sessionDetails, setSessionDetails] = useState<any>(null);
+  const [sessionDetails, setSessionDetails] = useState<OneTimeSchedule | MultiDaySlot | SameDayMultiAreaRole | null>(null);
 
   // Anonymous Check-in state
   const [showAnonInputSection, setShowAnonInputSection] = useState(false);
@@ -152,7 +151,8 @@ export default function AttendanceClient({
   // Update progress and remaining time every second if checked in
   useEffect(() => {
     // Ensure checkInTime is valid *before* proceeding
-    if (!checkInTime || !sessionDetails?.date || !sessionDetails?.startTime || !sessionDetails?.endTime) {
+    const hasDate = !!(sessionDetails && 'date' in sessionDetails && sessionDetails.date);
+    if (!checkInTime || !hasDate || !sessionDetails?.startTime || !sessionDetails?.endTime) {
         // Clear progress if necessary data is missing
         setProgressPercentage(0);
         setRemainingTimeFormatted("");
@@ -208,7 +208,7 @@ export default function AttendanceClient({
 
     return () => clearInterval(intervalId);
     // Depend on checkInTime and session end details
-  }, [checkInTime, sessionDetails?.date, sessionDetails?.endTime]); // Removed startTime dependency as it's not needed for this calculation
+  }, [checkInTime, sessionDetails && 'date' in sessionDetails ? sessionDetails.date : undefined, sessionDetails?.endTime]); // Removed startTime dependency as it's not needed for this calculation
 
 
   // Handle check-in for LOGGED-IN users or from LOOKUP results
@@ -225,7 +225,7 @@ export default function AttendanceClient({
     setLookupResult(null); // Clear lookup result if check-in initiated from there
 
     try {
-      const result = await checkInUser(targetSignupId, user?.id); // Pass user?.id
+      const result = await checkInUser(targetSignupId, (user as { id?: string } | null)?.id); // Pass user?.id
 
       if (result.success && result.checkInTime) {
         setIsCheckedIn(true);
@@ -237,9 +237,10 @@ export default function AttendanceClient({
       } else {
         throw new Error(result.error || "Check-in failed.");
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Check-in error:", error);
-      toast.error(`Failed to check in: ${error.message}`);
+      const message = error instanceof Error ? error.message : String(error);
+      toast.error(`Failed to check in: ${message}`);
       // Reset state if check-in fails but component doesn't unmount
       setIsCheckedIn(false);
       setCheckInTime(null);
@@ -269,9 +270,10 @@ export default function AttendanceClient({
       } else {
         toast.error(result.error || "Anonymous check-in failed. Please ensure you are signed up and approved.");
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Anonymous check-in error:", err);
-      toast.error(err.message || "Anonymous check-in encountered an error.");
+      const message = err instanceof Error ? err.message : String(err);
+      toast.error(message || "Anonymous check-in encountered an error.");
     } finally {
       setIsAnonSubmitting(false);
     }
@@ -332,7 +334,7 @@ export default function AttendanceClient({
           </CardHeader>
           <CardContent>
             <p className="text-sm mb-4">
-              You are logged in as <strong>{user.email}</strong>, but we couldn&apos;t find your signup record for this specific project session ({sessionDetails?.name || scheduleId}).
+                You are logged in as <strong>{user.email}</strong>, but we couldn&apos;t find your signup record for this specific project session ({(sessionDetails && 'name' in sessionDetails ? (sessionDetails as { name?: string }).name : undefined) || scheduleId}).
             </p>
             <p className="text-sm text-muted-foreground mb-4">
                 Please ensure you signed up for the correct session.
@@ -375,9 +377,9 @@ export default function AttendanceClient({
                 </div>
                 <div className="flex justify-between items-center py-3 border-b">
                   <span className="text-sm font-medium">Session</span>
-                  <span className="text-sm">{sessionDetails?.name || scheduleId}</span>
+                  <span className="text-sm">{(sessionDetails && 'name' in sessionDetails ? (sessionDetails as { name?: string }).name : undefined) || scheduleId}</span>
                 </div>
-                {sessionDetails?.date && (
+                {(sessionDetails && 'date' in sessionDetails && (sessionDetails as { date?: string }).date) && (
                   <div className="flex justify-between items-center py-3 border-b">
                     <span className="text-sm font-medium">Date</span>
                     <span className="text-sm">
@@ -452,7 +454,7 @@ export default function AttendanceClient({
           <CardHeader>
             <CardTitle>{project.title}</CardTitle>
             <CardDescription>
-              Confirm your attendance for the session: {sessionDetails?.name || scheduleId}
+              Confirm your attendance for the session: {(sessionDetails && 'name' in sessionDetails ? (sessionDetails as { name?: string }).name : undefined) || scheduleId}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -462,7 +464,9 @@ export default function AttendanceClient({
                 <div className="flex items-center gap-2">
                   <Calendar className="h-4 w-4 text-muted-foreground" />
                   <span className="text-sm">
-                    {sessionDetails.date ? format(parseISO(sessionDetails.date), "EEEE, MMMM d, yyyy") : "N/A"}
+                    {(sessionDetails && 'date' in sessionDetails && (sessionDetails as { date?: string }).date)
+                      ? format(parseISO((sessionDetails as { date?: string }).date!), "EEEE, MMMM d, yyyy")
+                      : "N/A"}
                   </span>
                 </div>
                 {sessionDetails.startTime && sessionDetails.endTime && (
@@ -473,10 +477,10 @@ export default function AttendanceClient({
                     </span>
                   </div>
                 )}
-                {sessionDetails.name && (
+                {(sessionDetails && 'name' in sessionDetails && (sessionDetails as { name?: string }).name) && (
                   <div className="flex items-center gap-2">
                     <Users className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">{sessionDetails.name}</span>
+                      <span className="text-sm">{(sessionDetails as { name?: string }).name}</span>
                   </div>
                 )}
               </div>
@@ -495,7 +499,7 @@ export default function AttendanceClient({
             {/* === Logged-in User Check-in UI === */}
             {user && existingCheckIn && (
               <div className="space-y-4">
-                <h3 className="text-lg font-medium">Welcome, {user?.name}</h3>
+                <h3 className="text-lg font-medium">Welcome, {user?.full_name}</h3>
                 <p className="text-sm text-muted-foreground">
                   You are signed up for this session. Click below to confirm your attendance.
                 </p>

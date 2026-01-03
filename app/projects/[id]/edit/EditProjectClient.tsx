@@ -1,6 +1,6 @@
 "use client";
 
-import { Project, LocationData, ProjectSchedule, EventType } from "@/types";
+import { Project, ProjectSchedule } from "@/types";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { cn, stripHtml } from "@/lib/utils";
@@ -72,7 +72,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { CancelProjectDialog } from "@/components/CancelProjectDialog";
-import { canCancelProject, canDeleteProject } from "@/utils/project";
+import { canDeleteProject } from "@/utils/project";
 import { getProjectStartDateTime, getProjectEndDateTime } from "@/utils/project";
 import { differenceInHours } from "date-fns";
 import { createClient } from "@/utils/supabase/client";
@@ -245,7 +245,6 @@ export default function EditProjectClient({ project }: Props) {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewDocName, setPreviewDocName] = useState<string>("Document");
   const [previewDocType, setPreviewDocType] = useState<string>("");
-  const [dragActive, setDragActive] = useState<"cover" | "docs" | null>(null);
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const [totalDocumentsSize, setTotalDocumentsSize] = useState<number>(0);
 
@@ -371,7 +370,7 @@ export default function EditProjectClient({ project }: Props) {
 
   // Track form changes (including schedule)
   useEffect(() => {
-    const subscription = form.watch((value, { name, type }) => {
+    const subscription = form.watch((_value, { name: _name, type: _type }) => {
       const formValues = form.getValues();
       const basicInfoChanged = 
         formValues.title !== project.title ||
@@ -665,7 +664,7 @@ export default function EditProjectClient({ project }: Props) {
         router.push(`/projects/${project.id}`);
         router.refresh();
       }
-    } catch (error) {
+    } catch {
       toast.error("Failed to update project");
     } finally {
       setSaving(false);
@@ -726,7 +725,7 @@ export default function EditProjectClient({ project }: Props) {
         router.push(`/projects/${project.id}`);
         router.refresh();
       }
-    } catch (error) {
+    } catch {
       toast.error("Failed to cancel project");
     }
   };
@@ -748,7 +747,7 @@ export default function EditProjectClient({ project }: Props) {
         router.push("/home");
         router.refresh(); // Trigger server-side re-fetch of home page data
       }
-    } catch (error) {
+    } catch {
       toast.error("Failed to delete project");
     } finally {
       setIsDeleting(false);
@@ -764,8 +763,6 @@ export default function EditProjectClient({ project }: Props) {
   const hoursAfterEnd = differenceInHours(now, endDateTime);
   
   const isInDeletionRestrictionPeriod = hoursUntilStart <= 24 && hoursAfterEnd <= 48;
-  const canDelete = canDeleteProject(project);
-  const canCancel = canCancelProject(project);
   const isCancelled = project.status === "cancelled";
 
   return (

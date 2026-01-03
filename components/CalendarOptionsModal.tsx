@@ -13,7 +13,6 @@ import { Button } from "@/components/ui/button";
 import {
   Download,
   Loader2,
-  Check,
   CheckCircle,
   MapPin,
   Calendar as CalendarIcon,
@@ -47,6 +46,7 @@ export default function CalendarOptionsModal({
 }: CalendarOptionsModalProps) {
   const [isConnecting, setIsConnecting] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  void isSyncing;
   const [isDownloading, setIsDownloading] = useState(false);
   const [isCheckingConnection, setIsCheckingConnection] = useState(true);
   const [isConnected, setIsConnected] = useState(false);

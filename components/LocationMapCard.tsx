@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+// import { useState } from 'react';
 import { useTheme } from 'next-themes';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LocationData } from '@/types';
@@ -29,7 +29,7 @@ interface LocationMapCardProps {
   locationData?: LocationData;
 }
 
-function MapComponent({ location, locationData }: LocationMapCardProps) {
+function MapComponent({ location: _location, locationData }: LocationMapCardProps) {
   // Get the current theme
   const { resolvedTheme } = useTheme();
   

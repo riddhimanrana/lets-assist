@@ -17,7 +17,7 @@ interface CertificateExportProps {
 export function CertificateExport({ userEmail, totalCertificates }: CertificateExportProps) {
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [isPending, startTransition] = useTransition();
-  const [filteredCount, setFilteredCount] = useState<number>(totalCertificates);
+  const [, setFilteredCount] = useState<number>(totalCertificates);
 
   const handleExport = () => {
     if (!userEmail) {

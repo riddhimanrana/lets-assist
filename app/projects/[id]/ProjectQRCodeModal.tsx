@@ -2,17 +2,16 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Project, EventType } from "@/types";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Project } from "@/types";
+
 import { QRCode } from "react-qrcode-logo";
 import { Button } from "@/components/ui/button";
 import { differenceInHours, parseISO, format, isBefore, subHours } from "date-fns";
-import { Printer, Calendar, Clock, Info, Lock, Users, QrCode as QrIcon } from "lucide-react";
+import { Printer, Calendar, Clock, Lock, QrCode as QrIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { formatTimeTo12Hour } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { useReactToPrint } from "react-to-print";
-import Image from "next/image";
 
 // Remove the complex token generation function - we'll use cookies/sessions instead
 
@@ -34,7 +33,7 @@ interface SessionInfo {
 }
 
 export function ProjectQRCodeModal({ project, open, onOpenChange }: ProjectQRCodeModalProps) {
-  const [activeTab, setActiveTab] = useState<string>("all");
+
   const [sessions, setSessions] = useState<SessionInfo[]>([]);
   const printRef = useRef<HTMLDivElement>(null);
   const [selectedQRCode, setSelectedQRCode] = useState<SessionInfo | null>(null);
@@ -141,7 +140,6 @@ export function ProjectQRCodeModal({ project, open, onOpenChange }: ProjectQRCod
   const renderAvailabilityBadge = (session: SessionInfo) => {
     const now = new Date();
     const startDate = parseISO(`${session.date}T${session.startTime}`);
-    const endDate = parseISO(`${session.date}T${session.endTime}`);
 
     if (session.isAvailable) {
       return <Badge variant="default">Available Now</Badge>;

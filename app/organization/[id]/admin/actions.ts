@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
+import { ProjectStatus } from "@/types";
 
 // Get admin dashboard metrics
 export async function getAdminDashboardMetrics(organizationId: string) {
@@ -264,7 +265,7 @@ export async function getOrgProjectsWithStats(organizationId: string) {
       return {
         id: project.id,
         title: project.title,
-        status: project.status,
+        status: project.status as ProjectStatus,
         visibility: project.visibility,
         verificationMethod: project.verification_method,
         eventType: project.event_type,
