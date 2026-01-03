@@ -23,7 +23,6 @@ type OrganizationUpdateData = {
   type: 'nonprofit' | 'school' | 'company' | 'government' | 'other';
   logoUrl: string | null | undefined;
   autoJoinDomain?: string | null;
-  enableAutoJoin?: boolean;
 };
 
 /**
@@ -51,29 +50,35 @@ export async function checkUsernameAvailability(username: string): Promise<boole
 }
 
 /**
- * Check if an auto-join domain is available (excluding the current org)
+ * Check if a domain is available for auto-join (not used by another organization)
+ * Excludes the specified organization from the check
  */
-export async function checkDomainAvailability(domain: string, currentOrgId?: string): Promise<boolean> {
+export async function checkDomainAvailability(domain: string, excludeOrgId?: string): Promise<boolean> {
   const supabase = await createClient();
 
-  const normalized = domain.trim().toLowerCase();
-  if (!normalized) {
+  if (!domain || domain.length < 3) {
     return false;
   }
 
-  const { data, error } = await supabase
+  const normalizedDomain = domain.toLowerCase().trim();
+
+  let query = supabase
     .from("organizations")
     .select("id")
-    .eq("auto_join_domain", normalized)
-    .maybeSingle();
+    .eq("auto_join_domain", normalizedDomain);
+  
+  if (excludeOrgId) {
+    query = query.neq("id", excludeOrgId);
+  }
+
+  const { data, error } = await query.maybeSingle();
 
   if (error) {
-    console.error("Error checking domain availability:", error);
+    console.error("Error checking domain:", error);
     return false;
   }
 
-  if (!data) return true;
-  return data.id === currentOrgId;
+  return !data; // If data is null, domain is available
 }
 
 /**
@@ -104,7 +109,7 @@ export async function updateOrganization(data: OrganizationUpdateData) {
   // Get the current organization data
   const { data: currentOrg, error: orgError } = await supabase
     .from("organizations")
-    .select("username, logo_url, auto_join_domain")
+    .select("username, logo_url")
     .eq("id", data.id)
     .single();
 
@@ -115,28 +120,6 @@ export async function updateOrganization(data: OrganizationUpdateData) {
 
   try {
     let logoUrl = currentOrg.logo_url;
-    const normalizedDomain = data.autoJoinDomain
-      ? data.autoJoinDomain.trim().toLowerCase()
-      : null;
-    const autoJoinDomain = data.enableAutoJoin ? normalizedDomain : null;
-
-    // Validate domain uniqueness if toggled on and changed
-    if (autoJoinDomain && autoJoinDomain !== currentOrg.auto_join_domain) {
-      const { data: existingDomainOrg, error: domainError } = await supabase
-        .from("organizations")
-        .select("id")
-        .eq("auto_join_domain", autoJoinDomain)
-        .maybeSingle();
-
-      if (domainError) {
-        console.error("Error checking domain availability:", domainError);
-        return { error: "Unable to validate auto-join domain" };
-      }
-
-      if (existingDomainOrg && existingDomainOrg.id !== data.id) {
-        return { error: "That domain is already used by another organization" };
-      }
-    }
     
     // Handle logo update
     if (data.logoUrl !== undefined) {
@@ -232,7 +215,7 @@ export async function updateOrganization(data: OrganizationUpdateData) {
         website: data.website || null,
         type: data.type,
         logo_url: logoUrl,
-        auto_join_domain: autoJoinDomain,
+        auto_join_domain: data.autoJoinDomain || null,
       })
       .eq("id", data.id);
 
