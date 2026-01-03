@@ -74,10 +74,10 @@ export async function canCreateProject(
 }
 
 /**
- * Check if user can view a school-affiliated profile
- * Only org admins/staff can view school member profiles
+ * Check if user can view a private profile
+ * Organization admins/staff can view member profiles
  */
-export async function canViewSchoolProfile(
+export async function canViewPrivateProfile(
   viewerId: string,
   profileOwnerId: string,
 ): Promise<AccessControlResult> {
@@ -88,7 +88,7 @@ export async function canViewSchoolProfile(
 
   const supabase = await createClient();
 
-  // Get the profile owner's email to check if it's a school account
+  // Get the profile owner's visibility setting
   const { data: ownerProfile } = await supabase
     .from("profiles")
     .select("email, profile_visibility")
@@ -104,49 +104,23 @@ export async function canViewSchoolProfile(
     return { canAccess: true };
   }
 
-  // Check if the profile owner has a school email
-  const domain = ownerProfile.email?.split('@')[1]?.toLowerCase();
-  if (!domain) {
-    // No email domain - treat as private profile
+  // For private profiles, check if viewer shares an organization with the profile owner
+  // Get profile owner's organizations
+  const { data: ownerOrgs } = await supabase
+    .from("organization_members")
+    .select("organization_id")
+    .eq("user_id", profileOwnerId);
+
+  if (!ownerOrgs || ownerOrgs.length === 0) {
     return { 
       canAccess: false, 
       reason: "This profile is private" 
     };
   }
 
-  // Check if it's an institution email
-  const { data: institution } = await supabase
-    .from("educational_institutions")
-    .select("id")
-    .eq("domain", domain)
-    .eq("verified", true)
-    .single();
+  const orgIds = ownerOrgs.map(org => org.organization_id);
 
-  // Not a school account - just check if profile is private
-  if (!institution) {
-    return { 
-      canAccess: false, 
-      reason: "This profile is private" 
-    };
-  }
-
-  // It's a school account - check if viewer is admin/staff of an affiliated org
-  // Get organizations affiliated with this institution
-  const { data: affiliatedOrgs } = await supabase
-    .from("organizations")
-    .select("id")
-    .eq("institution_affiliation", institution.id);
-
-  if (!affiliatedOrgs || affiliatedOrgs.length === 0) {
-    return { 
-      canAccess: false, 
-      reason: "This profile is private" 
-    };
-  }
-
-  const orgIds = affiliatedOrgs.map(org => org.id);
-
-  // Check if viewer is admin or staff of any affiliated organization
+  // Check if viewer is admin or staff of any organization the owner belongs to
   const { data: viewerMembership } = await supabase
     .from("organization_members")
     .select("role, organization_id")
@@ -160,7 +134,7 @@ export async function canViewSchoolProfile(
 
   return { 
     canAccess: false, 
-    reason: "This profile is only visible to school staff" 
+    reason: "This profile is private" 
   };
 }
 

@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Building2, Globe, Upload, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import { Building2, Globe, Upload, CheckCircle2, AlertCircle, Loader2, Info } from "lucide-react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,7 +21,8 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { createOrganization, checkOrgUsername } from "./actions";
+import { Switch } from "@/components/ui/switch";
+import { createOrganization, checkOrgUsername, checkDomainAvailability } from "./actions";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import ImageCropper from "@/components/ImageCropper";
@@ -89,7 +90,14 @@ const orgCreationSchema = z.object({
 
   logoUrl: z.string().nullable().optional(),
 
-  allowedEmailDomains: z.string().optional(),
+  autoJoinDomain: z.string()
+    .transform(val => val?.toLowerCase().trim())
+    .optional()
+    .refine(val => !val || /^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$/.test(val), {
+      message: "Please enter a valid domain (e.g., company.com)"
+    }),
+
+  enableAutoJoin: z.boolean().optional(),
 });
 
 type OrganizationFormValues = z.infer<typeof orgCreationSchema>;
@@ -102,6 +110,8 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
   const [tempImageUrl, setTempImageUrl] = useState<string>("");
   const [showCropper, setShowCropper] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [domainAvailable, setDomainAvailable] = useState<boolean | null>(null);
+  const [checkingDomain, setCheckingDomain] = useState(false);
 
   const form = useForm<OrganizationFormValues>({
     resolver: zodResolver(orgCreationSchema),
@@ -112,14 +122,34 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
       website: "",
       type: undefined, // Remove default value to force selection
       logoUrl: null,
-      allowedEmailDomains: "",
+      autoJoinDomain: "",
+      enableAutoJoin: false,
     },
   });
 
-  // Track character counts
+  // Track character counts and enableAutoJoin state
   const nameLength = form.watch("name")?.length || 0;
   const usernameLength = form.watch("username")?.length || 0;
   const descriptionLength = form.watch("description")?.length || 0;
+  const enableAutoJoin = form.watch("enableAutoJoin");
+
+  const checkDomainAvailabilityHandler = async (domain: string) => {
+    if (!domain || domain.length < 3) {
+      setDomainAvailable(null);
+      return;
+    }
+
+    setCheckingDomain(true);
+    try {
+      const isAvailable = await checkDomainAvailability(domain);
+      setDomainAvailable(isAvailable);
+    } catch (error) {
+      console.error("Error checking domain:", error);
+      toast.error("Failed to check domain availability");
+    } finally {
+      setCheckingDomain(false);
+    }
+  };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -174,9 +204,7 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
         type: data.type,
         logoUrl: data.logoUrl || null,
         createdBy: userId,
-        allowedEmailDomains: data.allowedEmailDomains
-          ? data.allowedEmailDomains.split(',').map(d => d.trim()).filter(Boolean)
-          : undefined,
+        autoJoinDomain: data.enableAutoJoin && data.autoJoinDomain ? data.autoJoinDomain : undefined,
       });
 
       if (result.error) {
@@ -401,25 +429,88 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
                   </FormItem>
                 )}
               />
-              <FormField
-                control={form.control}
-                name="allowedEmailDomains"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Allowed Email Domains (Optional)</FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        placeholder="e.g. school.edu, company.com"
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      Comma-separated list of email domains. If set, you can restrict project signups to these domains.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
+              
+              {/* Auto-join domain section */}
+              <div className="space-y-4 rounded-lg border p-4 bg-muted/30">
+                <FormField
+                  control={form.control}
+                  name="enableAutoJoin"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-base">Auto-join by Email Domain</FormLabel>
+                        <FormDescription>
+                          Automatically add users to this organization when they sign up with a specific email domain
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={(checked) => {
+                            field.onChange(checked);
+                            if (!checked) {
+                              form.setValue("autoJoinDomain", "");
+                              setDomainAvailable(null);
+                            }
+                          }}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                {enableAutoJoin && (
+                  <FormField
+                    control={form.control}
+                    name="autoJoinDomain"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email Domain</FormLabel>
+                        <div className="relative">
+                          <FormControl>
+                            <Input
+                              {...field}
+                              placeholder="e.g. troop941.org"
+                              onChange={(e) => {
+                                const value = e.target.value.toLowerCase().trim();
+                                field.onChange(value);
+                              }}
+                              onBlur={(e) => {
+                                field.onBlur();
+                                checkDomainAvailabilityHandler(e.target.value);
+                              }}
+                            />
+                          </FormControl>
+                          {checkingDomain && (
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                              <div className="h-4 w-4 animate-spin rounded-full border-2 border-foreground border-t-transparent" />
+                            </div>
+                          )}
+                          {domainAvailable !== null && !checkingDomain && (
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                              {domainAvailable ? (
+                                <CheckCircle2 className="h-5 w-5 text-primary" />
+                              ) : (
+                                <AlertCircle className="h-5 w-5 text-destructive" />
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        <FormDescription className="flex items-start gap-2">
+                          <Info className="h-4 w-4 mt-0.5 shrink-0" />
+                          <span>
+                            Users signing up with emails from this domain (e.g., user@{field.value || "example.org"}) will automatically become members of this organization. Each domain can only be linked to one organization.
+                          </span>
+                        </FormDescription>
+                        {domainAvailable === false && (
+                          <p className="text-sm text-destructive">This domain is already linked to another organization</p>
+                        )}
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 )}
-              />
+              </div>
             </CardContent>
             <CardFooter>
               <Button
@@ -428,7 +519,8 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
                   isCreating ||
                   !usernameAvailable ||
                   !form.formState.isValid ||
-                  Object.keys(form.formState.errors).length > 0
+                  Object.keys(form.formState.errors).length > 0 ||
+                  (enableAutoJoin && !!form.watch("autoJoinDomain") && domainAvailable === false)
                 }
                 className="ml-auto"
               >

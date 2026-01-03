@@ -23,6 +23,7 @@ export default function GlobalNotificationProvider({
   const [showOnboardingModal, setShowOnboardingModal] = useState(false);
   const [currentUserFullName, setCurrentUserFullName] = useState<string | null>(null);
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
+  const [autoJoinedOrg, setAutoJoinedOrg] = useState<{ id: string; name: string } | null>(null);
   const onboardingCompletedRef = useRef(false);
   const introCompletedRef = useRef(false);
 
@@ -100,6 +101,15 @@ export default function GlobalNotificationProvider({
       user.user_metadata?.full_name || user.email?.split("@")[0] || "User"
     );
     setCurrentUserEmail(user.email || null);
+    
+    // Check for auto-joined organization
+    const autoJoinedOrgId = user.user_metadata?.auto_joined_org_id;
+    const autoJoinedOrgName = user.user_metadata?.auto_joined_org_name;
+    if (autoJoinedOrgId && autoJoinedOrgName) {
+      setAutoJoinedOrg({ id: autoJoinedOrgId, name: autoJoinedOrgName });
+    } else {
+      setAutoJoinedOrg(null);
+    }
   }, [user]);
 
   const handleIntroComplete = useCallback(async () => {
@@ -198,6 +208,7 @@ export default function GlobalNotificationProvider({
           userId={user.id}
           currentFullName={currentUserFullName}
           currentEmail={currentUserEmail}
+          autoJoinedOrg={autoJoinedOrg}
         />
       )}
       {children}
