@@ -49,7 +49,8 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { signUpForProject } from "./actions";
+import { signUpForProject, cancelSignup, resendAnonymousConfirmationEmail } from "./actions";
+>>>>>>> origin/development
 import { formatTimeTo12Hour, formatBytes } from "@/lib/utils";
 import { createClient } from "@/utils/supabase/client";
 import { isSlotAvailable, isMultiDaySlotPastByScheduleId, isSameDayMultiAreaSlotPast, isOneTimeSlotPast } from "@/utils/project";
@@ -186,6 +187,11 @@ export default function ProjectDetails({
     signupId: string;
     scheduleId: string;
   } | null>(null);
+
+  // State for resend confirmation email flow
+  const [showResendDialog, setShowResendDialog] = useState(false);
+  const [resendAnonymousId, setResendAnonymousId] = useState<string | null>(null);
+  const [isResending, setIsResending] = useState(false);
 
   // Remove userRejected state as rejectedSlots handles this per slot
   // const [userRejected, setUserRejected] = useState<boolean>(false);
@@ -474,7 +480,13 @@ export default function ProjectDetails({
       const result = await signUpForProject(project.id, scheduleId, anonymousData);
 
       if (result.error) {
-        toast.error(result.error);
+        // Check if this is a pending signup that can be resent
+        if ('canResend' in result && result.canResend && 'anonymousSignupId' in result && result.anonymousSignupId) {
+          setResendAnonymousId(result.anonymousSignupId as string);
+          setShowResendDialog(true);
+        } else {
+          toast.error(result.error);
+        }
       } else if (result.success) {
         if (result.needsConfirmation) {
           // Show the persistent alert
@@ -549,6 +561,31 @@ export default function ProjectDetails({
   // Handle anonymous form submit
   const handleAnonymousSubmit = (values: AnonymousSignupData) => {
     handleSignUp(currentScheduleId, values);
+  };
+
+  // Handle resending confirmation email
+  const handleResendConfirmation = async () => {
+    if (!resendAnonymousId) return;
+    
+    setIsResending(true);
+    try {
+      const result = await resendAnonymousConfirmationEmail(resendAnonymousId);
+      
+      if (result.error) {
+        toast.error(result.error);
+      } else if (result.success) {
+        toast.success("Confirmation email sent!", {
+          description: "Please check your email inbox (and spam folder) for the confirmation link.",
+          duration: 6000,
+        });
+        setShowResendDialog(false);
+      }
+    } catch (error) {
+      console.error("Error resending confirmation:", error);
+      toast.error("Failed to resend confirmation email. Please try again.");
+    } finally {
+      setIsResending(false);
+    }
   };
 
   // Redirect to auth pages
@@ -1475,6 +1512,52 @@ export default function ProjectDetails({
             onCancel={() => setAnonymousDialogOpen(false)}
             isSubmitting={loadingStates[currentScheduleId]}
           />
+        </DialogContent>
+      </Dialog>
+
+      {/* Resend Confirmation Email Dialog */}
+      <Dialog open={showResendDialog} onOpenChange={setShowResendDialog}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Mail className="h-5 w-5 text-amber-500" />
+              Email Confirmation Pending
+            </DialogTitle>
+            <DialogDescription className="pt-2">
+              You&apos;ve already signed up for this slot but haven&apos;t confirmed your email yet. Would you like us to resend the confirmation email?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-3 pt-4">
+            <p className="text-sm text-muted-foreground">
+              Please check your inbox (and spam folder) for the original confirmation email. If you can&apos;t find it, click below to receive a new one.
+            </p>
+            <div className="flex gap-2 justify-end">
+              <Button
+                variant="outline"
+                onClick={() => setShowResendDialog(false)}
+                disabled={isResending}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleResendConfirmation}
+                disabled={isResending}
+                className="gap-2"
+              >
+                {isResending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <MailCheck className="h-4 w-4" />
+                    Resend Email
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 
