@@ -13,7 +13,8 @@ import {
   CheckCircle2,
   AlertCircle,
   Upload,
-  X
+  X,
+  Info
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -29,7 +30,8 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { updateOrganization, checkUsernameAvailability } from "./actions";
+import { Switch } from "@/components/ui/switch";
+import { updateOrganization, checkUsernameAvailability, checkDomainAvailability } from "./actions";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import ImageCropper from "@/components/ImageCropper";
@@ -67,6 +69,15 @@ const orgUpdateSchema = z.object({
   type: z.enum(["nonprofit", "school", "company", "government", "other"]),
   
   logoUrl: z.string().optional().nullable(),
+  
+  enableAutoJoin: z.boolean().optional(),
+  
+  autoJoinDomain: z.string()
+    .optional()
+    .refine(
+      (val) => !val || /^[a-zA-Z0-9][a-zA-Z0-9.-]*\.[a-zA-Z]{2,}$/.test(val),
+      "Please enter a valid domain (e.g., example.org)"
+    ),
 });
 
 type OrganizationFormValues = z.infer<typeof orgUpdateSchema>;
@@ -81,6 +92,8 @@ export default function EditOrganizationForm({ organization, userId }: EditOrgan
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
   const [checkingUsername, setCheckingUsername] = useState(false);
+  const [domainAvailable, setDomainAvailable] = useState<boolean | null>(null);
+  const [checkingDomain, setCheckingDomain] = useState(false);
   const [tempImageUrl, setTempImageUrl] = useState<string>("");
   const [showCropper, setShowCropper] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -99,8 +112,13 @@ export default function EditOrganizationForm({ organization, userId }: EditOrgan
       website: organization.website || "",
       type: organization.type || "nonprofit",
       logoUrl: organization.logo_url || null,
+      enableAutoJoin: !!organization.auto_join_domain,
+      autoJoinDomain: organization.auto_join_domain || "",
     },
   });
+
+  // Watch enableAutoJoin for conditional rendering
+  const enableAutoJoin = form.watch("enableAutoJoin");
 
   // Watch all form values and detect changes more reliably
   const formValues = form.watch();
@@ -150,6 +168,33 @@ export default function EditOrganizationForm({ organization, userId }: EditOrgan
       setUsernameAvailable(false);
     } finally {
       setCheckingUsername(false);
+    }
+  };
+
+  // Check if domain is available when changed
+  const currentDomain = organization.auto_join_domain;
+  
+  const handleDomainBlur = async (value: string) => {
+    if (!value || value.trim() === "") {
+      setDomainAvailable(null);
+      return;
+    }
+    
+    if (value === currentDomain) {
+      // Domain hasn't changed, so it's "available" (still belongs to this org)
+      setDomainAvailable(true);
+      return;
+    }
+    
+    setCheckingDomain(true);
+    try {
+      const isAvailable = await checkDomainAvailability(value, organization.id);
+      setDomainAvailable(isAvailable);
+    } catch (error) {
+      console.error("Error checking domain:", error);
+      setDomainAvailable(false);
+    } finally {
+      setCheckingDomain(false);
     }
   };
 
@@ -228,12 +273,27 @@ export default function EditOrganizationForm({ organization, userId }: EditOrgan
         }
       }
       
+      // Check domain availability if auto-join is enabled and domain changed
+      const newDomain = data.enableAutoJoin ? data.autoJoinDomain : null;
+      if (newDomain && newDomain !== currentDomain) {
+        const isDomainAvailable = await checkDomainAvailability(newDomain, organization.id);
+        if (!isDomainAvailable) {
+          form.setError("autoJoinDomain", {
+            type: "manual",
+            message: "This domain is already in use by another organization",
+          });
+          setIsSubmitting(false);
+          return;
+        }
+      }
+      
       const result = await updateOrganization({
         ...data,
         id: organization.id,
         description: data.description || "",
         website: data.website || "",
         logoUrl: data.logoUrl === undefined ? organization.logo_url : data.logoUrl,
+        autoJoinDomain: newDomain || null,
       });
       
       if (result.error) {
@@ -508,6 +568,79 @@ export default function EditOrganizationForm({ organization, userId }: EditOrgan
                   </FormItem>
                 )}
               />
+
+              {/* Auto-join by Email Domain Section */}
+              <div className="space-y-4 rounded-lg border p-4 bg-muted/30">
+                <FormField
+                  control={form.control}
+                  name="enableAutoJoin"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-base">Auto-join by Email Domain</FormLabel>
+                        <FormDescription>
+                          Allow users with matching email domains to join automatically
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={(checked) => {
+                            field.onChange(checked);
+                            if (!checked) {
+                              form.setValue("autoJoinDomain", "");
+                              setDomainAvailable(null);
+                            }
+                          }}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                {enableAutoJoin && (
+                  <FormField
+                    control={form.control}
+                    name="autoJoinDomain"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email Domain</FormLabel>
+                        <div className="relative">
+                          <FormControl>
+                            <Input
+                              placeholder="example.org"
+                              {...field}
+                              onBlur={(e) => handleDomainBlur(e.target.value)}
+                              className="pr-10"
+                            />
+                          </FormControl>
+                          {checkingDomain && (
+                            <Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin text-muted-foreground" />
+                          )}
+                          {!checkingDomain && domainAvailable === true && (
+                            <CheckCircle2 className="absolute right-3 top-3 h-4 w-4 text-green-500" />
+                          )}
+                          {!checkingDomain && domainAvailable === false && (
+                            <AlertCircle className="absolute right-3 top-3 h-4 w-4 text-destructive" />
+                          )}
+                        </div>
+                        <FormDescription className="flex items-start gap-1.5">
+                          <Info className="h-4 w-4 shrink-0 mt-0.5 text-muted-foreground" />
+                          <span>
+                            Users with verified email addresses from this domain (e.g., @example.org) will be able to join your organization instantly without approval.
+                          </span>
+                        </FormDescription>
+                        <FormMessage />
+                        {!checkingDomain && domainAvailable === false && (
+                          <p className="text-sm text-destructive">
+                            This domain is already in use by another organization.
+                          </p>
+                        )}
+                      </FormItem>
+                    )}
+                  />
+                )}
+              </div>
             </CardContent>
             <CardFooter className="flex justify-between">
               <Button
