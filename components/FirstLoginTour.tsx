@@ -4,21 +4,18 @@ import * as React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter, usePathname } from "next/navigation";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { Dialog, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
-import {
-  FIRST_LOGIN_TOUR_STEPS,
-  type FirstLoginTourStep,
-} from "@/components/onboarding/first-login-tour-steps";
+import { FIRST_LOGIN_TOUR_STEPS } from "@/components/onboarding/first-login-tour-steps";
+import type { Step, Tour } from "nextstepjs";
 
 type FirstLoginTourProps = {
   isOpen: boolean;
@@ -76,23 +73,20 @@ export default function FirstLoginTour({ isOpen, onComplete, onSkip }: FirstLogi
   const [highlightPortalRoot, setHighlightPortalRoot] = useState<HTMLElement | null>(null);
 
   // FIRST_LOGIN_TOUR_STEPS historically has two formats in this repo:
-  // - a flat array of FirstLoginTourStep[] (the version we expect)
-  // - an array of Tour objects: { tour: string, steps: FirstLoginTourStep[] }
+  // - a flat array of Step[] (the version we expect)
+  // - an array of Tour objects: { tour: string, steps: Step[] }
   // To be compatible with both formats (and avoid runtime "invalid element type" errors),
   // flatten the steps if needed and use that array consistently.
-  const flattenedSteps = useMemo<FirstLoginTourStep[]>(() => {
+  const flattenedSteps = useMemo<Step[]>(() => {
     if (FIRST_LOGIN_TOUR_STEPS.length === 0) return [];
-    const first = FIRST_LOGIN_TOUR_STEPS[0] as any;
+    const first = FIRST_LOGIN_TOUR_STEPS[0] as Tour;
     if (first && Array.isArray(first.steps)) {
-      return first.steps as FirstLoginTourStep[];
+      return first.steps as Step[];
     }
-    return FIRST_LOGIN_TOUR_STEPS as unknown as FirstLoginTourStep[];
+    return FIRST_LOGIN_TOUR_STEPS as unknown as Step[];
   }, []);
 
-  const step = useMemo<FirstLoginTourStep>(() => flattenedSteps[currentStep], [currentStep, flattenedSteps]);
-  const progressValue = useMemo(() => {
-    return flattenedSteps.length ? ((currentStep + 1) / flattenedSteps.length) * 100 : 0;
-  }, [currentStep, flattenedSteps]);
+  const step = useMemo<Step>(() => flattenedSteps[currentStep], [currentStep, flattenedSteps]);
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -109,10 +103,20 @@ export default function FirstLoginTour({ isOpen, onComplete, onSkip }: FirstLogi
     const style = document.createElement("style");
     style.setAttribute("data-first-login-tour-styles", "true");
     style.textContent = `
+/* Hide all Dialog overlays during tour */
+body[data-first-login-tour='true'] [data-radix-dialog-overlay],
+body[data-first-login-tour='true'] [data-state="open"][data-radix-dialog-overlay],
 body[data-first-login-tour='true'] .radix-overlay {
-  opacity: 0;
-  pointer-events: none;
-  backdrop-filter: none;
+  display: none !important;
+}
+
+/* Hide ALL close buttons - target every possible selector */
+body[data-first-login-tour='true'] button[aria-label="Close"],
+body[data-first-login-tour='true'] button[data-radix-dialog-close],
+body[data-first-login-tour='true'] [data-dialog-close],
+body[data-first-login-tour='true'] [role="dialog"] > button:first-child,
+body[data-first-login-tour='true'] [data-radix-dialog-content] > button {
+  display: none !important;
 }
     `;
     document.head.appendChild(style);
@@ -147,11 +151,14 @@ body[data-first-login-tour='true'] .radix-overlay {
     const targetRoute = current.nextRoute;
 
     if (targetRoute && targetRoute !== pathname) {
+      // Push current path to history before navigating
       navigationHistory.current.push(pathname ?? "/home");
       setIsNavigating(true);
 
       try {
         await router.push(targetRoute);
+        // Wait for both the route and the element to be ready
+        await new Promise(resolve => setTimeout(resolve, 100));
         await waitForSelector(next?.selector);
       } finally {
         setIsNavigating(false);
@@ -159,7 +166,7 @@ body[data-first-login-tour='true'] .radix-overlay {
     }
 
     setCurrentStep((prev) => prev + 1);
-  }, [currentStep, flattenedSteps, onComplete, router]);
+  }, [currentStep, flattenedSteps, onComplete, router, pathname]);
 
   const handleBack = useCallback(async () => {
     if (!flattenedSteps.length || currentStep === 0) {
@@ -168,14 +175,29 @@ body[data-first-login-tour='true'] .radix-overlay {
 
     const current = flattenedSteps[currentStep];
     const previous = flattenedSteps[currentStep - 1];
-    const fallbackRoute = current.prevRoute;
-    const targetRoute = (navigationHistory.current.pop() as string | undefined) ?? fallbackRoute;
+    
+    // Determine target route for back navigation
+    let targetRoute: string | undefined;
+    
+    // If we have history, pop from it
+    if (navigationHistory.current.length > 0) {
+      targetRoute = navigationHistory.current.pop();
+    } else if (current.prevRoute) {
+      // Fallback to explicit prevRoute if defined
+      targetRoute = current.prevRoute;
+    } else {
+      // Infer from previous step's nextRoute or assume we stay on same page
+      targetRoute = undefined;
+    }
+
     const shouldRoute = Boolean(targetRoute && targetRoute !== pathname);
 
     if (shouldRoute) {
       setIsNavigating(true);
       try {
         await router.push(targetRoute as string);
+        // Wait for both the route and the element to be ready
+        await new Promise(resolve => setTimeout(resolve, 100));
         await waitForSelector(previous?.selector);
       } finally {
         setIsNavigating(false);
@@ -183,7 +205,7 @@ body[data-first-login-tour='true'] .radix-overlay {
     }
 
     setCurrentStep((prev) => Math.max(prev - 1, 0));
-  }, [currentStep, flattenedSteps, router]);
+  }, [currentStep, flattenedSteps, router, pathname]);
 
   const handleSkip = useCallback(() => {
     onSkip?.();
@@ -322,9 +344,9 @@ body[data-first-login-tour='true'] .radix-overlay {
   return (
     <>
       {highlightLayer}
-      <Dialog open={isOpen} onOpenChange={() => {}}>
-        <DialogContent
-          className="m-0 h-screen w-screen max-w-none border-none bg-transparent p-0 shadow-none z-[100]"
+      <Dialog modal={false} open={isOpen} onOpenChange={() => {}}>
+        <DialogPrimitive.Content
+          className="m-0 h-screen w-screen max-w-none border-none bg-transparent p-0 shadow-none z-[100] fixed inset-0"
           onInteractOutside={(event) => event.preventDefault()}
           onEscapeKeyDown={(event) => event.preventDefault()}
         >
@@ -332,7 +354,6 @@ body[data-first-login-tour='true'] .radix-overlay {
           <div className="relative flex h-full w-full items-end justify-end p-4 sm:p-8">
             <Card className="relative z-20 w-full max-w-lg shadow-2xl">
               <CardHeader className="space-y-3">
-                <Progress value={progressValue} className="h-1" />
                 <div className="flex items-center gap-3">
                   <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
                     {/**
@@ -340,7 +361,7 @@ body[data-first-login-tour='true'] .radix-overlay {
                      * (depending on which steps file is resolved). Support both.
                      */}
                     {(() => {
-                      const Icon = (step as any)?.icon;
+                      const Icon = step?.icon;
                       if (!Icon) return null;
                       if (typeof Icon === "function") {
                         return React.createElement(Icon, { className: "h-6 w-6" });
@@ -351,14 +372,12 @@ body[data-first-login-tour='true'] .radix-overlay {
                   </div>
                   <div>
                     <CardTitle className="text-xl">{step.title}</CardTitle>
-                    <CardDescription className="text-sm">{step.highlight}</CardDescription>
                   </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-6">
                 <p className="text-sm text-muted-foreground">
-                  {/** Prefer `description` (old/flat format), fallback to `content` (tour format) */}
-                  {(step as any)?.description ?? (step as any)?.content ?? null}
+                  {step.content}
                 </p>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   {flattenedSteps.map((_, index) => (
@@ -403,7 +422,7 @@ body[data-first-login-tour='true'] .radix-overlay {
               </CardContent>
             </Card>
           </div>
-        </DialogContent>
+        </DialogPrimitive.Content>
       </Dialog>
     </>
   );

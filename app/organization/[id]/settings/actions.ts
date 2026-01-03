@@ -22,6 +22,7 @@ type OrganizationUpdateData = {
   website: string | undefined;
   type: 'nonprofit' | 'school' | 'company' | 'government' | 'other';
   logoUrl: string | null | undefined;
+  autoJoinDomain?: string | null;
 };
 
 /**
@@ -46,6 +47,38 @@ export async function checkUsernameAvailability(username: string): Promise<boole
   }
   
   return !data; // If data is null, username is available
+}
+
+/**
+ * Check if a domain is available for auto-join (not used by another organization)
+ * Excludes the specified organization from the check
+ */
+export async function checkDomainAvailability(domain: string, excludeOrgId?: string): Promise<boolean> {
+  const supabase = await createClient();
+
+  if (!domain || domain.length < 3) {
+    return false;
+  }
+
+  const normalizedDomain = domain.toLowerCase().trim();
+
+  let query = supabase
+    .from("organizations")
+    .select("id")
+    .eq("auto_join_domain", normalizedDomain);
+  
+  if (excludeOrgId) {
+    query = query.neq("id", excludeOrgId);
+  }
+
+  const { data, error } = await query.maybeSingle();
+
+  if (error) {
+    console.error("Error checking domain:", error);
+    return false;
+  }
+
+  return !data; // If data is null, domain is available
 }
 
 /**
@@ -181,7 +214,8 @@ export async function updateOrganization(data: OrganizationUpdateData) {
         description: data.description || null,
         website: data.website || null,
         type: data.type,
-        logo_url: logoUrl
+        logo_url: logoUrl,
+        auto_join_domain: data.autoJoinDomain || null,
       })
       .eq("id", data.id);
 
