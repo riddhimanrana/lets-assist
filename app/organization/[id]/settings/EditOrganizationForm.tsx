@@ -29,12 +29,13 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { updateOrganization, checkUsernameAvailability } from "./actions";
+import { updateOrganization, checkUsernameAvailability, checkDomainAvailability } from "./actions";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import ImageCropper from "@/components/ImageCropper";
 import Link from "next/link";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 
 // Constants
 const USERNAME_MAX_LENGTH = 32;
@@ -42,6 +43,7 @@ const NAME_MAX_LENGTH = 64;
 const WEBSITE_MAX_LENGTH = 100;
 const DESCRIPTION_MAX_LENGTH = 650;
 const USERNAME_REGEX = /^[a-zA-Z0-9_.-]+$/;
+const DOMAIN_REGEX = /^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 
 // Form schema
 const orgUpdateSchema = z.object({
@@ -67,6 +69,16 @@ const orgUpdateSchema = z.object({
   type: z.enum(["nonprofit", "school", "company", "government", "other"]),
   
   logoUrl: z.string().optional().nullable(),
+
+  enableAutoJoin: z.boolean().default(false),
+  autoJoinDomain: z.string().trim().toLowerCase().max(255, "Domain is too long").optional().or(z.literal("")),
+}).refine((values) => {
+  if (!values.enableAutoJoin) return true;
+  if (!values.autoJoinDomain) return false;
+  return DOMAIN_REGEX.test(values.autoJoinDomain);
+}, {
+  message: "Enter a valid domain like example.org",
+  path: ["autoJoinDomain"],
 });
 
 type OrganizationFormValues = z.infer<typeof orgUpdateSchema>;
@@ -81,6 +93,8 @@ export default function EditOrganizationForm({ organization, userId }: EditOrgan
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
   const [checkingUsername, setCheckingUsername] = useState(false);
+  const [domainAvailable, setDomainAvailable] = useState<boolean | null>(null);
+  const [checkingDomain, setCheckingDomain] = useState(false);
   const [tempImageUrl, setTempImageUrl] = useState<string>("");
   const [showCropper, setShowCropper] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -99,11 +113,15 @@ export default function EditOrganizationForm({ organization, userId }: EditOrgan
       website: organization.website || "",
       type: organization.type || "nonprofit",
       logoUrl: organization.logo_url || null,
+      enableAutoJoin: Boolean(organization.auto_join_domain),
+      autoJoinDomain: organization.auto_join_domain || "",
     },
   });
 
   // Watch all form values and detect changes more reliably
   const formValues = form.watch();
+  const enableAutoJoin = form.watch("enableAutoJoin");
+  const autoJoinDomain = form.watch("autoJoinDomain");
   
   useEffect(() => {
     const subscription = form.watch((value, { name, type }) => {
@@ -125,6 +143,13 @@ export default function EditOrganizationForm({ organization, userId }: EditOrgan
     
     return () => subscription.unsubscribe();
   }, [form, organization]);
+
+  useEffect(() => {
+    if (!enableAutoJoin) {
+      setDomainAvailable(null);
+      form.setValue("autoJoinDomain", "");
+    }
+  }, [enableAutoJoin, form]);
   
   // Check if organization username is still available when changed
   const currentUsername = organization.username;
@@ -150,6 +175,30 @@ export default function EditOrganizationForm({ organization, userId }: EditOrgan
       setUsernameAvailable(false);
     } finally {
       setCheckingUsername(false);
+    }
+  };
+
+  const handleDomainBlur = async (value: string) => {
+    if (!enableAutoJoin) {
+      setDomainAvailable(null);
+      return;
+    }
+
+    const normalized = value.trim().toLowerCase();
+    if (!normalized || !DOMAIN_REGEX.test(normalized)) {
+      setDomainAvailable(null);
+      return;
+    }
+
+    setCheckingDomain(true);
+    try {
+      const isAvailable = await checkDomainAvailability(normalized, organization.id);
+      setDomainAvailable(isAvailable);
+    } catch (error) {
+      console.error("Error checking domain availability:", error);
+      setDomainAvailable(false);
+    } finally {
+      setCheckingDomain(false);
     }
   };
 
@@ -234,6 +283,8 @@ export default function EditOrganizationForm({ organization, userId }: EditOrgan
         description: data.description || "",
         website: data.website || "",
         logoUrl: data.logoUrl === undefined ? organization.logo_url : data.logoUrl,
+        autoJoinDomain: data.enableAutoJoin ? data.autoJoinDomain?.trim().toLowerCase() : null,
+        enableAutoJoin: data.enableAutoJoin,
       });
       
       if (result.error) {
@@ -474,6 +525,72 @@ export default function EditOrganizationForm({ organization, userId }: EditOrgan
 
               <FormField
                 control={form.control}
+                name="enableAutoJoin"
+                render={({ field }) => (
+                  <FormItem className="flex items-start justify-between rounded-lg border p-4">
+                    <div className="space-y-1">
+                      <FormLabel>Auto-join by email domain</FormLabel>
+                      <FormDescription>
+                        Automatically add users to this organization when they sign up with a matching email domain.
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={(checked) => {
+                          field.onChange(checked);
+                          setDomainAvailable(null);
+                        }}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+
+              {enableAutoJoin && (
+                <FormField
+                  control={form.control}
+                  name="autoJoinDomain"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Allowed email domain</FormLabel>
+                      <div className="relative">
+                        <FormControl>
+                          <Input
+                            {...field}
+                            placeholder="example.org"
+                            onBlur={(e) => {
+                              field.onBlur();
+                              handleDomainBlur(e.target.value);
+                            }}
+                          />
+                        </FormControl>
+                        {checkingDomain && (
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-foreground border-t-transparent" />
+                          </div>
+                        )}
+                        {domainAvailable !== null && !checkingDomain && (
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                            {domainAvailable ? (
+                              <CheckCircle2 className="h-5 w-5 text-primary" />
+                            ) : (
+                              <AlertCircle className="h-5 w-5 text-destructive" />
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      <FormDescription>
+                        Users with emails like <span className="font-mono">@example.org</span> will be added automatically.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
+              <FormField
+                control={form.control}
                 name="type"
                 render={({ field }) => (
                   <FormItem>
@@ -516,7 +633,8 @@ export default function EditOrganizationForm({ organization, userId }: EditOrgan
                 disabled={
                   isSubmitting ||
                   !hasChanges ||
-                  (formValues.username !== organization.username && !usernameAvailable)
+                  (formValues.username !== organization.username && !usernameAvailable) ||
+                  (formValues.enableAutoJoin && domainAvailable === false)
                 }
               >
                 {isSubmitting ? (
