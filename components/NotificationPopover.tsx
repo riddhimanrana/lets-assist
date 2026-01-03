@@ -572,19 +572,19 @@ export function NotificationPopover() {
           <p className="text-sm text-foreground whitespace-pre-line">
             {activeNotification?.body}
           </p>
-          {detailMetadata?.reportDescription && (
+          {(detailMetadata as any)?.reportDescription && (
             <div className="rounded-lg border bg-muted/40 p-3">
               <p className="text-xs font-medium text-muted-foreground">Your original report</p>
               <p className="mt-1 text-sm text-foreground whitespace-pre-line">
-                {detailMetadata.reportDescription}
+                {(detailMetadata as any).reportDescription}
               </p>
-              {detailMetadata.reportReason && (
-                <p className="mt-2 text-xs text-muted-foreground">Tagged as: {detailMetadata.reportReason}</p>
+              {(detailMetadata as any).reportReason && (
+                <p className="mt-2 text-xs text-muted-foreground">Tagged as: {(detailMetadata as any).reportReason}</p>
               )}
             </div>
           )}
-          {detailMetadata?.reportId && (
-            <p className="text-xs text-muted-foreground">Reference ID: {detailMetadata.reportId}</p>
+          {(detailMetadata as any)?.reportId && (
+            <p className="text-xs text-muted-foreground">Reference ID: {(detailMetadata as any).reportId}</p>
           )}
         </div>
         <DialogFooter>

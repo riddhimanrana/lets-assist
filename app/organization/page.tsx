@@ -64,7 +64,7 @@ export default async function OrganizationsPage() {
   let userMemberships: Array<{
     role: string;
     organization_id: string;
-    organizations: unknown;
+    organizations: any;
   }> = [];
   if (isLoggedIn && user) {
     const { data: memberships } = await supabase
@@ -95,7 +95,7 @@ export default async function OrganizationsPage() {
       organizations={organizations || []}
       memberCounts={orgMemberCounts}
       isLoggedIn={isLoggedIn}
-      userMemberships={userMemberships}
+      userMemberships={userMemberships as any}
       isTrusted={isTrusted}
       applicationStatus={applicationStatus}
     />

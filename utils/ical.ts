@@ -5,11 +5,7 @@
 
 import {
   Project,
-  EventType,
   OneTimeSchedule,
-  MultiDayScheduleDay,
-  SameDayMultiAreaSchedule,
-  SameDayMultiAreaRole,
 } from "@/types";
 
 interface ICalEventData {
@@ -212,7 +208,7 @@ function generateMultiDayEventICal(
   // Find the specific day and slot
   const events: string[] = [];
   
-  project.schedule.multiDay.forEach((day, dayIndex) => {
+  project.schedule.multiDay.forEach((day) => {
     day.slots.forEach((slot, slotIndex) => {
       const scheduleIdentifier = `${day.date}-${slotIndex}`;
       

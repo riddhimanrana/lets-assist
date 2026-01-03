@@ -96,7 +96,7 @@ export default function EditOrganizationForm({ organization, _userId }: EditOrga
       username: organization.username || "",
       description: organization.description || "",
       website: organization.website || "",
-      type: organization.type || "nonprofit",
+      type: (organization.type as "nonprofit" | "school" | "company" | "government" | "other") || "nonprofit",
       logoUrl: organization.logo_url || null,
     },
   });
@@ -108,7 +108,7 @@ export default function EditOrganizationForm({ organization, _userId }: EditOrga
     const subscription = form.watch((value, { name: _name, type: _type }) => {
       // Check if any field has changed from initial values
       const hasFormChanges = Object.keys(value).some(key => {
-        const initialValue = organization[key === 'logoUrl' ? 'logo_url' : key];
+        const initialValue = (organization as any)[key === 'logoUrl' ? 'logo_url' : key];
         const currentValue = value[key as keyof OrganizationFormValues];
         
         // Handle empty strings and null values

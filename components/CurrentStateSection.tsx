@@ -54,7 +54,7 @@ const roadmap = [
     icon: Cog,
     title: "Open API for partner ecosystems",
     status: "Planning",
-    description: "Let organizations connect Let\'s Assist data with fundraising, CRM, and student success tools.",
+    description: "Let organizations connect Let's Assist data with fundraising, CRM, and student success tools.",
   },
 ];
 

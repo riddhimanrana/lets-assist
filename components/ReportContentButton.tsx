@@ -145,18 +145,18 @@ export function ReportContentButton({
       const element = triggerButton as ReactElement;
       return cloneElement(element, {
         onClick: (event: MouseEvent<HTMLElement>) => {
-          event.stopPropagation(); // Prevent dropdown from closing
-          const previousOnClick = (element.props as Record<string, unknown>)['onClick'] as ((e: MouseEvent<HTMLElement>) => void) | undefined;
-          previousOnClick?.(event);
+          event.stopPropagation();
+          const previousOnClick = (element.props as any)?.onClick;
+          if (previousOnClick) previousOnClick(event);
           if (event.defaultPrevented) {
             return;
           }
           setOpen(true);
         },
         onSelect: (event: Event) => {
-          event.preventDefault(); // Prevent dropdown menu from closing
+          event.preventDefault();
         },
-      });
+      } as any);
     })()
     : (
       <Button

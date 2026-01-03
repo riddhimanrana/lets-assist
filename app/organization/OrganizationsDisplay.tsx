@@ -72,16 +72,16 @@ export default function OrganizationsDisplay({
       case "verified-first":
         result.sort((a, b) => {
           if (a.verified === b.verified) {
-            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+            return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
           }
           return b.verified ? 1 : -1;
         });
         break;
       case "newest":
-        result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        result.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
         break;
       case "oldest":
-        result.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+        result.sort((a, b) => new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime());
         break;
       case "alphabetical":
         result.sort((a, b) => a.name.localeCompare(b.name));

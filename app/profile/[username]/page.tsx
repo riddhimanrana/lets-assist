@@ -267,7 +267,6 @@ function formatHours(hours: number): string {
   })) || [];
 
   // Stats calculation
-  const upcomingCreatedProjects = createdProjects?.filter(p => p.status === "upcoming").length || 0;
   const completedCreatedProjects = createdProjects?.filter(p => p.status === "completed").length || 0;
   const totalCreatedProjects = createdProjects?.length || 0;
   

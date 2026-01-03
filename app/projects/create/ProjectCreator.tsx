@@ -107,13 +107,16 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
       setEventType(data.eventType);
     }
 
+   
+   
     // Apply schedule based on event type
+     
     if (data.schedule && data.eventType) {
-      if (data.eventType === 'oneTime' && data.schedule.date) {
-        handleOneTimeScheduleUpdate('date', data.schedule.date);
-        if (data.schedule.startTime) handleOneTimeScheduleUpdate('startTime', data.schedule.startTime);
-        if (data.schedule.endTime) handleOneTimeScheduleUpdate('endTime', data.schedule.endTime);
-        if (data.schedule.volunteers) handleOneTimeScheduleUpdate('volunteers', data.schedule.volunteers);
+      if (data.eventType === 'oneTime' && (data.schedule as any).date) {
+        handleOneTimeScheduleUpdate('date', (data.schedule as any).date);
+        if ((data.schedule as any).startTime) handleOneTimeScheduleUpdate('startTime', (data.schedule as any).startTime);
+        if ((data.schedule as any).endTime) handleOneTimeScheduleUpdate('endTime', (data.schedule as any).endTime);
+        if ((data.schedule as any).volunteers) handleOneTimeScheduleUpdate('volunteers', (data.schedule as any).volunteers);
       } else if (data.eventType === 'multiDay' && Array.isArray(data.schedule)) {
         // Clear existing days first
         const currentDays = state.schedule.multiDay.length;
@@ -159,10 +162,10 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
             }
           }
         });
-      } else if (data.eventType === 'sameDayMultiArea' && data.schedule.date) {
-        handleMultiRoleScheduleUpdate('date', data.schedule.date);
-        if (data.schedule.overallStart) handleMultiRoleScheduleUpdate('overallStart', data.schedule.overallStart);
-        if (data.schedule.overallEnd) handleMultiRoleScheduleUpdate('overallEnd', data.schedule.overallEnd);
+      } else if (data.eventType === 'sameDayMultiArea' && (data.schedule as any).date) {
+        handleMultiRoleScheduleUpdate('date', (data.schedule as any).date);
+        if ((data.schedule as any).overallStart) handleMultiRoleScheduleUpdate('overallStart', (data.schedule as any).overallStart);
+        if ((data.schedule as any).overallEnd) handleMultiRoleScheduleUpdate('overallEnd', (data.schedule as any).overallEnd);
 
         // Clear existing roles
         const currentRoles = state.schedule.sameDayMultiArea.roles.length;
@@ -171,8 +174,8 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
         }
 
         // Add new roles from AI
-        if (Array.isArray(data.schedule.roles)) {
-          data.schedule.roles.forEach((role: { name?: string; startTime?: string; endTime?: string; volunteers?: number }, roleIndex: number) => {
+        if (Array.isArray((data.schedule as any).roles)) {
+          (data.schedule as any).roles.forEach((role: { name?: string; startTime?: string; endTime?: string; volunteers?: number }, roleIndex: number) => {
             if (roleIndex === 0) {
               handleMultiRoleScheduleUpdate('name', role.name, 0);
               handleMultiRoleScheduleUpdate('startTime', role.startTime, 0);

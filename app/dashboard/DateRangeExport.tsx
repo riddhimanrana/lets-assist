@@ -100,7 +100,7 @@ export function DateRangeExport({
       });
       
       setIsOpen(false);
-    } catch {
+    } catch (error) {
       toast.error("Export failed", {
         description: "Please try again or contact support if the problem persists.",
       });

@@ -90,11 +90,13 @@ const formatDateDisplay = (project: ProjectWithExtras) => {
   switch (project.event_type) {
     case "oneTime": {
       const dateStr = project.schedule.oneTime?.date;
+      if (!dateStr) return "";
       const [year, month, dayNum] = dateStr.split("-").map(Number);
       const date = new Date(year, month - 1, dayNum);
       return format(date, "MMM d");
     }
     case "multiDay": {
+      if (!project.schedule.multiDay) return "";
       const dates = project.schedule.multiDay
         .map((day: MultiDayScheduleDay) => {
           const [year, month, dayNum] = day.date.split("-").map(Number);
@@ -132,6 +134,7 @@ const formatDateDisplay = (project: ProjectWithExtras) => {
     }
     case "sameDayMultiArea": {
       const dateStr = project.schedule.sameDayMultiArea?.date;
+      if (!dateStr) return "";
       const [year, month, dayNum] = dateStr.split("-").map(Number);
       const date = new Date(year, month - 1, dayNum);
       return format(date, "MMM d");
@@ -168,6 +171,7 @@ const getEventScheduleSummary = (project: ProjectWithExtras) => {
       return date;
     }
     case "multiDay": {
+      if (!project.schedule.multiDay || project.schedule.multiDay.length === 0) return "";
       const days = project.schedule.multiDay.length;
       const startDateStr = project.schedule.multiDay[0].date;
       const endDateStr = project.schedule.multiDay[days - 1].date;
@@ -186,6 +190,7 @@ const getEventScheduleSummary = (project: ProjectWithExtras) => {
       return `${days} days (${startDate} - ${endDate})`;
     }
     case "sameDayMultiArea": {
+      if (!project.schedule.sameDayMultiArea?.date) return "";
       const dateStr = project.schedule.sameDayMultiArea.date;
       const [year, month, dayNum] = dateStr.split("-").map(Number);
       const dateFormat = new Date(year, month - 1, dayNum);
@@ -204,7 +209,7 @@ const getVolunteerCount = (project: ProjectWithExtras) => {
 
   switch (project.event_type) {
     case "oneTime":
-      return project.schedule.oneTime.volunteers || 0;
+      return project.schedule.oneTime?.volunteers || 0;
     case "multiDay": {
       // Sum all volunteers across all days and slots
       let total = 0;
@@ -265,11 +270,11 @@ const getProjectCreator = (project: ProjectWithExtras) => {
 // Function to get project creator's avatar URL
 const getCreatorAvatarUrl = (project: ProjectWithExtras) => {
   if (project.organization) {
-    return project.organization.logo_url;
+    return project.organization.logo_url || undefined;
   } else if (project.organization_id && project.organizations) {
-    return project.organizations.logo_url;
+    return project.organizations.logo_url || undefined;
   }
-  return project.profiles?.avatar_url;
+  return project.profiles?.avatar_url || undefined;
 };
 
 // Function to check if the project's organization is verified

@@ -50,7 +50,7 @@ export function NotificationListener({ userId }: NotificationListenerProps) {
       description: notification.body,
       action: notification.action_url ? {
         label: "View",
-        onClick: () => window.location.href = notification.action_url
+        onClick: () => window.location.href = notification.action_url!
       } : undefined
     });
 

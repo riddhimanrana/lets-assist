@@ -1,11 +1,10 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
-import { canCancelProject, getProjectStatus, isProjectVisible } from "@/utils/project";
+import { canCancelProject, isProjectVisible } from "@/utils/project";
 import { revalidatePath } from "next/cache";
 import { ProjectStatus } from "@/types";
-// Make sure AnonymousSignup is imported from the correct types definition
-import { type Profile, type Project, type AnonymousSignupData, type ProjectSignup, type SignupStatus, type AnonymousSignup } from "@/types";
+import { type Project, type AnonymousSignupData, type ProjectSignup, type SignupStatus, type AnonymousSignup } from "@/types";
 import crypto from 'crypto';
 // Import centralized email service
 import { sendEmail } from '@/services/email';
@@ -314,7 +313,7 @@ const generateLoggedInUserConfirmationEmailHtml = (
 function getScheduleDetails(project: Project, scheduleId: string) {
   if (project.event_type === "oneTime") {
     const schedule = project.schedule.oneTime;
-    if (!schedule) return { date: "TBD", time: "TBD", timeRange: "TBD" };
+    if (!schedule) return { date: "TBD", timeRange: "TBD" };
 
     const date = new Date(schedule.date).toLocaleDateString('en-US', {
       weekday: 'long',
@@ -339,11 +338,11 @@ function getScheduleDetails(project: Project, scheduleId: string) {
       const dateStr = parts.join("-");
 
       const day = project.schedule.multiDay?.find(d => d.date === dateStr);
-      if (!day) return { date: "TBD", time: "TBD", timeRange: "TBD" };
+      if (!day) return { date: "TBD", timeRange: "TBD" };
 
       const slotIndex = parseInt(slotIndexStr!, 10);
       const slot = day.slots[slotIndex];
-      if (!slot) return { date: "TBD", time: "TBD", timeRange: "TBD" };
+      if (!slot) return { date: "TBD", timeRange: "TBD" };
 
       const date = new Date(dateStr).toLocaleDateString('en-US', {
         weekday: 'long',
@@ -364,7 +363,7 @@ function getScheduleDetails(project: Project, scheduleId: string) {
     }
   } else if (project.event_type === "sameDayMultiArea") {
     const schedule = project.schedule.sameDayMultiArea;
-    if (!schedule) return { date: "TBD", time: "TBD", timeRange: "TBD" };
+    if (!schedule) return { date: "TBD", timeRange: "TBD" };
 
     const date = new Date(schedule.date).toLocaleDateString('en-US', {
       weekday: 'long',
@@ -385,7 +384,7 @@ function getScheduleDetails(project: Project, scheduleId: string) {
     };
   }
 
-  return { date: "TBD", time: "TBD", timeRange: "TBD" };
+  return { date: "TBD", timeRange: "TBD" };
 }
 
 export async function isProjectCreator(projectId: string) {
@@ -406,7 +405,7 @@ export async function isProjectCreator(projectId: string) {
       .single();
 
     return project?.creator_id === user.id;
-  } catch (error) {
+  } catch {
     return false;
   }
 }

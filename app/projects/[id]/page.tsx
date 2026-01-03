@@ -2,7 +2,6 @@ import { createClient } from "@/utils/supabase/server";
 import { getProject, getCreatorProfile } from "./actions";
 import { notFound } from "next/navigation";
 import { getSlotCapacities } from "@/utils/project";
-import { getProjectStatus } from "@/utils/project";
 import ProjectUnauthorized from "./ProjectUnauthorized";
 // Make sure Signup type is imported
 import { Project, Signup } from "@/types"; 

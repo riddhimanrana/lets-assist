@@ -3,7 +3,6 @@
 import { z } from "zod";
 import { createClient } from "@/utils/supabase/server";
 import { createAdminClient } from "@/utils/supabase/admin";
-import { verifyTurnstileToken, isTurnstileEnabled } from "@/lib/turnstile";
 import { randomUUID } from "crypto";
 
 const signupSchema = z.object({

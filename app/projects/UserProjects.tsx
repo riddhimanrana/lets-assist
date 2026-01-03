@@ -20,9 +20,10 @@ function formatDateDisplay(project: Project) {
   switch (project.event_type) {
     case "oneTime": {
       const dateStr = project.schedule.oneTime?.date;
-      return format(parseISO(dateStr), "MMM d, yyyy");
+      return dateStr ? format(parseISO(dateStr), "MMM d, yyyy") : "";
     }
     case "multiDay": {
+      if (!project.schedule.multiDay) return "";
       const dates = project.schedule.multiDay
         .map((day: MultiDayScheduleDay) => parseISO(day.date))
         .sort((a: Date, b: Date) => a.getTime() - b.getTime());
@@ -31,7 +32,7 @@ function formatDateDisplay(project: Project) {
     }
     case "sameDayMultiArea": {
       const dateStr = project.schedule.sameDayMultiArea?.date;
-      return format(parseISO(dateStr), "MMM d, yyyy");
+      return dateStr ? format(parseISO(dateStr), "MMM d, yyyy") : "";
     }
     default:
       return "Date not specified";
@@ -128,7 +129,7 @@ export default async function UserProjects() {
       .in("id", projectCreatorIds);
     
     if (profiles) {
-      creatorProfiles = (profiles as Profile[]).reduce((acc: Record<string, Profile>, profile: Profile) => {
+      creatorProfiles = (profiles as any).reduce((acc: Record<string, Profile>, profile: any) => {
         acc[profile.id] = profile;
         return acc;
       }, {});
@@ -136,7 +137,7 @@ export default async function UserProjects() {
   }
 
   // Transform and process volunteer projects properly with creator info
-  const volunteeredProjects: ProjectWithCreator[] = (signups as Array<{ id: string; status?: string; schedule_id?: string; projects?: Project | Project[] }>)?.filter(signup => signup.projects).map(signup => {
+  const volunteeredProjects = (signups as Array<{ id: string; status?: string; schedule_id?: string; projects?: Project | Project[] }>)?.filter(signup => signup.projects).map(signup => {
     const projectData = Array.isArray(signup.projects) ? signup.projects[0] : signup.projects;
     const creator = projectData ? creatorProfiles[projectData.creator_id as string] : undefined;
     

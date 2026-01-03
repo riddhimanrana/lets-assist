@@ -132,9 +132,9 @@ export const ProjectsInfiniteScroll: React.FC = () => {
     try {
       if (project.event_type === "oneTime" && project.schedule?.oneTime?.date) {
         projectDate = parseISO(project.schedule.oneTime.date);
-      } else if (project.event_type === "multiDay" && project.schedule?.multiDay?.length > 0) {
+      } else if (project.event_type === "multiDay" && project.schedule?.multiDay && project.schedule.multiDay.length > 0) {
         // For multi-day events, check if any day is within the range
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         return project.schedule.multiDay.some((day) => {
           const dayDate = parseISO(day.date);
           return isWithinDateRange(dayDate, dateRange);
@@ -199,7 +199,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
       try {
         if (project.event_type === "oneTime" && project.schedule?.oneTime?.date) {
           return parseISO(project.schedule.oneTime.date);
-        } else if (project.event_type === "multiDay" && project.schedule?.multiDay?.length > 0) {
+        } else if (project.event_type === "multiDay" && project.schedule?.multiDay && project.schedule.multiDay.length > 0) {
           // Get the earliest date from multiDay events
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const dates = project.schedule.multiDay.map((day: any) => parseISO(day.date));
@@ -276,17 +276,17 @@ export const ProjectsInfiniteScroll: React.FC = () => {
     // Calculate filled spots based on project type
     let filledSpots = 0;
     
-    if (project.signups && Array.isArray(project.signups)) {
+    if ((project as any).signups && Array.isArray((project as any).signups)) {
       // Count confirmed signups only
-      filledSpots = project.signups.filter((signup: { status?: string }) => 
+      filledSpots = (project as any).signups.filter((signup: { status?: string }) => 
         signup.status === "approved"
       ).length;
-    } else if (project.slots_filled) {
+    } else if ((project as any).slots_filled) {
       // If project has a direct slots_filled count
-      filledSpots = project.slots_filled;
-    } else if (project.registrations && Array.isArray(project.registrations)) {
+      filledSpots = (project as any).slots_filled;
+    } else if ((project as any).registrations && Array.isArray((project as any).registrations)) {
       // Alternative signup structure
-      filledSpots = project.registrations.length;
+      filledSpots = (project as any).registrations.length;
     }
     
     return Math.max(0, totalSpots - filledSpots);

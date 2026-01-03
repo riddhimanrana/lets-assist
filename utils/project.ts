@@ -1,6 +1,6 @@
 import { Project, ProjectStatus } from "@/types";
 import { SupabaseClient } from "@supabase/supabase-js";
-import { differenceInHours, parseISO, isAfter, isBefore, isEqual, isPast, set } from "date-fns";
+import { differenceInHours, parseISO, isAfter, isBefore, isEqual } from "date-fns";
 
 export const getProjectEventDate = (project: Project): Date => {
   switch (project.event_type) {
@@ -39,7 +39,7 @@ export const getProjectEndDate = (project: Project): Date => {
 
 // Get the earliest start time for any project type
 export const getProjectStartDateTime = (project: Project): Date => {
-  const now = new Date();
+  // const now = new Date();
   
   switch (project.event_type) {
     case "oneTime": {
@@ -121,7 +121,7 @@ export const getProjectStatus = (project: Project): ProjectStatus => {
     return "cancelled";
   }
 
-  const now = new Date();
+  // const now = new Date();
   
   // For multiDay events, check if ANY day is still available
   if (project.event_type === "multiDay") {
@@ -174,7 +174,7 @@ export const getProjectStatus = (project: Project): ProjectStatus => {
   return "upcoming";
 };
 
-export const canDeleteProject = (project: Project): boolean => {
+export const canDeleteProject = (_project: Project): boolean => {
   // No restrictions - allow deletion anytime
   return true;
 };
@@ -185,9 +185,9 @@ export const canCancelProject = (project: Project): boolean => {
     return false;
   }
 
-  const now = new Date();
+  // const now = new Date();
   const startDateTime = getProjectStartDateTime(project);
-  const hoursUntilStart = differenceInHours(startDateTime, now);
+  // const _hoursUntilStart = differenceInHours(startDateTime, now);
   
   // Can cancel up until the event starts
   return true // temporarrily allow...basically cancellation is always allowed
@@ -275,7 +275,7 @@ export async function getSlotCapacities(
     scheduleIds.push("oneTime");
     capacities["oneTime"] = project.schedule.oneTime.volunteers;
   } else if (project.event_type === "multiDay" && project.schedule.multiDay) {
-    project.schedule.multiDay.forEach((day, dayIndex) => {
+    project.schedule.multiDay.forEach((day) => {
       day.slots.forEach((slot, slotIndex) => {
         const scheduleId = `${day.date}-${slotIndex}`;
         scheduleIds.push(scheduleId);
@@ -423,7 +423,7 @@ export function isMultiDaySlotPast(day: { date: string; slots: Array<{endTime: s
   const dayEndDateTime = new Date(dayDate);
   dayEndDateTime.setHours(hours, minutes, 0, 0);
   
-  const now = new Date();
+  // const now = new Date();
   return isAfter(now, dayEndDateTime);
 }
 
@@ -455,6 +455,7 @@ export function isMultiDaySlotPastByScheduleId(project: Project, scheduleId: str
   
   const slotIndexStr = parts.pop();
   const date = parts.join("-");
+   
   
   const day = project.schedule.multiDay.find((d: any) => d.date === date);
   if (!day || !slotIndexStr) return false;
@@ -468,7 +469,7 @@ export function isMultiDaySlotPastByScheduleId(project: Project, scheduleId: str
   const slotEndDateTime = new Date(dayDate);
   slotEndDateTime.setHours(hours, minutes, 0, 0);
   
-  const now = new Date();
+  // const now = new Date();
   return isAfter(now, slotEndDateTime);
 }
 
@@ -477,6 +478,7 @@ export function isSameDayMultiAreaSlotPast(project: Project, scheduleId: string)
   if (project.event_type !== 'sameDayMultiArea' || !project.schedule.sameDayMultiArea) {
     return false;
   }
+   
 
   const role = project.schedule.sameDayMultiArea.roles.find((r: any) => r.name === scheduleId);
   if (!role) return false;
@@ -486,7 +488,7 @@ export function isSameDayMultiAreaSlotPast(project: Project, scheduleId: string)
   const slotEndDateTime = new Date(eventDate);
   slotEndDateTime.setHours(hours, minutes, 0, 0);
   
-  const now = new Date();
+  // const now = new Date();
   return isAfter(now, slotEndDateTime);
 }
 
@@ -501,6 +503,6 @@ export function isOneTimeSlotPast(project: Project): boolean {
   const slotEndDateTime = new Date(eventDate);
   slotEndDateTime.setHours(hours, minutes, 0, 0);
   
-  const now = new Date();
+  // const now = new Date();
   return isAfter(now, slotEndDateTime);
 }

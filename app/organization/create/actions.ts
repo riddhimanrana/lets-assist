@@ -210,7 +210,7 @@ export async function createOrganization(data: OrganizationCreationData) {
         console.log("Logo uploaded successfully:", logoUrl);
 
         // Update the organization with the new logo URL
-        const { error: updateError } = await supabase
+        await supabase
           .from("organizations")
           .update({ logo_url: logoUrl })
           .eq("id", organization.id)

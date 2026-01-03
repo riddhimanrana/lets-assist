@@ -67,7 +67,7 @@ const formatPhoneNumber = (value: string): string => {
 };
 
 
-export function ProjectSignupForm({ onSubmit, onCancel, isSubmitting }: ProjectFormProps) {
+export function ProjectSignupForm({ onSubmit, isSubmitting }: ProjectFormProps) {
   const [phoneNumberLength, setPhoneNumberLength] = useState(0); // State for phone number length
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),

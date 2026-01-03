@@ -1,6 +1,6 @@
 "use client";
 
-import type { Organization, OrganizationRole, Project } from "@/types";
+import type { Organization, OrganizationRole, ProjectStatus } from "@/types";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import MembersTab from "./MembersTab";
 import ProjectsTab from "./ProjectsTab";
@@ -29,7 +29,6 @@ import { leaveOrganization } from "../actions";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { ProjectStatusBadge } from "@/components/ui/status-badge";
-import { getProjectStatus } from "@/utils/project";
 import AdminDashboardClient from "./admin/DashboardClient";
 
 interface MemberProfileShape {
@@ -49,7 +48,7 @@ interface Member {
 interface ProjectWithStats {
   id: string;
   title: string;
-  status: string;
+  status: ProjectStatus;
   visibility: string;
   verificationMethod: string;
   eventType: string;
@@ -61,6 +60,7 @@ interface ProjectWithStats {
   totalHours: number;
   hoursVerified: number;
   hoursPending: number;
+  [key: string]: unknown;
 }
 
 interface DashboardMetrics {
@@ -202,8 +202,8 @@ export default function OrganizationTabs({
   }
   
   // Calculate stats
-  const upcomingProjects = projects.filter(p => getProjectStatus(p) === "upcoming").length;
-  const completedProjects = projects.filter(p => getProjectStatus(p) === "completed").length;
+  const upcomingProjects = projects.filter(p => p.status === "upcoming").length;
+  const completedProjects = projects.filter(p => p.status === "completed").length;
 
 
   return (
@@ -342,7 +342,7 @@ export default function OrganizationTabs({
                         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1.5">
                           <span className="font-medium truncate pr-2">{project.title}</span>
                           <div className="flex items-center gap-2">
-                            <ProjectStatusBadge status={getProjectStatus(project)} className="flex-shrink-0" />
+                            <ProjectStatusBadge status={project.status} className="flex-shrink-0" />
                           </div>
                         </div>
                         {project.location && (

@@ -158,7 +158,7 @@ export default function LoginClient({ redirectPath }: LoginClientProps) {
       if (result.url) {
         window.location.href = result.url;
       }
-    } catch {
+    } catch (error) {
       toast.error("An error occurred. Please try again.");
     } finally {
       setIsGoogleLoading(false);
