@@ -19,7 +19,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { NoAvatar } from "@/components/NoAvatar";
+import { NoAvatar } from "@/components/shared/NoAvatar";
 import { Clock, Award, Calendar, BadgeCheck, ExternalLink, Download, FileText, CheckCheck } from "lucide-react";
 import { getMemberEventDetails } from "./member-hours-actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

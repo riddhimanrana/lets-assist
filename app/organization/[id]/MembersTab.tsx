@@ -18,7 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { NoAvatar } from "@/components/NoAvatar";
+import { NoAvatar } from "@/components/shared/NoAvatar";
 import { format } from "date-fns";
 import { useEffect, useState } from "react";
 import { 

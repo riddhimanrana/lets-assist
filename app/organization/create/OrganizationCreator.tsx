@@ -25,7 +25,7 @@ import { Switch } from "@/components/ui/switch";
 import { createOrganization, checkOrgUsername, checkDomainAvailability } from "./actions";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import ImageCropper from "@/components/ImageCropper";
+import ImageCropper from "@/components/shared/ImageCropper";
 
 // Constants for form validation
 const CONSTANTS = {
@@ -470,7 +470,7 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
                           <FormControl>
                             <Input
                               {...field}
-                              placeholder="e.g. troop941.org"
+                              placeholder="e.g. school.net"
                               onChange={(e) => {
                                 const value = e.target.value.toLowerCase().trim();
                                 field.onChange(value);

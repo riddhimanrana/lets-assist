@@ -31,8 +31,8 @@ import {
 import Link from "next/link";
 // Import checkInAnonymous as well
 import { checkInUser, lookupEmailStatus, checkInAnonymous, checkOutUser } from "./actions";
-import { LeaveEventConfirmationDialog } from "@/components/LeaveEventConfirmationDialog";
-import { SessionEndedCard } from "@/components/SessionEndedCard";
+import { LeaveEventConfirmationDialog } from "./_components/LeaveEventConfirmationDialog";
+import { SessionEndedCard } from "./_components/SessionEndedCard";
 
 interface AttendanceClientProps {
   project: Project;

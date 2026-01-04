@@ -34,7 +34,7 @@ import { Switch } from "@/components/ui/switch";
 import { updateOrganization, checkUsernameAvailability, checkDomainAvailability } from "./actions";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import ImageCropper from "@/components/ImageCropper";
+import ImageCropper from "@/components/shared/ImageCropper";
 import Link from "next/link";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 

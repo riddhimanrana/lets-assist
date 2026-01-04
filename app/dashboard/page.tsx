@@ -2,25 +2,25 @@ import { createClient } from "@/utils/supabase/server";
 import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { VolunteerGoals } from "./VolunteerGoals";
+import { VolunteerGoals } from "./_components/VolunteerGoals";
 import { Badge } from "@/components/ui/badge";
-import { ProgressCircle } from "./ProgressCircle";
+import { ProgressCircle } from "./_components/ProgressCircle";
 import { format, subMonths, parseISO, differenceInMinutes, isBefore, isAfter } from "date-fns";
-import { formatInTimeZone } from "date-fns-tz";
+import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import { Award, Calendar, Clock, Users, Target, FileCheck, ChevronRight, Download, GalleryVerticalEnd, TicketCheck, Plus, CalendarDays, BarChart3, CircleCheck, UserCheck } from "lucide-react";
 import Link from "next/link";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { ActivityChart } from "./ActivityChart";
-import { ExportSection } from "./ExportSection";
-import { AllHoursSection } from "./AllHoursSection";
-import { AddVolunteerHoursModal } from "./AddVolunteerHoursModal";
+import { ActivityChart } from "./_components/ActivityChart";
+import { ExportSection } from "./_components/ExportSection";
+import { AllHoursSection } from "./_components/AllHoursSection";
+import { AddVolunteerHoursModal } from "./_components/AddVolunteerHoursModal";
 import { Project, ProjectSchedule } from "@/types";
 import { getSlotDetails } from "@/utils/project";
 import { Metadata } from "next";
-import { TimezoneBadge } from "@/components/TimezoneBadge";
+import { TimezoneBadge } from "@/components/shared/TimezoneBadge";
 
 // Define types for certificate data returned by the backend
 // Renamed to avoid colliding with the UI Certificate type imported above
@@ -117,10 +117,13 @@ function calculateHours(startTime: string, endTime: string): number {
 }
 
 // Helper function to get combined DateTime from date and time strings
-function getCombinedDateTime(dateStr: string, timeStr: string): Date | null {
+function getCombinedDateTime(dateStr: string, timeStr: string, timezone?: string): Date | null {
   if (!dateStr || !timeStr) return null;
   try {
     const isoString = `${dateStr}T${timeStr}`;
+    if (timezone) {
+      return fromZonedTime(isoString, timezone);
+    }
     const dateTime = parseISO(isoString);
     return isNaN(dateTime.getTime()) ? null : dateTime;
   } catch (e) {
@@ -151,7 +154,7 @@ function getSessionDisplayName(
     const formattedDate = formatInTimeZone(startTime, timezone, "MMM d, yyyy");
     const formattedStartTime = formatInTimeZone(startTime, timezone, "h:mm a");
     const endDateTime = slotDate && details.endTime
-      ? getCombinedDateTime(slotDate, details.endTime)
+      ? getCombinedDateTime(slotDate, details.endTime, timezone)
       : null;
     const formattedEndTime = endDateTime
       ? formatInTimeZone(endDateTime, timezone, "h:mm a")
@@ -402,7 +405,7 @@ export default async function VolunteerDashboard() {
       if (!slotDate || !details.startTime) continue; // Skip if date or start time missing
 
   const projectTimezone = project.project_timezone || "America/Los_Angeles"; // Default timezone if not set
-  const sessionStartTime = getCombinedDateTime(slotDate, details.startTime);
+  const sessionStartTime = getCombinedDateTime(slotDate, details.startTime, projectTimezone);
 
       // Check if the session start time is valid and in the future
       if (sessionStartTime && isAfter(sessionStartTime, now)) {

@@ -1,16 +1,16 @@
 import React from "react";
 import { Card } from "@/components/ui/card";
 import { createClient } from "@/utils/supabase/server";
-import { EmailVerificationToast } from "@/components/EmailVerificationToast";
-import { EmailConfirmationModal } from "@/components/EmailConfirmationModal";
+import { EmailVerificationToast } from "@/components/auth/EmailVerificationToast";
+import { EmailConfirmationModal } from "@/components/auth/EmailConfirmationModal";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { Plus, Shield } from "lucide-react"; // Import the Plus and Shield icons
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { NoAvatar } from "@/components/NoAvatar";
+import { NoAvatar } from "@/components/shared/NoAvatar";
 import { Metadata } from "next";
-import { ProjectsInfiniteScroll } from "@/components/ProjectsInfiniteScroll";
-import { TrustedInfoIcon } from "@/components/TrustedInfoIcon";
+import { ProjectsInfiniteScroll } from "@/components/projects/ProjectsInfiniteScroll";
+import { TrustedInfoIcon } from "@/components/shared/TrustedInfoIcon";
 import { checkSuperAdmin } from "@/app/admin/actions";
 
 export const metadata: Metadata = {

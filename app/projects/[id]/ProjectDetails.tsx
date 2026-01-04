@@ -21,7 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { ProjectStatusBadge } from "@/components/ui/status-badge";
 import { Separator } from "@/components/ui/separator";
 import { RichTextContent } from "@/components/ui/rich-text-content";
-import { LocationMapCard } from "@/components/LocationMapCard";
+import { LocationMapCard } from "@/app/projects/_components/LocationMapCard";
 import { 
   CalendarDays,
   CheckCircle2,
@@ -71,8 +71,8 @@ import {
 } from "@/components/ui/dialog";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { NoAvatar } from "@/components/NoAvatar";
-import FilePreview from "@/components/FilePreview";
+import { NoAvatar } from "@/components/shared/NoAvatar";
+import FilePreview from "@/app/projects/_components/FilePreview";
 import CreatorDashboard from "./CreatorDashboard";
 // Import the new UserDashboard
 import UserDashboard from "./UserDashboard"; 
@@ -81,18 +81,18 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { useRef } from "react";
 // Import User type from supabase
 import { User } from "@supabase/supabase-js"; 
-import ProjectInstructionsModal from "./ProjectInstructions";
-import { SignupConfirmationModal } from "@/components/SignupConfirmationModal";
-import { CancelSignupModal } from "@/components/CancelSignupModal";
-import CalendarOptionsModal from "@/components/CalendarOptionsModal";
-import { TimezoneBadge } from "@/components/TimezoneBadge";
+import ProjectInstructionsModal from "./ProjectInstructionsModalWrapper";
+import { SignupConfirmationModal } from "@/app/projects/_components/SignupConfirmationModal";
+import { CancelSignupModal } from "@/app/projects/_components/CancelSignupModal";
+import CalendarOptionsModal from "@/app/projects/_components/CalendarOptionsModal";
+import { TimezoneBadge } from "@/components/shared/TimezoneBadge";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ReportContentButton } from "@/components/ReportContentButton";
+import { ReportContentButton } from "@/components/feedback/ReportContentButton";
 
 interface SlotData {
   remainingSlots: Record<string, number>;
@@ -185,9 +185,19 @@ export default function ProjectDetails({
   }>({ full_name: null, email: null, phone: null });
   
   // Add state to track calculated status
-  const [calculatedStatus, setCalculatedStatus] = useState<ProjectStatus>(
-    getProjectStatus(project)
-  );
+  // Initialize with project.status to avoid hydration mismatch, then update on client
+  const [calculatedStatus, setCalculatedStatus] = useState<ProjectStatus>(project.status);
+
+  useEffect(() => {
+    setCalculatedStatus(getProjectStatus(project));
+    
+    // Update status every minute
+    const interval = setInterval(() => {
+      setCalculatedStatus(getProjectStatus(project));
+    }, 60000);
+    
+    return () => clearInterval(interval);
+  }, [project]);
 
   // Add state for calendar modal after signup
   const [showCalendarModal, setShowCalendarModal] = useState(false);

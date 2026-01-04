@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { checkSuperAdmin } from '../actions';
-import ModerationDashboard from './ModerationDashboardNew';
+import ModerationDashboard from './ModerationDashboardWrapper';
 import { getModerationStats, getFlaggedContent, getContentReports, getContentReportsStats } from './actions';
 
 export const metadata = {

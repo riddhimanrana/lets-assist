@@ -56,12 +56,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { canCancelProject, canDeleteProject } from "@/utils/project";
-import { CancelProjectDialog } from "@/components/CancelProjectDialog";
+import { CancelProjectDialog } from "@/app/projects/_components/CancelProjectDialog";
 import { differenceInHours, addHours, isBefore, isAfter, parseISO, format } from "date-fns";
 import { getProjectStartDateTime, getProjectEndDateTime } from "@/utils/project";
 import ProjectTimeline from "./ProjectTimeline";
 import { ProjectQRCodeModal } from "./ProjectQRCodeModal";
-import CalendarOptionsModal from "@/components/CalendarOptionsModal";
+import CalendarOptionsModal from "@/app/projects/_components/CalendarOptionsModal";
 import {
   removeCalendarEventForProject,
   removeAllVolunteerCalendarEvents,
@@ -71,7 +71,7 @@ interface Props {
   project: Project;
 }
 
-import ProjectInstructionsModal from "./ProjectInstructions";
+import ProjectInstructionsModal from "./ProjectInstructionsModalWrapper";
 
 export default function CreatorDashboard({ project }: Props) {
   const router = useRouter();

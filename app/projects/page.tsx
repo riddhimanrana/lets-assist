@@ -1,6 +1,6 @@
 import React from "react";
 import { Metadata } from "next";
-import { ProjectsInfiniteScroll } from "@/components/ProjectsInfiniteScroll";
+import { ProjectsInfiniteScroll } from "@/components/projects/ProjectsInfiniteScroll";
 import Link from "next/link"
 import { createClient } from "@/utils/supabase/server";
 import UserProjects from "./UserProjects"
