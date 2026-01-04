@@ -56,11 +56,17 @@ export async function checkUsernameAvailability(username: string): Promise<boole
 export async function checkDomainAvailability(domain: string, excludeOrgId?: string): Promise<boolean> {
   const supabase = await createClient();
 
-  if (!domain || domain.length < 3) {
+  const normalizedDomain = domain.toLowerCase().trim();
+  if (!normalizedDomain) {
     return false;
   }
 
-  const normalizedDomain = domain.toLowerCase().trim();
+  // Require at least one dot, prevent consecutive dots, and ensure labels don't start/end with hyphens.
+  // Examples: example.org, school.k12.us
+  const domainPattern = /^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$/;
+  if (!domainPattern.test(normalizedDomain)) {
+    return false;
+  }
 
   let query = supabase
     .from("organizations")

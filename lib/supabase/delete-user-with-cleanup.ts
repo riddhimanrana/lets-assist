@@ -98,13 +98,7 @@ export async function deleteUserWithCleanup(
       const { error } = await query;
 
       if (error) {
-        // Skip if table doesn't have data for this user (not an error)
-        if (error.message.includes("PGRST116") || error.message.includes("returned 0 rows")) {
-          skipped.push(step.table);
-          deletedCounts[step.table] = 0;
-        } else {
-          throw new Error(`Failed to delete from ${step.table}: ${error.message}`);
-        }
+        throw new Error(`Failed to delete from ${step.table}: ${error.message}`);
       } else {
         deletedCounts[step.table] = 0; // Count not available via this method
       }
@@ -116,7 +110,7 @@ export async function deleteUserWithCleanup(
       .delete()
       .eq("user_id", userId);
 
-    if (membershipError && !membershipError.message.includes("returned 0 rows")) {
+    if (membershipError) {
       throw new Error(`Failed to delete organization memberships: ${membershipError.message}`);
     }
     deletedCounts["organization_members"] = 0; // Count not available via this method
@@ -127,7 +121,7 @@ export async function deleteUserWithCleanup(
       .delete()
       .eq("id", userId);
 
-    if (profileError && !profileError.message.includes("returned 0 rows")) {
+    if (profileError) {
       throw new Error(`Failed to delete profile: ${profileError.message}`);
     }
     deletedCounts["profiles"] = 0; // Count not available via this method
