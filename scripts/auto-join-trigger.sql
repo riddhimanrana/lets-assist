@@ -10,6 +10,12 @@ declare
   user_domain text;
   matching_org record;
 begin
+  -- Only auto-join users whose email is verified.
+  -- Supabase may populate either email_confirmed_at or confirmed_at depending on auth flow.
+  if NEW.email_confirmed_at is null and NEW.confirmed_at is null then
+    return NEW;
+  end if;
+
   user_domain := lower(split_part(NEW.email, '@', 2));
 
   if user_domain is null or user_domain = '' then

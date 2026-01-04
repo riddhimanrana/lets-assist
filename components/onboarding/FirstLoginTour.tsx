@@ -31,6 +31,34 @@ type HighlightStyle = {
   borderRadius?: string;
 };
 
+const waitForPathname = async (
+  getPathname: () => string | null,
+  expectedPathname: string,
+  timeout = 4000,
+) => {
+  const now = () => (typeof performance !== "undefined" ? performance.now() : Date.now());
+  const deadline = now() + timeout;
+
+  await new Promise<void>((resolve) => {
+    const check = () => {
+      const current = getPathname();
+      if (current === expectedPathname) {
+        resolve();
+        return;
+      }
+
+      if (now() > deadline) {
+        resolve();
+        return;
+      }
+
+      window.setTimeout(check, 50);
+    };
+
+    check();
+  });
+};
+
 const waitForSelector = async (selector: string | undefined, timeout = 4000) => {
   if (!selector) {
     return;
@@ -66,11 +94,16 @@ const waitForSelector = async (selector: string | undefined, timeout = 4000) => 
 export default function FirstLoginTour({ isOpen, onComplete, onSkip }: FirstLoginTourProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const pathnameRef = useRef<string | null>(pathname);
   const [currentStep, setCurrentStep] = useState(0);
   const [highlightStyle, setHighlightStyle] = useState<HighlightStyle | null>(null);
   const [isNavigating, setIsNavigating] = useState(false);
   const navigationHistory = useRef<string[]>([]);
   const [highlightPortalRoot, setHighlightPortalRoot] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    pathnameRef.current = pathname;
+  }, [pathname]);
 
   // FIRST_LOGIN_TOUR_STEPS historically has two formats in this repo:
   // - a flat array of Step[] (the version we expect)
@@ -156,9 +189,8 @@ body[data-first-login-tour='true'] [data-radix-dialog-content] > button {
       setIsNavigating(true);
 
       try {
-        await router.push(targetRoute);
-        // Wait for both the route and the element to be ready
-        await new Promise(resolve => setTimeout(resolve, 100));
+        router.push(targetRoute);
+        await waitForPathname(() => pathnameRef.current, targetRoute);
         await waitForSelector(next?.selector);
       } finally {
         setIsNavigating(false);
@@ -195,9 +227,8 @@ body[data-first-login-tour='true'] [data-radix-dialog-content] > button {
     if (shouldRoute) {
       setIsNavigating(true);
       try {
-        await router.push(targetRoute as string);
-        // Wait for both the route and the element to be ready
-        await new Promise(resolve => setTimeout(resolve, 100));
+        router.push(targetRoute as string);
+        await waitForPathname(() => pathnameRef.current, targetRoute as string);
         await waitForSelector(previous?.selector);
       } finally {
         setIsNavigating(false);

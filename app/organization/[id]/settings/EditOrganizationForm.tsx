@@ -44,6 +44,7 @@ const NAME_MAX_LENGTH = 64;
 const WEBSITE_MAX_LENGTH = 100;
 const DESCRIPTION_MAX_LENGTH = 650;
 const USERNAME_REGEX = /^[a-zA-Z0-9_.-]+$/;
+const normalizeDomain = (value: string | null | undefined) => (value ?? "").toLowerCase().trim();
 
 // Form schema
 const orgUpdateSchema = z.object({
@@ -75,7 +76,9 @@ const orgUpdateSchema = z.object({
   autoJoinDomain: z.string()
     .optional()
     .refine(
-      (val) => !val || /^[a-zA-Z0-9][a-zA-Z0-9.-]*\.[a-zA-Z]{2,}$/.test(val),
+      (val) =>
+        !val ||
+        /^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/.test(val),
       "Please enter a valid domain (e.g., example.org)"
     ),
 });
@@ -175,12 +178,13 @@ export default function EditOrganizationForm({ organization, userId }: EditOrgan
   const currentDomain = organization.auto_join_domain;
   
   const handleDomainBlur = async (value: string) => {
-    if (!value || value.trim() === "") {
+    const normalizedValue = normalizeDomain(value);
+    if (!normalizedValue) {
       setDomainAvailable(null);
       return;
     }
     
-    if (value === currentDomain) {
+    if (normalizedValue === normalizeDomain(currentDomain)) {
       // Domain hasn't changed, so it's "available" (still belongs to this org)
       setDomainAvailable(true);
       return;
@@ -188,7 +192,7 @@ export default function EditOrganizationForm({ organization, userId }: EditOrgan
     
     setCheckingDomain(true);
     try {
-      const isAvailable = await checkDomainAvailability(value, organization.id);
+      const isAvailable = await checkDomainAvailability(normalizedValue, organization.id);
       setDomainAvailable(isAvailable);
     } catch (error) {
       console.error("Error checking domain:", error);
@@ -274,8 +278,8 @@ export default function EditOrganizationForm({ organization, userId }: EditOrgan
       }
       
       // Check domain availability if auto-join is enabled and domain changed
-      const newDomain = data.enableAutoJoin ? data.autoJoinDomain : null;
-      if (newDomain && newDomain !== currentDomain) {
+      const newDomain = data.enableAutoJoin ? normalizeDomain(data.autoJoinDomain) : null;
+      if (newDomain && newDomain !== normalizeDomain(currentDomain)) {
         const isDomainAvailable = await checkDomainAvailability(newDomain, organization.id);
         if (!isDomainAvailable) {
           form.setError("autoJoinDomain", {
