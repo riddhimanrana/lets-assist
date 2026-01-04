@@ -7,7 +7,7 @@ import { getProjectStatus } from "@/utils/project";
 import ProjectUnauthorized from "./ProjectUnauthorized";
 // Make sure Signup type is imported
 import { Project, Signup } from "@/types"; 
-import VolunteerStatusCard from '@/components/VolunteerStatusCard';
+import VolunteerStatusCard from '@/app/projects/_components/VolunteerStatusCard';
 import ProjectClient from './ProjectClient'; // Import the new client component
 import { Metadata } from "next";
 

@@ -24,7 +24,7 @@ import { Clock, CheckCircle, AlertTriangle, Camera, Hourglass, CalendarCheck, In
 import { Medal } from "lucide-react"; // Use Medal icon instead of Certificate
 import Link from "next/link";
 import { useRouter } from "next/navigation"; // Import useRouter
-import { QRCodeScannerModal } from "@/components/QRCodeScannerModal"; // Import the new component
+import { QRCodeScannerModal } from "@/app/projects/_components/QRCodeScannerModal"; // Import the new component
 import { createClient } from "@/utils/supabase/client";          // 🆕 add supabase client
 import {
   Carousel,
@@ -117,9 +117,14 @@ export default function UserDashboard({ project, user, signups }: Props) {
   const [now, setNow] = useState(new Date());
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
   const [selectedScheduleForScan, setSelectedScheduleForScan] = useState<string | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
 
   // 🆕 store map of signup_id → certificate.id
   const [certMap, setCertMap] = useState<Record<string,string>>({});
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Update 'now' state every minute for countdowns
   useEffect(() => {
@@ -564,8 +569,10 @@ export default function UserDashboard({ project, user, signups }: Props) {
         case 'checkedIn':
           // Use checkInTime if available, otherwise indicate attendance without specific time
           const checkInDisplayTime = status.checkInTime ? format(status.checkInTime, "h:mm a") : "Confirmed";
-          // --- MODIFIED: Don't show progress if session is over (and hours not published yet) ---
-          const showProgress = !status.isSessionOver;
+          const checkOutDisplayTime = status.checkOutTime ? format(status.checkOutTime, "h:mm a") : null;
+          
+          // --- MODIFIED: Don't show progress if session is over (and hours not published yet) OR checked out ---
+          const showProgress = !status.isSessionOver && !status.checkOutTime;
           return (
             <Card key={status.signup.id} className="border-primary/30 bg-primary/5">
               <CardHeader>
@@ -574,7 +581,9 @@ export default function UserDashboard({ project, user, signups }: Props) {
                     <CheckCircle className="h-5 w-5 text-primary" />
                   </div>
                   <div>
-                    <CardTitle className="text-lg">Attendance Confirmed</CardTitle> {/* Updated Title */}
+                    <CardTitle className="text-lg">
+                      {status.checkOutTime ? "Attendance Completed" : "Attendance Confirmed"}
+                    </CardTitle> {/* Updated Title */}
                     <CardDescription>Your attendance for {project.title} is confirmed.</CardDescription>
                   </div>
                 </div>
@@ -589,6 +598,12 @@ export default function UserDashboard({ project, user, signups }: Props) {
                   {/* Display check-in time if available */}
                   <span>{checkInDisplayTime === "Confirmed" ? "Attended" : `Checked in at ${checkInDisplayTime}`}</span>
                 </div>
+                {checkOutDisplayTime && (
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium text-muted-foreground">Check-out:</span>
+                    <span>Checked out at {checkOutDisplayTime}</span>
+                  </div>
+                )}
                 <div className="flex justify-between items-center">
                   <span className="font-medium text-muted-foreground">Session Time:</span>
                   <span>
@@ -855,6 +870,10 @@ export default function UserDashboard({ project, user, signups }: Props) {
   // }
 
   // Handle case where there are no event cards
+  if (!isMounted) {
+    return null;
+  }
+
   if (!eventCards || eventCards.length === 0) {
     // Render general alerts even if no specific signup cards are shown
     return <div className="space-y-4">{renderGeneralSignupOnlyAlert()}</div>;

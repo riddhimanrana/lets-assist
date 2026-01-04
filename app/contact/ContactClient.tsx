@@ -10,7 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Lightbulb, Bug, Mail } from "lucide-react";
 import Link from "next/link";
-import { FeedbackDialog } from "@/components/FeedbackDialog";
+import { FeedbackDialog } from "@/components/feedback/FeedbackDialog";
 import { toast } from "sonner";
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";

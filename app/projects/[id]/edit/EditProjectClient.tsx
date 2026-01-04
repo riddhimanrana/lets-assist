@@ -71,7 +71,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { CancelProjectDialog } from "@/components/CancelProjectDialog";
+import { CancelProjectDialog } from "@/app/projects/_components/CancelProjectDialog";
 import { canCancelProject, canDeleteProject } from "@/utils/project";
 import { getProjectStartDateTime, getProjectEndDateTime } from "@/utils/project";
 import { differenceInHours } from "date-fns";
@@ -89,7 +89,7 @@ import Schedule from "@/app/projects/create/Schedule";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import Image from "next/image";
 import { formatBytes } from "@/lib/utils";
-import FilePreview from "@/components/FilePreview";
+import FilePreview from "@/app/projects/_components/FilePreview";
 
 // Constants for character limits
 const TITLE_LIMIT = 125;

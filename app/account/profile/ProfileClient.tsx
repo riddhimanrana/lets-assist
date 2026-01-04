@@ -34,7 +34,7 @@ import { toast } from "sonner";
 import { completeOnboarding, removeProfilePicture, updateNameAndUsername, updateProfileVisibility } from "./actions";
 import type { OnboardingValues } from "./actions";
 import { z } from "zod";
-import ImageCropper from "@/components/ImageCropper";
+import ImageCropper from "@/components/shared/ImageCropper";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion } from "framer-motion";

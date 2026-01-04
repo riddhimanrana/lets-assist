@@ -1,8 +1,8 @@
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
 import { Metadata } from "next";
-import OrganizationHeader from "./OrganizationHeader";
-import OrganizationTabs from "./OrganizationTabs";
+import OrganizationHeader from "@/components/organization/OrganizationHeader";
+import OrganizationTabs from "@/components/organization/OrganizationTabs";
 import { Separator } from "@/components/ui/separator";
 import {
   getAdminDashboardMetrics,
