@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Project } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -25,11 +25,14 @@ import {
   ExternalLink,
   // Mail, // No longer needed
   Search,
-  User
+  User,
+  LogOut
 } from "lucide-react";
 import Link from "next/link";
 // Import checkInAnonymous as well
-import { checkInUser, lookupEmailStatus, checkInAnonymous } from "./actions";
+import { checkInUser, lookupEmailStatus, checkInAnonymous, checkOutUser } from "./actions";
+import { LeaveEventConfirmationDialog } from "@/components/LeaveEventConfirmationDialog";
+import { SessionEndedCard } from "@/components/SessionEndedCard";
 
 interface AttendanceClientProps {
   project: Project;
@@ -59,7 +62,7 @@ type LookupResult = {
 function formatRemainingTime(minutes: number): string {
   if (minutes <= 0) return "Session ended";
   const hours = Math.floor(minutes / 60);
-  const remainingMinutes = Math.round(minutes % 60); // Round minutes
+  const remainingMinutes = Math.ceil(minutes % 60); // Use Math.ceil to avoid off-by-one errors
   let result = "";
   if (hours > 0) {
     result += `${hours}h `;
@@ -97,6 +100,17 @@ export default function AttendanceClient({
 
   // Session details state
   const [sessionDetails, setSessionDetails] = useState<any>(null);
+
+  // Session ended state
+  const [sessionHasEnded, setSessionHasEnded] = useState(false);
+  const [existingSignupId, setExistingSignupId] = useState<string | null>(existingCheckIn?.id || null);
+
+  // Leave Event dialog state
+  const [showLeaveConfirmation, setShowLeaveConfirmation] = useState(false);
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
+
+  // Refs for tracking elapsed time
+  const elapsedTimeRef = useRef<number>(0);
 
   // Anonymous Check-in state
   const [showAnonInputSection, setShowAnonInputSection] = useState(false);
@@ -149,22 +163,19 @@ export default function AttendanceClient({
     }
   }, [project, scheduleId]);
 
-  // Update progress and remaining time every second if checked in
+  // Update progress and remaining time smoothly using requestAnimationFrame
   useEffect(() => {
     // Ensure checkInTime is valid *before* proceeding
     if (!checkInTime || !sessionDetails?.date || !sessionDetails?.startTime || !sessionDetails?.endTime) {
         // Clear progress if necessary data is missing
         setProgressPercentage(0);
         setRemainingTimeFormatted("");
-        // No need to clear elapsedTime anymore
         return;
     }
 
+    let animationFrameId: number;
     const updateTimers = () => {
       const now = new Date();
-
-      // Remove Elapsed Time Calculation
-      // setElapsedTime(formatDistance(checkInTime, now, { includeSeconds: true }));
 
       // Calculate Session Progress (based on check-in time) and Remaining Time (based on session end)
       try {
@@ -187,13 +198,25 @@ export default function AttendanceClient({
         const totalDurationMinutes = differenceInMinutes(sessionEndDateTime, checkInTime);
         const elapsedSinceCheckInMinutes = differenceInMinutes(now, checkInTime);
 
+        // Track elapsed time for the end screen
+        const totalMs = totalDurationMinutes * 60 * 1000;
+        const elapsedMs = elapsedSinceCheckInMinutes * 60 * 1000;
+        elapsedTimeRef.current = Math.max(0, elapsedMs);
+
+        let newProgress: number;
         if (totalDurationMinutes <= 0) {
             // If session ended before or exactly when user checked in, or if check-in is after session end
-            setProgressPercentage(now >= sessionEndDateTime ? 100 : 0);
+            newProgress = now >= sessionEndDateTime ? 100 : 0;
         } else {
             // Calculate progress percentage from check-in time to session end time
-            const progress = Math.max(0, Math.min(100, (elapsedSinceCheckInMinutes / totalDurationMinutes) * 100));
-            setProgressPercentage(progress);
+            newProgress = Math.max(0, Math.min(100, (elapsedSinceCheckInMinutes / totalDurationMinutes) * 100));
+        }
+
+        setProgressPercentage(newProgress);
+
+        // Check if session has ended (reached 100%)
+        if (newProgress >= 100 && !sessionHasEnded) {
+          setSessionHasEnded(true);
         }
 
       } catch (error) {
@@ -201,14 +224,16 @@ export default function AttendanceClient({
           setProgressPercentage(0);
           setRemainingTimeFormatted("Error calculating");
       }
+
+      // Schedule next update using requestAnimationFrame for smooth animation
+      animationFrameId = requestAnimationFrame(updateTimers);
     };
 
     updateTimers(); // Initial call
-    const intervalId = setInterval(updateTimers, 10000); // Update every 10 seconds
 
-    return () => clearInterval(intervalId);
+    return () => cancelAnimationFrame(animationFrameId);
     // Depend on checkInTime and session end details
-  }, [checkInTime, sessionDetails?.date, sessionDetails?.endTime]); // Removed startTime dependency as it's not needed for this calculation
+  }, [checkInTime, sessionDetails?.date, sessionDetails?.endTime, sessionHasEnded]);
 
 
   // Handle check-in for LOGGED-IN users or from LOOKUP results
@@ -230,6 +255,7 @@ export default function AttendanceClient({
       if (result.success && result.checkInTime) {
         setIsCheckedIn(true);
         setCheckInTime(new Date(result.checkInTime));
+        setExistingSignupId(targetSignupId);
         setCheckedInAnonymously(isAnonymous);
         // Set display email: use provided email (from lookup), or user's email, or fallback
         setDisplayEmail(emailForDisplay || user?.email || "Checked in");
@@ -250,6 +276,30 @@ export default function AttendanceClient({
     }
   };
 
+  // Handle leave event
+  const handleLeaveEvent = async () => {
+    if (!existingSignupId || isCheckingOut) return;
+
+    setIsCheckingOut(true);
+    setShowLeaveConfirmation(false);
+
+    try {
+      const result = await checkOutUser(existingSignupId);
+
+      if (result.success) {
+        setSessionHasEnded(true);
+        toast.success("You've left the event. Great work!");
+      } else {
+        throw new Error(result.error || "Failed to leave event.");
+      }
+    } catch (error: any) {
+      console.error("Leave event error:", error);
+      toast.error(`Failed to leave event: ${error.message}`);
+    } finally {
+      setIsCheckingOut(false);
+    }
+  };
+
   // Handle check-in for ANONYMOUS users via dedicated button/input
   const handleAnonCheckin = async () => {
     if (!anonCheckinEmail || isAnonSubmitting) return;
@@ -261,6 +311,7 @@ export default function AttendanceClient({
       if (result.success && result.checkInTime) {
         setIsCheckedIn(true);
         setCheckInTime(new Date(result.checkInTime));
+        setExistingSignupId(result.signupId || null);
         setCheckedInAnonymously(true); // Mark as anonymous
         setDisplayEmail(anonCheckinEmail); // Set display email to the one used
         setAnonSignupId(result.anonSignupId || ""); // Save anonymous signup ID
@@ -349,98 +400,135 @@ export default function AttendanceClient({
     );
   }
 
+  // Show session ended celebration screen
+  if (sessionHasEnded) {
+    const hours = Math.floor(elapsedTimeRef.current / 3600000);
+    const minutes = Math.floor((elapsedTimeRef.current % 3600000) / 60000);
+    const elapsedDisplay = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+
+    return (
+      <SessionEndedCard
+        projectId={project.id}
+        projectTitle={project.title}
+        sessionName={sessionDetails?.name || scheduleId}
+        elapsedTime={elapsedDisplay}
+      />
+    );
+  }
+
   // Show success screen if already checked in (either logged in or anonymous)
   if (isCheckedIn) {
     return (
-      <div className="container mx-auto py-12 px-4 md:px-6">
-        <div className="max-w-md mx-auto">
-          <Card>
-            <CardHeader className="pb-4">
-              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
-                <CheckCircle className="h-6 w-6 text-primary" />
-              </div>
-              <CardTitle className="text-xl text-center">Check-in Successful</CardTitle>
-              {/* Modify description based on anonymous status */}
-              <CardDescription className="text-center">
-                {checkedInAnonymously
-                  ? "Your attendance has been recorded anonymously."
-                  : "You're checked in to the event."}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pb-4">
-              <div className="space-y-4">
-                <div className="flex justify-between items-center py-3 border-b">
-                  <span className="text-sm font-medium">Project</span>
-                  <span className="text-sm">{project.title}</span>
+      <>
+        <LeaveEventConfirmationDialog
+          open={showLeaveConfirmation}
+          onOpenChange={setShowLeaveConfirmation}
+          onConfirm={handleLeaveEvent}
+          isLoading={isCheckingOut}
+        />
+        <div className="container mx-auto py-12 px-4 md:px-6">
+          <div className="max-w-md mx-auto">
+            <Card>
+              <CardHeader className="pb-4">
+                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
+                  <CheckCircle className="h-6 w-6 text-primary" />
                 </div>
-                <div className="flex justify-between items-center py-3 border-b">
-                  <span className="text-sm font-medium">Session</span>
-                  <span className="text-sm">{sessionDetails?.name || scheduleId}</span>
-                </div>
-                {sessionDetails?.date && (
+                <CardTitle className="text-xl text-center">Check-in Successful</CardTitle>
+                {/* Modify description based on anonymous status */}
+                <CardDescription className="text-center">
+                  {checkedInAnonymously
+                    ? "Your attendance has been recorded anonymously."
+                    : "You're checked in to the event."}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pb-4">
+                <div className="space-y-4">
                   <div className="flex justify-between items-center py-3 border-b">
-                    <span className="text-sm font-medium">Date</span>
-                    <span className="text-sm">
-                      {format(parseISO(sessionDetails.date), "EEEE, MMMM d, yyyy")}
-                    </span>
+                    <span className="text-sm font-medium">Project</span>
+                    <span className="text-sm">{project.title}</span>
                   </div>
-                )}
-                {sessionDetails?.startTime && sessionDetails?.endTime && (
                   <div className="flex justify-between items-center py-3 border-b">
-                    <span className="text-sm font-medium">Time</span>
-                    <span className="text-sm">
-                      {formatTimeTo12Hour(sessionDetails.startTime)} - {formatTimeTo12Hour(sessionDetails.endTime)}
-                    </span>
+                    <span className="text-sm font-medium">Session</span>
+                    <span className="text-sm">{sessionDetails?.name || scheduleId}</span>
                   </div>
-                )}
-                <div className="flex justify-between items-center py-3 border-b">
-                  <span className="text-sm font-medium">Check-in time</span>
-                  <span className="text-sm">
-                    {checkInTime ? format(checkInTime, "h:mm a") : "N/A"}
-                  </span>
-                </div>
-                {/* Conditionally show email used for check-in */}
-                {displayEmail && (
-                   <div className="flex justify-between items-center py-3 border-b">
-                     <span className="text-sm font-medium">Email</span>
-                     <span className="text-sm">{displayEmail}</span>
-                   </div>
-                )}
-                {/* REMOVED Duration since *check-in* section */}
-                {/* <div className="flex justify-between items-center py-3 border-b"> ... </div> */}
-
-                {/* Session Progress Section (Progress starts from check-in time) */}
-                {sessionDetails?.endTime && checkInTime && ( // Only show if we have end time and check-in time
-                    <div className="space-y-2 pt-3">
-                        <div className="flex justify-between items-center text-sm mb-1">
-                            {/* Changed label slightly */}
-                            <span className="font-medium">Session Duration</span>
-                            <span className="text-muted-foreground">{remainingTimeFormatted} remaining</span>
-                        </div>
-                        <Progress value={progressPercentage} aria-label={`Your progress: ${Math.round(progressPercentage)}%`} />
+                  {sessionDetails?.date && (
+                    <div className="flex justify-between items-center py-3 border-b">
+                      <span className="text-sm font-medium">Date</span>
+                      <span className="text-sm">
+                        {format(parseISO(sessionDetails.date), "EEEE, MMMM d, yyyy")}
+                      </span>
                     </div>
-                )}
-              </div>
-            </CardContent>
-            <CardFooter className="flex flex-col gap-2">
-              <Button className="w-full">
-                <Link href={`/projects/${project.id}`} className="flex items-center gap-2">
-                <ExternalLink className="h-4 w-4" />
-                View Project Details
-                </Link>
-              </Button>
-              {checkedInAnonymously && (
-                <Button variant="outline" className="w-full">
-                  <Link href={`/anonymous/${anonSignupId}`} className="flex items-center gap-2">
-                    <User className="h-4 w-4" />
-                    Your Anonymous Profile
+                  )}
+                  {sessionDetails?.startTime && sessionDetails?.endTime && (
+                    <div className="flex justify-between items-center py-3 border-b">
+                      <span className="text-sm font-medium">Time</span>
+                      <span className="text-sm">
+                        {formatTimeTo12Hour(sessionDetails.startTime)} - {formatTimeTo12Hour(sessionDetails.endTime)}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex justify-between items-center py-3 border-b">
+                    <span className="text-sm font-medium">Check-in time</span>
+                    <span className="text-sm">
+                      {checkInTime ? format(checkInTime, "h:mm a") : "N/A"}
+                    </span>
+                  </div>
+                  {/* Conditionally show email used for check-in */}
+                  {displayEmail && (
+                     <div className="flex justify-between items-center py-3 border-b">
+                       <span className="text-sm font-medium">Email</span>
+                       <span className="text-sm">{displayEmail}</span>
+                     </div>
+                  )}
+                  {/* REMOVED Duration since *check-in* section */}
+                  {/* <div className="flex justify-between items-center py-3 border-b"> ... </div> */}
+
+                  {/* Session Progress Section (Progress starts from check-in time) */}
+                  {sessionDetails?.endTime && checkInTime && ( // Only show if we have end time and check-in time
+                      <div className="space-y-2 pt-3">
+                          <div className="flex justify-between items-center text-sm mb-1">
+                              {/* Changed label slightly */}
+                              <span className="font-medium">Session Duration</span>
+                              <span className="text-muted-foreground">{remainingTimeFormatted} remaining</span>
+                          </div>
+                          <Progress
+                            value={progressPercentage}
+                            aria-label={`Your progress: ${Math.round(progressPercentage)}%`}
+                            className="h-2"
+                          />
+                      </div>
+                  )}
+                </div>
+              </CardContent>
+              <CardFooter className="flex flex-col gap-2">
+                <Button className="w-full">
+                  <Link href={`/projects/${project.id}`} className="flex items-center gap-2">
+                  <ExternalLink className="h-4 w-4" />
+                  View Project Details
                   </Link>
                 </Button>
-              )}
-            </CardFooter>
-          </Card>
+                <Button
+                  variant="destructive"
+                  className="w-full"
+                  onClick={() => setShowLeaveConfirmation(true)}
+                  disabled={isCheckingOut}
+                >
+                  <LogOut className="h-4 w-4 mr-2" />
+                  {isCheckingOut ? "Leaving..." : "Leave Event"}
+                </Button>
+                {checkedInAnonymously && (
+                  <Button variant="outline" className="w-full">
+                    <Link href={`/anonymous/${anonSignupId}`} className="flex items-center gap-2">
+                      <User className="h-4 w-4" />
+                      Your Anonymous Profile
+                    </Link>
+                  </Button>
+                )}
+              </CardFooter>
+            </Card>
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
