@@ -60,6 +60,7 @@ type Signup = {
   user_id: string | null;
   anonymous_id: string | null; // FK to anonymous_signups
   schedule_id: string;
+  volunteer_comment?: string | null;
   profile?: { // Data from profiles table (if user_id exists)
     full_name: string;
     username: string;
@@ -136,8 +137,9 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
         h1 { font-size: 18px; margin-bottom: 5px; }
         h2 { font-size: 14px; margin: 10px 0 5px; }
         table { width: 100%; border-collapse: collapse; margin: 5px 0; }
-        th, td { border: 1px solid #ddd; padding: 4px; font-size: 12px; text-align: left; }
-        th { background-color: #f2f2f2; }
+        th, td { border: 1px solid #ddd; padding: 4px; font-size: 11px; text-align: left; vertical-align: top; }
+        th { background-color: #f2f2f2; font-weight: bold; }
+        .comment-cell { max-width: 200px; word-wrap: break-word; white-space: pre-wrap; }
         .no-print { display: none !important; }
         /* Removed page-break class */
         }
@@ -151,7 +153,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
         <div class="schedule-slot">
           <h2>${project && formatScheduleSlot(project, slot)}</h2>
           <table>
-          <thead><tr><th>Name</th><th>Type</th><th>Contact</th><th>Status</th></thead>
+          <thead><tr><th>Name</th><th>Type</th><th>Contact</th><th>Status</th>${project?.enable_volunteer_comments ? '<th>Comment</th>' : ''}</thead>
           <tbody>
             ${approved.map(s => {
               const isRegistered = !!s.user_id;
@@ -159,14 +161,16 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
               const email = isRegistered ? s.profile?.email : s.anonymous_signup?.email;
               const phone = isRegistered ? s.profile?.phone : s.anonymous_signup?.phone_number;
               const type = isRegistered ? 'Registered' : 'Anonymous';
-              const statusText = s.status === 'pending' ? 'Pending Confirmation' : 'Approved'; // Add status
+              const statusText = s.status === 'pending' ? 'Pending Confirmation' : 'Approved';
+              const comment = s.volunteer_comment || '—';
 
               return `
               <tr>
                 <td>${name || 'N/A'}</td>
                 <td>${type}</td>
                 <td>${email || 'N/A'} ${phone ? '<br>' + phone.replace(/(\\d{3})(\\d{3})(\\d{4})/, "$1-$2-$3") : ''}</td>
-                <td>${statusText}</td> 
+                <td>${statusText}</td>
+                ${project?.enable_volunteer_comments ? `<td class="comment-cell">${comment}</td>` : ''} 
               </tr>
               `;
             }).join('')}
@@ -291,6 +295,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
       user_id,
       anonymous_id, 
       schedule_id,
+      volunteer_comment,
       profile:profiles!left (
         full_name,
         username,
@@ -662,6 +667,9 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
                 <TableHead>Name</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Contact</TableHead>
+                {project?.enable_volunteer_comments && (
+                  <TableHead>Comment</TableHead>
+                )}
                 <TableHead 
                   className="cursor-pointer hover:text-foreground transition-colors"
                   onClick={() => toggleSort("status")}
@@ -714,6 +722,17 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
                         )}
                       </div>
                     </TableCell>
+                    {project?.enable_volunteer_comments && (
+                      <TableCell className="text-sm text-muted-foreground max-w-[200px]">
+                        {signup.volunteer_comment ? (
+                          <div className="max-h-[60px] overflow-y-auto text-wrap break-words whitespace-pre-wrap border border-border rounded p-2 bg-muted/20 text-xs leading-relaxed">
+                            {signup.volunteer_comment}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground/60">—</span>
+                        )}
+                      </TableCell>
+                    )}
                     <TableCell>{getStatusBadge(signup.status, confirmed_at)}</TableCell>
                     <TableCell className="text-right">
                       {signup.status === "rejected" ? (

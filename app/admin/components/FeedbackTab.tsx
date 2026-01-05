@@ -21,12 +21,8 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import {
-  HoverCard,
-  HoverCardContent,
-  HoverCardTrigger,
-} from "@/components/ui/hover-card";
 import { NoAvatar } from "@/components/shared/NoAvatar";
+import { ProfileHoverCard } from "@/components/shared/ProfileHoverCard";
 import { format } from "date-fns";
 
 interface FeedbackItem {
@@ -125,44 +121,25 @@ export function FeedbackTab({ feedback, onDelete }: FeedbackTabProps) {
               </div>
               
               <div className="flex items-center justify-between pt-4 mt-auto border-t">
-                <HoverCard>
-                  <HoverCardTrigger asChild>
-                    <div className="flex items-center gap-2 cursor-pointer">
-                      {item.profiles?.avatar_url ? (
-                        <Avatar className="h-6 w-6">
-                          <AvatarImage src={item.profiles.avatar_url} />
-                          <AvatarFallback>{item.profiles.full_name?.[0] || 'U'}</AvatarFallback>
-                        </Avatar>
-                      ) : (
-                        <NoAvatar fullName={item.profiles?.full_name || item.email} className="h-6 w-6 rounded-full bg-muted flex items-center justify-center text-[10px]" />
-                      )}
-                      <span className="text-xs text-muted-foreground truncate max-w-[100px]">
-                        {item.profiles?.full_name || item.email}
-                      </span>
-                    </div>
-                  </HoverCardTrigger>
-                  <HoverCardContent className="w-80">
-                    <div className="flex justify-between space-x-4">
-                      {item.profiles?.avatar_url ? (
-                        <Avatar>
-                          <AvatarImage src={item.profiles.avatar_url} />
-                          <AvatarFallback>{item.profiles.full_name?.[0]}</AvatarFallback>
-                        </Avatar>
-                      ) : (
-                        <NoAvatar fullName={item.profiles?.full_name || item.email} className="h-10 w-10 rounded-full bg-muted flex items-center justify-center" />
-                      )}
-                      <div className="space-y-1">
-                        <h4 className="text-sm font-semibold">{item.profiles?.full_name || 'Unknown User'}</h4>
-                        <p className="text-sm text-muted-foreground">
-                          {item.email}
-                        </p>
-                        {item.profiles?.username && (
-                          <p className="text-xs text-muted-foreground">@{item.profiles.username}</p>
-                        )}
-                      </div>
-                    </div>
-                  </HoverCardContent>
-                </HoverCard>
+                <ProfileHoverCard
+                  username={item.profiles?.username || "unknown"}
+                  fullName={item.profiles?.full_name || item.email}
+                  avatarUrl={item.profiles?.avatar_url || undefined}
+                >
+                  <div className="flex items-center gap-2 cursor-pointer">
+                    {item.profiles?.avatar_url ? (
+                      <Avatar className="h-6 w-6">
+                        <AvatarImage src={item.profiles.avatar_url} />
+                        <AvatarFallback>{item.profiles.full_name?.[0] || 'U'}</AvatarFallback>
+                      </Avatar>
+                    ) : (
+                      <NoAvatar fullName={item.profiles?.full_name || item.email} className="h-6 w-6 rounded-full bg-muted flex items-center justify-center text-[10px]" />
+                    )}
+                    <span className="text-xs text-muted-foreground truncate max-w-[100px]">
+                      {item.profiles?.full_name || item.email}
+                    </span>
+                  </div>
+                </ProfileHoverCard>
                 
                 <span className="text-xs text-muted-foreground">
                   {format(new Date(item.created_at), 'MMM d, yyyy')}

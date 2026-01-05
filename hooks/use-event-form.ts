@@ -97,6 +97,8 @@ export interface EventFormState {
   requireLogin: boolean;
   visibility: ProjectVisibility;
   restrictToOrgDomains: boolean;
+  enableVolunteerComments: boolean;
+  showAttendeesPublicly: boolean;
 }
 
 type EventFormAction =
@@ -120,6 +122,8 @@ type EventFormAction =
   | { type: 'UPDATE_REQUIRE_LOGIN'; payload: boolean }
   | { type: 'UPDATE_VISIBILITY'; payload: ProjectVisibility }
   | { type: 'UPDATE_RESTRICT_TO_ORG_DOMAINS'; payload: boolean }
+  | { type: 'UPDATE_ENABLE_VOLUNTEER_COMMENTS'; payload: boolean }
+  | { type: 'UPDATE_SHOW_ATTENDEES_PUBLICLY'; payload: boolean }
   | { type: 'REMOVE_DAY'; payload: { dayIndex: number } }
   | { type: 'REMOVE_SLOT'; payload: { dayIndex: number; slotIndex: number } }
   | { type: 'REMOVE_ROLE'; payload: { roleIndex: number } };
@@ -184,6 +188,8 @@ const initialState: EventFormState = {
   requireLogin: true,
   visibility: 'public',
   restrictToOrgDomains: false,
+  enableVolunteerComments: false,
+  showAttendeesPublicly: false,
 };
 
 const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
@@ -368,6 +374,18 @@ const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
         restrictToOrgDomains: action.payload,
       };
     }
+    case 'UPDATE_ENABLE_VOLUNTEER_COMMENTS': {
+      return {
+        ...state,
+        enableVolunteerComments: action.payload,
+      };
+    }
+    case 'UPDATE_SHOW_ATTENDEES_PUBLICLY': {
+      return {
+        ...state,
+        showAttendeesPublicly: action.payload,
+      };
+    }
     case 'REMOVE_DAY': {
       const { dayIndex } = action.payload;
       // Make a copy of the multi-day array
@@ -486,6 +504,12 @@ export const useEventForm = () => {
   const updateRestrictToOrgDomains = (restrict: boolean) =>
     dispatch({ type: 'UPDATE_RESTRICT_TO_ORG_DOMAINS', payload: restrict });
 
+  const updateEnableVolunteerComments = (enabled: boolean) =>
+    dispatch({ type: 'UPDATE_ENABLE_VOLUNTEER_COMMENTS', payload: enabled });
+
+  const updateShowAttendeesPublicly = (enabled: boolean) =>
+    dispatch({ type: 'UPDATE_SHOW_ATTENDEES_PUBLICLY', payload: enabled });
+
   const removeDay = (dayIndex: number) =>
     dispatch({ type: 'REMOVE_DAY', payload: { dayIndex } });
 
@@ -511,6 +535,8 @@ export const useEventForm = () => {
     updateRequireLogin,
     updateVisibility,
     updateRestrictToOrgDomains,
+    updateEnableVolunteerComments,
+    updateShowAttendeesPublicly,
     removeDay,
     removeSlot,
     removeRole,

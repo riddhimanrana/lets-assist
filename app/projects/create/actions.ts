@@ -172,6 +172,8 @@ export async function createBasicProject(projectData: any) {
         event_type: projectData.eventType,
         verification_method: projectData.verificationMethod,
         require_login: projectData.requireLogin,
+        enable_volunteer_comments: projectData.enableVolunteerComments || false,
+        show_attendees_publicly: projectData.showAttendeesPublicly || false,
         schedule: {
           [projectData.eventType]: projectData.schedule[projectData.eventType],
         },

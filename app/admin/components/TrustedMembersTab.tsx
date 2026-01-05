@@ -23,12 +23,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import {
-  HoverCard,
-  HoverCardContent,
-  HoverCardTrigger,
-} from "@/components/ui/hover-card";
 import { NoAvatar } from "@/components/shared/NoAvatar";
+import { ProfileHoverCard } from "@/components/shared/ProfileHoverCard";
 import { format } from "date-fns";
 import { useRouter } from "next/navigation";
 import { searchUsersByEmail, addTrustedMember, updateTrustedMemberStatus } from "../actions";
@@ -207,43 +203,26 @@ export function TrustedMembersTab({ trustedMembers }: TrustedMembersTabProps) {
               trustedMembers.map((member) => (
                 <TableRow key={member.id}>
                   <TableCell>
-                    <HoverCard>
-                      <HoverCardTrigger asChild>
-                        <div className="flex items-center gap-3 cursor-pointer">
-                          {member.profiles?.avatar_url ? (
-                            <Avatar>
-                              <AvatarImage src={member.profiles.avatar_url} />
-                              <AvatarFallback>{member.profiles.full_name?.[0]}</AvatarFallback>
-                            </Avatar>
-                          ) : (
-                            <NoAvatar fullName={member.profiles?.full_name || member.name} className="h-10 w-10 rounded-full bg-muted flex items-center justify-center" />
-                          )}
-                          <div>
-                            <div className="font-medium">{member.profiles?.full_name || member.name}</div>
-                            <div className="text-sm text-muted-foreground">{member.email}</div>
-                          </div>
+                    <ProfileHoverCard
+                      username={member.profiles?.username || "unknown"}
+                      fullName={member.profiles?.full_name || member.name}
+                      avatarUrl={member.profiles?.avatar_url || undefined}
+                    >
+                      <div className="flex items-center gap-3 cursor-pointer">
+                        {member.profiles?.avatar_url ? (
+                          <Avatar>
+                            <AvatarImage src={member.profiles.avatar_url} />
+                            <AvatarFallback>{member.profiles.full_name?.[0]}</AvatarFallback>
+                          </Avatar>
+                        ) : (
+                          <NoAvatar fullName={member.profiles?.full_name || member.name} className="h-10 w-10 rounded-full bg-muted flex items-center justify-center" />
+                        )}
+                        <div>
+                          <div className="font-medium">{member.profiles?.full_name || member.name}</div>
+                          <div className="text-sm text-muted-foreground">{member.email}</div>
                         </div>
-                      </HoverCardTrigger>
-                      <HoverCardContent>
-                        <div className="flex justify-between space-x-4">
-                          {member.profiles?.avatar_url ? (
-                            <Avatar>
-                              <AvatarImage src={member.profiles.avatar_url} />
-                              <AvatarFallback>{member.profiles.full_name?.[0]}</AvatarFallback>
-                            </Avatar>
-                          ) : (
-                            <NoAvatar fullName={member.profiles?.full_name || member.name} className="h-10 w-10 rounded-full bg-muted flex items-center justify-center" />
-                          )}
-                          <div className="space-y-1">
-                            <h4 className="text-sm font-semibold">{member.profiles?.full_name || member.name}</h4>
-                            <p className="text-sm text-muted-foreground">{member.email}</p>
-                            {member.profiles?.username && (
-                              <p className="text-xs text-muted-foreground">@{member.profiles.username}</p>
-                            )}
-                          </div>
-                        </div>
-                      </HoverCardContent>
-                    </HoverCard>
+                      </div>
+                    </ProfileHoverCard>
                   </TableCell>
                   <TableCell className="max-w-[200px] truncate" title={member.reason}>
                     {member.reason}

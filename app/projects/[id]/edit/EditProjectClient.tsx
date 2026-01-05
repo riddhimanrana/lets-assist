@@ -147,6 +147,8 @@ const formSchema = z.object({
     }).optional()
   }).optional(),
   require_login: z.boolean(),
+  enable_volunteer_comments: z.boolean(),
+  show_attendees_publicly: z.boolean(),
   verification_method: z.enum(["qr-code", "manual", "auto", "signup-only"]),
 });
 
@@ -274,6 +276,8 @@ export default function EditProjectClient({ project }: Props) {
         display_name: project.location
       },
       require_login: project.require_login,
+      enable_volunteer_comments: project.enable_volunteer_comments ?? false,
+      show_attendees_publicly: project.show_attendees_publicly ?? false,
       verification_method: project.verification_method,
     },
   });
@@ -379,6 +383,8 @@ export default function EditProjectClient({ project }: Props) {
         formValues.location !== project.location ||
         JSON.stringify(formValues.location_data) !== JSON.stringify(project.location_data) ||
         formValues.require_login !== project.require_login ||
+        formValues.enable_volunteer_comments !== (project.enable_volunteer_comments ?? false) ||
+        formValues.show_attendees_publicly !== (project.show_attendees_publicly ?? false) ||
         formValues.verification_method !== project.verification_method;
       
       const initialSchedule = initializeScheduleState(project);
@@ -401,6 +407,8 @@ export default function EditProjectClient({ project }: Props) {
       formValues.location !== project.location ||
       JSON.stringify(formValues.location_data) !== JSON.stringify(project.location_data) ||
       formValues.require_login !== project.require_login ||
+      formValues.enable_volunteer_comments !== (project.enable_volunteer_comments ?? false) ||
+      formValues.show_attendees_publicly !== (project.show_attendees_publicly ?? false) ||
       formValues.verification_method !== project.verification_method;
     
     setHasChanges(basicInfoChanged || scheduleChanged);
@@ -892,6 +900,48 @@ export default function EditProjectClient({ project }: Props) {
                       <FormLabel>Require Account</FormLabel>
                       <CardDescription>
                         Require volunteers to create an account to sign up
+                      </CardDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="enable_volunteer_comments"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                      <FormLabel>Enable Volunteer Comments</FormLabel>
+                      <CardDescription>
+                        Allow volunteers to include a short note when signing up
+                      </CardDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="show_attendees_publicly"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                      <FormLabel>Show Attendees Publicly</FormLabel>
+                      <CardDescription>
+                        Display attendee count on the public project page
                       </CardDescription>
                     </div>
                     <FormControl>
