@@ -221,6 +221,8 @@ export const verificationSettingsSchema = z.object({
   verificationMethod: z.enum(["qr-code", "manual", "auto", "signup-only"] as const),
   requireLogin: z.boolean(),
   visibility: z.enum(["public", "unlisted", "organization_only"] as const),
+  enableVolunteerComments: z.boolean().optional(),
+  showAttendeesPublicly: z.boolean().optional(),
 });
 
 // Event Form Schema
@@ -235,4 +237,6 @@ export const eventFormSchema = z.object({
   verificationMethod: z.enum(["qr-code", "manual", "auto", "signup-only"] as const),
   requireLogin: z.boolean(),
   visibility: z.enum(["public", "unlisted", "organization_only"] as const),
+  enableVolunteerComments: z.boolean().optional(),
+  showAttendeesPublicly: z.boolean().optional(),
 });

@@ -578,7 +578,8 @@ export async function togglePauseSignups(projectId: string, pauseState: boolean)
 export async function signUpForProject(
   projectId: string,
   scheduleId: string,
-  anonymousData?: AnonymousSignupData
+  anonymousData?: AnonymousSignupData,
+  volunteerComment?: string
 ) {
   const supabase = await createClient();
   const isAnonymous = !!anonymousData;
@@ -593,6 +594,10 @@ export async function signUpForProject(
     if (!project || projectError) {
       return { error: "Project not found" };
     }
+
+    const rawComment = (anonymousData?.comment ?? volunteerComment ?? "").trim();
+    const normalizedComment = rawComment.length > 0 ? rawComment.slice(0, 1000) : null;
+    const volunteerCommentToSave = project.enable_volunteer_comments ? normalizedComment : null;
 
     // Check if signups are paused
     if (project.pause_signups) {
@@ -744,6 +749,7 @@ export async function signUpForProject(
           user_id: user.id,
           status: "approved", // Logged-in users are approved by default
           anonymous_id: null,
+          volunteer_comment: volunteerCommentToSave,
         };
 
         const { data: insertedSignup, error: signupError } = await supabase
@@ -913,6 +919,7 @@ export async function signUpForProject(
         user_id: null,
         status: "pending", // Anonymous signups start as pending
         anonymous_id: anonymousSignupId,
+        volunteer_comment: volunteerCommentToSave,
       };
 
       const { data: insertedProjectSignup, error: projectSignupInsertError } = await supabase

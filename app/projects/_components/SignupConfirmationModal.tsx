@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog,
   DialogContent,
@@ -31,7 +32,8 @@ interface UserProfile {
 interface SignupConfirmationModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: () => void;
+  onConfirm: (comment?: string) => void;
+  enableVolunteerComments?: boolean;
   project: {
     id: string;
     title: string;
@@ -49,6 +51,7 @@ export function SignupConfirmationModal({
   isOpen,
   onClose,
   onConfirm,
+  enableVolunteerComments = false,
   project,
   scheduleId,
   isLoading = false,
@@ -62,6 +65,13 @@ export function SignupConfirmationModal({
   const [connectedEmail, setConnectedEmail] = useState<string | null>(null);
   const [checkingConnection, setCheckingConnection] = useState(false);
   const [connectingCalendar, setConnectingCalendar] = useState(false);
+  const [comment, setComment] = useState('');
+
+  useEffect(() => {
+    if (!isOpen) {
+      setComment('');
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     const fetchUserProfile = async () => {
@@ -221,6 +231,11 @@ export function SignupConfirmationModal({
     });
   };
 
+  const handleConfirm = () => {
+    const trimmed = comment.trim();
+    onConfirm(trimmed.length > 0 ? trimmed : undefined);
+  };
+
   const formatTime = (timeString: string) => {
     const [hours, minutes] = timeString.split(':');
     const date = new Date();
@@ -322,6 +337,28 @@ export function SignupConfirmationModal({
             </div>
           </div>
 
+          {enableVolunteerComments && (
+            <div className="space-y-3 pt-3 border-t">
+              <div className="flex justify-between items-center">
+                <h4 className="font-semibold text-sm text-text">Comment (Optional)</h4>
+                <span className={`text-xs ${comment.length > 100 ? "text-destructive" : "text-muted-foreground"}`}>
+                  {comment.length}/100
+                </span>
+              </div>
+              <Textarea
+                placeholder="Add a note for the organizer..."
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                rows={2}
+                maxLength={100}
+                className="resize-none text-sm"
+              />
+              <div className="text-xs text-muted-foreground">
+                Brief note visible to the organizer.
+              </div>
+            </div>
+          )}
+
           {/* Calendar Integration Section */}
           <div className="space-y-3 pt-3 border-t">
             <h4 className="font-semibold text-sm text-text">
@@ -417,7 +454,7 @@ export function SignupConfirmationModal({
             Cancel
           </Button>
           <Button
-            onClick={onConfirm}
+            onClick={handleConfirm}
             className="mb-2"
             disabled={!canConfirm}
           >

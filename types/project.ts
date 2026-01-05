@@ -29,6 +29,8 @@ export interface Project {
   event_type: EventType;
   verification_method: VerificationMethod;
   require_login: boolean;
+  enable_volunteer_comments?: boolean;
+  show_attendees_publicly?: boolean;
   creator_id: string;
   schedule: ProjectSchedule;
   status: ProjectStatus;

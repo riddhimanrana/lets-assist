@@ -9,6 +9,7 @@ import {
   FormDescription, // Import FormDescription
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { useForm } from "react-hook-form";
@@ -44,6 +45,11 @@ const formSchema = z.object({
       )
       .optional() // Make the entire refined/transformed field optional
   ),
+  comment: z
+    .preprocess(
+      (val) => (typeof val === "string" && val.trim() === "" ? undefined : val),
+      z.string().max(100, { message: "Comment must be 100 characters or less" }).optional(),
+    ),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -52,6 +58,7 @@ interface ProjectFormProps {
   onSubmit: (data: FormValues) => void;
   onCancel: () => void;
   isSubmitting?: boolean;
+  showCommentField?: boolean;
 }
 
 // Helper function to format phone number input
@@ -68,7 +75,7 @@ const formatPhoneNumber = (value: string): string => {
 };
 
 
-export function ProjectSignupForm({ onSubmit, onCancel, isSubmitting }: ProjectFormProps) {
+export function ProjectSignupForm({ onSubmit, onCancel, isSubmitting, showCommentField = false }: ProjectFormProps) {
   const [phoneNumberLength, setPhoneNumberLength] = useState(0); // State for phone number length
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -76,6 +83,7 @@ export function ProjectSignupForm({ onSubmit, onCancel, isSubmitting }: ProjectF
       name: "",
       email: "",
       phone: "", // Initialize as empty string for the input field
+      comment: "",
     },
   });
 
@@ -153,6 +161,40 @@ export function ProjectSignupForm({ onSubmit, onCancel, isSubmitting }: ProjectF
             </FormItem>
           )}
         />
+
+        {showCommentField && (
+          <FormField
+            control={form.control}
+            name="comment"
+            render={({ field }) => {
+              const commentLength = ((field.value as string) || "").length;
+              return (
+                <FormItem>
+                  <div className="flex justify-between items-center">
+                    <FormLabel>Comment (Optional)</FormLabel>
+                    <span className={`text-xs ${commentLength > 100 ? "text-destructive" : "text-muted-foreground"}`}>
+                      {commentLength}/100
+                    </span>
+                  </div>
+                  <FormControl>
+                    <Textarea
+                      placeholder="Add a note for the organizer..."
+                      {...field}
+                      value={(field.value as string) || ""}
+                      rows={2}
+                      maxLength={100}
+                      className="resize-none text-sm"
+                    />
+                  </FormControl>
+                  <FormDescription className="text-xs">
+                    Brief note visible to the organizer.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              );
+            }}
+          />
+        )}
         
         <DialogFooter>
           <Button 

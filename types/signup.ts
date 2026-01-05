@@ -3,8 +3,9 @@ import type { SignupStatus } from './common';
 
 export interface AnonymousSignupData {
   name: string;
-  email?: string;
+  email: string;
   phone?: string;
+  comment?: string;
 }
 
 export interface ProjectSignup {
@@ -14,6 +15,7 @@ export interface ProjectSignup {
   schedule_id: string;
   status: SignupStatus;
   anonymous_id?: string | null;
+  volunteer_comment?: string | null;
   anonymous_name?: string;
   anonymous_email?: string;
   anonymous_phone?: string;
@@ -66,6 +68,7 @@ export interface Signup {
   updated_at: string;
   check_in_time: string | null;
   check_out_time: string | null;
+  volunteer_comment?: string | null;
   email?: string | null;
   full_name?: string | null;
   volunteer_calendar_event_id?: string | null;
