@@ -2,6 +2,10 @@ import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import { differenceInHours, parseISO, isAfter } from "date-fns";
 import { Project, ProjectSignup } from "@/types";
+// Import React Email template and services
+import CertificatePublished from '@/emails/certificate-published';
+import * as React from 'react';
+import { sendEmail } from '@/services/email';
 
 // Create a Supabase client for server-side operations without cookies
 function createServiceClient() {
@@ -48,215 +52,6 @@ function calculateDuration(checkInISO: string | null, checkOutISO: string | null
   }
 }
 
-// Generate certificate published email HTML
-function generateCertificatePublishedEmailHtml(
-  volunteerName: string,
-  projectTitle: string,
-  certificateId: string,
-  siteUrl: string,
-  eventStart?: string,
-  eventEnd?: string,
-  projectTimezone?: string
-): string {
-  const certificateUrl = `${siteUrl}/certificates/${certificateId}`;
-  
-  return `
-  <!DOCTYPE html>
-  <html lang="en">
-  <head>
-      <meta charset="UTF-8">
-      <title>Your Volunteer Certificate is Ready!</title>
-      <style>
-          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-
-          * {
-              margin: 0;
-              padding: 0;
-              font-family: 'Inter', 'Arial', sans-serif;
-          }
-          body {
-              background-color: #f9f9f9;
-              color: #333;
-              line-height: 1.6;
-          }
-          .email-container {
-              background-color: #ffffff;
-              overflow: hidden;
-          }
-          .email-body {
-              padding: 32px 24px;
-              background-color: #ffffff;
-          }
-          h1 {
-              color: #222;
-              font-size: 28px;
-              font-weight: 700;
-              margin-bottom: 20px;
-              letter-spacing: -0.02em;
-          }
-          p {
-              color: #555;
-              font-size: 16px;
-              margin-bottom: 20px;
-          }
-          .certificate-button {
-              display: inline-block;
-              background-color: #16a34a;
-              color: #fff !important;
-              text-decoration: none;
-              padding: 12px 32px;
-              border-radius: 6px;
-              font-weight: 600;
-              font-size: 14px;
-              margin: 24px 0;
-              transition: background-color 0.2s ease;
-              box-shadow: 0 4px 8px rgba(22, 163, 74, 0.15);
-              text-align: center;
-          }
-          .certificate-button:hover {
-              background-color: #15803d;
-          }
-          .event-details {
-              background-color: #f8f9fa;
-              border-radius: 6px;
-              padding: 20px;
-              margin: 24px 0;
-              border-left: 4px solid #16a34a;
-          }
-          .detail-row {
-              margin-bottom: 8px;
-              font-size: 15px;
-          }
-          .detail-row:last-child {
-              margin-bottom: 0;
-          }
-          .detail-label {
-              font-weight: 600;
-              color: #374151;
-              display: inline-block;
-              width: 120px;
-          }
-          .detail-value {
-              color: #555;
-          }
-          .email-footer {
-              padding: 20px 24px;
-              text-align: center;
-              font-size: 14px;
-              color: #777;
-              background-color: #f9fafb;
-              border-top: 1px solid #f0f0f0;
-          }
-          .help-text {
-              font-size: 14px;
-              color: #777;
-          }
-          .alternative-link {
-              word-break: break-all;
-              color: #16a34a;
-              text-decoration: underline;
-          }
-          .getting-started {
-              margin-top: 28px;
-              padding-top: 16px;
-              border-top: 1px solid #f0f0f0;
-              font-size: 15px;
-          }
-          .auto-publish-note {
-              background-color: #f0f9ff;
-              border: 1px solid #0ea5e9;
-              border-radius: 6px;
-              padding: 16px;
-              margin: 20px 0;
-          }
-      </style>
-  </head>
-  <body>
-      <div class="email-container">
-          <div class="email-body">
-              <h1>🎉 Your Certificate is Ready!</h1>
-              <p>Hi ${volunteerName},</p>
-              <p>Great news! Your volunteer certificate for <strong>${projectTitle}</strong> has been automatically published and is now available to view.</p>
-              
-              <div class="auto-publish-note">
-                  <p style="margin: 0; color: #0369a1; font-weight: 500;">📅 Automatic Publishing</p>
-                  <p style="margin: 4px 0 0 0; color: #0369a1; font-size: 14px;">This certificate was automatically generated 48 hours after the event ended, as no manual adjustments were needed.</p>
-              </div>
-              
-              <div class="event-details">
-                  <div class="detail-row">
-                      <span class="detail-label">Project:</span>
-                      <span class="detail-value">${projectTitle}</span>
-                  </div>
-                  ${eventStart && eventEnd ? (() => {
-                    try {
-                      const timezone = projectTimezone || 'America/Los_Angeles';
-                      const startDate = new Date(eventStart);
-                      const endDate = new Date(eventEnd);
-                      
-                      // Format date
-                      const dateStr = startDate.toLocaleDateString('en-US', { 
-                        timeZone: timezone,
-                        year: 'numeric', 
-                        month: 'long', 
-                        day: 'numeric' 
-                      });
-                      
-                      // Format times with timezone abbreviation
-                      const startTimeStr = startDate.toLocaleTimeString('en-US', { 
-                        timeZone: timezone,
-                        hour: 'numeric', 
-                        minute: '2-digit',
-                        timeZoneName: 'short'
-                      });
-                      
-                      const endTimeStr = endDate.toLocaleTimeString('en-US', { 
-                        timeZone: timezone,
-                        hour: 'numeric', 
-                        minute: '2-digit',
-                        timeZoneName: 'short'
-                      });
-                      
-                      return `
-                        <div class="detail-row">
-                            <span class="detail-label">Date:</span>
-                            <span class="detail-value">${dateStr}</span>
-                        </div>
-                        <div class="detail-row">
-                            <span class="detail-label">Time:</span>
-                            <span class="detail-value">${startTimeStr} - ${endTimeStr}</span>
-                        </div>`;
-                    } catch {
-                      return '';
-                    }
-                  })() : ''}
-                  <div class="detail-row">
-                      <span class="detail-label">Certificate ID:</span>
-                      <span class="detail-value">${certificateId}</span>
-                  </div>
-              </div>
-              
-              <div style="text-align: center;">
-                  <a href="${certificateUrl}" class="certificate-button">View My Certificate</a>
-              </div>
-              
-              <p class="help-text">You can view, download, and share your certificate using the link above. This certificate serves as official recognition of your volunteer contribution.</p>
-              
-              <div class="getting-started">
-                  <p><strong>Having trouble with the button?</strong></p>
-                  <p class="help-text">You can also use this direct link: <a href="${certificateUrl}" class="alternative-link">${certificateUrl}</a></p>
-              </div>
-          </div>
-          <div class="email-footer">
-              <p>&copy; ${new Date().getFullYear()} Riddhiman Rana. All rights reserved.</p>
-              <p>Questions? Contact us at <a href="mailto:support@lets-assist.com" style="color: #16a34a; font-weight: 500;">support@lets-assist.com</a></p>
-          </div>
-      </div>
-  </body>
-  </html>
-  `;
-}
-
 // Send certificate published notifications
 async function sendCertificatePublishedEmails(
   certificates: Array<{
@@ -269,13 +64,6 @@ async function sendCertificatePublishedEmails(
   }>,
   projectTimezone?: string
 ): Promise<{ success: boolean; emailsSent: number; errors: string[] }> {
-  if (!process.env.RESEND_API_KEY) {
-    console.error("RESEND_API_KEY is not configured");
-    return { success: false, emailsSent: 0, errors: ["Email service not configured"] };
-  }
-
-  const { Resend } = require('resend');
-  const resend = new Resend(process.env.RESEND_API_KEY);
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
   
   let emailsSent = 0;
@@ -288,26 +76,27 @@ async function sendCertificatePublishedEmails(
     }
 
     try {
-      const emailHtml = generateCertificatePublishedEmailHtml(
-        cert.volunteer_name,
-        cert.project_title,
-        cert.id,
-        siteUrl,
-        cert.event_start,
-        cert.event_end,
-        projectTimezone
-      );
-
-      const { error: emailError } = await resend.emails.send({
-        from: "Let's Assist <certificates@notifications.lets-assist.com>",
-        to: [cert.volunteer_email],
+      const certificateUrl = `${siteUrl}/certificates/${cert.id}`;
+      
+      const { error: emailError } = await sendEmail({
+        to: cert.volunteer_email,
         subject: `[Auto-Published] Your volunteer certificate for ${cert.project_title} is ready!`,
-        html: emailHtml,
+        react: React.createElement(CertificatePublished, {
+          volunteerName: cert.volunteer_name,
+          projectTitle: cert.project_title,
+          certificateId: cert.id,
+          certificateUrl,
+          isAutoPublished: true,
+          eventStart: cert.event_start,
+          eventEnd: cert.event_end,
+          timezone: projectTimezone
+        }),
+        type: 'transactional'
       });
 
       if (emailError) {
         console.error(`Error sending email to ${cert.volunteer_email}:`, emailError);
-        errors.push(`Failed to send email to ${cert.volunteer_email}: ${emailError.message}`);
+        errors.push(`Failed to send email to ${cert.volunteer_email}: ${emailError}`);
       } else {
         emailsSent++;
         console.log(`Certificate email sent successfully to ${cert.volunteer_email}`);

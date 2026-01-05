@@ -12,304 +12,17 @@ import crypto from 'crypto';
 import { sendEmail } from '@/services/email';
 // Import date-fns utilities
 import { parseISO, isAfter } from 'date-fns';
-// Remove the import for the email template component
-// import AnonymousSignupConfirmationEmail from '@/emails/AnonymousSignupConfirmationEmail';
+// Import React Email templates
+import AnonymousSignupConfirmation from '@/emails/anonymous-signup-confirmation';
+import UserSignupConfirmation from '@/emails/user-signup-confirmation';
+import * as React from 'react';
 
 import { NotificationService } from "@/services/notifications";
 import { removeCalendarEventForSignup, removeCalendarEventForProject } from "@/utils/calendar-helpers";
+import { getServiceRoleClient } from "@/utils/supabase/service-role";
 
 // Define your site URL (replace with environment variable ideally)
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-
-// Function to generate the HTML email content
-const generateConfirmationEmailHtml = (
-  confirmationUrl: string,
-  projectName: string,
-  userName: string
-): string => {
-  // Remove /confirm and token query from the confirmationUrl for display/profile link
-  // confirmationUrl is like: `${siteUrl}/anonymous/${anonymousSignupId}/confirm?token=${confirmationToken}`
-  // We want just: `${siteUrl}/anonymous/${anonymousSignupId}`
-  const urlObj = new URL(confirmationUrl);
-  // The anonymousSignupId is the second-to-last segment
-  const pathParts = urlObj.pathname.split('/').filter(Boolean);
-  const anonymousSignupId = pathParts[1]; // e.g., /anonymous/{id}/confirm
-
-  const anonymousProfileUrl = `${siteUrl}/anonymous/${anonymousSignupId}`;
-
-  return `
-  <!DOCTYPE html>
-  <html lang="en">
-  <head>
-      <meta charset="UTF-8">
-      <title>Confirm Your Signup</title>
-      <style>
-          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-
-          * {
-              margin: 0;
-              padding: 0;
-              font-family: 'Inter', 'Arial', sans-serif;
-          }
-          body {
-              background-color: #f9f9f9;
-              color: #333;
-              line-height: 1.6;
-          }
-          .email-container {
-              background-color: #ffffff;
-              overflow: hidden;
-          }
-          .email-body {
-              padding: 32px 24px;
-              background-color: #ffffff;
-          }
-          h1 {
-              color: #222;
-              font-size: 28px;
-              font-weight: 700;
-              margin-bottom: 20px;
-              letter-spacing: -0.02em;
-          }
-          p {
-              color: #555;
-              font-size: 16px;
-              margin-bottom: 20px;
-          }
-          .confirm-button {
-              display: inline-block;
-              background-color: #16a34a;
-              color: #fff !important;
-              text-decoration: none;
-              padding: 12px 32px;
-              border-radius: 6px;
-              font-weight: 600;
-              font-size: 14px;
-              margin: 24px 0;
-              transition: background-color 0.2s ease;
-              box-shadow: 0 4px 8px rgba(22, 163, 74, 0.15);
-              text-align: center;
-          }
-          .confirm-button:hover {
-              background-color: #15803d;
-          }
-          .email-footer {
-              padding: 20px 24px;
-              text-align: center;
-              font-size: 14px;
-              color: #777;
-              background-color: #f9fafb;
-              border-top: 1px solid #f0f0f0;
-          }
-          .help-text {
-              font-size: 14px;
-              color: #777;
-          }
-          .alternative-link {
-              word-break: break-all;
-              color: #16a34a;
-              text-decoration: none;
-              font-weight: 500;
-              font-size: 13px;
-          }
-          .getting-started {
-              margin-top: 28px;
-              padding-top: 16px;
-              border-top: 1px solid #f0f0f0;
-              font-size: 15px;
-          }
-      </style>
-  </head>
-  <body>
-      <div class="email-container">
-          <div class="email-body">
-              <h1>You're Almost In!</h1>
-              <p>Hi ${userName},</p>
-              <p>Thanks for signing up to volunteer for <strong>${projectName}</strong>! Please confirm your email address to complete your signup.</p>
-              
-              <div style="text-align: center;">
-                  <a href="${confirmationUrl}" class="confirm-button">Confirm Your Signup</a>
-              </div>
-              
-              <p class="help-text">Having trouble with the button? You can also use this link:</p>
-              <p><a href="${confirmationUrl}" style="color:#16a34a" class="alternative-link">${confirmationUrl}</a></p>
-
-              <p class="help-text">For future reference, here's a link to your anonymous profile:</p>
-              <p><a href="${anonymousProfileUrl}" style="color:#16a34a" class="alternative-link">${anonymousProfileUrl}</a></p>
-              
-              <div class="getting-started">
-                  <p>If you did not sign up for this project on Let's Assist, you can safely ignore this email.</p>
-              </div>
-          </div>
-          <div class="email-footer">
-              <p>&copy; ${new Date().getFullYear()} Riddhiman Rana. All rights reserved.</p>
-              <p>Questions? Contact us at <a href="mailto:support@lets-assist.com" style="color: #16a34a; font-weight: 500;">support@lets-assist.com</a></p>
-          </div>
-      </div>
-  </body>
-  </html>
-  `;
-};
-
-// Function to generate signup confirmation email for logged-in users
-const generateLoggedInUserConfirmationEmailHtml = (
-  projectName: string,
-  userName: string,
-  projectDate: string,
-  projectTime: string,
-  projectLocation: string,
-  projectUrl: string
-): string => {
-  return `
-  <!DOCTYPE html>
-  <html lang="en">
-  <head>
-      <meta charset="UTF-8">
-      <title>Signup Confirmed</title>
-      <style>
-          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-
-          * {
-              margin: 0;
-              padding: 0;
-              font-family: 'Inter', 'Arial', sans-serif;
-          }
-          body {
-              background-color: #f9f9f9;
-              color: #333;
-              line-height: 1.6;
-          }
-          .email-container {
-              background-color: #ffffff;
-              overflow: hidden;
-          }
-          .email-body {
-              padding: 32px 24px;
-              background-color: #ffffff;
-          }
-          h1 {
-              color: #222;
-              font-size: 28px;
-              font-weight: 700;
-              margin-bottom: 20px;
-              letter-spacing: -0.02em;
-          }
-          p {
-              color: #555;
-              font-size: 16px;
-              margin-bottom: 20px;
-          }
-          .view-event-button {
-              display: inline-block;
-              background-color: #16a34a;
-              color: #fff !important;
-              text-decoration: none;
-              padding: 12px 32px;
-              border-radius: 6px;
-              font-weight: 600;
-              font-size: 14px;
-              margin: 24px 0;
-              transition: background-color 0.2s ease;
-              box-shadow: 0 4px 8px rgba(22, 163, 74, 0.15);
-              text-align: center;
-          }
-          .view-event-button:hover {
-              background-color: #15803d;
-          }
-          .event-details {
-              background-color: #f8f9fa;
-              border-radius: 6px;
-              padding: 20px;
-              margin: 24px 0;
-              border-left: 4px solid #16a34a;
-          }
-          .detail-row {
-              margin-bottom: 8px;
-              font-size: 15px;
-          }
-          .detail-row:last-child {
-              margin-bottom: 0;
-          }
-          .detail-label {
-              font-weight: 600;
-              color: #374151;
-              display: inline-block;
-              width: 80px;
-          }
-          .detail-value {
-              color: #555;
-          }
-          .email-footer {
-              padding: 20px 24px;
-              text-align: center;
-              font-size: 14px;
-              color: #777;
-              background-color: #f9fafb;
-              border-top: 1px solid #f0f0f0;
-          }
-          .help-text {
-              font-size: 14px;
-              color: #777;
-          }
-          .getting-started {
-              margin-top: 28px;
-              padding-top: 16px;
-              border-top: 1px solid #f0f0f0;
-              font-size: 15px;
-          }
-      </style>
-  </head>
-  <body>
-      <div class="email-container">
-          <div class="email-body">
-              <h1>Signup Confirmed!</h1>
-              <p>Hi ${userName},</p>
-              <p>Your signup for <strong>${projectName}</strong> has been confirmed. We're excited to have you volunteer with us!</p>
-              
-              <div class="event-details">
-                  <div class="detail-row">
-                      <span class="detail-label">Event:</span>
-                      <span class="detail-value">${projectName}</span>
-                  </div>
-                  <div class="detail-row">
-                      <span class="detail-label">Date:</span>
-                      <span class="detail-value">${projectDate}</span>
-                  </div>
-                  ${projectTime ? `
-                  <div class="detail-row">
-                      <span class="detail-label">Time:</span>
-                      <span class="detail-value">${projectTime}</span>
-                  </div>` : ''}
-                  <div class="detail-row">
-                      <span class="detail-label">Location:</span>
-                      <span class="detail-value">${projectLocation}</span>
-                  </div>
-              </div>
-              
-              <div style="text-align: center;">
-                  <a href="${projectUrl}" class="view-event-button">View Event Details</a>
-              </div>
-              
-              <div class="getting-started">
-                  <p><strong>What's next?</strong></p>
-                  <ul style="margin-top: 12px; padding-left: 20px;">
-                      <li>Mark your calendar for the event date</li>
-                      <li>Check your email for any updates from the organizers</li>
-                      <li>Visit the event page for additional information</li>
-                  </ul>
-              </div>
-          </div>
-          <div class="email-footer">
-              <p>&copy; ${new Date().getFullYear()} Riddhiman Rana. All rights reserved.</p>
-              <p>Questions? Contact us at <a href="mailto:support@lets-assist.com" style="color: #16a34a; font-weight: 500;">support@lets-assist.com</a></p>
-          </div>
-      </div>
-  </body>
-  </html>
-  `;
-};
-
-
 
 // Function to extract schedule details for email notifications
 function getScheduleDetails(project: Project, scheduleId: string) {
@@ -779,19 +492,17 @@ export async function signUpForProject(
             const { date, time, timeRange } = getScheduleDetails(project, scheduleId);
             const projectUrl = `${siteUrl}/projects/${projectId}`;
 
-            const emailHtml = generateLoggedInUserConfirmationEmailHtml(
-              project.title,
-              userProfile.full_name || 'Volunteer',
-              date,
-              timeRange,
-              project.location,
-              projectUrl
-            );
-
             const { data: emailData, error: emailError } = await sendEmail({
               to: userProfile.email,
               subject: `Signup confirmed for ${project.title}`,
-              html: emailHtml,
+              react: React.createElement(UserSignupConfirmation, {
+                projectName: project.title,
+                userName: userProfile.full_name || 'Volunteer',
+                projectDate: date,
+                projectTime: timeRange,
+                projectLocation: project.location,
+                projectUrl
+              }),
               userId: user.id,
               type: 'transactional' // Signup confirmation is transactional
             });
@@ -960,17 +671,17 @@ export async function signUpForProject(
 
       if (anonymousData.email && confirmationToken && anonymousSignupId) {
         const confirmationUrl = `${siteUrl}/anonymous/${anonymousSignupId}/confirm?token=${confirmationToken}`;
+        const anonymousProfileUrl = `${siteUrl}/anonymous/${anonymousSignupId}`;
         try {
-          const emailHtml = generateConfirmationEmailHtml(
-            confirmationUrl,
-            project.title,
-            anonymousData.name
-          );
-
           const { data, error: emailError } = await sendEmail({
             to: anonymousData.email,
             subject: `Confirm your signup for ${project.title}`,
-            html: emailHtml,
+            react: React.createElement(AnonymousSignupConfirmation, {
+              confirmationUrl,
+              projectName: project.title,
+              userName: anonymousData.name,
+              anonymousProfileUrl
+            }),
             type: 'transactional'
           });
 
@@ -1313,77 +1024,49 @@ export async function updateProjectStatus(
       // Remove creator's calendar event
       await removeCalendarEventForProject(projectId);
 
-      // --- SEND CANCELLATION EMAILS ---
-      // Fetch all approved signups with user/anonymous details
-      const { data: signups } = await supabase
-        .from("project_signups")
-        .select(`
-          id, 
-          user_id, 
-          anonymous_id,
-          user:profiles!user_id(email, full_name),
-          anonymous_signup:anonymous_signups!anonymous_id(email, name)
-        `)
-        .eq("project_id", projectId)
-        .eq("status", "approved");
+      // --- ENQUEUE CANCELLATION NOTIFICATIONS (BACKGROUND) ---
+      // We enqueue a job for a cron/worker route to process. This is more reliable
+      // than doing a potentially large fanout inside the server action.
+      const cancelledAt = updateData.cancelled_at ?? new Date().toISOString();
+      const serviceSupabase = getServiceRoleClient();
 
-      if (signups && signups.length > 0) {
-        console.log(`Sending cancellation emails to ${signups.length} participants`);
+      const { error: enqueueError } = await serviceSupabase
+        .from("project_cancellation_jobs")
+        .upsert(
+          {
+            project_id: projectId,
+            cancelled_at: cancelledAt,
+            cancellation_reason: cancellationReason!,
+            created_by: user.id,
+            status: "pending",
+            cursor: 0,
+            attempts: 0,
+            last_error: null,
+            processing_started_at: null,
+            completed_at: null,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "project_id" }
+        );
 
-        // Prepare email content
-        const emailSubject = `Project Cancelled: ${project.title}`;
+      if (enqueueError) {
+        console.error("Error enqueueing project cancellation job:", enqueueError);
+      } else {
+        // Best-effort: kick the worker immediately, but don't block the user.
+        // Cron should still run this periodically in production.
+        const workerBaseUrl = process.env.NEXT_PUBLIC_SITE_URL;
+        const workerToken = process.env.PROJECT_CANCELLATION_WORKER_SECRET_TOKEN;
 
-        // Send emails in parallel
-        await Promise.all(signups.map(async (signup) => {
-          let email: string | null = null;
-          let name: string = "Volunteer";
-          let userId: string | undefined = undefined;
-
-          if (signup.user_id && signup.user) {
-            // @ts-ignore - Supabase types might be tricky with joins
-            email = signup.user.email;
-            // @ts-ignore
-            name = signup.user.full_name || "Volunteer";
-            userId = signup.user_id;
-          } else if (signup.anonymous_id && signup.anonymous_signup) {
-            // @ts-ignore
-            email = signup.anonymous_signup.email;
-            // @ts-ignore
-            name = signup.anonymous_signup.name || "Volunteer";
-          }
-
-          if (email) {
-            const emailHtml = `
-              <!DOCTYPE html>
-              <html>
-              <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-                <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-                  <h2 style="color: #e11d48;">Project Cancelled</h2>
-                  <p>Hi ${name},</p>
-                  <p>We regret to inform you that the project <strong>${project.title}</strong> has been cancelled.</p>
-                  
-                  <div style="background-color: #fff1f2; border-left: 4px solid #e11d48; padding: 15px; margin: 20px 0;">
-                    <p style="margin: 0; font-weight: bold;">Reason for cancellation:</p>
-                    <p style="margin: 5px 0 0 0;">${cancellationReason || "No reason provided."}</p>
-                  </div>
-
-                  <p>We apologize for any inconvenience this may cause.</p>
-                  
-                  <p>Best regards,<br>The Let's Assist Team</p>
-                </div>
-              </body>
-              </html>
-            `;
-
-            await sendEmail({
-              to: email,
-              subject: emailSubject,
-              html: emailHtml,
-              userId: userId,
-              type: 'project_updates' // This allows users to opt-out if they really want, or we could force it as transactional
-            });
-          }
-        }));
+        if (workerBaseUrl && workerToken) {
+          void fetch(`${workerBaseUrl}/api/cron/project-cancellations`, {
+            method: "POST",
+            headers: {
+              authorization: `Bearer ${workerToken}`,
+            },
+          }).catch((err) => {
+            console.error("Failed to trigger project cancellation worker:", err);
+          });
+        }
       }
 
     } catch (calendarError) {
@@ -1671,16 +1354,17 @@ export async function resendAnonymousConfirmationEmail(anonymousSignupId: string
 
     // Send the confirmation email
     const confirmationUrl = `${siteUrl}/anonymous/${anonymousSignupId}/confirm?token=${newToken}`;
-    const emailHtml = generateConfirmationEmailHtml(
-      confirmationUrl,
-      project.title,
-      anonSignup.name
-    );
+    const anonymousProfileUrl = `${siteUrl}/anonymous/${anonymousSignupId}`;
 
     const { error: emailError } = await sendEmail({
       to: anonSignup.email,
       subject: `Confirm your signup for ${project.title}`,
-      html: emailHtml,
+      react: React.createElement(AnonymousSignupConfirmation, {
+        confirmationUrl,
+        projectName: project.title,
+        userName: anonSignup.name,
+        anonymousProfileUrl
+      }),
       type: 'transactional'
     });
 

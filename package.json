@@ -13,7 +13,7 @@
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
     "test:auto-publish": "node scripts/test-auto-publish.js",
-    "verify:cipa": "tsx scripts/verify-cipa-tables.ts"
+    "email:dev": "email dev"
   },
   "dependencies": {
     "@ai-sdk/google": "^2.0.52",
@@ -47,6 +47,7 @@
     "@radix-ui/react-toggle": "^1.1.10",
     "@radix-ui/react-toggle-group": "^1.1.11",
     "@radix-ui/react-tooltip": "^1.2.8",
+    "@react-email/components": "1.0.3",
     "@react-google-maps/api": "^2.20.8",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.89.0",
@@ -88,11 +89,11 @@
     "posthog-js": "^1.313.0",
     "prettier": "3.4.2",
     "punycode": "^2.3.1",
-    "react": "^19.2.3",
+    "react": "19.2.3",
     "react-day-picker": "^9.13.0",
-    "react-dom": "^19.2.3",
+    "react-dom": "19.2.3",
     "react-easy-crop": "^5.5.6",
-    "react-email": "^4.3.2",
+    "react-email": "5.1.1",
     "react-hook-form": "^7.70.0",
     "react-icons": "^5.5.0",
     "react-intersection-observer": "^9.16.0",
@@ -112,6 +113,7 @@
   },
   "devDependencies": {
     "@next/eslint-plugin-next": "^15.5.9",
+    "@react-email/preview-server": "5.1.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.1",
     "@types/node": "^20.19.27",
