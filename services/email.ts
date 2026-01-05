@@ -1,5 +1,7 @@
 import { Resend } from 'resend';
 import { createClient } from '@/utils/supabase/server';
+import { render } from '@react-email/components';
+import * as React from 'react';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -8,12 +10,19 @@ export type EmailType = 'project_updates' | 'general' | 'transactional';
 interface SendEmailParams {
     to: string | string[];
     subject: string;
-    html: string;
+    html?: string;
+    react?: React.ReactElement;
     userId?: string; // Optional: if provided, checks user preferences
     type: EmailType;
 }
 
-export async function sendEmail({ to, subject, html, userId, type }: SendEmailParams) {
+export async function sendEmail({ to, subject, html, react, userId, type }: SendEmailParams) {
+    // Validate that either html or react is provided
+    if (!html && !react) {
+        console.error('Either html or react must be provided');
+        return { success: false, error: 'Either html or react must be provided' };
+    }
+
     // 1. Check preferences if userId is provided and type is not transactional
     if (userId && type !== 'transactional') {
         const supabase = await createClient();
@@ -54,11 +63,14 @@ export async function sendEmail({ to, subject, html, userId, type }: SendEmailPa
 
     // 2. Send email via Resend
     try {
+        // Render React component to HTML if provided
+        const emailHtml = react ? await render(react) : html!;
+
         const { data, error } = await resend.emails.send({
             from: "Let's Assist <projects@notifications.lets-assist.com>",
             to,
             subject,
-            html,
+            html: emailHtml,
         });
 
         if (error) {

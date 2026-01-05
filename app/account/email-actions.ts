@@ -1,121 +1,10 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
-import { Resend } from "resend";
 import crypto from "crypto";
-
-const resend = new Resend(process.env.RESEND_API_KEY);
-
-const buildVerificationEmailHtml = (token: string) => {
-    const year = new Date().getFullYear();
-    return `
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <title>Confirm Your Email</title>
-            <style>
-                @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-
-                * {
-                    margin: 0;
-                    padding: 0;
-                    font-family: 'Inter', 'Arial', sans-serif;
-                }
-                body {
-                    background-color: #f9f9f9;
-                    color: #333;
-                    line-height: 1.6;
-                }
-                .email-container {
-                    background-color: #ffffff;
-                    overflow: hidden;
-                }
-                .email-body {
-                    padding: 32px 24px;
-                    background-color: #ffffff;
-                }
-                h1 {
-                    color: #222;
-                    font-size: 28px;
-                    font-weight: 700;
-                    margin-bottom: 20px;
-                    letter-spacing: -0.02em;
-                }
-                p {
-                    color: #555;
-                    font-size: 16px;
-                    margin-bottom: 20px;
-                }
-                .verification-wrapper {
-                    background-color: #f8f9fa;
-                    border-radius: 6px;
-                    padding: 24px;
-                    margin: 24px 0;
-                    text-align: center;
-                    border-left: 4px solid #16a34a;
-                }
-                .verification-label {
-                    margin: 0;
-                    font-size: 14px;
-                    color: #666;
-                    text-transform: uppercase;
-                    letter-spacing: 0.15em;
-                }
-                .verification-code {
-                    font-size: 36px;
-                    font-weight: 700;
-                    color: #16a34a;
-                    margin: 12px 0 0;
-                    letter-spacing: 0.4em;
-                }
-                .email-footer {
-                    padding: 20px 24px;
-                    text-align: center;
-                    font-size: 14px;
-                    color: #777;
-                    background-color: #f9fafb;
-                    border-top: 1px solid #f0f0f0;
-                }
-                .help-text {
-                    font-size: 14px;
-                    color: #777;
-                }
-                .security-note {
-                    margin-top: 28px;
-                    padding-top: 16px;
-                    border-top: 1px solid #f0f0f0;
-                    font-size: 15px;
-                }
-            </style>
-        </head>
-        <body>
-            <div class="email-container">
-                <div class="email-body">
-                    <h1>Confirm Your Email</h1>
-                    <p>Hello,</p>
-                    <p>We're excited to have you on board. Enter the verification code below in Let's Assist to finish linking this email to your account.</p>
-
-                    <div class="verification-wrapper">
-                        <p class="verification-label">Your verification code</p>
-                        <p class="verification-code">${token}</p>
-                    </div>
-
-                    <p class="help-text">This code will expire in 24 hours. If you didn't request this, you can safely ignore this email.</p>
-
-                    <div class="security-note">
-                        <p>Need help? Reply to this email or reach us at support@lets-assist.com.</p>
-                    </div>
-                </div>
-                <div class="email-footer">
-                    <p>&copy; ${year} Riddhiman Rana. All rights reserved.</p>
-                    <p>Need help? Contact us at <a href="mailto:support@lets-assist.com" style="color: #16a34a; font-weight: 500;">support@lets-assist.com</a></p>
-                </div>
-            </div>
-        </body>
-        </html>
-    `;
-};
+import { sendEmail } from "@/services/email";
+import EmailVerificationCode from "@/emails/email-verification-code";
+import * as React from "react";
 
 export async function sendVerificationEmail(email: string) {
     const supabase = await createClient();
@@ -174,19 +63,19 @@ export async function sendVerificationEmail(email: string) {
     // Send email
     try {
         console.log("Attempting to send verification email to:", email);
-        const { data, error } = await resend.emails.send({
-            from: 'Let\'s Assist <projects@notifications.lets-assist.com>',
+        const { error } = await sendEmail({
             to: email,
             subject: 'Verify your email address',
-            html: buildVerificationEmailHtml(token)
+            react: React.createElement(EmailVerificationCode, { code: token, expiresInHours: 24 }),
+            type: 'transactional'
         });
 
         if (error) {
-            console.error("Resend API error details:", JSON.stringify(error, null, 2));
-            return { error: `Failed to send verification email: ${error.message || 'Unknown error'}` };
+            console.error("Email service error:", error);
+            return { error: `Failed to send verification email: ${error}` };
         }
 
-        console.log("Verification email sent successfully:", data);
+        console.log("Verification email sent successfully");
     } catch (e: any) {
         console.error("Email sending exception:", e);
         console.error("Exception details:", e.message, e.stack);

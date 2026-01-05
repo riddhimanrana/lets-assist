@@ -76,7 +76,6 @@ import { canCancelProject, canDeleteProject } from "@/utils/project";
 import { getProjectStartDateTime, getProjectEndDateTime } from "@/utils/project";
 import { differenceInHours } from "date-fns";
 import { createClient } from "@/utils/supabase/client";
-import { NotificationService } from "@/services/notifications";
 import Link from "next/link";
 import {
   Tooltip,
@@ -84,7 +83,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { updateCalendarEventForProject, removeCalendarEventForProject, removeAllVolunteerCalendarEvents } from "@/utils/calendar-helpers";
+import { updateCalendarEventForProject } from "@/utils/calendar-helpers";
 import Schedule from "@/app/projects/create/Schedule";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import Image from "next/image";
@@ -693,43 +692,7 @@ export default function EditProjectClient({ project }: Props) {
       if (result.error) {
         toast.error(result.error);
       } else {
-        toast.success("Project cancelled successfully");
-        
-        // Remove calendar events (non-blocking)
-        try {
-          // Remove creator's calendar event
-          await removeCalendarEventForProject(project.id);
-          // Remove all volunteer calendar events
-          await removeAllVolunteerCalendarEvents(project.id);
-        } catch (calendarError) {
-          console.error("Error removing calendar events:", calendarError);
-          // Don't show error to user - this is non-critical
-        }
-        
-        // Send cancellation notifications to all participants
-        try {
-          const supabase = createClient();
-          const { data: signups, error } = await supabase
-            .from('project_signups')
-            .select('user_id')
-            .eq('project_id', project.id);
-            if (!error && signups) {
-            for (const signup of signups) {
-              if (signup.user_id) {
-              await NotificationService.createNotification({
-                title: `Project Cancelled`,
-                body: `The project "${project.title}" which you signed up for has been cancelled.`,
-                type: 'project_updates',
-                actionUrl: `/projects/${project.id}`,
-                data: { projectId: project.id, signupId: signup.user_id },
-                severity: 'warning',
-              }, signup.user_id);
-              }
-            }
-            }
-        } catch (notifyError) {
-          console.error('Error sending cancellation notifications:', notifyError);
-        }
+        toast.success("Project cancelled successfully. Approved volunteers will be notified shortly.");
         setShowCancelDialog(false);
         router.push(`/projects/${project.id}`);
         router.refresh();
