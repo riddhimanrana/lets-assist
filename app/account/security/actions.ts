@@ -113,7 +113,7 @@ export async function updateEmailAction(formData: FormData) {
     { email: validatedFields.data.newEmail },
     { 
       // Supabase will automatically append token_hash and type parameters to this URL
-      emailRedirectTo: `${redirectUrl}/auth/verification-success?type=email_change` 
+      emailRedirectTo: `${redirectUrl.replace(/\/$/, "")}/auth/confirm?type=email_change` 
     }
   );
 

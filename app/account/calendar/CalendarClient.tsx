@@ -211,12 +211,12 @@ export default function CalendarClient({
         <CardContent>
           {connection ? (
             <div className="space-y-4">
-              <div className="flex items-start justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                 <div className="flex items-start gap-3">
                   <CheckCircle className="h-5 w-5 text-chart-5 mt-0.5" />
-                  <div>
+                  <div className="min-w-0">
                     <p className="font-medium">Connected</p>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-muted-foreground break-all">
                       {connection.calendar_email}
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
@@ -237,6 +237,7 @@ export default function CalendarClient({
                   size="sm"
                   onClick={() => setShowDisconnectDialog(true)}
                   disabled={isDisconnecting}
+                  className="w-full sm:w-auto"
                 >
                   <XCircle className="h-4 w-4 mr-2" />
                   Disconnect

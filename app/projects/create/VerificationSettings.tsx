@@ -353,7 +353,7 @@ export default function VerificationSettings({
                     Show attendees publicly
                   </Label>
                   <p className="text-sm text-muted-foreground mt-1">
-                    Display attendee count on the public project page.
+                    Display attendee names on the project page.
                   </p>
                 </div>
               </div>

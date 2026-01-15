@@ -1,4 +1,5 @@
 import { createClient } from '@/utils/supabase/server';
+import { notifyAdminsBatched } from '@/services/admin-notifications';
 import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
@@ -111,16 +112,17 @@ export async function POST(request: Request) {
       );
     }
     
-    // Send notification to admins about new report (especially for high-priority reports)
-    if (priority === 'high') {
-      try {
-        // TODO: Implement admin notification service
-        // For now, just log high-priority reports
-        console.warn(`HIGH-PRIORITY REPORT: ${reason} - Content ${contentId} (${contentType})`);
-      } catch (notifError) {
-        console.error('Error sending admin notification:', notifError);
-        // Don't fail the request if notification fails
-      }
+    try {
+      await notifyAdminsBatched({
+        type: 'content_report',
+        reportId: data.id,
+        reason,
+        contentType,
+        priority,
+      });
+    } catch (notifError) {
+      console.error('Error sending admin notification:', notifError);
+      // Don't fail the request if notification fails
     }
     
     return NextResponse.json({

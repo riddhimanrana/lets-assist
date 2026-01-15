@@ -10,7 +10,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { verifyEmailToken } from "./actions";
 
 export const metadata: Metadata = {
   title: "Verification Success",
@@ -20,7 +19,6 @@ export const metadata: Metadata = {
 // Define the PageProps type that follows Next.js App Router standards
 type VerificationSearchParams = {
   type?: string;
-  token?: string;
   email?: string;
   error_description?: string;
   error?: string;
@@ -37,7 +35,6 @@ export default async function VerificationSuccessPage({
   const resolvedSearchParams = await searchParams;
   const type = resolvedSearchParams.type || "";
   const email = resolvedSearchParams.email; // Get email from URL params
-  const token = resolvedSearchParams.token; // Extract token if present
   const errorDescription = resolvedSearchParams.error_description;
   const errorCode = resolvedSearchParams.error;
   
@@ -45,19 +42,8 @@ export default async function VerificationSuccessPage({
   let hasError = false;
   let errorMessage = "";
   let verifiedEmail = email || "";
-  
-  // If we have a token, try to process the verification
-  if (token) {
-    // Call our server action to verify the email token
-    const result = await verifyEmailToken(token);
-    
-    if (!result.success) {
-      hasError = true;
-      errorMessage = result.error || "Failed to verify email address.";
-    } else if (result.email) {
-      verifiedEmail = result.email;
-    }
-  } else if (errorDescription || errorCode) {
+
+  if (errorDescription || errorCode) {
     // Handle case where there's an error param but no token
     hasError = true;
     errorMessage = errorDescription || "Verification error occurred.";

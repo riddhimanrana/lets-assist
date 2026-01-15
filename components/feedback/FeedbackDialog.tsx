@@ -113,6 +113,9 @@ export function FeedbackDialog({ onOpenChangeAction, initialType = "issue" }: Fe
 
     try {
       const supabase = createClient();
+      const pagePath = typeof window !== "undefined"
+        ? `${window.location.pathname}${window.location.search}${window.location.hash}`
+        : "";
       
       const { error } = await supabase
         .from("feedback")
@@ -122,6 +125,7 @@ export function FeedbackDialog({ onOpenChangeAction, initialType = "issue" }: Fe
           email: email.trim(),
           title: title.trim(),
           feedback: feedback.trim(),
+          page_path: pagePath || null,
         });
 
       if (error) {
@@ -145,7 +149,7 @@ export function FeedbackDialog({ onOpenChangeAction, initialType = "issue" }: Fe
 
   return (
     <Dialog open={true} onOpenChange={onOpenChangeAction}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="w-[calc(100%-2rem)] sm:max-w-[500px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold">Feedback</DialogTitle>
         </DialogHeader>
@@ -167,7 +171,7 @@ export function FeedbackDialog({ onOpenChangeAction, initialType = "issue" }: Fe
             </div>
           )}
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {feedbackTypes.map((type) => {
               const Icon = type.icon;
               const isSelected = selectedType === type.id;
@@ -241,7 +245,7 @@ export function FeedbackDialog({ onOpenChangeAction, initialType = "issue" }: Fe
             />
           </div>
         </div>
-        <DialogFooter className="mt-2">
+        <DialogFooter className="mt-2 flex-col sm:flex-row gap-2">
           <Button
             type="button"
             variant="secondary"

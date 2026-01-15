@@ -201,10 +201,9 @@ async function processOneJob(job: CancellationJobRow) {
       name = anonJoin.name ?? "Volunteer";
     }
 
-    // Respect settings for registered users.
+    // Respect settings for in-app notifications (emails are always sent for cancellations).
     const prefs = signup.user_id ? settingsByUserId.get(signup.user_id) : undefined;
     const allowProjectUpdates = prefs?.project_updates !== false;
-    const allowEmailNotifications = prefs?.email_notifications !== false;
 
     // In-app notification (registered users only)
     if (signup.user_id && allowProjectUpdates) {
@@ -230,8 +229,8 @@ async function processOneJob(job: CancellationJobRow) {
       }
     }
 
-    // Email notification
-    const shouldSendEmail = !!email && (signup.user_id ? allowProjectUpdates && allowEmailNotifications : true);
+    // Email notification (cancellation is treated as transactional)
+    const shouldSendEmail = !!email;
     if (shouldSendEmail && email) {
       try {
         const subject = `Project Cancelled: ${project.title}`;
@@ -244,7 +243,7 @@ async function processOneJob(job: CancellationJobRow) {
             projectName: project.title,
             cancellationReason: job.cancellation_reason,
           }),
-          type: "project_updates",
+          type: "transactional",
         });
 
         if (emailError) {

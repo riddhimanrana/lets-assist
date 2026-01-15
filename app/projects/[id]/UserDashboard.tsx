@@ -589,9 +589,11 @@ export default function UserDashboard({ project, user, signups }: Props) {
                 </div>
               </CardHeader>
               <CardContent className="space-y-3 text-sm">
-                <div className="flex justify-between items-center">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                   <span className="font-medium text-muted-foreground">Session:</span>
-                  <>{status.sessionDisplayName}</>
+                  <span className="sm:max-w-[65%] sm:text-right break-words">
+                    {status.sessionDisplayName}
+                  </span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="font-medium text-muted-foreground">Status:</span>
@@ -900,8 +902,9 @@ export default function UserDashboard({ project, user, signups }: Props) {
             </CarouselItem>
           ))}
         </CarouselContent>
-        <CarouselPrevious className="left-0 h-8 w-8" />
-        <CarouselNext className="right-0 h-8 w-8" />
+        {/* On mobile, rely on swipe/drag to avoid buttons overlaying card content */}
+        <CarouselPrevious className="hidden md:flex -left-3 h-8 w-8" />
+        <CarouselNext className="hidden md:flex -right-3 h-8 w-8" />
       </Carousel>
 
       {/* Replace placeholder Dialog with the actual QRCodeScannerModal - only render for QR code verification method */}

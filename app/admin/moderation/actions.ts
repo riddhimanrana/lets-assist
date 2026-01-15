@@ -4,6 +4,7 @@ import { createClient } from "@/utils/supabase/server";
 import { getServiceRoleClient } from "@/utils/supabase/service-role";
 import { checkSuperAdmin } from "../actions";
 import { NotificationService } from "@/services/notifications";
+import { notifyAdminsBatched } from "@/services/admin-notifications";
 
 /**
  * Get all flagged content for admin review
@@ -78,6 +79,16 @@ export async function updateFlaggedContentStatus(
     return { error: error.message };
   }
   
+  if (data?.content_id && data?.content_type && data?.flag_type) {
+    await notifyAdminsBatched({
+      type: 'flagged_content',
+      contentId: data.content_id,
+      contentType: data.content_type,
+      flagType: data.flag_type,
+      confidenceScore: data.confidence_score,
+    });
+  }
+
   return { data };
 }
 
@@ -505,6 +516,14 @@ export async function runAiScan() {
   try {
     const { performAiModerationScan } = await import('./ai-scan-logic');
     const result = await performAiModerationScan();
+    if (result?.applied?.projectFlags?.length || result?.applied?.reportTriages?.length) {
+      await notifyAdminsBatched({
+        type: 'flagged_content',
+        contentId: 'batch',
+        contentType: 'ai_scan',
+        flagType: 'scan_results',
+      });
+    }
     return { success: true, data: result };
   } catch (e) {
     console.error('AI scan exception:', e);
@@ -737,6 +756,10 @@ export async function takeModeratorAction(
         });
     }
 
+    if (action === 'remove_content' || action === 'block_content') {
+      await softRemoveContent(supabase, report.content_type, report.content_id, action, user.id, reason);
+    }
+
     return {
       success: true,
       data,
@@ -746,4 +769,57 @@ export async function takeModeratorAction(
     console.error('Error taking moderator action:', e);
     return { error: `Failed to take action: ${e instanceof Error ? e.message : 'Unknown error'}` };
   }
+}
+
+async function softRemoveContent(
+  supabase: ReturnType<typeof getServiceRoleClient>,
+  contentType: string,
+  contentId: string,
+  action: 'remove_content' | 'block_content',
+  adminUserId: string,
+  reason?: string
+) {
+  const now = new Date().toISOString();
+
+  if (contentType === 'project') {
+    await supabase
+      .from('projects')
+      .update({
+        status: 'cancelled',
+        cancelled_at: now,
+        cancellation_reason: `Moderation ${action.replace('_', ' ')}${reason ? `: ${reason}` : ''}`,
+      })
+      .eq('id', contentId);
+    return;
+  }
+
+  if (contentType === 'profile') {
+    await supabase
+      .from('profiles')
+      .update({
+        profile_visibility: 'private',
+        updated_at: now,
+      })
+      .eq('id', contentId);
+    return;
+  }
+
+  if (contentType === 'organization') {
+    await supabase
+      .from('organizations')
+      .update({
+        verified: false,
+        updated_at: now,
+      })
+      .eq('id', contentId);
+    return;
+  }
+
+  await notifyAdminsBatched({
+    type: 'content_report',
+    reportId: contentId,
+    reason: `Unsupported moderation removal for ${contentType}`,
+    contentType,
+    priority: 'normal',
+  });
 }

@@ -118,7 +118,19 @@ export default function CreatorDashboard({ project }: Props) {
       if (result.error) {
         toast.error(result.error);
       } else {
-        toast.success("Project cancelled successfully. Approved volunteers will be notified shortly.");
+        const notificationStatus = result.cancellationNotifications;
+        if (notificationStatus?.enqueued) {
+          toast.success("Project cancelled successfully. Approved volunteers will be emailed shortly.");
+          if (notificationStatus.error) {
+            toast.warning(notificationStatus.error);
+          }
+        } else {
+          toast.success("Project cancelled successfully.");
+          toast.warning(
+            notificationStatus?.error ||
+              "We couldn't queue cancellation emails. Please try again shortly."
+          );
+        }
         setShowCancelDialog(false);
         router.refresh();
       }

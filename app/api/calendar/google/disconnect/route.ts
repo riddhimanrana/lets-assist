@@ -61,14 +61,14 @@ export async function POST(request: Request) {
       }
     }
 
-    // Deactivate the connection
-    const { error: updateError } = await supabase
+    // Delete the connection
+    const { error: deleteError } = await supabase
       .from("user_calendar_connections")
-      .update({ is_active: false })
+      .delete()
       .eq("id", connection.id);
 
-    if (updateError) {
-      console.error("Failed to deactivate connection:", updateError);
+    if (deleteError) {
+      console.error("Failed to delete connection:", deleteError);
       return NextResponse.json(
         { error: "Failed to disconnect calendar" },
         { status: 500 }

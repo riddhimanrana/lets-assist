@@ -30,17 +30,30 @@ type SignupStatus =
 export async function checkEmailStatus(email: string): Promise<SignupStatus> {
   try {
     const adminClient = createAdminClient();
-    
-    // Use admin client to check if user exists
-    const { data: { users }, error } = await adminClient.auth.admin.listUsers();
-    
-    if (error) {
-      console.error("Error checking email status:", error);
-      throw error;
+    const normalizedEmail = email.trim().toLowerCase();
+    const perPage = 100;
+    const maxPages = 100;
+    let existingUser: { email?: string | null; email_confirmed_at?: string | null } | null = null;
+
+    for (let page = 1; page <= maxPages; page += 1) {
+      const { data, error } = await adminClient.auth.admin.listUsers({
+        page,
+        perPage,
+      });
+
+      if (error) {
+        console.error("Error checking email status:", error);
+        throw error;
+      }
+
+      const users = data?.users ?? [];
+      existingUser = users.find((u) => u.email?.toLowerCase() === normalizedEmail) ?? null;
+
+      if (existingUser || users.length < perPage) {
+        break;
+      }
     }
-    
-    const existingUser = users.find(u => u.email?.toLowerCase() === email.toLowerCase());
-    
+
     if (!existingUser) {
       return { type: 'new', message: 'Email is available for signup' };
     }
@@ -63,6 +76,25 @@ export async function checkEmailStatus(email: string): Promise<SignupStatus> {
     console.error("Error in checkEmailStatus:", error);
     throw error;
   }
+}
+
+function getResendErrorCode(message: string, status?: number) {
+  const lowered = message.toLowerCase();
+
+  if (
+    status === 429 ||
+    lowered.includes("captcha") ||
+    lowered.includes("rate") ||
+    lowered.includes("too many")
+  ) {
+    return "captcha_required";
+  }
+
+  if (lowered.includes("expired") || lowered.includes("otp") || lowered.includes("token")) {
+    return "link_expired";
+  }
+
+  return undefined;
 }
 
 export async function signup(formData: FormData) {
@@ -296,9 +328,11 @@ export async function resendVerificationEmail(email: string, turnstileToken?: st
     
     if (error) {
       console.error("Error resending verification email:", error);
+      const message = error.message || "Failed to resend verification email";
       return { 
         success: false, 
-        error: error.message || "Failed to resend verification email" 
+        error: message,
+        code: getResendErrorCode(message, error.status),
       };
     }
     
@@ -308,9 +342,11 @@ export async function resendVerificationEmail(email: string, turnstileToken?: st
     };
   } catch (error) {
     console.error("Exception in resendVerificationEmail:", error);
+    const message = (error as Error).message || "An error occurred while resending the email";
     return { 
       success: false, 
-      error: (error as Error).message || "An error occurred while resending the email" 
+      error: message,
+      code: getResendErrorCode(message),
     };
   }
 }
