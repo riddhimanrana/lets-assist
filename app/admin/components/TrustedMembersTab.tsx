@@ -12,7 +12,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Check, X, Trash2, Plus, Search, Loader2 } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, X, Trash2, Plus, Search, Loader2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -53,6 +53,7 @@ interface TrustedMembersTabProps {
 
 export function TrustedMembersTab({ trustedMembers }: TrustedMembersTabProps) {
   const router = useRouter();
+  const [expandedReasons, setExpandedReasons] = useState<Record<string, boolean>>({});
   const [addMemberOpen, setAddMemberOpen] = useState(false);
   const [searchEmail, setSearchEmail] = useState("");
   const [isSearching, setIsSearching] = useState(false);
@@ -93,7 +94,7 @@ export function TrustedMembersTab({ trustedMembers }: TrustedMembersTabProps) {
         setAddMemberOpen(false);
         setSearchEmail("");
         setSearchResults([]);
-        router.refresh(); 
+        router.refresh();
       }
     } catch {
       toast.error("Failed to add member");
@@ -102,8 +103,9 @@ export function TrustedMembersTab({ trustedMembers }: TrustedMembersTabProps) {
     }
   };
 
-  const handleApprove = async (id: string, userId: string) => {
-    const res = await updateTrustedMemberStatus(userId || id, true);
+  const handleApprove = async (id: string, userId?: string) => {
+    const targetId = userId || id;
+    const res = await updateTrustedMemberStatus(targetId, true);
     if (res.error) {
       toast.error(res.error);
     } else {
@@ -112,14 +114,22 @@ export function TrustedMembersTab({ trustedMembers }: TrustedMembersTabProps) {
     }
   };
 
-  const handleDeny = async (id: string, userId: string) => {
-    const res = await updateTrustedMemberStatus(userId || id, false);
+  const handleDeny = async (id: string, userId?: string) => {
+    const targetId = userId || id;
+    const res = await updateTrustedMemberStatus(targetId, false);
     if (res.error) {
       toast.error(res.error);
     } else {
       toast.success("Member denied");
       router.refresh();
     }
+  };
+
+  const toggleReason = (id: string) => {
+    setExpandedReasons((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
   };
 
   return (
@@ -181,7 +191,7 @@ export function TrustedMembersTab({ trustedMembers }: TrustedMembersTabProps) {
         </Dialog>
       </div>
 
-      <div className="rounded-md border border-border">
+      <div className="rounded-md border border-border overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
@@ -224,8 +234,33 @@ export function TrustedMembersTab({ trustedMembers }: TrustedMembersTabProps) {
                       </div>
                     </ProfileHoverCard>
                   </TableCell>
-                  <TableCell className="max-w-[200px] truncate" title={member.reason}>
-                    {member.reason}
+                  <TableCell className="max-w-[260px]">
+                    <div className="space-y-2">
+                      <p className={expandedReasons[member.id] ? "text-sm text-muted-foreground whitespace-pre-wrap" : "text-sm text-muted-foreground line-clamp-2"}>
+                        {member.reason}
+                      </p>
+                      {member.reason.length > 120 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2 text-xs text-muted-foreground"
+                          onClick={() => toggleReason(member.id)}
+                        >
+                          {expandedReasons[member.id] ? (
+                            <>
+                              <ChevronUp className="mr-1 h-3 w-3" />
+                              Collapse
+                            </>
+                          ) : (
+                            <>
+                              <ChevronDown className="mr-1 h-3 w-3" />
+                              Expand
+                            </>
+                          )}
+                        </Button>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>
                     {member.status === true && <Badge variant="default" className="bg-primary hover:bg-primary/90">Approved</Badge>}
@@ -238,20 +273,20 @@ export function TrustedMembersTab({ trustedMembers }: TrustedMembersTabProps) {
                       {/* Pending: Can Approve or Deny */}
                       {member.status === null && (
                         <>
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
+                          <Button
+                            size="sm"
+                            variant="outline"
                             className="h-8 w-8 p-0 hover:bg-muted"
-                            onClick={() => handleApprove(member.id, member.user_id!)}
+                            onClick={() => handleApprove(member.id, member.user_id)}
                             title="Approve"
                           >
                             <Check className="h-4 w-4 text-primary" />
                           </Button>
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
+                          <Button
+                            size="sm"
+                            variant="outline"
                             className="h-8 w-8 p-0 hover:bg-muted"
-                            onClick={() => handleDeny(member.id, member.user_id!)}
+                            onClick={() => handleDeny(member.id, member.user_id)}
                             title="Deny"
                           >
                             <X className="h-4 w-4 text-destructive" />
@@ -261,11 +296,11 @@ export function TrustedMembersTab({ trustedMembers }: TrustedMembersTabProps) {
                       
                       {/* Denied: Can Approve */}
                       {member.status === false && (
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
+                        <Button
+                          size="sm"
+                          variant="outline"
                           className="h-8 w-8 p-0 hover:bg-muted"
-                          onClick={() => handleApprove(member.id, member.user_id!)}
+                          onClick={() => handleApprove(member.id, member.user_id)}
                           title="Approve"
                         >
                           <Check className="h-4 w-4 text-primary" />
@@ -274,11 +309,11 @@ export function TrustedMembersTab({ trustedMembers }: TrustedMembersTabProps) {
 
                       {/* Approved: Can Revoke */}
                       {member.status === true && (
-                        <Button 
-                          size="sm" 
-                          variant="ghost" 
+                        <Button
+                          size="sm"
+                          variant="ghost"
                           className="h-8 w-8 p-0 hover:bg-destructive/10"
-                          onClick={() => handleDeny(member.id, member.user_id!)}
+                          onClick={() => handleDeny(member.id, member.user_id)}
                           title="Revoke"
                         >
                           <Trash2 className="h-4 w-4 text-destructive" />

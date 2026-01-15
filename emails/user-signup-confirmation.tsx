@@ -9,10 +9,12 @@ import {
   Row,
   Column,
   Link,
+  Preview,
 } from "@react-email/components";
 import * as React from "react";
 import EmailButton from "./_components/EmailButton";
 import EmailHeader from "./_components/EmailHeader";
+import EmailFooter from "./_components/EmailFooter";
 
 interface UserSignupConfirmationProps {
   projectName: string;
@@ -31,88 +33,122 @@ export default function UserSignupConfirmation({
   projectLocation = "Ocean Beach Park, 123 Beach Rd",
   projectUrl = "https://lets-assist.com/projects/123",
 }: UserSignupConfirmationProps) {
-  const currentYear = new Date().getFullYear();
-
   return (
     <Html lang="en">
-      <Head />
+      <Head>
+        <style>
+          {`
+            @media only screen and (max-width: 600px) {
+              .container {
+                width: 100% !important;
+                max-width: 100% !important;
+                padding: 20px 0 !important;
+                margin: 0 !important;
+              }
+              .content {
+                padding: 12px 16px !important;
+              }
+              .card {
+                border: none !important;
+                border-radius: 0 !important;
+                box-shadow: none !important;
+              }
+              .detailsBox {
+                padding: 12px !important;
+              }
+              .detailLabelCol {
+                width: 100% !important;
+                display: block !important;
+                padding-right: 0 !important;
+                margin-bottom: 4px !important;
+              }
+              .detailValueCol {
+                width: 100% !important;
+                display: block !important;
+              }
+            }
+          `}
+        </style>
+      </Head>
+      <Preview>You're signed up for {projectName}</Preview>
       <Body style={main}>
-        <Container style={container}>
-          <Section style={card}>
+        <Container style={container} className="container">
+          <Section style={card} className="card">
             <EmailHeader />
 
             {/* Header */}
-            <Section style={content}>
+            <Section style={content} className="content">
               <Heading style={heading1}>You're signed up</Heading>
               <Text style={paragraph}>Hi {userName},</Text>
               <Text style={paragraph}>
-                Your signup for <strong>{projectName}</strong> is confirmed. We’re excited to have you!
+                Your signup for <strong>{projectName}</strong> is confirmed. We&apos;re excited to have
+                you!
               </Text>
 
               {/* Event Details */}
-              <Section style={detailsBox}>
+              <Section style={detailsBox} className="detailsBox">
                 <Text style={label}>Event details</Text>
                 <Row style={detailRow}>
-                  <Column style={detailLabelCol}>
+                  <Column style={detailLabelCol} className="detailLabelCol">
                     <Text style={detailLabelText}>Project</Text>
                   </Column>
-                  <Column style={detailValueCol}>
+                  <Column style={detailValueCol} className="detailValueCol">
                     <Text style={detailValueText}>{projectName}</Text>
                   </Column>
                 </Row>
                 <Row style={detailRow}>
-                  <Column style={detailLabelCol}>
+                  <Column style={detailLabelCol} className="detailLabelCol">
                     <Text style={detailLabelText}>Date</Text>
                   </Column>
-                  <Column style={detailValueCol}>
+                  <Column style={detailValueCol} className="detailValueCol">
                     <Text style={detailValueText}>{projectDate}</Text>
                   </Column>
                 </Row>
                 {projectTime && (
                   <Row style={detailRow}>
-                    <Column style={detailLabelCol}>
+                    <Column style={detailLabelCol} className="detailLabelCol">
                       <Text style={detailLabelText}>Time</Text>
                     </Column>
-                    <Column style={detailValueCol}>
+                    <Column style={detailValueCol} className="detailValueCol">
                       <Text style={detailValueText}>{projectTime}</Text>
                     </Column>
                   </Row>
                 )}
                 <Row style={detailRowLast}>
-                  <Column style={detailLabelCol}>
+                  <Column style={detailLabelCol} className="detailLabelCol">
                     <Text style={detailLabelText}>Location</Text>
                   </Column>
-                  <Column style={detailValueCol}>
+                  <Column style={detailValueCol} className="detailValueCol">
                     <Text style={detailValueText}>{projectLocation}</Text>
                   </Column>
                 </Row>
               </Section>
 
-              {/* CTA Button */}
+              {/* Action */}
               <Section style={buttonContainer}>
                 <EmailButton href={projectUrl}>View project details</EmailButton>
               </Section>
 
+              <Section style={gettingStarted}>
+                <Text style={label}>Having trouble with the button?</Text>
+                <Text style={smallText}>
+                  You can also use this direct link:{" "}
+                  <Link style={link} href={projectUrl}>
+                    {projectUrl}
+                  </Link>
+                </Text>
+              </Section>
+
               {/* What's Next */}
-              <Section style={subtleBox}>
-                <Text style={label}>What’s next?</Text>
+              {/* <Section style={subtleBox}>
+                <Text style={{ ...label, textTransform: "none", letterSpacing: "normal" }}>What's next?</Text>
                 <Text style={smallText}>• Add the event to your calendar</Text>
                 <Text style={smallText}>• Watch for updates from the organizer</Text>
                 <Text style={smallText}>• Check the project page for any changes</Text>
-              </Section>
+              </Section> */}
             </Section>
 
-            {/* Footer */}
-            <Section style={footerBox}>
-              <Text style={footerText}>
-                Questions? Reply to this email or contact{" "}
-                <a href="mailto:support@lets-assist.com" style={footerLink}>
-                  support@lets-assist.com
-                </a>
-                .
-              </Text>
-              <Text style={footerText}>© {currentYear} Riddhiman Rana. All rights reserved.</Text>
-            </Section>
+            <EmailFooter />
           </Section>
         </Container>
       </Body>
@@ -121,57 +157,55 @@ export default function UserSignupConfirmation({
 }
 
 const main = {
-  backgroundColor: "#f9f9f9",
+  backgroundColor: "#ffffff",
   fontFamily:
     "'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif",
 };
 
 const container = {
   margin: "0 auto",
-  padding: "32px 16px 48px",
-  maxWidth: "600px",
+  padding: "40px 16px 64px",
+  maxWidth: "640px",
 };
 
 const card = {
   backgroundColor: "#ffffff",
-  border: "1px solid #e5e7eb",
 };
 
 const content = {
-  padding: "20px 16px 14px",
+  padding: "8px 24px 8px",
 };
 
 const heading1 = {
-  color: "#111827",
-  fontSize: "24px",
+  color: "#000000",
+  fontSize: "28px",
   fontWeight: "700" as const,
-  margin: "0 0 14px",
+  margin: "10px 0 12px",
   padding: "0",
   letterSpacing: "-0.02em",
 };
 
 const paragraph = {
-  color: "#374151",
-  fontSize: "15px",
-  lineHeight: "1.6",
+  color: "#000000",
+  fontSize: "16px",
+  lineHeight: "1.65",
   textAlign: "left" as const,
-  margin: "0 0 16px",
+  margin: "12px 0",
 };
 
 const label = {
-  color: "#111827",
-  fontSize: "13px",
+  color: "#000000",
+  fontSize: "14px",
   fontWeight: "700" as const,
-  margin: "0 0 12px 0",
-  textTransform: "uppercase" as const,
-  letterSpacing: "0.05em",
+  margin: "0 0 6px 0",
 };
 
 const detailsBox = {
   margin: "14px 0 0",
   backgroundColor: "#f8f9fa",
   padding: "16px",
-  borderLeft: "4px solid #16a34a",
+  borderLeft: "4px solid #16A34A",
+  borderRadius: "12px",
 };
 
 const detailRow = {
@@ -183,64 +217,58 @@ const detailRowLast = {
 };
 
 const detailLabelCol = {
-  width: "35%",
+  width: "30%",
   paddingRight: "12px",
 };
 
 const detailLabelText = {
   margin: "0",
-  fontSize: "13px",
+  fontSize: "14px",
   fontWeight: "600" as const,
-  color: "#374151",
+  color: "#000000",
 };
 
 const detailValueCol = {
-  width: "65%",
+  width: "70%",
 };
 
 const detailValueText = {
   margin: "0",
-  fontSize: "13px",
-  color: "#555555",
+  fontSize: "15px",
+  color: "#333333",
   lineHeight: "1.5",
 };
 
 const buttonContainer = {
+  padding: "18px 0 10px",
+  textAlign: "center" as const,
+};
+
+const gettingStarted = {
+  marginTop: "24px",
   paddingTop: "16px",
-  paddingBottom: "8px",
-  textAlign: "center" as const,
-};
-
-const footerBox = {
-  padding: "14px 16px 16px",
-  backgroundColor: "#f9fafb",
   borderTop: "1px solid #eef2f7",
-};
-
-const footerText = {
-  color: "#6b7280",
-  fontSize: "12px",
-  lineHeight: "1.5",
-  margin: "5px 0",
-  textAlign: "center" as const,
-};
-
-const footerLink = {
-  color: "#16a34a",
-  textDecoration: "none",
-  fontWeight: "600" as const,
 };
 
 const subtleBox = {
   backgroundColor: "#f9fafb",
   border: "1px solid #eef2f7",
-  padding: "12px 12px",
-  margin: "16px 0 0",
+  padding: "16px",
+  margin: "14px 0 8px",
+  borderRadius: "12px",
 };
 
 const smallText = {
-  color: "#6b7280",
+  color: "#333333",
   fontSize: "13px",
-  lineHeight: "1.5",
-  margin: "5px 0",
+  lineHeight: "1.6",
+  margin: "0 0 8px 0",
+};
+
+const link = {
+  color: "#16A34A",
+  fontSize: "13px",
+  fontWeight: "500" as const,
+  textDecoration: "underline",
+  wordBreak: "break-all" as const,
 };

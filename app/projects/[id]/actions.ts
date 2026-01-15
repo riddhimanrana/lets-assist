@@ -24,11 +24,28 @@ import { getServiceRoleClient } from "@/utils/supabase/service-role";
 // Define your site URL (replace with environment variable ideally)
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 
+function formatTimeTo12Hour(timeStr: string | undefined): string {
+  if (!timeStr || timeStr === "TBD") return "TBD";
+  try {
+    // Expected format "HH:mm" or "HH:mm:ss"
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    if (hours === undefined || minutes === undefined || isNaN(hours) || isNaN(minutes)) return timeStr;
+    
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    const hour12 = hours % 12 || 12;
+    const minStr = minutes.toString().padStart(2, '0');
+    
+    return `${hour12}:${minStr} ${ampm}`;
+  } catch {
+    return timeStr;
+  }
+}
+
 // Function to extract schedule details for email notifications
 function getScheduleDetails(project: Project, scheduleId: string) {
   if (project.event_type === "oneTime") {
     const schedule = project.schedule.oneTime;
-    if (!schedule) return { date: "TBD", time: "TBD", timeRange: "TBD" };
+    if (!schedule) return { date: "TBD", time: "TBD", timeRange: "TBD", slotLabel: "TBD" };
 
     const date = new Date(schedule.date).toLocaleDateString('en-US', {
       weekday: 'long',
@@ -37,14 +54,17 @@ function getScheduleDetails(project: Project, scheduleId: string) {
       day: 'numeric'
     });
 
+    const start12 = formatTimeTo12Hour(schedule.startTime);
+    const end12 = formatTimeTo12Hour(schedule.endTime);
     const timeRange = schedule.startTime && schedule.endTime
-      ? `${schedule.startTime} - ${schedule.endTime}`
-      : schedule.startTime || "TBD";
+      ? `${start12} - ${end12}`
+      : start12;
 
     return {
       date,
-      time: schedule.startTime || "TBD",
-      timeRange
+      time: start12,
+      timeRange,
+      slotLabel: "Slot 1"
     };
   } else if (project.event_type === "multiDay") {
     const parts = scheduleId.split("-");
@@ -53,11 +73,11 @@ function getScheduleDetails(project: Project, scheduleId: string) {
       const dateStr = parts.join("-");
 
       const day = project.schedule.multiDay?.find(d => d.date === dateStr);
-      if (!day) return { date: "TBD", time: "TBD", timeRange: "TBD" };
+      if (!day) return { date: "TBD", time: "TBD", timeRange: "TBD", slotLabel: "TBD" };
 
       const slotIndex = parseInt(slotIndexStr!, 10);
       const slot = day.slots[slotIndex];
-      if (!slot) return { date: "TBD", time: "TBD", timeRange: "TBD" };
+      if (!slot) return { date: "TBD", time: "TBD", timeRange: "TBD", slotLabel: "TBD" };
 
       const date = new Date(dateStr).toLocaleDateString('en-US', {
         weekday: 'long',
@@ -66,19 +86,22 @@ function getScheduleDetails(project: Project, scheduleId: string) {
         day: 'numeric'
       });
 
+      const start12 = formatTimeTo12Hour(slot.startTime);
+      const end12 = formatTimeTo12Hour(slot.endTime);
       const timeRange = slot.startTime && slot.endTime
-        ? `${slot.startTime} - ${slot.endTime}`
-        : slot.startTime || "TBD";
+        ? `${start12} - ${end12}`
+        : start12;
 
       return {
         date,
-        time: slot.startTime || "TBD",
-        timeRange
+        time: start12,
+        timeRange,
+        slotLabel: `Slot ${slotIndex + 1}`
       };
     }
   } else if (project.event_type === "sameDayMultiArea") {
     const schedule = project.schedule.sameDayMultiArea;
-    if (!schedule) return { date: "TBD", time: "TBD", timeRange: "TBD" };
+    if (!schedule) return { date: "TBD", time: "TBD", timeRange: "TBD", slotLabel: "TBD" };
 
     const date = new Date(schedule.date).toLocaleDateString('en-US', {
       weekday: 'long',
@@ -88,18 +111,23 @@ function getScheduleDetails(project: Project, scheduleId: string) {
     });
 
     const role = schedule.roles.find(r => r.name === scheduleId);
-    const timeRange = role?.startTime && role?.endTime
-      ? `${role.startTime} - ${role.endTime}`
-      : role?.startTime || schedule.overallStart || "TBD";
+    
+    const start12 = formatTimeTo12Hour(role?.startTime || schedule.overallStart);
+    const end12 = formatTimeTo12Hour(role?.endTime || schedule.overallEnd);
+    
+    const timeRange = start12 !== "TBD" && end12 !== "TBD"
+      ? `${start12} - ${end12}`
+      : start12;
 
     return {
       date,
-      time: role?.startTime || schedule.overallStart || "TBD",
-      timeRange
+      time: start12,
+      timeRange,
+      slotLabel: role?.name || "Slot"
     };
   }
 
-  return { date: "TBD", time: "TBD", timeRange: "TBD" };
+  return { date: "TBD", time: "TBD", timeRange: "TBD", slotLabel: "TBD" };
 }
 
 export async function isProjectCreator(projectId: string) {
@@ -672,6 +700,7 @@ export async function signUpForProject(
       if (anonymousData.email && confirmationToken && anonymousSignupId) {
         const confirmationUrl = `${siteUrl}/anonymous/${anonymousSignupId}/confirm?token=${confirmationToken}`;
         const anonymousProfileUrl = `${siteUrl}/anonymous/${anonymousSignupId}`;
+        const { date, timeRange, slotLabel } = getScheduleDetails(project, scheduleId);
         try {
           const { data, error: emailError } = await sendEmail({
             to: anonymousData.email,
@@ -680,7 +709,10 @@ export async function signUpForProject(
               confirmationUrl,
               projectName: project.title,
               userName: anonymousData.name,
-              anonymousProfileUrl
+              anonymousProfileUrl,
+              projectDate: date,
+              projectTime: timeRange,
+              slotLabel
             }),
             type: 'transactional'
           });
@@ -958,6 +990,9 @@ export async function updateProjectStatus(
   cancellationReason?: string
 ) {
   const supabase = await createClient();
+  let cancellationNotifications:
+    | { enqueued: boolean; triggerAttempted: boolean; error?: string }
+    | undefined;
 
   // Get current user
   const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -1018,15 +1053,21 @@ export async function updateProjectStatus(
     return { error: "Failed to update project status" };
   }
 
-  // If cancelling, remove calendar events (non-blocking)
+  // If cancelling, remove calendar events (non-blocking) and enqueue notifications.
   if (newStatus === "cancelled") {
+    // Remove creator's calendar event (non-blocking)
     try {
-      // Remove creator's calendar event
       await removeCalendarEventForProject(projectId);
+    } catch (calendarError) {
+      console.error("Error removing calendar event for cancelled project:", calendarError);
+      // Don't fail the cancellation if calendar cleanup fails
+    }
 
-      // --- ENQUEUE CANCELLATION NOTIFICATIONS (BACKGROUND) ---
-      // We enqueue a job for a cron/worker route to process. This is more reliable
-      // than doing a potentially large fanout inside the server action.
+    // --- ENQUEUE CANCELLATION NOTIFICATIONS (BACKGROUND) ---
+    // We enqueue a job for a cron/worker route to process. This is more reliable
+    // than doing a potentially large fanout inside the server action.
+    cancellationNotifications = { enqueued: false, triggerAttempted: false };
+    try {
       const cancelledAt = updateData.cancelled_at ?? new Date().toISOString();
       const serviceSupabase = getServiceRoleClient();
 
@@ -1051,13 +1092,20 @@ export async function updateProjectStatus(
 
       if (enqueueError) {
         console.error("Error enqueueing project cancellation job:", enqueueError);
+        cancellationNotifications.error = "Failed to queue cancellation notifications.";
       } else {
+        cancellationNotifications.enqueued = true;
+
         // Best-effort: kick the worker immediately, but don't block the user.
         // Cron should still run this periodically in production.
+        const workerEnabled = process.env.PROJECT_CANCELLATION_WORKER_ENABLED === "true";
         const workerBaseUrl = process.env.NEXT_PUBLIC_SITE_URL;
         const workerToken = process.env.PROJECT_CANCELLATION_WORKER_SECRET_TOKEN;
 
-        if (workerBaseUrl && workerToken) {
+        if (!workerEnabled) {
+          cancellationNotifications.error = "Project cancellation worker is disabled.";
+        } else if (workerBaseUrl && workerToken) {
+          cancellationNotifications.triggerAttempted = true;
           void fetch(`${workerBaseUrl}/api/cron/project-cancellations`, {
             method: "POST",
             headers: {
@@ -1066,12 +1114,14 @@ export async function updateProjectStatus(
           }).catch((err) => {
             console.error("Failed to trigger project cancellation worker:", err);
           });
+        } else {
+          cancellationNotifications.error = "Project cancellation worker is not configured.";
         }
       }
-
-    } catch (calendarError) {
-      console.error("Error in cancellation cleanup (calendar/email):", calendarError);
-      // Don't fail the cancellation if cleanup fails
+    } catch (notificationError) {
+      console.error("Error enqueueing project cancellation notifications:", notificationError);
+      cancellationNotifications.error = "Failed to queue cancellation notifications.";
+      // Don't fail the cancellation if notifications queueing fails
     }
   }
 
@@ -1080,7 +1130,7 @@ export async function updateProjectStatus(
   revalidatePath(`/organization/${project.organization?.id}`);
   revalidatePath('/home');
 
-  return { success: true };
+  return { success: true, cancellationNotifications };
 }
 
 export async function deleteProject(projectId: string) {
@@ -1329,7 +1379,7 @@ export async function resendAnonymousConfirmationEmail(anonymousSignupId: string
     // Get project title for the email
     const { data: project, error: projectError } = await supabase
       .from("projects")
-      .select("title")
+      .select("title, event_type, schedule")
       .eq("id", anonSignup.project_id)
       .single();
 
@@ -1356,6 +1406,17 @@ export async function resendAnonymousConfirmationEmail(anonymousSignupId: string
     const confirmationUrl = `${siteUrl}/anonymous/${anonymousSignupId}/confirm?token=${newToken}`;
     const anonymousProfileUrl = `${siteUrl}/anonymous/${anonymousSignupId}`;
 
+    const { data: signupRecord } = await supabase
+      .from("project_signups")
+      .select("schedule_id")
+      .eq("anonymous_id", anonymousSignupId)
+      .maybeSingle();
+
+    const scheduleId = signupRecord?.schedule_id;
+    const scheduleDetails = scheduleId
+      ? getScheduleDetails(project as Project, scheduleId)
+      : { date: "TBD", time: "TBD", timeRange: "TBD", slotLabel: "TBD" };
+
     const { error: emailError } = await sendEmail({
       to: anonSignup.email,
       subject: `Confirm your signup for ${project.title}`,
@@ -1363,7 +1424,10 @@ export async function resendAnonymousConfirmationEmail(anonymousSignupId: string
         confirmationUrl,
         projectName: project.title,
         userName: anonSignup.name,
-        anonymousProfileUrl
+        anonymousProfileUrl,
+        projectDate: scheduleDetails.date,
+        projectTime: scheduleDetails.timeRange,
+        slotLabel: scheduleDetails.slotLabel
       }),
       type: 'transactional'
     });

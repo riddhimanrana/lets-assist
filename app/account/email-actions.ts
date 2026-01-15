@@ -165,7 +165,7 @@ export async function setPrimaryEmailAction(email: string): Promise<SetPrimaryEm
     }
 
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-    const redirectUrl = `${siteUrl.replace(/\/$/, "")}/auth/verification-success?type=email_change`;
+    const redirectUrl = `${siteUrl.replace(/\/$/, "")}/auth/confirm?type=email_change`;
 
     const { data: updateData, error: updateError } = await supabase.auth.updateUser(
         {

@@ -106,6 +106,7 @@ export async function getAllFeedback() {
       email,
       title,
       feedback,
+      page_path,
       created_at
     `)
     .order("created_at", { ascending: false });
@@ -226,6 +227,11 @@ export async function updateTrustedMemberStatus(userId: string, status: boolean)
     }
   }
 
+  await service
+    .from("profiles")
+    .update({ trusted_member: status })
+    .eq("id", userId);
+
   // Send notification with service client (already bypasses RLS)
   if (status === true) {
     await createServerNotification(
@@ -329,19 +335,30 @@ export async function addTrustedMember(userId: string, email: string, name: stri
     return { error: "User is already in the trusted member list." };
   }
 
-  const { error } = await supabase.from('trusted_member').insert({
-    user_id: userId,
-    email,
-    name,
-    reason: 'Added manually by Admin',
-    status: true,
-    created_at: new Date().toISOString()
-  });
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from('trusted_member')
+    .upsert({
+      user_id: userId,
+      email,
+      name,
+      reason: 'Added manually by Admin',
+      status: true,
+      created_at: now,
+      updated_at: now,
+    }, {
+      onConflict: 'user_id'
+    });
 
   if (error) {
     console.error("Error adding trusted member:", error);
     return { error: error.message };
   }
+
+  await supabase
+    .from('profiles')
+    .update({ trusted_member: true })
+    .eq('id', userId);
 
   await createServerNotification(
     userId,

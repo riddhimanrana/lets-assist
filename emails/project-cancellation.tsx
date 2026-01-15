@@ -10,6 +10,7 @@ import {
 } from "@react-email/components";
 import * as React from "react";
 import EmailHeader from "./_components/EmailHeader";
+import EmailFooter from "./_components/EmailFooter";
 
 interface ProjectCancellationProps {
   volunteerName: string;
@@ -22,21 +23,34 @@ export default function ProjectCancellation({
   projectName = "Beach Cleanup Drive",
   cancellationReason = "Due to unforeseen weather conditions, we need to cancel this event for the safety of all volunteers.",
 }: ProjectCancellationProps) {
-  const currentYear = new Date().getFullYear();
-
   return (
     <Html lang="en">
-      <Head />
+      <Head>
+        <style>{`
+          @media only screen and (max-width: 640px) {
+            .container {
+              width: 100% !important;
+              max-width: 100% !important;
+              padding: 0 !important;
+              margin: 0 !important;
+            }
+            .card {
+              border: none !important;
+              border-radius: 0 !important;
+            }
+          }
+        `}</style>
+      </Head>
       <Body style={main}>
-        <Container style={container}>
-          <Section style={card}>
+        <Container className="container" style={container}>
+          <Section className="card" style={card}>
             <EmailHeader />
 
             <Section style={content}>
               <Heading style={headingRed}>Project cancelled</Heading>
               <Text style={paragraph}>Hi {volunteerName},</Text>
               <Text style={paragraph}>
-                We’re sorry—<strong>{projectName}</strong> has been cancelled.
+                We’re sorry, the project <strong>{projectName}</strong> you signed up for has been cancelled.
               </Text>
 
               {cancellationReason ? (
@@ -53,7 +67,7 @@ export default function ProjectCancellation({
                 </Section>
               )}
 
-              <Section style={subtleBox}>
+              {/* <Section style={subtleBox}>
                 <Text style={label}>We’re here if you need us</Text>
                 <Text style={smallText}>
                   We sincerely apologize for any inconvenience this may cause. If you have questions, reply to this email or
@@ -63,7 +77,7 @@ export default function ProjectCancellation({
                   </Link>
                   .
                 </Text>
-              </Section>
+              </Section> */}
 
               <Section style={encouragementBox}>
                 <Text style={encouragementText}>
@@ -72,9 +86,7 @@ export default function ProjectCancellation({
               </Section>
             </Section>
 
-            <Section style={footerBox}>
-              <Text style={footerText}>© {currentYear} Riddhiman Rana. All rights reserved.</Text>
-            </Section>
+            <EmailFooter />
           </Section>
         </Container>
       </Body>
@@ -83,29 +95,28 @@ export default function ProjectCancellation({
 }
 
 const main = {
-  backgroundColor: "#f9f9f9",
+  backgroundColor: "#ffffff",
   fontFamily:
     "'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif",
 };
 
 const container = {
   margin: "0 auto",
-  padding: "32px 16px 48px",
-  maxWidth: "600px",
+  padding: "40px 16px 64px",
+  maxWidth: "640px",
 };
 
 const card = {
   backgroundColor: "#ffffff",
-  border: "1px solid #e5e7eb",
 };
 
 const content = {
-  padding: "8px 24px 16px",
+  padding: "8px 24px 8px",
 };
 
 const headingRed = {
   color: "#b91c1c",
-  fontSize: "24px",
+  fontSize: "28px",
   fontWeight: "700" as const,
   margin: "10px 0 12px",
   padding: "0",
@@ -113,7 +124,7 @@ const headingRed = {
 };
 
 const paragraph = {
-  color: "#374151",
+  color: "#000000",
   fontSize: "16px",
   lineHeight: "1.65",
   textAlign: "left" as const,
@@ -121,14 +132,15 @@ const paragraph = {
 };
 
 const reasonBox = {
-  padding: "14px 14px",
+  padding: "16px",
   margin: "14px 0 0",
   backgroundColor: "#fef2f2",
   border: "1px solid #fee2e2",
+  borderRadius: "12px",
 };
 
 const reasonLabel = {
-  color: "#991b1b",
+  color: "#b91c1c",
   fontSize: "14px",
   fontWeight: "700" as const,
   margin: "0 0 6px 0",
@@ -142,10 +154,11 @@ const reasonText = {
 };
 
 const encouragementBox = {
-  padding: "14px 14px",
+  padding: "16px",
   margin: "14px 0 0",
   backgroundColor: "#f0fdf4",
   border: "1px solid #dcfce7",
+  borderRadius: "12px",
 };
 
 const encouragementText = {
@@ -155,43 +168,32 @@ const encouragementText = {
   margin: "0",
 };
 
-const footerBox = {
-  padding: "14px 24px 18px",
-  backgroundColor: "#f9fafb",
-  borderTop: "1px solid #eef2f7",
-};
-
-const footerText = {
-  color: "#6b7280",
-  fontSize: "13px",
-  lineHeight: "1.5",
-  margin: "6px 0",
-  textAlign: "center" as const,
-};
-
 const subtleBox = {
   backgroundColor: "#f9fafb",
   border: "1px solid #eef2f7",
-  padding: "14px 14px",
+  padding: "16px",
   margin: "14px 0 0",
+  borderRadius: "12px",
 };
 
 const label = {
-  color: "#111827",
+  color: "#000000",
   fontSize: "14px",
   fontWeight: "700" as const,
   margin: "0 0 10px 0",
 };
 
 const smallText = {
-  color: "#6b7280",
+  color: "#333333",
   fontSize: "13px",
   lineHeight: "1.6",
   margin: "6px 0",
 };
 
 const link = {
-  color: "#16a34a",
-  textDecoration: "none",
-  fontWeight: "600" as const,
+  color: "#16A34A",
+  fontSize: "13px",
+  fontWeight: "500" as const,
+  textDecoration: "underline",
+  wordBreak: "break-all" as const,
 };

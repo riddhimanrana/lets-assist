@@ -15,6 +15,7 @@
 
 import { streamText } from 'ai';
 import { createClient } from '@/utils/supabase/server';
+import { notifyAdminUserBatched } from '@/services/admin-notifications';
 
 // Model configuration for Vercel AI Gateway
 const MODEL = 'google/gemini-2.0-flash-lite';
@@ -345,28 +346,13 @@ export async function notifyAdminFlaggedContent(
   adminUserId: string
 ) {
   try {
-    const supabase = await createClient();
-    
-    const { error } = await supabase
-      .from('notifications')
-      .insert({
-        user_id: adminUserId,
-        type: 'general',
-        title: `🚨 Content Flagged: ${flagType}`,
-        body: `A ${contentType} has been flagged for ${flagType} with ${Math.round(confidenceScore * 100)}% confidence. Please review.`,
-        data: {
-          contentId,
-          contentType,
-          flagType,
-          confidenceScore,
-        },
-        action_url: '/admin?tab=flagged',
-        severity: confidenceScore > 0.8 ? 'warning' : 'info',
-      });
-    
-    if (error) {
-      console.error('Failed to create admin notification:', error);
-    }
+    await notifyAdminUserBatched(adminUserId, {
+      type: 'flagged_content',
+      contentId,
+      contentType,
+      flagType,
+      confidenceScore,
+    });
   } catch (error) {
     console.error('Error notifying admin of flagged content:', error);
   }
@@ -383,28 +369,13 @@ export async function notifyAdminUserReport(
   adminUserId: string
 ) {
   try {
-    const supabase = await createClient();
-    
-    const { error } = await supabase
-      .from('notifications')
-      .insert({
-        user_id: adminUserId,
-        type: 'general',
-        title: `📋 New User Report: ${reason}`,
-        body: `A ${priority || 'normal'} priority report has been submitted for a ${contentType}. Please review.`,
-        data: {
-          reportId,
-          reason,
-          contentType,
-          priority,
-        },
-        action_url: '/admin?tab=reports',
-        severity: priority === 'high' ? 'warning' : 'info',
-      });
-    
-    if (error) {
-      console.error('Failed to create admin report notification:', error);
-    }
+    await notifyAdminUserBatched(adminUserId, {
+      type: 'content_report',
+      reportId,
+      reason,
+      contentType,
+      priority,
+    });
   } catch (error) {
     console.error('Error notifying admin of user report:', error);
   }
@@ -420,27 +391,12 @@ export async function notifyAdminTrustedMemberApplication(
   adminUserId: string
 ) {
   try {
-    const supabase = await createClient();
-    
-    const { error } = await supabase
-      .from('notifications')
-      .insert({
-        user_id: adminUserId,
-        type: 'general',
-        title: `✨ New Trusted Member Application`,
-        body: `${applicantName} (${applicantEmail}) has applied to become a trusted member. Please review their application.`,
-        data: {
-          applicationId,
-          applicantName,
-          applicantEmail,
-        },
-        action_url: '/admin?tab=trusted-members',
-        severity: 'info',
-      });
-    
-    if (error) {
-      console.error('Failed to create trusted member notification:', error);
-    }
+    await notifyAdminUserBatched(adminUserId, {
+      type: 'trusted_member_application',
+      applicationId,
+      applicantName,
+      applicantEmail,
+    });
   } catch (error) {
     console.error('Error notifying admin of trusted member application:', error);
   }

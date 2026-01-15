@@ -692,7 +692,19 @@ export default function EditProjectClient({ project }: Props) {
       if (result.error) {
         toast.error(result.error);
       } else {
-        toast.success("Project cancelled successfully. Approved volunteers will be notified shortly.");
+        const notificationStatus = result.cancellationNotifications;
+        if (notificationStatus?.enqueued) {
+          toast.success("Project cancelled successfully. Approved volunteers will be emailed shortly.");
+          if (notificationStatus.error) {
+            toast.warning(notificationStatus.error);
+          }
+        } else {
+          toast.success("Project cancelled successfully.");
+          toast.warning(
+            notificationStatus?.error ||
+              "We couldn't queue cancellation emails. Please try again shortly."
+          );
+        }
         setShowCancelDialog(false);
         router.push(`/projects/${project.id}`);
         router.refresh();
@@ -1258,7 +1270,7 @@ export default function EditProjectClient({ project }: Props) {
                     Cancel Project
                   </h4>
                   <p className="text-sm text-muted-foreground mb-4">
-                    Cancels the project and notifies all signed-up volunteers. The project remains in the system but is marked as cancelled.
+                    Cancels the project and emails approved volunteers (including anonymous signups with an email address). The project remains in the system but is marked as cancelled.
                   </p>
                   <Button 
                     onClick={() => setShowCancelDialog(true)}

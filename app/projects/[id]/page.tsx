@@ -18,12 +18,39 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { id } = await params;
   const { project } = await getProject(id);
+  const title = project ? project.title : "Project";
+  const description = project
+    ? `Volunteer for ${project.title}${project.location ? ` in ${project.location}` : ""}.`
+    : "View and manage project details.";
+  const ogImageUrl = `/projects/${id}/opengraph-image`;
   
   return {
-    title: project ? `${project.title}` : "Project",
-    description: project 
-      ? `View details and sign up for ${project.title}`
-      : "View and manage project details.",
+    title,
+    description,
+    alternates: {
+      canonical: `/projects/${id}`,
+    },
+    openGraph: {
+      title,
+      description,
+      type: "article",
+      url: `/projects/${id}`,
+      siteName: "Let's Assist",
+      images: [
+        {
+          url: ogImageUrl,
+          width: 1200,
+          height: 630,
+          alt: `${title} — Let's Assist`,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [ogImageUrl],
+    },
   };
 }
 

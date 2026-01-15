@@ -21,6 +21,11 @@ export async function GET(request: NextRequest) {
   const type: EmailOtpType = typeParam ?? "signup";
   const code = searchParams.get("code");
 
+  const isExpiredLinkError = (message: string) => {
+    const lowered = message.toLowerCase();
+    return lowered.includes("expired") || lowered.includes("otp") || lowered.includes("token");
+  };
+
   const supabase = await createClient();
 
   if (code) {
@@ -28,6 +33,9 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error("Code exchange error:", error);
+      if (type === "signup" && isExpiredLinkError(error.message ?? "")) {
+        return redirect("/auth/email-expired");
+      }
       return redirect(`/error?message=${encodeURIComponent(error.message)}`);
     }
 
@@ -49,6 +57,9 @@ export async function GET(request: NextRequest) {
 
   if (error) {
     console.error("Verification error:", error);
+    if (type === "signup" && isExpiredLinkError(error.message ?? "")) {
+      return redirect("/auth/email-expired");
+    }
     return redirect(`/error?message=${encodeURIComponent(error.message)}`);
   }
 

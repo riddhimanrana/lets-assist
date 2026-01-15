@@ -9,12 +9,12 @@ import {
   Row,
   Section,
   Text,
-  Img,
 } from "@react-email/components";
 import * as React from "react";
 
 import EmailButton from "./_components/EmailButton";
 import EmailHeader from "./_components/EmailHeader";
+import EmailFooter from "./_components/EmailFooter";
 
 interface AutoPublishedCertificateProps {
   volunteerName: string;
@@ -35,8 +35,6 @@ export default function AutoPublishedCertificate({
   eventEnd,
   timezone,
 }: AutoPublishedCertificateProps) {
-  const currentYear = new Date().getFullYear();
-
   const timeZone = (() => {
     if (!timezone) return "America/Los_Angeles";
     try {
@@ -74,6 +72,7 @@ export default function AutoPublishedCertificate({
         hour: "numeric",
         minute: "2-digit",
         timeZoneName: "short",
+        hour12: true,
       });
 
       const endTime = end.toLocaleTimeString("en-US", {
@@ -81,6 +80,7 @@ export default function AutoPublishedCertificate({
         hour: "numeric",
         minute: "2-digit",
         timeZoneName: "short",
+        hour12: true,
       });
 
       return `${startTime} - ${endTime}`;
@@ -89,12 +89,30 @@ export default function AutoPublishedCertificate({
     }
   })();
 
+  const eventDateDisplay = eventDateStr ?? "TBD";
+  const eventTimeDisplay = eventTimeStr ?? "TBD";
+
   return (
     <Html lang="en">
-      <Head />
+      <Head>
+        <style>{`
+          @media only screen and (max-width: 640px) {
+            .container {
+              width: 100% !important;
+              max-width: 100% !important;
+              padding: 0 !important;
+              margin: 0 !important;
+            }
+            .card {
+              border: none !important;
+              border-radius: 0 !important;
+            }
+          }
+        `}</style>
+      </Head>
       <Body style={main}>
-        <Container style={container}>
-          <Section style={card}>
+        <Container className="container" style={container}>
+          <Section className="card" style={card}>
             <EmailHeader />
 
             <Section style={content}>
@@ -129,27 +147,23 @@ export default function AutoPublishedCertificate({
                       </Column>
                     </Row>
 
-                    {eventDateStr && (
-                      <Row style={eventDetailRow}>
-                        <Column style={detailLabel}>
-                          <Text style={detailLabelText}>Date</Text>
-                        </Column>
-                        <Column style={detailValue}>
-                          <Text style={detailValueText}>{eventDateStr}</Text>
-                        </Column>
-                      </Row>
-                    )}
+                    <Row style={eventDetailRow}>
+                      <Column style={detailLabel}>
+                        <Text style={detailLabelText}>Date</Text>
+                      </Column>
+                      <Column style={detailValue}>
+                        <Text style={detailValueText}>{eventDateDisplay}</Text>
+                      </Column>
+                    </Row>
 
-                    {eventTimeStr && (
-                      <Row style={eventDetailRow}>
-                        <Column style={detailLabel}>
-                          <Text style={detailLabelText}>Time</Text>
-                        </Column>
-                        <Column style={detailValue}>
-                          <Text style={detailValueText}>{eventTimeStr}</Text>
-                        </Column>
-                      </Row>
-                    )}
+                    <Row style={eventDetailRow}>
+                      <Column style={detailLabel}>
+                        <Text style={detailLabelText}>Time</Text>
+                      </Column>
+                      <Column style={detailValue}>
+                        <Text style={detailValueText}>{eventTimeDisplay}</Text>
+                      </Column>
+                    </Row>
 
                     <Row style={eventDetailRowLast}>
                       <Column style={detailLabel}>
@@ -163,40 +177,26 @@ export default function AutoPublishedCertificate({
                 </Row>
               </Section>
 
-              <Row style={buttonContainer}>
-                <Column>
-                  <EmailButton href={certificateUrl}>Download Certificate</EmailButton>
-                </Column>
-              </Row>
-
-              <Text style={helpText}>
-                Your certificate is official recognition of your volunteer contribution. You can download, print, and share it anytime.
-              </Text>
+              <Section style={buttonContainer}>
+                <EmailButton href={certificateUrl}>Download Certificate</EmailButton>
+              </Section>
 
               <Section style={gettingStarted}>
-                <Heading style={gettingStartedTitle}>Having trouble with the button?</Heading>
-                <Text style={helpText}>
+                <Text style={label}>Having trouble with the button?</Text>
+                <Text style={smallText}>
                   You can also use this direct link:{" "}
-                  <Link style={alternativeLink} href={certificateUrl}>
+                  <Link style={link} href={certificateUrl}>
                     {certificateUrl}
                   </Link>
                 </Text>
               </Section>
+
+              <Text style={helpText}>
+                Your certificate is official recognition of your volunteer contribution. You can download, print, and share it anytime.
+              </Text>
             </Section>
 
-            <Section style={footerBox}>
-              <Row>
-                <Column>
-                  <Text style={footerText}>© {currentYear} Riddhiman Rana. All rights reserved.</Text>
-                  <Text style={footerText}>
-                    Questions? Contact us at{" "}
-                    <Link href="mailto:support@lets-assist.com" style={footerLink}>
-                      support@lets-assist.com
-                    </Link>
-                  </Text>
-                </Column>
-              </Row>
-            </Section>
+            <EmailFooter />
           </Section>
         </Container>
       </Body>
@@ -205,41 +205,40 @@ export default function AutoPublishedCertificate({
 }
 
 const main = {
-  backgroundColor: "#f9f9f9",
+  backgroundColor: "#ffffff",
   fontFamily:
     "'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif",
 };
 
 const container = {
   margin: "0 auto",
-  padding: "32px 16px 48px",
-  maxWidth: "600px",
+  padding: "40px 16px 64px",
+  maxWidth: "640px",
 };
 
 const card = {
   backgroundColor: "#ffffff",
-  border: "1px solid #f0f0f0",
 };
 
 const content = {
-  padding: "24px 24px 18px",
+  padding: "8px 24px 8px",
 };
 
 const heading1 = {
-  color: "#222222",
+  color: "#000000",
   fontSize: "28px",
   fontWeight: "700" as const,
-  margin: "0 0 20px",
+  margin: "10px 0 12px",
   padding: "0",
   letterSpacing: "-0.02em",
 };
 
 const paragraph = {
-  color: "#555555",
+  color: "#000000",
   fontSize: "16px",
-  lineHeight: "1.6",
+  lineHeight: "1.65",
   textAlign: "left" as const,
-  margin: "0 0 20px",
+  margin: "12px 0",
 };
 
 const autoPublishBox = {
@@ -247,6 +246,7 @@ const autoPublishBox = {
   border: "1px solid #0ea5e9",
   padding: "16px",
   margin: "0 0 20px",
+  borderRadius: "12px",
 };
 
 const autoPublishContent = {
@@ -255,23 +255,24 @@ const autoPublishContent = {
 
 const autoPublishTitle = {
   margin: "0 0 8px",
-  color: "#0369a1",
+  color: "#0c4a6e",
   fontWeight: "600" as const,
   fontSize: "15px",
 };
 
 const autoPublishText = {
   margin: "0",
-  color: "#0369a1",
+  color: "#075985",
   fontSize: "14px",
   lineHeight: "1.55",
 };
 
 const eventDetailsBox = {
-  backgroundColor: "#f8f9fa",
-  padding: "20px",
+  backgroundColor: "#f9fafb",
+  border: "1px solid #eef2f7",
+  padding: "16px",
   margin: "0 0 24px",
-  borderLeft: "4px solid #16a34a",
+  borderRadius: "12px",
 };
 
 const eventDetailsContent = {
@@ -295,7 +296,7 @@ const detailLabelText = {
   margin: "0",
   fontSize: "14px",
   fontWeight: "600" as const,
-  color: "#374151",
+  color: "#000000",
 };
 
 const detailValue = {
@@ -305,66 +306,53 @@ const detailValue = {
 const detailValueText = {
   margin: "0",
   fontSize: "15px",
-  color: "#555555",
+  color: "#333333",
 };
 
 const detailValueCode = {
   margin: "0",
   fontSize: "13px",
-  color: "#111827",
+  color: "#000000",
   fontFamily:
     "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
 };
 
 const buttonContainer = {
-  paddingBottom: "12px",
+  padding: "16px 0 24px",
   textAlign: "center" as const,
 };
 
-const helpText = {
-  color: "#777777",
+const label = {
+  color: "#000000",
   fontSize: "14px",
+  fontWeight: "700" as const,
+  margin: "0 0 6px 0",
+};
+
+const smallText = {
+  color: "#333333",
+  fontSize: "13px",
   lineHeight: "1.6",
-  margin: "0 0 16px",
+  margin: "0 0 8px 0",
+};
+
+const link = {
+  color: "#16A34A",
+  fontSize: "13px",
+  fontWeight: "500" as const,
+  textDecoration: "underline",
+  wordBreak: "break-all" as const,
 };
 
 const gettingStarted = {
-  marginTop: "28px",
+  marginTop: "24px",
   paddingTop: "16px",
-  borderTop: "1px solid #f0f0f0",
+  borderTop: "1px solid #eef2f7",
 };
 
-const gettingStartedTitle = {
-  color: "#222222",
-  fontSize: "15px",
-  fontWeight: "700" as const,
-  margin: "0 0 8px",
-  padding: "0",
-};
-
-const alternativeLink = {
-  wordBreak: "break-all" as const,
-  color: "#16a34a",
-  textDecoration: "underline",
-  fontWeight: "500" as const,
-};
-
-const footerBox = {
-  padding: "20px 24px",
-  backgroundColor: "#f9fafb",
-  borderTop: "1px solid #f0f0f0",
-};
-
-const footerText = {
-  color: "#777777",
+const helpText = {
+  color: "#333333",
   fontSize: "14px",
-  lineHeight: "1.5",
-  margin: "6px 0",
-  textAlign: "center" as const,
-};
-
-const footerLink = {
-  color: "#16a34a",
-  textDecoration: "none",
-  fontWeight: "500" as const,
+  lineHeight: "1.6",
+  margin: "0 0 16px",
 };

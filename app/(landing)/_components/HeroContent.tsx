@@ -38,7 +38,7 @@ export const HeroContent = () => {
 					transition={{ duration: 0.5 }}
 					className="w-full text-center space-y-4 sm:space-y-6"
 				>
-					<div className="flex justify-center">
+					<div className="hidden sm:flex justify-center">
 						<Badge
 							variant="outline"
 							className="flex flex-wrap items-center justify-center gap-2 rounded-full border-primary/30 bg-primary/5 px-3 py-2 text-xs font-medium text-primary/80 sm:text-sm"

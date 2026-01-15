@@ -24,30 +24,43 @@ export default function EmailButton({
       "'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif",
     lineHeight: "1.2",
     maxWidth: "100%",
+    borderRadius: "12px",
+    transition: "background-color 0.2s ease",
   };
 
   const variantStyles = {
     primary: {
       backgroundColor: "#16a34a",
-      border: "1px solid #15803d",
       color: "#ffffff",
     },
     secondary: {
       backgroundColor: "#ffffff",
-      border: "1px solid #bbf7d0",
       color: "#166534",
     },
   };
 
+  const hoverStyles = {
+    primary: "#15813d",
+    secondary: "#f7fee7",
+  };
+
   return (
-    <Button
-      href={href}
-      style={{
-        ...baseStyles,
-        ...variantStyles[variant],
-      }}
-    >
-      {children}
-    </Button>
+    <>
+      <style>{`
+        .button-${variant}:hover {
+          background-color: ${hoverStyles[variant]} !important;
+        }
+      `}</style>
+      <Button
+        href={href}
+        className={`button-${variant}`}
+        style={{
+          ...baseStyles,
+          ...variantStyles[variant],
+        }}
+      >
+        {children}
+      </Button>
+    </>
   );
 }

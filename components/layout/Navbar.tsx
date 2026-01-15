@@ -245,7 +245,7 @@ export default function Navbar() {
                 width={30}
                 height={30}
               />
-              <span className="text-lg font-bold">Let's Assist</span>
+              <span className="text-lg font-bold font-overusedgrotesk">Let's Assist</span>
             </div>
           </Link>
 
@@ -318,7 +318,7 @@ export default function Navbar() {
                                   width={30}
                                   height={30}
                                 />
-                                <div className="mb-2 mt-4 text-lg font-medium">
+                                <div className="mb-2 mt-4 text-lg font-medium font-overusedgrotesk">
                                   Let's Assist
                                 </div>
                                 <p className="text-sm leading-tight text-muted-foreground">
