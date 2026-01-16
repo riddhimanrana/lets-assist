@@ -24,6 +24,14 @@ import {
   FormControl,
   FormMessage,
 } from "@/components/ui/form";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { TurnstileComponent, TurnstileRef } from "@/components/ui/turnstile";
 import { useRouter } from "next/navigation";
@@ -49,6 +57,13 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
   const [turnstileVerified, setTurnstileVerified] = useState(false);
   const turnstileRef = useRef<TurnstileRef>(null);
   const [turnstileReady, setTurnstileReady] = useState(false);
+  const [isResendCaptchaOpen, setIsResendCaptchaOpen] = useState(false);
+  const [unconfirmedEmailForResend, setUnconfirmedEmailForResend] = useState<string | null>(null);
+  const [isResending, setIsResending] = useState(false);
+  const [resendTurnstileToken, setResendTurnstileToken] = useState<string | null>(null);
+  const [resendTurnstileReady, setResendTurnstileReady] = useState(false);
+  const resendTurnstileRef = useRef<TurnstileRef>(null);
+
   const router = useRouter();
 
   // Check if this is a staff invite signup
@@ -63,6 +78,31 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
       turnstileToken: "",
     },
   });
+
+  const handleResendWithCaptcha = async () => {
+    if (!unconfirmedEmailForResend || !resendTurnstileToken) {
+      toast.error("Please complete the verification challenge.");
+      return;
+    }
+
+    setIsResending(true);
+    try {
+      const resendResult = await resendVerificationEmail(unconfirmedEmailForResend, resendTurnstileToken);
+      if (resendResult.success) {
+        toast.success(resendResult.message || "Verification email sent!");
+        router.push(`/signup/success?email=${encodeURIComponent(unconfirmedEmailForResend)}`);
+        setIsResendCaptchaOpen(false);
+      } else {
+        toast.error(resendResult.error || "Failed to resend email");
+      }
+    } catch (error) {
+      toast.error("An error occurred. Please try again.");
+    } finally {
+      setIsResending(false);
+      resendTurnstileRef.current?.reset();
+      setResendTurnstileToken(null);
+    }
+  };
 
   async function onSubmit(data: SignupValues) {
     const turnstileToken = turnstileRef.current?.getResponse();
@@ -118,14 +158,9 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
           description: serverMessage,
           action: {
             label: "Resend Email",
-            onClick: async () => {
-              const resendResult = await resendVerificationEmail(unconfirmedEmail);
-              if (resendResult.success) {
-                toast.success(resendResult.message || "Verification email sent!");
-                router.push(`/signup/success?email=${encodeURIComponent(unconfirmedEmail)}`);
-              } else {
-                toast.error(resendResult.error || "Failed to resend email");
-              }
+            onClick: () => {
+              setUnconfirmedEmailForResend(unconfirmedEmail);
+              setIsResendCaptchaOpen(true);
             },
           },
         });
