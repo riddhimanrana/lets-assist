@@ -64,7 +64,7 @@ export function Footer() {
           {/* Copyright with social media icons right aligned */}
           <div className="flex items-center justify-between ml-3">
             <p className="text-sm text-muted-foreground">
-              © {new Date().getFullYear()} Riddhiman Rana
+              © 2026 Riddhiman Rana
             </p>
             <div className="flex items-center mr-5 space-x-4">
               <Link
@@ -106,7 +106,7 @@ export function Footer() {
               height={32}
             />
             <p className="text-sm text-muted-foreground">
-              © {new Date().getFullYear()} Riddhiman Rana. All rights reserved.
+              © 2026 Riddhiman Rana. All rights reserved.
             </p>
           </div>
 

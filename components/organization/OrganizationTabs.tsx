@@ -3,7 +3,7 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import MembersTab from "@/app/organization/[id]/MembersTab";
 import ProjectsTab from "@/app/organization/[id]/ProjectsTab";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
   LayoutDashboard, 
   Users, 
@@ -136,8 +136,11 @@ export default function OrganizationTabs({
   dashboardData,
 }: OrganizationTabsProps) {
   const [activeTab, setActiveTab] = useState("overview");
-  // Removed collapsible description per request; keeping state commented for easy restore.
-  // const [showFullDescription, setShowFullDescription] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Validate input data
   if (!Array.isArray(members)) {
@@ -150,7 +153,8 @@ export default function OrganizationTabs({
     return <div className="text-destructive">Error: Invalid projects data</div>;
   }
   
-  // Calculate stats
+  // Calculate stats - using a stable value during hydration if needed
+  // but better to just use them directly if projects are static
   const upcomingProjects = projects.filter(p => getProjectStatus(p) === "upcoming").length;
   const completedProjects = projects.filter(p => getProjectStatus(p) === "completed").length;
   const adminCount = members.filter(m => m.role === "admin").length;

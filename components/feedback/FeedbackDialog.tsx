@@ -39,21 +39,21 @@ export function FeedbackDialog({ onOpenChangeAction, initialType = "issue" }: Fe
       id: "issue" as FeedbackType,
       label: "Issue",
       icon: AlertTriangle,
-      selectedColor: "bg-chart-6 hover:bg-chart-6/80 text-muted border-chart-6",
+      selectedColor: "bg-chart-6 hover:bg-chart-6/80 text-white border-chart-6",
       defaultColor: "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground border-border hover:border-muted-foreground/20",
     },
     {
       id: "idea" as FeedbackType,
-      label: "Idea", 
+      label: "Idea",
       icon: Lightbulb,
-      selectedColor: "bg-chart-4 hover:bg-chart-4/80 text-muted border-chart-4",
+      selectedColor: "bg-chart-4 hover:bg-chart-4/80 text-white border-chart-4",
       defaultColor: "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground border-border hover:border-muted-foreground/20",
     },
     {
       id: "other" as FeedbackType,
       label: "Other",
       icon: MoreHorizontal,
-      selectedColor: "bg-chart-3 hover:bg-chart-3/80 text-muted border-chart-3",
+      selectedColor: "bg-chart-3 hover:bg-chart-3/80 text-white border-chart-3",
       defaultColor: "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground border-border hover:border-muted-foreground/20",
     },
   ];
@@ -113,9 +113,21 @@ export function FeedbackDialog({ onOpenChangeAction, initialType = "issue" }: Fe
 
     try {
       const supabase = createClient();
+      
       const pagePath = typeof window !== "undefined"
         ? `${window.location.pathname}${window.location.search}${window.location.hash}`
         : "";
+
+      // Collect detailed metadata for better debugging and context
+      const metadata = typeof window !== "undefined" ? {
+        url: window.location.href,
+        userAgent: navigator.userAgent,
+        screenSize: `${window.screen.width}x${window.screen.height}`,
+        viewport: `${window.innerWidth}x${window.innerHeight}`,
+        language: navigator.language,
+        referrer: document.referrer,
+        timestamp: new Date().toISOString(),
+      } : {};
       
       const { error } = await supabase
         .from("feedback")
@@ -126,6 +138,7 @@ export function FeedbackDialog({ onOpenChangeAction, initialType = "issue" }: Fe
           title: title.trim(),
           feedback: feedback.trim(),
           page_path: pagePath || null,
+          metadata, // Now sending collected metadata
         });
 
       if (error) {
@@ -171,7 +184,7 @@ export function FeedbackDialog({ onOpenChangeAction, initialType = "issue" }: Fe
             </div>
           )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-3 gap-2 sm:gap-4">
             {feedbackTypes.map((type) => {
               const Icon = type.icon;
               const isSelected = selectedType === type.id;
@@ -181,14 +194,14 @@ export function FeedbackDialog({ onOpenChangeAction, initialType = "issue" }: Fe
                   key={type.id}
                   onClick={() => setSelectedType(type.id)}
                   className={cn(
-                    "flex flex-col items-center justify-center p-4 rounded-lg ",
+                    "flex flex-col items-center justify-center p-3 sm:p-4 rounded-xl border-2 transition-all duration-200",
                     isSelected 
-                      ? type.selectedColor
+                      ? cn("scale-105 shadow-md z-10", type.selectedColor)
                       : type.defaultColor
                   )}
                 >
-                  <Icon className="w-6 h-6 mb-2" />
-                  <span className="text-sm font-medium">{type.label}</span>
+                  <Icon className="w-5 h-5 sm:w-6 sm:h-6 mb-2" />
+                  <span className="text-xs sm:text-sm font-bold">{type.label}</span>
                 </button>
               );
             })}

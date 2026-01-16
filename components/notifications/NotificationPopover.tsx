@@ -69,6 +69,7 @@ function useDebounce<T extends (...args: any[]) => any>(
 
 export function NotificationPopover() {
   const { user } = useAuth(); // Use centralized auth hook
+  const [mounted, setMounted] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -85,6 +86,10 @@ export function NotificationPopover() {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const scrollPositionRef = useRef<number>(0);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const parseNotificationData = (value: unknown): Record<string, any> | null => {
     if (!value) return null;
@@ -592,6 +597,14 @@ export function NotificationPopover() {
       </DialogContent>
     </Dialog>
   );
+
+  if (!mounted) {
+    return (
+      <Button variant="ghost" size="icon" className="relative h-9 w-9 p-0">
+        <Bell className="h-5 w-5" />
+      </Button>
+    );
+  }
 
   // Render either Popover or Drawer based on screen size
   if (isMobile) {

@@ -10,9 +10,9 @@ const signupSchema = z.object({
   fullName: z.string().min(3, "Full name must be at least 3 characters"),
   email: z.string().email("Invalid email address"),
   password: z.string().min(8, "Password must be at least 8 characters"),
-  turnstileToken: z.string().optional(),
-  staffToken: z.string().optional(),
-  orgUsername: z.string().optional(),
+  turnstileToken: z.string().nullish(),
+  staffToken: z.string().nullish(),
+  orgUsername: z.string().nullish(),
 });
 
 const getSiteUrl = () => {

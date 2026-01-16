@@ -41,14 +41,14 @@ const mockOrganization = {
   verified: true,
   logo_url: "/logos/sanramon.jpg",
   description: "A community coalition connecting residents, schools, and local nonprofits to improve San Ramon through service and events. Note that this is a mock and is not affiliated with the actual City of San Ramon.",
-  created_at: new Date().toISOString(),
+  created_at: "2024-01-01T00:00:00.000Z",
 };
 
 const mockMembers = [
   {
     id: "m1",
     role: "admin",
-    joined_at: new Date().toISOString(),
+    joined_at: "2024-01-01T00:00:00.000Z",
     user_id: "u1",
     organization_id: "org_sanramon_1",
     profiles: { id: "u1", username: "riddhiman", full_name: "Riddhiman Rana", avatar_url: null },
@@ -56,7 +56,7 @@ const mockMembers = [
   {
     id: "m2",
     role: "staff",
-    joined_at: new Date().toISOString(),
+    joined_at: "2024-01-01T00:00:00.000Z",
     user_id: "u2",
     organization_id: "org_sanramon_1",
     profiles: { id: "u2", username: "maya.chen", full_name: "Maya Chen", avatar_url: null },
@@ -64,7 +64,7 @@ const mockMembers = [
   {
     id: "m3",
     role: "member",
-    joined_at: new Date().toISOString(),
+    joined_at: "2024-01-01T00:00:00.000Z",
     user_id: "u3",
     organization_id: "org_sanramon_1",
     profiles: { id: "u3", username: "liam.oconnor", full_name: "Liam O'Connor", avatar_url: null },
@@ -76,10 +76,11 @@ function oneTime(dateISO: string, start: string, end: string) {
   return { oneTime: { date, startTime: start, endTime: end, volunteers: 20 } };
 }
 
-const now = new Date();
-const todayISO = new Date(now).toISOString();
-const yesterdayISO = new Date(now.getTime() - 24 * 3600 * 1000).toISOString();
-const tomorrowISO = new Date(now.getTime() + 24 * 3600 * 1000).toISOString();
+const STATIC_DATE = "2024-01-01T00:00:00.000Z";
+const now = new Date(STATIC_DATE);
+const todayISO = STATIC_DATE;
+const yesterdayISO = "2023-12-31T00:00:00.000Z";
+const tomorrowISO = "2024-01-02T00:00:00.000Z";
 
 const mockProjects = [
   {
