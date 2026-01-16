@@ -22,7 +22,7 @@ export const metadata: Metadata = {
     default: "Let's Assist",
   },
   description: 'Find volunteering opportunities and connect with organizations in need of your help.',
-  metadataBase: new URL('https://lets-assist.com'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://lets-assist.com"),
 };
 
 const overusedgrotesk = localFont({
