@@ -6,6 +6,7 @@ export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
   const type = searchParams.get("type");
+  const from = searchParams.get("from");
   const redirectAfterAuth = searchParams.get("redirectAfterAuth");
   const error = searchParams.get("error");
   const error_description = searchParams.get("error_description");
@@ -47,6 +48,11 @@ export async function GET(request: Request) {
     if (!exchangeError && session) {
       try {
         const { user } = session;
+
+        // Handle account linking redirection for authentication page
+        if (from === "authentication") {
+          return NextResponse.redirect(`${origin}/account/authentication?success=linked`);
+        }
         
         // Check if this is an email verification (signup confirmation)
         // Detect by checking if the user was just created (within last 5 minutes)
@@ -176,6 +182,11 @@ export async function GET(request: Request) {
       }
     } else {
       console.error("Session error:", exchangeError);
+      if (from === "authentication") {
+        return NextResponse.redirect(
+          `${origin}/account/authentication?error=linking_failed`
+        );
+      }
       if (exchangeError?.message?.includes("email already exists")) {
         return NextResponse.redirect(
           `${origin}/login?error=email-password-exists`,

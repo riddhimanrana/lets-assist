@@ -692,9 +692,14 @@ export default function ProfileClient() {
                                       /\s/g,
                                       "",
                                     );
-                                    const lower = noSpaces.toLowerCase();          // <-- lowercase here
+                                    const lower = noSpaces.toLowerCase();
                                     field.onChange(lower);
                                     setUsernameLength(lower.length);
+                                    // Clear errors and reset availability when typing
+                                    if (form.formState.errors.username) {
+                                      form.clearErrors("username");
+                                    }
+                                    setUsernameAvailable(null);
                                   }}
                                   onBlur={(e) => {
                                     field.onBlur();
