@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Building2, Users2, ExternalLink, BadgeCheck, Shield, UserRoundCog, UserRound } from "lucide-react";
-import { NoAvatar } from "@/components/NoAvatar";
+import { NoAvatar } from "@/components/shared/NoAvatar";
 
 interface OrganizationCardProps {
   org: any;

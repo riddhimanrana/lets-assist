@@ -1,6 +1,8 @@
 import { createClient } from "@/utils/supabase/server";
 import { cookies } from "next/headers";
+import { Metadata } from "next";
 import { AttendanceClient } from "./AttendanceClient";
+import { getProject } from "../actions";
 import { addHours, isBefore } from "date-fns";
 
 async function checkAttendanceAvailability(projectId: string) {
@@ -78,6 +80,23 @@ async function checkAttendanceAvailability(projectId: string) {
     isActive,
     earliestTime: earliestTime?.toISOString(),
     project
+  };
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const { project } = await getProject(id);
+  const title = project ? `Attendance — ${project.title}` : "Attendance";
+
+  return {
+    title,
+    description: project
+      ? `Review attendance for ${project.title}.`
+      : "Review attendance for this project.",
   };
 }
 

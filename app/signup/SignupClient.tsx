@@ -24,6 +24,14 @@ import {
   FormControl,
   FormMessage,
 } from "@/components/ui/form";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { TurnstileComponent, TurnstileRef } from "@/components/ui/turnstile";
 import { useRouter } from "next/navigation";
@@ -49,6 +57,13 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
   const [turnstileVerified, setTurnstileVerified] = useState(false);
   const turnstileRef = useRef<TurnstileRef>(null);
   const [turnstileReady, setTurnstileReady] = useState(false);
+  const [isResendCaptchaOpen, setIsResendCaptchaOpen] = useState(false);
+  const [unconfirmedEmailForResend, setUnconfirmedEmailForResend] = useState<string | null>(null);
+  const [isResending, setIsResending] = useState(false);
+  const [resendTurnstileToken, setResendTurnstileToken] = useState<string | null>(null);
+  const [resendTurnstileReady, setResendTurnstileReady] = useState(false);
+  const resendTurnstileRef = useRef<TurnstileRef>(null);
+
   const router = useRouter();
 
   // Check if this is a staff invite signup
@@ -63,6 +78,31 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
       turnstileToken: "",
     },
   });
+
+  const handleResendWithCaptcha = async () => {
+    if (!unconfirmedEmailForResend || !resendTurnstileToken) {
+      toast.error("Please complete the verification challenge.");
+      return;
+    }
+
+    setIsResending(true);
+    try {
+      const resendResult = await resendVerificationEmail(unconfirmedEmailForResend, resendTurnstileToken);
+      if (resendResult.success) {
+        toast.success(resendResult.message || "Verification email sent!");
+        router.push(`/signup/success?email=${encodeURIComponent(unconfirmedEmailForResend)}`);
+        setIsResendCaptchaOpen(false);
+      } else {
+        toast.error(resendResult.error || "Failed to resend email");
+      }
+    } catch (error) {
+      toast.error("An error occurred. Please try again.");
+    } finally {
+      setIsResending(false);
+      resendTurnstileRef.current?.reset();
+      setResendTurnstileToken(null);
+    }
+  };
 
   async function onSubmit(data: SignupValues) {
     const turnstileToken = turnstileRef.current?.getResponse();
@@ -87,14 +127,17 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
     }
 
     const result = await signup(formData);
+    console.log("[Signup] Result:", result);
 
     if (result.error) {
       const errors = result.error;
+      console.warn("[Signup] Error encountered:", errors);
 
       // Check if this is a confirmed email error
       if ('emailStatus' in result && result.emailStatus === 'confirmed') {
+        const serverMessage = result.error?.server?.[0] || "An account with this email address already exists and is verified. Please log in to access your account.";
         toast.error("Account already exists", {
-          description: "An account with this email address already exists and is verified. Please log in to access your account.",
+          description: serverMessage,
           action: {
             label: "Go to Login",
             onClick: () => router.push("/login"),
@@ -109,18 +152,15 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
       // Check if this is an unconfirmed email error
       if ('emailStatus' in result && result.emailStatus === 'unconfirmed' && 'email' in result) {
         const unconfirmedEmail = result.email as string;
-        toast.warning("Email not verified", {
-          description: "An account with this email exists but hasn't been verified yet. We can resend the verification email.",
+        const serverMessage = result.error?.server?.[0] || "It looks like you already signed up but haven't confirmed your email yet.";
+        
+        toast.warning("Email Verification Pending", {
+          description: serverMessage,
           action: {
             label: "Resend Email",
-            onClick: async () => {
-              const resendResult = await resendVerificationEmail(unconfirmedEmail);
-              if (resendResult.success) {
-                toast.success(resendResult.message || "Verification email sent!");
-                router.push(`/signup/success?email=${encodeURIComponent(unconfirmedEmail)}`);
-              } else {
-                toast.error(resendResult.error || "Failed to resend email");
-              }
+            onClick: () => {
+              setUnconfirmedEmailForResend(unconfirmedEmail);
+              setIsResendCaptchaOpen(true);
             },
           },
         });
@@ -131,11 +171,14 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
       }
 
       Object.keys(errors).forEach((key) => {
-        if (key in errors && key in signupSchema.shape) {
+        if (key in signupSchema.shape) {
           form.setError(key as keyof SignupValues, {
             type: "server",
             message: errors[key as keyof typeof errors]?.[0],
           });
+        } else if (key !== "server") {
+          // Fallback for fields not in the client-side schema (like staffToken/orgUsername)
+          toast.error(`Error: ${errors[key as keyof typeof errors]?.[0]}`);
         }
       });
 
@@ -328,6 +371,49 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
           </Form>
         </CardContent>
       </Card>
+
+      <Dialog open={isResendCaptchaOpen} onOpenChange={setIsResendCaptchaOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Verify before resending</DialogTitle>
+            <DialogDescription>
+              Complete the verification challenge so we can safely send a fresh confirmation link to your email.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-center py-4">
+            <div className="relative w-[300px] h-[65px] overflow-hidden rounded-lg bg-muted/30 border border-border/50 flex items-center justify-center">
+              {!resendTurnstileReady && (
+                <div className="absolute inset-0 z-10 flex items-center justify-center gap-2 rounded-lg bg-background/80 text-[0.7rem] font-semibold uppercase tracking-wide text-muted-foreground text-center px-4">
+                   <Shield className="h-4 w-4 text-muted-foreground/80 shrink-0" />
+                   <span>Bot verification loading…</span>
+                </div>
+              )}
+              <TurnstileComponent
+                ref={resendTurnstileRef}
+                onLoad={() => setResendTurnstileReady(true)}
+                onVerify={(token) => setResendTurnstileToken(token)}
+                onError={() => {
+                  setResendTurnstileToken(null);
+                  toast.error("Verification failed. Please try again.");
+                }}
+                onExpire={() => setResendTurnstileToken(null)}
+              />
+            </div>
+          </div>
+          <DialogFooter className="flex flex-col gap-2">
+            <Button
+              onClick={handleResendWithCaptcha}
+              disabled={!resendTurnstileToken || isResending}
+              className="w-full"
+            >
+              {isResending ? "Sending…" : "Verify & Send"}
+            </Button>
+            <Button variant="ghost" onClick={() => setIsResendCaptchaOpen(false)} className="w-full">
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

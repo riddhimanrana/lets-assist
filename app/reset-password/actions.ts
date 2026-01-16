@@ -6,7 +6,7 @@ import { verifyTurnstileToken, isTurnstileEnabled } from "@/lib/turnstile";
 
 const resetPasswordSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
-  turnstileToken: z.string().optional(),
+  turnstileToken: z.string().nullish(),
 });
 
 type ErrorResponse = {

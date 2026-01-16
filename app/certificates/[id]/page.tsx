@@ -21,9 +21,9 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { CardContainer, CardBody, CardItem } from "@/components/ui/3d-card";
-import { CertificateCardButton } from "./CertificateCardButton";
+import { CertificateCardButton } from "./_components/CertificateCardButton";
 import Image from "next/image";
-import { PrintCertificate } from "./PrintCertificate";
+import { PrintCertificate } from "./_components/PrintCertificate";
 import {
   Tooltip,
   TooltipContent,
@@ -33,8 +33,8 @@ import {
 import {
   TimezoneDateDisplay,
   TimezoneEventDateRange,
-} from "./TimezoneDateDisplay";
-import { TimezoneDebugInfo } from "@/components/TimezoneDebugInfo";
+} from "./_components/TimezoneDateDisplay";
+import { TimezoneDebugInfo } from "./_components/TimezoneDebugInfo";
 
 // Define the expected shape of the fetched data based on the 'certificates' table
 interface CertificateData {

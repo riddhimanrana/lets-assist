@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { format, parseISO } from "date-fns";
 import { Calendar, Clock, MapPin, Users, Award } from "lucide-react"; // Add Award
-import { NoAvatar } from "@/components/NoAvatar";
+import { NoAvatar } from "@/components/shared/NoAvatar";
 import Link from "next/link";
 import { ProjectStatusBadge } from "@/components/ui/status-badge";
 import { redirect } from "next/navigation";

@@ -53,6 +53,11 @@ import {
   updateFlaggedContentStatus,
   getContentReports,
   updateContentReportStatus,
+  runAiReviewForReport,
+  runAiReviewForProject,
+  applyAiRecommendationForReport,
+  takeFlaggedContentAction,
+  takeModeratorAction,
 } from './actions';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
@@ -91,6 +96,7 @@ type AiMetadata = {
 type ContentDetails = {
   id?: string;
   title?: string | null;
+  name?: string | null;
   creator_id?: string | null;
   full_name?: string | null;
   username?: string | null;
@@ -124,15 +130,23 @@ type ContentReport = {
 
 type FlaggedContent = {
   id: string;
+  content_id?: string;
   content_type?: string;
+  status?: string | null;
+  flag_type?: string | null;
+  confidence_score?: number | string | null;
+  flag_details?: {
+    verdict?: string;
+    shortSummary?: string;
+    reasoning?: string;
+    reasoningSteps?: AiReasoningStep[];
+    toolsUsed?: string[];
+  } | null;
   severity?: string;
   reason?: string;
-  categories?: Record<string, boolean>;
-  profiles?: {
-    full_name?: string;
-    username?: string;
-    email?: string;
-  };
+  categories?: Record<string, boolean> | null;
+  content_details?: ContentDetails | null;
+  creator_details?: ContentDetails | null;
   created_at?: string | null;
 };
 
@@ -172,7 +186,8 @@ type ScanEvent = {
     reporterName?: string;
     current?: number;
     success?: boolean;
-    result?: AiMetadata;
+    flagged?: boolean;
+    result?: AiMetadata | Record<string, any>;
     error?: string;
     message?: string;
     reportsProcessed?: number;
@@ -223,7 +238,8 @@ export default function ModerationDashboard({
     itemType: string;
     itemId: string;
     success: boolean;
-    result?: AiMetadata;
+    flagged?: boolean;
+    result?: AiMetadata | Record<string, any>;
     error?: string;
   }>>([]);
   const eventSourceRef = useRef<EventSource | null>(null);
@@ -297,6 +313,83 @@ export default function ModerationDashboard({
     }
   };
 
+  const handleRunAiReviewForReport = async (reportId: string) => {
+    setIsActionLoading(true);
+    try {
+      const result = await runAiReviewForReport(reportId);
+      if (result.error) {
+        toast.error(`AI review failed: ${result.error}`);
+        return;
+      }
+      toast.success('AI review completed');
+      await loadContentReports(reportFilter);
+      setSelectedReport(null);
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
+  const handleRunAiReviewForFlag = async (flag: FlaggedContent) => {
+    if (!flag.content_id || flag.content_type !== 'project') {
+      toast.error('AI review is only available for projects');
+      return;
+    }
+
+    setIsActionLoading(true);
+    try {
+      const result = await runAiReviewForProject(flag.content_id);
+      if (result.error) {
+        toast.error(`AI review failed: ${result.error}`);
+        return;
+      }
+      if (result.data?.flagged) {
+        toast.success('AI review flagged the project');
+      } else {
+        toast.info('AI review found no violations');
+      }
+      await loadFlaggedContent(flaggedFilter);
+      setSelectedFlag(null);
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
+  const handleApplyAiRecommendation = async (reportId: string) => {
+    setIsActionLoading(true);
+    try {
+      const result = await applyAiRecommendationForReport(reportId);
+      if (result.error) {
+        toast.error(`Failed to apply AI recommendation: ${result.error}`);
+        return;
+      }
+      toast.success('AI recommendation applied');
+      await loadContentReports(reportFilter);
+      setSelectedReport(null);
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
+  const handleManualReportAction = async (
+    reportId: string,
+    action: 'warn_user' | 'remove_content' | 'block_content',
+    reason?: string
+  ) => {
+    setIsActionLoading(true);
+    try {
+      const result = await takeModeratorAction(reportId, action, reason);
+      if (result.error) {
+        toast.error(`Failed to apply action: ${result.error}`);
+        return;
+      }
+      toast.success('Moderation action applied');
+      await loadContentReports(reportFilter);
+      setSelectedReport(null);
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
   // Start AI Scan with Server-Sent Events
   const handleRunAiScan = useCallback(() => {
     if (isScanActive) return;
@@ -346,7 +439,8 @@ export default function ModerationDashboard({
               itemType: parsed.data.itemType || 'unknown',
               itemId: parsed.data.itemId || '',
               success: parsed.data.success || false,
-              result: parsed.data.result as AiMetadata,
+              flagged: parsed.data.flagged,
+              result: parsed.data.result as AiMetadata | Record<string, any>,
               error: parsed.data.error,
             }]);
             if (parsed.data.itemType === 'report') {
@@ -436,6 +530,35 @@ export default function ModerationDashboard({
       default:
         return 'secondary';
     }
+  };
+
+  const getFlagContentTitle = (flag: FlaggedContent) => {
+    if (flag.content_type === 'project') {
+      return flag.content_details?.title || 'Untitled project';
+    }
+    if (flag.content_type === 'organization') {
+      return flag.content_details?.name || 'Organization';
+    }
+    if (flag.content_type === 'profile') {
+      return flag.content_details?.full_name || flag.content_details?.username || 'Profile';
+    }
+    return flag.content_id || 'Content';
+  };
+
+  const getFlagContentUrl = (flag: FlaggedContent) => {
+    if (!flag.content_id) return null;
+    if (flag.content_type === 'project') {
+      return `/projects/${flag.content_id}`;
+    }
+    if (flag.content_type === 'profile') {
+      const profileSlug = flag.content_details?.username || flag.content_id;
+      return `/profile/${profileSlug}`;
+    }
+    if (flag.content_type === 'organization') {
+      const orgSlug = flag.content_details?.username || flag.content_id;
+      return `/organization/${orgSlug}`;
+    }
+    return null;
   };
 
   return (
@@ -543,26 +666,40 @@ export default function ModerationDashboard({
 
                 {scanResults.length > 0 && (
                   <div className="max-h-40 overflow-y-auto space-y-1">
-                    {scanResults.slice(-5).map((result, i) => (
-                      <div 
-                        key={`${result.itemId}-${i}`}
-                        className={`text-xs p-2 rounded flex items-center gap-2 ${
-                          result.success 
-                            ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' 
-                            : 'bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300'
-                        }`}
-                      >
-                        {result.success ? (
-                          <CheckCircle className="h-3 w-3" />
-                        ) : (
-                          <XCircle className="h-3 w-3" />
-                        )}
-                        <span className="capitalize">{result.itemType}</span>
-                        {result.result?.verdict && (
-                          <span className="ml-auto truncate max-w-[150px]">{result.result.verdict}</span>
-                        )}
-                      </div>
-                    ))}
+                    {scanResults.slice(-5).map((result, i) => {
+                      const verdict = (result.result as { verdict?: string })?.verdict;
+                      const isProject = result.itemType === 'project';
+                      const statusLabel = isProject
+                        ? result.flagged
+                          ? 'Flagged'
+                          : 'Clean'
+                        : 'Triaged';
+                      const statusVariant = isProject && result.flagged ? 'destructive' : 'secondary';
+
+                      return (
+                        <div
+                          key={`${result.itemId}-${i}`}
+                          className={`text-xs p-2 rounded flex items-center gap-2 ${
+                            result.success
+                              ? 'bg-primary/10 text-primary'
+                              : 'bg-destructive/10 text-destructive'
+                          }`}
+                        >
+                          {result.success ? (
+                            <CheckCircle className="h-3 w-3" />
+                          ) : (
+                            <XCircle className="h-3 w-3" />
+                          )}
+                          <span className="capitalize">{result.itemType}</span>
+                          <Badge variant={statusVariant} className="text-[10px] capitalize">
+                            {statusLabel}
+                          </Badge>
+                          {verdict && (
+                            <span className="ml-auto truncate max-w-[150px]">{verdict}</span>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -572,7 +709,7 @@ export default function ModerationDashboard({
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="reports" className="space-y-4">
-          <TabsList>
+          <TabsList className="flex h-auto w-full flex-wrap justify-start gap-2">
             <TabsTrigger value="reports" className="gap-2">
               <User className="h-4 w-4" />
               User Reports ({reportsStats.pending})
@@ -603,7 +740,7 @@ export default function ModerationDashboard({
                     loadContentReports(next);
                   }}
                 >
-                  <TabsList className="mb-4">
+                  <TabsList className="mb-4 flex h-auto w-full flex-wrap justify-start gap-2">
                     <TabsTrigger value="pending">Pending ({reportsStats.pending})</TabsTrigger>
                     <TabsTrigger value="under_review">In Review</TabsTrigger>
                     <TabsTrigger value="resolved">Resolved</TabsTrigger>
@@ -665,7 +802,7 @@ export default function ModerationDashboard({
                                     {ai?.triagedAt ? (
                                       <div className="space-y-1">
                                         <div className="flex items-center gap-2">
-                                          <Bot className="h-4 w-4 text-emerald-500 shrink-0" />
+                                          <Bot className="h-4 w-4 text-primary shrink-0" />
                                           <span className="font-medium text-sm line-clamp-1">
                                             {ai.verdict || 'Analyzed'}
                                           </span>
@@ -677,7 +814,7 @@ export default function ModerationDashboard({
                                         )}
                                         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                                           <Badge variant="outline" className="text-[10px] capitalize">
-                                            {ai.recommendedAction?.replace(/_/g, ' ') || ai.suggestedStatus?.replace(/_/g, ' ') || 'review'}
+                                            {formatAiRecommendation(ai.recommendedAction, ai.suggestedStatus)}
                                           </Badge>
                                           <span>•</span>
                                           <span>{formatConfidencePercent(ai.confidence)} confident</span>
@@ -711,7 +848,7 @@ export default function ModerationDashboard({
                                             <Button
                                               size="icon"
                                               variant="ghost"
-                                              className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950"
+                                              className="text-primary hover:text-primary/90 hover:bg-primary/10"
                                               onClick={() => handleReportAiApproval(report)}
                                               disabled={isActionLoading}
                                             >
@@ -780,7 +917,7 @@ export default function ModerationDashboard({
                     loadFlaggedContent(next);
                   }}
                 >
-                  <TabsList className="mb-4">
+                  <TabsList className="mb-4 flex h-auto w-full flex-wrap justify-start gap-2">
                     <TabsTrigger value="pending">Pending ({stats.pending})</TabsTrigger>
                     <TabsTrigger value="blocked">Blocked</TabsTrigger>
                     <TabsTrigger value="confirmed">Confirmed</TabsTrigger>
@@ -804,6 +941,7 @@ export default function ModerationDashboard({
                           <TableHeader>
                             <TableRow>
                               <TableHead>Flag</TableHead>
+                              <TableHead className="hidden md:table-cell w-[120px]">Status</TableHead>
                               <TableHead className="hidden sm:table-cell w-[130px]">Severity</TableHead>
                               <TableHead className="text-right w-[160px]">Actions</TableHead>
                             </TableRow>
@@ -817,19 +955,30 @@ export default function ModerationDashboard({
                                       <Badge variant="outline" className="capitalize">
                                         {item.content_type || 'Content'}
                                       </Badge>
+                                      {item.flag_type && (
+                                        <Badge variant="secondary" className="text-[10px] uppercase">
+                                          {item.flag_type.replace(/_/g, ' ')}
+                                        </Badge>
+                                      )}
                                       <span className="text-xs text-muted-foreground">
                                         {formatSafeDate(item.created_at)}
                                       </span>
                                     </div>
-                                    {item.profiles && (
+                                    <div className="text-sm font-medium">{getFlagContentTitle(item)}</div>
+                                    {item.creator_details && (
                                       <div className="flex items-center gap-1 text-xs text-muted-foreground">
                                         <User className="h-3.5 w-3.5" />
                                         <span>
-                                          {item.profiles.full_name || item.profiles.username || item.profiles.email}
+                                          {item.creator_details.full_name || item.creator_details.username || 'Unknown'}
                                         </span>
                                       </div>
                                     )}
                                   </div>
+                                </TableCell>
+                                <TableCell className="hidden md:table-cell">
+                                  <Badge variant={getFlagStatusVariant(item.status)} className="text-[10px] capitalize">
+                                    {formatFlagStatus(item.status)}
+                                  </Badge>
                                 </TableCell>
                                 <TableCell className="hidden sm:table-cell">
                                   <Badge variant={getSeverityColor(item.severity)} className="text-[11px]">
@@ -850,6 +999,21 @@ export default function ModerationDashboard({
                                       </TooltipTrigger>
                                       <TooltipContent>View</TooltipContent>
                                     </Tooltip>
+                                    {item.content_type === 'project' && item.content_id && (
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            onClick={() => handleRunAiReviewForFlag(item)}
+                                            disabled={isActionLoading}
+                                          >
+                                            <Sparkles className="h-4 w-4" />
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>Run AI review</TooltipContent>
+                                      </Tooltip>
+                                    )}
                                     {flaggedFilter === 'pending' && (
                                       <>
                                         <Tooltip>
@@ -920,17 +1084,65 @@ export default function ModerationDashboard({
             {selectedFlag && (
               <div className="space-y-4">
                 <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant={getFlagStatusVariant(selectedFlag.status)}>
+                    {formatFlagStatus(selectedFlag.status)}
+                  </Badge>
                   <Badge variant={getSeverityColor(selectedFlag.severity)}>
                     {selectedFlag.severity?.toUpperCase() || 'UNKNOWN'}
                   </Badge>
+                  {selectedFlag.flag_type && (
+                    <Badge variant="secondary" className="uppercase text-[10px]">
+                      {selectedFlag.flag_type.replace(/_/g, ' ')}
+                    </Badge>
+                  )}
+                  {selectedFlag.confidence_score !== undefined && selectedFlag.confidence_score !== null && (
+                    <Badge variant="outline" className="text-[10px]">
+                      {formatConfidencePercent(Number(selectedFlag.confidence_score))} confidence
+                    </Badge>
+                  )}
                   <span className="text-sm text-muted-foreground">
                     {formatSafeDate(selectedFlag.created_at, 'PPP p')}
                   </span>
                 </div>
                 <div className="rounded-md border bg-muted/30 p-4">
                   <p className="text-sm font-semibold">Why it was flagged</p>
-                  <p className="text-sm text-muted-foreground">{selectedFlag.reason || 'No reason provided'}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedFlag.flag_details?.shortSummary || selectedFlag.reason || 'No reason provided'}
+                  </p>
                 </div>
+                {selectedFlag.flag_details?.reasoning && (
+                  <div className="rounded-md border bg-background p-4">
+                    <p className="text-xs uppercase text-muted-foreground">AI verdict</p>
+                    <p className="text-sm font-medium text-foreground mt-1">
+                      {selectedFlag.flag_details.verdict || selectedFlag.flag_details.reasoning}
+                    </p>
+                  </div>
+                )}
+                {selectedFlag.flag_details?.reasoningSteps &&
+                  selectedFlag.flag_details.reasoningSteps.length > 0 && (
+                    <Collapsible>
+                      <CollapsibleTrigger asChild>
+                        <Button variant="ghost" size="sm" className="w-full justify-between">
+                          <span className="flex items-center gap-2">
+                            <ChevronRight className="h-4 w-4 transition-transform [[data-state=open]_&]:rotate-90" />
+                            Reasoning Steps ({selectedFlag.flag_details.reasoningSteps.length})
+                          </span>
+                        </Button>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="pt-2 space-y-2">
+                        {selectedFlag.flag_details.reasoningSteps.map((step, idx) => (
+                          <div key={idx} className="rounded-md bg-background p-3 border-l-2 border-primary/30">
+                            <div className="flex items-center gap-2 mb-1">
+                              <Badge variant="outline" className="text-[10px]">Step {step.step}</Badge>
+                              <span className="font-medium text-sm">{step.title}</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground mb-1">{step.analysis}</p>
+                            <p className="text-xs font-medium text-primary">→ {step.conclusion}</p>
+                          </div>
+                        ))}
+                      </CollapsibleContent>
+                    </Collapsible>
+                  )}
                 {selectedFlag.categories && Object.keys(selectedFlag.categories).length > 0 && (
                   <div className="flex flex-wrap gap-1">
                     {Object.entries(selectedFlag.categories).map(([key, value]) => {
@@ -944,13 +1156,65 @@ export default function ModerationDashboard({
                   </div>
                 )}
                 <div className="flex flex-wrap gap-2 border-t pt-4">
+                  {selectedFlag.content_type === 'project' && selectedFlag.content_id && (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => handleRunAiReviewForFlag(selectedFlag)}
+                      disabled={isActionLoading}
+                    >
+                      <Sparkles className="mr-2 h-4 w-4" />
+                      Re-run AI review
+                    </Button>
+                  )}
+                  {getFlagContentUrl(selectedFlag) && (
+                    <Button size="sm" variant="outline" asChild>
+                      <Link href={getFlagContentUrl(selectedFlag)!}>
+                        View content
+                      </Link>
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() =>
+                      takeFlaggedContentAction(
+                        selectedFlag.id,
+                        'warn_user',
+                        'Please update this content to meet our community guidelines.'
+                      )
+                    }
+                    disabled={isActionLoading}
+                  >
+                    Warn owner
+                  </Button>
                   <Button
                     size="sm"
                     variant="destructive"
-                    onClick={() => handleFlagStatusUpdate(selectedFlag.id, 'blocked', 'Blocked via modal')}
+                    onClick={() =>
+                      takeFlaggedContentAction(
+                        selectedFlag.id,
+                        'block_content',
+                        'Blocked via moderation review'
+                      )
+                    }
                     disabled={isActionLoading}
                   >
-                    Block content
+                    Block & notify owner
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() =>
+                      takeFlaggedContentAction(
+                        selectedFlag.id,
+                        'remove_content',
+                        'Removed via moderation review'
+                      )
+                    }
+                    disabled={isActionLoading}
+                  >
+                    Remove content
                   </Button>
                   <Button
                     size="sm"
@@ -1123,7 +1387,10 @@ export default function ModerationDashboard({
                       <div className="rounded-md bg-background p-3">
                         <p className="text-xs uppercase text-muted-foreground mb-1">Recommended Action</p>
                         <Badge variant="secondary" className="capitalize">
-                          {selectedReport.ai_metadata.recommendedAction?.replace(/_/g, ' ') || 'Review'}
+                          {formatAiRecommendation(
+                            selectedReport.ai_metadata.recommendedAction,
+                            selectedReport.ai_metadata.suggestedStatus
+                          )}
                         </Badge>
                       </div>
                       <div className="rounded-md bg-background p-3">
@@ -1252,6 +1519,78 @@ export default function ModerationDashboard({
                       Approve AI Suggestion
                     </Button>
                   )}
+                  {selectedReport.ai_metadata?.recommendedAction &&
+                    selectedReport.ai_metadata.recommendedAction !== 'none' && (
+                      <Button
+                        size="sm"
+                        variant={
+                          ['remove_content', 'block_content'].includes(
+                            selectedReport.ai_metadata.recommendedAction
+                          )
+                            ? 'destructive'
+                            : 'secondary'
+                        }
+                        onClick={() => handleApplyAiRecommendation(selectedReport.id)}
+                        disabled={isActionLoading}
+                      >
+                        <ShieldX className="mr-2 h-4 w-4" />
+                        {formatAiRecommendation(
+                          selectedReport.ai_metadata.recommendedAction,
+                          selectedReport.ai_metadata.suggestedStatus
+                        )}
+                      </Button>
+                    )}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() =>
+                      handleManualReportAction(
+                        selectedReport.id,
+                        'warn_user',
+                        'Please update this content to meet our community guidelines.'
+                      )
+                    }
+                    disabled={isActionLoading}
+                  >
+                    Warn owner
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() =>
+                      handleManualReportAction(
+                        selectedReport.id,
+                        'block_content',
+                        'Blocked via moderation review'
+                      )
+                    }
+                    disabled={isActionLoading}
+                  >
+                    Block content
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() =>
+                      handleManualReportAction(
+                        selectedReport.id,
+                        'remove_content',
+                        'Removed via moderation review'
+                      )
+                    }
+                    disabled={isActionLoading}
+                  >
+                    Remove content
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleRunAiReviewForReport(selectedReport.id)}
+                    disabled={isActionLoading}
+                  >
+                    <Bot className="mr-2 h-4 w-4" />
+                    Run AI review
+                  </Button>
                   <Button
                     size="sm"
                     onClick={() => handleReportStatusChange(selectedReport.id, 'resolved', REPORT_RESOLVE_NOTE)}
@@ -1301,10 +1640,61 @@ function formatConfidencePercent(value?: number) {
   return `${Math.round(Math.max(0, Math.min(100, normalized)))}%`;
 }
 
+function formatAiRecommendation(recommendedAction?: string | null, suggestedStatus?: string | null) {
+  if (recommendedAction) {
+    switch (recommendedAction) {
+      case 'remove_content':
+        return 'Remove content + notify owner';
+      case 'block_content':
+        return 'Block content + notify owner';
+      case 'warn_user':
+        return 'Warn owner';
+      case 'escalate_to_legal':
+        return 'Escalate to legal';
+      case 'none':
+        return 'Manual review';
+      default:
+        return recommendedAction.replace(/_/g, ' ');
+    }
+  }
+
+  if (suggestedStatus) {
+    return suggestedStatus.replace(/_/g, ' ');
+  }
+
+  return 'Manual review';
+}
+
+function formatFlagStatus(status?: string | null) {
+  switch ((status || 'pending').toLowerCase()) {
+    case 'blocked':
+      return 'Blocked';
+    case 'confirmed':
+      return 'Confirmed';
+    case 'dismissed':
+      return 'Dismissed';
+    default:
+      return 'Pending review';
+  }
+}
+
+function getFlagStatusVariant(status?: string | null): 'default' | 'secondary' | 'outline' | 'destructive' {
+  switch ((status || 'pending').toLowerCase()) {
+    case 'blocked':
+      return 'destructive';
+    case 'confirmed':
+      return 'default';
+    case 'dismissed':
+      return 'outline';
+    default:
+      return 'secondary';
+  }
+}
+
 function getStatusIcon(status?: string | null) {
   switch ((status || 'pending').toLowerCase()) {
     case 'resolved':
-      return <CheckCircle className="h-4 w-4 text-emerald-500" />;
+      return <CheckCircle className="h-4 w-4 text-primary" />;
     case 'dismissed':
       return <XCircle className="h-4 w-4 text-muted-foreground" />;
     case 'under_review':

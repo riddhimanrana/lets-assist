@@ -1,5 +1,4 @@
 import { createClient } from "@/utils/supabase/client";
-import { NotificationService } from "@/services/notifications";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import {
@@ -56,22 +55,18 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { canCancelProject, canDeleteProject } from "@/utils/project";
-import { CancelProjectDialog } from "@/components/CancelProjectDialog";
+import { CancelProjectDialog } from "@/app/projects/_components/CancelProjectDialog";
 import { differenceInHours, addHours, isBefore, isAfter, parseISO, format } from "date-fns";
 import { getProjectStartDateTime, getProjectEndDateTime } from "@/utils/project";
 import ProjectTimeline from "./ProjectTimeline";
 import { ProjectQRCodeModal } from "./ProjectQRCodeModal";
-import CalendarOptionsModal from "@/components/CalendarOptionsModal";
-import {
-  removeCalendarEventForProject,
-  removeAllVolunteerCalendarEvents,
-} from "@/utils/calendar-helpers";
+import CalendarOptionsModal from "@/app/projects/_components/CalendarOptionsModal";
 
 interface Props {
   project: Project;
 }
 
-import ProjectInstructionsModal from "./ProjectInstructions";
+import ProjectInstructionsModal from "./ProjectInstructionsModalWrapper";
 
 export default function CreatorDashboard({ project }: Props) {
   const router = useRouter();
@@ -123,42 +118,18 @@ export default function CreatorDashboard({ project }: Props) {
       if (result.error) {
         toast.error(result.error);
       } else {
-        toast.success("Project cancelled successfully");
-        
-        // Remove calendar events (non-blocking)
-        try {
-          // Remove creator's calendar event
-          await removeCalendarEventForProject(project.id);
-          // Remove all volunteer calendar events
-          await removeAllVolunteerCalendarEvents(project.id);
-        } catch (calendarError) {
-          console.error("Error removing calendar events:", calendarError);
-          // Don't show error to user - this is non-critical
-        }
-        
-        // Send cancellation notifications to all participants
-        try {
-          const supabase = createClient();
-          const { data: signups, error } = await supabase
-            .from('project_signups')
-            .select('user_id')
-            .eq('project_id', project.id);
-            if (!error && signups) {
-            for (const signup of signups) {
-              if (signup.user_id) {
-              await NotificationService.createNotification({
-                title: `Project Cancelled`,
-                body: `The project "${project.title}" which you signed up for has been cancelled.`,
-                type: 'project_updates',
-                actionUrl: `/projects/${project.id}`,
-                data: { projectId: project.id, signupId: signup.user_id },
-                severity: 'warning',
-              }, signup.user_id);
-              }
-            }
-            }
-        } catch (notifyError) {
-          console.error('Error sending cancellation notifications:', notifyError);
+        const notificationStatus = result.cancellationNotifications;
+        if (notificationStatus?.enqueued) {
+          toast.success("Project cancelled successfully. Approved volunteers will be emailed shortly.");
+          if (notificationStatus.error) {
+            toast.warning(notificationStatus.error);
+          }
+        } else {
+          toast.success("Project cancelled successfully.");
+          toast.warning(
+            notificationStatus?.error ||
+              "We couldn't queue cancellation emails. Please try again shortly."
+          );
         }
         setShowCancelDialog(false);
         router.refresh();

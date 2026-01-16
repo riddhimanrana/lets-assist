@@ -8,7 +8,7 @@ import { CheckCircle2, Clock, Link as LinkIcon, User, Mail, Phone, Calendar, Inf
 import Link from "next/link";
 import { format, addDays, parseISO, differenceInSeconds, differenceInHours, isAfter } from "date-fns";
 import { formatTimeTo12Hour } from "@/lib/utils";
-import { TimezoneBadge } from "@/components/TimezoneBadge";
+import { TimezoneBadge } from "@/components/shared/TimezoneBadge";
 import { Project } from "@/types";
 import { useState, useMemo, useEffect } from "react"; // add useEffect
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";

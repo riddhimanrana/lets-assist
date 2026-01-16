@@ -20,7 +20,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { NoAvatar } from "@/components/NoAvatar";
+import { NoAvatar } from "@/components/shared/NoAvatar";
 
 interface OrganizationsDisplayProps {
   organizations: any[];
@@ -31,7 +31,7 @@ interface OrganizationsDisplayProps {
   applicationStatus?: boolean | null;
 }
 
-import { TrustedInfoIcon } from "@/components/TrustedInfoIcon";
+import { TrustedInfoIcon } from "@/components/shared/TrustedInfoIcon";
 
 export default function OrganizationsDisplay({ 
   organizations, 

@@ -32,9 +32,13 @@ interface VerificationSettingsProps {
   requireLogin: boolean;
   isOrganization: boolean; // Add this to detect if creating for an organization
   visibility: ProjectVisibility; // Project visibility setting
+  enableVolunteerComments: boolean;
+  showAttendeesPublicly: boolean;
   updateVerificationMethodAction: (method: VerificationMethod) => void;
   updateRequireLoginAction: (requireLogin: boolean) => void;
   updateVisibilityAction: (visibility: ProjectVisibility) => void;
+  updateEnableVolunteerCommentsAction: (enabled: boolean) => void;
+  updateShowAttendeesPubliclyAction: (enabled: boolean) => void;
   restrictToOrgDomains?: boolean;
   updateRestrictToOrgDomainsAction?: (restrict: boolean) => void;
   allowedEmailDomains?: string[] | null;
@@ -50,9 +54,13 @@ export default function VerificationSettings({
   requireLogin,
   isOrganization,
   visibility,
+  enableVolunteerComments,
+  showAttendeesPublicly,
   updateVerificationMethodAction,
   updateRequireLoginAction,
   updateVisibilityAction,
+  updateEnableVolunteerCommentsAction,
+  updateShowAttendeesPubliclyAction,
   restrictToOrgDomains = false,
   updateRestrictToOrgDomainsAction,
   allowedEmailDomains,
@@ -288,6 +296,73 @@ export default function VerificationSettings({
                 </div>
               </div>
             )}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            Volunteer Options
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-6 w-6">
+                    <Info className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent className="text-xs font-normal max-w-xs">
+                  <p>
+                    Optional settings that control what volunteers can submit and what is visible publicly.
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-6">
+            <div className="flex items-center justify-between space-x-4">
+              <div className="flex items-center space-x-3 flex-1">
+                <div className="flex-1">
+                  <Label
+                    htmlFor="enable-comments"
+                    className="text-base font-medium cursor-pointer"
+                  >
+                    Enable volunteer comments
+                  </Label>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Allow volunteers to include a short note when signing up.
+                  </p>
+                </div>
+              </div>
+              <Switch
+                id="enable-comments"
+                checked={enableVolunteerComments}
+                onCheckedChange={updateEnableVolunteerCommentsAction}
+              />
+            </div>
+
+            <div className="flex items-center justify-between space-x-4">
+              <div className="flex items-center space-x-3 flex-1">
+                <div className="flex-1">
+                  <Label
+                    htmlFor="show-attendees-public"
+                    className="text-base font-medium cursor-pointer"
+                  >
+                    Show attendees publicly
+                  </Label>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Display attendee names on the project page.
+                  </p>
+                </div>
+              </div>
+              <Switch
+                id="show-attendees-public"
+                checked={showAttendeesPublicly}
+                onCheckedChange={updateShowAttendeesPubliclyAction}
+              />
+            </div>
           </div>
         </CardContent>
       </Card>
