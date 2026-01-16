@@ -8,7 +8,7 @@ import { verifyTurnstileToken, isTurnstileEnabled } from "@/lib/turnstile";
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
   password: z.string().min(1, "Password is required"),
-  turnstileToken: z.string().optional(),
+  turnstileToken: z.string().nullish(),
 });
 
 export async function signInWithGoogle(redirectAfterAuth?: string | null) {

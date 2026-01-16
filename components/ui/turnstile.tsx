@@ -9,7 +9,7 @@ type WindowWithTurnstile = Window & {
 
 interface TurnstileComponentProps {
   onVerify?: (token: string) => void;
-  onError?: () => void;
+  onError?: (errorCode?: string) => void;
   onExpire?: () => void;
   onLoad?: () => void;
   className?: string;
@@ -60,19 +60,33 @@ export const TurnstileComponent = forwardRef<TurnstileRef, TurnstileComponentPro
       return () => window.clearInterval(interval);
     }, [onLoad]);
 
-    // Use your site key directly
-    const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "0x4AAAAAABA1bWshniaW4QbF9RDp7tJaBCM";
+    const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+
+    if (!siteKey) {
+      if (process.env.NODE_ENV !== "production") {
+        console.error("Turnstile site key is not configured (NEXT_PUBLIC_TURNSTILE_SITE_KEY)");
+      }
+      return null;
+    }
+
+    const handleError = (errorCode?: string) => {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[Turnstile] Error", errorCode);
+      }
+      onError?.(errorCode);
+    };
 
     return (
       <Turnstile
         ref={turnstileRef}
         siteKey={siteKey}
         onSuccess={onVerify}
-        onError={onError}
+        onError={handleError}
         onExpire={onExpire}
         options={{
           theme,
           size: "normal",
+          execution: "render",
         }}
         className={className}
       />

@@ -572,7 +572,7 @@ export default function ModerationDashboard({
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="reports" className="space-y-4">
-          <TabsList>
+          <TabsList className="flex h-auto w-full flex-wrap justify-start gap-2">
             <TabsTrigger value="reports" className="gap-2">
               <User className="h-4 w-4" />
               User Reports ({reportsStats.pending})
@@ -603,7 +603,7 @@ export default function ModerationDashboard({
                     loadContentReports(next);
                   }}
                 >
-                  <TabsList className="mb-4">
+                  <TabsList className="mb-4 flex h-auto w-full flex-wrap justify-start gap-2">
                     <TabsTrigger value="pending">Pending ({reportsStats.pending})</TabsTrigger>
                     <TabsTrigger value="under_review">In Review</TabsTrigger>
                     <TabsTrigger value="resolved">Resolved</TabsTrigger>
@@ -780,7 +780,7 @@ export default function ModerationDashboard({
                     loadFlaggedContent(next);
                   }}
                 >
-                  <TabsList className="mb-4">
+                  <TabsList className="mb-4 flex h-auto w-full flex-wrap justify-start gap-2">
                     <TabsTrigger value="pending">Pending ({stats.pending})</TabsTrigger>
                     <TabsTrigger value="blocked">Blocked</TabsTrigger>
                     <TabsTrigger value="confirmed">Confirmed</TabsTrigger>

@@ -87,9 +87,11 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
     }
 
     const result = await signup(formData);
+    console.log("[Signup] Result:", result);
 
     if (result.error) {
       const errors = result.error;
+      console.warn("[Signup] Error encountered:", errors);
 
       // Check if this is a confirmed email error
       if ('emailStatus' in result && result.emailStatus === 'confirmed') {
@@ -131,11 +133,14 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
       }
 
       Object.keys(errors).forEach((key) => {
-        if (key in errors && key in signupSchema.shape) {
+        if (key in signupSchema.shape) {
           form.setError(key as keyof SignupValues, {
             type: "server",
             message: errors[key as keyof typeof errors]?.[0],
           });
+        } else if (key !== "server") {
+          // Fallback for fields not in the client-side schema (like staffToken/orgUsername)
+          toast.error(`Error: ${errors[key as keyof typeof errors]?.[0]}`);
         }
       });
 
