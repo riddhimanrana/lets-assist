@@ -110,6 +110,11 @@ export function NotificationPopover() {
     return notification.data?.modalType === 'report-feedback';
   };
 
+  const isLongNotification = (notification: Notification) => {
+    const body = (notification.body || '').trim();
+    return body.length > 160 || body.includes('\n');
+  };
+
   // Track if we've fetched unread count on initial mount
   const initialFetchDone = React.useRef(false);
   // Stable channel ref to avoid recreating subscriptions
@@ -371,7 +376,7 @@ export function NotificationPopover() {
       await markAsRead(notification.id);
     }
 
-    if (isReportFeedbackNotification(notification)) {
+    if (isReportFeedbackNotification(notification) || isLongNotification(notification)) {
       setActiveNotification(notification);
       setDetailOpen(true);
       setOpen(false);
@@ -429,7 +434,11 @@ export function NotificationPopover() {
     }
   };
 
-  const renderNotificationItem = (notification: Notification) => (
+  const renderNotificationItem = (notification: Notification) => {
+    const showDetails = isReportFeedbackNotification(notification) || isLongNotification(notification);
+    const showLink = Boolean(notification.action_url);
+
+    return (
     <div
       key={notification.id}
       className="flex flex-col p-4 hover:bg-accent/50 transition-colors cursor-pointer border-b border-border/50"
@@ -456,16 +465,34 @@ export function NotificationPopover() {
           </p>
           
           <div className="flex justify-between items-center">
-            {(notification.action_url || isReportFeedbackNotification(notification)) && (
-              <span className="text-xs text-primary font-medium hover:underline">
-                View details
-              </span>
-            )}
+            <div className="flex items-center gap-3">
+              {showDetails && (
+                <span className="text-xs text-primary font-medium hover:underline">
+                  View details
+                </span>
+              )}
+              {showLink && (
+                <button
+                  type="button"
+                  className="text-xs text-muted-foreground hover:text-foreground hover:underline"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    if (notification.action_url) {
+                      router.push(notification.action_url);
+                      setOpen(false);
+                    }
+                  }}
+                >
+                  Open link
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
     </div>
   );
+  };
 
   const renderEmptyState = () => (
     <div className="flex flex-col items-center justify-center py-12 px-4">
@@ -574,6 +601,14 @@ export function NotificationPopover() {
           <p className="text-sm text-foreground whitespace-pre-line">
             {activeNotification?.body}
           </p>
+          {activeNotification?.action_url && (
+            <div className="rounded-lg border bg-muted/40 p-3">
+              <p className="text-xs font-medium text-muted-foreground">Related link</p>
+              <p className="mt-1 text-xs text-foreground break-all">
+                {activeNotification.action_url}
+              </p>
+            </div>
+          )}
           {detailMetadata?.reportDescription && (
             <div className="rounded-lg border bg-muted/40 p-3">
               <p className="text-xs font-medium text-muted-foreground">Your original report</p>
@@ -590,6 +625,18 @@ export function NotificationPopover() {
           )}
         </div>
         <DialogFooter>
+          {activeNotification?.action_url && (
+            <Button
+              variant="outline"
+              onClick={() => {
+                router.push(activeNotification.action_url!);
+                handleDetailDialogChange(false);
+                setOpen(false);
+              }}
+            >
+              Open link
+            </Button>
+          )}
           <Button variant="secondary" onClick={() => handleDetailDialogChange(false)}>
             Close
           </Button>
