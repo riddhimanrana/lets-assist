@@ -1,6 +1,6 @@
 "use client";
 import { Shield } from "lucide-react";
-import { useState, useRef } from "react";
+import { useMemo, useState, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -49,6 +49,7 @@ export default function LoginClient({ redirectPath }: LoginClientProps) {
   const turnstileRef = useRef<TurnstileRef>(null);
   const [turnstileReady, setTurnstileReady] = useState(false);
   const router = useRouter();
+  const supabase = useMemo(() => createClient(), []);
 
   const form = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
@@ -106,16 +107,38 @@ export default function LoginClient({ redirectPath }: LoginClientProps) {
       // The server action returns the session directly - use it immediately
       if (result.session?.user) {
         console.log('[LoginClient] Session received from server:', result.session.user.email);
-        // Update cache IMMEDIATELY with the session from the server action
-        updateCachedUser(result.session.user);
-        console.log('[LoginClient] Cache updated immediately with user:', result.session.user.email);
-        
-        // Initialize profile and settings cache in background
-        // This fetches profile + settings in a batch query
-        // and subscribes to realtime updates
-        initializeUserProfileCache(result.session.user.id).catch((error) => {
-          console.error('[LoginClient] Failed to initialize profile cache:', error);
-        });
+        // Persist session in the browser so refreshes stay logged in
+        if (result.session.access_token && result.session.refresh_token) {
+          const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+            access_token: result.session.access_token,
+            refresh_token: result.session.refresh_token,
+          });
+
+          if (sessionError) {
+            console.error('[LoginClient] Failed to persist session:', sessionError);
+          }
+
+          const persistedUser = sessionData?.user ?? result.session.user;
+
+          // Update cache IMMEDIATELY with the session from the server action
+          updateCachedUser(persistedUser);
+          console.log('[LoginClient] Cache updated immediately with user:', persistedUser.email);
+
+          // Initialize profile and settings cache in background
+          // This fetches profile + settings in a batch query
+          // and subscribes to realtime updates
+          initializeUserProfileCache(persistedUser.id).catch((error) => {
+            console.error('[LoginClient] Failed to initialize profile cache:', error);
+          });
+        } else {
+          // Fallback: update cache even if tokens are missing (shouldn't happen)
+          updateCachedUser(result.session.user);
+          console.log('[LoginClient] Cache updated immediately with user:', result.session.user.email);
+
+          initializeUserProfileCache(result.session.user.id).catch((error) => {
+            console.error('[LoginClient] Failed to initialize profile cache:', error);
+          });
+        }
       }
       
       // Navigate immediately - don't wait for profile fetch

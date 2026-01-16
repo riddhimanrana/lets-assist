@@ -22,19 +22,22 @@ export async function generateMetadata({
   const description = project
     ? `Volunteer for ${project.title}${project.location ? ` in ${project.location}` : ""}.`
     : "View and manage project details.";
-  const ogImageUrl = `/projects/${id}/opengraph-image`;
+  const baseUrl = new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://lets-assist.com");
+  const projectUrl = new URL(`/projects/${id}`, baseUrl);
+  const ogImageUrl = new URL(`/projects/${id}/opengraph-image`, baseUrl);
   
   return {
     title,
     description,
+    metadataBase: baseUrl,
     alternates: {
-      canonical: `/projects/${id}`,
+      canonical: projectUrl,
     },
     openGraph: {
       title,
       description,
       type: "article",
-      url: `/projects/${id}`,
+      url: projectUrl,
       siteName: "Let's Assist",
       images: [
         {
