@@ -5,6 +5,13 @@ import { getServiceRoleClient } from "@/utils/supabase/service-role";
 import { checkSuperAdmin } from "../actions";
 import { NotificationService } from "@/services/notifications";
 import { notifyAdminsBatched } from "@/services/admin-notifications";
+import { sendEmail } from "@/services/email";
+import ContentModerationActionEmail from "@/emails/content-moderation-action";
+import {
+  analyzeProjectWithAi,
+  analyzeReportWithAi,
+  buildProjectFlagDetails,
+} from "./ai-review";
 
 /**
  * Get all flagged content for admin review
@@ -33,8 +40,117 @@ export async function getFlaggedContent(status?: 'pending' | 'blocked' | 'confir
     console.error('Error fetching flagged content:', error);
     return { error: error.message };
   }
-  
-  return { data };
+
+  const flags = data ?? [];
+
+  const projectIds = flags
+    .filter((flag) => flag.content_type === 'project')
+    .map((flag) => flag.content_id);
+  const profileIds = flags
+    .filter((flag) => flag.content_type === 'profile')
+    .map((flag) => flag.content_id);
+  const organizationIds = flags
+    .filter((flag) => flag.content_type === 'organization')
+    .map((flag) => flag.content_id);
+
+  let projects: Array<{ id: string; title: string | null; creator_id: string | null; organization_id: string | null }> = [];
+  let profiles: Array<{ id: string; full_name: string | null; username: string | null; avatar_url: string | null; email?: string | null }> = [];
+  let organizations: Array<{ id: string; name: string | null; username: string | null; created_by: string | null }> = [];
+
+  if (projectIds.length > 0) {
+    const { data: projectData } = await supabase
+      .from('projects')
+      .select('id, title, creator_id, organization_id')
+      .in('id', projectIds);
+    projects = projectData || [];
+  }
+
+  if (profileIds.length > 0) {
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('id, full_name, username, avatar_url, email')
+      .in('id', profileIds);
+    profiles = profileData || [];
+  }
+
+  if (organizationIds.length > 0) {
+    const { data: orgData } = await supabase
+      .from('organizations')
+      .select('id, name, username, created_by')
+      .in('id', organizationIds);
+    organizations = orgData || [];
+  }
+
+  const creatorIds = new Set<string>();
+  projects.forEach((project) => {
+    if (project.creator_id) {
+      creatorIds.add(project.creator_id);
+    }
+  });
+  organizations.forEach((org) => {
+    if (org.created_by) {
+      creatorIds.add(org.created_by);
+    }
+  });
+
+  const creatorProfiles = creatorIds.size
+    ? await supabase
+        .from('profiles')
+        .select('id, full_name, username, avatar_url, email')
+        .in('id', Array.from(creatorIds))
+    : { data: [] };
+
+  const creatorMap = new Map((creatorProfiles.data || []).map((profile) => [profile.id, profile]));
+  const projectMap = new Map(projects.map((project) => [project.id, project]));
+  const profileMap = new Map(profiles.map((profile) => [profile.id, profile]));
+  const orgMap = new Map(organizations.map((org) => [org.id, org]));
+
+  const enriched = flags.map((flag) => {
+    const details = (flag.flag_details || {}) as Record<string, any>;
+    let contentDetails: any = null;
+    let creatorDetails: any = null;
+
+    if (flag.content_type === 'project') {
+      const project = projectMap.get(flag.content_id);
+      if (project) {
+        contentDetails = project;
+        if (project.creator_id) {
+          creatorDetails = creatorMap.get(project.creator_id) || null;
+        }
+      }
+    } else if (flag.content_type === 'profile') {
+      const profile = profileMap.get(flag.content_id);
+      if (profile) {
+        contentDetails = profile;
+        creatorDetails = profile;
+      }
+    } else if (flag.content_type === 'organization') {
+      const org = orgMap.get(flag.content_id);
+      if (org) {
+        contentDetails = org;
+        if (org.created_by) {
+          creatorDetails = creatorMap.get(org.created_by) || null;
+        }
+      }
+    }
+
+    return {
+      ...flag,
+      severity: deriveSeverity(flag.confidence_score),
+      reason:
+        details.shortSummary ||
+        details.verdict ||
+        details.reasoning ||
+        flag.flag_type ||
+        'Flagged content',
+      categories: flag.flagged_categories || null,
+      content_details: contentDetails,
+      creator_details: creatorDetails,
+      profiles: creatorDetails,
+    };
+  });
+
+  return { data: enriched };
 }
 
 /**
@@ -53,15 +169,31 @@ export async function updateFlaggedContentStatus(
   status: 'pending' | 'blocked' | 'confirmed' | 'dismissed',
   reviewNotes?: string
 ) {
-  const supabase = await createClient();
+  const viewerSupabase = await createClient();
+  const supabase = getServiceRoleClient();
   
   const { isAdmin } = await checkSuperAdmin();
   if (!isAdmin) {
     return { error: "Unauthorized - Admin access required" };
   }
   
-  const { data: { user } } = await supabase.auth.getUser();
-  
+  const { data: { user } } = await viewerSupabase.auth.getUser();
+
+  const { data: existingFlags, error: checkError } = await supabase
+    .from('content_flags')
+    .select('id')
+    .eq('id', id);
+
+  if (checkError) {
+    console.error('Error checking flagged content:', id, checkError);
+    return { error: `Failed to check flagged content: ${checkError.message}` };
+  }
+
+  if (!existingFlags || existingFlags.length === 0) {
+    console.error('Flagged content not found:', id);
+    return { error: "Flagged content not found" };
+  }
+
   const { data, error } = await supabase
     .from('content_flags')
     .update({ 
@@ -71,25 +203,50 @@ export async function updateFlaggedContentStatus(
       review_notes: reviewNotes,
     })
     .eq('id', id)
-    .select()
-    .single();
+    .select();
   
   if (error) {
     console.error('Error updating flagged content:', error);
     return { error: error.message };
   }
-  
-  if (data?.content_id && data?.content_type && data?.flag_type) {
-    await notifyAdminsBatched({
-      type: 'flagged_content',
-      contentId: data.content_id,
-      contentType: data.content_type,
-      flagType: data.flag_type,
-      confidenceScore: data.confidence_score,
+
+  if (!data || data.length === 0) {
+    console.error('No data returned after update for flagged content:', id);
+    return { error: "Failed to update flagged content" };
+  }
+
+  const updatedFlag = data[0];
+
+  if (status === 'blocked' && updatedFlag?.content_id && updatedFlag?.content_type) {
+    await softRemoveContent(
+      supabase,
+      updatedFlag.content_type,
+      updatedFlag.content_id,
+      'block_content',
+      user?.id || 'system',
+      reviewNotes || `Flagged for ${updatedFlag.flag_type || 'policy violation'}`
+    );
+
+    await notifyContentOwnerOfModeration({
+      supabase,
+      contentType: updatedFlag.content_type,
+      contentId: updatedFlag.content_id,
+      action: 'block_content',
+      reason: reviewNotes || updatedFlag.flag_type || 'Policy violation',
     });
   }
 
-  return { data };
+  if (updatedFlag?.content_id && updatedFlag?.content_type && updatedFlag?.flag_type) {
+    await notifyAdminsBatched({
+      type: 'flagged_content',
+      contentId: updatedFlag.content_id,
+      contentType: updatedFlag.content_type,
+      flagType: updatedFlag.flag_type,
+      confidenceScore: updatedFlag.confidence_score,
+    });
+  }
+
+  return { data: updatedFlag };
 }
 
 /**
@@ -505,6 +662,341 @@ export async function getContentReportsStats() {
 }
 
 /**
+ * Run AI review for a single content report
+ */
+export async function runAiReviewForReport(reportId: string) {
+  const viewerSupabase = await createClient();
+  const supabase = getServiceRoleClient();
+
+  const { isAdmin } = await checkSuperAdmin();
+  if (!isAdmin) {
+    return { error: "Unauthorized - Admin access required" };
+  }
+
+  const { data: { user } } = await viewerSupabase.auth.getUser();
+  if (!user) {
+    return { error: "Unauthorized" };
+  }
+
+  const { data: report, error: reportError } = await supabase
+    .from('content_reports')
+    .select('*')
+    .eq('id', reportId)
+    .maybeSingle();
+
+  if (reportError) {
+    console.error('Error fetching report for AI review:', reportError);
+    return { error: reportError.message };
+  }
+
+  if (!report) {
+    return { error: 'Report not found' };
+  }
+
+  let contentDetails = '';
+  if (report.content_type === 'project') {
+    const { data: project } = await supabase
+      .from('projects')
+      .select('title, description')
+      .eq('id', report.content_id)
+      .maybeSingle();
+    if (project) {
+      contentDetails = `Project Title: ${project.title}\nProject Description: ${project.description || 'N/A'}`;
+    }
+  } else if (report.content_type === 'organization') {
+    const { data: org } = await supabase
+      .from('organizations')
+      .select('name, description')
+      .eq('id', report.content_id)
+      .maybeSingle();
+    if (org) {
+      contentDetails = `Organization Name: ${org.name}\nOrganization Description: ${org.description || 'N/A'}`;
+    }
+  } else if (report.content_type === 'profile') {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('full_name, username')
+      .eq('id', report.content_id)
+      .maybeSingle();
+    if (profile) {
+      contentDetails = `Profile: ${profile.full_name || profile.username || 'Unknown user'}`;
+    }
+  }
+
+  const { metadata, clampedStatus, triagedAt } = await analyzeReportWithAi(
+    {
+      id: report.id,
+      reason: report.reason,
+      description: report.description,
+      content_type: report.content_type,
+      content_id: report.content_id,
+    },
+    contentDetails
+  );
+
+  const { error: updateError } = await supabase
+    .from('content_reports')
+    .update({
+      priority: metadata.priority,
+      status: clampedStatus,
+      ai_metadata: metadata,
+      updated_at: triagedAt,
+    })
+    .eq('id', report.id);
+
+  if (updateError) {
+    console.error('Error updating report after AI review:', updateError);
+    return { error: updateError.message };
+  }
+
+  return { data: metadata };
+}
+
+/**
+ * Run AI review for a single project
+ */
+export async function runAiReviewForProject(projectId: string) {
+  const viewerSupabase = await createClient();
+  const supabase = getServiceRoleClient();
+
+  const { isAdmin } = await checkSuperAdmin();
+  if (!isAdmin) {
+    return { error: "Unauthorized - Admin access required" };
+  }
+
+  const { data: { user } } = await viewerSupabase.auth.getUser();
+  if (!user) {
+    return { error: "Unauthorized" };
+  }
+
+  const { data: project, error: projectError } = await supabase
+    .from('projects')
+    .select('id, title, description')
+    .eq('id', projectId)
+    .maybeSingle();
+
+  if (projectError) {
+    console.error('Error fetching project for AI review:', projectError);
+    return { error: projectError.message };
+  }
+
+  if (!project) {
+    return { error: 'Project not found' };
+  }
+
+  const decision = await analyzeProjectWithAi({
+    id: project.id,
+    title: project.title,
+    description: project.description,
+  });
+
+  if (!decision.isFlagged) {
+    return { data: { flagged: false, decision } };
+  }
+
+  const { data: existingFlags, error: existingError } = await supabase
+    .from('content_flags')
+    .select('id, status')
+    .eq('content_type', 'project')
+    .eq('content_id', project.id)
+    .order('created_at', { ascending: false })
+    .limit(1);
+
+  if (existingError) {
+    console.error('Error checking existing flags:', existingError);
+    return { error: existingError.message };
+  }
+
+  const flagPayload = {
+    flag_type: decision.flagType ?? 'other',
+    confidence_score: decision.confidenceScore,
+    flag_details: buildProjectFlagDetails(decision),
+  };
+
+  if (existingFlags && existingFlags.length > 0) {
+    const { error: updateError } = await supabase
+      .from('content_flags')
+      .update({
+        ...flagPayload,
+      })
+      .eq('id', existingFlags[0].id);
+
+    if (updateError) {
+      console.error('Error updating existing flag after AI review:', updateError);
+      return { error: updateError.message };
+    }
+
+    return { data: { flagged: true, decision } };
+  }
+
+  const { error: insertError } = await supabase
+    .from('content_flags')
+    .insert({
+      content_type: 'project',
+      content_id: project.id,
+      flag_source: 'ai',
+      status: 'pending',
+      ...flagPayload,
+    });
+
+  if (insertError) {
+    console.error('Error inserting new flag after AI review:', insertError);
+    return { error: insertError.message };
+  }
+
+  await notifyAdminsBatched({
+    type: 'flagged_content',
+    contentId: project.id,
+    contentType: 'project',
+    flagType: decision.flagType ?? 'other',
+    confidenceScore: decision.confidenceScore,
+  });
+
+  return { data: { flagged: true, decision } };
+}
+
+/**
+ * Apply the AI recommendation for a report
+ */
+export async function applyAiRecommendationForReport(reportId: string) {
+  const supabase = getServiceRoleClient();
+  const { isAdmin } = await checkSuperAdmin();
+  if (!isAdmin) {
+    return { error: "Unauthorized - Admin access required" };
+  }
+
+  const { data: report, error } = await supabase
+    .from('content_reports')
+    .select('id, reason, ai_metadata')
+    .eq('id', reportId)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Error fetching report for AI action:', error);
+    return { error: error.message };
+  }
+
+  if (!report) {
+    return { error: 'Report not found' };
+  }
+
+  const recommendedAction = report.ai_metadata?.recommendedAction as
+    | 'none'
+    | 'warn_user'
+    | 'remove_content'
+    | 'block_content'
+    | 'escalate_to_legal'
+    | undefined;
+
+  if (!recommendedAction || recommendedAction === 'none') {
+    return { error: 'No actionable AI recommendation available' };
+  }
+
+  const reason =
+    report.ai_metadata?.actionJustification ||
+    report.ai_metadata?.shortSummary ||
+    report.reason ||
+    'Applied AI recommendation';
+
+  return takeModeratorAction(reportId, recommendedAction, reason);
+}
+
+/**
+ * Take a manual moderator action on flagged content
+ */
+export async function takeFlaggedContentAction(
+  flagId: string,
+  action: 'warn_user' | 'remove_content' | 'block_content' | 'dismiss',
+  reason?: string
+) {
+  const viewerSupabase = await createClient();
+  const supabase = getServiceRoleClient();
+
+  const { isAdmin } = await checkSuperAdmin();
+  if (!isAdmin) {
+    return { error: "Unauthorized - Admin access required" };
+  }
+
+  const { data: { user } } = await viewerSupabase.auth.getUser();
+  if (!user) {
+    return { error: "Unauthorized" };
+  }
+
+  const { data: flag, error: flagError } = await supabase
+    .from('content_flags')
+    .select('*')
+    .eq('id', flagId)
+    .maybeSingle();
+
+  if (flagError) {
+    console.error('Error fetching flagged content:', flagError);
+    return { error: flagError.message };
+  }
+
+  if (!flag) {
+    return { error: 'Flagged content not found' };
+  }
+
+  let newStatus: 'pending' | 'blocked' | 'confirmed' | 'dismissed' = 'pending';
+  switch (action) {
+    case 'dismiss':
+      newStatus = 'dismissed';
+      break;
+    case 'block_content':
+      newStatus = 'blocked';
+      break;
+    case 'remove_content':
+    case 'warn_user':
+    default:
+      newStatus = 'confirmed';
+      break;
+  }
+
+  const { data, error } = await supabase
+    .from('content_flags')
+    .update({
+      status: newStatus,
+      reviewed_by: user.id,
+      reviewed_at: new Date().toISOString(),
+      review_notes: reason || `Action ${action}`,
+    })
+    .eq('id', flagId)
+    .select();
+
+  if (error) {
+    console.error('Error updating flagged content:', error);
+    return { error: error.message };
+  }
+
+  if (!data || data.length === 0) {
+    return { error: 'Failed to update flagged content' };
+  }
+
+  if ((action === 'remove_content' || action === 'block_content') && flag.content_id && flag.content_type) {
+    await softRemoveContent(
+      supabase,
+      flag.content_type,
+      flag.content_id,
+      action,
+      user.id,
+      reason
+    );
+  }
+
+  if (action === 'remove_content' || action === 'block_content' || action === 'warn_user') {
+    await notifyContentOwnerOfModeration({
+      supabase,
+      contentType: flag.content_type,
+      contentId: flag.content_id,
+      action,
+      reason: reason || flag.flag_type || 'Policy violation',
+    });
+  }
+
+  return { data: data[0] };
+}
+
+/**
  * Trigger an AI moderation scan manually
  */
 export async function runAiScan() {
@@ -760,6 +1252,16 @@ export async function takeModeratorAction(
       await softRemoveContent(supabase, report.content_type, report.content_id, action, user.id, reason);
     }
 
+    if (action === 'remove_content' || action === 'block_content' || action === 'warn_user') {
+      await notifyContentOwnerOfModeration({
+        supabase,
+        contentType: report.content_type,
+        contentId: report.content_id,
+        action,
+        reason: reason || actionNotes,
+      });
+    }
+
     return {
       success: true,
       data,
@@ -822,4 +1324,265 @@ async function softRemoveContent(
     contentType,
     priority: 'normal',
   });
+}
+
+type ModerationAction = 'warn_user' | 'remove_content' | 'block_content' | 'dismiss' | 'escalate_to_legal';
+
+type ContentOwnerInfo = {
+  userId: string;
+  userName: string;
+  userEmail?: string | null;
+  contentTitle: string;
+  contentTypeLabel: string;
+  contentUrl?: string;
+};
+
+function deriveSeverity(confidence: number | string | null | undefined) {
+  const value = typeof confidence === 'string' ? Number(confidence) : confidence ?? 0;
+  if (value >= 0.85) return 'critical';
+  if (value >= 0.7) return 'high';
+  if (value >= 0.4) return 'medium';
+  return 'low';
+}
+
+function formatContentTypeLabel(contentType: string) {
+  switch (contentType) {
+    case 'project':
+      return 'project';
+    case 'profile':
+      return 'profile';
+    case 'organization':
+      return 'organization';
+    default:
+      return 'content';
+  }
+}
+
+async function fetchAuthUserEmail(supabase: ReturnType<typeof getServiceRoleClient>, userId: string) {
+  const { data, error } = await supabase.auth.admin.getUserById(userId);
+  if (error) {
+    console.error('Error fetching auth user email:', error);
+    return null;
+  }
+  return data?.user?.email ?? null;
+}
+
+async function resolveContentOwnerInfo(
+  supabase: ReturnType<typeof getServiceRoleClient>,
+  contentType: string,
+  contentId: string
+): Promise<ContentOwnerInfo | null> {
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://lets-assist.com';
+
+  if (contentType === 'project') {
+    const { data: project } = await supabase
+      .from('projects')
+      .select('id, title, creator_id')
+      .eq('id', contentId)
+      .maybeSingle();
+
+    if (!project?.creator_id) return null;
+
+    const { data: creator } = await supabase
+      .from('profiles')
+      .select('id, full_name, username, email')
+      .eq('id', project.creator_id)
+      .maybeSingle();
+
+    const userEmail = creator?.email || (await fetchAuthUserEmail(supabase, project.creator_id));
+    const userName = creator?.full_name || creator?.username || 'there';
+
+    return {
+      userId: project.creator_id,
+      userName,
+      userEmail,
+      contentTitle: project.title || 'Untitled project',
+      contentTypeLabel: 'project',
+      contentUrl: `${baseUrl}/projects/${contentId}`,
+    };
+  }
+
+  if (contentType === 'profile') {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('id, full_name, username, email')
+      .eq('id', contentId)
+      .maybeSingle();
+
+    if (!profile) return null;
+    const userEmail = profile.email || (await fetchAuthUserEmail(supabase, contentId));
+    const userName = profile.full_name || profile.username || 'there';
+    const profileSlug = profile.username || contentId;
+
+    return {
+      userId: contentId,
+      userName,
+      userEmail,
+      contentTitle: profile.full_name || profile.username || 'Your profile',
+      contentTypeLabel: 'profile',
+      contentUrl: `${baseUrl}/profile/${profileSlug}`,
+    };
+  }
+
+  if (contentType === 'organization') {
+    const { data: org } = await supabase
+      .from('organizations')
+      .select('id, name, username, created_by')
+      .eq('id', contentId)
+      .maybeSingle();
+
+    if (!org?.created_by) return null;
+
+    const { data: creator } = await supabase
+      .from('profiles')
+      .select('id, full_name, username, email')
+      .eq('id', org.created_by)
+      .maybeSingle();
+
+    const userEmail = creator?.email || (await fetchAuthUserEmail(supabase, org.created_by));
+    const userName = creator?.full_name || creator?.username || 'there';
+    const orgSlug = org.username || contentId;
+
+    return {
+      userId: org.created_by,
+      userName,
+      userEmail,
+      contentTitle: org.name || 'Organization',
+      contentTypeLabel: 'organization',
+      contentUrl: `${baseUrl}/organization/${orgSlug}`,
+    };
+  }
+
+  return null;
+}
+
+function buildModerationCopy(
+  action: ModerationAction,
+  contentTypeLabel: string,
+  contentTitle: string,
+  reason?: string
+) {
+  const safeReason = reason ? `Reason: ${reason}` : 'Reason: Policy violation.';
+  const baseTitle = `Update on your ${contentTypeLabel}`;
+
+  switch (action) {
+    case 'remove_content':
+      return {
+        title: baseTitle,
+        body: `We removed your ${contentTypeLabel} “${contentTitle}”. ${safeReason}`,
+        emailSubject: `Your ${contentTypeLabel} was removed`,
+        actionLabel: 'removed',
+      };
+    case 'block_content':
+      return {
+        title: baseTitle,
+        body: `We blocked your ${contentTypeLabel} “${contentTitle}”. ${safeReason}`,
+        emailSubject: `Your ${contentTypeLabel} was blocked`,
+        actionLabel: 'blocked',
+      };
+    case 'warn_user':
+      return {
+        title: baseTitle,
+        body: `We issued a warning about your ${contentTypeLabel} “${contentTitle}”. ${safeReason}`,
+        emailSubject: `Warning about your ${contentTypeLabel}`,
+        actionLabel: 'issued a warning about',
+      };
+    default:
+      return {
+        title: baseTitle,
+        body: `We reviewed your ${contentTypeLabel} “${contentTitle}”. ${safeReason}`,
+        emailSubject: `Update on your ${contentTypeLabel}`,
+        actionLabel: 'updated',
+      };
+  }
+}
+
+async function shouldSendGeneralNotification(
+  supabase: ReturnType<typeof getServiceRoleClient>,
+  userId: string
+) {
+  const { data, error } = await supabase
+    .from('notification_settings')
+    .select('general')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (error && error.code !== 'PGRST116') {
+    console.error('Error checking notification settings:', error);
+    return true;
+  }
+
+  return data?.general !== false;
+}
+
+async function notifyContentOwnerOfModeration({
+  supabase,
+  contentType,
+  contentId,
+  action,
+  reason,
+}: {
+  supabase: ReturnType<typeof getServiceRoleClient>;
+  contentType: string;
+  contentId: string;
+  action: ModerationAction;
+  reason?: string;
+}) {
+  const owner = await resolveContentOwnerInfo(supabase, contentType, contentId);
+  if (!owner) {
+    return;
+  }
+
+  const { title, body, emailSubject, actionLabel } = buildModerationCopy(
+    action,
+    formatContentTypeLabel(owner.contentTypeLabel),
+    owner.contentTitle,
+    reason
+  );
+
+  const shouldNotify = await shouldSendGeneralNotification(supabase, owner.userId);
+
+  if (shouldNotify) {
+    const { error: notificationError } = await supabase
+      .from('notifications')
+      .insert({
+        user_id: owner.userId,
+        title,
+        body,
+        type: 'general',
+        severity: 'warning',
+        action_url: owner.contentUrl,
+        displayed: false,
+        read: false,
+        data: {
+          kind: 'moderation_action',
+          action,
+          contentType,
+          contentId,
+        },
+      });
+
+    if (notificationError) {
+      console.error('Error creating moderation notification:', notificationError);
+    }
+  }
+
+  if (owner.userEmail) {
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://lets-assist.com';
+    await sendEmail({
+      to: owner.userEmail,
+      subject: emailSubject,
+      react: ContentModerationActionEmail({
+        userName: owner.userName,
+        contentTitle: owner.contentTitle,
+        contentTypeLabel: owner.contentTypeLabel,
+        actionLabel,
+        reason,
+        contentUrl: owner.contentUrl,
+        supportUrl: `${baseUrl}/help`,
+      }),
+      userId: owner.userId,
+      type: 'transactional',
+    });
+  }
 }
