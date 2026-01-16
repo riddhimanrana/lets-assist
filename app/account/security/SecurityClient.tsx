@@ -191,7 +191,6 @@ export default function SecurityClient() {
       if (count === 0) {
         const result = await deleteAccount();
         if (result.success) {
-          toast.success("Account successfully deleted");
           localStorage.clear();
           sessionStorage.clear();
           window.location.href = "/?deleted=true&noRedirect=1";

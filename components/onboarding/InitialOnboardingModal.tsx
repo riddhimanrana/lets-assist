@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import Image from "next/image";
 import {
   Form,
   FormControl,
@@ -35,7 +36,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 const USERNAME_MIN_LENGTH = 3;
 const USERNAME_MAX_LENGTH = 32;
 const PHONE_LENGTH = 10;
-const USERNAME_REGEX = /^[a-zA-Z0-9_.-]+$/;
 
 interface InitialOnboardingModalProps {
   isOpen: boolean;
@@ -49,9 +49,9 @@ interface InitialOnboardingModalProps {
 export default function InitialOnboardingModal({
   isOpen,
   onClose,
-  userId,
-  currentFullName,
-  currentEmail,
+  userId: _userId,
+  currentFullName: _currentFullName,
+  currentEmail: _currentEmail,
   autoJoinedOrg,
 }: InitialOnboardingModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -117,6 +117,12 @@ export default function InitialOnboardingModal({
       if (!res.ok) throw new Error("Failed to check username");
       const data = await res.json();
       setUsernameAvailable(data.available);
+      if (!data.available && data.error) {
+        form.setError("username", { 
+          type: "manual",
+          message: data.error 
+        });
+      }
     } catch (error) {
       console.error("Error checking username:", error);
       setUsernameAvailable(null);
@@ -124,10 +130,6 @@ export default function InitialOnboardingModal({
     } finally {
       setCheckingUsername(false);
     }
-  }
-
-  function checkUsernameValid(username: string): boolean {
-    return USERNAME_REGEX.test(username);
   }
 
   const formatPhoneNumber = (value: string): string => {
@@ -248,12 +250,12 @@ export default function InitialOnboardingModal({
                   className="flex items-center gap-3 mb-4"
                 >
                   <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-                    <Sparkles className="h-6 w-6" />
+                    <Image src="/logo.png" alt="Let's Assist Logo" width={48} height={48} />
                   </div>
                   <div>
                     <DialogTitle className="text-xl font-semibold">Welcome to Let&apos;s Assist!</DialogTitle>
                     <DialogDescription className="text-sm">
-                      Let&apos;s set up your profile in seconds
+                      Let&apos;s set up your profile
                     </DialogDescription>
                   </div>
                 </motion.div>

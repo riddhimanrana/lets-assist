@@ -9,6 +9,7 @@ import { Footer } from "@/components/layout/Footer";
 import localFont from "next/font/local";
 import { PostHogProvider } from "./providers";
 import { ToasterTheme } from "@/components/theme/ToasterTheme";
+import { QueryMessageToast } from "@/components/shared/QueryMessageToast";
 import GlobalNotificationProvider from "@/components/providers/GlobalNotificationProvider";
 import CalendarOAuthCallbackHandler from "@/components/calendar/CalendarOAuthCallbackHandler";
 import { GeistMono } from 'geist/font/mono';
@@ -66,6 +67,7 @@ export default async function RootLayout({
                   <Navbar />
                   <main className="flex-1">{children}</main>
                   <ToasterTheme />
+                  <QueryMessageToast />
                   <Footer />
                   <SpeedInsights />
                   <CalendarOAuthCallbackHandler />
