@@ -443,6 +443,11 @@ export default function EditOrganizationForm({ organization, userId }: EditOrgan
                           onChange={(e) => {
                             const noSpaces = e.target.value.replace(/\s/g, "");
                             field.onChange(noSpaces);
+                            // Clear errors and reset availability when typing
+                            if (form.formState.errors.username) {
+                              form.clearErrors("username");
+                            }
+                            setUsernameAvailable(null);
                           }}
                           onBlur={(e) => {
                             field.onBlur();

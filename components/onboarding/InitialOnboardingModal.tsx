@@ -317,6 +317,11 @@ export default function InitialOnboardingModal({
                                     const lower = noSpaces.toLowerCase();
                                     field.onChange(lower);
                                     setUsernameLength(lower.length);
+                                    // Clear errors and reset availability when typing
+                                    if (form.formState.errors.username) {
+                                      form.clearErrors("username");
+                                    }
+                                    setUsernameAvailable(null);
                                   }}
                                   onBlur={(e) => {
                                     field.onBlur();
@@ -348,7 +353,7 @@ export default function InitialOnboardingModal({
                               </div>
                             </div>
                             <FormDescription className="text-xs">
-                              Letters, numbers, underscores, dots, and hyphens only
+                              Letters, numbers, underscores, dots, and hyphens only (3 characters min)
                             </FormDescription>
                             <FormMessage />
                           </FormItem>
@@ -411,7 +416,7 @@ export default function InitialOnboardingModal({
                           disabled={
                             isSubmitting ||
                             checkingUsername ||
-                            Boolean(usernameValue && usernameValue.length >= USERNAME_MIN_LENGTH && usernameAvailable === false)
+                            usernameAvailable !== true
                           }
                           className="w-full h-11 font-medium gap-2 transition-all duration-200"
                         >

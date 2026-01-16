@@ -371,6 +371,49 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
           </Form>
         </CardContent>
       </Card>
+
+      <Dialog open={isResendCaptchaOpen} onOpenChange={setIsResendCaptchaOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Verify before resending</DialogTitle>
+            <DialogDescription>
+              Complete the verification challenge so we can safely send a fresh confirmation link to your email.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-center py-4">
+            <div className="relative w-[300px] h-[65px] overflow-hidden rounded-lg bg-muted/30 border border-border/50 flex items-center justify-center">
+              {!resendTurnstileReady && (
+                <div className="absolute inset-0 z-10 flex items-center justify-center gap-2 rounded-lg bg-background/80 text-[0.7rem] font-semibold uppercase tracking-wide text-muted-foreground text-center px-4">
+                   <Shield className="h-4 w-4 text-muted-foreground/80 shrink-0" />
+                   <span>Bot verification loading…</span>
+                </div>
+              )}
+              <TurnstileComponent
+                ref={resendTurnstileRef}
+                onLoad={() => setResendTurnstileReady(true)}
+                onVerify={(token) => setResendTurnstileToken(token)}
+                onError={() => {
+                  setResendTurnstileToken(null);
+                  toast.error("Verification failed. Please try again.");
+                }}
+                onExpire={() => setResendTurnstileToken(null)}
+              />
+            </div>
+          </div>
+          <DialogFooter className="flex flex-col gap-2">
+            <Button
+              onClick={handleResendWithCaptcha}
+              disabled={!resendTurnstileToken || isResending}
+              className="w-full"
+            >
+              {isResending ? "Sending…" : "Verify & Send"}
+            </Button>
+            <Button variant="ghost" onClick={() => setIsResendCaptchaOpen(false)} className="w-full">
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

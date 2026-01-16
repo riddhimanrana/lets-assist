@@ -89,6 +89,7 @@
     "ol": "^10.7.0",
     "posthog-js": "^1.321.2",
     "prettier": "3.4.2",
+    "profane-words": "^2.1.0",
     "punycode": "^2.3.1",
     "react": "19.2.3",
     "react-day-picker": "^9.13.0",

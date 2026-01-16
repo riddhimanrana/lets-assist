@@ -3,8 +3,6 @@ import { checkUsernameUnique } from "@/app/account/profile/actions";
 import { USERNAME_REGEX } from "@/schemas/onboarding-schema";
 import { checkOffensiveLanguage } from "@/utils/moderation-helpers";
 
-export const runtime = "edge"; // run on edge runtime
-
 export const GET = async (request: Request) => {
   try {
     const { searchParams } = new URL(request.url);
@@ -44,7 +42,8 @@ export const GET = async (request: Request) => {
 
     const result = await checkUsernameUnique(usernameLc);
     return NextResponse.json(result);
-  } catch (error) {
+  } catch (err) {
+    console.error("Check username error:", err);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 },
