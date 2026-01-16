@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { createClient } from "@/utils/supabase/server";
+import { checkOffensiveLanguage } from "@/utils/moderation-helpers";
 import { ProfileVisibility } from "@/types";
 import {
   applyVisibilityConstraints,
@@ -56,6 +57,14 @@ export async function updateProfileInfo(formData: FormData) {
   }
 
   const { fullName: validFullName, username: validUsername } = validatedFields.data;
+
+  // Check for profanity in username
+  if (validUsername) {
+    const profanity = await checkOffensiveLanguage(validUsername);
+    if (profanity.isProfane) {
+      return { error: { username: [profanity.error || "Inappropriate language"] } };
+    }
+  }
 
   // Create an update object with only provided fields
   const updateFields: {
@@ -114,6 +123,13 @@ export async function completeOnboarding(formData: FormData) {
   }
 
   const { fullName: validFullName, username: validUsername, avatarUrl: validAvatarUrl } = validatedFields.data;
+
+  if (validUsername) {
+    const profanity = await checkOffensiveLanguage(validUsername);
+    if (profanity.isProfane) {
+      return { error: { username: [profanity.error || "Inappropriate language"] } };
+    }
+  }
 
   // Create an update object with only provided fields
   const updateFields: {

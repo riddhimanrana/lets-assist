@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { createClient } from "@/utils/supabase/server";
+import { checkOffensiveLanguage } from "@/utils/moderation-helpers";
 
 // Schema for initial onboarding (username + phone only)
 const initialOnboardingSchema = z.object({
@@ -27,6 +28,13 @@ export async function checkUsernameAvailability(username: string): Promise<{ ava
   const supabase = await createClient();
   
   try {
+    // 1. Profanity check
+    const profanityResult = await checkOffensiveLanguage(username.toLowerCase());
+    if (profanityResult.isProfane) {
+      return { available: false, error: profanityResult.error || "This username contains inappropriate language" };
+    }
+
+    // 2. Uniqueness check
     const { data: existingUser, error } = await supabase
       .from("profiles")
       .select("username")

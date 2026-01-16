@@ -58,18 +58,18 @@ export async function checkEmailStatus(email: string): Promise<SignupStatus> {
       return { type: 'new', message: 'Email is available for signup' };
     }
     
-    // Check if email is confirmed
-    const isConfirmed = existingUser.email_confirmed_at !== null;
+    // Check if email is confirmed - use explicit truthy check
+    const isConfirmed = !!existingUser.email_confirmed_at;
     
     if (isConfirmed) {
       return { 
         type: 'confirmed', 
-        message: 'An account with this email already exists and is verified.' 
+        message: 'An account with this email already exists and is verified. Please log in to access your account.' 
       };
     } else {
       return { 
         type: 'unconfirmed', 
-        message: 'An account with this email exists but is not verified. We can resend the verification email.' 
+        message: 'It looks like you already signed up but haven\'t confirmed your email yet. Would you like us to resend the verification link?' 
       };
     }
   } catch (error) {

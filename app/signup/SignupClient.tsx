@@ -95,8 +95,9 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
 
       // Check if this is a confirmed email error
       if ('emailStatus' in result && result.emailStatus === 'confirmed') {
+        const serverMessage = result.error?.server?.[0] || "An account with this email address already exists and is verified. Please log in to access your account.";
         toast.error("Account already exists", {
-          description: "An account with this email address already exists and is verified. Please log in to access your account.",
+          description: serverMessage,
           action: {
             label: "Go to Login",
             onClick: () => router.push("/login"),
@@ -111,8 +112,10 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
       // Check if this is an unconfirmed email error
       if ('emailStatus' in result && result.emailStatus === 'unconfirmed' && 'email' in result) {
         const unconfirmedEmail = result.email as string;
-        toast.warning("Email not verified", {
-          description: "An account with this email exists but hasn't been verified yet. We can resend the verification email.",
+        const serverMessage = result.error?.server?.[0] || "It looks like you already signed up but haven't confirmed your email yet.";
+        
+        toast.warning("Email Verification Pending", {
+          description: serverMessage,
           action: {
             label: "Resend Email",
             onClick: async () => {
