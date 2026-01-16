@@ -1,6 +1,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
+import { Metadata } from "next";
 import { differenceInHours, isAfter, format, parseISO } from "date-fns";
 import { getProjectEndDateTime } from "@/utils/project";
 import { Project, ProjectSignup } from "@/types";
@@ -10,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { AlertCircle, ArrowLeft, CalendarClock, Clock } from "lucide-react";
+import { getProject } from "../actions";
 
 // Define session type for easier handling
 type ProjectSession = {
@@ -119,6 +121,23 @@ function getSessionsInEditingWindow(project: Project): ProjectSession[] {
   }
   
   return result;
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const { project } = await getProject(id);
+  const title = project ? `Volunteer Hours — ${project.title}` : "Volunteer Hours";
+
+  return {
+    title,
+    description: project
+      ? `Manage volunteer hours for ${project.title}.`
+      : "Manage volunteer hours for this project.",
+  };
 }
 
 export default async function HoursPage({ params }: { params: Promise<{ id: string }> }) {

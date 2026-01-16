@@ -15,12 +15,12 @@ const Toaster = ({ ...props }: ToasterProps) => {
       toastOptions={{
         classNames: {
           toast:
-            "group toast group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-lg",
-          description: "group-[.toast]:text-muted-foreground",
+            "group toast group-[.toaster]:bg-[hsl(var(--toast-bg))] group-[.toaster]:text-[hsl(var(--toast-foreground))] group-[.toaster]:border-[hsl(var(--toast-border))] group-[.toaster]:shadow-[0_10px_30px_hsl(var(--toast-shadow)/0.18)]",
+          description: "group-[.toast]:text-[hsl(var(--toast-muted))]",
           actionButton:
-            "group-[.toast]:bg-primary group-[.toast]:text-primary-foreground",
+            "group-[.toast]:bg-[hsl(var(--toast-action))] group-[.toast]:text-[hsl(var(--toast-action-foreground))] group-[.toast]:hover:bg-[hsl(var(--toast-action)/0.9)]",
           cancelButton:
-            "group-[.toast]:bg-muted group-[.toast]:text-muted-foreground",
+            "group-[.toast]:bg-[hsl(var(--toast-cancel))] group-[.toast]:text-[hsl(var(--toast-cancel-foreground))] group-[.toast]:hover:bg-[hsl(var(--toast-cancel)/0.9)]",
         },
       }}
       {...props}

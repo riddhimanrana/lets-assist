@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
+import { notifyAdminsBatched } from "@/services/admin-notifications";
 import { z } from "zod";
 
 const ApplicationSchema = z.object({
@@ -48,6 +49,7 @@ export async function submitTrustedMember(input: { name: string; email: string; 
   }
 
   // Insert new or update pending
+  const isNewApplication = !existing;
   if (!existing) {
     const { error: upsertError } = await supabase
       .from("trusted_member")
@@ -73,6 +75,19 @@ export async function submitTrustedMember(input: { name: string; email: string; 
     if (updateError) {
       console.error("Error updating application:", updateError);
       return { error: "Failed to update application" };
+    }
+  }
+
+  if (isNewApplication) {
+    try {
+      await notifyAdminsBatched({
+        type: "trusted_member_application",
+        applicationId: user.id,
+        applicantName: parsed.data.name,
+        applicantEmail: parsed.data.email,
+      });
+    } catch (error) {
+      console.error("Error notifying admins of trusted member application:", error);
     }
   }
 

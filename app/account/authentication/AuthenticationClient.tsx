@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -13,60 +13,74 @@ import { createClient } from "@/utils/supabase/client";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
+import { useSearchParams, useRouter } from "next/navigation";
+import { refreshUser } from "@/utils/auth/auth-context";
 
-export default function AuthenticationClient() {
+function AuthenticationContent() {
   const { user } = useAuth(); // Use centralized auth hook
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [isConnecting, setIsConnecting] = useState(false);
   const [isGoogleConnected, setIsGoogleConnected] = useState(false);
   const [linkedGoogleEmail, setLinkedGoogleEmail] = useState<string | null>(
     null,
   );
   const supabase = createClient();
+
+  // Unified function to check connection status using the most reliable source
+  const checkGoogleConnection = async () => {
+    if (!user) return;
+    
+    try {
+      const { data: identitiesData, error } = await supabase.auth.getUserIdentities();
+      
+      if (error) {
+        console.error("Error fetching identities:", error);
+        return;
+      }
+
+      const identities = identitiesData?.identities || [];
+      const googleIdentity = identities.find(
+        (identity) => identity.provider === "google",
+      );
+
+      if (googleIdentity) {
+        setIsGoogleConnected(true);
+        const email = googleIdentity.identity_data?.email;
+        setLinkedGoogleEmail(typeof email === "string" ? email : null);
+      } else {
+        setIsGoogleConnected(false);
+        setLinkedGoogleEmail(null);
+      }
+    } catch (err) {
+      console.error("Check connection exception:", err);
+    }
+  };
+
+  useEffect(() => {
+    const error = searchParams.get("error");
+    const success = searchParams.get("success");
+
+    if (error === "linking_failed") {
+      toast.error("Failed to link Google account. It may already be connected to another account.");
+      router.replace("/account/authentication");
+    } else if (success === "linked") {
+      toast.success("Google account connected successfully!");
+      // Force a re-check after successful link
+      checkGoogleConnection();
+      router.replace("/account/authentication");
+    }
+  }, [searchParams, router]);
   
   useEffect(() => {
     if (user) {
       checkGoogleConnection();
-    }
-  }, [user]); // Changed dependency from [] to [user]
-  
-  const checkGoogleConnection = () => {
-    if (!user?.identities) {
-      setIsGoogleConnected(false);
-      return;
-    }
-
-    const googleIdentity = user.identities.find(
-      (identity) => identity.provider === "google",
-    );
-    if (googleIdentity) {
-      setIsGoogleConnected(true);
-      // Supabase stores provider-specific data in identity_data
-      // For Google, this typically includes an 'email' field.
-      const email = googleIdentity.identity_data?.email;
-      if (typeof email === "string") {
-        setLinkedGoogleEmail(email);
-      } else {
-        // Fallback or further investigation needed if email isn't directly available
-        // This might happen if the identity_data is structured differently or email is missing
-        console.warn("Google identity found, but email not in identity_data.email. Attempting to use user.email if it matches provider.");
-        // As a fallback, if the primary user email is from google, we can assume it.
-        // This is less direct but can be a placeholder.
-        // A more robust solution might involve calling getUserIdentities() for richer data if needed.
-        if (user.email && googleIdentity.user_id === user.id) { // Check if this identity belongs to the current user
-           // Heuristic: if user.email exists and this identity is for this user, it might be the one.
-           // However, user.email is the primary email, not necessarily the Google linked one if they differ.
-           // For now, we'll prefer the direct identity_data.email.
-           setLinkedGoogleEmail(null); // Or set to user.email if logic dictates
-        } else {
-          setLinkedGoogleEmail(null);
-        }
-      }
     } else {
       setIsGoogleConnected(false);
       setLinkedGoogleEmail(null);
     }
-  };
-
+  }, [user]); 
+  
   const handleGoogleLink = async () => {
     setIsConnecting(true);
     try {
@@ -77,6 +91,7 @@ export default function AuthenticationClient() {
           queryParams: {
             access_type: "offline",
             prompt: "consent",
+            login_hint: user?.email || "",
           },
         },
       });
@@ -106,20 +121,24 @@ export default function AuthenticationClient() {
       if (!identitiesData || !identitiesData.identities) {
         throw new Error("Could not retrieve user identities.");
       }
-      
-      if (identitiesData.identities.length < 2) {
-        toast.error("Cannot disconnect the last linked identity. You need at least two identities (e.g., email and Google) to unlink one.");
-        setIsConnecting(false);
-        return;
-      }
 
-      const googleIdentity = identitiesData.identities.find(
+      const identities = identitiesData.identities;
+      const googleIdentity = identities.find(
         (identity) => identity.provider === "google",
       );
 
       if (!googleIdentity) {
         toast.error("Google account not found or already disconnected.");
-        setIsGoogleConnected(false); // Correct the state if it's desynced
+        setIsGoogleConnected(false);
+        setIsConnecting(false);
+        return;
+      }
+
+      // Instead of just checking length, make sure they have at least one other login method
+      const otherIdentities = identities.filter(id => id.id !== googleIdentity.id);
+      
+      if (otherIdentities.length === 0) {
+        toast.error("Cannot disconnect your only sign-in method. Please set a password or connect another account first.");
         setIsConnecting(false);
         return;
       }
@@ -129,11 +148,12 @@ export default function AuthenticationClient() {
 
       if (unlinkError) throw unlinkError;
 
+      // Force refresh the user cache so the local UI reflects the disconnection
+      await refreshUser(supabase);
+
       toast.success("Google account disconnected successfully.");
       setIsGoogleConnected(false);
       setLinkedGoogleEmail(null); // Clear the linked email
-      // Optionally, call checkGoogleConnection() again to be absolutely sure
-      // await checkGoogleConnection(); 
     } catch (error) {
       console.error("Error disconnecting Google account:", error);
       toast.error(
@@ -244,5 +264,13 @@ export default function AuthenticationClient() {
         </Card>
       </div>
     </motion.div>
+  );
+}
+
+export default function AuthenticationClient() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <AuthenticationContent />
+    </Suspense>
   );
 }

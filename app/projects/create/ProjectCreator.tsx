@@ -66,6 +66,9 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
     removeRole,
 
     updateRestrictToOrgDomains,
+
+    updateEnableVolunteerComments,
+    updateShowAttendeesPublicly,
   } = useEventForm();
 
   const router = useRouter();
@@ -372,7 +375,9 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
       verificationSettingsSchema.parse({
         verificationMethod: state.verificationMethod,
         requireLogin: state.requireLogin,
-        visibility: state.visibility
+        visibility: state.visibility,
+        enableVolunteerComments: state.enableVolunteerComments,
+        showAttendeesPublicly: state.showAttendeesPublicly,
       });
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -546,6 +551,8 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
             requireLogin={state.requireLogin}
             isOrganization={isOrganizationProject()}
             visibility={state.visibility}
+            enableVolunteerComments={state.enableVolunteerComments}
+            showAttendeesPublicly={state.showAttendeesPublicly}
             restrictToOrgDomains={state.restrictToOrgDomains}
             allowedEmailDomains={
               state.basicInfo.organizationId
@@ -570,6 +577,8 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
               }
               updateVisibility(value);
             }}
+            updateEnableVolunteerCommentsAction={updateEnableVolunteerComments}
+            updateShowAttendeesPubliclyAction={updateShowAttendeesPublicly}
             updateRestrictToOrgDomainsAction={updateRestrictToOrgDomains}
             errors={{
               verificationMethod: getFieldError("verificationMethod", verificationErrors)

@@ -11,6 +11,12 @@ interface PostHogProviderProps {
 
 export function PostHogProvider({ children }: PostHogProviderProps) {
   useEffect(() => {
+    // Skip PostHog for debugging signup issues if needed
+    if (window.location.pathname === '/signup' && window.location.search.includes('disable_analytics')) {
+      console.log("[PostHog] Disabled via URL param");
+      return;
+    }
+
     posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY || "", {
       api_host: "/ingest",
       ui_host: "https://us.posthog.com",

@@ -4,15 +4,16 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "next-themes";
 import { SpeedInsights } from "@vercel/speed-insights/next";
-import Navbar from "@/components/Navbar";
-import { Footer } from "@/components/Footer";
+import Navbar from "@/components/layout/Navbar";
+import { Footer } from "@/components/layout/Footer";
 import localFont from "next/font/local";
 import { PostHogProvider } from "./providers";
-import { ToasterTheme } from "@/components/ToasterTheme";
-import GlobalNotificationProvider from "@/components/GlobalNotificationProvider";
-import CalendarOAuthCallbackHandler from "@/components/CalendarOAuthCallbackHandler";
+import { ToasterTheme } from "@/components/theme/ToasterTheme";
+import { QueryMessageToast } from "@/components/shared/QueryMessageToast";
+import GlobalNotificationProvider from "@/components/providers/GlobalNotificationProvider";
+import CalendarOAuthCallbackHandler from "@/components/calendar/CalendarOAuthCallbackHandler";
 import { GeistMono } from 'geist/font/mono';
-import { AuthProvider } from "@/components/AuthProvider";
+import { AuthProvider } from "@/components/providers/AuthProvider";
 import { createClient } from "@/utils/supabase/server";
  
 export const metadata: Metadata = {
@@ -66,6 +67,7 @@ export default async function RootLayout({
                   <Navbar />
                   <main className="flex-1">{children}</main>
                   <ToasterTheme />
+                  <QueryMessageToast />
                   <Footer />
                   <SpeedInsights />
                   <CalendarOAuthCallbackHandler />

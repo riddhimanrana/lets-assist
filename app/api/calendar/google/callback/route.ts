@@ -122,17 +122,18 @@ export async function GET(request: Request) {
     const encryptedAccessToken = encrypt(tokens.access_token);
     const encryptedRefreshToken = encrypt(tokens.refresh_token);
 
-    // Check if user already has a connection
-    const { data: existingConnection } = await supabase
+    // Check if user already has a connection (active or inactive)
+    const { data: existingConnections } = await supabase
       .from("user_calendar_connections")
       .select("id")
       .eq("user_id", userId)
       .eq("provider", "google")
-      .eq("is_active", true)
-      .single();
+      .order("created_at", { ascending: false });
+
+    const existingConnection = existingConnections?.[0];
 
     if (existingConnection) {
-      // Update existing connection
+      // Update existing connection (and reactivate if it was inactive)
       const { error: updateError } = await supabase
         .from("user_calendar_connections")
         .update({
@@ -144,6 +145,16 @@ export async function GET(request: Request) {
           is_active: true,
         })
         .eq("id", existingConnection.id);
+
+      // Clean up any other duplicate connections if they exist
+      if (existingConnections && existingConnections.length > 1) {
+        await supabase
+          .from("user_calendar_connections")
+          .delete()
+          .eq("user_id", userId)
+          .eq("provider", "google")
+          .neq("id", existingConnection.id);
+      }
 
       if (updateError) {
         console.error("Failed to update calendar connection:", updateError);

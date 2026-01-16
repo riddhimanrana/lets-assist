@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Search, Filter, X } from "lucide-react";
+import { Search, Filter, MessageSquareText } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -22,11 +22,13 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import {
-  HoverCard,
-  HoverCardContent,
-  HoverCardTrigger,
-} from "@/components/ui/hover-card";
-import { NoAvatar } from "@/components/NoAvatar";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { NoAvatar } from "@/components/shared/NoAvatar";
+import { ProfileHoverCard } from "@/components/shared/ProfileHoverCard";
 import { format } from "date-fns";
 
 interface FeedbackItem {
@@ -36,6 +38,7 @@ interface FeedbackItem {
   feedback: string;
   created_at: string;
   email: string;
+  page_path?: string | null;
   profiles?: {
     full_name: string | null;
     avatar_url?: string | null;
@@ -72,7 +75,7 @@ export function FeedbackTab({ feedback, onDelete }: FeedbackTabProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="relative w-full sm:w-72">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
@@ -82,99 +85,141 @@ export function FeedbackTab({ feedback, onDelete }: FeedbackTabProps) {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        <Select value={typeFilter} onValueChange={setTypeFilter}>
-          <SelectTrigger className="w-[180px]">
-            <Filter className="mr-2 h-4 w-4" />
-            <SelectValue placeholder="Filter by type" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Types</SelectItem>
-            <SelectItem value="issue">Issues</SelectItem>
-            <SelectItem value="idea">Ideas</SelectItem>
-            <SelectItem value="other">Other</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+          <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <SelectTrigger className="w-full sm:w-[180px]">
+              <Filter className="mr-2 h-4 w-4" />
+              <SelectValue placeholder="Filter by type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              <SelectItem value="issue">Issues</SelectItem>
+              <SelectItem value="idea">Ideas</SelectItem>
+              <SelectItem value="other">Other</SelectItem>
+            </SelectContent>
+          </Select>
+          <div className="text-xs text-muted-foreground sm:text-sm">
+            {filteredFeedback.length} results
+          </div>
+        </div>
       </div>
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <div className="space-y-4">
+          {filteredFeedback.map((item) => (
+            <Card key={item.id} className="group">
+              <CardContent className="p-4 sm:p-5">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant={item.section === 'issue' ? 'destructive' : 'secondary'}>
+                        {item.section}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">
+                        {format(new Date(item.created_at), 'MMM d, yyyy')}
+                      </span>
+                      {item.page_path && (
+                        <span className="text-xs text-muted-foreground truncate max-w-[180px]">
+                          {item.page_path}
+                        </span>
+                      )}
+                    </div>
+                    <div>
+                      <h3 className="text-base font-semibold leading-tight">{item.title}</h3>
+                      <p
+                        className="mt-2 text-sm text-muted-foreground line-clamp-3 cursor-pointer transition-colors group-hover:text-foreground"
+                        onClick={() => setSelectedFeedback(item)}
+                      >
+                        {item.feedback}
+                      </p>
+                    </div>
+                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
+                        <MessageSquareText className="h-4 w-4" />
+                        <span className="sr-only">Feedback actions</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => setSelectedFeedback(item)}>
+                        View details
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => handleDelete(item.id)}
+                        className="text-destructive focus:text-destructive"
+                      >
+                        Dismiss feedback
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {filteredFeedback.map((item) => (
-          <Card key={item.id} className="flex flex-col h-full">
-            <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
-              <Badge variant={item.section === 'issue' ? 'destructive' : 'secondary'}>
-                {item.section}
-              </Badge>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                onClick={() => handleDelete(item.id)}
-                title="Dismiss Feedback"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </CardHeader>
-            <CardContent className="flex-1 space-y-4">
-              <div>
-                <h3 className="font-semibold truncate" title={item.title}>{item.title}</h3>
-                <p 
-                  className="text-sm text-muted-foreground mt-1 line-clamp-3 cursor-pointer hover:text-foreground transition-colors"
-                  onClick={() => setSelectedFeedback(item)}
-                >
-                  {item.feedback}
-                </p>
-              </div>
-              
-              <div className="flex items-center justify-between pt-4 mt-auto border-t">
-                <HoverCard>
-                  <HoverCardTrigger asChild>
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t pt-4">
+                  <ProfileHoverCard
+                    username={item.profiles?.username || "unknown"}
+                    fullName={item.profiles?.full_name || item.email}
+                    avatarUrl={item.profiles?.avatar_url || undefined}
+                  >
                     <div className="flex items-center gap-2 cursor-pointer">
                       {item.profiles?.avatar_url ? (
-                        <Avatar className="h-6 w-6">
+                        <Avatar className="h-7 w-7">
                           <AvatarImage src={item.profiles.avatar_url} />
                           <AvatarFallback>{item.profiles.full_name?.[0] || 'U'}</AvatarFallback>
                         </Avatar>
                       ) : (
-                        <NoAvatar fullName={item.profiles?.full_name || item.email} className="h-6 w-6 rounded-full bg-muted flex items-center justify-center text-[10px]" />
+                        <NoAvatar fullName={item.profiles?.full_name || item.email} className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-[10px]" />
                       )}
-                      <span className="text-xs text-muted-foreground truncate max-w-[100px]">
+                      <span className="text-xs text-muted-foreground truncate max-w-[140px]">
                         {item.profiles?.full_name || item.email}
                       </span>
                     </div>
-                  </HoverCardTrigger>
-                  <HoverCardContent className="w-80">
-                    <div className="flex justify-between space-x-4">
-                      {item.profiles?.avatar_url ? (
-                        <Avatar>
-                          <AvatarImage src={item.profiles.avatar_url} />
-                          <AvatarFallback>{item.profiles.full_name?.[0]}</AvatarFallback>
-                        </Avatar>
-                      ) : (
-                        <NoAvatar fullName={item.profiles?.full_name || item.email} className="h-10 w-10 rounded-full bg-muted flex items-center justify-center" />
-                      )}
-                      <div className="space-y-1">
-                        <h4 className="text-sm font-semibold">{item.profiles?.full_name || 'Unknown User'}</h4>
-                        <p className="text-sm text-muted-foreground">
-                          {item.email}
-                        </p>
-                        {item.profiles?.username && (
-                          <p className="text-xs text-muted-foreground">@{item.profiles.username}</p>
-                        )}
-                      </div>
-                    </div>
-                  </HoverCardContent>
-                </HoverCard>
-                
-                <span className="text-xs text-muted-foreground">
-                  {format(new Date(item.created_at), 'MMM d, yyyy')}
+                  </ProfileHoverCard>
+
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setSelectedFeedback(item)}
+                  >
+                    Review
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <Card className="h-fit">
+          <CardContent className="space-y-4 p-4 sm:p-5">
+            <div>
+              <p className="text-xs uppercase text-muted-foreground">Feedback summary</p>
+              <p className="text-xl font-semibold">{filteredFeedback.length}</p>
+              <p className="text-xs text-muted-foreground">Matching items</p>
+            </div>
+            <div className="grid gap-3 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Issues</span>
+                <span className="font-medium">
+                  {filteredFeedback.filter(item => item.section === 'issue').length}
                 </span>
               </div>
-            </CardContent>
-          </Card>
-        ))}
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Ideas</span>
+                <span className="font-medium">
+                  {filteredFeedback.filter(item => item.section === 'idea').length}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Other</span>
+                <span className="font-medium">
+                  {filteredFeedback.filter(item => item.section === 'other').length}
+                </span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <Dialog open={!!selectedFeedback} onOpenChange={(open) => !open && setSelectedFeedback(null)}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>{selectedFeedback?.title}</DialogTitle>
             <DialogDescription>
@@ -185,6 +230,11 @@ export function FeedbackTab({ feedback, onDelete }: FeedbackTabProps) {
             <Badge variant={selectedFeedback?.section === 'issue' ? 'destructive' : 'secondary'}>
               {selectedFeedback?.section}
             </Badge>
+            {selectedFeedback?.page_path && (
+              <p className="text-xs text-muted-foreground">
+                Page: <span className="font-mono">{selectedFeedback.page_path}</span>
+              </p>
+            )}
             <p className="text-sm leading-relaxed whitespace-pre-wrap">
               {selectedFeedback?.feedback}
             </p>
