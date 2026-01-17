@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { ImageResponse } from "next/og";
+import { getServiceRoleClient } from "@/utils/supabase/service-role";
 
 export const runtime = "nodejs";
 
@@ -17,6 +18,16 @@ type OgFont = {
   data: ArrayBuffer;
   weight?: OgFontWeight;
   style?: "normal" | "italic" | "oblique";
+};
+
+type ProfileRecord = {
+  id: string;
+  username: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  created_at: string | null;
+  profile_visibility?: string | null;
+  trusted_member?: boolean | null;
 };
 
 function getBaseUrl() {
@@ -48,8 +59,18 @@ function normalizeUrl(url: string | null | undefined, baseUrl: string) {
   return `${baseUrl}/${url}`;
 }
 
-function cleanText(text: string) {
-  return text.replace(/<[^>]*>?/gm, "").replace(/\s+/g, " ").trim();
+function formatMonthYear(dateInput?: string | null) {
+  if (!dateInput) return null;
+  const date = new Date(dateInput);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+}
+
+function getInitials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "LA";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
 }
 
 async function loadFont(fileName: string) {
@@ -71,34 +92,25 @@ async function loadFont(fileName: string) {
   }
 }
 
-// Fetch project data directly using Supabase API
-async function getProjectData(projectId: string) {
+async function getProfileData(username: string) {
   try {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const supabase = getServiceRoleClient();
+    const { data, error } = await supabase
+      .from("profiles")
+      .select(
+        "id,username,full_name,avatar_url,created_at,profile_visibility,trusted_member",
+      )
+      .eq("username", username)
+      .maybeSingle<ProfileRecord>();
 
-    if (!supabaseUrl || !supabaseKey) {
+    if (error) {
+      console.error("Error fetching profile for OG image:", error);
       return null;
     }
 
-    const response = await fetch(
-      `${supabaseUrl}/rest/v1/projects?id=eq.${projectId}&select=id,title,description,location,cover_image_url,organization:organizations(name,logo_url)`,
-      {
-        headers: {
-          apikey: supabaseKey,
-          Authorization: `Bearer ${supabaseKey}`,
-        },
-      },
-    );
-
-    if (!response.ok) {
-      return null;
-    }
-
-    const data = await response.json();
-    return data?.[0] || null;
+    return data ?? null;
   } catch (error) {
-    console.error("Error fetching project for OG image:", error);
+    console.error("Error fetching profile for OG image:", error);
     return null;
   }
 }
@@ -107,39 +119,30 @@ export default async function Image({
   params,
   searchParams: _searchParams,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{ username: string }>;
   searchParams?: { theme?: string };
 }) {
-  const { id } = await params;
-  const project = await getProjectData(id);
+  const { username } = await params;
+  const profile = await getProfileData(username);
+
+  const visibility = (profile?.profile_visibility ?? "public")
+    .toString()
+    .trim()
+    .toLowerCase();
+  const isPublicProfile = Boolean(profile) && visibility === "public";
   const baseUrl = getBaseUrl();
-
-  const title = project?.title ?? "Volunteer Project";
-  const organizationName = project?.organization?.name ?? "Let's Assist";
-  const description =
-    project?.description ?? "Make an impact with your time and talent.";
-  const location = project?.location ?? "";
-
-  const trimmedTitle = title.length > 64 ? `${title.substring(0, 61)}…` : title;
-  const trimmedOrg =
-    organizationName.length > 36
-      ? `${organizationName.substring(0, 33)}…`
-      : organizationName;
-  const cleanedDescription = cleanText(description ?? "");
-  const trimmedDescription =
-    cleanedDescription.length > 140
-      ? `${cleanedDescription.substring(0, 137)}…`
-      : cleanedDescription;
-
-  const coverImageUrl = normalizeUrl(project?.cover_image_url, baseUrl);
-  const organizationLogoUrl = normalizeUrl(
-    project?.organization?.logo_url,
-    baseUrl,
-  );
+  const displayName = isPublicProfile
+    ? profile?.full_name || profile?.username || "Volunteer"
+    : "Profile unavailable";
+  const handle = isPublicProfile && profile?.username
+    ? `@${profile.username}`
+    : "lets-assist.com";
+  const joinedLabel = isPublicProfile ? formatMonthYear(profile?.created_at) : null;
+  const avatarUrl = isPublicProfile ? normalizeUrl(profile?.avatar_url, baseUrl) : null;
   const fallbackLogoUrl = `${baseUrl}/logo.png`;
-  const coverImageSrc = coverImageUrl ?? undefined;
-  const logoSrc = fallbackLogoUrl;
-  const hostLogoSrc = organizationLogoUrl ?? logoSrc;
+  const avatarSrc = avatarUrl ?? undefined;
+  const initials = getInitials(displayName);
+
   const [interRegular, interBold] = await Promise.all([
     loadFont("Inter-Regular.ttf"),
     loadFont("Inter-Bold.ttf"),
@@ -177,46 +180,33 @@ export default async function Image({
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-            {logoSrc ? (
+            {fallbackLogoUrl ? (
               <img
-                src={logoSrc}
+                src={fallbackLogoUrl}
                 alt="Let's Assist"
                 style={{ width: "42px", height: "42px", objectFit: "contain" }}
               />
             ) : null}
             <div style={{ fontSize: "30px", fontWeight: 700, display: "flex" }}>
-              Let's Assist
+              Let&apos;s Assist
             </div>
           </div>
 
-          <div style={{ fontSize: "50px", fontWeight: 700, lineHeight: 1.1, display: "flex" }}>
-            {trimmedTitle}
+          <div
+            style={{
+              fontSize: "54px",
+              fontWeight: 700,
+              lineHeight: 1.1,
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
+            {displayName}
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            {hostLogoSrc ? (
-              <div
-                style={{
-                  width: "28px",
-                  height: "28px",
-                  borderRadius: "999px",
-                  border: `1px solid ${palette.border}`,
-                  backgroundColor: palette.surface,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  overflow: "hidden",
-                }}
-              >
-                <img
-                  src={hostLogoSrc}
-                  alt=""
-                  style={{ width: "20px", height: "20px", objectFit: "contain" }}
-                />
-              </div>
-            ) : null}
-            <div style={{ fontSize: "20px", color: palette.mutedText, display: "flex" }}>
-              Hosted by {trimmedOrg}
+          <div style={{ display: "flex", alignItems: "center" }}>
+            <div style={{ fontSize: "22px", color: palette.mutedText, display: "flex" }}>
+              {handle}
             </div>
           </div>
 
@@ -225,14 +215,16 @@ export default async function Image({
               fontSize: "22px",
               color: palette.mutedText,
               lineHeight: 1.4,
-              maxWidth: "680px",
+              maxWidth: "640px",
               display: "flex",
             }}
           >
-            {trimmedDescription}
+            {isPublicProfile
+              ? "Volunteer profile on Let’s Assist."
+              : "This profile is private or unavailable."}
           </div>
 
-              {location ? (
+          {joinedLabel ? (
             <div
               style={{
                 fontSize: "18px",
@@ -245,15 +237,15 @@ export default async function Image({
                 display: "flex",
               }}
             >
-              {location}
+              Joined {joinedLabel}
             </div>
           ) : null}
         </div>
 
         <div
           style={{
-            width: "380px",
-            height: "380px",
+            width: "360px",
+            height: "360px",
             borderRadius: "24px",
             backgroundColor: palette.surface,
             border: `1px solid ${palette.border}`,
@@ -263,47 +255,42 @@ export default async function Image({
             overflow: "hidden",
           }}
         >
-          {coverImageSrc ? (
+          {avatarSrc ? (
             <div
               style={{
-                width: "100%",
-                height: "100%",
-                padding: "18px",
+                width: "220px",
+                height: "220px",
+                borderRadius: "999px",
+                overflow: "hidden",
+                border: `1px solid ${palette.border}`,
+                backgroundColor: "#fff",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                boxSizing: "border-box",
               }}
             >
               <img
-                src={coverImageSrc}
-                alt={title}
-                style={{ width: "100%", height: "100%", objectFit: "contain" }}
+                src={avatarSrc}
+                alt={displayName}
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
               />
             </div>
-          ) : organizationLogoUrl ? (
-             /* Using organization logo here as large fallback if cover is missing */
-            <img
-              src={organizationLogoUrl}
-              alt={organizationName}
-              style={{ width: "180px", height: "180px", objectFit: "contain" }}
-            />
           ) : (
             <div
               style={{
-                width: "160px",
-                height: "160px",
-                borderRadius: "28px",
+                width: "200px",
+                height: "200px",
+                borderRadius: "999px",
                 backgroundColor: palette.accent,
                 color: palette.accentText,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                fontSize: "48px",
+                fontSize: "64px",
                 fontWeight: 700,
               }}
             >
-              LA
+              {initials}
             </div>
           )}
         </div>

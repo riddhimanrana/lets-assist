@@ -7,13 +7,11 @@ import { Badge } from "@/components/ui/badge";
 import { format, parseISO, differenceInMinutes, isBefore } from "date-fns"; // Added parseISO, differenceInMinutes, isBefore
 import { notFound } from "next/navigation";
 import { NoAvatar } from "@/components/shared/NoAvatar";
-import { CalendarIcon, Calendar, MapPin, BadgeCheck, Users, Clock, Award, ExternalLink, MoreVertical, Flag } from "lucide-react";
+import { CalendarIcon, Calendar, MapPin, BadgeCheck, Users, Clock, MoreVertical, Flag } from "lucide-react";
 import Link from "next/link";
 import { Shield, UserRoundCog, UserRound } from "lucide-react";
 import { ProjectStatusBadge } from "@/components/ui/status-badge";
-import { Progress } from "@/components/ui/progress";
 import type { Metadata } from "next";
-import Image from "next/image";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { isTrustedForDisplay } from "@/utils/trust";
 import { stripHtml } from "@/lib/utils";
@@ -35,22 +33,6 @@ interface Profile {
   volunteer_hours?: number;
   verified_hours?: number;
   trusted_member?: boolean;
-}
-
-interface Certificate {
-  id: string;
-  user_id: string;
-  title: string;
-  issuer: string;
-  created_at: string; // This is likely 'created_at' from dashboard context
-  event_start: string; // Added: Assuming this exists in your DB table
-  event_end: string;   // Added: Assuming this exists in your DB table
-  image_url?: string;
-  verification_url?: string;
-  description?: string;
-  // Add other fields from dashboard's Certificate if they are selected and needed
-  project_title?: string; // From dashboard, might be same as title
-  organization_name?: string; // From dashboard, might be same as issuer
 }
 
 interface Project {
@@ -100,9 +82,55 @@ export async function generateMetadata(
     .eq("username", username)
     .single<Profile>();
 
+  const baseUrl = new URL(
+    process.env.NEXT_PUBLIC_SITE_URL ??
+      (process.env.VERCEL_URL
+        ? `https://${process.env.VERCEL_URL}`
+        : "http://localhost:3000"),
+  );
+  const profileUrl = new URL(`/profile/${username}`, baseUrl);
+  const ogImageUrl = new URL(
+    `/profile/${username}/opengraph-image`,
+    baseUrl,
+  );
+  const displayName = profile?.full_name || username;
+  const isPublic = (profile as { profile_visibility?: string | null })
+    ?.profile_visibility
+    ? (profile as { profile_visibility?: string | null }).profile_visibility ===
+      "public"
+    : false;
+  const description = isPublic
+    ? `Profile page for ${displayName}`
+    : "Profile on Let's Assist.";
+
   return {
-    title: `${profile?.full_name} (${username})` || username,
-    description: `Profile page for ${username}`,
+    title: `${displayName} (${username})` || username,
+    description,
+    metadataBase: baseUrl,
+    alternates: {
+      canonical: profileUrl,
+    },
+    openGraph: {
+      title: `${displayName} (${username})` || username,
+      description,
+      type: "profile",
+      url: profileUrl,
+      siteName: "Let's Assist",
+      images: [
+        {
+          url: ogImageUrl,
+          width: 1200,
+          height: 630,
+          alt: `${displayName} — Let's Assist`,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${displayName} (${username})` || username,
+      description,
+      images: [ogImageUrl],
+    },
   };
 }
 
@@ -282,13 +310,13 @@ function formatHours(hours: number): string {
 }
 
   // Transform the data to match the expected structure
-  const formattedOrganizations: OrganizationMembership[] = userOrganizations?.map((item: any) => ({
-    role: item.role,
-    organizations: item.organizations
-  })) || [];
+  const formattedOrganizations: OrganizationMembership[] =
+    (userOrganizations || []).map((item: OrganizationResponse) => ({
+      role: item.role,
+      organizations: item.organizations,
+    }));
 
   // Stats calculation
-  const upcomingCreatedProjects = createdProjects?.filter(p => p.status === "upcoming").length || 0;
   const completedCreatedProjects = createdProjects?.filter(p => p.status === "completed").length || 0;
   const totalCreatedProjects = createdProjects?.length || 0;
   
