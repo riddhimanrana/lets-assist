@@ -95,7 +95,7 @@ function formatBatchTitle(baseTitle: string, count: number) {
 }
 
 function buildTrustedMemberCopy(count: number, latestLabel: string, windowMinutes: number) {
-  const title = formatBatchTitle("✨ New trusted member applications", count);
+  const title = formatBatchTitle("New trusted member applications", count);
   const body =
     count > 1
       ? `${count} new trusted member applications in the last ${windowMinutes} minutes. Latest: ${latestLabel}.`
@@ -116,7 +116,7 @@ function buildReportCopy(
   priority: string
 ) {
   const isHighPriority = priority === "high" || priority === "critical";
-  const baseTitle = isHighPriority ? "🚨 High-priority user reports" : "📋 New user reports";
+  const baseTitle = isHighPriority ? "High-priority user reports" : "New user reports";
   const body =
     count > 1
       ? `${count} ${isHighPriority ? "high-priority " : ""}reports in the last ${windowMinutes} minutes. Latest: ${latestLabel}.`
@@ -137,7 +137,7 @@ function buildFlaggedContentCopy(
   confidenceScore?: number
 ) {
   const highConfidence = typeof confidenceScore === "number" && confidenceScore >= 0.8;
-  const baseTitle = highConfidence ? "🚨 High-confidence content flags" : "🚨 New content flags";
+  const baseTitle = highConfidence ? "High-confidence content flags" : "New content flags";
   const body =
     count > 1
       ? `${count} content flags in the last ${windowMinutes} minutes. Latest: ${latestLabel}.`
