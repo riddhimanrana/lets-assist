@@ -17,7 +17,7 @@ type OgFont = {
   name: string;
   data: ArrayBuffer;
   weight?: OgFontWeight;
-  style?: "normal" | "italic" | "oblique";
+  style?: "normal" | "italic";
 };
 
 type ProfileRecord = {
@@ -184,6 +184,8 @@ export default async function Image({
               <img
                 src={fallbackLogoUrl}
                 alt="Let's Assist"
+                width={42}
+                height={42}
                 style={{ width: "42px", height: "42px", objectFit: "contain" }}
               />
             ) : null}
@@ -272,6 +274,8 @@ export default async function Image({
               <img
                 src={avatarSrc}
                 alt={displayName}
+                width={220}
+                height={220}
                 style={{ width: "100%", height: "100%", objectFit: "cover" }}
               />
             </div>

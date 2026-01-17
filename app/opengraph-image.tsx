@@ -16,7 +16,7 @@ type OgFont = {
   name: string;
   data: ArrayBuffer;
   weight?: OgFontWeight;
-  style?: "normal" | "italic" | "oblique";
+  style?: "normal" | "italic";
 };
 
 function getBaseUrl() {
@@ -109,6 +109,8 @@ export default async function Image({
               <img
                 src={logoSrc}
                 alt="Let's Assist"
+                width={42}
+                height={42}
                 style={{ width: "42px", height: "42px", objectFit: "contain" }}
               />
             ) : null}
@@ -152,6 +154,8 @@ export default async function Image({
             <img
               src={logoSrc}
               alt="Let's Assist logo"
+              width={180}
+              height={180}
               style={{ width: "180px", height: "180px", objectFit: "contain" }}
             />
           ) : (
