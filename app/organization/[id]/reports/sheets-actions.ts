@@ -63,7 +63,7 @@ export async function getSheetSyncStatus(
 ): Promise<SheetSyncStatus> {
   const access = await assertOrgAccess(organizationId);
   if (access.error || !access.userId) {
-    return { connected: false, error: access.error };
+    return { connected: false, error: access.error ?? undefined };
   }
 
   const connection = await getCalendarConnection(access.userId);
@@ -150,7 +150,7 @@ export async function createSheetSync(
 ): Promise<{ success: boolean; error?: string; sheetUrl?: string }> {
   const access = await assertOrgAccess(organizationId);
   if (access.error || !access.userId) {
-    return { success: false, error: access.error };
+    return { success: false, error: access.error ?? undefined };
   }
 
   if (access.role !== "admin") {
@@ -225,7 +225,7 @@ export async function syncSheetNow(
 ): Promise<{ success: boolean; error?: string }> {
   const access = await assertOrgAccess(organizationId);
   if (access.error || !access.userId) {
-    return { success: false, error: access.error };
+    return { success: false, error: access.error ?? undefined };
   }
 
   const serviceSupabase = getServiceRoleClient();
@@ -290,7 +290,7 @@ export async function updateSheetSyncSettings(
 ): Promise<{ success: boolean; error?: string }> {
   const access = await assertOrgAccess(organizationId);
   if (access.error || !access.userId) {
-    return { success: false, error: access.error };
+    return { success: false, error: access.error ?? undefined };
   }
 
   if (access.role !== "admin") {
@@ -321,7 +321,7 @@ export async function updateSheetSyncConfig(
 ): Promise<{ success: boolean; error?: string }> {
   const access = await assertOrgAccess(organizationId);
   if (access.error || !access.userId) {
-    return { success: false, error: access.error };
+    return { success: false, error: access.error ?? undefined };
   }
 
   if (access.role !== "admin") {

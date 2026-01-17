@@ -58,12 +58,12 @@ interface Organization {
 
 interface OrganizationMembership {
   role: 'admin' | 'staff' | 'member';
-  organizations: Organization;
+  organizations: Organization[];
 }
 
 interface OrganizationResponse {
   role: 'admin' | 'staff' | 'member';
-  organizations: Organization;
+  organizations: Organization[];
 }
 
 type Props = {
@@ -499,7 +499,10 @@ function formatHours(hours: number): string {
             
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {formattedOrganizations.map((membership: OrganizationMembership) => {
-          const org = membership.organizations;
+          const org = Array.isArray(membership.organizations)
+            ? membership.organizations[0]
+            : membership.organizations;
+          if (!org) return null;
           return (
             <Link href={`/organization/${org.username}`} key={org.id} className="relative block">
               {/* Gradient background behind the card */}

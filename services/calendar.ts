@@ -19,26 +19,6 @@ const GOOGLE_CALENDAR_API = "https://www.googleapis.com/calendar/v3";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GOOGLE_REVOKE_URL = "https://oauth2.googleapis.com/revoke";
 
-const GOOGLE_SHEETS_SCOPES = [
-  "https://www.googleapis.com/auth/spreadsheets",
-  "https://www.googleapis.com/auth/drive.file",
-];
-
-const normalizeScopes = (scopes?: string | null) =>
-  scopes?.split(" ").map((scope) => scope.trim()).filter(Boolean) ?? [];
-
-const hasRequiredScopes = (
-  scopes: string | null | undefined,
-  requiredScopes: string[]
-) => {
-  if (!requiredScopes.length) return true;
-  const scopeSet = new Set(normalizeScopes(scopes));
-  return requiredScopes.every((scope) => scopeSet.has(scope));
-};
-
-export const hasGoogleSheetsScopes = (scopes?: string | null) =>
-  hasRequiredScopes(scopes, GOOGLE_SHEETS_SCOPES);
-
 export const GOOGLE_SHEETS_SCOPES = [
   "https://www.googleapis.com/auth/spreadsheets",
   "https://www.googleapis.com/auth/drive.file",
@@ -724,16 +704,4 @@ export async function getGoogleAccessTokenForUser(
     .eq("id", connection.id);
 
   return refreshed.accessToken;
-}
-
-/**
- * Get a valid Google access token for Sheets integration with service-role support.
- */
-export async function getGoogleAccessTokenForSheetsForUser(
-  userId: string,
-  useServiceRole: boolean
-): Promise<string | null> {
-  return getGoogleAccessTokenForUser(userId, useServiceRole, {
-    requiredScopes: [...GOOGLE_SHEETS_SCOPES],
-  });
 }
