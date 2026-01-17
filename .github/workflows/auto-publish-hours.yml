@@ -2,7 +2,8 @@ name: Auto-Publish Hours
 
 on:
   schedule:
-    - cron: '*/30 * * * *'  # Every 30 minutes
+    - cron: '10 3 * * *'  # Daily at 03:10 UTC
+    - cron: '10 15 * * *' # Daily at 15:10 UTC (second pass for reliability)
 
 permissions:
   contents: read

@@ -92,6 +92,18 @@ async function loadFont(fileName: string) {
   }
 }
 
+async function getLogoDataUri(): Promise<string | null> {
+  try {
+    const logoPath = path.join(process.cwd(), "public", "logo.png");
+    const logoBuffer = await readFile(logoPath);
+    const base64 = logoBuffer.toString("base64");
+    return `data:image/png;base64,${base64}`;
+  } catch (error) {
+    console.warn("OG logo read failed:", error);
+    return null;
+  }
+}
+
 async function getProfileData(username: string) {
   try {
     const supabase = getServiceRoleClient();
@@ -130,7 +142,6 @@ export default async function Image({
     .trim()
     .toLowerCase();
   const isPublicProfile = Boolean(profile) && visibility === "public";
-  const baseUrl = getBaseUrl();
   const displayName = isPublicProfile
     ? profile?.full_name || profile?.username || "Volunteer"
     : "Profile unavailable";
@@ -138,15 +149,15 @@ export default async function Image({
     ? `@${profile.username}`
     : "lets-assist.com";
   const joinedLabel = isPublicProfile ? formatMonthYear(profile?.created_at) : null;
-  const avatarUrl = isPublicProfile ? normalizeUrl(profile?.avatar_url, baseUrl) : null;
-  const fallbackLogoUrl = `${baseUrl}/logo.png`;
-  const avatarSrc = avatarUrl ?? undefined;
+  const avatarUrl = isPublicProfile ? profile?.avatar_url : null;
   const initials = getInitials(displayName);
 
-  const [interRegular, interBold] = await Promise.all([
+  const [interRegular, interBold, fallbackLogoUrl] = await Promise.all([
     loadFont("Inter-Regular.ttf"),
     loadFont("Inter-Bold.ttf"),
+    getLogoDataUri(),
   ]);
+  const avatarSrc = avatarUrl ?? undefined;
   const fonts: OgFont[] = [];
   if (interRegular) {
     fonts.push({ name: "Inter", data: interRegular, weight: 400, style: "normal" });

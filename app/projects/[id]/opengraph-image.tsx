@@ -19,18 +19,6 @@ type OgFont = {
   style?: "normal" | "italic";
 };
 
-function getBaseUrl() {
-  if (process.env.NEXT_PUBLIC_SITE_URL) {
-    return process.env.NEXT_PUBLIC_SITE_URL;
-  }
-
-  if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}`;
-  }
-
-  return "http://localhost:3000";
-}
-
 const palette = {
   background: "hsl(0, 0%, 100%)",
   text: "hsl(240, 10%, 3.9%)",
@@ -40,13 +28,6 @@ const palette = {
   accent: "hsl(142.1, 76.2%, 36.3%)",
   accentText: "hsl(355.7, 100%, 97.3%)",
 };
-
-function normalizeUrl(url: string | null | undefined, baseUrl: string) {
-  if (!url) return null;
-  if (url.startsWith("http://") || url.startsWith("https://")) return url;
-  if (url.startsWith("/")) return `${baseUrl}${url}`;
-  return `${baseUrl}/${url}`;
-}
 
 function cleanText(text: string) {
   return text.replace(/<[^>]*>?/gm, "").replace(/\s+/g, " ").trim();
@@ -67,6 +48,18 @@ async function loadFont(fileName: string) {
     );
   } catch (error) {
     console.warn("OG font read failed:", error);
+    return null;
+  }
+}
+
+async function getLogoDataUri(): Promise<string | null> {
+  try {
+    const logoPath = path.join(process.cwd(), "public", "logo.png");
+    const logoBuffer = await readFile(logoPath);
+    const base64 = logoBuffer.toString("base64");
+    return `data:image/png;base64,${base64}`;
+  } catch (error) {
+    console.warn("OG logo read failed:", error);
     return null;
   }
 }
@@ -112,7 +105,6 @@ export default async function Image({
 }) {
   const { id } = await params;
   const project = await getProjectData(id);
-  const baseUrl = getBaseUrl();
 
   const title = project?.title ?? "Volunteer Project";
   const organizationName = project?.organization?.name ?? "Let's Assist";
@@ -131,19 +123,15 @@ export default async function Image({
       ? `${cleanedDescription.substring(0, 137)}…`
       : cleanedDescription;
 
-  const coverImageUrl = normalizeUrl(project?.cover_image_url, baseUrl);
-  const organizationLogoUrl = normalizeUrl(
-    project?.organization?.logo_url,
-    baseUrl,
-  );
-  const fallbackLogoUrl = `${baseUrl}/logo.png`;
-  const coverImageSrc = coverImageUrl ?? undefined;
-  const logoSrc = fallbackLogoUrl;
-  const hostLogoSrc = organizationLogoUrl ?? logoSrc;
-  const [interRegular, interBold] = await Promise.all([
+  const coverImageUrl = project?.cover_image_url;
+  const organizationLogoUrl = project?.organization?.logo_url;
+  const [interRegular, interBold, logoSrc] = await Promise.all([
     loadFont("Inter-Regular.ttf"),
     loadFont("Inter-Bold.ttf"),
+    getLogoDataUri(),
   ]);
+  const coverImageSrc = coverImageUrl ?? undefined;
+  const hostLogoSrc = organizationLogoUrl ?? logoSrc;
   const fonts: OgFont[] = [];
   if (interRegular) {
     fonts.push({ name: "Inter", data: interRegular, weight: 400, style: "normal" });

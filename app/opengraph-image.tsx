@@ -19,18 +19,6 @@ type OgFont = {
   style?: "normal" | "italic";
 };
 
-function getBaseUrl() {
-  if (process.env.NEXT_PUBLIC_SITE_URL) {
-    return process.env.NEXT_PUBLIC_SITE_URL;
-  }
-
-  if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}`;
-  }
-
-  return "http://localhost:3000";
-}
-
 const palette = {
   background: "hsl(0, 0%, 100%)",
   text: "hsl(240, 10%, 3.9%)",
@@ -60,18 +48,26 @@ async function loadFont(fileName: string) {
   }
 }
 
+async function getLogoDataUri(): Promise<string | null> {
+  try {
+    const logoPath = path.join(process.cwd(), "public", "logo.png");
+    const logoBuffer = await readFile(logoPath);
+    const base64 = logoBuffer.toString("base64");
+    return `data:image/png;base64,${base64}`;
+  } catch (error) {
+    console.warn("OG logo read failed:", error);
+    return null;
+  }
+}
+
 export default async function Image({
   searchParams: _searchParams,
 }: {
   searchParams?: { theme?: string };
 } = {}) {
-  const baseUrl = getBaseUrl();
-  const logoUrl = `${baseUrl}/logo.png`;
-  const logoSrc = logoUrl;
-  const [interRegular, interBold] = await Promise.all([
+  const [interRegular, interBold, logoSrc] = await Promise.all([
     loadFont("Inter-Regular.ttf"),
-    loadFont("Inter-Bold.ttf"),
-  ]);
+    loadFont("Inter-Bold.ttf"),    getLogoDataUri(),  ]);
   const fonts: OgFont[] = [];
   if (interRegular) {
     fonts.push({ name: "Inter", data: interRegular, weight: 400, style: "normal" });
