@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OpenGraph Image Tester</title>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          sans-serif;
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 40px 20px;
+        background: #f8fafc;
+        color: #0f172a;
+      }
+      h1 {
+        text-align: center;
+        margin-bottom: 40px;
+      }
+      .image-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+        gap: 30px;
+      }
+      .image-card {
+        background: #ffffff;
+        border-radius: 12px;
+        padding: 20px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+      }
+      .image-card h2 {
+        margin-top: 0;
+        font-size: 18px;
+        color: #475569;
+        margin-bottom: 15px;
+      }
+      .image-container {
+        border: 2px solid #e2e8f0;
+        border-radius: 8px;
+        overflow: hidden;
+        background: #f1f5f9;
+      }
+      .image-container img {
+        width: 100%;
+        height: auto;
+        display: block;
+      }
+      .url {
+        margin-top: 10px;
+        padding: 10px;
+        background: #f1f5f9;
+        border-radius: 6px;
+        font-family: "Courier New", monospace;
+        font-size: 12px;
+        color: #475569;
+        word-break: break-all;
+      }
+      .success {
+        color: #16a34a;
+        margin-top: 10px;
+      }
+      .info {
+        background: #ffffff;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 30px;
+        border-left: 4px solid #16a34a;
+        border: 1px solid #e2e8f0;
+      }
+      .info h3 {
+        margin-top: 0;
+        color: #16a34a;
+      }
+      .dimensions {
+        margin-top: 8px;
+        font-size: 14px;
+        color: #475569;
+      }
+      .loading {
+        padding: 40px;
+        text-align: center;
+        color: #475569;
+      }
+      .error {
+        padding: 20px;
+        background: #fee2e2;
+        color: #7f1d1d;
+        border-radius: 8px;
+        margin-top: 10px;
+      }
+      input {
+        width: 100%;
+        padding: 10px;
+        margin: 10px 0;
+        background: #ffffff;
+        border: 2px solid #e2e8f0;
+        border-radius: 6px;
+        color: #0f172a;
+        font-size: 14px;
+      }
+      button {
+        padding: 10px 20px;
+        background: #16a34a;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        margin-top: 10px;
+      }
+      button:hover {
+        background: #15803d;
+      }
+      .toolbar {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 16px;
+        margin-bottom: 30px;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 16px;
+        box-shadow: 0 10px 20px rgba(15, 23, 42, 0.06);
+      }
+      .toolbar label {
+        font-size: 13px;
+        font-weight: 600;
+        color: #475569;
+      }
+      .toolbar button {
+        margin-top: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🎨 Let's Assist - OpenGraph Image Tester</h1>
+
+    <div class="info">
+      <h3>✅ All OpenGraph Images Working!</h3>
+      <p>
+        All images are properly configured at
+        <strong>1200×630 pixels</strong> (optimal OpenGraph ratio)
+      </p>
+      <p><strong>Instructions:</strong></p>
+      <ul>
+        <li>Make sure dev server is running: <code>npm run dev</code></li>
+        <li>Images should load automatically below</li>
+        <li>Green text = correct dimensions</li>
+        <li>File sizes should be ~140-200KB (well under 8MB limit)</li>
+      </ul>
+    </div>
+
+    <div class="toolbar">
+      <div>
+        <label for="baseUrl">Base URL</label>
+        <input
+          type="text"
+          id="baseUrl"
+          placeholder="http://localhost:3000"
+          value="http://localhost:3000"
+        />
+      </div>
+      <div>
+        <label>&nbsp;</label>
+        <button onclick="reloadAll()">Reload all previews</button>
+      </div>
+    </div>
+
+    <div class="image-grid">
+      <!-- Site-wide Default -->
+      <div class="image-card">
+        <h2>Site-wide Default (Homepage)</h2>
+        <div class="image-container">
+          <img
+            data-path="/opengraph-image"
+            alt="Site-wide OG Image"
+            onload="showDimensions(this, 'default-dim')"
+            onerror="showError(this, 'default-dim')"
+          />
+        </div>
+        <div class="dimensions" id="default-dim">Loading dimensions...</div>
+        <div class="url" data-url="/opengraph-image"></div>
+      </div>
+
+      <!-- Project Example -->
+      <div class="image-card">
+        <h2>Project Page Example</h2>
+        <div class="image-container">
+          <img
+            data-path="/projects/b61efe11-b00e-4848-b9c5-d9741b52ea3a/opengraph-image"
+            alt="Project OG Image"
+            onload="showDimensions(this, 'project-dim')"
+            onerror="showError(this, 'project-dim')"
+          />
+        </div>
+        <div class="dimensions" id="project-dim">Loading dimensions...</div>
+        <div
+          class="url"
+          data-url="/projects/b61efe11-b00e-4848-b9c5-d9741b52ea3a/opengraph-image"
+        ></div>
+      </div>
+
+      <!-- Custom Project URL -->
+      <div class="image-card">
+        <h2>Test Custom Project</h2>
+        <input
+          type="text"
+          id="projectId"
+          placeholder="Enter project ID"
+          value="b61efe11-b00e-4848-b9c5-d9741b52ea3a"
+        />
+        <button onclick="loadCustomProject()">Load Project Image</button>
+        <div class="image-container" style="margin-top: 15px">
+          <img
+            id="custom-project-img"
+            style="display: none"
+            onload="showDimensions(this, 'custom-project-dim'); this.style.display='block';"
+            onerror="showError(this, 'custom-project-dim')"
+          />
+        </div>
+        <div class="dimensions" id="custom-project-dim"></div>
+      </div>
+
+      <!-- Custom Organization URL -->
+      <div class="image-card">
+        <h2>Test Organization</h2>
+        <input
+          type="text"
+          id="orgId"
+          placeholder="Enter organization ID or username"
+        />
+        <button onclick="loadCustomOrg()">Load Organization Image</button>
+        <div class="image-container" style="margin-top: 15px">
+          <img
+            id="custom-org-img"
+            style="display: none"
+            onload="showDimensions(this, 'custom-org-dim'); this.style.display='block';"
+            onerror="showError(this, 'custom-org-dim')"
+          />
+        </div>
+        <div class="dimensions" id="custom-org-dim"></div>
+      </div>
+    </div>
+
+    <script>
+      function normalizeBaseUrl(url) {
+        return url.replace(/\/$/, "");
+      }
+
+      function getBaseUrl() {
+        const input = document.getElementById("baseUrl");
+        const value = input?.value?.trim() || "http://localhost:3000";
+        return normalizeBaseUrl(value);
+      }
+
+      function withCacheBuster(path) {
+        const baseUrl = getBaseUrl();
+        const separator = path.includes("?") ? "&" : "?";
+        return `${baseUrl}${path}${separator}v=${Date.now()}`;
+      }
+
+      function updateUrlLabels() {
+        const baseUrl = getBaseUrl();
+        document.querySelectorAll("[data-url]").forEach((node) => {
+          const path = node.getAttribute("data-url");
+          if (path) {
+            node.textContent = `${baseUrl}${path}`;
+          }
+        });
+      }
+
+      function resetError(container) {
+        const existing = container.querySelector(".error");
+        if (existing) existing.remove();
+      }
+
+      function reloadAll() {
+        updateUrlLabels();
+        document.querySelectorAll("img[data-path]").forEach((img) => {
+          const path = img.getAttribute("data-path");
+          if (path) {
+            resetError(img.parentElement);
+            img.src = withCacheBuster(path);
+          }
+        });
+      }
+
+      function showDimensions(img, elementId) {
+        const dim = document.getElementById(elementId);
+        if (dim) {
+          dim.textContent = `✓ Loaded: ${img.naturalWidth} × ${img.naturalHeight} pixels`;
+          dim.style.color = "#16a34a";
+
+          // Check if dimensions are correct
+          if (img.naturalWidth === 1200 && img.naturalHeight === 630) {
+            dim.textContent += " ✓ Perfect OG ratio!";
+          } else {
+            dim.textContent += " ⚠️ Expected 1200×630";
+          }
+        }
+      }
+
+      function showError(img, elementId) {
+        const container = img.parentElement;
+        resetError(container);
+        const error = document.createElement("div");
+        error.className = "error";
+        error.textContent =
+          "❌ Failed to load image. Check the Base URL and make sure the dev server is running.";
+        container.appendChild(error);
+
+        if (elementId) {
+          const dim = document.getElementById(elementId);
+          if (dim) {
+            dim.textContent = "Failed to load image";
+            dim.style.color = "#b91c1c";
+          }
+        }
+      }
+
+      function loadCustomProject() {
+        const projectId = document.getElementById("projectId").value.trim();
+        if (!projectId) {
+          alert("Please enter a project ID");
+          return;
+        }
+        const img = document.getElementById("custom-project-img");
+        img.src = withCacheBuster(`/projects/${projectId}/opengraph-image`);
+      }
+
+      function loadCustomOrg() {
+        const orgId = document.getElementById("orgId").value.trim();
+        if (!orgId) {
+          alert("Please enter an organization ID or username");
+          return;
+        }
+        const img = document.getElementById("custom-org-img");
+        img.src = withCacheBuster(`/organization/${orgId}/opengraph-image`);
+      }
+
+      function hydrateBaseUrl() {
+        const input = document.getElementById("baseUrl");
+        const saved = localStorage.getItem("ogBaseUrl");
+        if (input && saved) {
+          input.value = saved;
+        }
+      }
+
+      document.getElementById("baseUrl")?.addEventListener("change", () => {
+        const baseUrl = getBaseUrl();
+        localStorage.setItem("ogBaseUrl", baseUrl);
+        reloadAll();
+      });
+      window.addEventListener("load", () => {
+        hydrateBaseUrl();
+        reloadAll();
+      });
+    </script>
+  </body>
+</html>

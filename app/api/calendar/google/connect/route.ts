@@ -11,6 +11,8 @@ export async function GET(request: Request) {
     const supabase = await createClient();
     const { searchParams } = new URL(request.url);
     const returnTo = searchParams.get("return_to");
+    const includeSheets = searchParams.get("scopes") === "sheets";
+    const forceConsent = searchParams.get("force") === "1";
 
     // Check if user is authenticated
     const {
@@ -54,9 +56,25 @@ export async function GET(request: Request) {
     googleAuthUrl.searchParams.set("client_id", clientId);
     googleAuthUrl.searchParams.set("redirect_uri", redirectUri); // Use exact URI from env
     googleAuthUrl.searchParams.set("response_type", "code");
-    googleAuthUrl.searchParams.set("scope", "https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/userinfo.email");
+    const scopes = [
+      "https://www.googleapis.com/auth/calendar",
+      "https://www.googleapis.com/auth/userinfo.email",
+    ];
+
+    if (includeSheets) {
+      scopes.push(
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive.file"
+      );
+    }
+
+    googleAuthUrl.searchParams.set("scope", scopes.join(" "));
     googleAuthUrl.searchParams.set("access_type", "offline");
-    googleAuthUrl.searchParams.set("prompt", "consent"); // Force consent to get refresh token
+    googleAuthUrl.searchParams.set("include_granted_scopes", "true");
+    googleAuthUrl.searchParams.set(
+      "prompt",
+      forceConsent ? "consent" : "consent"
+    ); // Force consent to get refresh token
     googleAuthUrl.searchParams.set("state", state);
 
     return NextResponse.json({

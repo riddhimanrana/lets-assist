@@ -11,6 +11,8 @@ export const calendarConnectionSchema = z.object({
   access_token: z.string(),
   refresh_token: z.string(),
   token_expires_at: z.string().datetime(),
+  granted_scopes: z.string().nullable().optional(),
+  granted_scopes_updated_at: z.string().datetime().nullable().optional(),
   calendar_email: z.string().email(),
   connected_at: z.string().datetime(),
   last_synced_at: z.string().datetime().nullable(),

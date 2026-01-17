@@ -87,13 +87,8 @@ export async function GET(request: Request) {
     }
 
     const tokens = await tokenResponse.json();
-
-    if (!tokens.refresh_token) {
-      console.error("No refresh token received");
-      return NextResponse.redirect(
-        `${process.env.NEXT_PUBLIC_SITE_URL}/account/calendar?error=no_refresh_token`
-      );
-    }
+    const grantedScopes = typeof tokens.scope === "string" ? tokens.scope : null;
+    const grantedScopesUpdatedAt = grantedScopes ? new Date().toISOString() : null;
 
     // Get user's email from Google
     const userInfoResponse = await fetch(
@@ -118,19 +113,27 @@ export async function GET(request: Request) {
     // Calculate token expiry
     const expiresAt = new Date(Date.now() + tokens.expires_in * 1000);
 
-    // Encrypt tokens before storing
-    const encryptedAccessToken = encrypt(tokens.access_token);
-    const encryptedRefreshToken = encrypt(tokens.refresh_token);
-
     // Check if user already has a connection (active or inactive)
     const { data: existingConnections } = await supabase
       .from("user_calendar_connections")
-      .select("id")
+      .select("id, refresh_token")
       .eq("user_id", userId)
       .eq("provider", "google")
       .order("created_at", { ascending: false });
 
     const existingConnection = existingConnections?.[0];
+
+    const encryptedAccessToken = encrypt(tokens.access_token);
+    const encryptedRefreshToken = tokens.refresh_token
+      ? encrypt(tokens.refresh_token)
+      : existingConnection?.refresh_token || null;
+
+    if (!encryptedRefreshToken) {
+      console.error("No refresh token available");
+      return NextResponse.redirect(
+        `${process.env.NEXT_PUBLIC_SITE_URL}/account/calendar?error=no_refresh_token`
+      );
+    }
 
     if (existingConnection) {
       // Update existing connection (and reactivate if it was inactive)
@@ -143,6 +146,8 @@ export async function GET(request: Request) {
           calendar_email: calendarEmail,
           connected_at: new Date().toISOString(),
           is_active: true,
+          granted_scopes: grantedScopes,
+          granted_scopes_updated_at: grantedScopesUpdatedAt,
         })
         .eq("id", existingConnection.id);
 
@@ -174,6 +179,8 @@ export async function GET(request: Request) {
           token_expires_at: expiresAt.toISOString(),
           calendar_email: calendarEmail,
           is_active: true,
+          granted_scopes: grantedScopes,
+          granted_scopes_updated_at: grantedScopesUpdatedAt,
           preferences: {
             reminder_minutes: 15,
             auto_sync_new_projects: false,

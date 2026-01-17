@@ -4,11 +4,7 @@ import { Metadata } from "next";
 import OrganizationHeader from "@/components/organization/OrganizationHeader";
 import OrganizationTabs from "@/components/organization/OrganizationTabs";
 import { Separator } from "@/components/ui/separator";
-import {
-  getAdminDashboardMetrics,
-  getTopVolunteers,
-  getOrgProjectsWithStats,
-} from "./admin/actions";
+import { getOrganizationReportData } from "./reports/actions";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -17,46 +13,83 @@ type Props = {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const supabase = await createClient();
-  
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://lets-assist.com";
+
   // Try to fetch by username first
   const { data: orgByUsername } = await supabase
     .from("organizations")
-    .select("name, description")
+    .select("id, name, description, username, logo_url")
     .eq("username", id)
     .single();
 
   // If not found by username, try by ID
-  const { data: orgById } = !orgByUsername 
+  const { data: orgById } = !orgByUsername
     ? await supabase
-      .from("organizations")
-      .select("name, description")
-      .eq("id", id)
-      .single()
+        .from("organizations")
+        .select("id, name, description, username, logo_url")
+        .eq("id", id)
+        .single()
     : { data: null };
-  
+
   const org = orgByUsername || orgById;
-  
+
   if (!org) {
     return {
       title: "Organization Not Found",
       description: "The requested organization could not be found.",
     };
   }
-  
+
+  const orgUrl = `${baseUrl}/organization/${org.username || org.id}`;
+  const description =
+    org.description ||
+    `${org.name} organization page - View volunteer opportunities and projects`;
+  const ogImageUrl = `${baseUrl}/organization/${org.username || org.id}/opengraph-image`;
+
   return {
     title: org.name,
-    description: org.description || `${org.name} organization page`,
+    description,
+    metadataBase: new URL(baseUrl),
+    openGraph: {
+      title: org.name,
+      description,
+      url: orgUrl,
+      siteName: "Let's Assist",
+      type: "profile",
+      images: [
+        {
+          url: ogImageUrl,
+          width: 1200,
+          height: 630,
+          alt: `${org.name} on Let's Assist`,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: org.name,
+      description,
+      images: [ogImageUrl],
+    },
+    alternates: {
+      canonical: orgUrl,
+    },
   };
 }
 
-export default async function OrganizationPage({ params }: Props): Promise<React.ReactElement> {
+export default async function OrganizationPage({
+  params,
+}: Props): Promise<React.ReactElement> {
   const { id } = await params;
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   // Check if ID is a username or UUID
-  const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
-  
+  const isUUID =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+
   // Try to fetch organization by username or ID depending on the format
   const { data: organization } = isUUID
     ? await supabase
@@ -69,7 +102,7 @@ export default async function OrganizationPage({ params }: Props): Promise<React
         .select("*, created_by, organization_members(user_id, role)")
         .eq("username", id)
         .single();
-  
+
   if (!organization) {
     notFound();
   }
@@ -78,38 +111,40 @@ export default async function OrganizationPage({ params }: Props): Promise<React
   if (isUUID && organization.username) {
     redirect(`/organization/${organization.username}`);
   }
-  
+
   // Determine the user's role in this organization
   let userRole = null;
   if (user) {
     const memberRecord = organization.organization_members.find(
-      (member: any) => member.user_id === user.id
+      (member: any) => member.user_id === user.id,
     );
     userRole = memberRecord?.role || null;
   }
 
   console.log("Fetching members for organization ID:", organization.id);
-  
+
   // FIXED: First fetch members from organization_members table
   const { data: membersData, error: membersError } = await supabase
     .from("organization_members")
-    .select(`
+    .select(
+      `
       id, 
       role, 
       joined_at,
       user_id,
       organization_id
-    `)
+    `,
+    )
     .eq("organization_id", organization.id)
     .order("role", { ascending: false });
-  
+
   if (membersError) {
     console.error("Error fetching organization members:", membersError);
   }
-  
+
   // Get the list of user IDs
-  const userIds = membersData?.map(member => member.user_id) || [];
-  
+  const userIds = membersData?.map((member) => member.user_id) || [];
+
   // No need to query profiles if there are no members
   let profilesData: any[] = [];
   if (userIds.length > 0) {
@@ -118,24 +153,29 @@ export default async function OrganizationPage({ params }: Props): Promise<React
       .from("profiles")
       .select("id, username, full_name, avatar_url")
       .in("id", userIds);
-      
+
     if (profilesError) {
       console.error("Error fetching member profiles:", profilesError);
     } else {
       profilesData = profiles || [];
     }
   }
-  
+
   // Combine the data
-  const formattedMembers = membersData?.map(member => {
-    const profile = profilesData.find(p => p.id === member.user_id) || null;
-    return {
-      ...member,
-      profiles: profile
-    };
-  }) || [];
-  
-  console.log("Members query result:", formattedMembers.length, "members found");
+  const formattedMembers =
+    membersData?.map((member) => {
+      const profile = profilesData.find((p) => p.id === member.user_id) || null;
+      return {
+        ...member,
+        profiles: profile,
+      };
+    }) || [];
+
+  console.log(
+    "Members query result:",
+    formattedMembers.length,
+    "members found",
+  );
 
   // Get organization projects
   const { data: projects } = await supabase
@@ -144,43 +184,33 @@ export default async function OrganizationPage({ params }: Props): Promise<React
     .eq("organization_id", organization.id)
     .order("created_at", { ascending: false });
 
-  // Fetch dashboard data if user is admin only
-  let dashboardData = undefined;
-  if (userRole === "admin") {
-    const [metrics, topVolunteers, projectsWithStats] = await Promise.all([
-      getAdminDashboardMetrics(organization.id),
-      getTopVolunteers(organization.id),
-      getOrgProjectsWithStats(organization.id),
-    ]);
-    
-    dashboardData = {
-      metrics,
-      topVolunteers,
-      projectsWithStats,
-    };
+  let reportSummary = null;
+  if (userRole === "admin" || userRole === "staff") {
+    const reportResult = await getOrganizationReportData(organization.id);
+    reportSummary = reportResult.data?.metrics ?? null;
   }
-  
+
   return (
     <div className="flex flex-col w-full">
-      <div className="w-full absolute bg-gradient-to-br from-primary/15 via-primary/5 to-background/0 min-h-72 before:content-[''] before:absolute before:inset-0 before:bg-gradient-to-b before:from-transparent before:to-background"/>
-      
+      <div className="w-full absolute bg-gradient-to-br from-primary/15 via-primary/5 to-background/0 min-h-72 before:content-[''] before:absolute before:inset-0 before:bg-gradient-to-b before:from-transparent before:to-background" />
+
       <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 pt-6 sm:pt-10">
-      <OrganizationHeader 
-        organization={organization} 
-        userRole={userRole}
-        memberCount={formattedMembers?.length || 0}
-      />
-      
-      <div className="mt-8 sm:mt-12 bg-card rounded-xl border border-border/60 shadow-sm p-4 sm:p-6 mb-8 min-h-[520px]">
-        <OrganizationTabs 
-        organization={organization}
-        members={formattedMembers}
-        projects={projects || []}
-        userRole={userRole}
-        currentUserId={user?.id}
-        dashboardData={dashboardData}
+        <OrganizationHeader
+          organization={organization}
+          userRole={userRole}
+          memberCount={formattedMembers?.length || 0}
         />
-      </div>
+
+        <div className="mt-8 sm:mt-12 bg-card rounded-xl border border-border/60 shadow-sm p-4 sm:p-6 mb-8 min-h-[520px]">
+          <OrganizationTabs
+            organization={organization}
+            members={formattedMembers}
+            projects={projects || []}
+            userRole={userRole}
+            currentUserId={user?.id}
+            reportSummary={reportSummary}
+          />
+        </div>
       </div>
     </div>
   );
