@@ -29,7 +29,7 @@ import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { ProjectStatusBadge } from "@/components/ui/status-badge";
 import { getProjectStatus } from "@/utils/project";
-import AdminDashboardClient from "@/app/organization/[id]/admin/DashboardClient";
+import ReportsTab from "@/app/organization/[id]/ReportsTab";
 
 interface OrganizationTabsProps {
   organization: any;
@@ -37,11 +37,12 @@ interface OrganizationTabsProps {
   projects: any[];
   userRole: string | null;
   currentUserId: string | undefined;
-  dashboardData?: {
-    metrics: any;
-    topVolunteers: any[];
-    projectsWithStats: any[];
-  };
+  reportSummary?: {
+    totalHours: number;
+    verifiedHours: number;
+    pendingHours: number;
+    attendanceHours: number;
+  } | null;
 }
 
 function LeaveOrganizationDialog({ 
@@ -133,7 +134,7 @@ export default function OrganizationTabs({
   projects,
   userRole,
   currentUserId,
-  dashboardData,
+  reportSummary,
 }: OrganizationTabsProps) {
   const [activeTab, setActiveTab] = useState("overview");
   const [mounted, setMounted] = useState(false);
@@ -159,6 +160,7 @@ export default function OrganizationTabs({
   const completedProjects = projects.filter(p => getProjectStatus(p) === "completed").length;
   const adminCount = members.filter(m => m.role === "admin").length;
   const staffCount = members.filter(m => m.role === "staff").length;
+  const canViewReports = userRole === "admin" || userRole === "staff";
 
   return (
     <Tabs 
@@ -189,13 +191,13 @@ export default function OrganizationTabs({
           <Folders className="h-4 w-4" />
           <span className="text-xs sm:text-sm">Projects</span>
         </TabsTrigger>
-        {userRole === "admin" && (
-          <TabsTrigger 
-            value="admin-dashboard" 
+        {canViewReports && (
+          <TabsTrigger
+            value="reports"
             className="flex items-center gap-2 data-[state=active]:text-foreground"
           >
             <BarChart3 className="h-4 w-4" />
-            <span className="text-xs sm:text-sm">Dashboard</span>
+            <span className="text-xs sm:text-sm">Reports</span>
           </TabsTrigger>
         )}
       </TabsList>
@@ -266,7 +268,9 @@ export default function OrganizationTabs({
                   <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">Members</p>
                 </div>
                 <div className="rounded-md border bg-muted/30 p-3 flex flex-col items-center justify-center">
-                  <p className="text-base sm:text-lg font-semibold leading-none">0</p>
+                  <p className="text-base sm:text-lg font-semibold leading-none">
+                    {reportSummary ? reportSummary.totalHours.toFixed(1) : "0.0"}
+                  </p>
                   <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">Hours</p>
                 </div>
                 <div className="rounded-md border bg-muted/30 p-3 flex flex-col items-center justify-center">
@@ -500,26 +504,13 @@ export default function OrganizationTabs({
         />
       </TabsContent>
 
-      {userRole === "admin" && (
-        <TabsContent value="admin-dashboard" className="space-y-4">
-          {dashboardData ? (
-            <AdminDashboardClient
-              organizationId={organization.id}
-              organizationName={organization.name}
-              metrics={dashboardData.metrics}
-              topVolunteers={dashboardData.topVolunteers}
-              projects={dashboardData.projectsWithStats}
-            />
-          ) : (
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex flex-col items-center justify-center py-8 text-center">
-                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground">Loading dashboard data...</p>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+      {canViewReports && (
+        <TabsContent value="reports">
+          <ReportsTab
+            organizationId={organization.id}
+            organizationName={organization.name}
+            userRole={userRole}
+          />
         </TabsContent>
       )}
     </Tabs>

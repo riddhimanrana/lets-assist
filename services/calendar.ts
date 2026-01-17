@@ -4,6 +4,7 @@
  */
 
 import { createClient } from "@/utils/supabase/server";
+import { getServiceRoleClient } from "@/utils/supabase/service-role";
 import { encrypt, decrypt } from "@/lib/encryption";
 import {
   Project,
@@ -17,6 +18,56 @@ import {
 const GOOGLE_CALENDAR_API = "https://www.googleapis.com/calendar/v3";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GOOGLE_REVOKE_URL = "https://oauth2.googleapis.com/revoke";
+
+const GOOGLE_SHEETS_SCOPES = [
+  "https://www.googleapis.com/auth/spreadsheets",
+  "https://www.googleapis.com/auth/drive.file",
+];
+
+const normalizeScopes = (scopes?: string | null) =>
+  scopes?.split(" ").map((scope) => scope.trim()).filter(Boolean) ?? [];
+
+const hasRequiredScopes = (
+  scopes: string | null | undefined,
+  requiredScopes: string[]
+) => {
+  if (!requiredScopes.length) return true;
+  const scopeSet = new Set(normalizeScopes(scopes));
+  return requiredScopes.every((scope) => scopeSet.has(scope));
+};
+
+export const hasGoogleSheetsScopes = (scopes?: string | null) =>
+  hasRequiredScopes(scopes, GOOGLE_SHEETS_SCOPES);
+
+export const GOOGLE_SHEETS_SCOPES = [
+  "https://www.googleapis.com/auth/spreadsheets",
+  "https://www.googleapis.com/auth/drive.file",
+] as const;
+
+type ScopeInput = string | string[] | null | undefined;
+
+const normalizeGoogleScopes = (scopes: ScopeInput): string[] => {
+  if (!scopes) return [];
+  if (Array.isArray(scopes)) {
+    return scopes.map((scope) => scope.trim()).filter(Boolean);
+  }
+  return scopes
+    .split(" ")
+    .map((scope) => scope.trim())
+    .filter(Boolean);
+};
+
+const hasRequiredScopes = (
+  grantedScopes: ScopeInput,
+  requiredScopes: string[]
+): boolean => {
+  if (!requiredScopes.length) return true;
+  const granted = new Set(normalizeGoogleScopes(grantedScopes));
+  return requiredScopes.every((scope) => granted.has(scope));
+};
+
+export const hasGoogleSheetsScopes = (grantedScopes: ScopeInput): boolean =>
+  hasRequiredScopes(grantedScopes, [...GOOGLE_SHEETS_SCOPES]);
 
 interface GoogleCalendarEvent {
   summary: string;
@@ -584,4 +635,105 @@ export async function hasActiveCalendarConnection(
 ): Promise<boolean> {
   const connection = await getCalendarConnection(userId);
   return connection !== null && connection.is_active;
+}
+
+/**
+ * Get a valid Google access token for external integrations (e.g., Sheets)
+ */
+export async function getGoogleAccessToken(
+  userId: string
+): Promise<string | null> {
+  return getGoogleAccessTokenForUser(userId, false);
+}
+
+/**
+ * Get a valid Google access token for Sheets integration.
+ */
+export async function getGoogleAccessTokenForSheets(
+  userId: string
+): Promise<string | null> {
+  return getGoogleAccessTokenForUser(userId, false, {
+    requiredScopes: [...GOOGLE_SHEETS_SCOPES],
+  });
+}
+
+/**
+ * Get a valid Google access token for Sheets integration with optional service role.
+ */
+export async function getGoogleAccessTokenForSheetsForUser(
+  userId: string,
+  useServiceRole: boolean
+): Promise<string | null> {
+  return getGoogleAccessTokenForUser(userId, useServiceRole, {
+    requiredScopes: [...GOOGLE_SHEETS_SCOPES],
+  });
+}
+
+/**
+ * Get a Google access token with optional service-role lookup
+ * Used for background jobs where no user session exists.
+ */
+export async function getGoogleAccessTokenForUser(
+  userId: string,
+  useServiceRole: boolean,
+  options?: { requiredScopes?: string[] }
+): Promise<string | null> {
+  const supabase = useServiceRole ? getServiceRoleClient() : await createClient();
+
+  const { data: connection, error } = await supabase
+    .from("user_calendar_connections")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("provider", "google")
+    .eq("is_active", true)
+    .single();
+
+  if (error || !connection) {
+    return null;
+  }
+
+  const requiredScopes = options?.requiredScopes?.filter(Boolean) ?? [];
+  if (!hasRequiredScopes(connection.granted_scopes, requiredScopes)) {
+    return null;
+  }
+
+  if (!isTokenExpired(connection.token_expires_at)) {
+    return decrypt(connection.access_token);
+  }
+
+  const decryptedRefreshToken = decrypt(connection.refresh_token);
+  const refreshed = await refreshAccessToken(decryptedRefreshToken);
+
+  if (!refreshed) {
+    await supabase
+      .from("user_calendar_connections")
+      .update({ is_active: false })
+      .eq("id", connection.id);
+    return null;
+  }
+
+  const newExpiresAt = new Date(Date.now() + refreshed.expiresIn * 1000);
+  const encryptedAccessToken = encrypt(refreshed.accessToken);
+
+  await supabase
+    .from("user_calendar_connections")
+    .update({
+      access_token: encryptedAccessToken,
+      token_expires_at: newExpiresAt.toISOString(),
+    })
+    .eq("id", connection.id);
+
+  return refreshed.accessToken;
+}
+
+/**
+ * Get a valid Google access token for Sheets integration with service-role support.
+ */
+export async function getGoogleAccessTokenForSheetsForUser(
+  userId: string,
+  useServiceRole: boolean
+): Promise<string | null> {
+  return getGoogleAccessTokenForUser(userId, useServiceRole, {
+    requiredScopes: [...GOOGLE_SHEETS_SCOPES],
+  });
 }

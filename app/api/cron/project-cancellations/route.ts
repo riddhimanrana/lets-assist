@@ -38,18 +38,27 @@ type NotificationSettingsRow = {
 function isAuthorized(request: NextRequest): { ok: true } | { ok: false; response: NextResponse } {
   const authHeader = request.headers.get("authorization");
   const expectedToken = process.env.PROJECT_CANCELLATION_WORKER_SECRET_TOKEN;
+  const cronSecret = process.env.CRON_SECRET;
+  const allowedTokens = [expectedToken, cronSecret].filter(
+    (value): value is string => Boolean(value)
+  );
 
-  if (!expectedToken) {
+  if (allowedTokens.length === 0) {
     return {
       ok: false,
       response: NextResponse.json(
-        { error: "PROJECT_CANCELLATION_WORKER_SECRET_TOKEN not configured" },
+        { error: "Cron auth not configured" },
         { status: 500 }
       ),
     };
   }
 
-  if (!authHeader || authHeader !== `Bearer ${expectedToken}`) {
+  if (!authHeader) {
+    return { ok: false, response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
+  }
+
+  const token = authHeader.replace("Bearer ", "");
+  if (!allowedTokens.includes(token)) {
     return { ok: false, response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
   }
 
@@ -348,15 +357,19 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  const auth = isAuthorized(request);
-  if (!auth.ok) return auth.response;
+  if (request.nextUrl.searchParams.get("status") === "1") {
+    const auth = isAuthorized(request);
+    if (!auth.ok) return auth.response;
 
-  return NextResponse.json(
-    {
-      message: "Project cancellation worker is running",
-      enabled: isWorkerEnabled(),
-      timestamp: new Date().toISOString(),
-    },
-    { status: 200 }
-  );
+    return NextResponse.json(
+      {
+        message: "Project cancellation worker is running",
+        enabled: isWorkerEnabled(),
+        timestamp: new Date().toISOString(),
+      },
+      { status: 200 }
+    );
+  }
+
+  return POST(request);
 }

@@ -71,8 +71,14 @@ async function loadFont(fileName: string) {
   }
 }
 
-// Fetch project data directly using Supabase API
-async function getProjectData(projectId: string) {
+function formatOrgType(type?: string | null) {
+  if (type === "school") return "School";
+  if (type === "company") return "Company";
+  return "Nonprofit";
+}
+
+// Fetch organization data directly using Supabase API
+async function getOrganizationData(orgId: string) {
   try {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -81,8 +87,15 @@ async function getProjectData(projectId: string) {
       return null;
     }
 
+    // Check if it's a UUID (ID) or username
+    const isUUID =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        orgId,
+      );
+    const filterParam = isUUID ? `id=eq.${orgId}` : `username=eq.${orgId}`;
+
     const response = await fetch(
-      `${supabaseUrl}/rest/v1/projects?id=eq.${projectId}&select=id,title,description,location,cover_image_url,organization:organizations(name,logo_url)`,
+      `${supabaseUrl}/rest/v1/organizations?${filterParam}&select=id,name,description,logo_url,type`,
       {
         headers: {
           apikey: supabaseKey,
@@ -98,7 +111,7 @@ async function getProjectData(projectId: string) {
     const data = await response.json();
     return data?.[0] || null;
   } catch (error) {
-    console.error("Error fetching project for OG image:", error);
+    console.error("Error fetching organization for OG image:", error);
     return null;
   }
 }
@@ -111,34 +124,17 @@ export default async function Image({
   searchParams?: { theme?: string };
 }) {
   const { id } = await params;
-  const project = await getProjectData(id);
+  const org = await getOrganizationData(id);
   const baseUrl = getBaseUrl();
 
-  const title = project?.title ?? "Volunteer Project";
-  const organizationName = project?.organization?.name ?? "Let's Assist";
+  const name = org?.name ?? "Organization";
   const description =
-    project?.description ?? "Make an impact with your time and talent.";
-  const location = project?.location ?? "";
-
-  const trimmedTitle = title.length > 64 ? `${title.substring(0, 61)}…` : title;
-  const trimmedOrg =
-    organizationName.length > 36
-      ? `${organizationName.substring(0, 33)}…`
-      : organizationName;
-  const cleanedDescription = cleanText(description ?? "");
-  const trimmedDescription =
-    cleanedDescription.length > 140
-      ? `${cleanedDescription.substring(0, 137)}…`
-      : cleanedDescription;
-
-  const coverImageUrl = normalizeUrl(project?.cover_image_url, baseUrl);
-  const organizationLogoUrl = normalizeUrl(
-    project?.organization?.logo_url,
-    baseUrl,
-  );
-  const fallbackLogoUrl = `${baseUrl}/logo.png`;
-  const coverImageSrc = coverImageUrl ?? undefined;
-  const logoSrc = fallbackLogoUrl;
+    org?.description ?? "View volunteer opportunities and make a difference";
+  const orgTypeLabel = formatOrgType(org?.type);
+  const logoUrl = normalizeUrl(org?.logo_url, baseUrl);
+  const logoFallback = `${baseUrl}/logo.png`;
+  const resolvedLogoSrc = logoUrl ?? logoFallback;
+  const logoSrc = logoFallback; // Always use app logo in header
   const [interRegular, interBold] = await Promise.all([
     loadFont("Inter-Regular.ttf"),
     loadFont("Inter-Bold.ttf"),
@@ -150,6 +146,13 @@ export default async function Image({
   if (interBold) {
     fonts.push({ name: "Inter", data: interBold, weight: 700, style: "normal" });
   }
+  
+  const trimmedName = name.length > 46 ? `${name.substring(0, 43)}…` : name;
+  const cleanedDescription = cleanText(description ?? "");
+  const trimmedDescription =
+    cleanedDescription.length > 140
+      ? `${cleanedDescription.substring(0, 137)}…`
+      : cleanedDescription;
 
   return new ImageResponse(
     (
@@ -188,12 +191,12 @@ export default async function Image({
             </div>
           </div>
 
-          <div style={{ fontSize: "50px", fontWeight: 700, lineHeight: 1.1, display: "flex" }}>
-            {trimmedTitle}
+          <div style={{ fontSize: "52px", fontWeight: 700, lineHeight: 1.1, display: "flex" }}>
+            {trimmedName}
           </div>
 
           <div style={{ fontSize: "20px", color: palette.mutedText, display: "flex" }}>
-            Hosted by {trimmedOrg}
+            {orgTypeLabel} organization
           </div>
 
           <div
@@ -207,29 +210,12 @@ export default async function Image({
           >
             {trimmedDescription}
           </div>
-
-              {location ? (
-            <div
-              style={{
-                fontSize: "18px",
-                color: palette.text,
-                backgroundColor: palette.surface,
-                border: `1px solid ${palette.border}`,
-                borderRadius: "999px",
-                padding: "8px 14px",
-                alignSelf: "flex-start",
-                display: "flex",
-              }}
-            >
-              {location}
-            </div>
-          ) : null}
         </div>
 
         <div
           style={{
-            width: "380px",
-            height: "380px",
+            width: "360px",
+            height: "360px",
             borderRadius: "24px",
             backgroundColor: palette.surface,
             border: `1px solid ${palette.border}`,
@@ -239,17 +225,10 @@ export default async function Image({
             overflow: "hidden",
           }}
         >
-          {coverImageSrc ? (
+          {resolvedLogoSrc ? (
             <img
-              src={coverImageSrc}
-              alt={title}
-              style={{ width: "100%", height: "100%", objectFit: "cover" }}
-            />
-          ) : organizationLogoUrl ? (
-             /* Using organization logo here as large fallback if cover is missing */
-            <img
-              src={organizationLogoUrl}
-              alt={organizationName}
+              src={resolvedLogoSrc}
+              alt="Organization logo"
               style={{ width: "180px", height: "180px", objectFit: "contain" }}
             />
           ) : (
