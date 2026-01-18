@@ -73,28 +73,29 @@ export default function CalendarClient({
   const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
   const [removingEventId, setRemovingEventId] = useState<string | null>(null);
 
+  const sheetsScopes = [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive.file",
+  ];
+
+  const hasSheetsAccess = (scopes?: string | null) => {
+    if (!scopes) return false;
+    const granted = new Set(
+      scopes
+        .split(" ")
+        .map((scope) => scope.trim())
+        .filter(Boolean)
+    );
+    return sheetsScopes.every((scope) => granted.has(scope));
+  };
+
+  const sheetsEnabled = connection ? hasSheetsAccess(connection.granted_scopes) : false;
+  const sheetsConnectUrl = `/api/calendar/google/connect?scopes=sheets&force=1&return_to=${encodeURIComponent(
+    "/account/calendar"
+  )}`;
+
   const handleConnect = async () => {
-    try {
-      const response = await fetch("/api/calendar/google/connect");
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to connect calendar");
-      }
-
-      // Redirect to Google OAuth
-      window.location.href = data.authUrl;
-    } catch (error) {
-      console.error("Failed to connect calendar:", error);
-      toast({
-        title: "Connection Failed",
-        description:
-          error instanceof Error
-            ? error.message
-            : "Failed to connect to Google Calendar",
-        variant: "destructive",
-      });
-    }
+    window.location.href = "/api/calendar/google/connect";
   };
 
   const handleDisconnect = async () => {
@@ -259,6 +260,81 @@ export default function CalendarClient({
                 <Calendar className="h-4 w-4 mr-1" />
                 Connect Google Calendar
               </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center text-xl gap-2">
+            <Image
+              src="/googlesheets.svg"
+              alt="Google Sheets"
+              width={20}
+              height={20}
+              className="h-5 w-5 mr-1"
+            />
+            Google Sheets & Drive Access
+          </CardTitle>
+          <CardDescription>
+            Manage Google Sheets permissions for report exports and syncs
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {connection ? (
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  {sheetsEnabled ? (
+                    <CheckCircle className="h-5 w-5 text-chart-5 mt-0.5" />
+                  ) : (
+                    <AlertCircle className="h-5 w-5 text-muted-foreground mt-0.5" />
+                  )}
+                  <div className="min-w-0">
+                    <p className="font-medium">
+                      {sheetsEnabled ? "Sheets Access Enabled" : "Sheets Access Needed"}
+                    </p>
+                    <p className="text-sm text-muted-foreground break-all">
+                      {connection.calendar_email}
+                    </p>
+                    {connection.granted_scopes_updated_at && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Permissions updated on{" "}
+                        {new Date(connection.granted_scopes_updated_at).toLocaleDateString(
+                          "en-US",
+                          {
+                            year: "numeric",
+                            month: "long",
+                            day: "numeric",
+                          }
+                        )}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                  <Button
+                    variant={sheetsEnabled ? "outline" : "default"}
+                    size="sm"
+                    onClick={() => {
+                      window.location.href = sheetsConnectUrl;
+                    }}
+                    className="w-full sm:w-auto"
+                  >
+                    {sheetsEnabled ? "Reconnect Sheets" : "Enable Sheets Access"}
+                  </Button>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Sheets access is required for exporting reports to Google Sheets.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">
+                Connect Google Calendar first to enable Sheets permissions.
+              </p>
             </div>
           )}
         </CardContent>

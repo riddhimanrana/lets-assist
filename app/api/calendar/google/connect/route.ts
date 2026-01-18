@@ -13,6 +13,7 @@ export async function GET(request: Request) {
     const returnTo = searchParams.get("return_to");
     const includeSheets = searchParams.get("scopes") === "sheets";
     const forceConsent = searchParams.get("force") === "1";
+    const wantsJson = searchParams.get("format") === "json";
 
     // Check if user is authenticated
     const {
@@ -77,9 +78,13 @@ export async function GET(request: Request) {
     ); // Force consent to get refresh token
     googleAuthUrl.searchParams.set("state", state);
 
-    return NextResponse.json({
-      authUrl: googleAuthUrl.toString(),
-    });
+    if (wantsJson) {
+      return NextResponse.json({
+        authUrl: googleAuthUrl.toString(),
+      });
+    }
+
+    return NextResponse.redirect(googleAuthUrl.toString());
   } catch (error) {
     console.error("Error initiating Google Calendar connection:", error);
     return NextResponse.json(

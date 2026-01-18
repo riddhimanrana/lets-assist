@@ -84,59 +84,37 @@ export default function CalendarOptionsModal({
 
     // Not connected, initiate OAuth flow
     setIsConnecting(true);
-    try {
-      // Store project page for redirect back
-      const projectUrl = `/projects/${project.id}`;
-      sessionStorage.setItem("calendarRedirectUrl", projectUrl);
 
-      // Get OAuth URL
-      const connectResponse = await fetch(
-        `/api/calendar/google/connect?return_to=${encodeURIComponent(projectUrl)}`,
+    // Store project page for redirect back
+    const projectUrl = `/projects/${project.id}`;
+    sessionStorage.setItem("calendarRedirectUrl", projectUrl);
+
+    // Store the signup/project ID to sync after OAuth callback
+    if (mode === "volunteer" && signup) {
+      sessionStorage.setItem(
+        "pendingCalendarSync",
+        JSON.stringify({
+          type: "signup",
+          signupId: signup.id,
+          projectId: project.id,
+          scheduleId: signup.schedule_id,
+        }),
       );
-      const connectData = await connectResponse.json();
-
-      if (!connectResponse.ok) {
-        throw new Error(connectData.error || "Failed to connect calendar");
-      }
-
-      // Store the signup/project ID to sync after OAuth callback
-      if (mode === "volunteer" && signup) {
-        sessionStorage.setItem(
-          "pendingCalendarSync",
-          JSON.stringify({
-            type: "signup",
-            signupId: signup.id,
-            projectId: project.id,
-            scheduleId: signup.schedule_id,
-          }),
-        );
-      } else {
-        sessionStorage.setItem(
-          "pendingCalendarSync",
-          JSON.stringify({
-            type: "project",
-            projectId: project.id,
-          }),
-        );
-      }
-
-      // Store flag to reopen calendar modal after OAuth
-      sessionStorage.setItem("reopenCalendarModal", "true");
-
-      // Redirect to Google OAuth
-      window.location.href = connectData.authUrl;
-    } catch (error) {
-      console.error("Failed to connect to Google Calendar:", error);
-      toast({
-        title: "Connection Failed",
-        description:
-          error instanceof Error
-            ? error.message
-            : "Failed to connect to Google Calendar",
-        variant: "destructive",
-      });
-      setIsConnecting(false);
+    } else {
+      sessionStorage.setItem(
+        "pendingCalendarSync",
+        JSON.stringify({
+          type: "project",
+          projectId: project.id,
+        }),
+      );
     }
+
+    // Store flag to reopen calendar modal after OAuth
+    sessionStorage.setItem("reopenCalendarModal", "true");
+
+    // Redirect to Google OAuth
+    window.location.href = `/api/calendar/google/connect?return_to=${encodeURIComponent(projectUrl)}`;
   };
 
   const syncToCalendar = async () => {
