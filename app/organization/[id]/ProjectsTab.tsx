@@ -89,7 +89,7 @@ export default function ProjectsTab({
             </div>
           
           {canCreateProjects && (
-            <Button onClick={handleCreateProject}>
+            <Button onClick={handleCreateProject} className="w-full sm:w-auto">
               <Plus className="h-4 w-4 mr-1.5" />
               New Project
             </Button>
@@ -103,26 +103,26 @@ export default function ProjectsTab({
         onValueChange={(value) => setActiveTab(value as ProjectStatus | "all")}
         className="w-full"
       >
-        <TabsList className="mb-4">
-          <TabsTrigger value="all" className="flex items-center space-x-1.5">
-            <LayoutGrid className="h-4 w-4" />
-            <span className="hidden sm:block">All</span>
+        <TabsList className="mb-4 w-full grid grid-cols-5 gap-1 rounded-md border bg-card p-1 text-muted-foreground sm:flex sm:h-auto sm:justify-start sm:px-1">
+          <TabsTrigger value="all" className="flex w-full min-w-0 items-center justify-center space-x-1 px-1 py-1.5 data-[state=active]:text-foreground sm:w-auto sm:justify-start sm:space-x-1.5 sm:px-3">
+            <LayoutGrid className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
+            <span className="truncate text-[10px] sm:text-sm">All</span>
           </TabsTrigger>
-          <TabsTrigger value="upcoming" className="flex items-center space-x-1.5">
-            <Calendar className="h-4 w-4" />
-            <span className="hidden sm:block">Upcoming</span>
+          <TabsTrigger value="upcoming" className="flex w-full min-w-0 items-center justify-center space-x-1 px-1 py-1.5 data-[state=active]:text-foreground sm:w-auto sm:justify-start sm:space-x-1.5 sm:px-3">
+            <Calendar className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
+            <span className="truncate text-[10px] sm:text-sm">Up</span>
           </TabsTrigger>
-          <TabsTrigger value="in-progress" className="flex items-center space-x-1.5">
-            <Clock3 className="h-4 w-4" />
-            <span className="hidden sm:block">In Progress</span>
+          <TabsTrigger value="in-progress" className="flex w-full min-w-0 items-center justify-center space-x-1 px-1 py-1.5 data-[state=active]:text-foreground sm:w-auto sm:justify-start sm:space-x-1.5 sm:px-3">
+            <Clock3 className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
+            <span className="truncate text-[10px] sm:text-sm">Progress</span>
           </TabsTrigger>
-          <TabsTrigger value="completed" className="flex items-center space-x-1.5">
-            <CheckCircle2 className="h-4 w-4" />
-            <span className="hidden sm:block">Completed</span>
+          <TabsTrigger value="completed" className="flex w-full min-w-0 items-center justify-center space-x-1 px-1 py-1.5 data-[state=active]:text-foreground sm:w-auto sm:justify-start sm:space-x-1.5 sm:px-3">
+            <CheckCircle2 className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
+            <span className="truncate text-[10px] sm:text-sm">Done</span>
           </TabsTrigger>
-          <TabsTrigger value="cancelled" className="flex items-center space-x-1.5">
-            <AlertCircle className="h-4 w-4" />
-            <span className="hidden sm:block">Cancelled</span>
+          <TabsTrigger value="cancelled" className="flex w-full min-w-0 items-center justify-center space-x-1 px-1 py-1.5 data-[state=active]:text-foreground sm:w-auto sm:justify-start sm:space-x-1.5 sm:px-3">
+            <AlertCircle className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
+            <span className="truncate text-[10px] sm:text-sm">X</span>
           </TabsTrigger>
         </TabsList>
         <TabsContent value={activeTab} className="mt-0">

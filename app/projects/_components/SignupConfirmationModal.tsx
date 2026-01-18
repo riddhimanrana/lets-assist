@@ -151,16 +151,8 @@ export function SignupConfirmationModal({
       // Build return URL for this project
       const returnUrl = `/projects/${project.id}`;
       
-      // Get OAuth URL with return parameter
-      const response = await fetch(`/api/calendar/google/connect?return_to=${encodeURIComponent(returnUrl)}`);
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to connect calendar');
-      }
-
       // Redirect to OAuth
-      window.location.href = data.authUrl;
+      window.location.href = `/api/calendar/google/connect?return_to=${encodeURIComponent(returnUrl)}`;
     } catch (error) {
       console.error('Failed to connect calendar:', error);
       toast({

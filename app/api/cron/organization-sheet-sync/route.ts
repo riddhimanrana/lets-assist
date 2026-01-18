@@ -4,7 +4,7 @@ import {
   buildOrganizationReportRowsForSync,
   type ReportType,
 } from "@/app/organization/[id]/reports/actions";
-import { updateSpreadsheetValues } from "@/services/google-sheets";
+import { buildWriteRange, updateSpreadsheetValues } from "@/services/google-sheets";
 import { getGoogleAccessTokenForSheetsForUser } from "@/services/calendar";
 
 const WORKER_ENABLED = process.env.ORG_SHEET_SYNC_WORKER_ENABLED === "true";
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
   const { data: syncRows, error } = await supabase
     .from("organization_sheet_syncs")
     .select(
-      "organization_id, sheet_id, sheet_url, tab_name, report_type, auto_sync, sync_interval_minutes, last_synced_at, created_by"
+      "organization_id, sheet_id, sheet_url, tab_name, range_a1, report_type, auto_sync, sync_interval_minutes, last_synced_at, created_by"
     )
     .eq("auto_sync", true);
 
@@ -85,12 +85,8 @@ export async function POST(request: NextRequest) {
       continue;
     }
 
-    const updated = await updateSpreadsheetValues(
-      accessToken,
-      row.sheet_id,
-      row.tab_name || DEFAULT_TAB_NAME,
-      rows
-    );
+    const range = buildWriteRange(row.tab_name || DEFAULT_TAB_NAME, row.range_a1, rows);
+    const updated = await updateSpreadsheetValues(accessToken, row.sheet_id, range, rows);
 
     if (!updated) {
       results.push({ organizationId: row.organization_id, success: false, error: "Sheet update failed" });

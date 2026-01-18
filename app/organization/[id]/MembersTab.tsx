@@ -387,7 +387,7 @@ export default function MembersTab({
                     disabled={isExporting}
                     variant="outline"
                     size="sm"
-                    className="gap-2"
+                    className="w-full sm:w-auto gap-2"
                   >
                     {isExporting ? (
                       <>
@@ -409,8 +409,8 @@ export default function MembersTab({
             </TooltipProvider>
           )}
           
-          <div className="relative sm:w-auto min-w-64">
-             <div className="relative w-full sm:w-auto sm:flex-1 max-w-md">
+           <div className="relative w-full sm:w-auto">
+             <div className="relative w-full sm:w-auto sm:flex-1 sm:max-w-md">
             
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
