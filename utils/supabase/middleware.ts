@@ -58,7 +58,11 @@ export async function updateSession(request: NextRequest) {
 
   const hasAuthCookies =
     request.cookies.has("sb-access-token") ||
-    request.cookies.has("sb-refresh-token");
+    request.cookies.has("sb-refresh-token") ||
+    // Also check for legacy cookie format
+    request.cookies.getAll().some(cookie => 
+      cookie.name.startsWith("sb-") && cookie.name.includes("auth-token")
+    );
 
   let user = null;
   if (mustEvaluateAuth || hasAuthCookies) {
