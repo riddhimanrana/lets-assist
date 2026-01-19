@@ -5,7 +5,11 @@ import type {
   ProjectStatus, 
   ProjectVisibility,
   OrganizationRole,
-  LocationData 
+  LocationData,
+  ProjectWorkflowStatus,
+  RecurrenceFrequency,
+  RecurrenceEndType,
+  RecurrenceWeekday
 } from './common';
 import type { ProjectSchedule } from './schedule';
 import type { Profile } from './profile';
@@ -18,6 +22,15 @@ export interface ProjectDocument {
   type: string;
   size: number;
   url: string;
+}
+
+export interface RecurrenceRule {
+  frequency?: RecurrenceFrequency;
+  interval?: number;
+  end_type?: RecurrenceEndType;
+  end_date?: string;
+  end_occurrences?: number;
+  weekdays?: RecurrenceWeekday[];
 }
 
 export interface Project {
@@ -50,4 +63,8 @@ export interface Project {
   creator_calendar_event_id?: string | null;
   creator_synced_at?: string | null;
   project_timezone?: string;
+  workflow_status?: ProjectWorkflowStatus;
+  recurrence_rule?: RecurrenceRule;
+  recurrence_parent_id?: string;
+  recurrence_sequence?: number;
 }

@@ -1,7 +1,14 @@
 "use client";
 
 import { useReducer, Reducer } from 'react';
-import { EventType, VerificationMethod, ProjectVisibility } from '@/types';
+import {
+  EventType,
+  VerificationMethod,
+  ProjectVisibility,
+  RecurrenceFrequency,
+  RecurrenceEndType,
+  RecurrenceWeekday,
+} from '@/types';
 
 // --- Helper Functions --- 
 
@@ -99,6 +106,15 @@ export interface EventFormState {
   restrictToOrgDomains: boolean;
   enableVolunteerComments: boolean;
   showAttendeesPublicly: boolean;
+  recurrence: {
+    enabled: boolean;
+    frequency: RecurrenceFrequency;
+    interval: number;
+    endType: RecurrenceEndType;
+    endDate?: string;
+    endOccurrences?: number;
+    weekdays: RecurrenceWeekday[];
+  };
 }
 
 type EventFormAction =
@@ -124,6 +140,13 @@ type EventFormAction =
   | { type: 'UPDATE_RESTRICT_TO_ORG_DOMAINS'; payload: boolean }
   | { type: 'UPDATE_ENABLE_VOLUNTEER_COMMENTS'; payload: boolean }
   | { type: 'UPDATE_SHOW_ATTENDEES_PUBLICLY'; payload: boolean }
+  | {
+      type: 'UPDATE_RECURRENCE';
+      payload: {
+        field: keyof EventFormState['recurrence'];
+        value: EventFormState['recurrence'][keyof EventFormState['recurrence']];
+      };
+    }
   | { type: 'REMOVE_DAY'; payload: { dayIndex: number } }
   | { type: 'REMOVE_SLOT'; payload: { dayIndex: number; slotIndex: number } }
   | { type: 'REMOVE_ROLE'; payload: { roleIndex: number } };
@@ -190,6 +213,15 @@ const initialState: EventFormState = {
   restrictToOrgDomains: false,
   enableVolunteerComments: false,
   showAttendeesPublicly: false,
+  recurrence: {
+    enabled: false,
+    frequency: 'weekly',
+    interval: 1,
+    endType: 'never',
+    endDate: undefined,
+    endOccurrences: undefined,
+    weekdays: [],
+  },
 };
 
 const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
@@ -211,6 +243,10 @@ const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
       return {
         ...state,
         eventType: action.payload,
+        recurrence:
+          action.payload === 'multiDay'
+            ? { ...state.recurrence, enabled: false }
+            : state.recurrence,
       };
     case 'UPDATE_BASIC_INFO':
       return {
@@ -386,6 +422,16 @@ const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
         showAttendeesPublicly: action.payload,
       };
     }
+    case 'UPDATE_RECURRENCE': {
+      const { field, value } = action.payload;
+      return {
+        ...state,
+        recurrence: {
+          ...state.recurrence,
+          [field]: value,
+        },
+      };
+    }
     case 'REMOVE_DAY': {
       const { dayIndex } = action.payload;
       // Make a copy of the multi-day array
@@ -510,6 +556,11 @@ export const useEventForm = () => {
   const updateShowAttendeesPublicly = (enabled: boolean) =>
     dispatch({ type: 'UPDATE_SHOW_ATTENDEES_PUBLICLY', payload: enabled });
 
+  const updateRecurrence = (
+    field: keyof EventFormState['recurrence'],
+    value: EventFormState['recurrence'][keyof EventFormState['recurrence']],
+  ) => dispatch({ type: 'UPDATE_RECURRENCE', payload: { field, value } });
+
   const removeDay = (dayIndex: number) =>
     dispatch({ type: 'REMOVE_DAY', payload: { dayIndex } });
 
@@ -537,6 +588,7 @@ export const useEventForm = () => {
     updateRestrictToOrgDomains,
     updateEnableVolunteerComments,
     updateShowAttendeesPublicly,
+    updateRecurrence,
     removeDay,
     removeSlot,
     removeRole,
