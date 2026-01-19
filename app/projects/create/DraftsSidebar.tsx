@@ -1,0 +1,311 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { format } from "date-fns";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Calendar,
+  MapPin,
+  Edit,
+  Trash2,
+  MoreVertical,
+  FileText,
+  Send,
+} from "lucide-react";
+import { toast } from "sonner";
+import type { ProjectSchedule, EventType } from "@/types";
+import { deleteDraft, publishDraft } from "./actions";
+
+interface Draft {
+  id: string;
+  title: string;
+  description: string;
+  location: string;
+  event_type: EventType;
+  schedule: ProjectSchedule | null;
+  cover_image_url: string | null;
+  created_at: string;
+  workflow_status: string;
+  organization: {
+    id: string;
+    name: string;
+    logo_url: string | null;
+  } | null;
+}
+
+interface DraftsSidebarProps {
+  initialDrafts: Draft[];
+}
+
+export default function DraftsSidebar({ initialDrafts }: DraftsSidebarProps) {
+  const router = useRouter();
+  const [drafts, setDrafts] = useState(initialDrafts);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [isPublishing, setIsPublishing] = useState<string | null>(null);
+  const [isOpenDesktop, setIsOpenDesktop] = useState(false);
+  const [isOpenMobile, setIsOpenMobile] = useState(false);
+
+  const handleDelete = async (draftId: string) => {
+    setIsDeleting(draftId);
+    try {
+      const result = await deleteDraft(draftId);
+      if (result.error) {
+        toast.error(result.error);
+      } else {
+        toast.success("Draft deleted");
+        setDrafts(drafts.filter((d) => d.id !== draftId));
+      }
+    } catch {
+      toast.error("Failed to delete draft");
+    } finally {
+      setIsDeleting(null);
+    }
+  };
+
+  const handlePublish = async (draftId: string) => {
+    setIsPublishing(draftId);
+    try {
+      const result = await publishDraft(draftId);
+      if (result.error) {
+        toast.error(result.error);
+      } else {
+        toast.success("Project published successfully!");
+        router.push(`/projects/${draftId}`);
+      }
+    } catch {
+      toast.error("Failed to publish project");
+    } finally {
+      setIsPublishing(null);
+    }
+  };
+
+  const handleContinue = (draftId: string) => {
+    setIsOpenDesktop(false);
+    setIsOpenMobile(false);
+    router.push(`/projects/create?draft=${draftId}`);
+  };
+
+  const getSchedulePreview = (draft: Draft) => {
+    const schedule = draft.schedule;
+    if (!schedule) return "No schedule";
+
+    if (draft.event_type === "oneTime" && schedule.oneTime?.date) {
+      return format(new Date(schedule.oneTime.date), "MMM d");
+    }
+    if (draft.event_type === "multiDay") {
+      const days = schedule.multiDay?.length ?? 0;
+      return days > 0 ? `${days} days` : "Incomplete";
+    }
+    if (draft.event_type === "sameDayMultiArea" && schedule.sameDayMultiArea?.date) {
+      return format(new Date(schedule.sameDayMultiArea.date), "MMM d");
+    }
+    return "Incomplete";
+  };
+
+  const DraftItem = ({ draft }: { draft: Draft }) => (
+    <Card className="overflow-hidden cursor-pointer hover:bg-muted/60 transition" onClick={() => handleContinue(draft.id)}>
+      <CardContent className="p-3">
+        <div className="flex gap-3">
+          {/* Thumbnail */}
+          <div className="w-12 h-12 bg-muted rounded flex-shrink-0">
+            {draft.cover_image_url ? (
+              <img
+                src={draft.cover_image_url}
+                alt={draft.title}
+                className="w-full h-full object-cover rounded"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <FileText className="h-6 w-6 text-muted-foreground" />
+              </div>
+            )}
+          </div>
+
+          {/* Info */}
+          <div className="flex-1 min-w-0">
+            <h4 className="font-medium text-sm truncate">
+              {draft.title || "Untitled"}
+            </h4>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1 flex-wrap">
+              <div className="flex items-center gap-0.5">
+                <Calendar className="h-3 w-3" />
+                {getSchedulePreview(draft)}
+              </div>
+              {draft.location && (
+                <div className="flex items-center gap-0.5 truncate max-w-[150px]">
+                  <MapPin className="h-3 w-3 flex-shrink-0" />
+                  <span className="truncate">{draft.location}</span>
+                </div>
+              )}
+            </div>
+            {draft.organization && (
+              <p className="text-xs text-muted-foreground mt-1 truncate">
+                {draft.organization.name}
+              </p>
+            )}
+          </div>
+
+          {/* Menu */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+              <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
+                <MoreVertical className="h-3 w-3" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem
+                onClick={() => handleContinue(draft.id)}
+              >
+                <Edit className="h-4 w-4 mr-2" />
+                Continue Editing
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => handlePublish(draft.id)}
+                disabled={isPublishing === draft.id}
+              >
+                <Send className="h-4 w-4 mr-2" />
+                {isPublishing === draft.id ? "Publishing..." : "Publish"}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <DropdownMenuItem
+                    onSelect={(e) => e.preventDefault()}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete
+                  </DropdownMenuItem>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete draft?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will permanently delete &quot;{draft.title || "Untitled"}&quot;.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => handleDelete(draft.id)}
+                      disabled={isDeleting === draft.id}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      {isDeleting === draft.id ? "Deleting..." : "Delete"}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
+  const DraftList = () => (
+    <div className="space-y-3 max-h-[calc(100vh-200px)] overflow-y-auto pr-2">
+      {drafts.length === 0 ? (
+        <div className="text-center py-12">
+          <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-50" />
+          <p className="text-sm font-medium">No drafts yet</p>
+          <p className="text-xs text-muted-foreground mt-1">Save your current project as draft to see it here</p>
+        </div>
+      ) : (
+        drafts.map((draft) => (
+          <DraftItem key={draft.id} draft={draft} />
+        ))
+      )}
+    </div>
+  );
+
+  return (
+    <>
+      {/* Mobile drawer trigger (icon only) */}
+      <div className="md:hidden">
+        <Drawer open={isOpenMobile} onOpenChange={setIsOpenMobile}>
+          <DrawerTrigger asChild>
+            <Button variant="ghost" size="icon">
+              <FileText className="h-4 w-4" />
+            </Button>
+          </DrawerTrigger>
+          <DrawerContent>
+            <DrawerHeader className="pb-2">
+              <DrawerTitle>My Drafts</DrawerTitle>
+              <DrawerDescription>
+                {drafts.length} draft{drafts.length !== 1 ? "s" : ""} saved
+              </DrawerDescription>
+            </DrawerHeader>
+            <div className="px-4 pb-6 pt-2">
+              <DraftList />
+              {/* Removed /projects/drafts link per request */}
+            </div>
+          </DrawerContent>
+        </Drawer>
+      </div>
+
+      {/* Desktop sheet trigger */}
+      <div className="hidden md:block">
+        <Sheet open={isOpenDesktop} onOpenChange={setIsOpenDesktop}>
+          <SheetTrigger asChild>
+            <Button
+              variant="outline"
+              className="flex items-center gap-2"
+            >
+              <FileText className="h-4 w-4" />
+              Drafts ({drafts.length})
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="right" className="w-full sm:max-w-md">
+            <SheetHeader>
+              <SheetTitle>My Drafts</SheetTitle>
+              <SheetDescription>
+                {drafts.length} draft{drafts.length !== 1 ? "s" : ""} saved
+              </SheetDescription>
+            </SheetHeader>
+            <div className="mt-6">
+              <DraftList />
+              {/* Removed /projects/drafts link per request */}
+            </div>
+          </SheetContent>
+        </Sheet>
+      </div>
+    </>
+  );
+}

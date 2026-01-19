@@ -22,6 +22,8 @@ import Image from "next/image";
 import { getUserProfile } from '@/app/projects/[id]/actions';
 import { toast } from '@/hooks/use-toast';
 import { TimezoneBadge } from '@/components/shared/TimezoneBadge';
+import { WaiverSignatureSection } from '@/app/projects/_components/WaiverSignatureSection';
+import type { WaiverSignatureInput, WaiverTemplate } from '@/types';
 
 interface UserProfile {
   full_name: string | null;
@@ -32,8 +34,11 @@ interface UserProfile {
 interface SignupConfirmationModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: (comment?: string) => void;
+  onConfirm: (comment?: string, waiverSignature?: WaiverSignatureInput | null) => void;
   enableVolunteerComments?: boolean;
+  waiverRequired?: boolean;
+  waiverAllowUpload?: boolean;
+  waiverTemplate?: WaiverTemplate | null;
   project: {
     id: string;
     title: string;
@@ -52,6 +57,9 @@ export function SignupConfirmationModal({
   onClose,
   onConfirm,
   enableVolunteerComments = false,
+  waiverRequired = false,
+  waiverAllowUpload = true,
+  waiverTemplate = null,
   project,
   scheduleId,
   isLoading = false,
@@ -59,6 +67,7 @@ export function SignupConfirmationModal({
   const [currentUserProfile, setCurrentUserProfile] = useState<UserProfile | null>(null);
   const [isFetchingProfile, setIsFetchingProfile] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
+  const [waiverSignature, setWaiverSignature] = useState<WaiverSignatureInput | null>(null);
   
   // Calendar connection state
   const [calendarConnected, setCalendarConnected] = useState(false);
@@ -70,6 +79,7 @@ export function SignupConfirmationModal({
   useEffect(() => {
     if (!isOpen) {
       setComment('');
+      setWaiverSignature(null);
     }
   }, [isOpen]);
 
@@ -225,7 +235,7 @@ export function SignupConfirmationModal({
 
   const handleConfirm = () => {
     const trimmed = comment.trim();
-    onConfirm(trimmed.length > 0 ? trimmed : undefined);
+    onConfirm(trimmed.length > 0 ? trimmed : undefined, waiverSignature);
   };
 
   const formatTime = (timeString: string) => {
@@ -239,7 +249,8 @@ export function SignupConfirmationModal({
     });
   };
 
-  const canConfirm = !isLoading && !isFetchingProfile && !profileError && !!currentUserProfile;
+  const waiverSatisfied = !waiverRequired || !!waiverSignature;
+  const canConfirm = !isLoading && !isFetchingProfile && !profileError && !!currentUserProfile && waiverSatisfied;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -328,6 +339,19 @@ export function SignupConfirmationModal({
               </div>
             </div>
           </div>
+
+          {waiverRequired && (
+            <div className="space-y-3 pt-3 border-t">
+              <WaiverSignatureSection
+                template={waiverTemplate || null}
+                signerName={currentUserProfile?.full_name || undefined}
+                signerEmail={currentUserProfile?.email || undefined}
+                allowUpload={waiverAllowUpload}
+                required
+                onChange={setWaiverSignature}
+              />
+            </div>
+          )}
 
           {enableVolunteerComments && (
             <div className="space-y-3 pt-3 border-t">

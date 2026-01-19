@@ -13,7 +13,9 @@ import {
   LocationData,
   ProjectDocument,
   AnonymousSignupData,
-  Signup
+  Signup,
+  WaiverSignatureInput,
+  WaiverTemplate
 } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -53,7 +55,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { signUpForProject, cancelSignup, resendAnonymousConfirmationEmail } from "./actions";
+import { signUpForProject, cancelSignup, resendAnonymousConfirmationEmail, getActiveWaiverTemplate } from "./actions";
 import { formatTimeTo12Hour, formatBytes } from "@/lib/utils";
 import { createClient } from "@/utils/supabase/client";
 import { getSlotCapacities, getSlotDetails, isSlotAvailable, isMultiDaySlotPast, isMultiDaySlotPastByScheduleId, isSameDayMultiAreaSlotPast, isOneTimeSlotPast } from "@/utils/project";
@@ -186,6 +188,7 @@ export default function ProjectDetails({
     email: string | null;
     phone: string | null;
   }>({ full_name: null, email: null, phone: null });
+  const [waiverTemplate, setWaiverTemplate] = useState<WaiverTemplate | null>(null);
   
   // Add state to track calculated status
   // Initialize with project.status to avoid hydration mismatch, then update on client
@@ -372,6 +375,33 @@ export default function ProjectDetails({
     fetchUserProfile();
   }, [user]);
 
+  useEffect(() => {
+    if (!project.waiver_required) return;
+    let isMounted = true;
+
+    const fetchWaiverTemplate = async () => {
+      try {
+        const result = await getActiveWaiverTemplate();
+        if (result?.template && isMounted) {
+          setWaiverTemplate(result.template as WaiverTemplate);
+        } else if (isMounted) {
+          toast.error("Unable to load waiver template. Please try again later.");
+        }
+      } catch (error) {
+        console.error("Error fetching waiver template:", error);
+        if (isMounted) {
+          toast.error("Unable to load waiver template. Please try again later.");
+        }
+      }
+    };
+
+    fetchWaiverTemplate();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [project.waiver_required]);
+
   // Move updateProjectStatusInDB outside useCallback to break circular dependency
   const updateProjectStatusInDB = async (newStatus: ProjectStatus) => {
     if (isUpdatingStatus) return;
@@ -543,9 +573,9 @@ export default function ProjectDetails({
   };
 
   // Handle confirmation modal actions
-  const handleConfirmSignup = (comment?: string) => {
+  const handleConfirmSignup = (comment?: string, waiverSignature?: WaiverSignatureInput | null) => {
     setShowSignupConfirmation(false);
-    handleSignUp(pendingScheduleId, undefined, comment);
+    handleSignUp(pendingScheduleId, undefined, comment, waiverSignature);
     setPendingScheduleId("");
   };
 
@@ -560,13 +590,14 @@ export default function ProjectDetails({
     scheduleId: string,
     anonymousData?: AnonymousSignupData,
     volunteerComment?: string,
+    waiverSignature?: WaiverSignatureInput | null,
   ) => {
     setLoadingStates(prev => ({ ...prev, [scheduleId]: true }));
     // Reset alert state on new signup attempt
     setShowConfirmationAlert(false);
 
     try {
-      const result = await signUpForProject(project.id, scheduleId, anonymousData, volunteerComment);
+      const result = await signUpForProject(project.id, scheduleId, anonymousData, volunteerComment, waiverSignature);
 
       if (result.error) {
         // Check if this is a pending signup that can be resent
@@ -648,8 +679,8 @@ export default function ProjectDetails({
   };
 
   // Handle anonymous form submit
-  const handleAnonymousSubmit = (values: AnonymousSignupData) => {
-    handleSignUp(currentScheduleId, values, values.comment);
+  const handleAnonymousSubmit = (values: AnonymousSignupData, waiverSignature?: WaiverSignatureInput | null) => {
+    handleSignUp(currentScheduleId, values, values.comment, waiverSignature);
   };
 
   // Handle resending confirmation email
@@ -943,8 +974,16 @@ export default function ProjectDetails({
                           // Create date with no timezone offset issues
                           const dateStr = project.schedule.oneTime.date;
                           const [year, month, dayNum] = dateStr.split("-").map(Number);
+                          // Validate date components
+                          if (!year || !month || !dayNum || isNaN(year) || isNaN(month) || isNaN(dayNum)) {
+                            return "Invalid date";
+                          }
                           // Use Date to correctly handle timezones
                           const date = new Date(year, month - 1, dayNum);
+                          // Check if date is valid
+                          if (isNaN(date.getTime())) {
+                            return "Invalid date";
+                          }
                           return format(date, "EEEE, MMMM d");
                           })()}
                           </h3>
@@ -1399,6 +1438,16 @@ export default function ProjectDetails({
                         </>
                       )}
                     </Badge>
+
+                    {project.waiver_required && (
+                      <Badge
+                        variant="outline"
+                        className="text-xs flex items-center gap-1"
+                      >
+                        <FileText className="h-3 w-3" />
+                        Waiver Required
+                      </Badge>
+                    )}
                     
                     {/* Add verification method badge */}
                     <Badge 
@@ -1536,6 +1585,9 @@ export default function ProjectDetails({
             onCancel={() => setAnonymousDialogOpen(false)}
             isSubmitting={loadingStates[currentScheduleId]}
             showCommentField={!!project.enable_volunteer_comments}
+            waiverRequired={!!project.waiver_required}
+            waiverAllowUpload={project.waiver_allow_upload ?? true}
+            waiverTemplate={waiverTemplate}
           />
         </DialogContent>
       </Dialog>
@@ -1602,6 +1654,9 @@ export default function ProjectDetails({
           onClose={handleCloseModals}
           onConfirm={handleConfirmSignup}
           enableVolunteerComments={!!project.enable_volunteer_comments}
+          waiverRequired={!!project.waiver_required}
+          waiverAllowUpload={project.waiver_allow_upload ?? true}
+          waiverTemplate={waiverTemplate}
           project={{
             id: project.id,
             title: project.title,

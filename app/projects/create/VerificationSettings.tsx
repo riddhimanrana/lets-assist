@@ -17,6 +17,7 @@ import {
   Eye,
   EyeOff,
   Link2,
+  FileSignature,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { VerificationMethod, ProjectVisibility } from "@/types";
@@ -34,11 +35,15 @@ interface VerificationSettingsProps {
   visibility: ProjectVisibility; // Project visibility setting
   enableVolunteerComments: boolean;
   showAttendeesPublicly: boolean;
+  waiverRequired: boolean;
+  waiverAllowUpload: boolean;
   updateVerificationMethodAction: (method: VerificationMethod) => void;
   updateRequireLoginAction: (requireLogin: boolean) => void;
   updateVisibilityAction: (visibility: ProjectVisibility) => void;
   updateEnableVolunteerCommentsAction: (enabled: boolean) => void;
   updateShowAttendeesPubliclyAction: (enabled: boolean) => void;
+  updateWaiverRequiredAction: (enabled: boolean) => void;
+  updateWaiverAllowUploadAction: (enabled: boolean) => void;
   restrictToOrgDomains?: boolean;
   updateRestrictToOrgDomainsAction?: (restrict: boolean) => void;
   allowedEmailDomains?: string[] | null;
@@ -56,11 +61,15 @@ export default function VerificationSettings({
   visibility,
   enableVolunteerComments,
   showAttendeesPublicly,
+  waiverRequired,
+  waiverAllowUpload,
   updateVerificationMethodAction,
   updateRequireLoginAction,
   updateVisibilityAction,
   updateEnableVolunteerCommentsAction,
   updateShowAttendeesPubliclyAction,
+  updateWaiverRequiredAction,
+  updateWaiverAllowUploadAction,
   restrictToOrgDomains = false,
   updateRestrictToOrgDomainsAction,
   allowedEmailDomains,
@@ -363,6 +372,86 @@ export default function VerificationSettings({
                 onCheckedChange={updateShowAttendeesPubliclyAction}
               />
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            Waiver & Consent
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-6 w-6">
+                    <Info className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent className="text-xs font-normal max-w-xs">
+                  <p>
+                    Require volunteers to complete the global waiver during signup, with optional print-and-upload.
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-6">
+            <div className="flex items-center justify-between space-x-4">
+              <div className="flex items-center space-x-3 flex-1">
+                <div
+                  className={cn(
+                    "p-2 rounded-md",
+                    waiverRequired ? "bg-primary/10" : "bg-muted",
+                  )}
+                >
+                  <FileSignature className={cn("h-5 w-5", waiverRequired ? "text-primary" : "text-muted-foreground")} />
+                </div>
+                <div className="flex-1">
+                  <Label htmlFor="waiver-required" className="text-base font-medium cursor-pointer">
+                    Require waiver signature
+                  </Label>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Volunteers must sign the global waiver before completing signup.
+                  </p>
+                </div>
+              </div>
+              <Switch
+                id="waiver-required"
+                checked={waiverRequired}
+                onCheckedChange={updateWaiverRequiredAction}
+              />
+            </div>
+
+            <div className="flex items-center justify-between space-x-4">
+              <div className="flex items-center space-x-3 flex-1">
+                <div className={cn("p-2 rounded-md", waiverRequired ? "bg-primary/10" : "bg-muted")}
+                >
+                  <FileSignature className={cn("h-5 w-5", waiverRequired ? "text-primary" : "text-muted-foreground")} />
+                </div>
+                <div className="flex-1">
+                  <Label htmlFor="waiver-allow-upload" className="text-base font-medium cursor-pointer">
+                    Allow print & upload
+                  </Label>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Let volunteers upload a signed PDF or image instead of drawing/typing.
+                  </p>
+                </div>
+              </div>
+              <Switch
+                id="waiver-allow-upload"
+                checked={waiverAllowUpload}
+                onCheckedChange={updateWaiverAllowUploadAction}
+                disabled={!waiverRequired}
+              />
+            </div>
+
+            {!waiverRequired && (
+              <div className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
+                The global waiver template applies to any project that enables this requirement.
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

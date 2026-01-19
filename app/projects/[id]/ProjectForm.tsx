@@ -16,6 +16,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { DialogFooter } from "@/components/ui/dialog";
 import { useState } from "react"; // Import useState
+import { WaiverSignatureSection } from "@/app/projects/_components/WaiverSignatureSection";
+import type { WaiverSignatureInput, WaiverTemplate } from "@/types";
 
 // Constants for phone validation
 const PHONE_LENGTH = 10; // For raw digits
@@ -55,10 +57,13 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 interface ProjectFormProps {
-  onSubmit: (data: FormValues) => void;
+  onSubmit: (data: FormValues, waiverSignature?: WaiverSignatureInput | null) => void;
   onCancel: () => void;
   isSubmitting?: boolean;
   showCommentField?: boolean;
+  waiverRequired?: boolean;
+  waiverAllowUpload?: boolean;
+  waiverTemplate?: WaiverTemplate | null;
 }
 
 // Helper function to format phone number input
@@ -75,8 +80,17 @@ const formatPhoneNumber = (value: string): string => {
 };
 
 
-export function ProjectSignupForm({ onSubmit, onCancel, isSubmitting, showCommentField = false }: ProjectFormProps) {
+export function ProjectSignupForm({
+  onSubmit,
+  onCancel,
+  isSubmitting,
+  showCommentField = false,
+  waiverRequired = false,
+  waiverAllowUpload = true,
+  waiverTemplate = null,
+}: ProjectFormProps) {
   const [phoneNumberLength, setPhoneNumberLength] = useState(0); // State for phone number length
+  const [waiverSignature, setWaiverSignature] = useState<WaiverSignatureInput | null>(null);
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -91,8 +105,12 @@ export function ProjectSignupForm({ onSubmit, onCancel, isSubmitting, showCommen
   const handleFormSubmit = (data: FormValues) => {
     // The data passed to onSubmit will already have the phone number transformed (digits only or undefined)
     // due to the zod schema's transform function.
-    onSubmit(data);
+    onSubmit(data, waiverSignature);
   };
+
+  const signerName = form.watch("name");
+  const signerEmail = form.watch("email");
+  const waiverSatisfied = !waiverRequired || !!waiverSignature;
 
 
   return (
@@ -195,11 +213,22 @@ export function ProjectSignupForm({ onSubmit, onCancel, isSubmitting, showCommen
             }}
           />
         )}
+
+        {waiverRequired && (
+          <WaiverSignatureSection
+            template={waiverTemplate}
+            signerName={signerName}
+            signerEmail={signerEmail}
+            allowUpload={waiverAllowUpload}
+            required
+            onChange={setWaiverSignature}
+          />
+        )}
         
         <DialogFooter>
           <Button 
             type="submit"
-            disabled={isSubmitting}
+            disabled={isSubmitting || !waiverSatisfied}
           >
             {isSubmitting && (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />

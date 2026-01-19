@@ -223,6 +223,8 @@ export const verificationSettingsSchema = z.object({
   visibility: z.enum(["public", "unlisted", "organization_only"] as const),
   enableVolunteerComments: z.boolean().optional(),
   showAttendeesPublicly: z.boolean().optional(),
+  waiverRequired: z.boolean().optional(),
+  waiverAllowUpload: z.boolean().optional(),
 });
 
 // Event Form Schema
@@ -239,4 +241,6 @@ export const eventFormSchema = z.object({
   visibility: z.enum(["public", "unlisted", "organization_only"] as const),
   enableVolunteerComments: z.boolean().optional(),
   showAttendeesPublicly: z.boolean().optional(),
+  waiverRequired: z.boolean().optional(),
+  waiverAllowUpload: z.boolean().optional(),
 });

@@ -106,6 +106,8 @@ export interface EventFormState {
   restrictToOrgDomains: boolean;
   enableVolunteerComments: boolean;
   showAttendeesPublicly: boolean;
+  waiverRequired: boolean;
+  waiverAllowUpload: boolean;
   recurrence: {
     enabled: boolean;
     frequency: RecurrenceFrequency;
@@ -140,6 +142,8 @@ type EventFormAction =
   | { type: 'UPDATE_RESTRICT_TO_ORG_DOMAINS'; payload: boolean }
   | { type: 'UPDATE_ENABLE_VOLUNTEER_COMMENTS'; payload: boolean }
   | { type: 'UPDATE_SHOW_ATTENDEES_PUBLICLY'; payload: boolean }
+  | { type: 'UPDATE_WAIVER_REQUIRED'; payload: boolean }
+  | { type: 'UPDATE_WAIVER_ALLOW_UPLOAD'; payload: boolean }
   | {
       type: 'UPDATE_RECURRENCE';
       payload: {
@@ -149,7 +153,8 @@ type EventFormAction =
     }
   | { type: 'REMOVE_DAY'; payload: { dayIndex: number } }
   | { type: 'REMOVE_SLOT'; payload: { dayIndex: number; slotIndex: number } }
-  | { type: 'REMOVE_ROLE'; payload: { roleIndex: number } };
+  | { type: 'REMOVE_ROLE'; payload: { roleIndex: number } }
+  | { type: 'LOAD_DRAFT'; payload: Partial<EventFormState> };
 
 const defaultMultiRoleEvent = {
   name: '',
@@ -213,6 +218,8 @@ const initialState: EventFormState = {
   restrictToOrgDomains: false,
   enableVolunteerComments: false,
   showAttendeesPublicly: false,
+  waiverRequired: false,
+  waiverAllowUpload: true,
   recurrence: {
     enabled: false,
     frequency: 'weekly',
@@ -422,6 +429,18 @@ const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
         showAttendeesPublicly: action.payload,
       };
     }
+    case 'UPDATE_WAIVER_REQUIRED': {
+      return {
+        ...state,
+        waiverRequired: action.payload,
+      };
+    }
+    case 'UPDATE_WAIVER_ALLOW_UPLOAD': {
+      return {
+        ...state,
+        waiverAllowUpload: action.payload,
+      };
+    }
     case 'UPDATE_RECURRENCE': {
       const { field, value } = action.payload;
       return {
@@ -485,6 +504,37 @@ const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
             overallStart, // Update overall times
             overallEnd,   // Update overall times
           },
+        },
+      };
+    }
+    case 'LOAD_DRAFT': {
+      const payload = action.payload;
+
+      return {
+        ...state,
+        ...payload,
+        basicInfo: {
+          ...state.basicInfo,
+          ...(payload.basicInfo ?? {}),
+        },
+        schedule: {
+          ...state.schedule,
+          ...(payload.schedule ?? {}),
+          oneTime: {
+            ...state.schedule.oneTime,
+            ...(payload.schedule?.oneTime ?? {}),
+          },
+          multiDay: payload.schedule?.multiDay ?? state.schedule.multiDay,
+          sameDayMultiArea: {
+            ...state.schedule.sameDayMultiArea,
+            ...(payload.schedule?.sameDayMultiArea ?? {}),
+            roles:
+              payload.schedule?.sameDayMultiArea?.roles ?? state.schedule.sameDayMultiArea.roles,
+          },
+        },
+        recurrence: {
+          ...state.recurrence,
+          ...(payload.recurrence ?? {}),
         },
       };
     }
@@ -556,6 +606,12 @@ export const useEventForm = () => {
   const updateShowAttendeesPublicly = (enabled: boolean) =>
     dispatch({ type: 'UPDATE_SHOW_ATTENDEES_PUBLICLY', payload: enabled });
 
+  const updateWaiverRequired = (enabled: boolean) =>
+    dispatch({ type: 'UPDATE_WAIVER_REQUIRED', payload: enabled });
+
+  const updateWaiverAllowUpload = (enabled: boolean) =>
+    dispatch({ type: 'UPDATE_WAIVER_ALLOW_UPLOAD', payload: enabled });
+
   const updateRecurrence = (
     field: keyof EventFormState['recurrence'],
     value: EventFormState['recurrence'][keyof EventFormState['recurrence']],
@@ -569,6 +625,9 @@ export const useEventForm = () => {
 
   const removeRole = (roleIndex: number) =>
     dispatch({ type: 'REMOVE_ROLE', payload: { roleIndex } });
+
+  const loadDraftState = (draftData: Partial<EventFormState>) =>
+    dispatch({ type: 'LOAD_DRAFT', payload: draftData });
 
   return {
     state,
@@ -588,9 +647,12 @@ export const useEventForm = () => {
     updateRestrictToOrgDomains,
     updateEnableVolunteerComments,
     updateShowAttendeesPublicly,
+    updateWaiverRequired,
+    updateWaiverAllowUpload,
     updateRecurrence,
     removeDay,
     removeSlot,
     removeRole,
+    loadDraftState,
   };
 };

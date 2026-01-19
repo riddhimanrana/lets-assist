@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { CheckCircle2, Clock, Link as LinkIcon, User, Mail, Phone, Calendar, Info, Loader2, XCircle, AlertTriangle, Clock3, Award, Medal } from "lucide-react"; // Use Medal instead of Certificate
+import { CheckCircle2, Clock, Link as LinkIcon, User, Mail, Phone, Calendar, Info, Loader2, XCircle, AlertTriangle, Clock3, Award, Medal, FileText } from "lucide-react"; // Use Medal instead of Certificate
 import Link from "next/link";
 import { format, addDays, parseISO, differenceInSeconds, differenceInHours, isAfter } from "date-fns";
 import { formatTimeTo12Hour } from "@/lib/utils";
@@ -17,7 +17,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
-import { cancelSignup } from "@/app/projects/[id]/actions";
+import { cancelSignup, getWaiverDownloadUrl } from "@/app/projects/[id]/actions";
 
 // Helper function to format schedule slot (same as before)
 const formatScheduleSlot = (project: Project, slotId: string) => {
@@ -155,6 +155,12 @@ export default function AnonymousSignupClient({
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const [isDeleted, setIsDeleted] = useState(false);
+  const [waiverSignature, setWaiverSignature] = useState<{
+    signature_type: "draw" | "typed" | "upload";
+    signed_at?: string | null;
+    signature_text?: string | null;
+  } | null>(null);
+  const [waiverLoading, setWaiverLoading] = useState(false);
   
   // Parse dates
   const createdDate = new Date(created_at);
@@ -262,6 +268,35 @@ export default function AnonymousSignupClient({
     }
   };
 
+  const handleViewWaiver = async () => {
+    try {
+      setWaiverLoading(true);
+      const result = await getWaiverDownloadUrl(project_signup_id, id);
+
+      if (result?.url) {
+        window.open(result.url, "_blank", "noopener,noreferrer");
+        return;
+      }
+
+      if (result?.signature?.signature_text) {
+        toast.success(`Typed signature on file: ${result.signature.signature_text}`);
+        return;
+      }
+
+      if (result?.error) {
+        toast.error(result.error);
+        return;
+      }
+
+      toast.error("Unable to load waiver at this time.");
+    } catch (error) {
+      console.error("Error loading waiver:", error);
+      toast.error("Unable to load waiver at this time.");
+    } finally {
+      setWaiverLoading(false);
+    }
+  };
+
   // Calculate if we're in the post-event window (first 48 hours after event ends)
   const isInPostEventWindow = useMemo(() => {
     if (!endTime || !sessionDate) return false;
@@ -319,6 +354,22 @@ export default function AnonymousSignupClient({
   }, [project_signup_id]);
   const certificateId = certMap[project_signup_id] ?? null;
   // --- END ADDED ---
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase
+      .from("waiver_signatures")
+      .select("signature_type, signed_at, signature_text")
+      .eq("signup_id", project_signup_id)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (error) {
+          console.error("Error fetching waiver signature:", error);
+          return;
+        }
+        setWaiverSignature(data as typeof waiverSignature);
+      });
+  }, [project_signup_id]);
 
   // Determine if this is a "missed event" situation (approved but didn't attend)
   // --- MODIFIED: Only count as missed if hours are NOT published ---
@@ -768,7 +819,30 @@ export default function AnonymousSignupClient({
               </div>
             )}
           </div>
-          <Separator />
+          {project.waiver_required && (
+            <>
+              <Separator />
+              <div className="space-y-3 text-sm">
+                <h3 className="font-medium text-base mb-2">Waiver</h3>
+                {waiverSignature ? (
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <FileText className="h-4 w-4" />
+                      <span>
+                        Signed {waiverSignature.signed_at ? format(new Date(waiverSignature.signed_at), "MMMM d, yyyy") : ""}
+                      </span>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={handleViewWaiver} disabled={waiverLoading}>
+                      {waiverLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "View Waiver"}
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="text-xs text-muted-foreground">No waiver signature on file.</div>
+                )}
+              </div>
+              <Separator />
+            </>
+          )}
           <div className="space-y-3 text-sm">
             <h3 className="font-medium text-base mb-2">Project & Slot Details</h3>
              <div className="flex items-center gap-2 text-muted-foreground">

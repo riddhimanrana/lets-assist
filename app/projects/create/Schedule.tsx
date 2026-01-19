@@ -16,6 +16,8 @@ import { TimePicker } from "@/components/ui/time-picker";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { ZodIssue } from "zod";
+import { RecurrenceFrequency, RecurrenceEndType, RecurrenceWeekday } from "@/types";
+import RecurrenceSettings from "./RecurrenceSettings";
 // import { VerificationMethod } from "@/types"
 
 interface ScheduleProps {
@@ -44,6 +46,15 @@ interface ScheduleProps {
         }[];
       };
     };
+    recurrence: {
+      enabled: boolean;
+      frequency: RecurrenceFrequency;
+      interval: number;
+      endType: RecurrenceEndType;
+      endDate?: string;
+      endOccurrences?: number;
+      weekdays: RecurrenceWeekday[];
+    };
   };
   updateOneTimeScheduleAction: (
     field: keyof ScheduleProps["state"]["schedule"]["oneTime"],
@@ -66,6 +77,10 @@ interface ScheduleProps {
   removeDayAction: (dayIndex: number) => void;
   removeSlotAction: (dayIndex: number, slotIndex: number) => void;
   removeRoleAction: (roleIndex: number) => void;
+  updateRecurrenceAction?: (
+    field: keyof ScheduleProps["state"]["recurrence"],
+    value: ScheduleProps["state"]["recurrence"][keyof ScheduleProps["state"]["recurrence"]]
+  ) => void;
   errors?: ZodIssue[];
 }
 
@@ -80,6 +95,7 @@ export default function Schedule({
   removeDayAction,
   removeSlotAction,
   removeRoleAction,
+  updateRecurrenceAction,
   errors = []
 }: ScheduleProps) {
   // Helper function to ensure dates are handled consistently without timezone shifting
@@ -162,6 +178,7 @@ export default function Schedule({
     const volunteersError = getFieldError('volunteers');
 
     return (
+      <>
       <Card>
         <CardHeader>
           <CardTitle>Schedule Your Event</CardTitle>
@@ -277,6 +294,16 @@ export default function Schedule({
           </div>
         </CardContent>
       </Card>
+      
+      {/* Recurrence Settings for oneTime events */}
+      {updateRecurrenceAction && (
+        <RecurrenceSettings
+          recurrence={state.recurrence}
+          updateRecurrence={updateRecurrenceAction}
+          eventType={state.eventType}
+        />
+      )}
+    </>
     );
   }
 
@@ -545,6 +572,7 @@ export default function Schedule({
     const rolesError = getFieldError('roles');
 
     return (
+      <>
       <Card>
         <CardHeader>
           <CardTitle>Schedule Your Event</CardTitle>
@@ -795,6 +823,16 @@ export default function Schedule({
           </div>
         </CardContent>
       </Card>
+      
+      {/* Recurrence Settings for sameDayMultiArea events */}
+      {updateRecurrenceAction && (
+        <RecurrenceSettings
+          recurrence={state.recurrence}
+          updateRecurrence={updateRecurrenceAction}
+          eventType={state.eventType}
+        />
+      )}
+    </>
     );
   }
 

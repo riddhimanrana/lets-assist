@@ -27,3 +27,6 @@ export * from './signupgenius';
 
 // Calendar types
 export * from './calendar';
+
+// Waiver types
+export * from './waiver';

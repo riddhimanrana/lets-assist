@@ -15,12 +15,12 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 // icon components
-import { Loader2, ChevronLeft, ChevronRight, AlertCircle, Sparkles } from "lucide-react";
+import { Loader2, ChevronLeft, ChevronRight, AlertCircle, Sparkles, Save } from "lucide-react";
 // utility
 import { cn } from "@/lib/utils";
 // Replace shadcn toast with Sonner
 import { toast } from "sonner";
-import { createProject, uploadCoverImage, uploadProjectDocument, finalizeProject, getProjectById } from "./actions";
+import { createProject, uploadCoverImage, uploadProjectDocument, finalizeProject, saveProjectAsDraft } from "./actions";
 import { useRouter } from "next/navigation";
 // Import Zod schemas
 import {
@@ -33,6 +33,25 @@ import {
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import DraftsSidebar from "./DraftsSidebar";
+import type { ProjectSchedule, EventType } from "@/types";
+
+interface Draft {
+  id: string;
+  title: string;
+  description: string;
+  location: string;
+  event_type: EventType;
+  schedule: ProjectSchedule | null;
+  cover_image_url: string | null;
+  created_at: string;
+  workflow_status: string;
+  organization: {
+    id: string;
+    name: string;
+    logo_url: string | null;
+  } | null;
+}
 
 interface ProjectCreatorProps {
   initialOrgId?: string;
@@ -43,9 +62,11 @@ interface ProjectCreatorProps {
     role: string;
     allowed_email_domains?: string[] | null;
   }[];
+  drafts?: Draft[];
+  initialDraftData?: any;
 }
 
-export default function ProjectCreator({ initialOrgId, initialOrgOptions }: ProjectCreatorProps) {
+export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts = [], initialDraftData }: ProjectCreatorProps) {
   const {
     state,
     nextStep,
@@ -69,14 +90,21 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
 
     updateEnableVolunteerComments,
     updateShowAttendeesPublicly,
+    updateWaiverRequired,
+    updateWaiverAllowUpload,
+    updateRecurrence,
+    loadDraftState,
   } = useEventForm();
 
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
 
   // File handling states
   const [coverImage, setCoverImage] = useState<File | null>(null);
   const [documents, setDocuments] = useState<File[]>([]);
+
+  const AUTOSAVE_KEY = "project-autosave";
 
   // Form validation states
   const [basicInfoErrors, setBasicInfoErrors] = useState<z.ZodIssue[]>([]);
@@ -90,6 +118,59 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
 
   // AI Assistant state
   const [showAIAssistant, setShowAIAssistant] = useState(false);
+
+  // Load draft data on mount if provided
+  const draftLoadedRef = useRef(false);
+  const autosaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  useEffect(() => {
+    // Guard to prevent infinite update loops when hydrating draft state
+    if (initialDraftData && loadDraftState && !draftLoadedRef.current) {
+      draftLoadedRef.current = true;
+      loadDraftState(initialDraftData);
+    }
+  }, [initialDraftData, loadDraftState]);
+
+  // Load autosave from localStorage when no server draft provided
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (initialDraftData) return; // prefer server draft when present
+    if (draftLoadedRef.current) return; // avoid double load
+
+    const saved = window.localStorage.getItem(AUTOSAVE_KEY);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        loadDraftState(parsed);
+        draftLoadedRef.current = true;
+      } catch (err) {
+        console.error("Failed to parse autosave draft", err);
+      }
+    }
+  }, [initialDraftData, loadDraftState]);
+
+  // Autosave to localStorage on state changes
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!state) return;
+
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current);
+    }
+
+    autosaveTimerRef.current = setTimeout(() => {
+      try {
+        window.localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(state));
+      } catch (err) {
+        console.error("Failed to autosave draft", err);
+      }
+    }, 800);
+
+    return () => {
+      if (autosaveTimerRef.current) {
+        clearTimeout(autosaveTimerRef.current);
+      }
+    };
+  }, [state]);
 
   // Add handler to update profanity state
   const handleProfanityResult = (hasIssues: boolean) => {
@@ -290,7 +371,9 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
           verificationSettingsSchema.parse({
             verificationMethod: state.verificationMethod,
             requireLogin: state.requireLogin,
-            visibility: state.visibility
+            visibility: state.visibility,
+            waiverRequired: state.waiverRequired,
+            waiverAllowUpload: state.waiverAllowUpload,
           });
           setVerificationErrors([]);
           return true;
@@ -378,6 +461,8 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
         visibility: state.visibility,
         enableVolunteerComments: state.enableVolunteerComments,
         showAttendeesPublicly: state.showAttendeesPublicly,
+        waiverRequired: state.waiverRequired,
+        waiverAllowUpload: state.waiverAllowUpload,
       });
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -490,6 +575,45 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
     }
   };
 
+  // Handle saving as draft - with minimal validation
+  const handleSaveDraft = async () => {
+    // Only require a title for drafts
+    if (!state.basicInfo.title || state.basicInfo.title.trim() === '') {
+      toast.error("Please enter a title to save as draft");
+      return;
+    }
+
+    try {
+      setIsSavingDraft(true);
+      const loadingToast = toast.loading("Saving draft...");
+
+      const formData = new FormData();
+      formData.append("projectData", JSON.stringify(state));
+
+      const result = await saveProjectAsDraft(formData);
+
+      if ("error" in result) {
+        toast.dismiss(loadingToast);
+        toast.error(result.error);
+        setIsSavingDraft(false);
+        return;
+      }
+
+      toast.dismiss(loadingToast);
+      toast.success("Draft saved! You can continue editing later.");
+
+      setIsSavingDraft(false);
+      // Redirect to home after saving draft
+      router.push("/home");
+
+    } catch (error) {
+      console.error("Error saving draft:", error);
+      toast.dismiss();
+      toast.error("Failed to save draft. Please try again.");
+      setIsSavingDraft(false);
+    }
+  };
+
   // Function to check if the project is being created for an organization
   const isOrganizationProject = () => {
     return !!state.basicInfo.organizationId;
@@ -541,6 +665,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
             removeDayAction={removeDay}
             removeSlotAction={removeSlot}
             removeRoleAction={removeRole}
+            updateRecurrenceAction={updateRecurrence}
             errors={validationAttempted ? scheduleErrors : []}
           />
         );
@@ -553,6 +678,8 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
             visibility={state.visibility}
             enableVolunteerComments={state.enableVolunteerComments}
             showAttendeesPublicly={state.showAttendeesPublicly}
+            waiverRequired={state.waiverRequired}
+            waiverAllowUpload={state.waiverAllowUpload}
             restrictToOrgDomains={state.restrictToOrgDomains}
             allowedEmailDomains={
               state.basicInfo.organizationId
@@ -579,6 +706,8 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
             }}
             updateEnableVolunteerCommentsAction={updateEnableVolunteerComments}
             updateShowAttendeesPubliclyAction={updateShowAttendeesPublicly}
+            updateWaiverRequiredAction={updateWaiverRequired}
+            updateWaiverAllowUploadAction={updateWaiverAllowUpload}
             updateRestrictToOrgDomainsAction={updateRestrictToOrgDomains}
             errors={{
               verificationMethod: getFieldError("verificationMethod", verificationErrors)
@@ -653,28 +782,74 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions }: Proj
           <Button
             variant="outline"
             onClick={prevStep}
-            disabled={state.step === 1 || isSubmitting}
+            disabled={state.step === 1 || isSubmitting || isSavingDraft}
             className="w-[120px]"
           >
             <ChevronLeft className="h-4 w-4 mr-2" />
             Back
           </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={isSubmitting}
-            className="w-[120px]"
-          >
-            {isSubmitting ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : state.step === 5 ? (
-              'Create'
-            ) : (
-              <>
-                Continue
-                <ChevronRight className="h-4 w-4 ml-2" />
-              </>
+          <div className="flex gap-2 items-center">
+            {/* Drafts button: icon on mobile, text on desktop */}
+            {drafts.length > 0 && (
+              <div className="flex">
+                <div className="md:hidden">
+                  <DraftsSidebar initialDrafts={drafts} />
+                </div>
+                <div className="hidden md:block">
+                  <DraftsSidebar initialDrafts={drafts} />
+                </div>
+              </div>
             )}
-          </Button>
+
+            {/* Save Draft: icon-only on mobile, full on desktop */}
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                onClick={handleSaveDraft}
+                disabled={isSubmitting || isSavingDraft}
+                className="md:hidden w-10 h-10 p-0"
+              >
+                {isSavingDraft ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4" />
+                )}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleSaveDraft}
+                disabled={isSubmitting || isSavingDraft}
+                className="hidden md:inline-flex items-center gap-2"
+              >
+                {isSavingDraft ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <Save className="h-4 w-4" />
+                    Save Draft
+                  </>
+                )}
+              </Button>
+            </div>
+
+            {/* Continue / Create button (full) */}
+            <Button
+              onClick={handleSubmit}
+              disabled={isSubmitting || isSavingDraft}
+              className="w-[120px]"
+            >
+              {isSubmitting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : state.step === 5 ? (
+                'Create'
+              ) : (
+                <>
+                  Continue
+                  <ChevronRight className="h-4 w-4 ml-2" />
+                </>
+              )}
+            </Button>
+          </div>
         </div>
       </div>
 

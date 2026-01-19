@@ -237,6 +237,7 @@ export default async function ProfilePage(
     .from("projects")
     .select("*")
     .eq("creator_id", profile.id)
+    .eq("workflow_status", "published")
     .order("created_at", { ascending: false });
 
   // Fetch projects this user has attended/signed up for
