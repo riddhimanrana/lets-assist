@@ -111,10 +111,10 @@ export default async function RootLayout({
           >
             <PostHogProvider>
               <AuthProvider initialUser={user}>
-                <div className="bg-background text-foreground min-h-screen flex flex-col">
+                <div className="bg-background text-foreground min-h-screen flex flex-col w-full">
                   {/* Navbar now uses centralized useAuth hook */}
                   <Navbar />
-                  <main className="flex-1">{children}</main>
+                  <main className="flex-1 w-full">{children}</main>
                   <ToasterTheme />
                   <QueryMessageToast />
                   <Footer />

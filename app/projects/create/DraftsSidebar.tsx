@@ -30,7 +30,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
   DropdownMenu,
@@ -39,6 +38,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   Calendar,
   MapPin,
@@ -80,6 +85,7 @@ export default function DraftsSidebar({ initialDrafts }: DraftsSidebarProps) {
   const [isPublishing, setIsPublishing] = useState<string | null>(null);
   const [isOpenDesktop, setIsOpenDesktop] = useState(false);
   const [isOpenMobile, setIsOpenMobile] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState<string | null>(null);
 
   const handleDelete = async (draftId: string) => {
     setIsDeleting(draftId);
@@ -89,9 +95,14 @@ export default function DraftsSidebar({ initialDrafts }: DraftsSidebarProps) {
         toast.error(result.error);
       } else {
         toast.success("Draft deleted");
-        setDrafts(drafts.filter((d) => d.id !== draftId));
+        // Update local state and keep the sheet/drawer open
+        setDrafts(prevDrafts => prevDrafts.filter((d) => d.id !== draftId));
+        setDeleteDialogOpen(null);
+        // Refresh the page data in the background
+        router.refresh();
       }
-    } catch {
+    } catch (error) {
+      console.error("Delete error:", error);
       toast.error("Failed to delete draft");
     } finally {
       setIsDeleting(null);
@@ -101,14 +112,18 @@ export default function DraftsSidebar({ initialDrafts }: DraftsSidebarProps) {
   const handlePublish = async (draftId: string) => {
     setIsPublishing(draftId);
     try {
-      const result = await publishDraft(draftId);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result = await publishDraft(draftId) as any;
       if (result.error) {
         toast.error(result.error);
-      } else {
+      } else if (result.success && result.id) {
         toast.success("Project published successfully!");
-        router.push(`/projects/${draftId}`);
+        // Update local state
+        setDrafts(prevDrafts => prevDrafts.filter((d) => d.id !== draftId));
+        router.push(`/projects/${result.id}`);
       }
-    } catch {
+    } catch (error) {
+      console.error("Publish error:", error);
       toast.error("Failed to publish project");
     } finally {
       setIsPublishing(null);
@@ -188,50 +203,37 @@ export default function DraftsSidebar({ initialDrafts }: DraftsSidebarProps) {
                 <MoreVertical className="h-3 w-3" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuContent align="end" className="w-48" onClick={(e) => e.stopPropagation()}>
               <DropdownMenuItem
-                onClick={() => handleContinue(draft.id)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleContinue(draft.id);
+                }}
               >
                 <Edit className="h-4 w-4 mr-2" />
                 Continue Editing
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={() => handlePublish(draft.id)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handlePublish(draft.id);
+                }}
                 disabled={isPublishing === draft.id}
               >
                 <Send className="h-4 w-4 mr-2" />
                 {isPublishing === draft.id ? "Publishing..." : "Publish"}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <DropdownMenuItem
-                    onSelect={(e) => e.preventDefault()}
-                    className="text-destructive focus:text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete
-                  </DropdownMenuItem>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Delete draft?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This will permanently delete &quot;{draft.title || "Untitled"}&quot;.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={() => handleDelete(draft.id)}
-                      disabled={isDeleting === draft.id}
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    >
-                      {isDeleting === draft.id ? "Deleting..." : "Delete"}
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setDeleteDialogOpen(draft.id);
+                }}
+                className="text-destructive focus:text-destructive"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -257,55 +259,103 @@ export default function DraftsSidebar({ initialDrafts }: DraftsSidebarProps) {
 
   return (
     <>
-      {/* Mobile drawer trigger (icon only) */}
-      <div className="md:hidden">
-        <Drawer open={isOpenMobile} onOpenChange={setIsOpenMobile}>
-          <DrawerTrigger asChild>
-            <Button variant="ghost" size="icon">
-              <FileText className="h-4 w-4" />
-            </Button>
-          </DrawerTrigger>
-          <DrawerContent>
-            <DrawerHeader className="pb-2">
-              <DrawerTitle>My Drafts</DrawerTitle>
-              <DrawerDescription>
-                {drafts.length} draft{drafts.length !== 1 ? "s" : ""} saved
-              </DrawerDescription>
-            </DrawerHeader>
-            <div className="px-4 pb-6 pt-2">
-              <DraftList />
-              {/* Removed /projects/drafts link per request */}
-            </div>
-          </DrawerContent>
-        </Drawer>
-      </div>
+      <TooltipProvider>
+        {/* Delete confirmation dialog */}
+        <AlertDialog open={!!deleteDialogOpen} onOpenChange={(open) => {
+          if (!open) setDeleteDialogOpen(null);
+        }}>
+          <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete draft?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will permanently delete this draft.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={(e) => {
+                e.stopPropagation();
+                setDeleteDialogOpen(null);
+              }}>
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (deleteDialogOpen) {
+                    handleDelete(deleteDialogOpen);
+                  }
+                }}
+                disabled={!!isDeleting}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {isDeleting ? "Deleting..." : "Delete"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
-      {/* Desktop sheet trigger */}
-      <div className="hidden md:block">
-        <Sheet open={isOpenDesktop} onOpenChange={setIsOpenDesktop}>
-          <SheetTrigger asChild>
-            <Button
-              variant="outline"
-              className="flex items-center gap-2"
-            >
-              <FileText className="h-4 w-4" />
-              Drafts ({drafts.length})
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="right" className="w-full sm:max-w-md">
-            <SheetHeader>
-              <SheetTitle>My Drafts</SheetTitle>
-              <SheetDescription>
-                {drafts.length} draft{drafts.length !== 1 ? "s" : ""} saved
-              </SheetDescription>
-            </SheetHeader>
-            <div className="mt-6">
-              <DraftList />
-              {/* Removed /projects/drafts link per request */}
-            </div>
-          </SheetContent>
-        </Sheet>
-      </div>
+        {/* Mobile drawer trigger (icon only) */}
+        <div className="md:hidden">
+          <Drawer open={isOpenMobile} onOpenChange={setIsOpenMobile}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <DrawerTrigger asChild>
+                  <Button variant="secondary" size="icon" className="h-9 w-9">
+                    <FileText className="h-4 w-4" />
+                  </Button>
+                </DrawerTrigger>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>My Drafts ({drafts.length})</p>
+              </TooltipContent>
+            </Tooltip>
+            <DrawerContent>
+              <DrawerHeader className="pb-2">
+                <DrawerTitle>My Drafts</DrawerTitle>
+                <DrawerDescription>
+                  {drafts.length} draft{drafts.length !== 1 ? "s" : ""} saved
+                </DrawerDescription>
+              </DrawerHeader>
+              <div className="px-4 pb-6 pt-2">
+                <DraftList />
+              </div>
+            </DrawerContent>
+          </Drawer>
+        </div>
+
+        {/* Desktop sheet trigger */}
+        <div className="hidden md:block">
+          <Sheet open={isOpenDesktop} onOpenChange={setIsOpenDesktop}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <SheetTrigger asChild>
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    className="h-9 w-9"
+                  >
+                    <FileText className="h-4 w-4" />
+                  </Button>
+                </SheetTrigger>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>My Drafts ({drafts.length})</p>
+              </TooltipContent>
+            </Tooltip>
+            <SheetContent side="right" className="w-full sm:max-w-md">
+              <SheetHeader>
+                <SheetTitle>My Drafts</SheetTitle>
+                <SheetDescription>
+                  {drafts.length} draft{drafts.length !== 1 ? "s" : ""} saved
+                </SheetDescription>
+              </SheetHeader>
+              <div className="mt-6">
+                <DraftList />
+              </div>
+            </SheetContent>
+          </Sheet>
+        </div>
+      </TooltipProvider>
     </>
   );
 }

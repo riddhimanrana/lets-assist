@@ -20,7 +20,7 @@ export const metadata: Metadata = {
 export default async function CreateProjectPage({
   searchParams
 }: {
-  searchParams: Promise<{ org?: string }>
+  searchParams: Promise<{ org?: string; draft?: string }>
 }) {
   const supabase = await createClient();
 
@@ -124,8 +124,9 @@ export default async function CreateProjectPage({
     .eq('user_id', user.id)
     .order('updated_at', { ascending: false });
 
-  // Load specific draft if requested
+  // Load specific draft if requested, otherwise load most recent autosaved draft
   let loadedDraft = null;
+  let loadedDraftId = null;
   if (draftIdFromUrl) {
     const { data: draft } = await supabase
       .from('project_drafts')
@@ -136,15 +137,21 @@ export default async function CreateProjectPage({
     
     if (draft) {
       loadedDraft = draft.draft_data;
+      loadedDraftId = draft.id;
     }
+  } else if (drafts && drafts.length > 0) {
+    // Load the most recently updated draft (autosaved)
+    loadedDraft = drafts[0].draft_data;
+    loadedDraftId = drafts[0].id;
   }
 
   return (
-    <div className="container mx-auto p-4 sm:p-8 max-w-3xl">
+    <div className="w-full mx-auto p-4 sm:p-8 max-w-4xl">
       <ProjectCreator 
         initialOrgId={initialOrgId} 
         initialOrgOptions={orgOptions}
         initialDraftData={loadedDraft}
+        initialDraftId={loadedDraftId}
         drafts={drafts?.map((d: any) => ({
           id: d.id,
           title: d.title || 'Untitled Draft',

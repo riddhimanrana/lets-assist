@@ -258,7 +258,7 @@ export async function syncOrganizationCalendarNow(
   const accessToken = await getGoogleAccessTokenForUser(
     syncConfig.created_by,
     true,
-    { requiredScopes: [CALENDAR_SCOPE] }
+    { requiredScopes: [CALENDAR_SCOPE], connectionType: "calendar" }
   );
 
   if (!accessToken) {

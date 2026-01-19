@@ -1,6 +1,6 @@
 "use client";
 
-import { Shield } from "lucide-react";
+import { Shield, AlertCircle, CheckCircle2 } from "lucide-react";
 import { useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -317,8 +317,37 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
                       <Input type="password" {...field} />
                     </FormControl>
                     <FormMessage />
-                  </FormItem>                  )}
-                />
+                    <div className="mt-3 space-y-2">
+                      <div className="rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/30 p-3">
+                        <p className="text-xs font-semibold text-amber-900 dark:text-amber-200 mb-2 flex items-center gap-2">
+                          <AlertCircle className="h-3.5 w-3.5" />
+                          Password Requirements
+                        </p>
+                        <ul className="space-y-1.5 text-xs text-amber-800 dark:text-amber-300">
+                          <li className="flex items-start gap-2">
+                            <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
+                            <span>At least 8 characters long</span>
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
+                            <span>Cannot be a commonly used or compromised password</span>
+                          </li>
+                        </ul>
+                        <p className="text-xs text-amber-700 dark:text-amber-400 mt-2 leading-relaxed">
+                          We check your password against a database of known compromised passwords powered by <a 
+                            href="https://haveibeenpwned.org/" 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="underline font-semibold hover:text-amber-900 dark:hover:text-amber-200"
+                          >
+                            HaveIBeenPwned.org
+                          </a> to keep your account secure.
+                        </p>
+                      </div>
+                    </div>
+                  </FormItem>
+                )}
+              />
                 <p className="text-sm text-muted-foreground text-center">
                   By joining, you agree to our{" "}
                   <Link href="/terms" className="text-chart-3">

@@ -235,8 +235,8 @@ export default function Navbar() {
 
   return (
     <>
-      <div>
-        <nav className="flex items-center justify-between p-3 bg-background">
+      <div className="w-full">
+        <nav className="flex items-center justify-between p-3 bg-background w-full">
           <Link href="/">
             <div className="flex items-center space-x-2">
               <Image

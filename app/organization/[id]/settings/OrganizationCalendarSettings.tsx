@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,7 +21,7 @@ import {
 import {
   disconnectOrganizationCalendar,
   getOrganizationCalendarStatus,
-  syncOrganizationCalendarNow,
+  updateOrganizationCalendarSettings,
 } from "../calendar/actions";
 
 type OrganizationCalendarSettingsProps = {
@@ -36,13 +37,13 @@ export default function OrganizationCalendarSettings({
 }: OrganizationCalendarSettingsProps) {
   const [status, setStatus] = useState<Awaited<ReturnType<typeof getOrganizationCalendarStatus>> | null>(null);
   const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
   const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
+  const [updatingAutoSync, setUpdatingAutoSync] = useState(false);
 
   const connectUrl = useMemo(
     () =>
-      `/api/calendar/google/connect?org_id=${organizationId}&return_to=${encodeURIComponent(
+      `/api/calendar/google/connect?calendar_sync=1&org_id=${organizationId}&return_to=${encodeURIComponent(
         `/organization/${organizationSlug}/settings?section=calendar`
       )}`,
     [organizationId, organizationSlug]
@@ -59,18 +60,16 @@ export default function OrganizationCalendarSettings({
     loadStatus();
   }, [organizationId]);
 
-  const handleSyncNow = async () => {
-    setSyncing(true);
-    const result = await syncOrganizationCalendarNow(organizationId);
+  const handleToggleAutoSync = async (enabled: boolean) => {
+    setUpdatingAutoSync(true);
+    const result = await updateOrganizationCalendarSettings(organizationId, { autoSync: enabled });
     if (!result.success) {
-      toast.error(result.error || "Failed to sync calendar");
+      toast.error(result.error || "Failed to update auto-sync");
     } else {
-      toast.success(
-        `Calendar synced (${result.createdCount ?? 0} created, ${result.updatedCount ?? 0} updated, ${result.removedCount ?? 0} removed)`
-      );
+      toast.success(enabled ? "Auto-sync enabled" : "Auto-sync disabled");
       await loadStatus();
     }
-    setSyncing(false);
+    setUpdatingAutoSync(false);
   };
 
   const handleDisconnect = async () => {
@@ -111,7 +110,7 @@ export default function OrganizationCalendarSettings({
               <div>
                 <p className="text-sm font-medium flex items-center gap-2">
                   <CalendarCheck className="h-4 w-4 text-chart-5" />
-                  Calendar connected
+                  {status.autoSync ? "Calendar connected & syncing automatically" : "Calendar connected"}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {status.connectedEmail || "Google account"}
@@ -119,19 +118,8 @@ export default function OrganizationCalendarSettings({
                 {connectedByLabel && (
                   <p className="text-xs text-muted-foreground">Connected by {connectedByLabel}</p>
                 )}
-                {lastSynced && (
-                  <p className="text-xs text-muted-foreground">Last synced {lastSynced}</p>
-                )}
               </div>
               <div className="flex flex-wrap gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleSyncNow}
-                  disabled={syncing || status.needsReconnect}
-                >
-                  {syncing ? "Syncing..." : "Sync now"}
-                </Button>
                 <Button
                   variant="destructive"
                   size="sm"
@@ -149,9 +137,28 @@ export default function OrganizationCalendarSettings({
               </div>
             )}
 
-            <p className="text-xs text-muted-foreground">
-              Run “Sync now” anytime to refresh the calendar with the latest projects.
-            </p>
+            <div className="rounded-lg border border-muted bg-card p-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <p className="text-sm font-medium">Automatic Sync</p>
+                  <p className="text-xs text-muted-foreground">
+                    {status.autoSync 
+                      ? "Calendar syncs every hour automatically"
+                      : "Enable to sync calendar hourly"}
+                  </p>
+                </div>
+                <Switch
+                  checked={status.autoSync ?? false}
+                  onCheckedChange={handleToggleAutoSync}
+                  disabled={updatingAutoSync || status.needsReconnect || !status.canManage}
+                />
+              </div>
+              {status.autoSync && lastSynced && (
+                <p className="text-xs text-muted-foreground mt-3 pt-3 border-t">
+                  Last synced: {lastSynced}
+                </p>
+              )}
+            </div>
           </div>
         ) : (
           <div className="space-y-3 rounded-xl border border-dashed border-border/60 bg-muted/40 p-4">
