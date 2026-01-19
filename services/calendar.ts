@@ -404,6 +404,212 @@ async function getOrCreateVolunteeringCalendar(
   }
 }
 
+async function calendarExists(
+  accessToken: string,
+  calendarId: string
+): Promise<boolean> {
+  try {
+    const response = await fetch(
+      `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    );
+
+    return response.ok;
+  } catch (error) {
+    console.error("Error checking calendar existence:", error);
+    return false;
+  }
+}
+
+export async function ensureOrganizationCalendar(
+  accessToken: string,
+  calendarId: string | null | undefined,
+  calendarName: string
+): Promise<{ calendarId: string; created: boolean } | null> {
+  if (calendarId) {
+    const exists = await calendarExists(accessToken, calendarId);
+    if (exists) {
+      return { calendarId, created: false };
+    }
+  }
+
+  try {
+    const response = await fetch(`${GOOGLE_CALENDAR_API}/calendars`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        summary: calendarName,
+        description: `Volunteer events from ${calendarName} on Let's Assist`,
+        timeZone: "America/Los_Angeles",
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      console.error("Failed to create organization calendar:", error);
+      return null;
+    }
+
+    const calendar = await response.json();
+    const newCalendarId = calendar.id as string;
+
+    try {
+      await fetch(
+        `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(newCalendarId)}`,
+        {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            colorId: "3",
+          }),
+        }
+      );
+    } catch (error) {
+      console.error("Failed to set organization calendar color:", error);
+    }
+
+    return { calendarId: newCalendarId, created: true };
+  } catch (error) {
+    console.error("Error creating organization calendar:", error);
+    return null;
+  }
+}
+
+export async function createGoogleCalendarEventForCalendar(
+  accessToken: string,
+  calendarId: string,
+  project: Project,
+  scheduleId?: string
+): Promise<string | null> {
+  const eventData = formatProjectToCalendarEvent(project, scheduleId);
+  if (!eventData) {
+    throw new Error("Invalid project schedule data");
+  }
+
+  if (!Array.isArray(eventData)) {
+    try {
+      const response = await fetch(
+        `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(eventData),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.text();
+        console.error("Failed to create calendar event:", error);
+        throw new Error("Failed to create calendar event");
+      }
+
+      const result = await response.json();
+      return result.id;
+    } catch (error) {
+      console.error("Error creating calendar event:", error);
+      throw error;
+    }
+  }
+
+  const eventIds: string[] = [];
+  for (const event of eventData) {
+    try {
+      const response = await fetch(
+        `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(event),
+        }
+      );
+
+      if (response.ok) {
+        const result = await response.json();
+        eventIds.push(result.id);
+      }
+    } catch (error) {
+      console.error("Error creating calendar event:", error);
+    }
+  }
+
+  return eventIds.length > 0 ? eventIds[0] : null;
+}
+
+export async function updateGoogleCalendarEventForCalendar(
+  accessToken: string,
+  calendarId: string,
+  eventId: string,
+  project: Project,
+  scheduleId?: string
+): Promise<boolean> {
+  const eventData = formatProjectToCalendarEvent(project, scheduleId);
+  if (!eventData || Array.isArray(eventData)) {
+    throw new Error("Invalid project schedule data");
+  }
+
+  try {
+    const response = await fetch(
+      `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(
+        calendarId
+      )}/events/${eventId}`,
+      {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(eventData),
+      }
+    );
+
+    return response.ok;
+  } catch (error) {
+    console.error("Error updating calendar event:", error);
+    return false;
+  }
+}
+
+export async function deleteGoogleCalendarEventForCalendar(
+  accessToken: string,
+  calendarId: string,
+  eventId: string
+): Promise<boolean> {
+  try {
+    const response = await fetch(
+      `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(
+        calendarId
+      )}/events/${eventId}`,
+      {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    );
+
+    return response.ok || response.status === 404;
+  } catch (error) {
+    console.error("Error deleting calendar event:", error);
+    return false;
+  }
+}
+
 /**
  * Create a calendar event in user's Google Calendar
  * Uses dedicated "Let's Assist Volunteering" calendar (creates if needed)

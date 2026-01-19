@@ -14,6 +14,7 @@ export async function GET(request: Request) {
     const includeSheets = searchParams.get("scopes") === "sheets";
     const forceConsent = searchParams.get("force") === "1";
     const wantsJson = searchParams.get("format") === "json";
+    const orgId = searchParams.get("org_id");
 
     // Check if user is authenticated
     const {
@@ -26,6 +27,23 @@ export async function GET(request: Request) {
         { error: "Unauthorized" },
         { status: 401 }
       );
+    }
+
+    if (orgId) {
+      const { data: membership } = await supabase
+        .from("organization_members")
+        .select("role")
+        .eq("organization_id", orgId)
+        .eq("user_id", user.id)
+        .single();
+
+      if (!membership || membership.role !== "admin") {
+        const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "";
+        const target = returnTo || `/organization/${orgId}/settings`;
+        const redirectUrl = new URL(target, baseUrl);
+        redirectUrl.searchParams.set("error", "org_admin_required");
+        return NextResponse.redirect(redirectUrl.toString());
+      }
     }
 
     // Get environment variables
@@ -48,6 +66,7 @@ export async function GET(request: Request) {
         timestamp: Date.now(),
         nonce: Math.random().toString(36).substring(7),
         returnTo: returnTo || null,
+        orgId: orgId || null,
       })
     ).toString("base64");
 

@@ -6,6 +6,8 @@
 import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
 import { encrypt } from "@/lib/encryption";
+import { ensureOrganizationCalendar } from "@/services/calendar";
+import { getServiceRoleClient } from "@/utils/supabase/service-role";
 
 export async function GET(request: Request) {
   try {
@@ -28,7 +30,13 @@ export async function GET(request: Request) {
     }
 
     // Verify state parameter
-    let stateData: { userId: string; timestamp: number; nonce: string; returnTo?: string | null };
+    let stateData: {
+      userId: string;
+      timestamp: number;
+      nonce: string;
+      returnTo?: string | null;
+      orgId?: string | null;
+    };
     try {
       stateData = JSON.parse(Buffer.from(state, "base64").toString());
       
@@ -194,6 +202,70 @@ export async function GET(request: Request) {
           `${process.env.NEXT_PUBLIC_SITE_URL}/account/calendar?error=connection_failed`
         );
       }
+    }
+
+    if (stateData.orgId) {
+      const serviceSupabase = getServiceRoleClient();
+      const { data: membership } = await serviceSupabase
+        .from("organization_members")
+        .select("role")
+        .eq("organization_id", stateData.orgId)
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (!membership || membership.role !== "admin") {
+        const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "";
+        const target = stateData.returnTo || `/organization/${stateData.orgId}/settings`;
+        const errorUrl = new URL(target, baseUrl);
+        errorUrl.searchParams.set("error", "org_admin_required");
+        return NextResponse.redirect(errorUrl.toString());
+      }
+
+      const { data: org } = await serviceSupabase
+        .from("organizations")
+        .select("name")
+        .eq("id", stateData.orgId)
+        .maybeSingle();
+
+      const { data: existingSync } = await serviceSupabase
+        .from("organization_calendar_syncs")
+        .select("calendar_id, auto_sync, last_synced_at")
+        .eq("organization_id", stateData.orgId)
+        .maybeSingle();
+
+      const calendarName = org?.name
+        ? `Let's Assist — ${org.name} Volunteering`
+        : "Let's Assist Organization Volunteering";
+
+      const ensured = await ensureOrganizationCalendar(
+        tokens.access_token,
+        existingSync?.calendar_id,
+        calendarName
+      );
+
+      if (!ensured) {
+        const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "";
+        const target = stateData.returnTo || `/organization/${stateData.orgId}/settings`;
+        const errorUrl = new URL(target, baseUrl);
+        errorUrl.searchParams.set("error", "org_calendar_failed");
+        return NextResponse.redirect(errorUrl.toString());
+      }
+
+      await serviceSupabase
+        .from("organization_calendar_syncs")
+        .upsert(
+          {
+            organization_id: stateData.orgId,
+            created_by: userId,
+            calendar_id: ensured.calendarId,
+            calendar_email: calendarEmail,
+            connected_at: new Date().toISOString(),
+            last_synced_at: existingSync?.last_synced_at ?? null,
+            auto_sync: existingSync?.auto_sync ?? false,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "organization_id" }
+        );
     }
 
     // Success! Check for custom redirect from state or default to calendar settings

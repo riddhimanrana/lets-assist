@@ -6,6 +6,7 @@ import BayAreaExamples from "./_components/BayAreaExamples";
 import VolunteerJourneySection from "./_components/VolunteerJourneySection";
 import PlatformFeaturesSection from "./_components/PlatformFeaturesSection";
 import OrgToolingSection from "./_components/OrgToolingSection";
+import ComparisonSection from "./_components/ComparisonSection";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { Button } from "@/components/ui/button";
@@ -68,6 +69,7 @@ function HomeContent() {
     <main className="flex flex-col min-h-screen overflow-x-hidden">
       <Hero />
       <BayAreaExamples />
+      <ComparisonSection />
       <VolunteerJourneySection />
       <PlatformFeaturesSection />
       <OrgToolingSection />
