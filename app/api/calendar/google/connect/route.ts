@@ -11,10 +11,12 @@ export async function GET(request: Request) {
     const supabase = await createClient();
     const { searchParams } = new URL(request.url);
     const returnTo = searchParams.get("return_to");
-    const includeSheets = searchParams.get("scopes") === "sheets";
+    const scopeType = searchParams.get("scopes") || "calendar"; // "calendar" | "sheets" | "both"
     const forceConsent = searchParams.get("force") === "1";
     const wantsJson = searchParams.get("format") === "json";
     const orgId = searchParams.get("org_id");
+    const isCalendarSync = searchParams.get("calendar_sync") === "1";
+    const isSheetsSync = searchParams.get("sheets_sync") === "1";
 
     // Check if user is authenticated
     const {
@@ -67,6 +69,8 @@ export async function GET(request: Request) {
         nonce: Math.random().toString(36).substring(7),
         returnTo: returnTo || null,
         orgId: orgId || null,
+        isCalendarSync: isCalendarSync || false,
+        isSheetsSync: isSheetsSync || false,
       })
     ).toString("base64");
 
@@ -76,16 +80,27 @@ export async function GET(request: Request) {
     googleAuthUrl.searchParams.set("client_id", clientId);
     googleAuthUrl.searchParams.set("redirect_uri", redirectUri); // Use exact URI from env
     googleAuthUrl.searchParams.set("response_type", "code");
-    const scopes = [
-      "https://www.googleapis.com/auth/calendar",
-      "https://www.googleapis.com/auth/userinfo.email",
-    ];
-
-    if (includeSheets) {
+    
+    // Always include email scope
+    const scopes = ["https://www.googleapis.com/auth/userinfo.email"];
+    
+    // Determine which scopes to request based on the connection type
+    if (scopeType === "sheets" || isSheetsSync) {
+      // Sheets-only connection (for organization reports)
       scopes.push(
         "https://www.googleapis.com/auth/spreadsheets",
         "https://www.googleapis.com/auth/drive.file"
       );
+    } else if (scopeType === "both") {
+      // Both calendar and sheets (rare case)
+      scopes.push(
+        "https://www.googleapis.com/auth/calendar",
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive.file"
+      );
+    } else {
+      // Default to calendar-only (for organization calendar sync or personal calendar)
+      scopes.push("https://www.googleapis.com/auth/calendar");
     }
 
     googleAuthUrl.searchParams.set("scope", scopes.join(" "));

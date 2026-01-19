@@ -406,6 +406,110 @@ export async function createProject(formData: FormData) {
 }
 
 // Save project as draft - with relaxed validation
+// Auto-save draft to database (creates or updates existing autosave draft)
+// Always updates the same "autosave" draft for continuous work
+export async function autoSaveDraft(projectData: any, autosaveDraftId?: string) {
+  try {
+    const supabase = await createClient();
+
+    // Get current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      return { error: "You must be logged in to autosave a draft", autosaved: false };
+    }
+
+    // Extract title for easy reference
+    const title = projectData.basicInfo?.title || "Untitled Draft";
+
+    // If we have an autosave draft ID, update it; otherwise find or create the autosave draft
+    if (autosaveDraftId) {
+      // Update existing autosave draft
+      const { data: draft, error: updateError } = await supabase
+        .from("project_drafts")
+        .update({
+          title: title,
+          draft_data: projectData,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", autosaveDraftId)
+        .eq("user_id", user.id)
+        .select()
+        .single();
+
+      if (updateError) {
+        console.error("Error updating autosave draft:", updateError);
+        return { error: "Failed to autosave draft", autosaved: false, id: autosaveDraftId };
+      }
+
+      return { success: true, id: draft.id, autosaved: true };
+    } else {
+      // Create new autosave draft
+      const { data: draft, error: draftError } = await supabase
+        .from("project_drafts")
+        .insert({
+          user_id: user.id,
+          title: title,
+          draft_data: projectData
+        })
+        .select()
+        .single();
+
+      if (draftError) {
+        console.error("Error creating autosave draft:", draftError);
+        return { error: "Failed to autosave draft", autosaved: false };
+      }
+
+      return { success: true, id: draft.id, autosaved: true };
+    }
+  } catch (error) {
+    console.error("Error autosaving draft:", error);
+    return { error: "Failed to autosave draft", autosaved: false };
+  }
+}
+
+// Save project as a new draft file (creates a new draft entry)
+export async function saveProjectAsNewDraft(formData: FormData) {
+  try {
+    const supabase = await createClient();
+    
+    const projectDataStr = formData.get("projectData") as string;
+    if (!projectDataStr) return { error: "Missing project data" };
+    const projectData = JSON.parse(projectDataStr);
+
+    // Get current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      return { error: "You must be logged in to save a draft" };
+    }
+
+    // Extract title for easy reference
+    const title = projectData.basicInfo?.title || "Untitled Draft";
+
+    // Always create a new draft entry
+    const { data: draft, error: draftError } = await supabase
+      .from("project_drafts")
+      .insert({
+        user_id: user.id,
+        title: title,
+        draft_data: projectData
+      })
+      .select()
+      .single();
+
+    if (draftError) {
+      console.error("Error saving new draft:", draftError);
+      return { error: "Failed to save draft" };
+    }
+
+    revalidatePath("/projects/drafts");
+    revalidatePath("/projects/create");
+    return { success: true, id: draft.id, isDraft: true };
+  } catch (error) {
+    console.error("Error saving project as new draft:", error);
+    return { error: "An unexpected error occurred. Please try again." };
+  }
+}
+
 export async function saveProjectAsDraft(formData: FormData) {
   try {
     const supabase = await createClient();
@@ -448,7 +552,7 @@ export async function saveProjectAsDraft(formData: FormData) {
   }
 }
 
-// Publish a draft project
+// Publish a draft project and delete the draft after successful creation
 export async function publishDraft(draftId: string) {
   const supabase = await createClient();
 
@@ -570,7 +674,7 @@ export async function updateDraft(projectId: string, projectData: any) {
 }
 
 // Delete a draft project
-export async function deleteDraft(projectId: string) {
+export async function deleteDraft(draftId: string) {
   const supabase = await createClient();
 
   const {
@@ -583,29 +687,26 @@ export async function deleteDraft(projectId: string) {
   }
 
   // Verify the user owns this draft
-  const { data: project, error: projectError } = await supabase
-    .from("projects")
-    .select("id, creator_id, workflow_status")
-    .eq("id", projectId)
+  const { data: draft, error: draftError } = await supabase
+    .from("project_drafts")
+    .select("id, user_id")
+    .eq("id", draftId)
     .single();
 
-  if (projectError || !project) {
-    return { error: "Project not found" };
+  if (draftError || !draft) {
+    return { error: "Draft not found" };
   }
 
-  if (project.creator_id !== user.id) {
-    return { error: "You don't have permission to delete this project" };
+  if (draft.user_id !== user.id) {
+    return { error: "You don't have permission to delete this draft" };
   }
 
-  if (project.workflow_status !== "draft") {
-    return { error: "Only draft projects can be deleted this way" };
-  }
-
-  // Delete the draft
+  // Delete the draft from project_drafts table
   const { error: deleteError } = await supabase
-    .from("projects")
+    .from("project_drafts")
     .delete()
-    .eq("id", projectId);
+    .eq("id", draftId)
+    .eq("user_id", user.id);
 
   if (deleteError) {
     console.error("Error deleting draft:", deleteError);
@@ -613,6 +714,7 @@ export async function deleteDraft(projectId: string) {
   }
 
   revalidatePath("/projects/drafts");
+  revalidatePath("/projects/create");
 
   return { success: true };
 }

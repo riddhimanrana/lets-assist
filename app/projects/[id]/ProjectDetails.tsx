@@ -234,6 +234,24 @@ export default function ProjectDetails({
     fetchPublicAttendees();
   }, [project.id, project.show_attendees_publicly, project.visibility]);
 
+  // Function to refetch attendees (called after signup/cancel)
+  const refetchAttendees = async () => {
+    if (!project.show_attendees_publicly) return;
+    if (project.visibility !== "public" && project.visibility !== "unlisted") return;
+
+    const supabase = createClient();
+    const { data, error } = await supabase.rpc("get_public_attendees", {
+      p_project_id: project.id,
+    });
+
+    if (error) {
+      console.error("Error refetching public attendees:", error);
+      return;
+    }
+
+    setPublicAttendees(data || []);
+  };
+
   // Add state for calendar modal after signup
   const [showCalendarModal, setShowCalendarModal] = useState(false);
   const [completedSignup, setCompletedSignup] = useState<{
@@ -665,6 +683,9 @@ export default function ProjectDetails({
             [scheduleId]: Math.max(0, (prev[scheduleId] || 0) - 1)
           }));
           
+          // Refetch attendees to update the list in real-time
+          await refetchAttendees();
+          
           // Force a refresh of the page data to ensure we're in sync with the server
           router.refresh();
         }
@@ -965,11 +986,10 @@ export default function ProjectDetails({
                 )}
                 
                 {project.event_type === "oneTime" && project.schedule.oneTime && (
-                  <Card className="bg-card/50 hover:bg-card/80 transition-colors">
-                    <CardContent className="p-4">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        <div className="max-w-[400px]">
-                          <h3 className="font-medium text-base break-words">
+                  <div className="border rounded-lg p-3 sm:p-4 bg-card/50 hover:bg-card/80 transition-colors">
+                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-sm sm:text-base mb-2">
                           {(() => {
                           // Create date with no timezone offset issues
                           const dateStr = project.schedule.oneTime.date;
@@ -986,65 +1006,54 @@ export default function ProjectDetails({
                           }
                           return format(date, "EEEE, MMMM d");
                           })()}
-                          </h3>
-                          <div className="mt-1.5 text-muted-foreground text-sm space-y-1.5">
+                        </h3>
+                        <div className="space-y-1 text-xs sm:text-sm text-muted-foreground">
                           <div className="flex items-center gap-1.5">
-                            <Clock className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground/70" />
-                            <div className="flex items-center gap-2">
-                              <span>
-                                {(() => {
-                                  const startLabel = project.schedule.oneTime.startTime ? formatTimeTo12Hour(project.schedule.oneTime.startTime) : "TBD";
-                                  const endLabel = project.schedule.oneTime.endTime ? formatTimeTo12Hour(project.schedule.oneTime.endTime) : undefined;
-                                  return endLabel ? `${startLabel} - ${endLabel}` : startLabel;
-                                })()}
-                              </span>
-                              {project.project_timezone && (
-                                <TimezoneBadge timezone={project.project_timezone} />
-                              )}
-                            </div>
+                            <Clock className="h-3.5 w-3.5 flex-shrink-0" />
+                            <span>
+                              {(() => {
+                                const startLabel = project.schedule.oneTime.startTime ? formatTimeTo12Hour(project.schedule.oneTime.startTime) : "TBD";
+                                const endLabel = project.schedule.oneTime.endTime ? formatTimeTo12Hour(project.schedule.oneTime.endTime) : undefined;
+                                return endLabel ? `${startLabel} - ${endLabel}` : startLabel;
+                              })()}
+                            </span>
+                            {project.project_timezone && (
+                              <TimezoneBadge timezone={project.project_timezone} />
+                            )}
                           </div>
                           
-                          <div className="flex items-center">
-                            <div className="flex items-center gap-1.5">
-                            <Users className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground/70" />
-                            <span className="font-medium">
-                              {remainingSlots["oneTime"] ?? project.schedule.oneTime.volunteers}
-                              <span className="font-normal"> of </span>
-                              {project.schedule.oneTime.volunteers}
-                              <span className="font-normal"> spots available</span>
+                          <div className="flex items-center gap-1.5">
+                            <Users className="h-3.5 w-3.5 flex-shrink-0" />
+                            <span>
+                              <span className="font-medium text-foreground">{remainingSlots["oneTime"] ?? project.schedule.oneTime.volunteers}</span> of {project.schedule.oneTime.volunteers} spots
                             </span>
-                            </div>
-                            
-                            {/* Visual indicator for spots */}
-                            {/* <div className="ml-2 h-1.5 bg-muted rounded-full w-16 overflow-hidden hidden sm:block"> ... </div> */}
                           </div>
-                          </div>
-                        </div>
-                        <div className="flex flex-col gap-2 items-end">
-                          <Button
-                            variant={hasSignedUp["oneTime"] ? "secondary" : rejectedSlots["oneTime"] ? "destructive" : "default"}
-                            size="sm"
-                            onClick={() => handleSignUpClick("oneTime")}
-                            disabled={
-                              isCreator || 
-                              loadingStates["oneTime"] || 
-                              calculatedStatus === "cancelled" || 
-                              isOneTimeSlotPast(project) ||
-                              rejectedSlots["oneTime"] || 
-                              attendedSlots["oneTime"] ||
-                              (!hasSignedUp["oneTime"] && (remainingSlots["oneTime"] === 0))
-                            }
-                            className={`flex-shrink-0 gap-2 ${attendedSlots["oneTime"] || isOneTimeSlotPast(project) ? "opacity-50 cursor-not-allowed" : ""}`}
-                          >
-                            {isOneTimeSlotPast(project) ? "Time Passed" : renderSignupButton("oneTime")}
-                          </Button>
-                          {project.show_attendees_publicly && (
-                            <SlotAttendeesDropdown attendees={getAttendeesForSlot("oneTime")} />
-                          )}
                         </div>
                       </div>
-                    </CardContent>
-                  </Card>
+                      <div className="flex flex-col gap-2 items-stretch sm:items-end flex-shrink-0">
+                        <Button
+                          variant={hasSignedUp["oneTime"] ? "secondary" : rejectedSlots["oneTime"] ? "destructive" : "default"}
+                          size="sm"
+                          onClick={() => handleSignUpClick("oneTime")}
+                          disabled={
+                            isCreator || 
+                            loadingStates["oneTime"] || 
+                            calculatedStatus === "cancelled" || 
+                            isOneTimeSlotPast(project) ||
+                            rejectedSlots["oneTime"] || 
+                            attendedSlots["oneTime"] ||
+                            (!hasSignedUp["oneTime"] && (remainingSlots["oneTime"] === 0))
+                          }
+                          className={`w-full sm:w-auto ${attendedSlots["oneTime"] || isOneTimeSlotPast(project) ? "opacity-50 cursor-not-allowed" : ""}`}
+                        >
+                          {isOneTimeSlotPast(project) ? "Time Passed" : renderSignupButton("oneTime")}
+                        </Button>
+                      </div>
+                    </div>
+                    {project.show_attendees_publicly && (
+                      <SlotAttendeesDropdown attendees={getAttendeesForSlot("oneTime")} />
+                    )}
+                  </div>
                 )}
 
                 {project.event_type === "multiDay" && project.schedule.multiDay && (
@@ -1078,67 +1087,53 @@ export default function ProjectDetails({
                             {day.slots.map((slot, slotIndex) => {
                               const scheduleId = `${day.date}-${slotIndex}`;
                               return (
-                                <Card key={scheduleId} className="bg-card/50 hover:bg-card/80 transition-colors">
-                                  <CardContent className="p-4">
-                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                      <div className="max-w-[400px]">
-                                        <div className="flex flex-col space-y-2">
-                                          <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                                            <Clock className="h-3.5 w-3.5 flex-shrink-0" />
-                                            <div className="flex items-center gap-2">
-                                              <span className="line-clamp-1">
-                                                {(() => {
-                                                  const startLabel = slot.startTime ? formatTimeTo12Hour(slot.startTime) : "TBD";
-                                                  const endLabel = slot.endTime ? formatTimeTo12Hour(slot.endTime) : undefined;
-                                                  return endLabel ? `${startLabel} - ${endLabel}` : startLabel;
-                                                })()}
-                                              </span>
-                                              {project.project_timezone && (
-                                                <TimezoneBadge timezone={project.project_timezone} />
-                                              )}
-                                            </div>
-                                          </div>
-                                          <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                                            <Users className="h-3.5 w-3.5 flex-shrink-0" />
-                                            <div className="flex items-center gap-1.5">
-                                              <span className="font-medium">
-                                                {remainingSlots[scheduleId] ?? slot.volunteers}
-                                                <span className="font-normal"> of </span>
-                                                {slot.volunteers}
-                                              </span>
-                                              <span className="font-normal">spots available</span>
-                                            </div>
-                                            
-                                            {/* Visual indicator for spots */}
-                                            {/* <div className="ml-2 h-1.5 bg-muted rounded-full w-16 overflow-hidden hidden sm:block"> ... </div> */}
-                                          </div>
-                                        </div>
-                                      </div>
-                                      <div className="flex flex-col gap-2 items-end">
-                                        <Button
-                                          variant={hasSignedUp[scheduleId] ? "secondary" : rejectedSlots[scheduleId] ? "destructive" : "default"}
-                                          size="sm"
-                                          onClick={() => handleSignUpClick(scheduleId)}
-                                          disabled={
-                                            isCreator || 
-                                            loadingStates[scheduleId] || 
-                                            calculatedStatus === "cancelled" || 
-                                            rejectedSlots[scheduleId] || 
-                                            attendedSlots[scheduleId] ||
-                                            isMultiDaySlotPastByScheduleId(project, scheduleId) ||
-                                            (!hasSignedUp[scheduleId] && (remainingSlots[scheduleId] === 0))
-                                          }
-                                          className={`flex-shrink-0 gap-2 ${attendedSlots[scheduleId] || isMultiDaySlotPastByScheduleId(project, scheduleId) ? "opacity-50 cursor-not-allowed" : ""}`}
-                                        >
-                                          {isMultiDaySlotPastByScheduleId(project, scheduleId) ? "Time Passed" : renderSignupButton(scheduleId)}
-                                        </Button>
-                                        {project.show_attendees_publicly && (
-                                          <SlotAttendeesDropdown attendees={getAttendeesForSlot(scheduleId)} />
+                                <div key={scheduleId} className="border rounded-lg p-3 bg-card/50 hover:bg-card/80 transition-colors">
+                                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                                    <div className="flex-1 min-w-0 space-y-1 text-xs sm:text-sm text-muted-foreground">
+                                      <div className="flex items-center gap-1.5">
+                                        <Clock className="h-3.5 w-3.5 flex-shrink-0" />
+                                        <span>
+                                          {(() => {
+                                            const startLabel = slot.startTime ? formatTimeTo12Hour(slot.startTime) : "TBD";
+                                            const endLabel = slot.endTime ? formatTimeTo12Hour(slot.endTime) : undefined;
+                                            return endLabel ? `${startLabel} - ${endLabel}` : startLabel;
+                                          })()}
+                                        </span>
+                                        {project.project_timezone && (
+                                          <TimezoneBadge timezone={project.project_timezone} />
                                         )}
                                       </div>
+                                      <div className="flex items-center gap-1.5">
+                                        <Users className="h-3.5 w-3.5 flex-shrink-0" />
+                                        <span>
+                                          <span className="font-medium text-foreground">{remainingSlots[scheduleId] ?? slot.volunteers}</span> of {slot.volunteers} spots
+                                        </span>
+                                      </div>
                                     </div>
-                                </CardContent>
-                              </Card>
+                                    <div className="flex flex-col gap-2 items-stretch sm:items-end flex-shrink-0">
+                                      <Button
+                                        variant={hasSignedUp[scheduleId] ? "secondary" : rejectedSlots[scheduleId] ? "destructive" : "default"}
+                                        size="sm"
+                                        onClick={() => handleSignUpClick(scheduleId)}
+                                        disabled={
+                                          isCreator || 
+                                          loadingStates[scheduleId] || 
+                                          calculatedStatus === "cancelled" || 
+                                          rejectedSlots[scheduleId] || 
+                                          attendedSlots[scheduleId] ||
+                                          isMultiDaySlotPastByScheduleId(project, scheduleId) ||
+                                          (!hasSignedUp[scheduleId] && (remainingSlots[scheduleId] === 0))
+                                        }
+                                      className={`w-full sm:w-auto ${attendedSlots[scheduleId] || isMultiDaySlotPastByScheduleId(project, scheduleId) ? "opacity-50 cursor-not-allowed" : ""}`}
+                                    >
+                                      {isMultiDaySlotPastByScheduleId(project, scheduleId) ? "Time Passed" : renderSignupButton(scheduleId)}
+                                    </Button>
+                                    </div>
+                                  </div>
+                                  {project.show_attendees_publicly && (
+                                    <SlotAttendeesDropdown attendees={getAttendeesForSlot(scheduleId)} />
+                                  )}
+                                </div>
                             );
                           })}
                         </div>
@@ -1162,68 +1157,56 @@ export default function ProjectDetails({
                       </h3>
                       <div className="space-y-2">
                         {project.schedule.sameDayMultiArea.roles.map((role) => (
-                          <Card key={role.name} className="bg-card/50 hover:bg-card/80 transition-colors">
-                            <CardContent className="p-4">
-                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                <div className="max-w-[400px]">
-                                  <h4 className="font-medium break-words">{role.name}</h4>
-                                  <div className="flex flex-col space-y-2 mt-1">
-                                    <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                                      <Clock className="h-3.5 w-3.5 flex-shrink-0" />
-                                      <div className="flex items-center gap-2">
-                                        <span className="line-clamp-1">
-                                          {(() => {
-                                            const startLabel = role.startTime ? formatTimeTo12Hour(role.startTime) : "TBD";
-                                            const endLabel = role.endTime ? formatTimeTo12Hour(role.endTime) : undefined;
-                                            return endLabel ? `${startLabel} - ${endLabel}` : startLabel;
-                                          })()}
-                                        </span>
-                                        {project.project_timezone && (
-                                          <TimezoneBadge timezone={project.project_timezone} />
-                                        )}
-                                      </div>
-                                    </div>
-                                    <div className="flex items-center">
-                                      <div className="flex items-center gap-1.5">
-                                        <Users className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground/70" />
-                                        <span className="font-medium text-sm text-muted-foreground">
-                                          {remainingSlots[role.name] ?? role.volunteers}
-                                          <span className="font-normal"> of </span>
-                                          {role.volunteers}
-                                          <span className="font-normal"> spots available</span>
-                                        </span>
-                                      </div>
-                                      
-                                      {/* Visual indicator for spots */}
-                                      {/* <div className="ml-2 h-1.5 bg-muted rounded-full w-16 overflow-hidden hidden sm:block"> ... </div> */}
-                                    </div>
+                          <div key={role.name} className="border rounded-lg p-3 bg-card/50 hover:bg-card/80 transition-colors">
+                            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                              <div className="flex-1 min-w-0">
+                                <h4 className="font-semibold text-sm mb-1.5 break-words">{role.name}</h4>
+                                <div className="space-y-1 text-xs sm:text-sm text-muted-foreground">
+                                  <div className="flex items-center gap-1.5">
+                                    <Clock className="h-3.5 w-3.5 flex-shrink-0" />
+                                    <span>
+                                      {(() => {
+                                        const startLabel = role.startTime ? formatTimeTo12Hour(role.startTime) : "TBD";
+                                        const endLabel = role.endTime ? formatTimeTo12Hour(role.endTime) : undefined;
+                                        return endLabel ? `${startLabel} - ${endLabel}` : startLabel;
+                                      })()}
+                                    </span>
+                                    {project.project_timezone && (
+                                      <TimezoneBadge timezone={project.project_timezone} />
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-1.5">
+                                    <Users className="h-3.5 w-3.5 flex-shrink-0" />
+                                    <span>
+                                      <span className="font-medium text-foreground">{remainingSlots[role.name] ?? role.volunteers}</span> of {role.volunteers} spots
+                                    </span>
                                   </div>
                                 </div>
-                                <div className="flex flex-col gap-2 items-end">
-                                  <Button
-                                    variant={hasSignedUp[role.name] ? "secondary" : rejectedSlots[role.name] ? "destructive" : "default"}
-                                    size="sm"
-                                    onClick={() => handleSignUpClick(role.name)}
-                                    disabled={
-                                      isCreator || 
-                                      loadingStates[role.name] || 
-                                      calculatedStatus === "cancelled" || 
-                                      isSameDayMultiAreaSlotPast(project, role.name) ||
-                                      rejectedSlots[role.name] || 
-                                      attendedSlots[role.name] ||
-                                      (!hasSignedUp[role.name] && (remainingSlots[role.name] === 0))
-                                    }
-                                    className={`flex-shrink-0 gap-2 ${attendedSlots[role.name] || isSameDayMultiAreaSlotPast(project, role.name) ? "opacity-50 cursor-not-allowed" : ""}`}
-                                  >
-                                    {isSameDayMultiAreaSlotPast(project, role.name) ? "Time Passed" : renderSignupButton(role.name)}
-                                  </Button>
-                                  {project.show_attendees_publicly && (
-                                    <SlotAttendeesDropdown attendees={getAttendeesForSlot(role.name)} />
-                                  )}
-                                </div>
                               </div>
-                            </CardContent>
-                          </Card>
+                              <div className="flex flex-col gap-2 items-stretch sm:items-end flex-shrink-0">
+                                <Button
+                                  variant={hasSignedUp[role.name] ? "secondary" : rejectedSlots[role.name] ? "destructive" : "default"}
+                                  size="sm"
+                                  onClick={() => handleSignUpClick(role.name)}
+                                  disabled={
+                                    isCreator || 
+                                    loadingStates[role.name] || 
+                                    calculatedStatus === "cancelled" || 
+                                    isSameDayMultiAreaSlotPast(project, role.name) ||
+                                    rejectedSlots[role.name] || 
+                                    attendedSlots[role.name] ||
+                                    (!hasSignedUp[role.name] && (remainingSlots[role.name] === 0))
+                                  }
+                                  className={`w-full sm:w-auto ${attendedSlots[role.name] || isSameDayMultiAreaSlotPast(project, role.name) ? "opacity-50 cursor-not-allowed" : ""}`}
+                                >
+                                  {isSameDayMultiAreaSlotPast(project, role.name) ? "Time Passed" : renderSignupButton(role.name)}
+                                </Button>
+                              </div>
+                            </div>
+                            {project.show_attendees_publicly && (
+                              <SlotAttendeesDropdown attendees={getAttendeesForSlot(role.name)} />
+                            )}
+                          </div>
                         ))}
                       </div>
                     </div>
@@ -1724,6 +1707,8 @@ export default function ProjectDetails({
               ...prev, 
               [scheduleId]: (prev[scheduleId] || 0) + 1
             }));
+            // Refetch attendees to update the list in real-time
+            refetchAttendees();
           }}
           project={{
             title: project.title,

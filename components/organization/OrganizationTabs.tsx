@@ -144,6 +144,38 @@ export default function OrganizationTabs({
     setMounted(true);
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const docEl = document.documentElement;
+    let raf: number | null = null;
+
+    const updateGutter = () => {
+      if (activeTab !== "reports") {
+        docEl.style.removeProperty("scrollbar-gutter");
+        return;
+      }
+
+      const needsScroll = docEl.scrollHeight - docEl.clientHeight > 1;
+      if (needsScroll) {
+        docEl.style.scrollbarGutter = "stable";
+      } else {
+        docEl.style.removeProperty("scrollbar-gutter");
+      }
+    };
+
+    raf = window.requestAnimationFrame(updateGutter);
+    window.addEventListener("resize", updateGutter);
+
+    return () => {
+      if (raf) {
+        window.cancelAnimationFrame(raf);
+      }
+      docEl.style.removeProperty("scrollbar-gutter");
+      window.removeEventListener("resize", updateGutter);
+    };
+  }, [activeTab]);
+
   // Validate input data
   if (!Array.isArray(members)) {
     console.error("OrganizationTabs: members prop is not an array");
@@ -172,8 +204,7 @@ export default function OrganizationTabs({
     >
       <TabsList
         className={cn(
-          "mb-6 w-full grid gap-1 rounded-md border bg-card p-1 text-muted-foreground sm:flex sm:h-auto sm:justify-start sm:overflow-visible",
-          canViewReports ? "grid-cols-4" : "grid-cols-3"
+          "mb-6 w-full max-w-full flex flex-wrap items-center gap-1 rounded-md border bg-card p-1 text-muted-foreground shadow-sm sm:inline-flex sm:w-auto sm:gap-1.5"
         )}
       >
         <TabsTrigger 

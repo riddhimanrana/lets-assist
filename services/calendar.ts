@@ -75,7 +75,7 @@ interface GoogleCalendarEvent {
 }
 
 /**
- * Get user's active calendar connection
+ * Get user's active calendar connection (for calendar sync)
  */
 export async function getCalendarConnection(
   userId: string
@@ -88,6 +88,35 @@ export async function getCalendarConnection(
     .eq("user_id", userId)
     .eq("is_active", true)
     .eq("provider", "google")
+    .in("connection_type", ["calendar", "both"])
+    .order("connection_type", { ascending: false }) // prefer "calendar" type over "both"
+    .limit(1)
+    .single();
+
+  if (error || !data) {
+    return null;
+  }
+
+  return data as CalendarConnection;
+}
+
+/**
+ * Get user's active sheets connection (for sheets sync)
+ */
+export async function getSheetsConnection(
+  userId: string
+): Promise<CalendarConnection | null> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("user_calendar_connections")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("is_active", true)
+    .eq("provider", "google")
+    .in("connection_type", ["sheets", "both"])
+    .order("connection_type", { ascending: false }) // prefer "sheets" type over "both"
+    .limit(1)
     .single();
 
   if (error || !data) {
@@ -829,7 +858,9 @@ export async function hasActiveCalendarConnection(
 export async function getGoogleAccessToken(
   userId: string
 ): Promise<string | null> {
-  return getGoogleAccessTokenForUser(userId, false);
+  return getGoogleAccessTokenForUser(userId, false, {
+    connectionType: "calendar",
+  });
 }
 
 /**
@@ -840,6 +871,7 @@ export async function getGoogleAccessTokenForSheets(
 ): Promise<string | null> {
   return getGoogleAccessTokenForUser(userId, false, {
     requiredScopes: [...GOOGLE_SHEETS_SCOPES],
+    connectionType: "sheets",
   });
 }
 
@@ -852,6 +884,7 @@ export async function getGoogleAccessTokenForSheetsForUser(
 ): Promise<string | null> {
   return getGoogleAccessTokenForUser(userId, useServiceRole, {
     requiredScopes: [...GOOGLE_SHEETS_SCOPES],
+    connectionType: "sheets",
   });
 }
 
@@ -862,17 +895,27 @@ export async function getGoogleAccessTokenForSheetsForUser(
 export async function getGoogleAccessTokenForUser(
   userId: string,
   useServiceRole: boolean,
-  options?: { requiredScopes?: string[] }
+  options?: { requiredScopes?: string[]; connectionType?: "calendar" | "sheets" | "both" }
 ): Promise<string | null> {
   const supabase = useServiceRole ? getServiceRoleClient() : await createClient();
 
-  const { data: connection, error } = await supabase
+  // Build query with optional connection type filter
+  let query = supabase
     .from("user_calendar_connections")
     .select("*")
     .eq("user_id", userId)
     .eq("provider", "google")
-    .eq("is_active", true)
-    .single();
+    .eq("is_active", true);
+
+  // If specific connection type is requested, prefer that exact type, then fall back to "both"
+  if (options?.connectionType === "sheets") {
+    query = query.in("connection_type", ["sheets", "both"]);
+  } else if (options?.connectionType === "calendar") {
+    query = query.in("connection_type", ["calendar", "both"]);
+  }
+  // If no specific type is requested, get any active connection
+
+  const { data: connection, error } = await query.single();
 
   if (error || !connection) {
     return null;

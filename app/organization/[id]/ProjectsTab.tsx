@@ -103,14 +103,14 @@ export default function ProjectsTab({
         onValueChange={(value) => setActiveTab(value as ProjectStatus | "all")}
         className="w-full"
       >
-        <TabsList className="mb-4 w-full grid grid-cols-5 gap-1 rounded-md border bg-card p-1 text-muted-foreground sm:flex sm:h-auto sm:justify-start sm:px-1">
+        <TabsList className="mb-4 w-full flex flex-wrap items-center gap-1 rounded-md border bg-card p-1 text-muted-foreground sm:inline-flex sm:w-auto sm:flex-nowrap sm:px-1">
           <TabsTrigger value="all" className="flex w-full min-w-0 items-center justify-center space-x-1 px-1 py-1.5 data-[state=active]:text-foreground sm:w-auto sm:justify-start sm:space-x-1.5 sm:px-3">
             <LayoutGrid className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
             <span className="truncate text-[10px] sm:text-sm">All</span>
           </TabsTrigger>
           <TabsTrigger value="upcoming" className="flex w-full min-w-0 items-center justify-center space-x-1 px-1 py-1.5 data-[state=active]:text-foreground sm:w-auto sm:justify-start sm:space-x-1.5 sm:px-3">
             <Calendar className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
-            <span className="truncate text-[10px] sm:text-sm">Up</span>
+            <span className="truncate text-[10px] sm:text-sm">Upcoming</span>
           </TabsTrigger>
           <TabsTrigger value="in-progress" className="flex w-full min-w-0 items-center justify-center space-x-1 px-1 py-1.5 data-[state=active]:text-foreground sm:w-auto sm:justify-start sm:space-x-1.5 sm:px-3">
             <Clock3 className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
@@ -122,7 +122,7 @@ export default function ProjectsTab({
           </TabsTrigger>
           <TabsTrigger value="cancelled" className="flex w-full min-w-0 items-center justify-center space-x-1 px-1 py-1.5 data-[state=active]:text-foreground sm:w-auto sm:justify-start sm:space-x-1.5 sm:px-3">
             <AlertCircle className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
-            <span className="truncate text-[10px] sm:text-sm">X</span>
+            <span className="truncate text-[10px] sm:text-sm">Cancelled</span>
           </TabsTrigger>
         </TabsList>
         <TabsContent value={activeTab} className="mt-0">

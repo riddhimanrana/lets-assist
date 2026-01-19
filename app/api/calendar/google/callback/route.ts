@@ -36,6 +36,8 @@ export async function GET(request: Request) {
       nonce: string;
       returnTo?: string | null;
       orgId?: string | null;
+      isCalendarSync?: boolean;
+      isSheetsSync?: boolean;
     };
     try {
       stateData = JSON.parse(Buffer.from(state, "base64").toString());
@@ -98,6 +100,11 @@ export async function GET(request: Request) {
     const grantedScopes = typeof tokens.scope === "string" ? tokens.scope : null;
     const grantedScopesUpdatedAt = grantedScopes ? new Date().toISOString() : null;
 
+    // Determine connection type based on granted scopes
+    const hasSheetsScopes = grantedScopes && grantedScopes.includes("spreadsheets");
+    const hasCalendarScopes = grantedScopes && grantedScopes.includes("calendar");
+    const connectionType = hasSheetsScopes && hasCalendarScopes ? "both" : hasSheetsScopes ? "sheets" : "calendar";
+
     // Get user's email from Google
     const userInfoResponse = await fetch(
       "https://www.googleapis.com/oauth2/v2/userinfo",
@@ -121,12 +128,14 @@ export async function GET(request: Request) {
     // Calculate token expiry
     const expiresAt = new Date(Date.now() + tokens.expires_in * 1000);
 
-    // Check if user already has a connection (active or inactive)
+    // Check if user already has a connection of this type
     const { data: existingConnections } = await supabase
       .from("user_calendar_connections")
-      .select("id, refresh_token")
+      .select("id, refresh_token, connection_type")
       .eq("user_id", userId)
       .eq("provider", "google")
+      // Find connections that match or can be upgraded to this type
+      .in("connection_type", [connectionType, "both"])
       .order("created_at", { ascending: false });
 
     const existingConnection = existingConnections?.[0];
@@ -156,16 +165,18 @@ export async function GET(request: Request) {
           is_active: true,
           granted_scopes: grantedScopes,
           granted_scopes_updated_at: grantedScopesUpdatedAt,
+          connection_type: connectionType,
         })
         .eq("id", existingConnection.id);
 
-      // Clean up any other duplicate connections if they exist
+      // Clean up any other duplicate connections of the same type
       if (existingConnections && existingConnections.length > 1) {
         await supabase
           .from("user_calendar_connections")
           .delete()
           .eq("user_id", userId)
           .eq("provider", "google")
+          .eq("connection_type", connectionType)
           .neq("id", existingConnection.id);
       }
 
@@ -187,6 +198,7 @@ export async function GET(request: Request) {
           token_expires_at: expiresAt.toISOString(),
           calendar_email: calendarEmail,
           is_active: true,
+          connection_type: connectionType,
           granted_scopes: grantedScopes,
           granted_scopes_updated_at: grantedScopesUpdatedAt,
           preferences: {
@@ -221,51 +233,57 @@ export async function GET(request: Request) {
         return NextResponse.redirect(errorUrl.toString());
       }
 
-      const { data: org } = await serviceSupabase
-        .from("organizations")
-        .select("name")
-        .eq("id", stateData.orgId)
-        .maybeSingle();
+      // Handle organization calendar sync (separate from sheets sync)
+      if (stateData.isCalendarSync) {
+        const { data: org } = await serviceSupabase
+          .from("organizations")
+          .select("name")
+          .eq("id", stateData.orgId)
+          .maybeSingle();
 
-      const { data: existingSync } = await serviceSupabase
-        .from("organization_calendar_syncs")
-        .select("calendar_id, auto_sync, last_synced_at")
-        .eq("organization_id", stateData.orgId)
-        .maybeSingle();
+        const { data: existingSync } = await serviceSupabase
+          .from("organization_calendar_syncs")
+          .select("calendar_id, auto_sync, last_synced_at")
+          .eq("organization_id", stateData.orgId)
+          .maybeSingle();
 
-      const calendarName = org?.name
-        ? `Let's Assist — ${org.name} Volunteering`
-        : "Let's Assist Organization Volunteering";
+        const calendarName = org?.name
+          ? `Let's Assist — ${org.name} Volunteering`
+          : "Let's Assist Organization Volunteering";
 
-      const ensured = await ensureOrganizationCalendar(
-        tokens.access_token,
-        existingSync?.calendar_id,
-        calendarName
-      );
-
-      if (!ensured) {
-        const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "";
-        const target = stateData.returnTo || `/organization/${stateData.orgId}/settings`;
-        const errorUrl = new URL(target, baseUrl);
-        errorUrl.searchParams.set("error", "org_calendar_failed");
-        return NextResponse.redirect(errorUrl.toString());
-      }
-
-      await serviceSupabase
-        .from("organization_calendar_syncs")
-        .upsert(
-          {
-            organization_id: stateData.orgId,
-            created_by: userId,
-            calendar_id: ensured.calendarId,
-            calendar_email: calendarEmail,
-            connected_at: new Date().toISOString(),
-            last_synced_at: existingSync?.last_synced_at ?? null,
-            auto_sync: existingSync?.auto_sync ?? false,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: "organization_id" }
+        const ensured = await ensureOrganizationCalendar(
+          tokens.access_token,
+          existingSync?.calendar_id,
+          calendarName
         );
+
+        if (!ensured) {
+          const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "";
+          const target = stateData.returnTo || `/organization/${stateData.orgId}/settings`;
+          const errorUrl = new URL(target, baseUrl);
+          errorUrl.searchParams.set("error", "org_calendar_failed");
+          return NextResponse.redirect(errorUrl.toString());
+        }
+
+        await serviceSupabase
+          .from("organization_calendar_syncs")
+          .upsert(
+            {
+              organization_id: stateData.orgId,
+              created_by: userId,
+              calendar_id: ensured.calendarId,
+              calendar_email: calendarEmail,
+              connected_at: new Date().toISOString(),
+              last_synced_at: existingSync?.last_synced_at ?? null,
+              auto_sync: existingSync?.auto_sync ?? true, // Enable auto-sync by default
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: "organization_id" }
+          );
+      }
+      
+      // Handle organization sheets sync separately (no calendar creation)
+      // The sheets sync configuration is handled in the sheets-actions.ts file
     }
 
     // Success! Check for custom redirect from state or default to calendar settings

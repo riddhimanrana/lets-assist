@@ -12,6 +12,14 @@
     {
       "path": "/api/cron/generate-recurring-projects",
       "schedule": "0 1 * * *"
+    },
+    {
+      "path": "/api/cron/organization-calendar-sync",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/organization-sheet-sync",
+      "schedule": "0 */6 * * *"
     }
   ]
 }

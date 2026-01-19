@@ -61,8 +61,8 @@ function parseDataUrl(dataUrl: string): ParsedDataUrl | null {
   return { contentType, buffer, size: buffer.length };
 }
 
-function getRequestMetadata() {
-  const requestHeaders = headers();
+async function getRequestMetadata() {
+  const requestHeaders = await headers();
   const forwardedFor = requestHeaders.get("x-forwarded-for");
   const realIp = requestHeaders.get("x-real-ip");
   const ipAddress = forwardedFor?.split(",")[0]?.trim() || realIp || null;
@@ -398,7 +398,7 @@ async function persistWaiverSignature(params: {
     return { error: "Invalid waiver template." };
   }
 
-  const { ipAddress, userAgent } = getRequestMetadata();
+  const { ipAddress, userAgent } = await getRequestMetadata();
   let signatureStoragePath: string | null = null;
   let uploadStoragePath: string | null = null;
 
@@ -881,7 +881,7 @@ export async function signUpForProject(
         schedule_id: scheduleId,
         user_id: null,
         status: "pending", // Anonymous signups start as pending
-        anonymous_id: anonymousSignupId,
+        anonymous_id: createdAnonymousSignupId,
         volunteer_comment: volunteerCommentToSave,
       };
 
@@ -1619,7 +1619,7 @@ export async function getWaiverDownloadUrl(signupId: string, anonymousSignupId?:
       .from("project_signups")
       .select("id, user_id, anonymous_id, project:projects(creator_id, organization_id)")
       .eq("id", signupId)
-      .single();
+      .single() as any;
 
     if (signupError || !signup) {
       return { error: "Signup not found" };

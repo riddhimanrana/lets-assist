@@ -21,18 +21,35 @@ function formatDateDisplay(project: any) {
   switch (project.event_type) {
     case "oneTime": {
       const dateStr = project.schedule.oneTime?.date;
-      return format(parseISO(dateStr), "MMM d, yyyy");
+      if (!dateStr) return "Date not specified";
+      try {
+        return format(parseISO(dateStr), "MMM d, yyyy");
+      } catch {
+        return "Date not specified";
+      }
     }
     case "multiDay": {
-      const dates = project.schedule.multiDay
-        .map((day: any) => parseISO(day.date))
-        .sort((a: Date, b: Date) => a.getTime() - b.getTime());
+      if (!project.schedule.multiDay || project.schedule.multiDay.length === 0) {
+        return "Date not specified";
+      }
+      try {
+        const dates = project.schedule.multiDay
+          .map((day: any) => parseISO(day.date))
+          .sort((a: Date, b: Date) => a.getTime() - b.getTime());
 
-      return `${format(dates[0], "MMM d")} - ${format(dates[dates.length - 1], "MMM d, yyyy")}`;
+        return `${format(dates[0], "MMM d")} - ${format(dates[dates.length - 1], "MMM d, yyyy")}`;
+      } catch {
+        return "Date not specified";
+      }
     }
     case "sameDayMultiArea": {
       const dateStr = project.schedule.sameDayMultiArea?.date;
-      return format(parseISO(dateStr), "MMM d, yyyy");
+      if (!dateStr) return "Date not specified";
+      try {
+        return format(parseISO(dateStr), "MMM d, yyyy");
+      } catch {
+        return "Date not specified";
+      }
     }
     default:
       return "Date not specified";

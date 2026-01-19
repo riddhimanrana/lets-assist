@@ -210,7 +210,7 @@ export default function ReportsTab({ organizationId, organizationName, userRole 
   const hasSheetOwner = Boolean(sheetStatus?.connectedBy);
   const hasSyncConfig = Boolean(sheetStatus?.syncConfig);
   const canReconnect = isAdmin && (!hasSheetOwner || (sheetStatus?.viewerIsOwner ?? false));
-  const connectUrl = `/api/calendar/google/connect?scopes=sheets&force=1&return_to=${encodeURIComponent(
+  const connectUrl = `/api/calendar/google/connect?scopes=sheets&sheets_sync=1&force=1&return_to=${encodeURIComponent(
     `/organization/${organizationId}`
   )}`;
   const pickerApiKey = process.env.NEXT_PUBLIC_GOOGLE_PICKER_API_KEY;
@@ -1053,11 +1053,6 @@ export default function ReportsTab({ organizationId, organizationName, userRole 
                     )}
                   </div>
                 </div>
-                {needsSheetScopes && (
-                  <div className="rounded-xl border border-destructive/20 bg-destructive/10 p-3 text-[11px] text-destructive">
-                    Reconnect Google with Sheets access to keep syncs running.
-                  </div>
-                )}
                 {sheetStatus.error && (
                   <p className="text-xs text-muted-foreground">{sheetStatus.error}</p>
                 )}
@@ -1073,12 +1068,6 @@ export default function ReportsTab({ organizationId, organizationName, userRole 
               <div id="sheet-config" ref={sheetConfigRef} className="space-y-4">
                 {sheetStatus.syncConfig ? (
                   <div className="space-y-4">
-                    {needsSheetScopes && (
-                      <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
-                        Reconnect Google with Sheets access to apply configuration changes.
-                      </div>
-                    )}
-
                     {isAdmin ? (
                       <Accordion
                         type="multiple"

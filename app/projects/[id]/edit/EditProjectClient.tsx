@@ -702,7 +702,7 @@ export default function EditProjectClient({ project }: Props) {
         recurrence_rule: recurrenceRule,
       };
       
-      const result = await updateProject(project.id, updates);
+      const result = await updateProject(project.id, updates as any);
       if (result.error) {
         toast.error(result.error);
       } else {

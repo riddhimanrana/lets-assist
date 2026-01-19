@@ -1,11 +1,11 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useEventForm } from "@/hooks/use-event-form";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Building2 } from "lucide-react";
 import BasicInfo from "./BasicInfo";
-import EventType from "./EventType";
+import EventTypeStep from "./EventType";
 import Schedule from "./Schedule";
 import Finalize from "./Finalize";
 import VerificationSettings from "./VerificationSettings";
@@ -14,13 +14,19 @@ import AIAssistant, { AIParseResult } from "./AIAssistant";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 // icon components
 import { Loader2, ChevronLeft, ChevronRight, AlertCircle, Sparkles, Save } from "lucide-react";
 // utility
 import { cn } from "@/lib/utils";
 // Replace shadcn toast with Sonner
 import { toast } from "sonner";
-import { createProject, uploadCoverImage, uploadProjectDocument, finalizeProject, saveProjectAsDraft } from "./actions";
+import { createProject, uploadCoverImage, uploadProjectDocument, finalizeProject, saveProjectAsNewDraft, autoSaveDraft } from "./actions";
 import { useRouter } from "next/navigation";
 // Import Zod schemas
 import {
@@ -64,9 +70,10 @@ interface ProjectCreatorProps {
   }[];
   drafts?: Draft[];
   initialDraftData?: any;
+  initialDraftId?: string | null;
 }
 
-export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts = [], initialDraftData }: ProjectCreatorProps) {
+export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts = [], initialDraftData, initialDraftId }: ProjectCreatorProps) {
   const {
     state,
     nextStep,
@@ -119,6 +126,11 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
   // AI Assistant state
   const [showAIAssistant, setShowAIAssistant] = useState(false);
 
+  // Autosave state - initialize with loaded draft ID if available
+  const [autosaveDraftId, setAutosaveDraftId] = useState<string | undefined>(initialDraftId || undefined);
+  const [autosaveStatus, setAutosaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [lastAutosaveTime, setLastAutosaveTime] = useState<Date | null>(null);
+
   // Load draft data on mount if provided
   const draftLoadedRef = useRef(false);
   const autosaveTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -130,47 +142,77 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
     }
   }, [initialDraftData, loadDraftState]);
 
-  // Load autosave from localStorage when no server draft provided
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (initialDraftData) return; // prefer server draft when present
-    if (draftLoadedRef.current) return; // avoid double load
+  // Serialize state for change detection
+  const stateSnapshot = useMemo(() => JSON.stringify(state), [state]);
+  const previousStateRef = useRef<string>("");
 
-    const saved = window.localStorage.getItem(AUTOSAVE_KEY);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        loadDraftState(parsed);
-        draftLoadedRef.current = true;
-      } catch (err) {
-        console.error("Failed to parse autosave draft", err);
-      }
-    }
-  }, [initialDraftData, loadDraftState]);
-
-  // Autosave to localStorage on state changes
+  // Autosave to database on state changes (debounced and change-based)
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (!state) return;
 
+    // Skip autosave if there's no title
+    if (!state.basicInfo.title || state.basicInfo.title.trim() === '') {
+      return;
+    }
+
+    // Only autosave if state has actually changed
+    if (previousStateRef.current === stateSnapshot) {
+      return;
+    }
+
+    // Update previous state reference
+    previousStateRef.current = stateSnapshot;
+
+    // Clear existing timer
     if (autosaveTimerRef.current) {
       clearTimeout(autosaveTimerRef.current);
     }
 
-    autosaveTimerRef.current = setTimeout(() => {
+    // Debounce autosave by 3 seconds
+    autosaveTimerRef.current = setTimeout(async () => {
       try {
-        window.localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(state));
+        setAutosaveStatus('saving');
+        
+        const result = await autoSaveDraft(state, autosaveDraftId);
+        
+        if (result.autosaved && result.id) {
+          // Set the draft ID if this is the first autosave
+          if (!autosaveDraftId) {
+            setAutosaveDraftId(result.id);
+          }
+          
+          setAutosaveStatus('saved');
+          setLastAutosaveTime(new Date());
+          
+          // Clear saved status after 3 seconds
+          setTimeout(() => {
+            setAutosaveStatus(prev => prev === 'saved' ? 'idle' : prev);
+          }, 3000);
+        } else if (result.error) {
+          setAutosaveStatus('error');
+          console.warn('Autosave error:', result.error);
+          
+          // Clear error status after 5 seconds
+          setTimeout(() => {
+            setAutosaveStatus(prev => prev === 'error' ? 'idle' : prev);
+          }, 5000);
+        }
       } catch (err) {
         console.error("Failed to autosave draft", err);
+        setAutosaveStatus('error');
+        setTimeout(() => {
+          setAutosaveStatus(prev => prev === 'error' ? 'idle' : prev);
+        }, 5000);
       }
-    }, 800);
+    }, 3000);
 
     return () => {
       if (autosaveTimerRef.current) {
         clearTimeout(autosaveTimerRef.current);
       }
     };
-  }, [state]);
+  }, [stateSnapshot, state, autosaveDraftId]);
 
   // Add handler to update profanity state
   const handleProfanityResult = (hasIssues: boolean) => {
@@ -585,12 +627,12 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
 
     try {
       setIsSavingDraft(true);
-      const loadingToast = toast.loading("Saving draft...");
+      const loadingToast = toast.loading("Saving new draft...");
 
       const formData = new FormData();
       formData.append("projectData", JSON.stringify(state));
 
-      const result = await saveProjectAsDraft(formData);
+      const result = await saveProjectAsNewDraft(formData);
 
       if ("error" in result) {
         toast.dismiss(loadingToast);
@@ -600,11 +642,12 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
       }
 
       toast.dismiss(loadingToast);
-      toast.success("Draft saved! You can continue editing later.");
+      toast.success("New draft saved! Refreshing...");
+      
+      // Refresh the page to update the drafts list
+      router.refresh();
 
       setIsSavingDraft(false);
-      // Redirect to home after saving draft
-      router.push("/home");
 
     } catch (error) {
       console.error("Error saving draft:", error);
@@ -647,7 +690,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
         );
       case 2:
         return (
-          <EventType
+          <EventTypeStep
             eventType={state.eventType}
             setEventTypeAction={setEventType}
           />
@@ -789,48 +832,64 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
             Back
           </Button>
           <div className="flex gap-2 items-center">
-            {/* Drafts button: icon on mobile, text on desktop */}
-            {drafts.length > 0 && (
-              <div className="flex">
-                <div className="md:hidden">
-                  <DraftsSidebar initialDrafts={drafts} />
-                </div>
-                <div className="hidden md:block">
-                  <DraftsSidebar initialDrafts={drafts} />
-                </div>
-              </div>
-            )}
+            {/* Drafts button */}
+            <DraftsSidebar initialDrafts={drafts} />
 
-            {/* Save Draft: icon-only on mobile, full on desktop */}
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                onClick={handleSaveDraft}
-                disabled={isSubmitting || isSavingDraft}
-                className="md:hidden w-10 h-10 p-0"
-              >
-                {isSavingDraft ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Save className="h-4 w-4" />
-                )}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={handleSaveDraft}
-                disabled={isSubmitting || isSavingDraft}
-                className="hidden md:inline-flex items-center gap-2"
-              >
-                {isSavingDraft ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
+            {/* Save as New Draft button */}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    onClick={handleSaveDraft}
+                    disabled={isSubmitting || isSavingDraft || !state.basicInfo.title?.trim()}
+                    className="h-9 w-9"
+                  >
+                    {isSavingDraft ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Save className="h-4 w-4" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Save as New Draft</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
+            {/* Autosave Status Indicator */}
+            {autosaveDraftId && (
+              <div className="hidden sm:flex items-center gap-2 px-2 py-1.5 rounded-md bg-muted/50 text-xs text-muted-foreground">
+                {autosaveStatus === 'saving' && (
                   <>
-                    <Save className="h-4 w-4" />
-                    Save Draft
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    <span>Saving...</span>
                   </>
                 )}
-              </Button>
-            </div>
+                {autosaveStatus === 'saved' && (
+                  <>
+                    <svg className="h-3 w-3 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                    <span>Saved</span>
+                  </>
+                )}
+                {autosaveStatus === 'error' && (
+                  <>
+                    <AlertCircle className="h-3 w-3 text-amber-600" />
+                    <span>Save failed</span>
+                  </>
+                )}
+                {autosaveStatus === 'idle' && (
+                  <>
+                    <div className="h-2 w-2 rounded-full bg-green-600" />
+                    <span>Autosave on</span>
+                  </>
+                )}
+              </div>
+            )}
 
             {/* Continue / Create button (full) */}
             <Button

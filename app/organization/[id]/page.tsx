@@ -201,7 +201,7 @@ export default async function OrganizationPage({
           memberCount={formattedMembers?.length || 0}
         />
 
-        <div className="mt-8 sm:mt-12 bg-card rounded-xl border border-border/60 shadow-sm p-4 sm:p-6 mb-8 min-h-0 sm:min-h-[520px]">
+        <div className="mt-8 sm:mt-12 bg-card rounded-xl border border-border/60 shadow-sm p-4 sm:p-6 mb-8">
           <OrganizationTabs
             organization={organization}
             members={formattedMembers}

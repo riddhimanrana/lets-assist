@@ -1,4 +1,5 @@
-import type { EventType, ProjectSchedule, ProjectVisibility } from "./common";
+import type { EventType, ProjectVisibility } from "./common";
+import type { ProjectSchedule } from "./schedule";
 
 export interface SignupGeniusSignupSummary {
   id: string;
