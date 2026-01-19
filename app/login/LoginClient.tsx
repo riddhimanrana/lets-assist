@@ -107,6 +107,7 @@ export default function LoginClient({ redirectPath }: LoginClientProps) {
       // The server action returns the session directly - use it immediately
       if (result.session?.user) {
         console.log('[LoginClient] Session received from server:', result.session.user.email);
+        
         // Persist session in the browser so refreshes stay logged in
         if (result.session.access_token && result.session.refresh_token) {
           const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
@@ -116,6 +117,9 @@ export default function LoginClient({ redirectPath }: LoginClientProps) {
 
           if (sessionError) {
             console.error('[LoginClient] Failed to persist session:', sessionError);
+            toast.error('Failed to establish session. Please try again.');
+            setIsLoading(false);
+            return;
           }
 
           const persistedUser = sessionData?.user ?? result.session.user;
@@ -123,6 +127,10 @@ export default function LoginClient({ redirectPath }: LoginClientProps) {
           // Update cache IMMEDIATELY with the session from the server action
           updateCachedUser(persistedUser);
           console.log('[LoginClient] Cache updated immediately with user:', persistedUser.email);
+
+          // Wait a brief moment for cookies to be written before redirect
+          // This ensures middleware can read the session cookies
+          await new Promise(resolve => setTimeout(resolve, 100));
 
           // Initialize profile and settings cache in background
           // This fetches profile + settings in a batch query
@@ -134,6 +142,9 @@ export default function LoginClient({ redirectPath }: LoginClientProps) {
           // Fallback: update cache even if tokens are missing (shouldn't happen)
           updateCachedUser(result.session.user);
           console.log('[LoginClient] Cache updated immediately with user:', result.session.user.email);
+
+          // Wait a brief moment for state to synchronize
+          await new Promise(resolve => setTimeout(resolve, 100));
 
           initializeUserProfileCache(result.session.user.id).catch((error) => {
             console.error('[LoginClient] Failed to initialize profile cache:', error);

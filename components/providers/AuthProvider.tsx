@@ -71,7 +71,10 @@ export function AuthProvider({ children, initialUser = null }: AuthProviderProps
         
         if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'USER_UPDATED') {
           if (session?.user) {
-            updateCachedUser(session.user);
+            // For SIGNED_IN events, use silent update to avoid duplicate fetches
+            // since LoginClient already updates the cache
+            const shouldSilentUpdate = event === 'SIGNED_IN';
+            updateCachedUser(session.user, { silent: shouldSilentUpdate });
             
             // Initialize profile cache if not already done for this user
             // This ensures profile data is fetched after page refresh
