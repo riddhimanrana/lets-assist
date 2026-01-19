@@ -121,6 +121,28 @@ export const getProjectStatus = (project: Project): ProjectStatus => {
     return "cancelled";
   }
 
+  // Draft projects should always be considered upcoming
+  if (project.workflow_status === "draft") {
+    return "upcoming";
+  }
+
+  // Guard against missing schedule data to avoid parse errors
+  if (!project.schedule) {
+    return "upcoming";
+  }
+
+  if (project.event_type === "oneTime" && !project.schedule.oneTime) {
+    return "upcoming";
+  }
+
+  if (project.event_type === "multiDay" && (!project.schedule.multiDay || project.schedule.multiDay.length === 0)) {
+    return "upcoming";
+  }
+
+  if (project.event_type === "sameDayMultiArea" && !project.schedule.sameDayMultiArea) {
+    return "upcoming";
+  }
+
   const now = new Date();
   
   // For multiDay events, check if ANY day is still available
