@@ -276,7 +276,7 @@ export default async function Image({
               />
             </div>
           ) : organizationLogoUrl ? (
-             /* Using organization logo here as large fallback if cover is missing */
+            // Using organization logo here as large fallback if cover is missing
             <img
               src={organizationLogoUrl}
               alt={organizationName}
