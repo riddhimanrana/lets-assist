@@ -1,6 +1,6 @@
 "use client";
 
-import { Project, LocationData, ProjectSchedule, EventType } from "@/types";
+import { Project, LocationData, ProjectSchedule, EventType, RecurrenceFrequency, RecurrenceEndType, RecurrenceWeekday } from "@/types";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { cn, stripHtml } from "@/lib/utils";
@@ -148,6 +148,8 @@ const formSchema = z.object({
   require_login: z.boolean(),
   enable_volunteer_comments: z.boolean(),
   show_attendees_publicly: z.boolean(),
+  waiver_required: z.boolean(),
+  waiver_allow_upload: z.boolean(),
   verification_method: z.enum(["qr-code", "manual", "auto", "signup-only"]),
 });
 
@@ -221,6 +223,21 @@ function initializeScheduleState(project: Project) {
   };
 }
 
+// Helper to initialize recurrence state from project
+function initializeRecurrenceState(project: Project) {
+  const recurrence = project.recurrence_rule;
+  
+  return {
+    enabled: !!recurrence,
+    frequency: (recurrence?.frequency || "weekly") as RecurrenceFrequency,
+    interval: recurrence?.interval || 1,
+    endType: (recurrence?.end_type || "never") as RecurrenceEndType,
+    endDate: recurrence?.end_date || undefined,
+    endOccurrences: recurrence?.end_occurrences || undefined,
+    weekdays: (recurrence?.weekdays || []) as RecurrenceWeekday[],
+  };
+}
+
 export default function EditProjectClient({ project }: Props) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
@@ -235,6 +252,7 @@ export default function EditProjectClient({ project }: Props) {
   
   // Schedule editing state
   const [scheduleState, setScheduleState] = useState(() => initializeScheduleState(project));
+  const [recurrenceState, setRecurrenceState] = useState(() => initializeRecurrenceState(project));
   const [scheduleErrors, setScheduleErrors] = useState<z.ZodIssue[]>([]);
   const [isScheduleOpen, setIsScheduleOpen] = useState(false);
   
@@ -277,9 +295,13 @@ export default function EditProjectClient({ project }: Props) {
       require_login: project.require_login,
       enable_volunteer_comments: project.enable_volunteer_comments ?? false,
       show_attendees_publicly: project.show_attendees_publicly ?? false,
+      waiver_required: project.waiver_required ?? false,
+      waiver_allow_upload: project.waiver_allow_upload ?? true,
       verification_method: project.verification_method,
     },
   });
+
+  const waiverRequired = form.watch("waiver_required");
 
   // Schedule update handlers
   const updateOneTimeSchedule = (field: keyof typeof scheduleState.oneTime, value: string | number) => {
@@ -372,6 +394,16 @@ export default function EditProjectClient({ project }: Props) {
     }));
   };
 
+  const updateRecurrence = (
+    field: keyof typeof recurrenceState,
+    value: typeof recurrenceState[keyof typeof recurrenceState]
+  ) => {
+    setRecurrenceState(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
   // Track form changes (including schedule)
   useEffect(() => {
     const subscription = form.watch((value, { name, type }) => {
@@ -384,6 +416,8 @@ export default function EditProjectClient({ project }: Props) {
         formValues.require_login !== project.require_login ||
         formValues.enable_volunteer_comments !== (project.enable_volunteer_comments ?? false) ||
         formValues.show_attendees_publicly !== (project.show_attendees_publicly ?? false) ||
+        formValues.waiver_required !== (project.waiver_required ?? false) ||
+        formValues.waiver_allow_upload !== (project.waiver_allow_upload ?? true) ||
         formValues.verification_method !== project.verification_method;
       
       const initialSchedule = initializeScheduleState(project);
@@ -408,6 +442,8 @@ export default function EditProjectClient({ project }: Props) {
       formValues.require_login !== project.require_login ||
       formValues.enable_volunteer_comments !== (project.enable_volunteer_comments ?? false) ||
       formValues.show_attendees_publicly !== (project.show_attendees_publicly ?? false) ||
+      formValues.waiver_required !== (project.waiver_required ?? false) ||
+      formValues.waiver_allow_upload !== (project.waiver_allow_upload ?? true) ||
       formValues.verification_method !== project.verification_method;
     
     setHasChanges(basicInfoChanged || scheduleChanged);
@@ -649,10 +685,21 @@ export default function EditProjectClient({ project }: Props) {
         schedule = { sameDayMultiArea: scheduleState.sameDayMultiArea };
       }
       
+      // Build recurrence rule if enabled
+      const recurrenceRule = recurrenceState.enabled ? {
+        frequency: recurrenceState.frequency,
+        interval: recurrenceState.interval || 1,
+        end_type: recurrenceState.endType,
+        end_date: recurrenceState.endDate || null,
+        end_occurrences: recurrenceState.endOccurrences || null,
+        weekdays: recurrenceState.weekdays || [],
+      } : null;
+
       // Combine form values with schedule
       const updates = {
         ...values,
         schedule,
+        recurrence_rule: recurrenceRule,
       };
       
       const result = await updateProject(project.id, updates);
@@ -889,6 +936,49 @@ export default function EditProjectClient({ project }: Props) {
 
               <FormField
                 control={form.control}
+                name="waiver_required"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                      <FormLabel>Require Waiver Signature</FormLabel>
+                      <CardDescription>
+                        Volunteers must sign the global waiver before signing up.
+                      </CardDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="waiver_allow_upload"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                      <FormLabel>Allow Print & Upload</FormLabel>
+                      <CardDescription>
+                        Allow volunteers to upload a signed PDF or image instead of drawing/typing.
+                      </CardDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        disabled={!waiverRequired}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
                 name="enable_volunteer_comments"
                 render={({ field }) => (
                   <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
@@ -1021,7 +1111,8 @@ export default function EditProjectClient({ project }: Props) {
                   <Schedule
                     state={{
                       eventType: project.event_type,
-                      schedule: scheduleState
+                      schedule: scheduleState,
+                      recurrence: recurrenceState
                     }}
                     updateOneTimeScheduleAction={updateOneTimeSchedule}
                     updateMultiDayScheduleAction={updateMultiDaySchedule}
@@ -1032,6 +1123,7 @@ export default function EditProjectClient({ project }: Props) {
                     removeDayAction={removeDay}
                     removeSlotAction={removeSlot}
                     removeRoleAction={removeRole}
+                    updateRecurrenceAction={updateRecurrence}
                     errors={scheduleErrors}
                   />
                 </CollapsibleContent>

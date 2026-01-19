@@ -74,6 +74,7 @@ export default async function CreateProjectPage({
   // Get organization ID from URL params if provided - fixed approach
   const search = await searchParams;
   const orgIdFromUrl = search?.org || undefined;
+  const draftIdFromUrl = search?.draft || undefined;
 
   // If org ID is provided, verify permission and assign initialOrgId
   let initialOrgId = undefined;
@@ -116,9 +117,47 @@ export default async function CreateProjectPage({
     orgOptions = [orgOptions[0], ...orgs];
   }
 
+  // Fetch user's drafts from project_drafts table
+  const { data: drafts } = await supabase
+    .from('project_drafts')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('updated_at', { ascending: false });
+
+  // Load specific draft if requested
+  let loadedDraft = null;
+  if (draftIdFromUrl) {
+    const { data: draft } = await supabase
+      .from('project_drafts')
+      .select('*')
+      .eq('id', draftIdFromUrl)
+      .eq('user_id', user.id)
+      .single();
+    
+    if (draft) {
+      loadedDraft = draft.draft_data;
+    }
+  }
+
   return (
     <div className="container mx-auto p-4 sm:p-8 max-w-3xl">
-      <ProjectCreator initialOrgId={initialOrgId} initialOrgOptions={orgOptions} />
+      <ProjectCreator 
+        initialOrgId={initialOrgId} 
+        initialOrgOptions={orgOptions}
+        initialDraftData={loadedDraft}
+        drafts={drafts?.map((d: any) => ({
+          id: d.id,
+          title: d.title || 'Untitled Draft',
+          description: d.draft_data?.basicInfo?.description || '',
+          location: d.draft_data?.basicInfo?.location || '',
+          event_type: d.draft_data?.eventType || 'oneTime',
+          schedule: d.draft_data?.schedule || null,
+          cover_image_url: null,
+          created_at: d.created_at,
+          workflow_status: 'draft',
+          organization: null
+        })) || []}
+      />
     </div>
   );
 }

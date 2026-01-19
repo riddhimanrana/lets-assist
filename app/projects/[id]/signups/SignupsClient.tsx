@@ -7,7 +7,7 @@ import { createClient } from "@/utils/supabase/client";
 // Import AnonymousSignup type
 import { Project, EventType, AnonymousSignup } from "@/types"; 
 import { NotificationService } from "@/services/notifications";
-import { createRejectionNotification, togglePauseSignups, unrejectSignup } from "../actions";
+import { createRejectionNotification, togglePauseSignups, unrejectSignup, getWaiverDownloadUrl } from "../actions";
 import { format } from "date-fns";
 import { 
   formatScheduleDisplay, 
@@ -61,6 +61,21 @@ type Signup = {
   anonymous_id: string | null; // FK to anonymous_signups
   schedule_id: string;
   volunteer_comment?: string | null;
+  waiver_signature?: {
+    signature_type: "draw" | "typed" | "upload";
+    signature_storage_path?: string | null;
+    upload_storage_path?: string | null;
+    signature_text?: string | null;
+    signed_at?: string | null;
+    signer_name?: string | null;
+  } | { // handle array shape if Supabase returns array
+    signature_type: "draw" | "typed" | "upload";
+    signature_storage_path?: string | null;
+    upload_storage_path?: string | null;
+    signature_text?: string | null;
+    signed_at?: string | null;
+    signer_name?: string | null;
+  }[];
   profile?: { // Data from profiles table (if user_id exists)
     full_name: string;
     username: string;
@@ -96,6 +111,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
   const [isPausingSignups, setIsPausingSignups] = useState(false);
   const [pausedSignups, setPausedSignups] = useState(false);
   const [unrejectingSignups, setUnrejectingSignups] = useState<Record<string, boolean>>({});
+  const [waiverDownloads, setWaiverDownloads] = useState<Record<string, boolean>>({});
 
   const toggleSort = (field: SortField) => {
     setSort(current => ({
@@ -296,6 +312,14 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
       anonymous_id, 
       schedule_id,
       volunteer_comment,
+      waiver_signature:waiver_signatures!waiver_signatures_signup_id_fkey (
+        signature_type,
+        signature_storage_path,
+        upload_storage_path,
+        signature_text,
+        signed_at,
+        signer_name
+      ),
       profile:profiles!left (
         full_name,
         username,
@@ -384,6 +408,35 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
       toast.error(error instanceof Error ? error.message : "Failed to update signup");
     } finally {
       setProcessingSignups(prev => ({ ...prev, [signupId]: false }));
+    }
+  };
+
+  const handleViewWaiver = async (signupId: string) => {
+    try {
+      setWaiverDownloads(prev => ({ ...prev, [signupId]: true }));
+      const result = await getWaiverDownloadUrl(signupId);
+
+      if (result?.url) {
+        window.open(result.url, "_blank", "noopener,noreferrer");
+        return;
+      }
+
+      if (result?.signature?.signature_text) {
+        toast.success(`Typed signature on file: ${result.signature.signature_text}`);
+        return;
+      }
+
+      if (result?.error) {
+        toast.error(result.error);
+        return;
+      }
+
+      toast.error("Unable to load waiver at this time.");
+    } catch (error) {
+      console.error("Error loading waiver:", error);
+      toast.error("Unable to load waiver at this time.");
+    } finally {
+      setWaiverDownloads(prev => ({ ...prev, [signupId]: false }));
     }
   };
 
@@ -554,6 +607,8 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
     );
   };
 
+  const tableColumnCount = 5 + (project?.enable_volunteer_comments ? 1 : 0) + (project?.waiver_required ? 1 : 0);
+
   return (
     <div className="container mx-auto px-4 py-6 max-w-5xl">
       <div className="mb-6">
@@ -670,6 +725,9 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
                 {project?.enable_volunteer_comments && (
                   <TableHead>Comment</TableHead>
                 )}
+                {project?.waiver_required && (
+                  <TableHead>Waiver</TableHead>
+                )}
                 <TableHead 
                   className="cursor-pointer hover:text-foreground transition-colors"
                   onClick={() => toggleSort("status")}
@@ -691,6 +749,9 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
                 const phone = isRegistered ? signup.profile?.phone : signup.anonymous_signup?.phone_number;
                 const username = isRegistered ? signup.profile?.username : null;
                 const confirmed_at = signup.anonymous_signup?.confirmed_at;
+                const waiverSignature = Array.isArray(signup.waiver_signature)
+                  ? signup.waiver_signature[0]
+                  : signup.waiver_signature;
 
                 return (
                   <TableRow key={signup.id}>
@@ -730,6 +791,30 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
                           </div>
                         ) : (
                           <span className="text-muted-foreground/60">—</span>
+                        )}
+                      </TableCell>
+                    )}
+                    {project?.waiver_required && (
+                      <TableCell>
+                        {waiverSignature ? (
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="text-xs">Signed</Badge>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleViewWaiver(signup.id)}
+                              disabled={waiverDownloads[signup.id]}
+                              className="px-2"
+                            >
+                              {waiverDownloads[signup.id] ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                "View"
+                              )}
+                            </Button>
+                          </div>
+                        ) : (
+                          <Badge variant="secondary" className="text-xs">Missing</Badge>
                         )}
                       </TableCell>
                     )}
@@ -780,7 +865,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
               })}
               {!loading && slotSignups.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8">
+                  <TableCell colSpan={tableColumnCount} className="text-center py-8">
                     <div className="text-muted-foreground">
                       No signups found for your search criteria.
                     </div>

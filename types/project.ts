@@ -44,6 +44,8 @@ export interface Project {
   require_login: boolean;
   enable_volunteer_comments?: boolean;
   show_attendees_publicly?: boolean;
+  waiver_required?: boolean;
+  waiver_allow_upload?: boolean;
   creator_id: string;
   schedule: ProjectSchedule;
   status: ProjectStatus;
