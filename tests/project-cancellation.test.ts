@@ -103,11 +103,20 @@ beforeEach(() => {
   mockSupabase = createSupabaseMock({ ...baseProject });
   upsertResult = { error: null };
 
+  // Service role mock that properly chains method calls
   serviceRoleMock = {
     from: vi.fn(() => ({
-      upsert: vi.fn(async () => upsertResult),
+      upsert: vi.fn(() => Promise.resolve(upsertResult)),
+      select: vi.fn(() => ({
+        eq: vi.fn(() => Promise.resolve({ data: [], error: null })),
+      })),
     })),
   };
+
+  // Mock fetch for the worker trigger
+  global.fetch = vi.fn(() => 
+    Promise.resolve({ ok: true } as Response)
+  );
 
   process.env.PROJECT_CANCELLATION_WORKER_ENABLED = "true";
   process.env.NEXT_PUBLIC_SITE_URL = "http://localhost:3000";

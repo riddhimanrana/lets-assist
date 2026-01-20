@@ -28,6 +28,10 @@ type SignupStatus =
   | { type: 'new'; message: string };
 
 export async function checkEmailStatus(email: string): Promise<SignupStatus> {
+  if (process.env.E2E_TEST_MODE === "true") {
+    return { type: 'new', message: 'E2E test mode: email is new' };
+  }
+
   try {
     const adminClient = createAdminClient();
     const normalizedEmail = email.trim().toLowerCase();
@@ -113,6 +117,14 @@ export async function signup(formData: FormData) {
 
   if (!validatedFields.success) {
     return { error: validatedFields.error.flatten().fieldErrors };
+  }
+
+  if (process.env.E2E_TEST_MODE === "true") {
+    return {
+      success: true,
+      email: validatedFields.data.email,
+      message: "E2E test signup stubbed success",
+    };
   }
 
   const supabase = await createClient();

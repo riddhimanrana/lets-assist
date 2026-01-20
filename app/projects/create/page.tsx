@@ -22,6 +22,51 @@ export default async function CreateProjectPage({
 }: {
   searchParams: Promise<{ org?: string; draft?: string }>
 }) {
+  if (process.env.E2E_TEST_MODE === "true") {
+    const date = new Date();
+    date.setDate(date.getDate() + 2);
+    const dateStr = date.toISOString().slice(0, 10);
+
+    return (
+      <div className="w-full mx-auto p-4 sm:p-8 max-w-3xl space-y-4" data-testid="e2e-project-mock">
+        <h1 className="text-2xl font-bold">Create Project</h1>
+        <p className="text-muted-foreground">
+          E2E mode: project creation is mocked to avoid external dependencies.
+        </p>
+        <div className="space-y-3">
+          <label className="space-y-1 block">
+            <span className="font-medium">Project Title</span>
+            <input
+              data-testid="e2e-project-title"
+              defaultValue="E2E Project"
+              className="w-full rounded-md border px-3 py-2"
+            />
+          </label>
+          <label className="space-y-1 block">
+            <span className="font-medium">Project Location</span>
+            <input
+              data-testid="e2e-project-location"
+              defaultValue="Test Location"
+              className="w-full rounded-md border px-3 py-2"
+            />
+          </label>
+          <label className="space-y-1 block">
+            <span className="font-medium">Event Date</span>
+            <input
+              data-testid="e2e-project-date"
+              type="date"
+              defaultValue={dateStr}
+              className="w-full rounded-md border px-3 py-2"
+            />
+          </label>
+        </div>
+        <div className="rounded-md border bg-muted/30 p-4" data-testid="e2e-project-confirm">
+          Mock project ready to submit.
+        </div>
+      </div>
+    );
+  }
+
   const supabase = await createClient();
 
   // Authentication check on the server
