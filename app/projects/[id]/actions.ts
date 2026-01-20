@@ -285,6 +285,198 @@ export async function getActiveWaiverTemplate() {
   }
 }
 
+// Get project-specific waiver or fall back to global template
+export async function getProjectWaiver(projectId: string) {
+  try {
+    const serviceSupabase = getServiceRoleClient();
+    
+    // First get the project's waiver config
+    const { data: project, error: projectError } = await serviceSupabase
+      .from("projects")
+      .select("waiver_required, waiver_allow_upload, waiver_pdf_url, waiver_pdf_storage_path")
+      .eq("id", projectId)
+      .maybeSingle();
+
+    if (projectError) {
+      console.error("Error fetching project waiver config:", projectError);
+      return { error: "Failed to load project waiver configuration" };
+    }
+
+    if (!project) {
+      return { error: "Project not found" };
+    }
+
+    // If project has a custom waiver PDF, use that
+    if (project.waiver_pdf_url) {
+      return {
+        waiverConfig: {
+          waiverRequired: project.waiver_required ?? false,
+          waiverAllowUpload: project.waiver_allow_upload ?? true,
+          waiverPdfUrl: project.waiver_pdf_url,
+          waiverPdfStoragePath: project.waiver_pdf_storage_path,
+          isProjectSpecific: true,
+        },
+        template: null,
+      };
+    }
+
+    // Fall back to global template
+    const { template, error: templateError } = await getActiveWaiverTemplate();
+    
+    if (templateError) {
+      return { error: templateError };
+    }
+
+    return {
+      waiverConfig: {
+        waiverRequired: project.waiver_required ?? false,
+        waiverAllowUpload: project.waiver_allow_upload ?? true,
+        waiverPdfUrl: null,
+        waiverPdfStoragePath: null,
+        isProjectSpecific: false,
+      },
+      template,
+    };
+  } catch (error) {
+    console.error("Error fetching project waiver:", error);
+    return { error: "Failed to load project waiver" };
+  }
+}
+
+// Upload project waiver PDF
+export async function uploadProjectWaiverPdf(projectId: string, pdfDataUrl: string, fileName: string) {
+  try {
+    const supabase = await createClient();
+    
+    // Check if user has permission
+    const isAllowed = await isProjectCreator(projectId);
+    if (!isAllowed) {
+      return { error: "You don't have permission to modify this project" };
+    }
+
+    const serviceSupabase = getServiceRoleClient();
+    
+    // Parse and validate the PDF data URL
+    const parsed = parseDataUrl(pdfDataUrl);
+    if (!parsed) {
+      return { error: "Invalid file data" };
+    }
+
+    if (parsed.contentType !== "application/pdf") {
+      return { error: "Only PDF files are allowed" };
+    }
+
+    if (parsed.size > MAX_WAIVER_UPLOAD_BYTES) {
+      return { error: "File size must be less than 10MB" };
+    }
+
+    // Generate storage path
+    const storagePath = `project_waivers/${projectId}/${Date.now()}_${fileName.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+
+    // Upload to storage
+    const { error: uploadError } = await serviceSupabase.storage
+      .from(WAIVER_UPLOAD_BUCKET)
+      .upload(storagePath, parsed.buffer, {
+        contentType: "application/pdf",
+        cacheControl: "3600",
+        upsert: false,
+      });
+
+    if (uploadError) {
+      console.error("Error uploading waiver PDF:", uploadError);
+      return { error: "Failed to upload waiver PDF" };
+    }
+
+    // Get the public URL
+    const { data: urlData } = serviceSupabase.storage
+      .from(WAIVER_UPLOAD_BUCKET)
+      .getPublicUrl(storagePath);
+
+    // Update project with waiver PDF info
+    const { error: updateError } = await supabase
+      .from("projects")
+      .update({
+        waiver_pdf_url: urlData.publicUrl,
+        waiver_pdf_storage_path: storagePath,
+      })
+      .eq("id", projectId);
+
+    if (updateError) {
+      console.error("Error updating project with waiver PDF:", updateError);
+      // Clean up uploaded file
+      await serviceSupabase.storage.from(WAIVER_UPLOAD_BUCKET).remove([storagePath]);
+      return { error: "Failed to save waiver PDF to project" };
+    }
+
+    revalidatePath(`/projects/${projectId}`);
+    revalidatePath(`/projects/${projectId}/edit`);
+
+    return { 
+      success: true, 
+      waiverPdfUrl: urlData.publicUrl,
+      waiverPdfStoragePath: storagePath,
+    };
+  } catch (error) {
+    console.error("Error uploading project waiver:", error);
+    return { error: "An unexpected error occurred" };
+  }
+}
+
+// Remove project waiver PDF
+export async function removeProjectWaiverPdf(projectId: string) {
+  try {
+    const supabase = await createClient();
+    
+    // Check if user has permission
+    const isAllowed = await isProjectCreator(projectId);
+    if (!isAllowed) {
+      return { error: "You don't have permission to modify this project" };
+    }
+
+    // Get current waiver PDF path
+    const { data: project, error: fetchError } = await supabase
+      .from("projects")
+      .select("waiver_pdf_storage_path")
+      .eq("id", projectId)
+      .maybeSingle();
+
+    if (fetchError || !project) {
+      return { error: "Project not found" };
+    }
+
+    const serviceSupabase = getServiceRoleClient();
+
+    // Remove from storage if exists
+    if (project.waiver_pdf_storage_path) {
+      await serviceSupabase.storage
+        .from(WAIVER_UPLOAD_BUCKET)
+        .remove([project.waiver_pdf_storage_path]);
+    }
+
+    // Update project to remove waiver PDF info
+    const { error: updateError } = await supabase
+      .from("projects")
+      .update({
+        waiver_pdf_url: null,
+        waiver_pdf_storage_path: null,
+      })
+      .eq("id", projectId);
+
+    if (updateError) {
+      console.error("Error removing waiver PDF from project:", updateError);
+      return { error: "Failed to remove waiver PDF" };
+    }
+
+    revalidatePath(`/projects/${projectId}`);
+    revalidatePath(`/projects/${projectId}/edit`);
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error removing project waiver:", error);
+    return { error: "An unexpected error occurred" };
+  }
+}
+
 async function uploadWaiverAsset(params: {
   bucket: string;
   dataUrl: string;
@@ -388,14 +580,45 @@ async function persistWaiverSignature(params: {
 }) {
   const serviceSupabase = getServiceRoleClient();
 
-  const { data: template, error: templateError } = await serviceSupabase
-    .from("waiver_templates")
-    .select("id")
-    .eq("id", params.waiverSignature.templateId)
+  // Check for project-specific waiver PDF first
+  const { data: project, error: projectError } = await serviceSupabase
+    .from("projects")
+    .select("waiver_pdf_url")
+    .eq("id", params.projectId)
     .maybeSingle();
 
-  if (templateError || !template) {
-    return { error: "Invalid waiver template." };
+  let templateId: string | null = params.waiverSignature.templateId === "project-pdf" ? null : params.waiverSignature.templateId;
+  const waiverPdfUrl = project?.waiver_pdf_url || params.waiverSignature.waiverPdfUrl || null;
+
+  // If using project-specific PDF, we don't need a template
+  if (waiverPdfUrl) {
+    templateId = null; // Set to null when using project PDF
+  } else if (templateId && templateId !== "project-pdf") {
+    // Validate template if provided and not using project PDF
+    const { data: template, error: templateError } = await serviceSupabase
+      .from("waiver_templates")
+      .select("id")
+      .eq("id", templateId)
+      .maybeSingle();
+
+    if (templateError || !template) {
+      return { error: "Invalid waiver template." };
+    }
+  } else {
+    // If no PDF and no valid template, get the active global template
+    const { data: activeTemplate } = await serviceSupabase
+      .from("waiver_templates")
+      .select("id")
+      .eq("active", true)
+      .order("version", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    
+    if (activeTemplate) {
+      templateId = activeTemplate.id;
+    } else {
+      return { error: "No waiver source available. Please contact support." };
+    }
   }
 
   const { ipAddress, userAgent } = await getRequestMetadata();
@@ -455,7 +678,8 @@ async function persistWaiverSignature(params: {
   const { error: insertError } = await serviceSupabase
     .from("waiver_signatures")
     .insert({
-      waiver_template_id: params.waiverSignature.templateId,
+      waiver_template_id: templateId,
+      waiver_pdf_url: waiverPdfUrl,
       project_id: params.projectId,
       signup_id: params.signupId,
       user_id: params.userId ?? null,

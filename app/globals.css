@@ -36,6 +36,20 @@
     --chart-7: 355 76% 59%; /* maroon */
     --chart-8: 231 97% 72%; /* lavender */
     --chart-9: 220 21% 89%; /* base */
+    
+    /* Toast colors */
+    --toast-success-bg: 142.1 70% 95%; /* light green bg */
+    --toast-success-foreground: 142.1 76.2% 28%; /* darker green text */
+    --toast-success-border: 142.1 60% 70%; /* green border */
+    --toast-error-bg: 0 84% 96%; /* light red bg */
+    --toast-error-foreground: 0 84.2% 50%; /* red text */
+    --toast-error-border: 0 84% 75%; /* red border */
+    --toast-info-bg: 220 91% 96%; /* light blue bg */
+    --toast-info-foreground: 220 91% 45%; /* blue text */
+    --toast-info-border: 220 91% 75%; /* blue border */
+    --toast-warning-bg: 35 77% 96%; /* light yellow bg */
+    --toast-warning-foreground: 35 77% 40%; /* yellow text */
+    --toast-warning-border: 35 77% 70%; /* yellow border */ --sidebar-background: 0 0% 98%; --sidebar-foreground: 240 5.3% 26.1%; --sidebar-primary: 240 5.9% 10%; --sidebar-primary-foreground: 0 0% 98%; --sidebar-accent: 240 4.8% 95.9%; --sidebar-accent-foreground: 240 5.9% 10%; --sidebar-border: 220 13% 91%; --sidebar-ring: 217.2 91.2% 59.8%;
   }
 
   .dark {
@@ -71,6 +85,20 @@
     --chart-7: 350 65% 77%; /* maroon */
     --chart-8: 232 97% 85%; /* lavender */
     --chart-9: 240 23% 9%; /* mantle */
+    
+    /* Toast colors - Catppuccin Mocha inspired */
+    --toast-success-bg: 115 30% 18%; /* green-tinted surface */
+    --toast-success-foreground: 115 54% 76%; /* catppuccin green */
+    --toast-success-border: 115 45% 40%; /* muted green border */
+    --toast-error-bg: 343 35% 22%; /* red-tinted surface */
+    --toast-error-foreground: 343 81% 75%; /* catppuccin red */
+    --toast-error-border: 343 65% 48%; /* muted red border */
+    --toast-info-bg: 217 40% 24%; /* blue-tinted surface */
+    --toast-info-foreground: 217 92% 76%; /* catppuccin blue */
+    --toast-info-border: 217 70% 52%; /* muted blue border */
+    --toast-warning-bg: 41 38% 24%; /* yellow-tinted surface */
+    --toast-warning-foreground: 41 86% 83%; /* catppuccin yellow */
+    --toast-warning-border: 41 68% 58%; /* muted yellow border */ --sidebar-background: 240 5.9% 10%; --sidebar-foreground: 240 4.8% 95.9%; --sidebar-primary: 224.3 76.3% 48%; --sidebar-primary-foreground: 0 0% 100%; --sidebar-accent: 240 3.7% 15.9%; --sidebar-accent-foreground: 240 4.8% 95.9%; --sidebar-border: 240 3.7% 15.9%; --sidebar-ring: 217.2 91.2% 59.8%;
   }
 }
 

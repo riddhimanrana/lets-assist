@@ -1,10 +1,12 @@
 "use client";
 
+import { useState, useRef, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import {
   QrCode,
   UserCheck,
@@ -18,6 +20,11 @@ import {
   EyeOff,
   Link2,
   FileSignature,
+  Upload,
+  X,
+  FileText,
+  CheckCircle2,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { VerificationMethod, ProjectVisibility } from "@/types";
@@ -27,6 +34,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface VerificationSettingsProps {
   verificationMethod: VerificationMethod;
@@ -37,6 +45,9 @@ interface VerificationSettingsProps {
   showAttendeesPublicly: boolean;
   waiverRequired: boolean;
   waiverAllowUpload: boolean;
+  waiverPdfFile?: File | null;
+  waiverPdfUrl?: string | null;
+  waiverPdfValidation?: { hasSignatureFields: boolean; warnings: string[] } | null;
   updateVerificationMethodAction: (method: VerificationMethod) => void;
   updateRequireLoginAction: (requireLogin: boolean) => void;
   updateVisibilityAction: (visibility: ProjectVisibility) => void;
@@ -44,6 +55,9 @@ interface VerificationSettingsProps {
   updateShowAttendeesPubliclyAction: (enabled: boolean) => void;
   updateWaiverRequiredAction: (enabled: boolean) => void;
   updateWaiverAllowUploadAction: (enabled: boolean) => void;
+  updateWaiverPdfFileAction?: (file: File | null) => void;
+  updateWaiverPdfValidationAction?: (validation: { hasSignatureFields: boolean; warnings: string[] } | null) => void;
+  clearWaiverPdfAction?: () => void;
   restrictToOrgDomains?: boolean;
   updateRestrictToOrgDomainsAction?: (restrict: boolean) => void;
   allowedEmailDomains?: string[] | null;
@@ -63,6 +77,9 @@ export default function VerificationSettings({
   showAttendeesPublicly,
   waiverRequired,
   waiverAllowUpload,
+  waiverPdfFile,
+  waiverPdfUrl,
+  waiverPdfValidation,
   updateVerificationMethodAction,
   updateRequireLoginAction,
   updateVisibilityAction,
@@ -70,11 +87,93 @@ export default function VerificationSettings({
   updateShowAttendeesPubliclyAction,
   updateWaiverRequiredAction,
   updateWaiverAllowUploadAction,
+  updateWaiverPdfFileAction,
+  updateWaiverPdfValidationAction,
+  clearWaiverPdfAction,
   restrictToOrgDomains = false,
   updateRestrictToOrgDomainsAction,
   allowedEmailDomains,
   errors = {},
 }: VerificationSettingsProps) {
+  const [isValidatingPdf, setIsValidatingPdf] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const MAX_PDF_SIZE = 10 * 1024 * 1024; // 10MB
+
+  const validatePdfFile = useCallback(async (file: File) => {
+    setIsValidatingPdf(true);
+    setPdfError(null);
+
+    try {
+      // Check file type
+      if (file.type !== 'application/pdf') {
+        setPdfError('Please upload a PDF file');
+        setIsValidatingPdf(false);
+        return;
+      }
+
+      // Check file size
+      if (file.size > MAX_PDF_SIZE) {
+        setPdfError('File size must be less than 10MB');
+        setIsValidatingPdf(false);
+        return;
+      }
+
+      // Read file and validate structure
+      const arrayBuffer = await file.arrayBuffer();
+      const bytes = new Uint8Array(arrayBuffer);
+
+      // Check PDF header
+      const header = String.fromCharCode(...bytes.slice(0, 5));
+      if (header !== '%PDF-') {
+        setPdfError('Invalid PDF file');
+        setIsValidatingPdf(false);
+        return;
+      }
+
+      // Simple signature field detection (look for /Sig or /AcroForm in the PDF)
+      const pdfText = new TextDecoder('latin1').decode(bytes);
+      const hasSignatureFields = 
+        pdfText.includes('/Sig') || 
+        pdfText.includes('/AcroForm') ||
+        pdfText.includes('/SigFlags') ||
+        pdfText.includes('signature') ||
+        pdfText.includes('/Widget');
+
+      const warnings: string[] = [];
+      if (!hasSignatureFields) {
+        warnings.push('No signature fields detected. Volunteers will sign electronically (draw/type) alongside this document.');
+      }
+
+      // Update state
+      updateWaiverPdfFileAction?.(file);
+      updateWaiverPdfValidationAction?.({ hasSignatureFields, warnings });
+    } catch (error) {
+      console.error('Error validating PDF:', error);
+      setPdfError('Error reading PDF file. Please try again.');
+    } finally {
+      setIsValidatingPdf(false);
+    }
+  }, [updateWaiverPdfFileAction, updateWaiverPdfValidationAction]);
+
+  const handleFileChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      validatePdfFile(file);
+    }
+  }, [validatePdfFile]);
+
+  const handleRemovePdf = useCallback(() => {
+    clearWaiverPdfAction?.();
+    setPdfError(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  }, [clearWaiverPdfAction]);
+
+  const hasWaiverPdf = waiverPdfFile || waiverPdfUrl;
+
   return (
     <div className="space-y-6">
       <Card>
@@ -102,32 +201,32 @@ export default function VerificationSettings({
             onValueChange={(value) =>
               updateVerificationMethodAction(value as VerificationMethod)
             }
-            className="grid gap-4"
+            className="grid gap-3 sm:gap-4"
           >
             <label
               htmlFor="qr-code"
               className={cn(
-                "flex flex-col items-start space-y-3 rounded-lg border p-4 hover:bg-accent cursor-pointer transition-colors",
+                "flex flex-col items-start space-y-2 sm:space-y-3 rounded-lg border p-3 sm:p-4 hover:bg-accent cursor-pointer transition-colors",
                 verificationMethod === "qr-code" && "border-primary bg-accent",
                 errors.verificationMethod && "border-destructive",
               )}
             >
-              <div className="flex w-full justify-between space-x-3">
-                <div className="flex items-center space-x-3">
-                  <RadioGroupItem value="qr-code" id="qr-code" />
-                  <div className="flex items-center space-x-2">
-                    <QrCode className="flex-shrink-0 h-5 w-5 text-primary mt-0.5" />
-                    <span className="font-medium">QR Code Self Check-in</span>
+              <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                  <RadioGroupItem value="qr-code" id="qr-code" className="flex-shrink-0" />
+                  <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-wrap">
+                    <QrCode className="flex-shrink-0 h-5 w-5 text-primary" />
+                    <span className="font-medium text-sm sm:text-base leading-snug">QR Code Self Check-in</span>
                   </div>
                 </div>
                 <Badge
                   variant="secondary"
-                  className="pointer-events-none flex items-center h-6"
+                  className="pointer-events-none text-xs flex-shrink-0 self-start sm:self-center whitespace-nowrap"
                 >
                   Recommended
                 </Badge>
               </div>
-              <div className="text-[0.9rem] text-muted-foreground ml-8">
+              <div className="text-xs sm:text-sm text-muted-foreground pl-7 sm:pl-9 leading-relaxed w-full">
                 Volunteers scan QR code and log in to track their own hours.
                 They can leave anytime, with automatic logout at the scheduled
                 end time. Hours can be adjusted if needed.
@@ -137,21 +236,21 @@ export default function VerificationSettings({
             <label
               htmlFor="manual"
               className={cn(
-                "flex flex-col items-start space-y-3 rounded-lg border p-4 hover:bg-accent cursor-pointer transition-colors",
+                "flex flex-col items-start space-y-2 sm:space-y-3 rounded-lg border p-3 sm:p-4 hover:bg-accent cursor-pointer transition-colors",
                 verificationMethod === "manual" && "border-primary bg-accent",
                 errors.verificationMethod && "border-destructive",
               )}
             >
-              <div className="flex items-center space-x-3">
-                <RadioGroupItem value="manual" id="manual" />
-                <div className="flex items-center space-x-2">
-                  <UserCheck className="flex-shrink-0 h-5 w-5 text-primary mt-0.5" />
-                  <span className="font-medium">
-                    Manual Check-in by Organizer
-                  </span>
+              <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                  <RadioGroupItem value="manual" id="manual" className="flex-shrink-0" />
+                  <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-wrap">
+                    <UserCheck className="flex-shrink-0 h-5 w-5 text-primary" />
+                    <span className="font-medium text-sm sm:text-base leading-snug">Manual Check-in by Organizer</span>
+                  </div>
                 </div>
               </div>
-              <div className="text-[0.9rem] text-muted-foreground ml-8">
+              <div className="text-xs sm:text-sm text-muted-foreground pl-7 sm:pl-9 leading-relaxed w-full">
                 You&apos;ll manually log each volunteer&apos;s attendance and
                 hours. Most time-consuming for organizers but provides the
                 highest level of verification.
@@ -161,30 +260,30 @@ export default function VerificationSettings({
             <label
               htmlFor="auto"
               className={cn(
-                "flex flex-col items-start space-y-3 rounded-lg border p-4 hover:bg-accent cursor-pointer transition-colors",
+                "flex flex-col items-start space-y-2 sm:space-y-3 rounded-lg border p-3 sm:p-4 hover:bg-accent cursor-pointer transition-colors",
                 verificationMethod === "auto" && "border-primary bg-accent",
                 errors.verificationMethod && "border-destructive",
               )}
             >
-              <div className="flex w-full justify-between space-x-3">
-                <div className="flex items-center space-x-3">
-                  <RadioGroupItem value="auto" id="auto" />
-                  <div className="flex items-center space-x-2">
-                    <Clock className="flex-shrink-0 h-5 w-5 text-primary mt-0.5" />
-                    <span className="font-medium">Automatic Check-in/out</span>
+              <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                  <RadioGroupItem value="auto" id="auto" className="flex-shrink-0" />
+                  <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-wrap">
+                    <Clock className="flex-shrink-0 h-5 w-5 text-primary" />
+                    <span className="font-medium text-sm sm:text-base leading-snug">Automatic Check-in/out</span>
                   </div>
                 </div>
-                <div className="flex items-center space-x-1">
-                  <AlertTriangle className="h-4 w-4 text-chart-4" />
+                <div className="flex items-center gap-1 flex-shrink-0 self-start sm:self-center">
+                  <AlertTriangle className="h-4 w-4 text-chart-4 flex-shrink-0" />
                   <Badge
                     variant="secondary"
-                    className="pointer-events-none text-chart-4 bg-chart-4/10"
+                    className="pointer-events-none text-chart-4 bg-chart-4/10 text-xs whitespace-nowrap"
                   >
                     Not Recommended
                   </Badge>
                 </div>
               </div>
-              <div className="text-[0.9rem] text-muted-foreground ml-8">
+              <div className="text-xs sm:text-sm text-muted-foreground pl-7 sm:pl-9 leading-relaxed w-full">
                 System automatically logs attendance for the full scheduled
                 time. Least accurate for attendance tracking.
               </div>
@@ -194,21 +293,23 @@ export default function VerificationSettings({
             <label
               htmlFor="signup-only"
               className={cn(
-                "flex flex-col items-start space-y-3 rounded-lg border p-4 hover:bg-accent cursor-pointer transition-colors",
+                "flex flex-col items-start space-y-2 sm:space-y-3 rounded-lg border p-3 sm:p-4 hover:bg-accent cursor-pointer transition-colors",
                 verificationMethod === "signup-only" && "border-primary bg-accent",
                 errors.verificationMethod && "border-destructive",
               )}
             >
-              <div className="flex items-center space-x-3">
-                <RadioGroupItem value="signup-only" id="signup-only" />
-                <div className="flex items-center space-x-2">
-                  <Clipboard className="flex-shrink-0 h-5 w-5 text-primary mt-0.5" />
-                  <span className="font-medium">
-                    Sign-up Only (No Hour Tracking)
-                  </span>
+              <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                  <RadioGroupItem value="signup-only" id="signup-only" className="flex-shrink-0" />
+                  <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-wrap">
+                    <Clipboard className="flex-shrink-0 h-5 w-5 text-primary" />
+                    <span className="font-medium text-sm sm:text-base leading-snug">
+                      Sign-up Only (No Hour Tracking)
+                    </span>
+                  </div>
                 </div>
               </div>
-              <div className="text-[0.9rem] text-muted-foreground ml-8">
+              <div className="text-xs sm:text-sm text-muted-foreground pl-7 sm:pl-9 leading-relaxed w-full">
                 Simplest option that only collects volunteer signups without tracking hours.
                 Perfect for events where you just need a headcount or when attendance is tracked separately.
               </div>
@@ -389,7 +490,7 @@ export default function VerificationSettings({
                 </TooltipTrigger>
                 <TooltipContent className="text-xs font-normal max-w-xs">
                   <p>
-                    Require volunteers to complete the global waiver during signup, with optional print-and-upload.
+                    Upload your organization&apos;s waiver PDF and require volunteers to sign it during signup. Supports e-signatures (draw or type).
                   </p>
                 </TooltipContent>
               </Tooltip>
@@ -413,7 +514,7 @@ export default function VerificationSettings({
                     Require waiver signature
                   </Label>
                   <p className="text-sm text-muted-foreground mt-1">
-                    Volunteers must sign the global waiver before completing signup.
+                    Volunteers must sign your waiver before completing signup.
                   </p>
                 </div>
               </div>
@@ -424,32 +525,138 @@ export default function VerificationSettings({
               />
             </div>
 
-            <div className="flex items-center justify-between space-x-4">
-              <div className="flex items-center space-x-3 flex-1">
-                <div className={cn("p-2 rounded-md", waiverRequired ? "bg-primary/10" : "bg-muted")}
-                >
-                  <FileSignature className={cn("h-5 w-5", waiverRequired ? "text-primary" : "text-muted-foreground")} />
+            {waiverRequired && (
+              <>
+                {/* PDF Upload Section */}
+                <div className="space-y-3 pt-2">
+                  <Label className="text-sm font-medium">Waiver Document (PDF)</Label>
+                  
+                  {!hasWaiverPdf ? (
+                    <div className="space-y-2">
+                      <div
+                        className={cn(
+                          "border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 transition-colors",
+                          isValidatingPdf && "opacity-50 pointer-events-none",
+                          pdfError && "border-destructive"
+                        )}
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="application/pdf"
+                          onChange={handleFileChange}
+                          className="hidden"
+                        />
+                        {isValidatingPdf ? (
+                          <div className="flex flex-col items-center gap-2">
+                            <Loader2 className="h-8 w-8 text-muted-foreground animate-spin" />
+                            <p className="text-sm text-muted-foreground">Validating PDF...</p>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center gap-2">
+                            <Upload className="h-8 w-8 text-muted-foreground" />
+                            <p className="text-sm font-medium">Click to upload your waiver PDF</p>
+                            <p className="text-xs text-muted-foreground">Max size: 10MB</p>
+                          </div>
+                        )}
+                      </div>
+                      {pdfError && (
+                        <p className="text-sm text-destructive flex items-center gap-1">
+                          <AlertTriangle className="h-4 w-4" />
+                          {pdfError}
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border">
+                        <div className="flex items-center gap-3">
+                          <FileText className="h-8 w-8 text-primary" />
+                          <div>
+                            <p className="text-sm font-medium">
+                              {waiverPdfFile?.name || 'Waiver PDF'}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {waiverPdfFile 
+                                ? `${(waiverPdfFile.size / 1024).toFixed(1)} KB`
+                                : 'Uploaded'}
+                            </p>
+                          </div>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleRemovePdf}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+
+                      {/* Validation Feedback */}
+                      {waiverPdfValidation && (
+                        <div className="space-y-2">
+                          {waiverPdfValidation.hasSignatureFields ? (
+                            <Alert className="bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-900">
+                              <CheckCircle2 className="h-4 w-4 text-green-600" />
+                              <AlertDescription className="text-green-700 dark:text-green-400">
+                                Signature fields detected in the PDF. Volunteers can sign directly on the document.
+                              </AlertDescription>
+                            </Alert>
+                          ) : (
+                            <Alert className="bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-900">
+                              <AlertTriangle className="h-4 w-4 text-amber-600" />
+                              <AlertDescription className="text-amber-700 dark:text-amber-400">
+                                {waiverPdfValidation.warnings.join(' ')}
+                              </AlertDescription>
+                            </Alert>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {!hasWaiverPdf && (
+                    <Alert className="bg-blue-50 border-blue-200 dark:bg-blue-950/20 dark:border-blue-900">
+                      <Info className="h-4 w-4 text-blue-600" />
+                      <AlertDescription className="text-blue-700 dark:text-blue-400 text-xs">
+                        If you don&apos;t upload a custom waiver, the global platform waiver template will be used instead.
+                      </AlertDescription>
+                    </Alert>
+                  )}
                 </div>
-                <div className="flex-1">
-                  <Label htmlFor="waiver-allow-upload" className="text-base font-medium cursor-pointer">
-                    Allow print & upload
-                  </Label>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Let volunteers upload a signed PDF or image instead of drawing/typing.
-                  </p>
+
+                {/* Print & Upload Option */}
+                <div className="flex items-center justify-between space-x-4">
+                  <div className="flex items-center space-x-3 flex-1">
+                    <div className={cn("p-2 rounded-md", waiverRequired ? "bg-primary/10" : "bg-muted")}
+                    >
+                      <FileSignature className={cn("h-5 w-5", waiverRequired ? "text-primary" : "text-muted-foreground")} />
+                    </div>
+                    <div className="flex-1">
+                      <Label htmlFor="waiver-allow-upload" className="text-base font-medium cursor-pointer">
+                        Allow print & upload
+                      </Label>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Let volunteers download, print, sign physically, scan, and upload.
+                      </p>
+                    </div>
+                  </div>
+                  <Switch
+                    id="waiver-allow-upload"
+                    checked={waiverAllowUpload}
+                    onCheckedChange={updateWaiverAllowUploadAction}
+                    disabled={!waiverRequired}
+                  />
                 </div>
-              </div>
-              <Switch
-                id="waiver-allow-upload"
-                checked={waiverAllowUpload}
-                onCheckedChange={updateWaiverAllowUploadAction}
-                disabled={!waiverRequired}
-              />
-            </div>
+              </>
+            )}
 
             {!waiverRequired && (
               <div className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
-                The global waiver template applies to any project that enables this requirement.
+                Enable this if your organization requires volunteers to sign a liability waiver or consent form.
               </div>
             )}
           </div>

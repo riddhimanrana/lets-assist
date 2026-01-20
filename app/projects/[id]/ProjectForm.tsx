@@ -64,6 +64,7 @@ interface ProjectFormProps {
   waiverRequired?: boolean;
   waiverAllowUpload?: boolean;
   waiverTemplate?: WaiverTemplate | null;
+  waiverPdfUrl?: string | null;
 }
 
 // Helper function to format phone number input
@@ -88,6 +89,7 @@ export function ProjectSignupForm({
   waiverRequired = false,
   waiverAllowUpload = true,
   waiverTemplate = null,
+  waiverPdfUrl = null,
 }: ProjectFormProps) {
   const [phoneNumberLength, setPhoneNumberLength] = useState(0); // State for phone number length
   const [waiverSignature, setWaiverSignature] = useState<WaiverSignatureInput | null>(null);
@@ -217,6 +219,7 @@ export function ProjectSignupForm({
         {waiverRequired && (
           <WaiverSignatureSection
             template={waiverTemplate}
+            waiverPdfUrl={waiverPdfUrl}
             signerName={signerName}
             signerEmail={signerEmail}
             allowUpload={waiverAllowUpload}

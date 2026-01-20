@@ -11,7 +11,6 @@ import Finalize from "./Finalize";
 import VerificationSettings from "./VerificationSettings";
 import AIAssistant, { AIParseResult } from "./AIAssistant";
 // shadcn components
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -26,7 +25,7 @@ import { Loader2, ChevronLeft, ChevronRight, AlertCircle, Sparkles, Save } from 
 import { cn } from "@/lib/utils";
 // Replace shadcn toast with Sonner
 import { toast } from "sonner";
-import { createProject, uploadCoverImage, uploadProjectDocument, finalizeProject, saveProjectAsNewDraft, autoSaveDraft } from "./actions";
+import { createProject, uploadCoverImage, uploadProjectDocument, uploadWaiverPdf, finalizeProject, saveProjectAsNewDraft, autoSaveDraft } from "./actions";
 import { useRouter } from "next/navigation";
 // Import Zod schemas
 import {
@@ -99,6 +98,9 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
     updateShowAttendeesPublicly,
     updateWaiverRequired,
     updateWaiverAllowUpload,
+    updateWaiverPdfFile,
+    updateWaiverPdfValidation,
+    clearWaiverPdf,
     updateRecurrence,
     loadDraftState,
   } = useEventForm();
@@ -139,6 +141,12 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
     if (initialDraftData && loadDraftState && !draftLoadedRef.current) {
       draftLoadedRef.current = true;
       loadDraftState(initialDraftData);
+      // Show success toast after a brief delay to ensure UI is ready
+      setTimeout(() => {
+        toast.success('Draft restored!', {
+          description: 'Your previous progress has been loaded. Continue where you left off!',
+        });
+      }, 500);
     }
   }, [initialDraftData, loadDraftState]);
 
@@ -585,7 +593,22 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
         }
       }
 
-      // Step 4: Finalize project (non-blocking)
+      // Step 4: Upload waiver PDF if available and waiver is required
+      if (state.waiverRequired && state.waiverPdfFile) {
+        try {
+          const waiverBase64 = await fileToBase64(state.waiverPdfFile);
+          const waiverResult = await uploadWaiverPdf(projectId, waiverBase64, state.waiverPdfFile.name);
+          if (waiverResult.error) {
+            console.error(`Waiver PDF: ${waiverResult.error}`);
+            hasErrors = true;
+          }
+        } catch (error) {
+          console.error("Error processing waiver PDF:", error);
+          hasErrors = true;
+        }
+      }
+
+      // Step 5: Finalize project (non-blocking)
       finalizeProject(projectId).catch(error => {
         console.error("Error finalizing project:", error);
       });
@@ -723,6 +746,9 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
             showAttendeesPublicly={state.showAttendeesPublicly}
             waiverRequired={state.waiverRequired}
             waiverAllowUpload={state.waiverAllowUpload}
+            waiverPdfFile={state.waiverPdfFile}
+            waiverPdfUrl={state.waiverPdfUrl}
+            waiverPdfValidation={state.waiverPdfValidation}
             restrictToOrgDomains={state.restrictToOrgDomains}
             allowedEmailDomains={
               state.basicInfo.organizationId
@@ -751,6 +777,9 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
             updateShowAttendeesPubliclyAction={updateShowAttendeesPublicly}
             updateWaiverRequiredAction={updateWaiverRequired}
             updateWaiverAllowUploadAction={updateWaiverAllowUpload}
+            updateWaiverPdfFileAction={updateWaiverPdfFile}
+            updateWaiverPdfValidationAction={updateWaiverPdfValidation}
+            clearWaiverPdfAction={clearWaiverPdf}
             updateRestrictToOrgDomainsAction={updateRestrictToOrgDomains}
             errors={{
               verificationMethod: getFieldError("verificationMethod", verificationErrors)

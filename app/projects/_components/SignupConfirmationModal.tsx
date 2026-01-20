@@ -39,6 +39,7 @@ interface SignupConfirmationModalProps {
   waiverRequired?: boolean;
   waiverAllowUpload?: boolean;
   waiverTemplate?: WaiverTemplate | null;
+  waiverPdfUrl?: string | null;
   project: {
     id: string;
     title: string;
@@ -60,6 +61,7 @@ export function SignupConfirmationModal({
   waiverRequired = false,
   waiverAllowUpload = true,
   waiverTemplate = null,
+  waiverPdfUrl = null,
   project,
   scheduleId,
   isLoading = false,
@@ -344,6 +346,7 @@ export function SignupConfirmationModal({
             <div className="space-y-3 pt-3 border-t">
               <WaiverSignatureSection
                 template={waiverTemplate || null}
+                waiverPdfUrl={waiverPdfUrl}
                 signerName={currentUserProfile?.full_name || undefined}
                 signerEmail={currentUserProfile?.email || undefined}
                 allowUpload={waiverAllowUpload}

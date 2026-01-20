@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { FileText, PenTool, Type } from "lucide-react";
+import { Download, ExternalLink, FileText, PenTool, Type, Upload } from "lucide-react";
 import { RichTextContent } from "@/components/ui/rich-text-content";
 
 const SIGNATURE_CANVAS_HEIGHT = 160;
@@ -17,7 +17,9 @@ const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 const ACCEPTED_UPLOAD_TYPES = ["application/pdf", "image/png", "image/jpeg"];
 
 interface WaiverSignatureSectionProps {
-  template: WaiverTemplate | null;
+  // Either template (global waiver) or waiverPdfUrl (project-specific PDF) should be provided
+  template?: WaiverTemplate | null;
+  waiverPdfUrl?: string | null;
   signerName?: string | null;
   signerEmail?: string | null;
   allowUpload?: boolean;
@@ -27,6 +29,7 @@ interface WaiverSignatureSectionProps {
 
 export function WaiverSignatureSection({
   template,
+  waiverPdfUrl,
   signerName,
   signerEmail,
   allowUpload = true,
@@ -45,6 +48,9 @@ export function WaiverSignatureSection({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const drawingRef = useRef(false);
+
+  // Determine if we have a valid waiver source
+  const hasWaiverSource = !!waiverPdfUrl || !!template?.id;
 
   const resizeCanvas = useCallback(() => {
     const canvas = canvasRef.current;
@@ -154,7 +160,7 @@ export function WaiverSignatureSection({
 
   const isSignatureValid = useMemo(() => {
     if (!agreed) return false;
-    if (!template?.id) return false;
+    if (!hasWaiverSource) return false;
 
     if (signatureType === "draw") {
       return !!signatureDataUrl && drawn;
@@ -170,16 +176,16 @@ export function WaiverSignatureSection({
     }
 
     return false;
-  }, [agreed, allowUpload, drawn, signatureDataUrl, signatureType, template?.id, typedSignature, uploadDataUrl, uploadFileName, uploadFileType]);
+  }, [agreed, allowUpload, drawn, signatureDataUrl, signatureType, hasWaiverSource, typedSignature, uploadDataUrl, uploadFileName, uploadFileType]);
 
   useEffect(() => {
-    if (!isSignatureValid || !template?.id) {
+    if (!isSignatureValid || !hasWaiverSource) {
       onChange(null);
       return;
     }
 
     const payload: WaiverSignatureInput = {
-      templateId: template.id,
+      templateId: template?.id || "project-pdf",
       signatureType,
       signatureText: signatureType === "typed" ? typedSignature.trim() : undefined,
       signatureImageDataUrl: signatureType === "draw" ? signatureDataUrl || undefined : undefined,
@@ -188,10 +194,11 @@ export function WaiverSignatureSection({
       uploadFileType: signatureType === "upload" ? uploadFileType || undefined : undefined,
       signerName: signerName || undefined,
       signerEmail: signerEmail || undefined,
+      waiverPdfUrl: waiverPdfUrl || undefined,
     };
 
     onChange(payload);
-  }, [isSignatureValid, onChange, signatureType, signatureDataUrl, typedSignature, uploadDataUrl, uploadFileName, uploadFileType, signerName, signerEmail, template?.id]);
+  }, [isSignatureValid, onChange, signatureType, signatureDataUrl, typedSignature, uploadDataUrl, uploadFileName, uploadFileType, signerName, signerEmail, template?.id, waiverPdfUrl, hasWaiverSource]);
 
   return (
     <Card className="border-primary/20 bg-primary/5">
@@ -202,19 +209,61 @@ export function WaiverSignatureSection({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {template ? (
+        {/* Waiver Content - Either PDF or Template */}
+        {waiverPdfUrl ? (
+          <div className="space-y-3">
+            <div className="rounded-lg border bg-background p-4">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <FileText className="h-8 w-8 text-primary" />
+                  <div>
+                    <p className="text-sm font-medium">Waiver Document</p>
+                    <p className="text-xs text-muted-foreground">Review and sign below</p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    asChild
+                  >
+                    <a href={waiverPdfUrl} target="_blank" rel="noopener noreferrer">
+                      <ExternalLink className="h-4 w-4 mr-1" />
+                      View
+                    </a>
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    asChild
+                  >
+                    <a href={waiverPdfUrl} download>
+                      <Download className="h-4 w-4 mr-1" />
+                      Download
+                    </a>
+                  </Button>
+                </div>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Please review the waiver document above before signing. By signing below, you acknowledge that you have read and agree to the terms.
+            </p>
+          </div>
+        ) : template ? (
           <div className="rounded-lg border bg-background p-3 max-h-48 overflow-y-auto text-sm">
             <RichTextContent content={template.content} className="text-muted-foreground text-sm" />
           </div>
         ) : (
           <div className="rounded-lg border border-dashed p-4 text-xs text-muted-foreground">
-            Waiver template is loading. Please wait a moment.
+            Waiver is loading. Please wait a moment.
           </div>
         )}
 
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <Label className="text-sm font-medium">Signature Method</Label>
+            <Label className="text-sm font-medium">E-Signature Method</Label>
             {required && (
               <span className="text-xs text-muted-foreground">Required</span>
             )}
@@ -255,7 +304,7 @@ export function WaiverSignatureSection({
               )}
             >
               <RadioGroupItem value="upload" id="signature-upload" disabled={!allowUpload} />
-              <FileText className="h-4 w-4" />
+              <Upload className="h-4 w-4" />
               Upload
             </Label>
           </RadioGroup>
@@ -290,7 +339,7 @@ export function WaiverSignatureSection({
               onChange={(event) => setTypedSignature(event.target.value)}
             />
             {typedSignature.trim().length > 0 && (
-              <div className="rounded-lg border bg-background px-4 py-3 text-lg font-semibold tracking-wide">
+              <div className="rounded-lg border bg-background px-4 py-3 font-signature text-xl tracking-wide italic">
                 {typedSignature}
               </div>
             )}
@@ -306,7 +355,9 @@ export function WaiverSignatureSection({
               disabled={!allowUpload}
             />
             <p className="text-xs text-muted-foreground">
-              Upload a signed PDF or image (max 10 MB).
+              {waiverPdfUrl 
+                ? "Download the waiver above, print, sign, scan, and upload here (max 10 MB)."
+                : "Upload a signed PDF or image (max 10 MB)."}
             </p>
             {uploadFileName && (
               <div className="rounded-lg border bg-background px-3 py-2 text-xs text-muted-foreground">
@@ -323,7 +374,7 @@ export function WaiverSignatureSection({
             onCheckedChange={(value) => setAgreed(Boolean(value))}
           />
           <Label htmlFor="waiver-agree" className="text-xs text-muted-foreground leading-relaxed">
-            I have read and agree to the waiver above. My electronic signature is legally binding.
+            I have read and agree to the waiver{waiverPdfUrl ? " document" : ""} above. My electronic signature is legally binding.
           </Label>
         </div>
 
