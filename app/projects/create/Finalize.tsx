@@ -925,10 +925,10 @@ export default function Finalize({
         </div>
 
         {/* AI Moderation Alert (using Shadcn Alert) */}
-        <Alert variant="warning">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Content Moderation Notice</AlertTitle>
-          <AlertDescription className="text-xs">
+        <Alert variant="default" className="border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-900/30">
+          <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+          <AlertTitle className="text-amber-900 dark:text-amber-200">Content Moderation Notice</AlertTitle>
+          <AlertDescription className="text-xs text-amber-800 dark:text-amber-300">
             All projects are reviewed by our AI moderation system. Projects identified as spam or potentially malicious may be automatically flagged or removed to maintain platform safety.
           </AlertDescription>
         </Alert>

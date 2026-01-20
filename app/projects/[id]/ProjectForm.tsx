@@ -26,32 +26,30 @@ const PHONE_REGEX = /^\d{3}-\d{3}-\d{4}$/; // Format XXX-XXX-XXXX
 const formSchema = z.object({
   name: z.string().min(2, { message: "Name is required" }),
   email: z.string().email({ message: "Invalid email address" }),
-  phone: z.preprocess(
-    // Allow empty string or undefined initially
-    (val) => (typeof val === "string" && val.trim() === "" ? undefined : val),
-    z.string()
-      .refine(
-        // Validate against the XXX-XXX-XXXX format if a value exists
-        (val) => !val || PHONE_REGEX.test(val),
-        "Phone number must be in format XXX-XXX-XXXX"
-      )
-      .transform((val) => {
-        // Store only digits if validation passes
-        if (!val) return undefined;
-        return val.replace(/\D/g, ""); // Remove non-digit characters
-      })
-      .refine(
-        // Ensure exactly 10 digits if a value exists
-        (val) => !val || val.length === PHONE_LENGTH,
-        `Phone number must contain exactly ${PHONE_LENGTH} digits.`
-      )
-      .optional() // Make the entire refined/transformed field optional
-  ),
+  phone: z
+    .string()
+    .refine(
+      // Validate against the XXX-XXX-XXXX format if a value exists
+      (val) => !val || val === "" || PHONE_REGEX.test(val),
+      "Phone number must be in format XXX-XXX-XXXX"
+    )
+    .transform((val) => {
+      // Store only digits if validation passes
+      if (!val || val === "") return undefined;
+      return val.replace(/\D/g, ""); // Remove non-digit characters
+    })
+    .refine(
+      // Ensure exactly 10 digits if a value exists
+      (val) => !val || val.length === PHONE_LENGTH,
+      `Phone number must contain exactly ${PHONE_LENGTH} digits.`
+    )
+    .optional() // Make the entire refined/transformed field optional
+    .or(z.literal("").transform(() => undefined)),
   comment: z
-    .preprocess(
-      (val) => (typeof val === "string" && val.trim() === "" ? undefined : val),
-      z.string().max(100, { message: "Comment must be 100 characters or less" }).optional(),
-    ),
+    .string()
+    .max(100, { message: "Comment must be 100 characters or less" })
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
 });
 
 type FormValues = z.infer<typeof formSchema>;
