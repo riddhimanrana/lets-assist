@@ -3,13 +3,11 @@
   "crons": [
     {
       "path": "/api/cron/generate-recurring-projects",
-      "schedule": "0 1 * * *",
-      "comment": "Primary: Daily project generation (can tolerate hourly precision)"
+      "schedule": "0 1 * * *"
     },
     {
       "path": "/api/cron/auto-publish-hours",
-      "schedule": "0 3 * * *",
-      "comment": "Backup: Fallback for GitHub Actions auto-publish"
+      "schedule": "0 3 * * *"
     }
   ]
 }
