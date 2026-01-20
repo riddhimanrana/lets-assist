@@ -1,7 +1,17 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { createMockSupabaseClient } from "./mock";
+
+const shouldUseMock = () =>
+  process.env.E2E_TEST_MODE === "true" ||
+  process.env.FORCE_MOCK_SUPABASE === "true" ||
+  (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").includes("127.0.0.1:54321/mock");
 
 export const createClient = async () => {
+  if (shouldUseMock()) {
+    return createMockSupabaseClient();
+  }
+
   const cookieStore = await cookies();
 
   return createServerClient(

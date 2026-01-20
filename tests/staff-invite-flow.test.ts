@@ -1,12 +1,19 @@
 /**
  * Staff Invite Link End-to-End Test
  * Tests the complete flow of staff invite functionality
+ * 
+ * NOTE: Tests requiring database connection are skipped in CI.
+ * Set SUPABASE_URL environment variable to run integration tests locally.
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { createAdminClient } from '@/utils/supabase/admin';
 
-describe('Staff Invite Link Flow', () => {
+// Skip database-dependent tests in CI or when SUPABASE_URL is not set
+const hasDatabase = !!process.env.SUPABASE_URL;
+const describeWithDb = hasDatabase ? describe : describe.skip;
+
+describeWithDb('Staff Invite Link Flow', () => {
   let testOrgId: string;
   let testOrgUsername: string;
   let staffToken: string;
@@ -318,7 +325,7 @@ describe('Staff Invite Actions Integration', () => {
   });
 });
 
-describe('RLS Policies Check', () => {
+describeWithDb('RLS Policies Check', () => {
   it('should check if organizations table has RLS enabled', async () => {
     const adminClient = createAdminClient();
     const { data: tables } = await adminClient.rpc('exec_sql', {

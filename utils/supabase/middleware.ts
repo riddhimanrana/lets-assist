@@ -22,6 +22,10 @@ function isProjectCreatorPath(path: string) {
 }
 
 export async function updateSession(request: NextRequest) {
+  if (process.env.E2E_TEST_MODE === "true" || process.env.FORCE_MOCK_SUPABASE === "true") {
+    return NextResponse.next({ request });
+  }
+
   let supabaseResponse = NextResponse.next({
     request,
   });

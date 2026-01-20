@@ -421,6 +421,32 @@ function LocationAutocompleteContent({
 
 // Main export component that wraps the content with APIProvider
 export default function LocationAutocomplete(props: LocationAutocompleteProps) {
+  const isE2E =
+    process.env.E2E_TEST_MODE === "true" ||
+    process.env.NEXT_PUBLIC_E2E_TEST_MODE === "true";
+
+  if (isE2E) {
+    return (
+      <Input
+        id={props.id}
+        value={props.value?.text ?? ""}
+        placeholder="Enter a location"
+        maxLength={props.maxLength}
+        required={props.required}
+        className={props.className}
+        aria-invalid={props["aria-invalid"]}
+        aria-errormessage={props["aria-errormessage"]}
+        onChange={(event) =>
+          props.onChangeAction({
+            text: event.target.value,
+            display_name: event.target.value,
+            coordinates: { lat: 0, lng: 0 },
+          } as any)
+        }
+      />
+    );
+  }
+
   return (
     <APIProvider 
       apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ""} 
