@@ -1571,6 +1571,7 @@ export default function ProjectDetails({
             waiverRequired={!!project.waiver_required}
             waiverAllowUpload={project.waiver_allow_upload ?? true}
             waiverTemplate={waiverTemplate}
+            waiverPdfUrl={project.waiver_pdf_url || null}
           />
         </DialogContent>
       </Dialog>
@@ -1640,6 +1641,7 @@ export default function ProjectDetails({
           waiverRequired={!!project.waiver_required}
           waiverAllowUpload={project.waiver_allow_upload ?? true}
           waiverTemplate={waiverTemplate}
+          waiverPdfUrl={project.waiver_pdf_url || null}
           project={{
             id: project.id,
             title: project.title,

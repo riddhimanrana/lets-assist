@@ -13,6 +13,7 @@ export interface WaiverTemplate {
 export interface WaiverSignature {
   id: string;
   waiver_template_id: string;
+  waiver_pdf_url?: string | null;
   project_id: string;
   signup_id: string;
   user_id?: string | null;
@@ -40,4 +41,23 @@ export interface WaiverSignatureInput {
   uploadFileType?: string;
   signerName?: string;
   signerEmail?: string;
+  waiverPdfUrl?: string;
+}
+
+// Project waiver configuration
+export interface ProjectWaiverConfig {
+  waiverRequired: boolean;
+  waiverAllowUpload: boolean;
+  waiverPdfUrl?: string | null;
+  waiverPdfStoragePath?: string | null;
+}
+
+// Waiver PDF validation result
+export interface WaiverPdfValidation {
+  valid: boolean;
+  hasSignatureFields: boolean;
+  pageCount: number;
+  fileSize: number;
+  warnings: string[];
+  errors: string[];
 }

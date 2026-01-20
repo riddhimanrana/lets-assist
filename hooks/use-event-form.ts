@@ -108,6 +108,12 @@ export interface EventFormState {
   showAttendeesPublicly: boolean;
   waiverRequired: boolean;
   waiverAllowUpload: boolean;
+  waiverPdfFile: File | null;
+  waiverPdfUrl: string | null;
+  waiverPdfValidation: {
+    hasSignatureFields: boolean;
+    warnings: string[];
+  } | null;
   recurrence: {
     enabled: boolean;
     frequency: RecurrenceFrequency;
@@ -144,6 +150,10 @@ type EventFormAction =
   | { type: 'UPDATE_SHOW_ATTENDEES_PUBLICLY'; payload: boolean }
   | { type: 'UPDATE_WAIVER_REQUIRED'; payload: boolean }
   | { type: 'UPDATE_WAIVER_ALLOW_UPLOAD'; payload: boolean }
+  | { type: 'UPDATE_WAIVER_PDF_FILE'; payload: File | null }
+  | { type: 'UPDATE_WAIVER_PDF_URL'; payload: string | null }
+  | { type: 'UPDATE_WAIVER_PDF_VALIDATION'; payload: { hasSignatureFields: boolean; warnings: string[] } | null }
+  | { type: 'CLEAR_WAIVER_PDF' }
   | {
       type: 'UPDATE_RECURRENCE';
       payload: {
@@ -220,6 +230,9 @@ const initialState: EventFormState = {
   showAttendeesPublicly: false,
   waiverRequired: false,
   waiverAllowUpload: true,
+  waiverPdfFile: null,
+  waiverPdfUrl: null,
+  waiverPdfValidation: null,
   recurrence: {
     enabled: false,
     frequency: 'weekly',
@@ -441,6 +454,32 @@ const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
         waiverAllowUpload: action.payload,
       };
     }
+    case 'UPDATE_WAIVER_PDF_FILE': {
+      return {
+        ...state,
+        waiverPdfFile: action.payload,
+      };
+    }
+    case 'UPDATE_WAIVER_PDF_URL': {
+      return {
+        ...state,
+        waiverPdfUrl: action.payload,
+      };
+    }
+    case 'UPDATE_WAIVER_PDF_VALIDATION': {
+      return {
+        ...state,
+        waiverPdfValidation: action.payload,
+      };
+    }
+    case 'CLEAR_WAIVER_PDF': {
+      return {
+        ...state,
+        waiverPdfFile: null,
+        waiverPdfUrl: null,
+        waiverPdfValidation: null,
+      };
+    }
     case 'UPDATE_RECURRENCE': {
       const { field, value } = action.payload;
       return {
@@ -612,6 +651,18 @@ export const useEventForm = () => {
   const updateWaiverAllowUpload = (enabled: boolean) =>
     dispatch({ type: 'UPDATE_WAIVER_ALLOW_UPLOAD', payload: enabled });
 
+  const updateWaiverPdfFile = (file: File | null) =>
+    dispatch({ type: 'UPDATE_WAIVER_PDF_FILE', payload: file });
+
+  const updateWaiverPdfUrl = (url: string | null) =>
+    dispatch({ type: 'UPDATE_WAIVER_PDF_URL', payload: url });
+
+  const updateWaiverPdfValidation = (validation: { hasSignatureFields: boolean; warnings: string[] } | null) =>
+    dispatch({ type: 'UPDATE_WAIVER_PDF_VALIDATION', payload: validation });
+
+  const clearWaiverPdf = () =>
+    dispatch({ type: 'CLEAR_WAIVER_PDF' });
+
   const updateRecurrence = (
     field: keyof EventFormState['recurrence'],
     value: EventFormState['recurrence'][keyof EventFormState['recurrence']],
@@ -649,6 +700,10 @@ export const useEventForm = () => {
     updateShowAttendeesPublicly,
     updateWaiverRequired,
     updateWaiverAllowUpload,
+    updateWaiverPdfFile,
+    updateWaiverPdfUrl,
+    updateWaiverPdfValidation,
+    clearWaiverPdf,
     updateRecurrence,
     removeDay,
     removeSlot,

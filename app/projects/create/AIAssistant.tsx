@@ -99,7 +99,10 @@ export default function AIAssistant({ onApplyData, onClose, isOpen }: AIAssistan
               style={{
                 left: `${Math.random() * 100}%`,
                 top: `${Math.random() * 100}%`,
-                animation: `float-up ${1.4 + Math.random() * 0.8}s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards`,
+                animationName: 'float-up',
+                animationDuration: `${1.4 + Math.random() * 0.8}s`,
+                animationTimingFunction: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+                animationFillMode: 'forwards',
                 animationDelay: `${i * 0.06}s`,
               }}
             >

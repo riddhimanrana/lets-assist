@@ -49,10 +49,20 @@ const config: Config = {
   				'3': 'hsl(var(--chart-3))',
   				'4': 'hsl(var(--chart-4))',
   				'5': 'hsl(var(--chart-5))',
-				'6': 'hsl(var(--chart-6))',
-				'7': 'hsl(var(--chart-7))',
-				'8': 'hsl(var(--chart-8))',
-				'9': 'hsl(var(--chart-9))',
+  				'6': 'hsl(var(--chart-6))',
+  				'7': 'hsl(var(--chart-7))',
+  				'8': 'hsl(var(--chart-8))',
+  				'9': 'hsl(var(--chart-9))'
+  			},
+  			sidebar: {
+  				DEFAULT: 'hsl(var(--sidebar-background))',
+  				foreground: 'hsl(var(--sidebar-foreground))',
+  				primary: 'hsl(var(--sidebar-primary))',
+  				'primary-foreground': 'hsl(var(--sidebar-primary-foreground))',
+  				accent: 'hsl(var(--sidebar-accent))',
+  				'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
+  				border: 'hsl(var(--sidebar-border))',
+  				ring: 'hsl(var(--sidebar-ring))'
   			}
   		},
   		borderRadius: {
@@ -69,10 +79,10 @@ const config: Config = {
   				'var(--font-inter)',
   				'sans-serif'
   			],
-			mono: [
-				'var(--font-geist-mono)',
-				'sans-serif'
-			]
+  			mono: [
+  				'var(--font-geist-mono)',
+  				'sans-serif'
+  			]
   		},
   		keyframes: {
   			'accordion-down': {
@@ -91,7 +101,7 @@ const config: Config = {
   					height: '0'
   				}
   			},
-  			'gradient': {
+  			gradient: {
   				'0%, 100%': {
   					'background-position': '0% 50%'
   				},
@@ -103,7 +113,7 @@ const config: Config = {
   		animation: {
   			'accordion-down': 'accordion-down 0.2s ease-out',
   			'accordion-up': 'accordion-up 0.2s ease-out',
-  			'gradient': 'gradient 3s ease infinite'
+  			gradient: 'gradient 3s ease infinite'
   		}
   	}
   },

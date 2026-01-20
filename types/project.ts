@@ -46,6 +46,8 @@ export interface Project {
   show_attendees_publicly?: boolean;
   waiver_required?: boolean;
   waiver_allow_upload?: boolean;
+  waiver_pdf_url?: string | null;
+  waiver_pdf_storage_path?: string | null;
   creator_id: string;
   schedule: ProjectSchedule;
   status: ProjectStatus;

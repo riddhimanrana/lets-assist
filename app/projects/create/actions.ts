@@ -373,6 +373,74 @@ export async function uploadProjectDocument(projectId: string, documentBase64: s
   }
 }
 
+// Handle waiver PDF upload for a project
+export async function uploadWaiverPdf(projectId: string, pdfBase64: string, fileName: string) {
+  const supabase = await createClient();
+
+  try {
+    // Skip if no PDF data
+    if (!pdfBase64 || !pdfBase64.includes('base64')) {
+      return { success: true };
+    }
+
+    // Process base64 PDF
+    const base64Str = pdfBase64.split(",")[1];
+    const buffer = Buffer.from(base64Str, "base64");
+    const contentType = "application/pdf";
+
+    // Validate size (10MB max)
+    const sizeInBytes = Math.ceil(base64Str.length * 0.75);
+    if (sizeInBytes > 10 * 1024 * 1024) {
+      return { error: "Waiver PDF is too large. Maximum size is 10MB." };
+    }
+
+    // Create unique filename
+    const timestamp = Date.now();
+    const safeFileName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
+    const storagePath = `project_waivers/${projectId}/${timestamp}_${safeFileName}`;
+
+    // Upload to Supabase Storage
+    const { error: uploadError } = await supabase.storage
+      .from('waiver-uploads')
+      .upload(storagePath, buffer, {
+        contentType,
+        cacheControl: '3600',
+        upsert: false
+      });
+
+    if (uploadError) {
+      console.error("Error uploading waiver PDF:", uploadError);
+      return { error: "Failed to upload waiver PDF." };
+    }
+
+    // Get public URL
+    const { data: publicUrlData } = supabase.storage
+      .from('waiver-uploads')
+      .getPublicUrl(storagePath);
+
+    // Update project with waiver PDF URL
+    const { error: updateError } = await supabase
+      .from("projects")
+      .update({
+        waiver_pdf_url: publicUrlData.publicUrl,
+        waiver_pdf_storage_path: storagePath
+      })
+      .eq("id", projectId);
+
+    if (updateError) {
+      console.error("Error linking waiver PDF to project:", updateError);
+      // Clean up uploaded file
+      await supabase.storage.from('waiver-uploads').remove([storagePath]);
+      return { error: "Failed to link waiver PDF to project." };
+    }
+
+    return { success: true, url: publicUrlData.publicUrl };
+  } catch (error) {
+    console.error("Error uploading waiver PDF:", error);
+    return { error: "An unexpected error occurred during waiver PDF upload." };
+  }
+}
+
 // Save project and revalidate paths
 export async function finalizeProject(projectId: string) {
   try {

@@ -1,31 +1,45 @@
-"use client";
+"use client"
 
-import { useTheme } from "next-themes";
-import { Toaster as Sonner } from "sonner";
+import {
+  CircleCheck,
+  Info,
+  LoaderCircle,
+  OctagonX,
+  TriangleAlert,
+} from "lucide-react"
+import { useTheme } from "next-themes"
+import { Toaster as Sonner } from "sonner"
 
-type ToasterProps = React.ComponentProps<typeof Sonner>;
+type ToasterProps = React.ComponentProps<typeof Sonner>
 
 const Toaster = ({ ...props }: ToasterProps) => {
-  const { theme = "system" } = useTheme();
+  const { theme = "system" } = useTheme()
 
   return (
     <Sonner
       theme={theme as ToasterProps["theme"]}
       className="toaster group"
+      icons={{
+        success: <CircleCheck className="h-4 w-4" />,
+        info: <Info className="h-4 w-4" />,
+        warning: <TriangleAlert className="h-4 w-4" />,
+        error: <OctagonX className="h-4 w-4" />,
+        loading: <LoaderCircle className="h-4 w-4 animate-spin" />,
+      }}
       toastOptions={{
         classNames: {
           toast:
-            "group toast group-[.toaster]:bg-[hsl(var(--toast-bg))] group-[.toaster]:text-[hsl(var(--toast-foreground))] group-[.toaster]:border-[hsl(var(--toast-border))] group-[.toaster]:shadow-[0_10px_30px_hsl(var(--toast-shadow)/0.18)]",
-          description: "group-[.toast]:text-[hsl(var(--toast-muted))]",
+            "group toast group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-lg",
+          description: "group-[.toast]:text-muted-foreground",
           actionButton:
-            "group-[.toast]:bg-[hsl(var(--toast-action))] group-[.toast]:text-[hsl(var(--toast-action-foreground))] group-[.toast]:hover:bg-[hsl(var(--toast-action)/0.9)]",
+            "group-[.toast]:bg-primary group-[.toast]:text-primary-foreground",
           cancelButton:
-            "group-[.toast]:bg-[hsl(var(--toast-cancel))] group-[.toast]:text-[hsl(var(--toast-cancel-foreground))] group-[.toast]:hover:bg-[hsl(var(--toast-cancel)/0.9)]",
+            "group-[.toast]:bg-muted group-[.toast]:text-muted-foreground",
         },
       }}
       {...props}
     />
-  );
-};
+  )
+}
 
-export { Toaster };
+export { Toaster }
