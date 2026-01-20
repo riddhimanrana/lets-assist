@@ -2,18 +2,25 @@ name: Auto-Publish Hours
 
 on:
   schedule:
-    - cron: '10 3 * * *'  # Daily at 03:10 UTC
+    - cron: '10 3 * * *'  # Daily at 03:10 UTC (primary)
     - cron: '10 15 * * *' # Daily at 15:10 UTC (second pass for reliability)
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
   auto-publish:
+    if: github.repository_owner == 'riddhimanrana'
     runs-on: ubuntu-latest
     steps:
+      - name: Validate configuration
+        run: |
+          test -n "${{ secrets.CRON_BASE_URL }}" || { echo "CRON_BASE_URL secret missing"; exit 1; }
+          test -n "${{ secrets.CRON_SECRET }}" || { echo "CRON_SECRET secret missing"; exit 1; }
+
       - name: Call Auto-Publish API
         run: |
-          curl -X POST "${{ secrets.SITE_URL }}/api/auto-publish-hours" \
-            -H "Authorization: Bearer ${{ secrets.AUTO_PUBLISH_TOKEN }}" \
-            -H "Content-Type: application/json"
+          curl -fsSL -X POST \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.CRON_BASE_URL }}/api/auto-publish-hours"
