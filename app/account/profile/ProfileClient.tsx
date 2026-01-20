@@ -71,50 +71,45 @@ interface UserEmail {
     verified_at: string | null;
 }
 
-// Moified schema with character limits and validation
+// Modified schema with character limits and validation
 const onboardingSchema = z.object({
-  fullName: z.preprocess(
-    (val) => (typeof val === "string" && val.trim() === "" ? undefined : val),
-    z
-      .string()
-      .min(3, "Full name must be at least 3 characters")
-      .max(
-        NAME_MAX_LENGTH,
-        `Full name cannot exceed ${NAME_MAX_LENGTH} characters`,
-      )
-      .optional(),
-  ),
-  username: z.preprocess(
-    (val) => (typeof val === "string" && val.trim() === "" ? undefined : val),
-    z
-      .string()
-      .min(3, "Username must be at least 3 characters")
-      .max(
-        USERNAME_MAX_LENGTH,
-        `Username cannot exceed ${USERNAME_MAX_LENGTH} characters`,
-      )
-      .regex(
-        USERNAME_REGEX,
-        "Username can only contain letters, numbers, underscores, dots and hyphens",
-      )
-      .transform((val) => val.toLowerCase())  // <-- force lowercase
-      .optional(),
-  ),
+  fullName: z
+    .string()
+    .min(3, "Full name must be at least 3 characters")
+    .max(
+      NAME_MAX_LENGTH,
+      `Full name cannot exceed ${NAME_MAX_LENGTH} characters`,
+    )
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
+  username: z
+    .string()
+    .min(3, "Username must be at least 3 characters")
+    .max(
+      USERNAME_MAX_LENGTH,
+      `Username cannot exceed ${USERNAME_MAX_LENGTH} characters`,
+    )
+    .regex(
+      USERNAME_REGEX,
+      "Username can only contain letters, numbers, underscores, dots and hyphens",
+    )
+    .transform((val) => val.toLowerCase())  // <-- force lowercase
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
   avatarUrl: z.string().nullable().optional(),
-  phoneNumber: z.preprocess(
-    (val) => (typeof val === "string" && val.trim() === "" ? undefined : val),
-    z.string()
-      .refine(
-        (val) => !val || PHONE_REGEX.test(val),
-        "Phone number must be in format XXX-XXX-XXXX"
-      )
-      .transform((val) => {
-        if (!val) return undefined;
-        // Remove all non-digit characters before storing
-        return val.replace(/\D/g, "");
-      })
-      .optional()
-  ),
+  phoneNumber: z
+    .string()
+    .refine(
+      (val) => !val || val === "" || PHONE_REGEX.test(val),
+      "Phone number must be in format XXX-XXX-XXXX"
+    )
+    .transform((val) => {
+      if (!val || val === "") return undefined;
+      // Remove all non-digit characters before storing
+      return val.replace(/\D/g, "");
+    })
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
 });
 
 interface AvatarProps {
