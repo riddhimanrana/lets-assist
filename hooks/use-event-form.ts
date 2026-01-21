@@ -68,7 +68,7 @@ export interface EventFormState {
   basicInfo: {
     title: string;
     location: string;
-    locationData?: any;
+    locationData?: Record<string, unknown>;
     description: string;
     organizationId: string | null;
     projectTimezone?: string;
@@ -129,15 +129,15 @@ type EventFormAction =
   | { type: 'NEXT_STEP' }
   | { type: 'PREV_STEP' }
   | { type: 'SET_EVENT_TYPE'; payload: EventType }
-  | { type: 'UPDATE_BASIC_INFO'; payload: { field: string; value: any } }
-  | { type: 'UPDATE_ONE_TIME_SCHEDULE'; payload: { field: string; value: any } }
+  | { type: 'UPDATE_BASIC_INFO'; payload: { field: string; value: string | number | boolean | Record<string, unknown> | null | undefined } }
+  | { type: 'UPDATE_ONE_TIME_SCHEDULE'; payload: { field: string; value: string | number } }
   | {
     type: 'UPDATE_MULTI_DAY_SCHEDULE';
-    payload: { dayIndex: number; field: string; value: any; slotIndex?: number };
+    payload: { dayIndex: number; field: string; value: string | number; slotIndex?: number };
   }
   | {
     type: 'UPDATE_MULTI_ROLE_SCHEDULE';
-    payload: { field: string; value: any; roleIndex?: number };
+    payload: { field: string; value: string | number; roleIndex?: number };
   }
   | { type: 'ADD_MULTI_DAY_SLOT'; payload: { dayIndex: number } }
   | { type: 'ADD_MULTI_DAY_EVENT' }
@@ -319,7 +319,7 @@ const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
     }
     case 'UPDATE_MULTI_ROLE_SCHEDULE': {
       const { field, value, roleIndex } = action.payload;
-      let updatedRoles = [...state.schedule.sameDayMultiArea.roles];
+      const updatedRoles = [...state.schedule.sameDayMultiArea.roles];
       let updatedSameDayMultiArea = { ...state.schedule.sameDayMultiArea };
 
       if (roleIndex !== undefined) {
@@ -593,16 +593,16 @@ export const useEventForm = () => {
   const setEventType = (eventType: EventType) =>
     dispatch({ type: 'SET_EVENT_TYPE', payload: eventType });
 
-  const updateBasicInfo = (field: string, value: any) =>
+  const updateBasicInfo = (field: string, value: string | number | boolean | Record<string, unknown> | null | undefined) =>
     dispatch({ type: 'UPDATE_BASIC_INFO', payload: { field, value } });
 
-  const updateOneTimeSchedule = (field: string, value: any) =>
+  const updateOneTimeSchedule = (field: string, value: string | number) =>
     dispatch({ type: 'UPDATE_ONE_TIME_SCHEDULE', payload: { field, value } });
 
   const updateMultiDaySchedule = (
     dayIndex: number,
     field: string,
-    value: any,
+    value: string | number,
     slotIndex?: number,
   ) =>
     dispatch({
@@ -612,7 +612,7 @@ export const useEventForm = () => {
 
   const updateMultiRoleSchedule = (
     field: string,
-    value: any,
+    value: string | number,
     roleIndex?: number,
   ) =>
     dispatch({

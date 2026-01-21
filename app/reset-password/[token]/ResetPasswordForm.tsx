@@ -81,7 +81,7 @@ export default function ResetPasswordForm({ token }: ResetPasswordFormProps) {
         );
         router.push("/login");
       }
-    } catch (error) {
+    } catch {
       toast.error("An unexpected error occurred. Please try again.");
     }
 

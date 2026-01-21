@@ -37,21 +37,25 @@ interface MemberEventDetail {
   organizationName: string;
 }
 
+type MemberProfile = {
+  id?: string;
+  username?: string | null;
+  full_name?: string | null;
+  avatar_url?: string | null;
+};
+
+type MemberDetailsMember = {
+  id: string;
+  user_id: string;
+  role: string;
+  joined_at: string;
+  profiles?: MemberProfile | MemberProfile[] | null;
+};
+
 interface MemberDetailsDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  member: {
-    id: string;
-    user_id: string;
-    role: string;
-    joined_at: string;
-    profiles?: {
-      id: string;
-      username: string;
-      full_name: string;
-      avatar_url?: string;
-    };
-  } | null;
+  member: MemberDetailsMember | null;
   organizationId: string;
 }
 

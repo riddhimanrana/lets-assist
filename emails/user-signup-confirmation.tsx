@@ -250,14 +250,6 @@ const gettingStarted = {
   borderTop: "1px solid #eef2f7",
 };
 
-const subtleBox = {
-  backgroundColor: "#f9fafb",
-  border: "1px solid #eef2f7",
-  padding: "16px",
-  margin: "14px 0 8px",
-  borderRadius: "12px",
-};
-
 const smallText = {
   color: "#333333",
   fontSize: "13px",

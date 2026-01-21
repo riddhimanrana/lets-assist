@@ -16,11 +16,15 @@ import {
 import JoinCodeAdminDisplay from "./JoinCodeAdminDisplay";
 import StaffLinkDisplay from "./StaffLinkDisplay";
 import DeleteOrganizationDialog from "./DeleteOrganizationDialog";
-import MemberExporter from "./MemberExporter";
 import OrganizationCalendarSettings from "./OrganizationCalendarSettings";
 
 type Props = {
   params: Promise<{ id: string }>;
+};
+
+type OrganizationMember = {
+  user_id: string;
+  role: string;
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -89,8 +93,8 @@ export default async function OrganizationSettingsPage({ params }: Props) {
   }
 
   // Check if user is an admin
-  const isAdmin = organization.organization_members.some(
-    (member: any) => member.user_id === user.id && member.role === 'admin'
+  const isAdmin = (organization.organization_members as OrganizationMember[]).some(
+    (member) => member.user_id === user.id && member.role === 'admin'
   );
 
   // If not admin, redirect to organization page

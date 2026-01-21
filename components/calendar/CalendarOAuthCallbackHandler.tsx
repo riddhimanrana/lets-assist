@@ -14,7 +14,19 @@ export default function CalendarOAuthCallbackHandler() {
   const router = useRouter();
 
   useEffect(() => {
-    const sync = async (syncData: any) => {
+    type PendingSyncData =
+      | {
+          type: "signup";
+          signupId: string;
+          projectId: string;
+          scheduleId: string;
+        }
+      | {
+          type: "project";
+          projectId: string;
+        };
+
+    const sync = async (syncData: PendingSyncData) => {
       try {
         const { type, signupId, projectId, scheduleId } = syncData;
 
@@ -75,7 +87,7 @@ export default function CalendarOAuthCallbackHandler() {
       const redirectUrl = sessionStorage.getItem("calendarRedirectUrl");
 
       if (pendingSyncDataString) {
-        const pendingSyncData = JSON.parse(pendingSyncDataString);
+        const pendingSyncData = JSON.parse(pendingSyncDataString) as PendingSyncData;
         sessionStorage.removeItem("pendingCalendarSync");
         await sync(pendingSyncData);
       }

@@ -1,11 +1,8 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Building2, Search, Settings2, Check, Users2, ExternalLink, BadgeCheck } from "lucide-react";
+import { Plus, Building2, Search, Settings2, Check } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
 import { JoinOrganizationDialog } from "./JoinOrganizationDialog";
@@ -19,14 +16,26 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { NoAvatar } from "@/components/shared/NoAvatar";
+import type { Organization } from "@/types";
+
+type OrganizationDisplay = Organization & {
+  description?: string | null;
+  created_at?: string | null;
+  type?: string | null;
+  verified?: boolean;
+  logo_url?: string | null;
+};
+
+type MembershipRow = {
+  role: 'admin' | 'staff' | 'member';
+  organizations?: OrganizationDisplay | null;
+};
 
 interface OrganizationsDisplayProps {
-  organizations: any[];
+  organizations: OrganizationDisplay[];
   memberCounts: Record<string, number>;
   isLoggedIn: boolean;
-  userMemberships: any[];
+  userMemberships: MembershipRow[];
   isTrusted?: boolean;
   applicationStatus?: boolean | null;
 }
@@ -41,11 +50,12 @@ export default function OrganizationsDisplay({
   isTrusted = false,
   applicationStatus = undefined,
 }: OrganizationsDisplayProps) {
-  const router = useRouter();
+  const getCreatedAtTime = (value?: string | null) =>
+    value ? new Date(value).getTime() : 0;
   const [search, setSearch] = useState("");
   const [filteredOrgs, setFilteredOrgs] = useState(organizations);
-  const [userOrgs, setUserOrgs] = useState<any[]>([]);
-  const [otherOrgs, setOtherOrgs] = useState<any[]>([]);
+  const [userOrgs, setUserOrgs] = useState<OrganizationDisplay[]>([]);
+  const [otherOrgs, setOtherOrgs] = useState<OrganizationDisplay[]>([]);
   const [sortBy, setSortBy] = useState("verified-first");
 
   // Helper function to get user's role for an organization
@@ -74,16 +84,16 @@ export default function OrganizationsDisplay({
       case "verified-first":
         result.sort((a, b) => {
           if (a.verified === b.verified) {
-            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+            return getCreatedAtTime(b.created_at) - getCreatedAtTime(a.created_at);
           }
           return b.verified ? 1 : -1;
         });
         break;
       case "newest":
-        result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        result.sort((a, b) => getCreatedAtTime(b.created_at) - getCreatedAtTime(a.created_at));
         break;
       case "oldest":
-        result.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+        result.sort((a, b) => getCreatedAtTime(a.created_at) - getCreatedAtTime(b.created_at));
         break;
       case "alphabetical":
         result.sort((a, b) => a.name.localeCompare(b.name));
@@ -100,7 +110,9 @@ export default function OrganizationsDisplay({
     });
     
     // Separate organizations based on user membership
-    const userOrganizations = userMemberships.map(membership => membership.organizations).filter(Boolean);
+    const userOrganizations = userMemberships
+      .map((membership) => membership.organizations)
+      .filter((org): org is OrganizationDisplay => Boolean(org));
     const otherOrgsList = result.filter(org => !membershipMap.has(org.id));
     
     // Update state
@@ -233,7 +245,7 @@ export default function OrganizationsDisplay({
                   My Organizations
                 </h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                  {userOrgs.map((org: any) => (
+                  {userOrgs.map((org) => (
                     <OrganizationCard 
                       key={org.id} 
                       org={org} 
@@ -253,7 +265,7 @@ export default function OrganizationsDisplay({
                   Discover Organizations
                 </h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                  {otherOrgs.map((org: any) => (
+                  {otherOrgs.map((org) => (
                     <OrganizationCard 
                       key={org.id} 
                       org={org} 

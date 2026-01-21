@@ -6,7 +6,6 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import {
   QrCode,
   UserCheck,
@@ -17,7 +16,6 @@ import {
   Lock,
   Clipboard,
   Eye,
-  EyeOff,
   Link2,
   FileSignature,
   Upload,

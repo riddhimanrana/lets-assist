@@ -20,7 +20,6 @@ import {
 import { buildOrganizationReportRows, type ReportType, getOrganizationReportData } from "./actions";
 import {
   buildRowsWithLayout,
-  getDefaultLayout,
   validateLayout,
   type ReportLayoutConfig,
 } from "./report-layouts";

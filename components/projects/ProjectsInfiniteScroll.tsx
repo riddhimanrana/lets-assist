@@ -22,7 +22,6 @@ import {
   Loader2,
   Calendar,
   SlidersHorizontal,
-  MapPin,
   Users,
   X,
   LayoutGrid,
@@ -50,14 +49,19 @@ import {
 import { DateRange } from "react-day-picker";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { cn } from "@/lib/utils";
-import { format, isAfter, isBefore, isWithinInterval, parseISO } from "date-fns";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { format, parseISO } from "date-fns";
 import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
 import { ProjectsMapView } from "./ProjectsMapView";
-import { getProjectStatus } from "@/utils/project";
+import type { Project } from "@/types";
 
 const fetcher = (url: string) => axios.get(url).then((res) => res.data);
+
+type ProjectWithSignups = Project & {
+  signups?: Array<{ status?: string }>;
+  slots_filled?: number;
+  registrations?: unknown[];
+};
 
 export const ProjectsInfiniteScroll: React.FC = () => {
   const limit = 20;
@@ -102,10 +106,6 @@ export const ProjectsInfiniteScroll: React.FC = () => {
   });
 
   // Compute if the last page has fewer projects than the limit.
-  const isReachingEnd = useMemo(() => {
-    return data && data[data.length - 1]?.length < limit;
-  }, [data, limit]);
-
   const isLoadingMore = isValidating && size > 1;
 
   // Determine if we've reached the end of content
@@ -127,7 +127,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
   }, [inView, isValidating, reachedEnd, data, setSize, size]);
 
   // Helper function to check if a project is within the date range
-  const isProjectInDateRange = (project: any, dateRange: DateRange | undefined) => {
+  const isProjectInDateRange = (project: ProjectWithSignups, dateRange: DateRange | undefined) => {
     if (!dateRange?.from) return true;
     
     let projectDate: Date | null = null;
@@ -137,7 +137,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
         projectDate = parseISO(project.schedule.oneTime.date);
       } else if (project.event_type === "multiDay" && project.schedule?.multiDay?.length > 0) {
         // For multi-day events, check if any day is within the range
-        return project.schedule.multiDay.some((day: any) => {
+        return project.schedule.multiDay.some((day) => {
           const dayDate = parseISO(day.date);
           return isWithinDateRange(dayDate, dateRange);
         });
@@ -175,26 +175,44 @@ export const ProjectsInfiniteScroll: React.FC = () => {
     return targetDate.getTime() === startDate.getTime();
   };
 
-  // Get the earliest date from a project
-  const getProjectDate = useCallback((project: any): Date | null => {
-    try {
-      if (project.event_type === "oneTime" && project.schedule?.oneTime?.date) {
-        return parseISO(project.schedule.oneTime.date);
-      } else if (project.event_type === "multiDay" && project.schedule?.multiDay?.length > 0) {
-        // Get the earliest date from multiDay events
-        const dates = project.schedule.multiDay.map((day: any) => parseISO(day.date));
-        return new Date(Math.min(...dates.map((d: Date) => d.getTime())));
-      } else if (project.event_type === "sameDayMultiArea" && project.schedule?.sameDayMultiArea?.date) {
-        return parseISO(project.schedule.sameDayMultiArea.date);
+  // Get volunteer count from a project
+  const getVolunteerCount = (project: ProjectWithSignups): number => {
+    if (!project.event_type || !project.schedule) return 0;
+
+    switch (project.event_type) {
+      case "oneTime":
+        return project.schedule.oneTime?.volunteers || 0;
+      case "multiDay": {
+        let total = 0;  // Initialize total here
+        // Sum all volunteers across all days and slots
+        if (project.schedule.multiDay) {
+          project.schedule.multiDay.forEach((day) => {
+            if (day.slots) {
+              day.slots.forEach((slot) => {
+                total += slot.volunteers || 0;
+              });
+            }
+          });
+        }
+        return total;
       }
-    } catch (e) {
-      console.error("Date parsing error:", e);
+      case "sameDayMultiArea": {
+        // Sum all volunteers across all roles
+        let total = 0;
+        if (project.schedule.sameDayMultiArea?.roles) {
+          project.schedule.sameDayMultiArea.roles.forEach((role) => {
+            total += role.volunteers || 0;
+          });
+        }
+        return total;
+      }
+      default:
+        return 0;
     }
-    return null;
-  }, []);
+  };
 
   // Sort projects by volunteer count
-  const sortByVolunteers = useCallback((projects: any[], direction: "asc" | "desc" | undefined) => {
+  const sortByVolunteers = useCallback((projects: ProjectWithSignups[], direction: "asc" | "desc" | undefined) => {
     if (!direction) return projects;
     
     return [...projects].sort((a, b) => {
@@ -210,15 +228,15 @@ export const ProjectsInfiniteScroll: React.FC = () => {
   }, []);
 
   // Sort projects by date
-  const sortByDate = useCallback((projects: any[], direction: "asc" | "desc" | undefined) => {
+  const sortByDate = useCallback((projects: ProjectWithSignups[], direction: "asc" | "desc" | undefined) => {
     // Define getProjectDate within sortByDate to avoid dependency cycle
-    const getProjectDateInternal = (project: any): Date | null => {
+    const getProjectDateInternal = (project: ProjectWithSignups): Date | null => {
       try {
         if (project.event_type === "oneTime" && project.schedule?.oneTime?.date) {
           return parseISO(project.schedule.oneTime.date);
         } else if (project.event_type === "multiDay" && project.schedule?.multiDay?.length > 0) {
           // Get the earliest date from multiDay events
-          const dates = project.schedule.multiDay.map((day: any) => parseISO(day.date));
+          const dates = project.schedule.multiDay.map((day) => parseISO(day.date));
           return new Date(Math.min(...dates.map((d: Date) => d.getTime())));
         } else if (project.event_type === "sameDayMultiArea" && project.schedule?.sameDayMultiArea?.date) {
           return parseISO(project.schedule.sameDayMultiArea.date);
@@ -245,44 +263,8 @@ export const ProjectsInfiniteScroll: React.FC = () => {
     });
   }, []);
 
-  // Get volunteer count from a project
-  const getVolunteerCount = (project: any): number => {
-    if (!project.event_type || !project.schedule) return 0;
-
-    switch (project.event_type) {
-      case "oneTime":
-        return project.schedule.oneTime?.volunteers || 0;
-      case "multiDay": {
-        let total = 0;  // Initialize total here
-        // Sum all volunteers across all days and slots
-        if (project.schedule.multiDay) {
-          project.schedule.multiDay.forEach((day: any) => {
-            if (day.slots) {
-              day.slots.forEach((slot: any) => {
-                total += slot.volunteers || 0;
-              });
-            }
-          });
-        }
-        return total;
-      }
-      case "sameDayMultiArea": {
-        // Sum all volunteers across all roles
-        let total = 0;
-        if (project.schedule.sameDayMultiArea?.roles) {
-          project.schedule.sameDayMultiArea.roles.forEach((role: any) => {
-            total += role.volunteers || 0;
-          });
-        }
-        return total;
-      }
-      default:
-        return 0;
-    }
-  };
-
   // New function to get remaining spots
-  const getRemainingSpots = (project: any): number => {
+  const getRemainingSpots = (project: ProjectWithSignups): number => {
     // Get total spots
     const totalSpots = getVolunteerCount(project);
     
@@ -291,7 +273,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
     
     if (project.signups && Array.isArray(project.signups)) {
       // Count confirmed signups only
-      filledSpots = project.signups.filter((signup: any) => 
+      filledSpots = project.signups.filter((signup) => 
         signup.status === "approved"
       ).length;
     } else if (project.slots_filled) {
@@ -306,7 +288,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
   };
 
   // Get all projects and apply client-side filtering
-  const allProjects = data ? ([] as any[]).concat(...data) : [];
+  const allProjects = data ? (data as ProjectWithSignups[][]).flat() : [];
   
   const filteredProjects = allProjects.filter((project) => {
     // Search term filter

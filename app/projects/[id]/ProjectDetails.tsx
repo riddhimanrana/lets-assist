@@ -1,16 +1,12 @@
 "use client";
 
 import {
-  EventType,
   Project,
   MultiDayScheduleDay,
-  SameDayMultiAreaSchedule,
   SameDayMultiAreaRole,
-  OneTimeSchedule,
   Profile,
   Organization,
   ProjectStatus,
-  LocationData,
   ProjectDocument,
   AnonymousSignupData,
   Signup,
@@ -25,7 +21,6 @@ import { Separator } from "@/components/ui/separator";
 import { RichTextContent } from "@/components/ui/rich-text-content";
 import { LocationMapCard } from "@/app/projects/_components/LocationMapCard";
 import { 
-  CalendarDays,
   CheckCircle2,
   MapPin, 
   Users, 
@@ -55,12 +50,12 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { signUpForProject, cancelSignup, resendAnonymousConfirmationEmail, getActiveWaiverTemplate } from "./actions";
+import { signUpForProject, resendAnonymousConfirmationEmail, getActiveWaiverTemplate } from "./actions";
 import { formatTimeTo12Hour, formatBytes } from "@/lib/utils";
 import { createClient } from "@/utils/supabase/client";
-import { getSlotCapacities, getSlotDetails, isSlotAvailable, isMultiDaySlotPast, isMultiDaySlotPastByScheduleId, isSameDayMultiAreaSlotPast, isOneTimeSlotPast } from "@/utils/project";
-import { getProjectStatus, getProjectStartDateTime, getProjectEndDateTime } from "@/utils/project"; // Import the getProjectStatus utility and date utils
-import { useState, useEffect, useCallback } from "react"; // Add useCallback
+import { isSlotAvailable, isMultiDaySlotPastByScheduleId, isSameDayMultiAreaSlotPast, isOneTimeSlotPast } from "@/utils/project";
+import { getProjectStatus } from "@/utils/project"; // Import the getProjectStatus utility and date utils
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -155,11 +150,11 @@ export default function ProjectDetails({
 }: Props) {
   const router = useRouter();
   const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
-  const [isCreator, setIsCreator] = useState(initialIsCreator);
+  const [isCreator] = useState(initialIsCreator);
   const [remainingSlots, setRemainingSlots] = useState<Record<string, number>>(initialSlotData.remainingSlots);
   const [hasSignedUp, setHasSignedUp] = useState<Record<string, boolean>>(initialSlotData.userSignups);
   // Use the specific User type
-  const [user, setUser] = useState<User | null>(initialUser); 
+  const [user] = useState<User | null>(initialUser); 
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [anonymousDialogOpen, setAnonymousDialogOpen] = useState(false);
   const [currentScheduleId, setCurrentScheduleId] = useState<string>("");
@@ -183,11 +178,6 @@ export default function ProjectDetails({
   const [showCancelConfirmation, setShowCancelConfirmation] = useState(false);
   const [pendingScheduleId, setPendingScheduleId] = useState<string>("");
   const [publicAttendees, setPublicAttendees] = useState<SlotAttendee[]>([]);
-  const [userProfile, setUserProfile] = useState<{
-    full_name: string | null;
-    email: string | null;
-    phone: string | null;
-  }>({ full_name: null, email: null, phone: null });
   const [waiverTemplate, setWaiverTemplate] = useState<WaiverTemplate | null>(null);
   
   // Add state to track calculated status
@@ -316,6 +306,11 @@ export default function ProjectDetails({
           
           // Update state with attended slots
           setAttendedSlots(attended);
+          // Capture a completed signup for calendar modal and certificate display
+          setCompletedSignup({
+            signupId: attendedData[0].id,
+            scheduleId: attendedData[0].schedule_id,
+          });
         }
       } else {
          // Clear rejected and attended slots if user logs out
@@ -363,35 +358,6 @@ export default function ProjectDetails({
     }
   }, [project.id, user]);
 
-
-  // Fetch user profile data when user changes
-  useEffect(() => {
-    async function fetchUserProfile() {
-      if (user) {
-        const supabase = createClient();
-        const { data: profile, error } = await supabase
-          .from("profiles")
-          .select("full_name, email, phone")
-          .eq("id", user.id)
-          .single();
-          
-        if (error) {
-          console.error("Error fetching user profile:", error);
-        } else if (profile) {
-          setUserProfile({
-            full_name: profile.full_name,
-            email: profile.email,
-            phone: profile.phone,
-          });
-        }
-      } else {
-        // Clear profile if user logs out
-        setUserProfile({ full_name: null, email: null, phone: null });
-      }
-    }
-    
-    fetchUserProfile();
-  }, [user]);
 
   useEffect(() => {
     if (!project.waiver_required) return;
@@ -1058,8 +1024,7 @@ export default function ProjectDetails({
 
                 {project.event_type === "multiDay" && project.schedule.multiDay && (
                   <div className="space-y-3">
-                    {project.schedule.multiDay.map((day, dayIndex) => {
-                      const isDayPast = isMultiDaySlotPast(day);
+                    {project.schedule.multiDay.map((day) => {
                       const allSlotsInDayPast = day.slots.every((slot, slotIndex) => {
                         const scheduleId = `${day.date}-${slotIndex}`;
                         return isMultiDaySlotPastByScheduleId(project, scheduleId);

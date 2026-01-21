@@ -13,6 +13,13 @@ interface Props {
   searchParams: Promise<{ [key: string]: string | undefined }>;
 }
 
+type JoinOrganization = {
+  id: string;
+  name: string;
+  username: string;
+  logo_url: string | null;
+};
+
 export default async function JoinOrganizationPage({ searchParams }: Props): Promise<React.ReactElement> {
   const search = await searchParams;
   const code = search.code;
@@ -24,11 +31,14 @@ export default async function JoinOrganizationPage({ searchParams }: Props): Pro
   const { data: { user } } = await supabase.auth.getUser();
 
   // Find organization by join code
-  const { data: organization } = await supabase
+  const { data: organization } = (await supabase
     .from("organizations")
     .select("id, name, username, logo_url")
     .eq("join_code", code)
-    .single();
+    .single()) as {
+    data: JoinOrganization | null;
+    error: { message: string } | null;
+  };
 
   if (!organization) {
     redirect("/organization?error=invalid-code");

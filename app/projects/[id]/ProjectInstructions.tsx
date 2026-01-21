@@ -2,48 +2,28 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
+  ClipboardCheck,
+  QrCode,
+  UserCheck,
+  Calendar,
+  Clock,
+  Users,
   HelpCircle,
+  FileText,
+  Bell,
+  Zap,
+  Eye,
   CalendarIcon,
   CalendarClock,
   UsersRound,
-  ClipboardCheck,
-  CheckCircle,
-  UserCheck,
-  QrCode,
   MapPin,
-  Clock,
-  Calendar,
-  Users,
   Settings,
-  Eye,
-  Bell,
-  FileText,
-  Zap,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Project, EventType, VerificationMethod } from "@/types";
+import { Project } from "@/types";
 import { motion } from "framer-motion";
 
 interface ProjectInstructionsModalProps {
@@ -72,21 +52,6 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
         return <CalendarClock className="h-5 w-5" />;
       case 'sameDayMultiArea':
         return <UsersRound className="h-5 w-5" />;
-      default:
-        return <HelpCircle className="h-5 w-5" />;
-    }
-  };
-
-  const getVerificationMethodIcon = () => {
-    switch (verification_method) {
-      case 'qr-code':
-        return <QrCode className="h-5 w-5" />;
-      case 'manual':
-        return <ClipboardCheck className="h-5 w-5" />;
-      case 'auto':
-        return <CheckCircle className="h-5 w-5" />;
-      case 'signup-only':
-        return <UserCheck className="h-5 w-5" />;
       default:
         return <HelpCircle className="h-5 w-5" />;
     }
@@ -199,156 +164,6 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
 
       default:
         return <p>No specific instructions available for this project type.</p>;
-    }
-  };
-
-  const renderVerificationInstructions = () => {
-    switch (verification_method) {
-      case 'qr-code':
-        return (
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Badge variant="outline">QR Code Check-In</Badge>
-            </div>
-            <p>This event uses QR codes for volunteer check-in and check-out.</p>
-            
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <QrCode className="h-4 w-4" /> 
-                  How to Check In
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="text-sm space-y-2">
-                <p>1. Arrive at the event location.</p>
-                <p>2. Find the event coordinator with the QR code.</p>
-                <p>3. Open the app and tap on &quot;Scan QR Code&quot; in your dashboard.</p>
-                <p>4. Scan the QR code to check in.</p>
-                <p className="text-muted-foreground mt-2">* QR codes become available 2 hours before each session starts.</p>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Clock className="h-4 w-4" /> 
-                  Checking Out
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="text-sm">
-                <p>When your shift is completed, scan the QR code again to check out and record your volunteer hours.</p>
-              </CardContent>
-            </Card>
-          </div>
-        );
-
-      case 'manual':
-        return (
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Badge className="bg-amber-500/20 text-amber-500 border-amber-500/30">Manual Verification</Badge>
-            </div>
-            <p>This event uses manual verification by the event coordinator.</p>
-            
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <ClipboardCheck className="h-4 w-4" /> 
-                  Attendance Process
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="text-sm space-y-2">
-                <p>1. Arrive at the event and check in with the coordinator.</p>
-                <p>2. The coordinator will manually mark your attendance.</p>
-                <p>3. When leaving, inform the coordinator to record your end time.</p>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Clock className="h-4 w-4" /> 
-                  Hours Verification
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="text-sm">
-                <p>The event coordinator will verify and publish your volunteer hours after the event.</p>
-              </CardContent>
-            </Card>
-          </div>
-        );
-
-      case 'auto':
-        return (
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Badge className="bg-emerald-500/20 text-emerald-500 border-emerald-500/30">Automatic Verification</Badge>
-            </div>
-            <p>This event automatically tracks your volunteer hours.</p>
-            
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4" /> 
-                  Automated Process
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="text-sm space-y-2">
-                <p>1. Hours are automatically calculated based on the event schedule.</p>
-                <p>2. Your attendance is automatically verified.</p>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Clock className="h-4 w-4" /> 
-                  Hours Crediting
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="text-sm">
-                <p>Your volunteer hours will be automatically credited once the event is complete.</p>
-              </CardContent>
-            </Card>
-          </div>
-        );
-
-      case 'signup-only':
-        return (
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Badge className="bg-blue-500/20 text-blue-500 border-blue-500/30">Signup Only</Badge>
-            </div>
-            <p>This is a signup-only event where no hour tracking is required.</p>
-            
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <UserCheck className="h-4 w-4" /> 
-                  Simple Registration
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="text-sm">
-                <p>Just register for the event and show up! No need to check in or out.</p>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Users className="h-4 w-4" /> 
-                  Attendance
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="text-sm">
-                <p>Your participation will be recognized, but specific hours won&apos;t be tracked for this event.</p>
-              </CardContent>
-            </Card>
-          </div>
-        );
-
-      default:
-        return <p>No specific instructions available for this verification method.</p>;
     }
   };
 

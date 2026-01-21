@@ -3,9 +3,8 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { Project, ProjectSignup } from "@/types"; // Use ProjectSignup type
 import { Input } from "@/components/ui/input";
-import { Search, ArrowLeft, Clock, CheckCircle, RefreshCw, Loader2, UserRoundCheck, Info, Edit, AlertCircle, PencilLine, FileText, Copy, Mail } from "lucide-react";
-import { createClient } from "@/utils/supabase/client";
-import { format, parseISO, differenceInMinutes, differenceInSeconds, isAfter, isValid } from "date-fns";
+import { Search, ArrowLeft, Clock, CheckCircle, Loader2, UserRoundCheck, Info, Edit, AlertCircle, PencilLine, FileText, Mail } from "lucide-react";
+import { format, parseISO, differenceInMinutes, differenceInSeconds, isAfter } from "date-fns";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import Link from "next/link";
 import {
@@ -14,7 +13,6 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  CardFooter,
 } from "@/components/ui/card";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogClose, DialogFooter 
@@ -65,11 +63,15 @@ interface Props {
   activeSessions: ProjectSession[];
 }
 
-export function HoursClient({ project, initialSignups, hoursUntilWindowCloses, activeSessions }: Props): React.JSX.Element {
-  const router = useRouter();
-  const [signups, setSignups] = useState<ProjectSignup[]>(initialSignups);
-  const [loading, setLoading] = useState(false); // Initially false as data comes from server
-  const [refreshing, setRefreshing] = useState(false);
+export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _hoursUntilWindowCloses, activeSessions }: Props): React.JSX.Element {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _router = useRouter();
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [_signups, _setSignups] = useState<ProjectSignup[]>(initialSignups);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [_loading, _setLoading] = useState(false); // Initially false as data comes from server
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [_refreshing, _setRefreshing] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [sessionFilter, setSessionFilter] = useState<string>("all");
   
@@ -82,7 +84,6 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses, a
 
   // State for publish success modal
   const [showPublishSuccessModal, setShowPublishSuccessModal] = useState(false);
-  const [publishedSessionEmails, setPublishedSessionEmails] = useState<string[]>([]);
   const [currentPublishedSessionName, setCurrentPublishedSessionName] = useState<string>("");
   const [emailsSentCount, setEmailsSentCount] = useState<number>(0);
   const [emailErrors, setEmailErrors] = useState<string[]>([]);
@@ -199,27 +200,6 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses, a
      return sessionId; // Fallback if no formatting rules matched
    };
 
-  // Convert ISO string to Date object
-  const isoStringToDate = (isoString: string | null | undefined): Date | null => {
-    if (!isoString) return null;
-    try {
-      const date = new Date(isoString);
-      return isValid(date) ? date : null;
-    } catch {
-      return null;
-    }
-  };
-
-  // Helper to format Date and Time for display (if needed elsewhere)
-  const formatDateTimeForDisplay = (isoString: string | null | undefined): string => {
-    if (!isoString) return 'N/A';
-    try {
-      return format(parseISO(isoString), "MMM d, yyyy h:mm a");
-    } catch {
-      return 'Invalid date';
-    }
-  };
-
   // Enhanced duration calculation with validation
   const calculateDuration = (checkInISO: string | null, checkOutISO: string | null): {
     text: string;
@@ -269,7 +249,7 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses, a
   const handleTimeChange = (signupId: string, field: keyof EditedTime, timeStr: string) => {
     // Get existing date from the current value
     const currentValue = editedTimes[signupId]?.[field];
-    let date = currentValue ? new Date(currentValue) : new Date();
+    const date = currentValue ? new Date(currentValue) : new Date();
     
     // Parse the new time string (format: "HH:mm")
     const [hours, minutes] = timeStr.split(':').map(Number);
@@ -456,8 +436,8 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses, a
       const result = await publishVolunteerHours(project.id, sessionId, volunteersData);
 
       if (result.success) {
-        const emailsSent = (result as any).emailsSent || 0;
-        const emailErrors = (result as any).emailErrors || [];
+        const emailsSent = result.emailsSent ?? 0;
+        const emailErrors = result.emailErrors ?? [];
         
         if (emailsSent > 0) {
           toast.success("Hours Published & Emails Sent!", {
@@ -474,10 +454,6 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses, a
         setPublishedSessions((prev: Record<string, boolean>) => ({ ...prev, [publishKey]: true })); // Corrected to setPublishedSessions and added type for prev
 
         // Prepare for success modal with updated information
-        const emails = volunteersData
-          .map(v => v.email)
-          .filter(email => email !== null && email.trim() !== "") as string[];
-        setPublishedSessionEmails(emails);
         setCurrentPublishedSessionName(formatSessionName(project, sessionId));
         
         // Store email sent information for the modal
@@ -576,21 +552,6 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses, a
 
     return filtered;
   }, [signupsBySession, searchTerm, sessionFilter]);
-
-  // Get available sessions for filter dropdown
-  const availableSessions = useMemo(() => {
-    // Include all active sessions 
-    const sessionIds = [...Object.keys(signupsBySession)];
-    
-    // Add any active sessions that might not have signups yet
-    activeSessions.forEach(session => {
-      if (!sessionIds.includes(session.id) && session.id !== "all") {
-        sessionIds.push(session.id);
-      }
-    });
-    
-    return sessionIds;
-  }, [signupsBySession, activeSessions]);
 
   // Get all possible sessions from the project
   const getAllProjectSessions = useMemo(() => {
@@ -822,7 +783,8 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses, a
       return !!publishedSessions["oneTime"];
     } else if (project.event_type === "multiDay") {
       // For multiDay events, the session ID matches the published state key
-      const [_, dayIndex, __, slotIndex] = sessionId.split("-");
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const [_day, dayIndex, _slot, slotIndex] = sessionId.split("-");
       const dateKey = project.schedule.multiDay?.[parseInt(dayIndex)]?.date;
       return dateKey ? !!publishedSessions[`${dateKey}-${slotIndex}`] : false;
     } else if (project.event_type === "sameDayMultiArea") {
@@ -837,7 +799,8 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses, a
     if (project.event_type === "oneTime") {
       return "oneTime";
     } else if (project.event_type === "multiDay") {
-      const [_, dayIndex, __, slotIndex] = sessionId.split("-");
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const [_day, dayIndex, _slot, slotIndex] = sessionId.split("-");
       const dateKey = project.schedule.multiDay?.[parseInt(dayIndex)]?.date;
       // Ensure dateKey is valid before constructing the key
       return dateKey ? `${dateKey}-${slotIndex}` : sessionId; // Fallback to sessionId if dateKey is missing

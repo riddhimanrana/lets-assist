@@ -17,7 +17,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import {
-  getOrFetchUser,
   getCachedUser,
   updateCachedUser,
   waitForAuthReady,
@@ -25,7 +24,9 @@ import {
   subscribeToCacheChanges,
   isCacheInitialized,
 } from '@/utils/auth/auth-context';
-import type { AuthState, User } from '@/utils/auth/types';
+
+// User type re-exported for consumers
+export type { User } from '@/utils/auth/types';
 
 /**
  * Custom React hook for managing auth state

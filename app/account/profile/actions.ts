@@ -78,10 +78,10 @@ export async function updateProfileInfo(formData: FormData) {
   if (validFullName !== undefined) updateFields.full_name = validFullName;
   if (validUsername !== undefined) updateFields.username = validUsername;
 
-  const { error: updateError } = await supabase
+  const { error: updateError } = (await supabase
     .from("profiles")
     .update(updateFields)
-    .eq("id", userId);
+    .eq("id", userId)) as { error: { message?: string } | null };
 
   if (updateError) {
     console.log(updateError);
@@ -149,11 +149,11 @@ export async function completeOnboarding(formData: FormData) {
     // Process avatar URL only if explicitly included in the form
     if (validAvatarUrl && typeof validAvatarUrl === 'string' && validAvatarUrl.startsWith("data:image")) {
       // First, get the current avatar URL to check if we need to delete an old image
-      const { data: profile } = await supabase
+      const { data: profile } = (await supabase
         .from("profiles")
         .select("avatar_url")
         .eq("id", userId)
-        .single();
+        .single()) as { data: { avatar_url?: string | null } | null };
 
       // Delete old image if it exists and is from Supabase storage
       if (profile?.avatar_url?.includes("supabase.co")) { // note: when and if i use a custom supabase domain we need to change this
@@ -205,10 +205,10 @@ export async function completeOnboarding(formData: FormData) {
 
   updateFields.updated_at = new Date().toISOString();
 
-  const { error: updateError } = await supabase
+  const { error: updateError } = (await supabase
     .from("profiles")
     .update(updateFields)
-    .eq("id", userId);
+    .eq("id", userId)) as { error: { message?: string } | null };
 
   if (updateError) {
     console.log(updateError);
@@ -235,11 +235,14 @@ export async function completeOnboarding(formData: FormData) {
 
 export async function checkUsernameUnique(username: string) {
   const supabase = await createClient();
-  const { data: existingUser, error } = await supabase
+  const { data: existingUser, error } = (await supabase
     .from("profiles")
     .select("username")
     .eq("username", username)
-    .maybeSingle();
+    .maybeSingle()) as {
+    data: { username?: string | null } | null;
+    error: { message?: string } | null;
+  };
   if (error) {
     return { available: false, error: error.message };
   }
@@ -257,11 +260,11 @@ export async function removeProfilePicture() {
   }
 
   // Get the current avatar URL to extract filename
-  const { data: profile } = await supabase
+  const { data: profile } = (await supabase
     .from("profiles")
     .select("avatar_url")
     .eq("id", user.id)
-    .single();
+    .single()) as { data: { avatar_url?: string | null } | null };
 
   if (profile?.avatar_url && profile.avatar_url.includes("supabase.co")) { // note: when and if i use a custom supabase domain we need to change this
     try {
@@ -290,13 +293,13 @@ export async function removeProfilePicture() {
   }
 
   // Update profile to remove avatar_url
-  const { error: updateError } = await supabase
+  const { error: updateError } = (await supabase
     .from("profiles")
     .update({
       avatar_url: null,
       updated_at: new Date().toISOString(),
     })
-    .eq("id", user.id);
+    .eq("id", user.id)) as { error: { message?: string } | null };
   if (updateError) {
     console.error("removeProfilePicture: Error updating profile:", updateError);
     return { error: { server: ["Failed to update profile"] } };
@@ -358,15 +361,16 @@ export async function updateNameAndUsername(fullName?: string, username?: string
 
 
   // Perform the update
-  const { error: updateError } = await supabase
+  const { error: updateError } = (await supabase
     .from("profiles")
     .update(updateFields)
-    .eq("id", userId);
+    .eq("id", userId)) as { error: { message?: string; code?: string } | null };
 
   if (updateError) {
     console.log(updateError);
     // Check for unique constraint violation on username
-    if (updateError.code === '23505' && updateError.message.includes('profiles_username_key')) {
+    const errorMessage = updateError.message ?? "";
+    if (updateError.code === '23505' && errorMessage.includes('profiles_username_key')) {
       return { error: { username: ["Username already taken"] } };
     }
     return { error: { server: ["Failed to update profile"] } };
@@ -394,13 +398,13 @@ export async function updateProfileVisibility(
   const canChange = canChangeProfileVisibility();
   const enforcedVisibility = applyVisibilityConstraints(visibility);
 
-  const { error: updateError } = await supabase
+  const { error: updateError } = (await supabase
     .from("profiles")
     .update({
       profile_visibility: enforcedVisibility,
       updated_at: new Date().toISOString(),
     })
-    .eq("id", user.id);
+    .eq("id", user.id)) as { error: { message?: string } | null };
 
   if (updateError) {
     console.error("updateProfileVisibility: failed to update profile", updateError);

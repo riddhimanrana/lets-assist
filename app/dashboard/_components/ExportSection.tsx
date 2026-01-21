@@ -11,12 +11,10 @@ import { DateRange } from "react-day-picker";
 import { 
   Download, 
   Calendar, 
-  CheckCircle,
-  AlertCircle,
   CircleCheck,
   UserCheck,
 } from "lucide-react";
-import { format, subMonths } from "date-fns";
+import { format } from "date-fns";
 import { toast } from "sonner";
 
 interface ExportSectionProps {
@@ -24,8 +22,27 @@ interface ExportSectionProps {
   verifiedCount?: number;
   unverifiedCount?: number;
   totalCertificates?: number;
-  certificatesData?: any[];
+  certificatesData?: CertificateRecord[];
 }
+
+type CertificateRecord = {
+  id: string;
+  project_title?: string | null;
+  title?: string | null;
+  organization_name?: string | null;
+  creator_name?: string | null;
+  volunteer_name?: string | null;
+  volunteer_email?: string | null;
+  event_start?: string | null;
+  event_end?: string | null;
+  hours?: number | string | null;
+  project_location?: string | null;
+  is_certified?: boolean | null;
+  check_in_method?: string | null;
+  issued_at?: string | null;
+  type?: string | null;
+  projects?: { project_timezone?: string | null } | null;
+};
 
 interface ExportData {
   id: string;
@@ -48,9 +65,9 @@ interface ExportData {
 
 export function ExportSection({ 
   userEmail, 
-  verifiedCount = 0, 
-  unverifiedCount = 0,
-  totalCertificates = 0,
+  verifiedCount: _verifiedCount = 0, 
+  unverifiedCount: _unverifiedCount = 0,
+  totalCertificates: _totalCertificates = 0,
   certificatesData = []
 }: ExportSectionProps) {
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
@@ -60,7 +77,7 @@ export function ExportSection({
   const [isExporting, setIsExporting] = useState(false);
 
   // Convert certificates data to export format
-  const convertCertificateToExportData = (cert: any): ExportData => {
+  const convertCertificateToExportData = (cert: CertificateRecord): ExportData => {
     const isVerified = (cert.type || 'platform') === 'platform';
     return {
       id: cert.id,

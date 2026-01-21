@@ -2,6 +2,7 @@ import { Metadata } from "next";
 import ProjectCreator from "./ProjectCreator";
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
+import type { EventFormState } from "@/hooks/use-event-form";
 
 // Define a type for the combobox options
 interface OrganizationOption {
@@ -12,6 +13,30 @@ interface OrganizationOption {
   allowed_email_domains?: string[] | null;
 }
 
+type MembershipRow = {
+  organization_id: string;
+  role: string;
+  organizations?:
+    | {
+        name: string;
+        logo_url?: string | null;
+        allowed_email_domains?: string[] | null;
+      }
+    | {
+        name: string;
+        logo_url?: string | null;
+        allowed_email_domains?: string[] | null;
+      }[]
+    | null;
+};
+
+type DraftRow = {
+  id: string;
+  title: string | null;
+  draft_data: Partial<EventFormState> | null;
+  created_at: string;
+};
+ 
 export const metadata: Metadata = {
   title: "Create Project",
   description: "Start a new volunteering project on Let's Assist and connect with volunteers to make a difference in your community.",
@@ -152,7 +177,7 @@ export default async function CreateProjectPage({
     .in('role', ['admin', 'staff']);
 
   if (memberships && memberships.length > 0) {
-    const orgs: OrganizationOption[] = memberships.map((m: any) => ({
+    const orgs: OrganizationOption[] = (memberships as MembershipRow[]).map((m) => ({
       id: m.organization_id,
       name: Array.isArray(m.organizations) ? m.organizations[0].name : m.organizations?.name,
       logo_url: Array.isArray(m.organizations) ? m.organizations[0].logo_url : m.organizations?.logo_url,
@@ -170,8 +195,8 @@ export default async function CreateProjectPage({
     .order('updated_at', { ascending: false });
 
   // Load specific draft if requested, otherwise load most recent autosaved draft
-  let loadedDraft = null;
-  let loadedDraftId = null;
+  let loadedDraft: Partial<EventFormState> | null = null;
+  let loadedDraftId: string | null = null;
   if (draftIdFromUrl) {
     const { data: draft } = await supabase
       .from('project_drafts')
@@ -197,7 +222,7 @@ export default async function CreateProjectPage({
         initialOrgOptions={orgOptions}
         initialDraftData={loadedDraft}
         initialDraftId={loadedDraftId}
-        drafts={drafts?.map((d: any) => ({
+        drafts={(drafts as DraftRow[] | null)?.map((d) => ({
           id: d.id,
           title: d.title || 'Untitled Draft',
           description: d.draft_data?.basicInfo?.description || '',

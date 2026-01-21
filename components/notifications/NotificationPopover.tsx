@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { Bell, AlertCircle, AlertTriangle, CircleCheck, Loader2, Check, Settings } from "lucide-react";
+import { Bell, AlertCircle, AlertTriangle, CircleCheck, Loader2, Settings } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Drawer,
@@ -39,7 +39,7 @@ type Notification = {
   read: boolean;
   created_at: string;
   action_url?: string | null;
-  data?: Record<string, any> | null;
+  data?: Record<string, unknown> | null;
 };
 
 /**
@@ -47,7 +47,7 @@ type Notification = {
  * without any new calls. Useful for batching rapid realtime events.
  * Example: 5 notification inserts in quick succession → 1 loadNotifications call
  */
-function useDebounce<T extends (...args: any[]) => any>(
+function useDebounce<T extends (...args: unknown[]) => void>(
   callback: T,
   delayMs: number = 500
 ): (...args: Parameters<T>) => void {
@@ -82,16 +82,14 @@ export function NotificationPopover() {
   const supabase = createClient();
   const router = useRouter();
   const isMobile = useMediaQuery("(max-width: 768px)");
-  const sentinelRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
   const scrollPositionRef = useRef<number>(0);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  const parseNotificationData = (value: unknown): Record<string, any> | null => {
+  const parseNotificationData = (value: unknown): Record<string, unknown> | null => {
     if (!value) return null;
     if (typeof value === "string") {
       try {
@@ -101,7 +99,7 @@ export function NotificationPopover() {
       }
     }
     if (typeof value === "object") {
-      return value as Record<string, any>;
+      return value as Record<string, unknown>;
     }
     return null;
   };
@@ -142,9 +140,9 @@ export function NotificationPopover() {
       console.log('Notifications loaded:', data?.length || 0);
       const normalized = (data || []).map((notification) => ({
         ...notification,
-        data: parseNotificationData((notification as any).data),
-      }));
-      setNotifications(normalized as Notification[]);
+        data: parseNotificationData((notification as { data?: unknown }).data),
+      })) as Notification[];
+      setNotifications(normalized);
       setOffset(0);
       
       // Check if there are more notifications
@@ -182,13 +180,13 @@ export function NotificationPopover() {
       console.log('Loaded more notifications:', data?.length || 0);
       const normalized = (data || []).map((notification) => ({
         ...notification,
-        data: parseNotificationData((notification as any).data),
-      }));
+        data: parseNotificationData((notification as { data?: unknown }).data),
+      })) as Notification[];
       
       // Store scroll position before state update
       const currentScrollPos = scrollPositionRef.current;
       
-      setNotifications(prev => [...prev, ...normalized as Notification[]]);
+      setNotifications(prev => [...prev, ...normalized]);
       setOffset(newOffset);
       
       // Check if there are more
@@ -429,7 +427,7 @@ export function NotificationPopover() {
         .replace(/ weeks? ago/g, 'w ago')
         .replace(/ months? ago/g, 'mo ago')
         .replace(/ years? ago/g, 'y ago');
-    } catch (e) {
+    } catch {
       return "recently";
     }
   };

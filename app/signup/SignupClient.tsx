@@ -54,7 +54,6 @@ type SignupValues = z.infer<typeof signupSchema>;
 export default function SignupClient({ redirectPath, staffToken, orgUsername }: SignupClientProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-  const [turnstileVerified, setTurnstileVerified] = useState(false);
   const turnstileRef = useRef<TurnstileRef>(null);
   const [turnstileReady, setTurnstileReady] = useState(false);
   const [isResendCaptchaOpen, setIsResendCaptchaOpen] = useState(false);
@@ -95,7 +94,7 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
       } else {
         toast.error(resendResult.error || "Failed to resend email");
       }
-    } catch (error) {
+    } catch {
       toast.error("An error occurred. Please try again.");
     } finally {
       setIsResending(false);
@@ -145,7 +144,6 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
         });
         setIsLoading(false);
         turnstileRef.current?.reset();
-        setTurnstileVerified(false);
         return;
       }
 
@@ -166,7 +164,6 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
         });
         setIsLoading(false);
         turnstileRef.current?.reset();
-        setTurnstileVerified(false);
         return;
       }
 
@@ -194,7 +191,6 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
     setIsLoading(false);
     // Reset Turnstile after submission
     turnstileRef.current?.reset();
-    setTurnstileVerified(false);
   }
 
   const handleGoogleSignIn = async () => {
@@ -216,7 +212,7 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
       if (result.url) {
         window.location.href = result.url;
       }
-    } catch (error) {
+    } catch {
       toast.error("An error occurred. Please try again.");
     } finally {
       setIsGoogleLoading(false);
@@ -370,15 +366,12 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
                       ref={turnstileRef}
                       onLoad={() => setTurnstileReady(true)}
                       onVerify={(token) => {
-                        setTurnstileVerified(true);
                         form.setValue("turnstileToken", token);
                       }}
                       onError={() => {
-                        setTurnstileVerified(false);
                         toast.error("Security verification failed. Please try again.");
                       }}
                       onExpire={() => {
-                        setTurnstileVerified(false);
                         form.setValue("turnstileToken", "");
                       }}
                     />

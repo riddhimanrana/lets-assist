@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sparkles, Loader2, X } from 'lucide-react';
 import { toast } from 'sonner';
-import { EventType } from '@/types';
+import { EventType, ProjectSchedule } from '@/types';
 
 interface AIAssistantProps {
   onApplyData: (data: AIParseResult) => void;
@@ -19,7 +19,7 @@ export interface AIParseResult {
   location?: string;
   description?: string;
   eventType?: EventType;
-  schedule?: any;
+  schedule?: ProjectSchedule;
   verificationMethod?: 'qr-code' | 'manual' | 'auto' | 'signup-only';
   requireLogin?: boolean;
 }

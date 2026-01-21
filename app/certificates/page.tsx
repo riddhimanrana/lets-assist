@@ -1,8 +1,27 @@
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
 import { CertificatesList } from "./CertificatesList";
 import { Metadata } from "next";
+
+type Certificate = {
+  id: string;
+  project_title: string;
+  creator_name: string | null;
+  is_certified: boolean;
+  event_start: string;
+  event_end: string;
+  volunteer_email: string | null;
+  organization_name: string | null;
+  project_id: string | null;
+  schedule_id: string | null;
+  issued_at: string;
+  signup_id: string | null;
+  volunteer_name: string | null;
+  project_location: string | null;
+  projects?: {
+    project_timezone?: string;
+  };
+};
 
 export const metadata: Metadata = {
   title: "Certificates",
@@ -23,7 +42,7 @@ export default async function CertificatesPage() {
   }
 
   // fetch this user’s certificates
-  const { data: certificates, error: certError } = await supabase
+    const { data: certificates, error: certError } = (await supabase
     .from("certificates")
     .select(`
       *,
@@ -32,7 +51,10 @@ export default async function CertificatesPage() {
       )
     `)
     .eq("user_id", user.id)
-    .order("issued_at", { ascending: false });
+    .order("issued_at", { ascending: false })) as {
+      data: Certificate[] | null;
+    error: { message?: string } | null;
+  };
   if (certError) {
     console.error("Error loading certificates:", certError);
     return <p className="p-4 text-destructive">Failed to load certificates.</p>;
@@ -41,9 +63,12 @@ export default async function CertificatesPage() {
   return (
     <main className="mx-auto py-8 px-4 sm:px-12">
       <CertificatesList 
-        certificates={certificates || []} 
+          certificates={certificates || []}
         user={{
-          name: user.user_metadata.full_name || user.email?.split('@')[0] || 'User',
+          name:
+            (user.user_metadata as { full_name?: string } | null)?.full_name ||
+            user.email?.split('@')[0] ||
+            'User',
           email: user.email || ''
         }} 
       />

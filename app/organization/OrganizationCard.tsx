@@ -6,9 +6,18 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Building2, Users2, ExternalLink, BadgeCheck, Shield, UserRoundCog, UserRound } from "lucide-react";
 import { NoAvatar } from "@/components/shared/NoAvatar";
+import type { Organization } from "@/types";
+
+type OrganizationCardOrg = Organization & {
+  description?: string | null;
+  website?: string | null;
+  logo_url?: string | null;
+  type?: string | null;
+  verified?: boolean;
+};
 
 interface OrganizationCardProps {
-  org: any;
+  org: OrganizationCardOrg;
   memberCount: number;
   isUserMember?: boolean;
   userRole?: 'admin' | 'staff' | 'member';

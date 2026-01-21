@@ -27,7 +27,7 @@ export async function updatePassword(formData: FormData) {
 
   try {
     // First exchange the code for a session
-    const { data: sessionData, error: sessionError } = await supabase.auth
+    const { error: sessionError } = await supabase.auth
       .exchangeCodeForSession(validatedFields.data.token);
 
     if (sessionError) {

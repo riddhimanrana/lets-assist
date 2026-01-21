@@ -12,7 +12,15 @@ const nextSettings = nextCoreWebVitals.settings;
 
 export default tseslint.config(
   {
-    ignores: ['node_modules', '.next', 'dist', 'coverage', '*.config.mjs', 'tmp-component-usage.json'],
+    ignores: [
+      'node_modules',
+      '.next',
+      'dist',
+      'coverage',
+      '*.config.mjs',
+      'tmp-component-usage.json',
+      '**/*.backup.tsx',
+    ],
   },
   js.configs.recommended,
   tseslint.configs.recommended,

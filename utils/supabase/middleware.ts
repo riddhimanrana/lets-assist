@@ -17,7 +17,7 @@ function isProtectedPath(path: string) {
 
 // Function to check if path is for project creator only
 function isProjectCreatorPath(path: string) {
-  const matches = path.match(/^\/projects\/([^\/]+)\/(edit|signups|documents|attendance|hours)$/);
+  const matches = path.match(/^\/projects\/([^/]+)\/(edit|signups|documents|attendance|hours)$/);
   return matches ? { isCreatorPath: true, projectId: matches[1] } : { isCreatorPath: false, projectId: null };
 }
 
@@ -38,7 +38,7 @@ export async function updateSession(request: NextRequest) {
         getAll() {
           return request.cookies.getAll()
         },
-        setAll(cookiesToSet: { name: string; value: string; options?: any }[]) {
+        setAll(cookiesToSet: { name: string; value: string; options?: Record<string, unknown> }[]) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
           supabaseResponse = NextResponse.next({
             request,

@@ -1,15 +1,13 @@
 import { createClient } from "@/utils/supabase/server";
-import { cookies } from "next/headers";
-import { notFound, redirect } from "next/navigation";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { redirect } from "next/navigation";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { VolunteerGoals } from "./_components/VolunteerGoals";
 import { Badge } from "@/components/ui/badge";
 import { ProgressCircle } from "./_components/ProgressCircle";
 import { format, subMonths, parseISO, differenceInMinutes, isBefore, isAfter } from "date-fns";
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
-import { Award, Calendar, Clock, Users, Target, FileCheck, ChevronRight, Download, GalleryVerticalEnd, TicketCheck, Plus, CalendarDays, BarChart3, CircleCheck, UserCheck } from "lucide-react";
+import { Award, Calendar, Users, Target, ChevronRight, Download, CalendarDays, BarChart3, CircleCheck, UserCheck } from "lucide-react";
 import Link from "next/link";
-import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -17,7 +15,7 @@ import { ActivityChart } from "./_components/ActivityChart";
 import { ExportSection } from "./_components/ExportSection";
 import { AllHoursSection } from "./_components/AllHoursSection";
 import { AddVolunteerHoursModal } from "./_components/AddVolunteerHoursModal";
-import { Project, ProjectSchedule } from "@/types";
+import { Project } from "@/types";
 import { getSlotDetails } from "@/utils/project";
 import { Metadata } from "next";
 import { TimezoneBadge } from "@/components/shared/TimezoneBadge";
@@ -133,10 +131,15 @@ function getCombinedDateTime(dateStr: string, timeStr: string, timezone?: string
 }
 
 // Helper function to get session display name
+type SlotDetails = NonNullable<ReturnType<typeof getSlotDetails>> & {
+  name?: string;
+  schedule_id?: string;
+};
+
 function getSessionDisplayName(
   project: Project,
   startTime: Date | null,
-  details: any,
+  details: SlotDetails,
   projectTimezone?: string,
   slotDate?: string
 ): string {
@@ -170,19 +173,6 @@ function getSessionDisplayName(
   return details.schedule_id || "Session";
 }
 
-// Helper to calculate duration in decimal hours
-function calculateDecimalHours(startTimeISO: string, endTimeISO: string): number {
-  try {
-    const start = parseISO(startTimeISO);
-    const end = parseISO(endTimeISO);
-    const minutes = differenceInMinutes(end, start);
-    return minutes > 0 ? minutes / 60 : 0;
-  } catch (e) {
-    console.error("Error calculating duration:", e);
-    return 0; // Return 0 if parsing fails
-  }
-}
-
 // Helper function to format total duration from hours (decimal) to Xh Ym
 function formatTotalDuration(totalHours: number): string {
   if (totalHours <= 0) return "0m"; // Handle zero or negative hours
@@ -212,7 +202,6 @@ function formatTotalDuration(totalHours: number): string {
 }
 
 export default async function VolunteerDashboard() {
-  const cookieStore = cookies();
   const supabase = await createClient();
 
   // Check authentication
@@ -222,24 +211,44 @@ export default async function VolunteerDashboard() {
   }
 
   // Fetch user's profile
-  const { data: profile, error: profileError } = await supabase
+  const { error: profileError } = (await supabase
     .from("profiles")
     .select("*")
     .eq("id", user.id)
-    .single();
+    .single()) as { error: { message?: string } | null };
 
   if (profileError) {
     console.error("Error fetching profile:", profileError);
   }
 
   // Fetch certificates for this user
-  const { data: certificates, error: certificatesError } = await supabase
+  type CertificateRow = {
+    id: string;
+    project_title: string;
+    creator_name: string | null;
+    is_certified: boolean;
+    event_start: string;
+    event_end: string;
+    volunteer_email: string | null;
+    organization_name: string | null;
+    project_id: string | null;
+    schedule_id: string | null;
+    issued_at: string;
+    signup_id: string | null;
+    volunteer_name: string | null;
+    project_location: string | null;
+  };
+
+  const { data: certificates, error: certificatesError } = (await supabase
     .from("certificates")
     .select(`
       *
     `)
     .eq("user_id", user.id)
-    .order("issued_at", { ascending: false });
+    .order("issued_at", { ascending: false })) as {
+    data: CertificateRow[] | null;
+    error: { message?: string } | null;
+  };
     
 
   if (certificatesError) {
@@ -247,7 +256,18 @@ export default async function VolunteerDashboard() {
   }
 
   // Fetch upcoming signups
-  const { data: signupData, error: signupsError } = await supabase
+  type SignupRow = {
+    id: string;
+    project_id: string;
+    schedule_id: string;
+    status: string;
+    projects:
+      | Pick<Project, "id" | "title" | "schedule" | "event_type">
+      | Pick<Project, "id" | "title" | "schedule" | "event_type">[]
+      | null;
+  };
+
+  const { data: signupData, error: signupsError } = (await supabase
     .from("project_signups")
     .select(`
       id,
@@ -262,7 +282,10 @@ export default async function VolunteerDashboard() {
       )
     `)
     .eq("user_id", user.id)
-    .in("status", ["approved", "pending"]); // Fetch approved and pending
+    .in("status", ["approved", "pending"])) as {
+    data: SignupRow[] | null;
+    error: { message?: string } | null;
+  }; // Fetch approved and pending
 
   if (signupsError) {
     console.error("Error fetching upcoming signups:", signupsError);
@@ -270,7 +293,7 @@ export default async function VolunteerDashboard() {
   }
 
   // Fetch certificates for the dashboard (modified)
-  const { data: certificatesData, error: certificatesErrorFetch } = await supabase
+  const { error: certificatesErrorFetch } = (await supabase
     .from("certificates")
     .select(`
       *,
@@ -279,7 +302,7 @@ export default async function VolunteerDashboard() {
       )
     `)
     .eq("volunteer_email", user.email) // Assuming you fetch by email
-    .order("issued_at", { ascending: false }); // Sort by most recent
+    .order("issued_at", { ascending: false })) as { error: { message?: string } | null }; // Sort by most recent
 
   if (certificatesErrorFetch) {
     console.error("Error fetching certificates:", certificatesErrorFetch);
