@@ -404,12 +404,12 @@ function ComparisonRow({ feature, index }: { feature: ComparisonFeature; index: 
             <feature.icon className="h-3 w-3 sm:h-4 sm:w-4" />
           </div>
           <div className="min-w-0">
-            <p className={`text-xs sm:text-sm font-medium leading-tight ${feature.highlight ? "text-primary" : "text-foreground"}`}>
-              {feature.name}
+            <div className={`flex flex-wrap items-center gap-1.5 text-xs sm:text-sm font-medium leading-tight ${feature.highlight ? "text-primary" : "text-foreground"}`}>
+              <span>{feature.name}</span>
               {feature.highlight && (
-                <Badge variant="outline" className="ml-1.5 sm:ml-2 text-[8px] sm:text-[10px] py-0 px-1 sm:px-1.5 border-primary/30 text-primary">Key</Badge>
+                <Badge variant="outline" className="text-[8px] sm:text-[10px] py-0 px-1 sm:px-1.5 border-primary/30 text-primary">Key</Badge>
               )}
-            </p>
+            </div>
             <p className="text-[10px] sm:text-xs text-muted-foreground hidden sm:block truncate">{feature.description}</p>
           </div>
         </div>

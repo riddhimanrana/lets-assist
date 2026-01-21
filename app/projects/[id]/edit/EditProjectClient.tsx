@@ -2,7 +2,7 @@
 
 import { Project, ProjectSchedule, RecurrenceFrequency, RecurrenceEndType, RecurrenceWeekday } from "@/types";
 import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { cn, stripHtml } from "@/lib/utils";
 import {
   Card,
@@ -51,6 +51,7 @@ import {
   FileText,
   File,
   FileImage,
+  Download,
   Eye,
   ImageIcon,
   X
@@ -59,7 +60,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { toast } from "sonner";
-import { updateProject, deleteProject, updateProjectStatus } from "../actions";
+import { updateProject, deleteProject, updateProjectStatus, uploadProjectWaiverPdf, removeProjectWaiverPdf } from "../actions";
 import LocationAutocomplete from "@/components/ui/location-autocomplete";
 import {
   AlertDialog,
@@ -99,6 +100,7 @@ const DESCRIPTION_LIMIT = 2000;
 const MAX_COVER_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
 const MAX_DOCUMENT_SIZE = 10 * 1024 * 1024; // 10MB
 const MAX_DOCUMENTS_COUNT = 5;
+const MAX_WAIVER_PDF_SIZE = 10 * 1024 * 1024; // 10MB
 
 // Allowed file types
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/jpg"];
@@ -268,6 +270,10 @@ export default function EditProjectClient({ project }: Props) {
   const [_dragActive, _setDragActive] = useState<"cover" | "docs" | null>(null);
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const [totalDocumentsSize, setTotalDocumentsSize] = useState<number>(0);
+  const [waiverPdfUploading, setWaiverPdfUploading] = useState(false);
+  const [waiverPdfError, setWaiverPdfError] = useState<string | null>(null);
+  const [waiverPdfValidation, setWaiverPdfValidation] = useState<{ hasSignatureFields: boolean; warnings: string[] } | null>(null);
+  const waiverPdfInputRef = useRef<HTMLInputElement | null>(null);
 
   const getCounterColor = (current: number, max: number) => {
     const percentage = (current / max) * 100;
@@ -486,6 +492,52 @@ export default function EditProjectClient({ project }: Props) {
     return true;
   };
 
+  const validateWaiverPdf = async (file: File) => {
+    setWaiverPdfError(null);
+
+    if (file.type !== "application/pdf") {
+      setWaiverPdfError("Please upload a PDF file.");
+      return null;
+    }
+
+    if (file.size > MAX_WAIVER_PDF_SIZE) {
+      setWaiverPdfError(`File size must be less than ${formatBytes(MAX_WAIVER_PDF_SIZE)}.`);
+      return null;
+    }
+
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const bytes = new Uint8Array(arrayBuffer);
+      const header = String.fromCharCode(...bytes.slice(0, 5));
+
+      if (header !== "%PDF-") {
+        setWaiverPdfError("Invalid PDF file.");
+        return null;
+      }
+
+      const pdfText = new TextDecoder("latin1").decode(bytes);
+      const hasSignatureFields =
+        pdfText.includes("/Sig") ||
+        pdfText.includes("/AcroForm") ||
+        pdfText.includes("/SigFlags") ||
+        pdfText.includes("signature") ||
+        pdfText.includes("/Widget");
+
+      const warnings: string[] = [];
+      if (!hasSignatureFields) {
+        warnings.push("No signature fields detected. Volunteers will sign electronically alongside the PDF.");
+      }
+
+      const validation = { hasSignatureFields, warnings };
+      setWaiverPdfValidation(validation);
+      return validation;
+    } catch (error) {
+      console.error("Error validating waiver PDF:", error);
+      setWaiverPdfError("Error reading PDF file. Please try again.");
+      return null;
+    }
+  };
+
   const handleCoverImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
@@ -627,6 +679,67 @@ export default function EditProjectClient({ project }: Props) {
       toast.error("Failed to upload documents");
     } finally {
       setUploadingDocuments(false);
+    }
+  };
+
+  const handleWaiverPdfUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const validation = await validateWaiverPdf(file);
+    if (!validation) return;
+
+    setWaiverPdfUploading(true);
+    const loadingToast = toast.loading("Uploading waiver PDF...");
+
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(new Error("Failed to read file"));
+        reader.readAsDataURL(file);
+      });
+
+      const result = await uploadProjectWaiverPdf(project.id, dataUrl, file.name);
+      if (result.error) {
+        throw new Error(result.error);
+      }
+
+      toast.dismiss(loadingToast);
+      toast.success("Waiver PDF uploaded successfully");
+      router.refresh();
+    } catch (error) {
+      console.error("Upload waiver PDF error:", error);
+      toast.dismiss(loadingToast);
+      toast.error("Failed to upload waiver PDF");
+    } finally {
+      setWaiverPdfUploading(false);
+      if (waiverPdfInputRef.current) {
+        waiverPdfInputRef.current.value = "";
+      }
+    }
+  };
+
+  const handleRemoveWaiverPdf = async () => {
+    setWaiverPdfUploading(true);
+    const loadingToast = toast.loading("Removing waiver PDF...");
+
+    try {
+      const result = await removeProjectWaiverPdf(project.id);
+      if (result.error) {
+        throw new Error(result.error);
+      }
+
+      toast.dismiss(loadingToast);
+      toast.success("Waiver PDF removed");
+      setWaiverPdfValidation(null);
+      router.refresh();
+    } catch (error) {
+      console.error("Remove waiver PDF error:", error);
+      toast.dismiss(loadingToast);
+      toast.error("Failed to remove waiver PDF");
+    } finally {
+      setWaiverPdfUploading(false);
     }
   };
 
@@ -942,7 +1055,7 @@ export default function EditProjectClient({ project }: Props) {
                     <div className="space-y-0.5">
                       <FormLabel>Require Waiver Signature</FormLabel>
                       <CardDescription>
-                        Volunteers must sign the global waiver before signing up.
+                        Volunteers must sign your waiver PDF or the global template before signing up.
                       </CardDescription>
                     </div>
                     <FormControl>
@@ -976,6 +1089,117 @@ export default function EditProjectClient({ project }: Props) {
                   </FormItem>
                 )}
               />
+
+              {waiverRequired && (
+                <div className="rounded-lg border p-4 space-y-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <FormLabel>Project Waiver PDF</FormLabel>
+                      <CardDescription>
+                        Upload a PDF waiver to show volunteers during signup.
+                      </CardDescription>
+                    </div>
+                    {project.waiver_pdf_url && (
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openPreview(project.waiver_pdf_url!, "Waiver PDF", "application/pdf")}
+                        >
+                          <Eye className="h-4 w-4 mr-1" />
+                          Preview
+                        </Button>
+                        <Button type="button" variant="outline" size="sm" asChild>
+                          <a href={project.waiver_pdf_url} download>
+                            <Download className="h-4 w-4 mr-1" />
+                            Download
+                          </a>
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          onClick={handleRemoveWaiverPdf}
+                          disabled={waiverPdfUploading}
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+
+                  <input
+                    ref={waiverPdfInputRef}
+                    type="file"
+                    accept="application/pdf"
+                    className="hidden"
+                    onChange={handleWaiverPdfUpload}
+                    disabled={waiverPdfUploading}
+                  />
+
+                  {!project.waiver_pdf_url ? (
+                    <div
+                      className={cn(
+                        "border-2 border-dashed rounded-lg p-4 text-center cursor-pointer hover:border-primary/50 transition-colors",
+                        waiverPdfUploading && "opacity-50 pointer-events-none"
+                      )}
+                      onClick={() => waiverPdfInputRef.current?.click()}
+                    >
+                      <div className="flex flex-col items-center gap-2">
+                        {waiverPdfUploading ? (
+                          <Loader2 className="h-8 w-8 text-muted-foreground animate-spin" />
+                        ) : (
+                          <Upload className="h-8 w-8 text-muted-foreground" />
+                        )}
+                        <p className="text-sm font-medium">
+                          {waiverPdfUploading ? "Uploading waiver..." : "Click to upload waiver PDF"}
+                        </p>
+                        <p className="text-xs text-muted-foreground">Max size: {formatBytes(MAX_WAIVER_PDF_SIZE)}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => waiverPdfInputRef.current?.click()}
+                      disabled={waiverPdfUploading}
+                    >
+                      Replace PDF
+                    </Button>
+                  )}
+
+                  {waiverPdfError && (
+                    <div className="text-sm text-destructive flex items-center gap-2">
+                      <AlertTriangle className="h-4 w-4" />
+                      {waiverPdfError}
+                    </div>
+                  )}
+
+                  {waiverPdfValidation && (
+                    <Alert className={cn(
+                      waiverPdfValidation.hasSignatureFields
+                        ? "border-green-200 bg-green-50 dark:bg-green-950/20"
+                        : "border-amber-200 bg-amber-50 dark:bg-amber-950/20"
+                    )}>
+                      <AlertDescription className="text-xs">
+                        {waiverPdfValidation.hasSignatureFields
+                          ? "Signature fields detected. Volunteers can sign directly on the PDF."
+                          : waiverPdfValidation.warnings.join(" ")}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  {!project.waiver_pdf_url && (
+                    <Alert className="bg-blue-50 border-blue-200 dark:bg-blue-950/20 dark:border-blue-900">
+                      <AlertDescription className="text-xs text-blue-700 dark:text-blue-400">
+                        If you don&apos;t upload a custom waiver, the global platform waiver template will be used instead.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </div>
+              )}
 
               <FormField
                 control={form.control}
@@ -1213,7 +1437,7 @@ export default function EditProjectClient({ project }: Props) {
                       <div>
                         <h4 className="font-medium text-sm">Supporting Documents</h4>
                         <p className="text-xs text-muted-foreground mt-1">
-                          Upload permission slips, waivers, instructions (PDF, Word, Text, Images)
+                          Upload non-waiver materials like instructions or reference docs (PDF, Word, Text, Images)
                         </p>
                       </div>
                       <div className="text-xs text-muted-foreground text-right">

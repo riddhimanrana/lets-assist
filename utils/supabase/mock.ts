@@ -67,6 +67,7 @@ type MockQueryBuilder = {
   limit: () => MockQueryBuilder;
   single: () => SupabaseResult<Record<string, unknown> | null>;
   maybeSingle: () => SupabaseResult<Record<string, unknown> | null>;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   returns: <T>() => MockQueryBuilder;
   then: SupabaseResult<Record<string, unknown>[]>["then"];
 };
@@ -108,6 +109,7 @@ const createQueryBuilder = (table: string): MockQueryBuilder => {
     limit: () => builder,
     single: async () => resolved(currentRows[0] ?? null),
     maybeSingle: async () => resolved(currentRows[0] ?? null),
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     returns: <T>() => builder,
     then: (onfulfilled, onrejected) => resolved(currentRows).then(onfulfilled, onrejected),
   };
