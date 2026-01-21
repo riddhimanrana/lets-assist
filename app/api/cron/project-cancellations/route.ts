@@ -319,7 +319,6 @@ async function processPendingJobs() {
 
   const results = [];
   for (const job of (jobs ?? []) as CancellationJobRow[]) {
-    // eslint-disable-next-line no-await-in-loop
     const res = await processOneJob(job);
     results.push(res);
   }

@@ -159,6 +159,7 @@ describeWithDb('Staff Invite Link Flow', () => {
 
   describe('Organization Member Addition', () => {
     it('should verify organization_members table accepts staff role', async () => {
+      type ConstraintRow = { check_clause?: string | null };
       // Check that the role constraint includes 'staff'
       const { data: constraints } = await adminClient.rpc('exec_sql', {
         query: `
@@ -169,7 +170,7 @@ describeWithDb('Staff Invite Link Flow', () => {
       }).select('*');
 
       // The constraint should allow 'admin', 'staff', 'member'
-      const hasStaffRole = constraints?.some((c: any) => 
+      const hasStaffRole = (constraints as ConstraintRow[] | null)?.some((c) => 
         c.check_clause?.includes("'staff'")
       );
       
@@ -178,6 +179,7 @@ describeWithDb('Staff Invite Link Flow', () => {
     });
 
     it('should have correct foreign key relationships', async () => {
+      type ForeignKeyRow = { foreign_table_name?: string | null; column_name?: string | null };
       const { data: fks } = await adminClient.rpc('exec_sql', {
         query: `
           SELECT 
@@ -199,10 +201,10 @@ describeWithDb('Staff Invite Link Flow', () => {
       expect(fks?.length).toBeGreaterThan(0);
       
       // Should have FK to organizations and users
-      const hasOrgFk = fks?.some((fk: any) => 
+      const hasOrgFk = (fks as ForeignKeyRow[] | null)?.some((fk) => 
         fk.foreign_table_name === 'organizations'
       );
-      const hasUserFk = fks?.some((fk: any) => 
+      const hasUserFk = (fks as ForeignKeyRow[] | null)?.some((fk) => 
         fk.foreign_table_name === 'users' || fk.column_name === 'user_id'
       );
       

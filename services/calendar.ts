@@ -9,9 +9,6 @@ import { encrypt, decrypt } from "@/lib/encryption";
 import {
   Project,
   CalendarConnection,
-  OneTimeSchedule,
-  MultiDayScheduleDay,
-  SameDayMultiAreaSchedule,
 } from "@/types";
 
 // Google Calendar API endpoints
@@ -224,7 +221,7 @@ async function getValidAccessToken(
  * Parse date and time into ISO 8601 format for a specific timezone
  * Creates a properly formatted datetime for Google Calendar API
  */
-function parseDateTime(dateStr: string, timeStr: string, timezone: string): string {
+function parseDateTime(dateStr: string, timeStr: string, _timezone: string): string {
   // Create date string in format that will be interpreted as the specified timezone
   // e.g., "2025-10-04T14:30:00" 
   const dateTimeStr = `${dateStr}T${timeStr}:00`;
@@ -278,7 +275,7 @@ function formatProjectToCalendarEvent(
   if (project.event_type === "multiDay" && project.schedule.multiDay) {
     const events: GoogleCalendarEvent[] = [];
 
-    project.schedule.multiDay.forEach((day, dayIndex) => {
+    project.schedule.multiDay.forEach((day, _dayIndex) => {
       day.slots.forEach((slot, slotIndex) => {
         const currentScheduleId = `${day.date}-${slotIndex}`;
         

@@ -18,7 +18,6 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
 import { Button } from "@/components/ui/button"; 
@@ -31,11 +30,16 @@ import { ProjectStatusBadge } from "@/components/ui/status-badge";
 import { getProjectStatus } from "@/utils/project";
 import ReportsTab from "@/app/organization/[id]/ReportsTab";
 import { cn } from "@/lib/utils";
+import type { Organization, Project } from "@/types";
+
+type OrganizationMember = {
+  role: "admin" | "staff" | "member";
+};
 
 interface OrganizationTabsProps {
-  organization: any;
-  members: any[];
-  projects: any[];
+  organization: Organization;
+  members: OrganizationMember[];
+  projects: Project[];
   userRole: string | null;
   currentUserId: string | undefined;
   reportSummary?: {
@@ -50,7 +54,7 @@ function LeaveOrganizationDialog({
   organization, 
   userRole 
 }: { 
-  organization: any;
+  organization: Organization;
   userRole: string;
 }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -138,11 +142,6 @@ export default function OrganizationTabs({
   reportSummary,
 }: OrganizationTabsProps) {
   const [activeTab, setActiveTab] = useState("overview");
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -191,8 +190,6 @@ export default function OrganizationTabs({
   // but better to just use them directly if projects are static
   const upcomingProjects = projects.filter(p => getProjectStatus(p) === "upcoming").length;
   const completedProjects = projects.filter(p => getProjectStatus(p) === "completed").length;
-  const adminCount = members.filter(m => m.role === "admin").length;
-  const staffCount = members.filter(m => m.role === "staff").length;
   const canViewReports = userRole === "admin" || userRole === "staff";
 
   return (

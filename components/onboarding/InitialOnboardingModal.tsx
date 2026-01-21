@@ -8,7 +8,6 @@ import {
   DialogContent,
   DialogDescription,
   DialogFooter,
-  DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import Image from "next/image";
@@ -26,14 +25,14 @@ import { initialOnboardingSchema, InitialOnboardingValues } from "@/schemas/onbo
 import { useState, useEffect } from "react";
 import { completeInitialOnboarding } from "./onboarding-actions";
 import { toast } from "sonner";
-import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
-import { CircleCheck, XCircle, Sparkles, Building2, ArrowRight, Loader2 } from "lucide-react";
+import { CircleCheck, XCircle, Building2, ArrowRight, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 // Constants for validation
-const USERNAME_MIN_LENGTH = 3;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const _USERNAME_MIN_LENGTH = 3;
 const USERNAME_MAX_LENGTH = 32;
 const PHONE_LENGTH = 10;
 

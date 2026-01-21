@@ -14,9 +14,15 @@
  * With localStorage: Reduces /auth/v1/user calls on page reload by ~60%
  */
 
-import type { SupabaseClient, User } from '@supabase/supabase-js';
+import type { User } from '@supabase/supabase-js';
 
-const STORAGE_KEY = '__auth_cache_v1';
+type SupabaseClientLike = {
+  auth: {
+    getSession: () => Promise<{ data: { session: { user: User } | null } }>;
+    getUser: () => Promise<{ data: { user: User | null }; error: Error | null }>;
+  };
+};
+
 const STORAGE_TIMESTAMP_KEY = '__auth_cache_ts_v1';
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes - refresh cache if older than this
 
@@ -36,7 +42,7 @@ let cacheInitialized = false;
  * Subscribers to cache changes
  * When cache is updated, all subscribers are notified
  */
-let cacheSubscribers: Set<(user: User | null) => void> = new Set();
+const cacheSubscribers: Set<(user: User | null) => void> = new Set();
 
 /**
  * Promise-sharing mechanism for concurrent getUser() calls
@@ -167,7 +173,7 @@ export function initAuthContext(): void {
  * const user3 = await getOrFetchUser(supabase); // Awaits same promise
  * // Result: 3 components get user data from 1 API call
  */
-export async function getOrFetchUser(supabase: SupabaseClient): Promise<User | null> {
+export async function getOrFetchUser(supabase: SupabaseClientLike): Promise<User | null> {
   // If a fetch is already in-flight, return the existing promise
   // This is the core deduplication mechanism
   if (userFetchPromise) {
@@ -310,7 +316,7 @@ export function clearAuthCache(): void {
  * await updateProfile(...);
  * const freshUser = await refreshUser(supabase);
  */
-export async function refreshUser(supabase: SupabaseClient): Promise<User | null> {
+export async function refreshUser(supabase: SupabaseClientLike): Promise<User | null> {
   if (process.env.NODE_ENV === 'development') {
     console.log('[Auth Context] Forcing user refresh');
   }
@@ -459,7 +465,7 @@ export async function initializeUserProfileCache(userId: string): Promise<void> 
   }
 }
 
-export async function requireUser(supabase: SupabaseClient): Promise<User> {
+export async function requireUser(supabase: SupabaseClientLike): Promise<User> {
   const cached = getCachedUser();
   if (cached) {
     return cached;

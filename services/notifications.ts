@@ -13,14 +13,11 @@ export interface NotificationData {
   type: NotificationType;
   severity?: NotificationSeverity; // Add severity field
   actionUrl?: string;
-  data?: Record<string, any>;
+  data?: Record<string, unknown>;
 }
 
-// Keep track of notifications we've created to avoid duplicates
-const createdNotificationIds = new Set<string>();
-
 export const NotificationService = {
-  async createNotification(notification: NotificationData, userId: string, showToast = false) {
+  async createNotification(notification: NotificationData, userId: string, _showToast = false) {
     const supabase = createClient();
     
     // Set default severity to 'info' if not specified
@@ -36,7 +33,7 @@ export const NotificationService = {
           email_notifications: boolean;
           project_updates: boolean;
           general?: boolean;
-          [key: string]: any;
+          [key: string]: boolean | undefined;
         }
         // Get user's notification preferences as a single object
         const { data: preferences, error: prefsError } = await supabase

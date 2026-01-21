@@ -1,12 +1,10 @@
 import { createClient } from "@/utils/supabase/server";
-import { cookies } from "next/headers";
 import { Metadata } from "next";
 import { AttendanceClient } from "./AttendanceClient";
 import { getProject } from "../actions";
 import { addHours, isBefore } from "date-fns";
 
 async function checkAttendanceAvailability(projectId: string) {
-  const cookieStore = cookies();
   const supabase = await createClient();
   
   const { data: project } = await supabase

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, Mail, Menu, MessageSquare, ShieldAlert, Users } from "lucide-react";
+import { LayoutDashboard, Menu, MessageSquare, ShieldAlert, Users } from "lucide-react";
 import {
   Sheet,
   SheetClose,

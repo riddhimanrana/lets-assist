@@ -3,7 +3,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
 import { v4 as uuidv4 } from "uuid";
-import { cookies } from "next/headers";
+import type { EventFormState } from "@/hooks/use-event-form";
 
 // File size and type validation constants
 const MAX_COVER_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -20,7 +20,8 @@ const ALLOWED_DOCUMENT_TYPES = [
 ];
 
 // Helper function to check if date/time is in the past, using user's local time
-const isDateTimeInPast = (date: string, time: string, userNow: Date): boolean => {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const _isDateTimeInPast = (date: string, time: string, userNow: Date): boolean => {
   const [hours, minutes] = time.split(':').map(Number);
   const [year, month, day] = date.split('-').map(Number);
 
@@ -31,9 +32,10 @@ const isDateTimeInPast = (date: string, time: string, userNow: Date): boolean =>
 };
 
 // Create project without files first
-export async function createBasicProject(projectData: any, isDraft: boolean = false) {
-  // Get user's current local time from projectData
-  const userNow = projectData.userNow ? new Date(projectData.userNow) : new Date();
+export async function createBasicProject(
+  projectData: EventFormState & { userNow?: string },
+  isDraft: boolean = false
+) {
 
   // Validate that all dates and times are in the future (using user's local time)
   // if (projectData.eventType === "oneTime") {
@@ -144,7 +146,7 @@ export async function createBasicProject(projectData: any, isDraft: boolean = fa
     }
     else if (projectData.eventType === "multiDay" && projectData.schedule.multiDay) {
       // For multi-day events, create keys for each day and slot combination
-      projectData.schedule.multiDay.forEach((day: { date: string; slots: { startTime: string; endTime: string; }[] }, dayIndex: number) => {
+      projectData.schedule.multiDay.forEach((day: { date: string; slots: { startTime: string; endTime: string; }[] }, _dayIndex: number) => {
         day.slots.forEach((slot: { startTime: string; endTime: string }, slotIndex: number) => {
           // Format: "2025-04-28-0" (date-slotIndex)
           const sessionKey = `${day.date}-${slotIndex}`;
@@ -476,7 +478,7 @@ export async function createProject(formData: FormData) {
 // Save project as draft - with relaxed validation
 // Auto-save draft to database (creates or updates existing autosave draft)
 // Always updates the same "autosave" draft for continuous work
-export async function autoSaveDraft(projectData: any, autosaveDraftId?: string) {
+export async function autoSaveDraft(projectData: Partial<EventFormState>, autosaveDraftId?: string) {
   try {
     const supabase = await createClient();
 
@@ -664,7 +666,7 @@ export async function publishDraft(draftId: string) {
 }
 
 // Update an existing draft project
-export async function updateDraft(projectId: string, projectData: any) {
+export async function updateDraft(projectId: string, projectData: Partial<EventFormState>) {
   const supabase = await createClient();
 
   const {

@@ -1,7 +1,6 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { HoverGradientButton } from "./effects/HoverGradientButton";
 import { HeartHandshake } from "lucide-react";
 import { motion } from "framer-motion";
 import Link from "next/link";

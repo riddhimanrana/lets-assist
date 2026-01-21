@@ -71,4 +71,5 @@ export interface Project {
   recurrence_rule?: RecurrenceRule;
   recurrence_parent_id?: string;
   recurrence_sequence?: number;
+  restrict_to_org_domains?: boolean;
 }

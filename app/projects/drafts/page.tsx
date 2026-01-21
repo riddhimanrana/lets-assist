@@ -2,6 +2,7 @@ import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import DraftsClient from "./DraftsClient";
 import type { ProjectSchedule, EventType } from "@/types";
+import type { EventFormState } from "@/hooks/use-event-form";
 
 export const metadata = {
   title: "My Drafts | Let's Assist",
@@ -25,6 +26,13 @@ interface Draft {
   } | null;
 }
 
+type DraftRow = {
+  id: string;
+  title: string | null;
+  draft_data?: Partial<EventFormState> | null;
+  created_at: string;
+};
+
 export default async function DraftsPage() {
   const supabase = await createClient();
   
@@ -46,7 +54,7 @@ export default async function DraftsPage() {
   }
 
   // Transform project_drafts to match the Draft interface
-  const drafts: Draft[] = (projectDrafts || []).map((draft: any) => ({
+  const drafts: Draft[] = (projectDrafts || []).map((draft: DraftRow) => ({
     id: draft.id,
     title: draft.draft_data?.basicInfo?.title || draft.title || "Untitled",
     description: draft.draft_data?.basicInfo?.description || "",

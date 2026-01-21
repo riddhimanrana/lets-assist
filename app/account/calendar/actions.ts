@@ -55,18 +55,18 @@ export async function getSyncedEventsCount() {
 
   try {
     // Count creator projects with synced events
-    const { count: creatorCount } = await supabase
-      .from("projects")
-      .select("*", { count: "exact", head: true })
-      .eq("creator_id", user.id)
-      .not("creator_calendar_event_id", "is", null);
+      const { count: creatorCount } = (await supabase
+        .from("projects")
+        .select("*", { count: "exact", head: true })
+        .eq("creator_id", user.id)
+        .not("creator_calendar_event_id", "is", null)) as { count: number | null };
 
     // Count volunteer signups with synced events
-    const { count: volunteerCount } = await supabase
+    const { count: volunteerCount } = (await supabase
       .from("project_signups")
       .select("*", { count: "exact", head: true })
       .eq("user_id", user.id)
-      .not("volunteer_calendar_event_id", "is", null);
+      .not("volunteer_calendar_event_id", "is", null)) as { count: number | null };
 
     return {
       success: true,

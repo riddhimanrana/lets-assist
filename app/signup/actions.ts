@@ -3,7 +3,6 @@
 import { z } from "zod";
 import { createClient } from "@/utils/supabase/server";
 import { createAdminClient } from "@/utils/supabase/admin";
-import { verifyTurnstileToken, isTurnstileEnabled } from "@/lib/turnstile";
 import { randomUUID } from "crypto";
 
 const signupSchema = z.object({
@@ -151,7 +150,19 @@ export async function signup(formData: FormData) {
     }
     
     // Pass the CAPTCHA token to Supabase - it will handle verification
-    const signUpOptions: any = {
+    const signUpOptions: {
+      email: string;
+      password: string;
+      options: {
+        data: {
+          full_name: string;
+          username: string;
+          created_at: string;
+        };
+        emailRedirectTo: string;
+        captchaToken?: string;
+      };
+    } = {
       email: validatedFields.data.email,
       password: validatedFields.data.password,
       options: {

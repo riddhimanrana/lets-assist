@@ -54,6 +54,39 @@ type ReportMetrics = {
   totalProjects: number;
 };
 
+type ProjectRow = {
+  id: string;
+  title: string;
+  status: string | null;
+  created_at?: string | null;
+};
+
+type CertificateRow = {
+  id: string;
+  user_id?: string | null;
+  volunteer_name?: string | null;
+  volunteer_email?: string | null;
+  is_certified: boolean;
+  issued_at: string;
+  project_id?: string | null;
+  project_title?: string | null;
+  event_start?: string | null;
+  event_end?: string | null;
+  signup_id?: string | null;
+};
+
+type SignupRow = {
+  id: string;
+  user_id?: string | null;
+  anonymous_id?: string | null;
+  check_in_time?: string | null;
+  check_out_time?: string | null;
+  project_id?: string | null;
+  schedule_id?: string | null;
+  profiles?: { id: string; full_name?: string | null; email?: string | null } | { id: string; full_name?: string | null; email?: string | null }[] | null;
+  anonymous_signup?: { id: string; name?: string | null; email?: string | null } | { id: string; name?: string | null; email?: string | null }[] | null;
+};
+
 export type OrganizationReportData = {
   metrics: ReportMetrics;
   volunteers: VolunteerSummary[];
@@ -122,16 +155,20 @@ async function buildReportDataForOrg(
   dateRange?: ReportDateRange
 ): Promise<{ data?: OrganizationReportData; error?: string }> {
   try {
-    const { data: projects, error: projectsError } = await supabase
+    const { data: projects, error: projectsError } = (await supabase
       .from("projects")
       .select("id, title, status, created_at")
-      .eq("organization_id", organizationId);
+      .eq("organization_id", organizationId)) as {
+      data: ProjectRow[] | null;
+      error: { message: string } | null;
+    };
 
     if (projectsError) {
       return { error: "Failed to load projects" };
     }
 
-    const projectIds = (projects || []).map((project) => project.id);
+    const projectList = projects || [];
+    const projectIds = projectList.map((project) => project.id);
     if (projectIds.length === 0) {
       return {
         data: {
@@ -162,7 +199,10 @@ async function buildReportDataForOrg(
 
     certificatesQuery = applyDateRange(certificatesQuery, "issued_at", dateRange);
 
-    const { data: certificates, error: certificatesError } = await certificatesQuery;
+    const { data: certificates, error: certificatesError } = (await certificatesQuery) as {
+      data: CertificateRow[] | null;
+      error: { message: string } | null;
+    };
     if (certificatesError) {
       console.error("Failed to fetch certificates:", certificatesError);
       return { error: "Failed to load certificate hours" };
@@ -181,7 +221,10 @@ async function buildReportDataForOrg(
 
     attendanceQuery = applyDateRange(attendanceQuery, "check_in_time", dateRange);
 
-    const { data: signups, error: attendanceError } = await attendanceQuery;
+    const { data: signups, error: attendanceError } = (await attendanceQuery) as {
+      data: SignupRow[] | null;
+      error: { message: string } | null;
+    };
     if (attendanceError) {
       console.error("Failed to fetch attendance:", attendanceError);
       return { error: "Failed to load attendance hours" };
@@ -202,7 +245,7 @@ async function buildReportDataForOrg(
     const projectMap = new Map<string, ProjectSummary>();
     const projectVolunteerMap = new Map<string, Set<string>>();
 
-    (projects || []).forEach((project) => {
+    projectList.forEach((project) => {
       projectMap.set(project.id, {
         id: project.id,
         title: project.title,
@@ -338,7 +381,10 @@ async function buildReportDataForOrg(
       volunteer.totalHours += hours;
       volunteer.attendanceHours += hours;
       volunteer.eventsAttended += 1;
-      if (!volunteer.lastActivity || signup.check_out_time > volunteer.lastActivity) {
+      if (
+        signup.check_out_time &&
+        (!volunteer.lastActivity || signup.check_out_time > volunteer.lastActivity)
+      ) {
         volunteer.lastActivity = signup.check_out_time;
       }
 
@@ -396,7 +442,7 @@ async function buildReportDataForOrg(
       pendingHours: roundHours(pendingHours),
       attendanceHours: roundHours(attendanceHours),
       totalHours: roundHours(verifiedHours + pendingHours + attendanceHours),
-      totalProjects: projects.length,
+      totalProjects: projectList.length,
     };
 
     return {

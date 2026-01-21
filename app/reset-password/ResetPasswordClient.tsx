@@ -41,7 +41,6 @@ interface ResetPasswordClientProps {
 export default function ResetPasswordClient({ error }: ResetPasswordClientProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
-  const [turnstileVerified, setTurnstileVerified] = useState(false);
   const turnstileRef = useRef<TurnstileRef>(null);
   const [turnstileReady, setTurnstileReady] = useState(false);
 
@@ -84,7 +83,6 @@ export default function ResetPasswordClient({ error }: ResetPasswordClientProps)
     setIsLoading(false);
     // Reset Turnstile after submission
     turnstileRef.current?.reset();
-    setTurnstileVerified(false);
   }
 
   if (emailSent) {
@@ -167,15 +165,12 @@ export default function ResetPasswordClient({ error }: ResetPasswordClientProps)
                     ref={turnstileRef}
                     onLoad={() => setTurnstileReady(true)}
                     onVerify={(token) => {
-                      setTurnstileVerified(true);
                       form.setValue("turnstileToken", token);
                     }}
                     onError={() => {
-                      setTurnstileVerified(false);
                       toast.error("Security verification failed. Please try again.");
                     }}
                     onExpire={() => {
-                      setTurnstileVerified(false);
                       form.setValue("turnstileToken", "");
                     }}
                   />

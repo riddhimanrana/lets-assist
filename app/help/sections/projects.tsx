@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Clock, FileSpreadsheet, Timer, Upload, CheckCircle2 } from "lucide-react";
+import { Plus, Clock, FileSpreadsheet, Timer } from "lucide-react";
 import Link from "next/link";
 
 export function ProjectsSection() {

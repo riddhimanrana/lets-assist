@@ -1,14 +1,11 @@
 import { createClient } from "@/utils/supabase/server";
-import { cookies } from "next/headers";
 import { getProject, getCreatorProfile } from "./actions";
-import { redirect, notFound } from "next/navigation";
+import { notFound } from "next/navigation";
 import { getSlotCapacities } from "@/utils/project";
-import { getProjectStatus } from "@/utils/project";
 import ProjectUnauthorized from "./ProjectUnauthorized";
-// Make sure Signup type is imported
-import { Project, Signup } from "@/types";
+import { Signup } from "@/types";
 import VolunteerStatusCard from "@/app/projects/_components/VolunteerStatusCard";
-import ProjectClient from "./ProjectClient"; // Import the new client component
+import ProjectClient from "./ProjectClient";
 import { Metadata } from "next";
 
 export async function generateMetadata({

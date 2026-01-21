@@ -13,12 +13,15 @@ async function performConfirmation(anonymousSignupId: string, token: string): Pr
 
   try {
     // 1. Find the anonymous signup record using token and ID
-    const { data: anonSignup, error: findError } = await supabase
+    const { data: anonSignup, error: findError } = (await supabase
       .from("anonymous_signups")
       .select("id, confirmed_at, project_id")
       .eq("id", anonymousSignupId)
       .eq("token", token)
-      .maybeSingle();
+      .maybeSingle()) as {
+      data: { id: string; confirmed_at: string | null; project_id: string | null } | null;
+      error: { message?: string } | null;
+    };
 
     if (findError) {
       console.error("Error finding anonymous signup:", findError);
@@ -41,10 +44,10 @@ async function performConfirmation(anonymousSignupId: string, token: string): Pr
     const timestamp = new Date().toISOString(); // Store timestamp
     console.log(`Attempting to update confirmed_at for anonymous_signup ID: ${anonymousSignupId} with timestamp: ${timestamp}`); // Log before update
 
-    const { error: confirmError } = await supabase
+    const { error: confirmError } = (await supabase
       .from("anonymous_signups")
       .update({ confirmed_at: timestamp }) // Use stored timestamp
-      .eq("id", anonymousSignupId);
+      .eq("id", anonymousSignupId)) as { error: { message?: string } | null };
 
     console.log(`Update result for confirmed_at (ID: ${anonymousSignupId}):`, { confirmError }); // Log after update
 
@@ -54,12 +57,15 @@ async function performConfirmation(anonymousSignupId: string, token: string): Pr
     }
 
     // 4. Find the corresponding project_signup using anonymous_id
-    const { data: projectSignup, error: findProjectSignupError } = await supabase
+    const { data: projectSignup, error: findProjectSignupError } = (await supabase
       .from("project_signups")
       .select("id")
       .eq("anonymous_id", anonymousSignupId)
       .eq("status", "pending")
-      .maybeSingle();
+      .maybeSingle()) as {
+      data: { id: string } | null;
+      error: { message?: string } | null;
+    };
 
     if (findProjectSignupError) {
         console.error("Error finding project signup record:", findProjectSignupError);
@@ -72,10 +78,10 @@ async function performConfirmation(anonymousSignupId: string, token: string): Pr
     }
 
     // 5. Update project_signups: set status to 'approved'
-    const { error: statusError } = await supabase
+    const { error: statusError } = (await supabase
       .from("project_signups")
       .update({ status: "approved" })
-      .eq("id", projectSignup.id);
+      .eq("id", projectSignup.id)) as { error: { message?: string } | null };
 
     if (statusError) {
       console.error("Error updating project signup status:", statusError);

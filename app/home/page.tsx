@@ -1,5 +1,4 @@
 import React from "react";
-import { Card } from "@/components/ui/card";
 import { createClient } from "@/utils/supabase/server";
 import { EmailVerificationToast } from "@/components/auth/EmailVerificationToast";
 import { EmailConfirmationModal } from "@/components/auth/EmailConfirmationModal";

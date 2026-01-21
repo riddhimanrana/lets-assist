@@ -4,7 +4,6 @@ import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
 import { fromZonedTime } from "date-fns-tz";
 import type { Project } from "@/types";
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 /**
  * Checks in a user (registered or anonymous) by updating their signup record.
@@ -58,10 +57,10 @@ export async function checkInUser(signupId: string, userId?: string) {
     }
 
     // 3. Update the check_in_time and status (and default checkout time if available)
-    const { error: updateError } = await supabase
+    const { error: updateError } = (await supabase
       .from('project_signups')
       .update(updatePayload)
-      .eq('id', signupId);
+      .eq('id', signupId)) as { error: { message?: string } | null };
 
     if (updateError) {
       console.error("Error updating check-in time and status:", updateError);
@@ -102,6 +101,15 @@ export async function lookupEmailStatus(projectId: string, scheduleId: string, e
 
   try {
     // 0. Fetch project details for domain restrictions
+    type ProjectDomainRow = {
+      restrict_to_org_domains: boolean | null;
+      organization_id: string | null;
+      organizations?:
+        | { allowed_email_domains?: string[] | null }
+        | { allowed_email_domains?: string[] | null }[]
+        | null;
+    };
+
     const { data: projectData, error: projectError } = await supabase
       .from("projects")
       .select(`
@@ -116,9 +124,9 @@ export async function lookupEmailStatus(projectId: string, scheduleId: string, e
 
     let allowedDomains: string[] | null = null;
     if (!projectError && projectData?.restrict_to_org_domains && projectData.organization_id) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const org = projectData.organizations as any;
-      allowedDomains = (Array.isArray(org) ? org[0]?.allowed_email_domains : org?.allowed_email_domains) as string[] | null;
+      const org = (projectData as ProjectDomainRow).organizations;
+      const allowed = Array.isArray(org) ? org[0]?.allowed_email_domains : org?.allowed_email_domains;
+      allowedDomains = allowed ?? null;
     }
 
     // Helper to check domain
@@ -276,9 +284,10 @@ export async function lookupEmailStatus(projectId: string, scheduleId: string, e
         return { success: true, found: false, isRegistered: false, message: "No signup found for this email and session." };
       }
     }
-  } catch (error: any) {
+  } catch (error) {
     console.error("Unexpected error during email lookup:", error);
-    return { success: false, found: false, isRegistered: false, message: "An unexpected error occurred.", error: error.message };
+    const message = error instanceof Error ? error.message : "An unexpected error occurred.";
+    return { success: false, found: false, isRegistered: false, message: "An unexpected error occurred.", error: message };
   }
 }
 
@@ -301,7 +310,7 @@ export async function checkInAnonymous(projectId: string, scheduleId: string, em
   );
 
   // 1. Find anonymous_signups
-  let { data: anon, error: anonErr } = await supabase
+  const { data: anon, error: anonErr } = await supabase
     .from('anonymous_signups')
     .select('id, signup_id')
     .eq('email', lowerEmail)
@@ -318,7 +327,7 @@ export async function checkInAnonymous(projectId: string, scheduleId: string, em
   }
 
   // 2. Find project_signups for this anon and schedule
-  let { data: signup, error: signupErr } = await supabase
+  const { data: signup, error: signupErr } = await supabase
     .from('project_signups')
     .select('id, check_in_time, check_out_time, schedule_id, status')
     .eq('anonymous_id', anon.id)
@@ -353,11 +362,14 @@ export async function checkInAnonymous(projectId: string, scheduleId: string, em
         updatePayload.check_out_time = scheduledCheckoutIso;
       }
 
-      const { data: updateData, error: updateErr } = await supabase
+      const { data: updateData, error: updateErr } = (await supabase
         .from('project_signups')
         .update(updatePayload)
         .eq('id', signup.id)
-        .select(); // Get updated row for debugging
+        .select()) as {
+        data: Record<string, unknown>[] | null;
+        error: { message?: string } | null;
+      }; // Get updated row for debugging
 
       if (updateErr) {
         console.error('[checkInAnonymous] Error updating check-in:', updateErr);
@@ -374,7 +386,7 @@ export async function checkInAnonymous(projectId: string, scheduleId: string, em
   } else {
     // No signup for this session, update existing signup if possible
     // Try to find any signup for this anon/project (not schedule-specific)
-    let { data: anySignup, error: anySignupErr } = await supabase
+    const { data: anySignup, error: anySignupErr } = await supabase
       .from('project_signups')
       .select('id, schedule_id')
       .eq('anonymous_id', anon.id)
@@ -398,10 +410,10 @@ export async function checkInAnonymous(projectId: string, scheduleId: string, em
         updatePayload.check_out_time = scheduledCheckoutIso;
       }
 
-      const { error: updateErr } = await supabase
+      const { error: updateErr } = (await supabase
         .from('project_signups')
         .update(updatePayload)
-        .eq('id', anySignup.id);
+        .eq('id', anySignup.id)) as { error: { message?: string } | null };
 
       if (updateErr) {
         console.error('[checkInAnonymous] Error updating existing signup to new schedule:', updateErr);
@@ -473,10 +485,10 @@ export async function checkOutUser(signupId: string, overrideTime?: string) {
 
     const checkOutIso = checkOutDate.toISOString();
 
-    const { error: updateError } = await supabase
+    const { error: updateError } = (await supabase
       .from('project_signups')
       .update({ check_out_time: checkOutIso, status: 'attended' })
-      .eq('id', signupId);
+      .eq('id', signupId)) as { error: { message?: string } | null };
 
     if (updateError) {
       console.error('[checkOutUser] Error updating checkout time:', updateError);
@@ -498,7 +510,7 @@ export async function checkOutUser(signupId: string, overrideTime?: string) {
 type MinimalProject = Pick<Project, "event_type" | "schedule" | "project_timezone">;
 
 async function getScheduledCheckoutTime(
-  supabase: SupabaseClient,
+  supabase: Awaited<ReturnType<typeof createClient>>,
   projectId: string,
   scheduleId: string,
   fallbackDate: Date

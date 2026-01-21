@@ -1,12 +1,12 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
-import { canCancelProject, getProjectStatus, isProjectVisible } from "@/utils/project";
+import { canCancelProject, isProjectVisible } from "@/utils/project";
 import { revalidatePath } from "next/cache";
 import { ProjectStatus } from "@/types";
 // Make sure AnonymousSignup is imported from the correct types definition
-import { type Profile, type Project, type AnonymousSignupData, type ProjectSignup, type SignupStatus, type AnonymousSignup, type WaiverSignatureInput } from "@/types";
-import { cookies, headers } from "next/headers";
+import { type Project, type AnonymousSignupData, type ProjectSignup, type SignupStatus, type AnonymousSignup, type WaiverSignatureInput } from "@/types";
+import { headers } from "next/headers";
 import crypto from 'crypto';
 // Import centralized email service
 import { sendEmail } from '@/services/email';
@@ -178,7 +178,7 @@ export async function isProjectCreator(projectId: string) {
       .single();
 
     return project?.creator_id === user.id;
-  } catch (error) {
+  } catch {
     return false;
   }
 }
@@ -190,7 +190,7 @@ export async function getProject(projectId: string) {
   const { data: { user } } = await supabase.auth.getUser();
 
   // Fetch the project
-  const { data: project, error } = await supabase
+  const { data: project, error } = (await supabase
     .from("projects")
     .select(`
       *,
@@ -205,7 +205,10 @@ export async function getProject(projectId: string) {
       )
     `)
     .eq("id", projectId)
-    .single();
+    .single()) as {
+    data: Project | null;
+    error: { message: string } | null;
+  };
 
   if (error) {
     console.error("Error fetching project:", error);
@@ -228,10 +231,13 @@ export async function getProject(projectId: string) {
       }
 
       // Get user's organization memberships
-      const { data: userOrgs } = await supabase
+      const { data: userOrgs } = (await supabase
         .from("organization_members")
         .select("organization_id, role")
-        .eq("user_id", user.id);
+        .eq("user_id", user.id)) as {
+        data: { organization_id: string; role: string }[] | null;
+        error: { message: string } | null;
+      };
 
       // Check if user is a member of the project's organization
       const hasAccess = isProjectVisible(project, user.id, userOrgs || []);
@@ -581,7 +587,7 @@ async function persistWaiverSignature(params: {
   const serviceSupabase = getServiceRoleClient();
 
   // Check for project-specific waiver PDF first
-  const { data: project, error: projectError } = await serviceSupabase
+  const { data: project } = await serviceSupabase
     .from("projects")
     .select("waiver_pdf_url")
     .eq("id", params.projectId)
@@ -861,7 +867,7 @@ export async function signUpForProject(
         const slotIndexStr = parts.pop();
         const date = parts.join("-");
 
-        const day = project.schedule.multiDay.find((d: any) => d.date === date);
+        const day = project.schedule.multiDay.find((d) => d.date === date);
         if (day && slotIndexStr) {
           const slotIdx = parseInt(slotIndexStr, 10);
           if (!isNaN(slotIdx) && slotIdx >= 0 && slotIdx < day.slots.length) {
@@ -966,7 +972,7 @@ export async function signUpForProject(
 
           if (userProfile?.email) {
             // Get schedule details for email
-            const { date, time, timeRange } = getScheduleDetails(project, scheduleId);
+            const { date, timeRange } = getScheduleDetails(project, scheduleId);
             const projectUrl = `${siteUrl}/projects/${projectId}`;
 
             const { data: emailData, error: emailError } = await sendEmail({
@@ -1204,10 +1210,11 @@ export async function signUpForProject(
         return { error: "Waiver signature is required before completing signup." };
       }
 
+      const userMetadata = user?.user_metadata as { full_name?: string } | undefined;
       const signerName =
         (waiverSignature.signerName || "").trim() ||
         (anonymousData?.name || "").trim() ||
-        (user?.user_metadata?.full_name as string | undefined) ||
+        userMetadata?.full_name ||
         "Volunteer";
       const signerEmail =
         (user?.email || "").trim() ||
@@ -1525,7 +1532,11 @@ export async function updateProjectStatus(
   }
 
   // Update project status
-  const updateData: any = { status: newStatus };
+  const updateData: {
+    status: ProjectStatus;
+    cancelled_at?: string;
+    cancellation_reason?: string | null;
+  } = { status: newStatus };
   if (newStatus === "cancelled") {
     updateData.cancelled_at = new Date().toISOString();
     updateData.cancellation_reason = cancellationReason;
@@ -1657,8 +1668,8 @@ export async function deleteProject(projectId: string) {
   }
 
   // Delete project documents from storage if they exist
-  if (project.documents?.length > 0) {
-    const { data: storageData, error: storageError } = await supabase.storage
+  if ((project.documents?.length ?? 0) > 0) {
+    const { data: storageData } = await supabase.storage
       .from('project-documents')
       .list();
 
@@ -1815,7 +1826,7 @@ export async function getUserProfile() {
       .eq('id', user.id)
       .single();
 
-    if (profileError) {
+    if (profileError || !profile) {
       console.error('Error fetching profile:', profileError);
       return { error: "Failed to fetch profile" };
     }
@@ -1839,11 +1850,21 @@ export async function getWaiverDownloadUrl(signupId: string, anonymousSignupId?:
   try {
     const { data: { user } } = await supabase.auth.getUser();
 
+    type SignupForWaiver = {
+      id: string;
+      user_id: string | null;
+      anonymous_id: string | null;
+      project?: {
+        creator_id: string | null;
+        organization_id: string | null;
+      } | null;
+    };
+
     const { data: signup, error: signupError } = await supabase
       .from("project_signups")
       .select("id, user_id, anonymous_id, project:projects(creator_id, organization_id)")
       .eq("id", signupId)
-      .single() as any;
+      .single() as { data: SignupForWaiver | null; error: { message?: string } | null };
 
     if (signupError || !signup) {
       return { error: "Signup not found" };

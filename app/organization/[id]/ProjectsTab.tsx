@@ -8,15 +8,14 @@ import { format } from "date-fns";
 import { CalendarIcon, Clock, MapPin, Plus, Search, Calendar, CheckCircle2, AlertCircle, Clock3, LayoutGrid } from "lucide-react";
 import Link from "next/link";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import Image from "next/image";
-import { ProjectStatus } from "@/types";
+import { ProjectStatus, Project } from "@/types";
 import { ProjectStatusBadge } from "@/components/ui/status-badge";
-import { getProjectStatus } from "@/utils/project";
+import { getProjectStartDateTime, getProjectStatus } from "@/utils/project";
 import { useRouter } from "next/navigation";
 import { stripHtml } from "@/lib/utils";
 
 interface ProjectsTabProps {
-  projects: any[];
+  projects: Project[];
   userRole: string | null;
   organizationId: string;
 }
@@ -27,7 +26,7 @@ export default function ProjectsTab({
   organizationId,
 }: ProjectsTabProps) {
   const [searchTerm, setSearchTerm] = useState("");
-  const [filteredProjects, setFilteredProjects] = useState(projects);
+  const [filteredProjects, setFilteredProjects] = useState<Project[]>(projects);
   const [activeTab, setActiveTab] = useState<ProjectStatus | "all">("all");
   const router = useRouter();
 
@@ -58,12 +57,6 @@ export default function ProjectsTab({
     
     setFilteredProjects(result);
   }, [searchTerm, activeTab, projects]);
-
-  // Count projects by status
-  const upcomingCount = projects.filter(p => getProjectStatus(p) === "upcoming").length;
-  const inProgressCount = projects.filter(p => getProjectStatus(p) === "in-progress").length;
-  const completedCount = projects.filter(p => getProjectStatus(p) === "completed").length;
-  const cancelledCount = projects.filter(p => getProjectStatus(p) === "cancelled").length;
 
   const canCreateProjects = userRole === "admin" || userRole === "staff";
   
@@ -158,8 +151,15 @@ export default function ProjectsTab({
   );
 }
 
-function ProjectCard({ project }: { project: any }) {
+function ProjectCard({ project }: { project: Project }) {
   const currentStatus = getProjectStatus(project);
+  let startDateTime: Date | null = null;
+
+  try {
+    startDateTime = getProjectStartDateTime(project);
+  } catch {
+    startDateTime = null;
+  }
 
   return (
     <Link href={`/projects/${project.id}`}>
@@ -197,10 +197,10 @@ function ProjectCard({ project }: { project: any }) {
               <span>Created {format(new Date(project.created_at), "MMM d, yyyy")}</span>
             </div>
             
-            {project.event_start && (
+            {startDateTime && (
               <div className="flex items-center text-xs text-muted-foreground">
                 <Clock className="h-3 w-3 mr-1.5 flex-shrink-0" />
-                <span>{format(new Date(project.event_start), "MMM d, yyyy h:mm a")}</span>
+                <span>{format(startDateTime, "MMM d, yyyy h:mm a")}</span>
               </div>
             )}
           </div>

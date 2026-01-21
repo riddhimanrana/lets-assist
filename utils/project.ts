@@ -1,6 +1,6 @@
 import { Project, ProjectStatus } from "@/types";
 import { SupabaseClient } from "@supabase/supabase-js";
-import { differenceInHours, parseISO, isAfter, isBefore, isEqual, isPast, set } from "date-fns";
+import { parseISO, isAfter, isBefore, isEqual } from "date-fns";
 
 export const getProjectEventDate = (project: Project): Date => {
   switch (project.event_type) {
@@ -39,7 +39,6 @@ export const getProjectEndDate = (project: Project): Date => {
 
 // Get the earliest start time for any project type
 export const getProjectStartDateTime = (project: Project): Date => {
-  const now = new Date();
   
   switch (project.event_type) {
     case "oneTime": {
@@ -196,7 +195,7 @@ export const getProjectStatus = (project: Project): ProjectStatus => {
   return "upcoming";
 };
 
-export const canDeleteProject = (project: Project): boolean => {
+export const canDeleteProject = (_project: Project): boolean => {
   // No restrictions - allow deletion anytime
   return true;
 };
@@ -206,13 +205,9 @@ export const canCancelProject = (project: Project): boolean => {
   if (project.status === "cancelled" || project.status === "completed") {
     return false;
   }
-
-  const now = new Date();
-  const startDateTime = getProjectStartDateTime(project);
-  const hoursUntilStart = differenceInHours(startDateTime, now);
   
   // Can cancel up until the event starts
-  return true // temporarrily allow...basically cancellation is always allowed
+  return true; // temporarily allow...basically cancellation is always allowed
 };
 
 export const isProjectVisible = (
@@ -297,7 +292,7 @@ export async function getSlotCapacities(
     scheduleIds.push("oneTime");
     capacities["oneTime"] = project.schedule.oneTime.volunteers;
   } else if (project.event_type === "multiDay" && project.schedule.multiDay) {
-    project.schedule.multiDay.forEach((day, dayIndex) => {
+    project.schedule.multiDay.forEach((day, _dayIndex) => {
       day.slots.forEach((slot, slotIndex) => {
         const scheduleId = `${day.date}-${slotIndex}`;
         scheduleIds.push(scheduleId);
@@ -467,8 +462,8 @@ export function hasAvailableMultiDaySlots(project: Project): boolean {
 }
 
 // Check if a specific slot within a multi-day event has passed
-export function isMultiDaySlotPastByScheduleId(project: Project, scheduleId: string): boolean {
-  if (project.event_type !== 'multiDay' || !project.schedule.multiDay) {
+export function isMultiDaySlotPastByScheduleId(_project: Project, scheduleId: string): boolean {
+  if (_project.event_type !== 'multiDay' || !_project.schedule.multiDay) {
     return false;
   }
 
@@ -478,7 +473,7 @@ export function isMultiDaySlotPastByScheduleId(project: Project, scheduleId: str
   const slotIndexStr = parts.pop();
   const date = parts.join("-");
   
-  const day = project.schedule.multiDay.find((d: any) => d.date === date);
+  const day = _project.schedule.multiDay.find((d) => d.date === date);
   if (!day || !slotIndexStr) return false;
   
   const slotIdx = parseInt(slotIndexStr, 10);
@@ -500,7 +495,7 @@ export function isSameDayMultiAreaSlotPast(project: Project, scheduleId: string)
     return false;
   }
 
-  const role = project.schedule.sameDayMultiArea.roles.find((r: any) => r.name === scheduleId);
+  const role = project.schedule.sameDayMultiArea.roles.find((r) => r.name === scheduleId);
   if (!role) return false;
   
   const eventDate = parseISO(project.schedule.sameDayMultiArea.date);

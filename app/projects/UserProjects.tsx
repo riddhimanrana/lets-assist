@@ -6,16 +6,15 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { format, parseISO } from "date-fns";
-import { Calendar, Clock, MapPin, Users, Award } from "lucide-react"; // Add Award
+import { Calendar, MapPin, Users, Award } from "lucide-react";
 import { NoAvatar } from "@/components/shared/NoAvatar";
 import Link from "next/link";
 import { ProjectStatusBadge } from "@/components/ui/status-badge";
 import { redirect } from "next/navigation";
-import { Metadata } from "next";
 import type { Project } from "@/types";
 
 // Formats the date display for different project types
-function formatDateDisplay(project: any) {
+function formatDateDisplay(project: Project) {
   if (!project.event_type || !project.schedule) return "";
 
   switch (project.event_type) {
@@ -34,7 +33,7 @@ function formatDateDisplay(project: any) {
       }
       try {
         const dates = project.schedule.multiDay
-          .map((day: any) => parseISO(day.date))
+          .map((day) => parseISO(day.date))
           .sort((a: Date, b: Date) => a.getTime() - b.getTime());
 
         return `${format(dates[0], "MMM d")} - ${format(dates[dates.length - 1], "MMM d, yyyy")}`;
@@ -56,19 +55,6 @@ function formatDateDisplay(project: any) {
   }
 }
 
-// Get formatted time from time string
-function formatTime(timeString: string) {
-  if (!timeString) return "";
-  try {
-    const [hours, minutes] = timeString.split(":").map(Number);
-    const date = new Date();
-    date.setHours(hours, minutes);
-    return format(date, "h:mm a");
-  } catch (error) {
-    return timeString;
-  }
-}
-
 // Add interface for the project with creator
 interface ProjectWithCreator extends Project {
   creator?: {
@@ -83,6 +69,12 @@ interface ProjectWithCreator extends Project {
   areHoursPublished?: boolean; // Add this field
 }
 
+type ProjectSignupRow = { status?: string | null };
+
+interface ProjectWithSignups extends ProjectWithCreator {
+  project_signups?: ProjectSignupRow[] | null;
+}
+
 export default async function UserProjects() {
   const supabase = await createClient();
 
@@ -91,13 +83,6 @@ export default async function UserProjects() {
   if (!user) {
     redirect("/login");
   }
-
-  // Get user profile
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .single();
 
   // Get projects user has created
   const { data: createdProjects, error: createdError } = await supabase
@@ -144,7 +129,8 @@ export default async function UserProjects() {
     })
     .filter(Boolean);
 
-  let creatorProfiles: Record<string, any> = {};
+  type CreatorProfile = ProjectWithCreator["creator"];
+  let creatorProfiles: Record<string, CreatorProfile> = {};
   if (projectCreatorIds && projectCreatorIds.length > 0) {
     const { data: profiles } = await supabase
       .from("profiles")
@@ -152,8 +138,8 @@ export default async function UserProjects() {
       .in("id", projectCreatorIds);
     
     if (profiles) {
-      creatorProfiles = profiles.reduce((acc: any, profile: any) => {
-        acc[profile.id] = profile;
+      creatorProfiles = profiles.reduce<Record<string, CreatorProfile>>((acc, profile) => {
+        acc[profile.id] = profile as CreatorProfile;
         return acc;
       }, {});
     }
@@ -178,10 +164,11 @@ export default async function UserProjects() {
   }) || [];
 
   // Process projects to add status
-  const processedCreatedProjects = createdProjects?.map(project => ({
-    ...project,
-    status: getProjectStatus(project)
-  })) || [];
+  const processedCreatedProjects: ProjectWithSignups[] =
+    (createdProjects as ProjectWithSignups[] | null)?.map((project) => ({
+      ...project,
+      status: getProjectStatus(project),
+    })) || [];
 
   const processedVolunteeredProjects = volunteeredProjects.map(project => ({
     ...project,
@@ -439,7 +426,7 @@ export default async function UserProjects() {
                       <CardHeader className="p-4 pb-0 space-y-1.5">
                         <div className="flex justify-between items-start gap-2">
                           <Badge variant="outline" className="text-xs">
-                            {(project.project_signups || []).filter((s: any) => s.status === "approved").length} volunteers
+                            {(project.project_signups || []).filter((s) => s.status === "approved").length} volunteers
                           </Badge>
                           <Badge variant="outline" className="text-xs">{formatDateDisplay(project)}</Badge>
                         </div>
@@ -480,7 +467,7 @@ export default async function UserProjects() {
                         <CardHeader className="p-4 pb-0 space-y-1.5">
                           <div className="flex justify-between items-start gap-2">
                             <Badge variant="outline" className="text-xs">
-                              {(project.project_signups || []).filter((s: any) => s.status === "approved").length} volunteers
+                              {(project.project_signups || []).filter((s) => s.status === "approved").length} volunteers
                             </Badge>
                             <Badge variant="outline" className="text-xs">{formatDateDisplay(project)}</Badge>
                           </div>
@@ -533,7 +520,7 @@ export default async function UserProjects() {
                           </div>
                           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                             <Users className="h-3 w-3" />
-                            <span>{(project.project_signups || []).filter((s: any) => s.status === "approved").length} volunteers participated</span>
+                            <span>{(project.project_signups || []).filter((s) => s.status === "approved").length} volunteers participated</span>
                           </div>
                         </CardContent>
                         <CardFooter className="p-4 pt-3">

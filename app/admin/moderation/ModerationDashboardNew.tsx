@@ -24,8 +24,6 @@ import {
   ChevronRight,
   Sparkles,
   Loader2,
-  ArrowLeft,
-  Link as LinkIcon,
   Wrench,
 } from 'lucide-react';
 import {
@@ -187,7 +185,7 @@ type ScanEvent = {
     current?: number;
     success?: boolean;
     flagged?: boolean;
-    result?: AiMetadata | Record<string, any>;
+    result?: AiMetadata | Record<string, unknown>;
     error?: string;
     message?: string;
     reportsProcessed?: number;
@@ -239,7 +237,7 @@ export default function ModerationDashboard({
     itemId: string;
     success: boolean;
     flagged?: boolean;
-    result?: AiMetadata | Record<string, any>;
+    result?: AiMetadata | Record<string, unknown>;
     error?: string;
   }>>([]);
   const eventSourceRef = useRef<EventSource | null>(null);
@@ -440,7 +438,7 @@ export default function ModerationDashboard({
               itemId: parsed.data.itemId || '',
               success: parsed.data.success || false,
               flagged: parsed.data.flagged,
-              result: parsed.data.result as AiMetadata | Record<string, any>,
+              result: parsed.data.result as AiMetadata | Record<string, unknown>,
               error: parsed.data.error,
             }]);
             if (parsed.data.itemType === 'report') {

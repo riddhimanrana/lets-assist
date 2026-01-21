@@ -81,7 +81,7 @@ const formatPhoneNumber = (value: string): string => {
 
 export function ProjectSignupForm({
   onSubmit,
-  onCancel,
+  onCancel: _onCancel,
   isSubmitting,
   showCommentField = false,
   waiverRequired = false,

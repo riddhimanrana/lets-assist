@@ -7,6 +7,7 @@ import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
 import { createGoogleCalendarEvent } from "@/services/calendar";
 import { syncSignupSchema } from "@/schemas/calendar-schema";
+import type { Project } from "@/types";
 
 export async function POST(request: Request) {
   try {
@@ -62,11 +63,11 @@ export async function POST(request: Request) {
     }
 
     // Get the project
-    const { data: project, error: projectError } = await supabase
+    const { data: project, error: projectError } = (await supabase
       .from("projects")
       .select("*")
       .eq("id", project_id)
-      .single();
+      .single()) as { data: Project | null; error: { message?: string } | null };
 
     if (projectError || !project) {
       return NextResponse.json(
@@ -90,13 +91,13 @@ export async function POST(request: Request) {
     }
 
     // Update signup with calendar event ID
-    const { error: updateError } = await supabase
+    const { error: updateError } = (await supabase
       .from("project_signups")
       .update({
         volunteer_calendar_event_id: eventId,
         volunteer_synced_at: new Date().toISOString(),
       })
-      .eq("id", signup_id);
+      .eq("id", signup_id)) as { error: { message?: string } | null };
 
     if (updateError) {
       console.error("Failed to update signup:", updateError);

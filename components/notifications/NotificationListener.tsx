@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { NotificationService } from "@/services/notifications";
 import { createClient } from "@/utils/supabase/client";
 import { toast } from "sonner";
 import { RealtimeChannel } from "@supabase/supabase-js";
@@ -16,6 +15,14 @@ const NOTIFICATION_DELAY = 300;
 const MAX_RETRIES = 3; // Maximum number of retry attempts
 const MAX_BACKOFF_DELAY = 30000; // Maximum delay between retries (30 seconds)
 
+type NotificationRecord = {
+  id: string;
+  title: string;
+  body: string;
+  severity?: "warning" | "success" | "info";
+  action_url?: string | null;
+};
+
 export function NotificationListener({ userId }: NotificationListenerProps) {
   const channelRef = useRef<RealtimeChannel | null>(null);
   const initializedRef = useRef(false);
@@ -23,7 +30,7 @@ export function NotificationListener({ userId }: NotificationListenerProps) {
   const unmountedRef = useRef(false);
 
   // Modified displayNotificationToast to check if component is still mounted
-  const displayNotificationToast = async (notification: any) => {
+  const displayNotificationToast = async (notification: NotificationRecord) => {
     if (unmountedRef.current) return;
     if (displayedNotifications.has(notification.id)) return;
 
@@ -111,7 +118,7 @@ export function NotificationListener({ userId }: NotificationListenerProps) {
             },
             payload => {
               if (!unmountedRef.current && payload.new) {
-                displayNotificationToast(payload.new);
+                displayNotificationToast(payload.new as NotificationRecord);
               }
             }
           )
