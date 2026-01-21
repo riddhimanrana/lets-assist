@@ -1,4 +1,5 @@
 import { createBrowserClient } from "@supabase/ssr";
+import { type SupabaseClient } from "@supabase/supabase-js";
 import { createMockSupabaseClient } from "./mock";
 
 const shouldUseMock = () =>
@@ -7,11 +8,11 @@ const shouldUseMock = () =>
   (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").includes("127.0.0.1:54321/mock");
 
 // Singleton instance for the browser client
-let clientInstance: ReturnType<typeof createBrowserClient> | ReturnType<typeof createMockSupabaseClient> | null = null;
+let clientInstance: SupabaseClient | null = null;
 
 export function createClient() {
   if (shouldUseMock()) {
-    return createMockSupabaseClient();
+    return createMockSupabaseClient() as unknown as SupabaseClient;
   }
 
   // If we already have an instance, return it to prevent "session flapping"
