@@ -45,7 +45,6 @@ export default function CalendarOptionsModal({
   onSyncSuccess,
 }: CalendarOptionsModalProps) {
   const [isConnecting, setIsConnecting] = useState(false);
-  const [_isSyncing, setIsSyncing] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [isCheckingConnection, setIsCheckingConnection] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
@@ -117,7 +116,6 @@ export default function CalendarOptionsModal({
   };
 
   const syncToCalendar = async () => {
-    setIsSyncing(true);
     try {
       if (mode === "volunteer" && signup) {
         // Sync volunteer signup - use correct parameter names (snake_case)
@@ -176,8 +174,6 @@ export default function CalendarOptionsModal({
             : "Failed to sync event to calendar",
         variant: "destructive",
       });
-    } finally {
-      setIsSyncing(false);
     }
   };
 

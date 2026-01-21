@@ -39,7 +39,7 @@ const nextConfig = {
     ],
   },
   experimental: {
-    turbopackFileSystemCacheForBuild: true,
+    turbopackFileSystemCacheForBuild: false,
     serverActions: {
       bodySizeLimit: '12mb', // Increased from 10MB to 12MB for safety
     },

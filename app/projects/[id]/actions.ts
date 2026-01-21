@@ -696,6 +696,7 @@ async function persistWaiverSignature(params: {
       signature_text: signatureText,
       signature_storage_path: signatureStoragePath,
       upload_storage_path: uploadStoragePath,
+      form_data: params.waiverSignature.formData ?? null,
       ip_address: ipAddress,
       user_agent: userAgent,
     });

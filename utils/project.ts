@@ -2,9 +2,8 @@ import { Project, ProjectStatus } from "@/types";
 import { parseISO, isAfter, isBefore, isEqual } from "date-fns";
 
 type SupabaseFromClient = {
-  from: (table: string) => {
-    select: (...args: any[]) => any;
-  };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  from: (table: string) => any;
 };
 
 export const getProjectEventDate = (project: Project): Date => {

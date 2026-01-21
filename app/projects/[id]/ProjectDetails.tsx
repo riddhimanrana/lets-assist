@@ -368,7 +368,7 @@ export default function ProjectDetails({
 
 
   useEffect(() => {
-    if (!project.waiver_required) return;
+    if (!project.waiver_required || project.waiver_pdf_url) return;
     let isMounted = true;
 
     const fetchWaiverTemplate = async () => {
@@ -1529,7 +1529,7 @@ export default function ProjectDetails({
 
       {/* Anonymous Signup Dialog */}
       <Dialog open={anonymousDialogOpen} onOpenChange={setAnonymousDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-5xl w-[95vw] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Quick Sign Up</DialogTitle>
             <DialogDescription>
