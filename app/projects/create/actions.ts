@@ -203,7 +203,7 @@ export async function createBasicProject(
       .select("id")
       .single();
 
-    if (projectError) {
+    if (projectError || !project) {
       console.error("Error creating project:", projectError);
       return { error: "Failed to create project. Please try again." };
     }
@@ -695,6 +695,10 @@ export async function updateDraft(projectId: string, projectData: Partial<EventF
 
   if (project.workflow_status !== "draft") {
     return { error: "This project is not a draft" };
+  }
+
+  if (!projectData.basicInfo || !projectData.eventType || !projectData.schedule?.[projectData.eventType]) {
+    return { error: "Incomplete project data for draft update" };
   }
 
   // Build recurrence rule if enabled

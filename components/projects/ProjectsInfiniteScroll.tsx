@@ -135,12 +135,15 @@ export const ProjectsInfiniteScroll: React.FC = () => {
     try {
       if (project.event_type === "oneTime" && project.schedule?.oneTime?.date) {
         projectDate = parseISO(project.schedule.oneTime.date);
-      } else if (project.event_type === "multiDay" && project.schedule?.multiDay?.length > 0) {
-        // For multi-day events, check if any day is within the range
-        return project.schedule.multiDay.some((day) => {
-          const dayDate = parseISO(day.date);
-          return isWithinDateRange(dayDate, dateRange);
-        });
+      } else if (project.event_type === "multiDay") {
+        const multiDaySchedule = project.schedule?.multiDay;
+        if (Array.isArray(multiDaySchedule) && multiDaySchedule.length > 0) {
+          // For multi-day events, check if any day is within the range
+          return multiDaySchedule.some((day) => {
+            const dayDate = parseISO(day.date);
+            return isWithinDateRange(dayDate, dateRange);
+          });
+        }
       } else if (project.event_type === "sameDayMultiArea" && project.schedule?.sameDayMultiArea?.date) {
         projectDate = parseISO(project.schedule.sameDayMultiArea.date);
       }
@@ -234,10 +237,13 @@ export const ProjectsInfiniteScroll: React.FC = () => {
       try {
         if (project.event_type === "oneTime" && project.schedule?.oneTime?.date) {
           return parseISO(project.schedule.oneTime.date);
-        } else if (project.event_type === "multiDay" && project.schedule?.multiDay?.length > 0) {
-          // Get the earliest date from multiDay events
-          const dates = project.schedule.multiDay.map((day) => parseISO(day.date));
-          return new Date(Math.min(...dates.map((d: Date) => d.getTime())));
+        } else if (project.event_type === "multiDay") {
+          const multiDaySchedule = project.schedule?.multiDay;
+          if (Array.isArray(multiDaySchedule) && multiDaySchedule.length > 0) {
+            // Get the earliest date from multiDay events
+            const dates = multiDaySchedule.map((day) => parseISO(day.date));
+            return new Date(Math.min(...dates.map((d: Date) => d.getTime())));
+          }
         } else if (project.event_type === "sameDayMultiArea" && project.schedule?.sameDayMultiArea?.date) {
           return parseISO(project.schedule.sameDayMultiArea.date);
         }

@@ -61,7 +61,7 @@ export default async function DraftsPage() {
     location: draft.draft_data?.basicInfo?.location || "",
     event_type: draft.draft_data?.eventType || "oneTime",
     schedule: draft.draft_data?.schedule || null,
-    cover_image_url: draft.draft_data?.coverImageUrl || null,
+    cover_image_url: null,
     created_at: draft.created_at,
     workflow_status: "draft",
     organization: draft.draft_data?.basicInfo?.organizationId 

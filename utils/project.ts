@@ -1,6 +1,11 @@
 import { Project, ProjectStatus } from "@/types";
-import { SupabaseClient } from "@supabase/supabase-js";
 import { parseISO, isAfter, isBefore, isEqual } from "date-fns";
+
+type SupabaseFromClient = {
+  from: (table: string) => {
+    select: (...args: any[]) => any;
+  };
+};
 
 export const getProjectEventDate = (project: Project): Date => {
   switch (project.event_type) {
@@ -281,7 +286,7 @@ export const formatStatusText = (status: string): string => {
 // Function to get remaining slots for each schedule ID
 export async function getSlotCapacities(
   project: Project,
-  supabase: SupabaseClient,
+  supabase: SupabaseFromClient,
   projectId: string
 ): Promise<Record<string, number>> {
   const capacities: Record<string, number> = {};
@@ -311,13 +316,16 @@ export async function getSlotCapacities(
   }
 
   // Fetch counts of approved AND attended signups for these schedule IDs
-  const { data: signups, error } = await supabase
+  const { data: signups, error } = (await supabase
     .from("project_signups")
     .select("schedule_id, status") // Select status to potentially group by later if needed, though count works directly
     .eq("project_id", projectId)
     .in("schedule_id", scheduleIds)
     // Use .in() or .or() to filter for multiple statuses
-    .in("status", ["approved", "attended"]); // <-- Updated filter
+    .in("status", ["approved", "attended"])) as {
+    data: { schedule_id: string; status: string }[] | null;
+    error: { message: string } | null;
+  }; // <-- Updated filter
 
   if (error) {
     console.error("Error fetching signup counts:", error);

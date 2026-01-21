@@ -254,6 +254,8 @@ export default function ProjectDetails({
   const [resendAnonymousId, setResendAnonymousId] = useState<string | null>(null);
   const [isResending, setIsResending] = useState(false);
 
+  type SignupStatusRow = { id: string; schedule_id: string };
+
   // Remove userRejected state as rejectedSlots handles this per slot
   // const [userRejected, setUserRejected] = useState<boolean>(false);
   
@@ -267,12 +269,15 @@ export default function ProjectDetails({
         const supabase = createClient();
         
         // Query for all rejected signups for this user and project
-        const { data: rejectedData, error: rejectedError } = await supabase
+        const { data: rejectedData, error: rejectedError } = (await supabase
           .from("project_signups")
           .select("id, schedule_id")
           .eq("project_id", project.id)
           .eq("user_id", user.id)
-          .eq("status", "rejected");
+          .eq("status", "rejected")) as {
+          data: SignupStatusRow[] | null;
+          error: { message: string } | null;
+        };
           
         if (rejectedError) {
           console.error("Error checking for rejections:", rejectedError);
@@ -288,12 +293,15 @@ export default function ProjectDetails({
         }
 
         // Query for all attended signups for this user and project
-        const { data: attendedData, error: attendedError } = await supabase
+        const { data: attendedData, error: attendedError } = (await supabase
           .from("project_signups")
           .select("id, schedule_id")
           .eq("project_id", project.id)
           .eq("user_id", user.id)
-          .eq("status", "attended");
+          .eq("status", "attended")) as {
+          data: SignupStatusRow[] | null;
+          error: { message: string } | null;
+        };
           
         if (attendedError) {
           console.error("Error checking for attended status:", attendedError);

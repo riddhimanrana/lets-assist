@@ -228,7 +228,7 @@ export default async function HoursPage({ params }: { params: Promise<{ id: stri
   }
 
   // 6. Fetch Attendance Data (Signups)
-  const { data: signupsData, error: signupsError } = await supabase
+  const { data: signupsData, error: signupsError } = (await supabase
     .from("project_signups")
     .select(`
       id,
@@ -255,7 +255,10 @@ export default async function HoursPage({ params }: { params: Promise<{ id: stri
       )
     `)
     .eq("project_id", projectId)
-    .in("status", ["attended", "approved"]); // Fetch both attended and approved
+    .in("status", ["attended", "approved"])) as {
+    data: SignupRow[] | null;
+    error: { message: string } | null;
+  }; // Fetch both attended and approved
 
   if (signupsError) {
     console.error("Error fetching signups:", signupsError);
@@ -269,11 +272,18 @@ export default async function HoursPage({ params }: { params: Promise<{ id: stri
   }
 
   // Transform Supabase response arrays to single objects for profile and anonymous_signup
-  const signups: ProjectSignup[] = (signupsData || []).map((s: SignupRow) => ({
-    ...s,
-    profile: Array.isArray(s.profile) ? s.profile[0] : s.profile,
-    anonymous_signup: Array.isArray(s.anonymous_signup) ? s.anonymous_signup[0] : s.anonymous_signup,
-  }));
+  const signups: ProjectSignup[] = (signupsData || []).map((s: SignupRow) => {
+    const profile = Array.isArray(s.profile) ? s.profile[0] : s.profile;
+    const anonymousSignup = Array.isArray(s.anonymous_signup)
+      ? s.anonymous_signup[0]
+      : s.anonymous_signup;
+
+    return {
+      ...s,
+      profile: profile ?? undefined,
+      anonymous_signup: anonymousSignup ?? undefined,
+    };
+  });
 
   // 7. Render Client Component or "Not Yet Available" Message
   if (!hasActiveSessions) {

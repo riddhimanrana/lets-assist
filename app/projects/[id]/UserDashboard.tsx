@@ -109,7 +109,7 @@ interface Props {
 }
 
 type SlotDetails =
-  | Project["schedule"]["oneTime"]
+  | NonNullable<Project["schedule"]["oneTime"]>
   | NonNullable<Project["schedule"]["multiDay"]>[number]["slots"][number]
   | NonNullable<Project["schedule"]["sameDayMultiArea"]>["roles"][number];
 
@@ -146,7 +146,8 @@ export default function UserDashboard({ project, user: _user, signups }: Props) 
           console.error("Error fetching certificates:", error);
         } else {
           const map: Record<string,string> = {};
-          data?.forEach((cert) => {
+          const certificates = (data ?? []) as Array<{ id: string; signup_id: string }>;
+          certificates.forEach((cert) => {
             map[cert.signup_id] = cert.id;
           });
           setCertMap(map);

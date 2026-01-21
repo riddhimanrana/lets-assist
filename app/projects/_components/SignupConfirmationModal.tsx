@@ -192,7 +192,7 @@ export function SignupConfirmationModal({
               date: project.date,
               startTime: project.start_time || '00:00',
               endTime: project.end_time || '23:59',
-              slots: 1,
+              volunteers: 1,
             }
           },
           verification_method: 'manual',

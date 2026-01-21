@@ -67,9 +67,9 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const _router = useRouter();
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [_signups, _setSignups] = useState<ProjectSignup[]>(initialSignups);
+  const [signups, _setSignups] = useState<ProjectSignup[]>(initialSignups);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [_loading, _setLoading] = useState(false); // Initially false as data comes from server
+  const [loading, _setLoading] = useState(false); // Initially false as data comes from server
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [_refreshing, _setRefreshing] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");

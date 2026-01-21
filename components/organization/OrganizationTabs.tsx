@@ -33,11 +33,30 @@ import { cn } from "@/lib/utils";
 import type { Organization, Project } from "@/types";
 
 type OrganizationMember = {
+  id: string;
+  user_id: string;
   role: "admin" | "staff" | "member";
+  joined_at: string;
+  profiles?: {
+    id?: string;
+    username?: string | null;
+    full_name?: string | null;
+    avatar_url?: string | null;
+  } | Array<{
+    id?: string;
+    username?: string | null;
+    full_name?: string | null;
+    avatar_url?: string | null;
+  }> | null;
+};
+
+type OrganizationWithWebsite = Organization & {
+  website?: string | null;
+  created_at?: string | null;
 };
 
 interface OrganizationTabsProps {
-  organization: Organization;
+  organization: OrganizationWithWebsite;
   members: OrganizationMember[];
   projects: Project[];
   userRole: string | null;
@@ -282,7 +301,9 @@ export default function OrganizationTabs({
                     <div className="min-w-0 flex-1">
                       <h4 className="text-xs sm:text-sm font-medium">Created</h4>
                       <p className="text-xs sm:text-sm text-muted-foreground truncate">
-                        {format(new Date(organization.created_at), "MMMM d, yyyy")}
+                        {organization.created_at
+                          ? format(new Date(organization.created_at), "MMMM d, yyyy")
+                          : "N/A"}
                       </p>
                     </div>
                   </div>

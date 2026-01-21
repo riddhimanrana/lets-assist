@@ -177,13 +177,19 @@ export default async function CreateProjectPage({
     .in('role', ['admin', 'staff']);
 
   if (memberships && memberships.length > 0) {
-    const orgs: OrganizationOption[] = (memberships as MembershipRow[]).map((m) => ({
-      id: m.organization_id,
-      name: Array.isArray(m.organizations) ? m.organizations[0].name : m.organizations?.name,
-      logo_url: Array.isArray(m.organizations) ? m.organizations[0].logo_url : m.organizations?.logo_url,
-      allowed_email_domains: Array.isArray(m.organizations) ? m.organizations[0].allowed_email_domains : m.organizations?.allowed_email_domains,
-      role: m.role
-    }));
+    const orgs: OrganizationOption[] = (memberships as MembershipRow[]).map((m) => {
+      const organization = Array.isArray(m.organizations)
+        ? m.organizations[0]
+        : m.organizations;
+
+      return {
+        id: m.organization_id,
+        name: organization?.name ?? "Organization",
+        logo_url: organization?.logo_url ?? null,
+        allowed_email_domains: organization?.allowed_email_domains ?? null,
+        role: m.role,
+      };
+    });
     orgOptions = [orgOptions[0], ...orgs];
   }
 
@@ -220,7 +226,7 @@ export default async function CreateProjectPage({
       <ProjectCreator 
         initialOrgId={initialOrgId} 
         initialOrgOptions={orgOptions}
-        initialDraftData={loadedDraft}
+        initialDraftData={loadedDraft ?? undefined}
         initialDraftId={loadedDraftId}
         drafts={(drafts as DraftRow[] | null)?.map((d) => ({
           id: d.id,

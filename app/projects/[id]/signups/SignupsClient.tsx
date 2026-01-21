@@ -35,6 +35,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { NotificationService } from "@/services/notifications";
 
 interface Props {
   projectId: string;

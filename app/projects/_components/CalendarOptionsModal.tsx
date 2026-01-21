@@ -45,8 +45,7 @@ export default function CalendarOptionsModal({
   onSyncSuccess,
 }: CalendarOptionsModalProps) {
   const [isConnecting, setIsConnecting] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [_isSyncing, _setIsSyncing] = useState(false);
+  const [_isSyncing, setIsSyncing] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [isCheckingConnection, setIsCheckingConnection] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
