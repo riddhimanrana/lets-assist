@@ -24,6 +24,7 @@ import {
   subscribeToCacheChanges,
   isCacheInitialized,
 } from '@/utils/auth/auth-context';
+import type { AuthState } from '@/utils/auth/types';
 
 // User type re-exported for consumers
 export type { User } from '@/utils/auth/types';

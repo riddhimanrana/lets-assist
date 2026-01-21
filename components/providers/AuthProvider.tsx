@@ -106,8 +106,6 @@ export function AuthProvider({ children, initialUser = null }: AuthProviderProps
             });
           }
         }
-        setIsInitialized(true);
-        
         if (process.env.NODE_ENV === 'development') {
           console.log('[AuthProvider] Initialized with session:', session?.user?.email ?? 'no user');
         }
@@ -121,7 +119,6 @@ export function AuthProvider({ children, initialUser = null }: AuthProviderProps
           console.error('[AuthProvider] Failed to initialize profile cache:', error);
         });
       }
-      setIsInitialized(true);
       if (process.env.NODE_ENV === 'development') {
         console.log('[AuthProvider] Cache already primed from SSR, skipping getSession');
       }

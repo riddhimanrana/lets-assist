@@ -8,6 +8,7 @@ import {
   RecurrenceFrequency,
   RecurrenceEndType,
   RecurrenceWeekday,
+  LocationData,
 } from '@/types';
 
 // --- Helper Functions --- 
@@ -68,7 +69,7 @@ export interface EventFormState {
   basicInfo: {
     title: string;
     location: string;
-    locationData?: Record<string, unknown>;
+    locationData?: LocationData;
     description: string;
     organizationId: string | null;
     projectTimezone?: string;
@@ -129,7 +130,7 @@ type EventFormAction =
   | { type: 'NEXT_STEP' }
   | { type: 'PREV_STEP' }
   | { type: 'SET_EVENT_TYPE'; payload: EventType }
-  | { type: 'UPDATE_BASIC_INFO'; payload: { field: string; value: string | number | boolean | Record<string, unknown> | null | undefined } }
+  | { type: 'UPDATE_BASIC_INFO'; payload: { field: string; value: string | number | boolean | LocationData | null | undefined } }
   | { type: 'UPDATE_ONE_TIME_SCHEDULE'; payload: { field: string; value: string | number } }
   | {
     type: 'UPDATE_MULTI_DAY_SCHEDULE';
@@ -304,7 +305,9 @@ const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
         updatedDay.slots = updatedSlots;
       } else {
         // Update a day field directly
-        updatedDay[field as keyof typeof updatedDay] = value;
+        if (field === 'date') {
+          updatedDay.date = String(value);
+        }
       }
 
       updatedMultiDay[dayIndex] = updatedDay;
@@ -593,7 +596,7 @@ export const useEventForm = () => {
   const setEventType = (eventType: EventType) =>
     dispatch({ type: 'SET_EVENT_TYPE', payload: eventType });
 
-  const updateBasicInfo = (field: string, value: string | number | boolean | Record<string, unknown> | null | undefined) =>
+  const updateBasicInfo = (field: string, value: string | number | boolean | LocationData | null | undefined) =>
     dispatch({ type: 'UPDATE_BASIC_INFO', payload: { field, value } });
 
   const updateOneTimeSchedule = (field: string, value: string | number) =>

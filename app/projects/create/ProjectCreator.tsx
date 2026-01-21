@@ -129,7 +129,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
   const [autosaveDraftId, setAutosaveDraftId] = useState<string | undefined>(initialDraftId || undefined);
   const [autosaveStatus, setAutosaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [_lastAutosaveTime, _setLastAutosaveTime] = useState<Date | null>(null);
+  const [_lastAutosaveTime, setLastAutosaveTime] = useState<Date | null>(null);
 
   type AIScheduleSlot = { startTime: string; endTime: string; volunteers: number };
   type AIScheduleDay = { date: string; slots?: AIScheduleSlot[] };

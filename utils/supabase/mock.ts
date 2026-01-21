@@ -133,9 +133,11 @@ export const createMockSupabaseClient = () => {
           refresh_token: "mock-refresh-token",
         },
       }),
+    resetPasswordForEmail: async () => resolved({}),
     signInWithOAuth: async () => resolved({ url: "https://example.com/oauth" }),
     updateUser: async () => resolved({ user: mockUser }),
     signOut: async () => resolved(null),
+    resend: async () => resolved({}),
     getUserIdentities: async () => resolved({ identities: [] }),
     linkIdentity: async () => resolved({ user: mockUser, identity: null }),
     unlinkIdentity: async () => resolved({ user: mockUser, identities: [] }),
@@ -189,9 +191,12 @@ export const createMockSupabaseClient = () => {
     from: (table: string) => createQueryBuilder(table),
     rpc: async () => resolved(null),
     channel: () => ({
-      on: () => ({ subscribe: async () => ({ data: { subscription: { unsubscribe() {} } } }) }),
+      on: (..._args: unknown[]) => ({
+        subscribe: async () => ({ data: { subscription: { unsubscribe() {} } } }),
+      }),
       subscribe: async () => ({ data: { subscription: { unsubscribe() {} } } }),
     }),
+    removeChannel: async () => ({ data: { subscription: { unsubscribe() {} } } }),
     storage: {
       from: () => ({
         upload: async () => resolved({ path: `mock/${generateId()}` }),

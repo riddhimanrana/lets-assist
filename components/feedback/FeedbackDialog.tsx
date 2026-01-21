@@ -67,11 +67,14 @@ export function FeedbackDialog({ onOpenChangeAction, initialType = "issue" }: Fe
 
     const getProfile = async () => {
       const supabase = createClient();
-      const { data: profileData } = await supabase
+      const { data: profileData } = (await supabase
         .from("profiles")
         .select("full_name")
         .eq("id", user.id)
-        .single();
+        .single()) as {
+        data: { full_name: string } | null;
+        error: { message: string } | null;
+      };
       
       setProfile(profileData);
       setEmail(user.email || "");

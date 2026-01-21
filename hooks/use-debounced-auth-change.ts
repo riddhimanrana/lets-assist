@@ -155,7 +155,6 @@ export function debounceAuthChange<T extends (...args: unknown[]) => unknown>(
         }
       }
       timeoutId = null;
-      lastInvokeTime = Date.now();
     }, delayMs);
   };
 }

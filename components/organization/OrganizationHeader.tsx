@@ -8,9 +8,14 @@ import { useState } from "react";
 import JoinCodeDialog from "@/app/organization/[id]/JoinCodeDialog";
 import { useRouter } from "next/navigation";
 import type { Organization } from "@/types";
+import { toast } from "sonner";
+
+type OrganizationHeaderOrg = Organization & {
+  website?: string | null;
+};
 
 interface OrganizationHeaderProps {
-  organization: Organization;
+  organization: OrganizationHeaderOrg;
   userRole: string | null;
   memberCount: number;
 }

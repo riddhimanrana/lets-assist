@@ -181,10 +181,14 @@ export default function InitialOnboardingModal({
               return false;
             }
 
-            const hasCompletedOnboarding = user?.user_metadata?.has_completed_onboarding === true;
+            const metadata = user?.user_metadata as Record<string, unknown> | undefined;
+            const hasCompletedOnboarding = metadata?.has_completed_onboarding === true;
 
             if (hasCompletedOnboarding) {
-              const autoJoinedOrgName = user?.user_metadata?.auto_joined_org_name;
+              const autoJoinedOrgName =
+                typeof metadata?.auto_joined_org_name === "string"
+                  ? metadata.auto_joined_org_name
+                  : undefined;
               if (autoJoinedOrgName) {
                 setTimeout(() => {
                   toast.info(`You've been automatically added to ${autoJoinedOrgName} based on your email domain.`, {

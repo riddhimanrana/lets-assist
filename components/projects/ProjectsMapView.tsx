@@ -44,9 +44,13 @@ function ProjectMapInfoWindow({ project, onClose }: { project: Project; onClose:
 
     switch (project.event_type) {
       case "oneTime": {
+        if (!project.schedule.oneTime?.date) return "";
         return format(new Date(project.schedule.oneTime.date), "MMM d");
       }
       case "multiDay": {
+        if (!project.schedule.multiDay || project.schedule.multiDay.length === 0) {
+          return "";
+        }
         const dates = project.schedule.multiDay
           .map((day) => new Date(day.date))
           .sort((a: Date, b: Date) => a.getTime() - b.getTime());
@@ -80,6 +84,7 @@ function ProjectMapInfoWindow({ project, onClose }: { project: Project; onClose:
         }
       }
       case "sameDayMultiArea": {
+        if (!project.schedule.sameDayMultiArea?.date) return "";
         return format(new Date(project.schedule.sameDayMultiArea.date), "MMM d");
       }
       default:

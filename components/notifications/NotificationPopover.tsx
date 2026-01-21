@@ -27,6 +27,7 @@ import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useAuth } from "@/hooks/useAuth";
+import type { RealtimeChannel } from "@supabase/realtime-js";
 
 type NotificationSeverity = 'info' | 'warning' | 'success';
 
@@ -80,6 +81,10 @@ export function NotificationPopover() {
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const supabase = createClient();
+  const realtimeClient = supabase as unknown as {
+    channel: (name: string) => RealtimeChannel;
+    removeChannel: (channel: RealtimeChannel) => Promise<unknown>;
+  };
   const router = useRouter();
   const isMobile = useMediaQuery("(max-width: 768px)");
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -116,7 +121,7 @@ export function NotificationPopover() {
   // Track if we've fetched unread count on initial mount
   const initialFetchDone = React.useRef(false);
   // Stable channel ref to avoid recreating subscriptions
-  const channelRef = React.useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const channelRef = React.useRef<RealtimeChannel | null>(null);
 
   // Wrap loadNotifications in useCallback so it doesn't recreate on every render
   const loadNotifications = useCallback(async () => {
@@ -267,7 +272,7 @@ export function NotificationPopover() {
     const channelName = `notification-popover-${user.id}`;
     console.log(`Setting up notification badge channel: ${channelName}`);
     
-    const channel = supabase
+    const channel = realtimeClient
       .channel(channelName)
       .on('postgres_changes', 
         {
@@ -298,7 +303,7 @@ export function NotificationPopover() {
     return () => {
       console.log('Removing notification badge channel');
       if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
+        realtimeClient.removeChannel(channelRef.current);
         channelRef.current = null;
       }
     };
@@ -566,6 +571,14 @@ export function NotificationPopover() {
   const detailMetadata = activeNotification?.data ?? null;
   const detailStatus = typeof detailMetadata?.status === 'string' ? detailMetadata.status : null;
   const detailStatusLabel = detailStatus ? detailStatus.replace(/_/g, ' ') : null;
+  const detailReportDescription =
+    typeof detailMetadata?.reportDescription === 'string'
+      ? detailMetadata.reportDescription
+      : null;
+  const detailReportReason =
+    typeof detailMetadata?.reportReason === 'string' ? detailMetadata.reportReason : null;
+  const detailReportId =
+    typeof detailMetadata?.reportId === 'string' ? detailMetadata.reportId : null;
   const detailTimestamp = (typeof detailMetadata?.resolvedAt === 'string'
     ? detailMetadata.resolvedAt
     : undefined) ?? activeNotification?.created_at;
@@ -607,19 +620,19 @@ export function NotificationPopover() {
               </p>
             </div>
           )}
-          {detailMetadata?.reportDescription && (
+          {detailReportDescription && (
             <div className="rounded-lg border bg-muted/40 p-3">
               <p className="text-xs font-medium text-muted-foreground">Your original report</p>
               <p className="mt-1 text-sm text-foreground whitespace-pre-line">
-                {detailMetadata.reportDescription}
+                {detailReportDescription}
               </p>
-              {detailMetadata.reportReason && (
-                <p className="mt-2 text-xs text-muted-foreground">Tagged as: {detailMetadata.reportReason}</p>
+              {detailReportReason && (
+                <p className="mt-2 text-xs text-muted-foreground">Tagged as: {detailReportReason}</p>
               )}
             </div>
           )}
-          {detailMetadata?.reportId && (
-            <p className="text-xs text-muted-foreground">Reference ID: {detailMetadata.reportId}</p>
+          {detailReportId && (
+            <p className="text-xs text-muted-foreground">Reference ID: {detailReportId}</p>
           )}
         </div>
         <DialogFooter>
