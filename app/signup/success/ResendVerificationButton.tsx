@@ -64,7 +64,7 @@ export function ResendVerificationButton({ email }: ResendVerificationButtonProp
         toast.error(result.error || 'Failed to resend email');
         return;
       }
-    } catch (error) {
+    } catch {
       toast.error('An error occurred. Please try again.');
     } finally {
       setIsLoading(false);

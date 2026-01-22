@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { EventType, VerificationMethod } from "@/types";
 
 // Helper to validate time is not in past
 const isTimeInPast = (dateStr: string, timeStr: string): boolean => {

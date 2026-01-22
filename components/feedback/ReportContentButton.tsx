@@ -16,7 +16,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -42,6 +41,11 @@ type ReportReason =
   | 'violence' 
   | 'hate_speech' 
   | 'other';
+
+type TriggerElementProps = {
+  onClick?: (event: MouseEvent<HTMLElement>) => void;
+  onSelect?: (event: Event) => void;
+};
 
 interface ReportContentButtonProps {
   contentType: ContentType;
@@ -142,11 +146,11 @@ export function ReportContentButton({
 
   const triggerElement = isValidElement(triggerButton)
     ? (() => {
-      const element = triggerButton as ReactElement;
+      const element = triggerButton as ReactElement<TriggerElementProps>;
       return cloneElement(element, {
         onClick: (event: MouseEvent<HTMLElement>) => {
           event.stopPropagation(); // Prevent dropdown from closing
-          const previousOnClick = (element.props as any)?.onClick;
+          const previousOnClick = element.props.onClick;
           previousOnClick?.(event);
           if (event.defaultPrevented) {
             return;
@@ -156,7 +160,7 @@ export function ReportContentButton({
         onSelect: (event: Event) => {
           event.preventDefault(); // Prevent dropdown menu from closing
         },
-      } as any);
+      });
     })()
     : (
       <Button

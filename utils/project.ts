@@ -1,6 +1,12 @@
 import { Project, ProjectStatus } from "@/types";
-import { SupabaseClient } from "@supabase/supabase-js";
-import { differenceInHours, parseISO, isAfter, isBefore, isEqual, isPast, set } from "date-fns";
+import { parseISO, isAfter, isBefore, isEqual } from "date-fns";
+
+const shouldLogProjectDebug = process.env.NODE_ENV === "development";
+
+type SupabaseFromClient = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  from: (table: string) => any;
+};
 
 export const getProjectEventDate = (project: Project): Date => {
   switch (project.event_type) {
@@ -39,7 +45,6 @@ export const getProjectEndDate = (project: Project): Date => {
 
 // Get the earliest start time for any project type
 export const getProjectStartDateTime = (project: Project): Date => {
-  const now = new Date();
   
   switch (project.event_type) {
     case "oneTime": {
@@ -196,7 +201,7 @@ export const getProjectStatus = (project: Project): ProjectStatus => {
   return "upcoming";
 };
 
-export const canDeleteProject = (project: Project): boolean => {
+export const canDeleteProject = (_project: Project): boolean => {
   // No restrictions - allow deletion anytime
   return true;
 };
@@ -206,13 +211,9 @@ export const canCancelProject = (project: Project): boolean => {
   if (project.status === "cancelled" || project.status === "completed") {
     return false;
   }
-
-  const now = new Date();
-  const startDateTime = getProjectStartDateTime(project);
-  const hoursUntilStart = differenceInHours(startDateTime, now);
   
   // Can cancel up until the event starts
-  return true // temporarrily allow...basically cancellation is always allowed
+  return true; // temporarily allow...basically cancellation is always allowed
 };
 
 export const isProjectVisible = (
@@ -286,7 +287,7 @@ export const formatStatusText = (status: string): string => {
 // Function to get remaining slots for each schedule ID
 export async function getSlotCapacities(
   project: Project,
-  supabase: SupabaseClient,
+  supabase: SupabaseFromClient,
   projectId: string
 ): Promise<Record<string, number>> {
   const capacities: Record<string, number> = {};
@@ -297,7 +298,7 @@ export async function getSlotCapacities(
     scheduleIds.push("oneTime");
     capacities["oneTime"] = project.schedule.oneTime.volunteers;
   } else if (project.event_type === "multiDay" && project.schedule.multiDay) {
-    project.schedule.multiDay.forEach((day, dayIndex) => {
+    project.schedule.multiDay.forEach((day, _dayIndex) => {
       day.slots.forEach((slot, slotIndex) => {
         const scheduleId = `${day.date}-${slotIndex}`;
         scheduleIds.push(scheduleId);
@@ -316,13 +317,16 @@ export async function getSlotCapacities(
   }
 
   // Fetch counts of approved AND attended signups for these schedule IDs
-  const { data: signups, error } = await supabase
+  const { data: signups, error } = (await supabase
     .from("project_signups")
     .select("schedule_id, status") // Select status to potentially group by later if needed, though count works directly
     .eq("project_id", projectId)
     .in("schedule_id", scheduleIds)
     // Use .in() or .or() to filter for multiple statuses
-    .in("status", ["approved", "attended"]); // <-- Updated filter
+    .in("status", ["approved", "attended"])) as {
+    data: { schedule_id: string; status: string }[] | null;
+    error: { message: string } | null;
+  }; // <-- Updated filter
 
   if (error) {
     console.error("Error fetching signup counts:", error);
@@ -351,7 +355,9 @@ export async function getSlotCapacities(
 
 export function getSlotDetails(project: Project, scheduleId: string) {
   if (!project || !scheduleId) {
-    console.log("Invalid project or scheduleId:", { project: !!project, scheduleId });
+    if (shouldLogProjectDebug) {
+      console.log("Invalid project or scheduleId:", { project: !!project, scheduleId });
+    }
     return null;
   }
 
@@ -369,7 +375,9 @@ export function getSlotDetails(project: Project, scheduleId: string) {
       const slotIndexStr = parts.pop(); // Get last element (slot index)
       const date = parts.join("-"); // Rejoin the rest as the date
       
-      console.log("Parsing multiDay scheduleId:", { date, slotIndexStr, parts });
+      if (shouldLogProjectDebug) {
+        console.log("Parsing multiDay scheduleId:", { date, slotIndexStr, parts });
+      }
       
       const day = project.schedule.multiDay.find(d => d.date === date);
       if (day) {
@@ -377,13 +385,19 @@ export function getSlotDetails(project: Project, scheduleId: string) {
         if (!isNaN(slotIdx) && slotIdx >= 0 && slotIdx < day.slots.length) {
           return day.slots[slotIdx];
         } else {
-          console.log("Invalid slot index:", { slotIdx, slotsLength: day.slots.length });
+          if (shouldLogProjectDebug) {
+            console.log("Invalid slot index:", { slotIdx, slotsLength: day.slots.length });
+          }
         }
       } else {
-        console.log("Day not found:", { date, availableDays: project.schedule.multiDay.map(d => d.date) });
+        if (shouldLogProjectDebug) {
+          console.log("Day not found:", { date, availableDays: project.schedule.multiDay.map(d => d.date) });
+        }
       }
     } else {
-      console.log("Invalid multiDay scheduleId format:", scheduleId);
+      if (shouldLogProjectDebug) {
+        console.log("Invalid multiDay scheduleId format:", scheduleId);
+      }
     }
   } else if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
     const role = project.schedule.sameDayMultiArea.roles.find(r => r.name === scheduleId);
@@ -392,7 +406,9 @@ export function getSlotDetails(project: Project, scheduleId: string) {
     }
   }
   
-  console.log("No slot found for scheduleId:", scheduleId);
+  if (shouldLogProjectDebug) {
+    console.log("No slot found for scheduleId:", scheduleId);
+  }
   return null;
 }
 
@@ -403,34 +419,42 @@ export function isSlotAvailable(
   clientStatus?: ProjectStatus // Add optional parameter to override project.status
 ): boolean {
   // Debug logging to help identify issues
-  console.log("isSlotAvailable check:", {
-    projectId: project.id,
-    scheduleId,
-    remainingSlots,
-    projectType: project.event_type,
-    effectiveStatus: clientStatus || project.status
-  });
+  if (shouldLogProjectDebug) {
+    console.log("isSlotAvailable check:", {
+      projectId: project.id,
+      scheduleId,
+      remainingSlots,
+      projectType: project.event_type,
+      effectiveStatus: clientStatus || project.status
+    });
+  }
 
   // Use client-provided status if available, otherwise use project.status
   const effectiveStatus = clientStatus || project.status;
   
   // Check if the project is cancelled or completed
   if (effectiveStatus === "cancelled" || effectiveStatus === "completed") {
-    console.log("Project is cancelled or completed, slot not available");
+    if (shouldLogProjectDebug) {
+      console.log("Project is cancelled or completed, slot not available");
+    }
     return false;
   }
   
   // Check if the schedule ID is valid for this project
   const slotDetails = getSlotDetails(project, scheduleId);
   if (!slotDetails) {
-    console.log("Invalid slot details for", scheduleId);
+    if (shouldLogProjectDebug) {
+      console.log("Invalid slot details for", scheduleId);
+    }
     return false;
   }
   
   // Check if there are remaining slots
   const slotsRemaining = remainingSlots[scheduleId];
   
-  console.log("Slots remaining:", slotsRemaining, "for scheduleId:", scheduleId);
+  if (shouldLogProjectDebug) {
+    console.log("Slots remaining:", slotsRemaining, "for scheduleId:", scheduleId);
+  }
   
   return slotsRemaining !== undefined && slotsRemaining > 0;
 }
@@ -467,8 +491,8 @@ export function hasAvailableMultiDaySlots(project: Project): boolean {
 }
 
 // Check if a specific slot within a multi-day event has passed
-export function isMultiDaySlotPastByScheduleId(project: Project, scheduleId: string): boolean {
-  if (project.event_type !== 'multiDay' || !project.schedule.multiDay) {
+export function isMultiDaySlotPastByScheduleId(_project: Project, scheduleId: string): boolean {
+  if (_project.event_type !== 'multiDay' || !_project.schedule.multiDay) {
     return false;
   }
 
@@ -478,7 +502,7 @@ export function isMultiDaySlotPastByScheduleId(project: Project, scheduleId: str
   const slotIndexStr = parts.pop();
   const date = parts.join("-");
   
-  const day = project.schedule.multiDay.find((d: any) => d.date === date);
+  const day = _project.schedule.multiDay.find((d) => d.date === date);
   if (!day || !slotIndexStr) return false;
   
   const slotIdx = parseInt(slotIndexStr, 10);
@@ -500,7 +524,7 @@ export function isSameDayMultiAreaSlotPast(project: Project, scheduleId: string)
     return false;
   }
 
-  const role = project.schedule.sameDayMultiArea.roles.find((r: any) => r.name === scheduleId);
+  const role = project.schedule.sameDayMultiArea.roles.find((r) => r.name === scheduleId);
   if (!role) return false;
   
   const eventDate = parseISO(project.schedule.sameDayMultiArea.date);

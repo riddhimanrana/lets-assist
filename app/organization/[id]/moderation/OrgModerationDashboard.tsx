@@ -3,7 +3,6 @@
 import { useState, useTransition } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   AlertTriangle, 
@@ -12,13 +11,31 @@ import {
   CheckCircle,
   User,
   Calendar,
-  Eye,
 } from 'lucide-react';
 import { getOrgFlaggedContent } from './actions';
 import { format } from 'date-fns';
-import { toast } from 'sonner';
 
-type FlaggedContent = any;
+type FlagStatus = "pending_review" | "blocked" | "confirmed" | "dismissed";
+
+const isFlagStatus = (value: string): value is FlagStatus =>
+  value === "pending_review" ||
+  value === "blocked" ||
+  value === "confirmed" ||
+  value === "dismissed";
+
+type FlaggedContent = {
+  id: string;
+  content_type: string;
+  severity: string;
+  created_at: string;
+  reason?: string | null;
+  categories?: Record<string, boolean | null> | null;
+  profiles?: {
+    full_name?: string | null;
+    username?: string | null;
+    email?: string | null;
+  } | null;
+};
 type ModerationStats = {
   total: number;
   pending: number;
@@ -38,12 +55,12 @@ export default function OrgModerationDashboard({
 }) {
   const [stats] = useState(initialStats);
   const [flaggedContent, setFlaggedContent] = useState(initialFlagged);
-  const [selectedTab, setSelectedTab] = useState('pending_review');
+  const [selectedTab, setSelectedTab] = useState<FlagStatus>('pending_review');
   const [isPending, startTransition] = useTransition();
 
-  const loadFlaggedContent = async (status: string) => {
+  const loadFlaggedContent = async (status: FlagStatus) => {
     startTransition(async () => {
-      const result = await getOrgFlaggedContent(organizationId, status as any);
+      const result = await getOrgFlaggedContent(organizationId, status);
       if (result.data) {
         setFlaggedContent(result.data);
       }
@@ -125,6 +142,7 @@ export default function OrgModerationDashboard({
         </CardHeader>
         <CardContent>
           <Tabs value={selectedTab} onValueChange={(v) => {
+            if (!isFlagStatus(v)) return;
             setSelectedTab(v);
             loadFlaggedContent(v);
           }}>

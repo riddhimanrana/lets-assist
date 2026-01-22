@@ -14,12 +14,14 @@ async function testStaffInviteFlow() {
   // Test 1: Check database schema
   console.log('📋 Test 1: Checking database schema...');
   try {
-    const { error } = await adminClient
+    const { data, error } = await adminClient
       .from('organizations')
       .select('staff_join_token, staff_join_token_created_at, staff_join_token_expires_at')
       .limit(1);
     
     if (error) throw error;
+    if (!data) throw new Error('No data returned');
+    if (!data) throw new Error('No data returned');
     console.log('✅ Staff token columns exist in organizations table\n');
   } catch (err) {
     console.error('❌ Schema check failed:', err);
@@ -65,6 +67,7 @@ async function testStaffInviteFlow() {
       .single();
     
     if (error) throw error;
+    if (!data) throw new Error('No data returned');
     
     console.log('✅ Token generated successfully');
     console.log(`   Token: ${data.staff_join_token}`);
@@ -84,16 +87,23 @@ async function testStaffInviteFlow() {
       .single();
     
     if (error) throw error;
+      if (!data) throw new Error('No data returned');
+      const tokenData = data as {
+        staff_join_token: string | null;
+        staff_join_token_expires_at: string | null;
+      };
     
-    const isValid = data.staff_join_token === newToken 
-      && data.staff_join_token_expires_at 
-      && new Date(data.staff_join_token_expires_at) > new Date();
+      const isValid = tokenData.staff_join_token === newToken 
+        && tokenData.staff_join_token_expires_at 
+        && new Date(tokenData.staff_join_token_expires_at) > new Date();
     
     if (!isValid) throw new Error('Token validation failed');
     
     console.log('✅ Token retrieved and validated');
-    console.log(`   Token matches: ${data.staff_join_token === newToken}`);
-    console.log(`   Not expired: ${new Date(data.staff_join_token_expires_at) > new Date()}\n`);
+    const expiresAtValue = tokenData.staff_join_token_expires_at;
+    const notExpired = expiresAtValue ? new Date(expiresAtValue) > new Date() : false;
+    console.log(`   Token matches: ${tokenData.staff_join_token === newToken}`);
+    console.log(`   Not expired: ${notExpired}\n`);
   } catch (err) {
     console.error('❌ Token retrieval failed:', err);
     testPassed = false;

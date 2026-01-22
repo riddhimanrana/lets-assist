@@ -17,7 +17,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import {
-  getOrFetchUser,
   getCachedUser,
   updateCachedUser,
   waitForAuthReady,
@@ -25,7 +24,10 @@ import {
   subscribeToCacheChanges,
   isCacheInitialized,
 } from '@/utils/auth/auth-context';
-import type { AuthState, User } from '@/utils/auth/types';
+import type { AuthState } from '@/utils/auth/types';
+
+// User type re-exported for consumers
+export type { User } from '@/utils/auth/types';
 
 /**
  * Custom React hook for managing auth state
@@ -50,6 +52,8 @@ import type { AuthState, User } from '@/utils/auth/types';
  * ```
  */
 export function useAuth(): AuthState {
+  const shouldLogDebug = process.env.NODE_ENV === 'development';
+  const shouldLogError = process.env.NODE_ENV !== 'test';
   // Initialize state from cache immediately (not null!)
   // This is critical for preventing flash of logged-out state
   const cacheSnapshot = useMemo(
@@ -84,21 +88,21 @@ export function useAuth(): AuthState {
             isError: false,
           });
         }
-        if (process.env.NODE_ENV === 'development') {
+        if (shouldLogDebug) {
           console.log('[useAuth] Cache already initialized, skipping session fetch');
         }
         return;
       }
 
       try {
-        if (process.env.NODE_ENV === 'development') {
+        if (shouldLogDebug) {
           console.log('[useAuth] Initializing auth state...');
         }
 
         // IMPORTANT: Check cache FIRST - it may have been updated by AuthProvider or login flow
         const cachedUser = getCachedUser();
         if (cachedUser) {
-          if (process.env.NODE_ENV === 'development') {
+          if (shouldLogDebug) {
             console.log('[useAuth] Using cached user:', cachedUser.email);
           }
           if (mounted) {
@@ -115,7 +119,9 @@ export function useAuth(): AuthState {
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
         if (sessionError) {
-          console.error('[useAuth] Error getting session:', sessionError);
+          if (shouldLogError) {
+            console.error('[useAuth] Error getting session:', sessionError);
+          }
           if (mounted) {
             setState({
               user: null,
@@ -137,7 +143,7 @@ export function useAuth(): AuthState {
               isError: false,
             });
           }
-          if (process.env.NODE_ENV === 'development') {
+          if (shouldLogDebug) {
             console.log('[useAuth] Session found on mount:', session.user.email);
           }
         } else {
@@ -149,7 +155,7 @@ export function useAuth(): AuthState {
               isError: false,
             });
           }
-          if (process.env.NODE_ENV === 'development') {
+          if (shouldLogDebug) {
             console.log('[useAuth] No session found');
           }
         }

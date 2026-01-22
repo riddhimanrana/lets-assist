@@ -37,7 +37,7 @@ export async function canViewProfile(
 export async function isInSameOrganization(
   userId1: string,
   userId2: string,
-  supabaseClient: any
+  supabaseClient: { from: (table: string) => { select: (columns: string) => { eq: (column: string, value: string) => { single: () => Promise<{ data: { organization_id: string | null } | null }> } } } }
 ): Promise<boolean> {
   const { data: profile1 } = await supabaseClient
     .from('profiles')

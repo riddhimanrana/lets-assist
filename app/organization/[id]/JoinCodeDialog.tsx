@@ -28,12 +28,18 @@ import { regenerateJoinCode } from "../create/actions";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import QRCode from "react-qr-code";
+import type { Organization } from "@/types";
 
 interface JoinCodeDialogProps {
-  organization: any;
+  organization: OrganizationWithJoinCode;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
+
+type OrganizationWithJoinCode = Organization & {
+  join_code?: string | null;
+  name: string;
+};
 
 export default function JoinCodeDialog({ 
   organization, 

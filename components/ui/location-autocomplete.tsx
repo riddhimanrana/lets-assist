@@ -440,8 +440,8 @@ export default function LocationAutocomplete(props: LocationAutocompleteProps) {
           props.onChangeAction({
             text: event.target.value,
             display_name: event.target.value,
-            coordinates: { lat: 0, lng: 0 },
-          } as any)
+            coordinates: { latitude: 0, longitude: 0 },
+          })
         }
       />
     );

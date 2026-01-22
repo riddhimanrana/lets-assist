@@ -12,7 +12,7 @@ export default function OnboardingDebugButton() {
   const [userId, setUserId] = useState<string | null>(null);
   const [userFullName, setUserFullName] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
-  const [debugInfo, setDebugInfo] = useState<any>(null);
+  const [debugInfo, setDebugInfo] = useState<Record<string, unknown> | null>(null);
   const [showDebugInfo, setShowDebugInfo] = useState(false);
 
   const checkCurrentUserState = async () => {

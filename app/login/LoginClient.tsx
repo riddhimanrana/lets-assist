@@ -5,7 +5,6 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { type Session } from "@supabase/supabase-js";
 import { login, signInWithGoogle } from "./actions";
 import Link from "next/link";
 import { createClient } from "@/utils/supabase/client";
@@ -45,7 +44,8 @@ interface LoginClientProps {
 export default function LoginClient({ redirectPath }: LoginClientProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-  const [turnstileVerified, setTurnstileVerified] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [_turnstileVerified, setTurnstileVerified] = useState(false);
   const turnstileRef = useRef<TurnstileRef>(null);
   const [turnstileReady, setTurnstileReady] = useState(false);
   const router = useRouter();
@@ -192,7 +192,7 @@ export default function LoginClient({ redirectPath }: LoginClientProps) {
       if (result.url) {
         window.location.href = result.url;
       }
-    } catch (error) {
+    } catch {
       toast.error("An error occurred. Please try again.");
     } finally {
       setIsGoogleLoading(false);

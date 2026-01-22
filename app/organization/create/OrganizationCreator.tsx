@@ -109,9 +109,9 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
   const [checkingUsername, setCheckingUsername] = useState(false);
   const [tempImageUrl, setTempImageUrl] = useState<string>("");
   const [showCropper, setShowCropper] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
   const [domainAvailable, setDomainAvailable] = useState<boolean | null>(null);
   const [checkingDomain, setCheckingDomain] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   const form = useForm<OrganizationFormValues>({
     resolver: zodResolver(orgCreationSchema),
@@ -129,7 +129,6 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
 
   // Track character counts and enableAutoJoin state
   const nameLength = form.watch("name")?.length || 0;
-  const usernameLength = form.watch("username")?.length || 0;
   const descriptionLength = form.watch("description")?.length || 0;
   const enableAutoJoin = form.watch("enableAutoJoin");
 
@@ -166,7 +165,9 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
   };
 
   const handleCropComplete = async (croppedImage: string) => {
+    setIsUploading(true);
     form.setValue("logoUrl", croppedImage);
+    setIsUploading(false);
     setShowCropper(false);
   };
 

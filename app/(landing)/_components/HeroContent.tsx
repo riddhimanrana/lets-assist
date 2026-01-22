@@ -1,7 +1,6 @@
 "use client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { HoverGradientButton } from "./effects/HoverGradientButton";
 import { ArrowRight, CalendarCheck, CheckCircle, Search } from "lucide-react";
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";

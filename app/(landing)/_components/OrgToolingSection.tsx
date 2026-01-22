@@ -8,6 +8,7 @@ import { Users, Key, BarChart3, Eye, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import OrganizationHeader from "@/components/organization/OrganizationHeader";
 import OrganizationTabs from "@/components/organization/OrganizationTabs";
+import type { Project } from "@/types";
 
 const orgFeatures = [
   {
@@ -44,7 +45,21 @@ const mockOrganization = {
   created_at: "2024-01-01T00:00:00.000Z",
 };
 
-const mockMembers = [
+type OrganizationMember = {
+  id: string;
+  role: "admin" | "staff" | "member";
+  joined_at: string;
+  user_id: string;
+  organization_id: string;
+  profiles: {
+    id: string;
+    username: string;
+    full_name: string;
+    avatar_url: string | null;
+  };
+};
+
+const mockMembers: OrganizationMember[] = [
   {
     id: "m1",
     role: "admin",
@@ -77,44 +92,66 @@ function oneTime(dateISO: string, start: string, end: string) {
 }
 
 const STATIC_DATE = "2024-01-01T00:00:00.000Z";
-const now = new Date(STATIC_DATE);
 const todayISO = STATIC_DATE;
 const yesterdayISO = "2023-12-31T00:00:00.000Z";
 const tomorrowISO = "2024-01-02T00:00:00.000Z";
 
-const mockProjects = [
+const mockProfile = {
+  full_name: "Riddhiman Rana",
+  email: "hello@lets-assist.com",
+  avatar_url: null,
+  username: "riddhiman",
+  created_at: todayISO,
+};
+
+const mockProjects: Project[] = [
   {
     id: "p1",
     title: "Bollinger Canyon Creek Cleanup",
+    description: "A community creek cleanup to protect local trails and wildlife.",
     location: "Bollinger Canyon Trailhead",
     created_at: todayISO,
     event_type: "oneTime",
     schedule: oneTime(tomorrowISO, "09:00", "12:00"),
     status: "upcoming",
-    visibility: "public" as const,
+    visibility: "public",
     creator_id: "u1",
+    verification_method: "manual",
+    require_login: true,
+    pause_signups: false,
+    profiles: mockProfile,
   },
   {
     id: "p2",
     title: "Dougherty Valley Senior Center Meals",
+    description: "Deliver meals and spend time with seniors in the community.",
     location: "Dougherty Valley Senior Center",
     created_at: todayISO,
     event_type: "oneTime",
     schedule: oneTime(yesterdayISO, "11:00", "13:00"),
     status: "completed",
-    visibility: "public" as const,
+    visibility: "public",
     creator_id: "u2",
+    verification_method: "manual",
+    require_login: true,
+    pause_signups: false,
+    profiles: mockProfile,
   },
   {
     id: "p3",
     title: "Central Park Tree Planting",
+    description: "Plant trees to expand shaded spaces in the park.",
     location: "San Ramon Central Park",
     created_at: todayISO,
     event_type: "oneTime",
     schedule: oneTime(todayISO, "08:00", "10:00"),
     status: "upcoming",
-    visibility: "public" as const,
+    visibility: "public",
     creator_id: "u3",
+    verification_method: "manual",
+    require_login: true,
+    pause_signups: false,
+    profiles: mockProfile,
   },
 ];
 

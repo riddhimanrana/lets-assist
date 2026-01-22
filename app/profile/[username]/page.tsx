@@ -157,11 +157,14 @@ export default async function ProfilePage(
   const { username } = await params.params;
   
   // Fetch user profile data including visibility
-  const { data: profile, error } = await supabase
+  const { data: profile, error } = (await supabase
     .from("profiles")
     .select("*, profile_visibility")
     .eq("username", username)
-    .single<Profile & { profile_visibility?: string }>();
+    .single()) as {
+    data: (Profile & { profile_visibility?: string | null }) | null;
+    error: { message: string } | null;
+  };
 
   if (error || !profile) {
     notFound();
@@ -259,7 +262,7 @@ export default async function ProfilePage(
   }
 
   // Updated organizations fetch with correct typing
-  const { data: userOrganizations } = await supabase
+  const { data: userOrganizations } = (await supabase
     .from('organization_members')
     .select(`
       role,
@@ -274,7 +277,10 @@ export default async function ProfilePage(
       )
     `)
     .eq('user_id', profile.id)
-    .order('role', { ascending: false });
+    .order('role', { ascending: false })) as {
+    data: OrganizationResponse[] | null;
+    error: { message: string } | null;
+  };
 
   // Fetch certificates for this user
   // This query should select event_start and event_end if they exist in the table
@@ -312,7 +318,7 @@ function formatHours(hours: number): string {
 
   // Transform the data to match the expected structure
   const formattedOrganizations: OrganizationMembership[] =
-    (userOrganizations || []).map((item: OrganizationResponse) => ({
+    (userOrganizations || []).map((item) => ({
       role: item.role,
       organizations: item.organizations,
     }));

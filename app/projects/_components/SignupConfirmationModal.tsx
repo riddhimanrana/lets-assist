@@ -17,13 +17,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { User, Mail, Phone, Calendar, MapPin, Clock, Loader2, Check, ChevronDown, Download } from 'lucide-react';
+import { User, Mail, Phone, Calendar, MapPin, Clock, Loader2, ChevronDown, Download } from 'lucide-react';
 import Image from "next/image";
 import { getUserProfile } from '@/app/projects/[id]/actions';
 import { toast } from '@/hooks/use-toast';
 import { TimezoneBadge } from '@/components/shared/TimezoneBadge';
 import { WaiverSignatureSection } from '@/app/projects/_components/WaiverSignatureSection';
-import type { WaiverSignatureInput, WaiverTemplate } from '@/types';
+import type { Project, WaiverSignatureInput, WaiverTemplate } from '@/types';
 
 interface UserProfile {
   full_name: string | null;
@@ -181,29 +181,35 @@ export function SignupConfirmationModal({
     import('@/utils/ical').then(({ generateProjectICalFile, downloadICalFile, generateICalFilename }) => {
       try {
         // We need to create a minimal project object with the schedule
-        const projectData: any = {
-          ...project,
-          event_type: 'oneTime' as const,
+        const projectData: Project = {
+          id: project.id,
+          title: project.title,
+          description: '',
+          location: project.location,
+          event_type: 'oneTime',
           schedule: {
             oneTime: {
               date: project.date,
               startTime: project.start_time || '00:00',
               endTime: project.end_time || '23:59',
-              slots: 1,
+              volunteers: 1,
             }
           },
-          description: '',
-          creator_id: '',
-          organization_id: null,
-          status: 'active' as const,
-          visibility: 'public' as const,
-          created_at: '',
-          updated_at: '',
-          published: {},
-          required_volunteers: 1,
-          verification_method: 'qr',
+          verification_method: 'manual',
           require_login: false,
+          creator_id: '',
+          status: 'upcoming',
+          visibility: 'public',
           pause_signups: false,
+          profiles: {
+            full_name: '',
+            email: '',
+            avatar_url: null,
+            username: '',
+            created_at: '',
+          },
+          created_at: '',
+          published: {},
         };
 
         const icalContent = generateProjectICalFile(projectData, scheduleId);
@@ -256,7 +262,7 @@ export function SignupConfirmationModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-5xl w-[95vw] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Confirm Event Signup</DialogTitle>
           <DialogDescription>

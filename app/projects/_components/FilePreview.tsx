@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle, DialogHeader } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
-import { X, Download, FileText, FileImage, File } from "lucide-react";
+import { Download, FileText, FileImage } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface FilePreviewProps {

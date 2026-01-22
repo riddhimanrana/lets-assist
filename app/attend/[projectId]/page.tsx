@@ -115,25 +115,41 @@ export default async function AttendPage(props: Props): Promise<React.ReactEleme
 
     // existing check‑in?
     let existingCheckIn = null;
-    const { data } = await supabase
+    const { data } = (await supabase
         .from("project_signups")
-        .select("id, check_in_time, check_out_time, user_id, anonymous_id")
+        .select("id, check_in_time, check_out_time, schedule_id")
         .eq("project_id", projectId)
         .eq("schedule_id", scheduleId)
         .eq("user_id", user?.id)
-        .maybeSingle();
+        .maybeSingle()) as {
+        data: { id: string; check_in_time: string | null; check_out_time: string | null; schedule_id: string | null } | null;
+    };
     existingCheckIn = data;
 
     return (
         <Suspense fallback={<div className="container mx-auto py-12 px-4 text-center">Loading attendance page...</div>}>
-            <AttendanceClient
-              project={project}
-              scheduleId={scheduleId}
-              user={user ? { ...user, name: userProfile?.full_name } : null}
-              existingCheckIn={existingCheckIn}
-              scanInfo={scanValidation}
-              projectAllowsAnonymous={!project.require_login}
-            />
+                        <AttendanceClient
+                            project={project}
+                            scheduleId={scheduleId}
+                            user={
+                                user
+                                    ? {
+                                            ...user,
+                                            user_metadata: {
+                                                ...(user.user_metadata ?? {}),
+                                                full_name:
+                                                    userProfile?.full_name ??
+                                                    (user.user_metadata as { full_name?: string | null } | null)
+                                                        ?.full_name ??
+                                                    null,
+                                            },
+                                        }
+                                    : null
+                            }
+                            existingCheckIn={existingCheckIn}
+                            scanInfo={scanValidation}
+                            projectAllowsAnonymous={!project.require_login}
+                        />
         </Suspense>
     );
 }

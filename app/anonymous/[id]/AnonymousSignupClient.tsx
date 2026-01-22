@@ -240,10 +240,10 @@ export default function AnonymousSignupClient({
 
       // Also clean up the anonymous_signups record
       const supabase = createClient();
-      const { error: anonymousSignupError } = await supabase
+      const { error: anonymousSignupError } = (await supabase
         .from("anonymous_signups")
         .delete()
-        .eq("id", id);
+        .eq("id", id)) as { error: { message?: string } | null };
         
       if (anonymousSignupError) {
         console.error("Error deleting anonymous signup:", anonymousSignupError);
@@ -337,38 +337,52 @@ export default function AnonymousSignupClient({
   const [certMap, setCertMap] = useState<Record<string,string>>({});
   useEffect(() => {
     const supabase = createClient();
-    supabase
-      .from("certificates")
-      .select("id, signup_id")
-      .eq("signup_id", project_signup_id)
-      .then(({ data, error }) => {
-        if (error) console.error("Error fetching certificates:", error);
-        else {
-          const map: Record<string,string> = {};
-          data?.forEach((cert) => {
-            map[cert.signup_id] = cert.id;
-          });
-          setCertMap(map);
-        }
+    const loadCertificates = async () => {
+      const { data, error } = (await supabase
+        .from("certificates")
+        .select("id, signup_id")
+        .eq("signup_id", project_signup_id)) as {
+        data: { id: string; signup_id: string }[] | null;
+        error: { message?: string } | null;
+      };
+
+      if (error) {
+        console.error("Error fetching certificates:", error);
+        return;
+      }
+
+      const map: Record<string,string> = {};
+      data?.forEach((cert) => {
+        map[cert.signup_id] = cert.id;
       });
+      setCertMap(map);
+    };
+
+    void loadCertificates();
   }, [project_signup_id]);
   const certificateId = certMap[project_signup_id] ?? null;
   // --- END ADDED ---
 
   useEffect(() => {
     const supabase = createClient();
-    supabase
-      .from("waiver_signatures")
-      .select("signature_type, signed_at, signature_text")
-      .eq("signup_id", project_signup_id)
-      .maybeSingle()
-      .then(({ data, error }) => {
-        if (error) {
-          console.error("Error fetching waiver signature:", error);
-          return;
-        }
-        setWaiverSignature(data as typeof waiverSignature);
-      });
+    const loadWaiverSignature = async () => {
+      const { data, error } = (await supabase
+        .from("waiver_signatures")
+        .select("signature_type, signed_at, signature_text")
+        .eq("signup_id", project_signup_id)
+        .maybeSingle()) as {
+        data: typeof waiverSignature | null;
+        error: { message?: string } | null;
+      };
+
+      if (error) {
+        console.error("Error fetching waiver signature:", error);
+        return;
+      }
+      setWaiverSignature(data);
+    };
+
+    void loadWaiverSignature();
   }, [project_signup_id]);
 
   // Determine if this is a "missed event" situation (approved but didn't attend)

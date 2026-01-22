@@ -50,3 +50,7 @@ next-env.d.ts
 
 sitemap.xml
 robots.txt
+
+.playwright-mcp
+/test-results
+/test-assets

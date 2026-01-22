@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { Bell, AlertCircle, AlertTriangle, CircleCheck, Loader2, Check, Settings } from "lucide-react";
+import { Bell, AlertCircle, AlertTriangle, CircleCheck, Loader2, Settings } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Drawer,
@@ -27,6 +27,7 @@ import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useAuth } from "@/hooks/useAuth";
+import type { RealtimeChannel } from "@supabase/realtime-js";
 
 type NotificationSeverity = 'info' | 'warning' | 'success';
 
@@ -39,7 +40,7 @@ type Notification = {
   read: boolean;
   created_at: string;
   action_url?: string | null;
-  data?: Record<string, any> | null;
+  data?: Record<string, unknown> | null;
 };
 
 /**
@@ -47,7 +48,7 @@ type Notification = {
  * without any new calls. Useful for batching rapid realtime events.
  * Example: 5 notification inserts in quick succession → 1 loadNotifications call
  */
-function useDebounce<T extends (...args: any[]) => any>(
+function useDebounce<T extends (...args: unknown[]) => void>(
   callback: T,
   delayMs: number = 500
 ): (...args: Parameters<T>) => void {
@@ -80,18 +81,20 @@ export function NotificationPopover() {
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const supabase = createClient();
+  const realtimeClient = supabase as unknown as {
+    channel: (name: string) => RealtimeChannel;
+    removeChannel: (channel: RealtimeChannel) => Promise<unknown>;
+  };
   const router = useRouter();
   const isMobile = useMediaQuery("(max-width: 768px)");
-  const sentinelRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
   const scrollPositionRef = useRef<number>(0);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  const parseNotificationData = (value: unknown): Record<string, any> | null => {
+  const parseNotificationData = (value: unknown): Record<string, unknown> | null => {
     if (!value) return null;
     if (typeof value === "string") {
       try {
@@ -101,7 +104,7 @@ export function NotificationPopover() {
       }
     }
     if (typeof value === "object") {
-      return value as Record<string, any>;
+      return value as Record<string, unknown>;
     }
     return null;
   };
@@ -118,7 +121,7 @@ export function NotificationPopover() {
   // Track if we've fetched unread count on initial mount
   const initialFetchDone = React.useRef(false);
   // Stable channel ref to avoid recreating subscriptions
-  const channelRef = React.useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const channelRef = React.useRef<RealtimeChannel | null>(null);
 
   // Wrap loadNotifications in useCallback so it doesn't recreate on every render
   const loadNotifications = useCallback(async () => {
@@ -142,9 +145,9 @@ export function NotificationPopover() {
       console.log('Notifications loaded:', data?.length || 0);
       const normalized = (data || []).map((notification) => ({
         ...notification,
-        data: parseNotificationData((notification as any).data),
-      }));
-      setNotifications(normalized as Notification[]);
+        data: parseNotificationData((notification as { data?: unknown }).data),
+      })) as Notification[];
+      setNotifications(normalized);
       setOffset(0);
       
       // Check if there are more notifications
@@ -182,13 +185,13 @@ export function NotificationPopover() {
       console.log('Loaded more notifications:', data?.length || 0);
       const normalized = (data || []).map((notification) => ({
         ...notification,
-        data: parseNotificationData((notification as any).data),
-      }));
+        data: parseNotificationData((notification as { data?: unknown }).data),
+      })) as Notification[];
       
       // Store scroll position before state update
       const currentScrollPos = scrollPositionRef.current;
       
-      setNotifications(prev => [...prev, ...normalized as Notification[]]);
+      setNotifications(prev => [...prev, ...normalized]);
       setOffset(newOffset);
       
       // Check if there are more
@@ -269,7 +272,7 @@ export function NotificationPopover() {
     const channelName = `notification-popover-${user.id}`;
     console.log(`Setting up notification badge channel: ${channelName}`);
     
-    const channel = supabase
+    const channel = realtimeClient
       .channel(channelName)
       .on('postgres_changes', 
         {
@@ -300,7 +303,7 @@ export function NotificationPopover() {
     return () => {
       console.log('Removing notification badge channel');
       if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
+        realtimeClient.removeChannel(channelRef.current);
         channelRef.current = null;
       }
     };
@@ -429,7 +432,7 @@ export function NotificationPopover() {
         .replace(/ weeks? ago/g, 'w ago')
         .replace(/ months? ago/g, 'mo ago')
         .replace(/ years? ago/g, 'y ago');
-    } catch (e) {
+    } catch {
       return "recently";
     }
   };
@@ -568,6 +571,14 @@ export function NotificationPopover() {
   const detailMetadata = activeNotification?.data ?? null;
   const detailStatus = typeof detailMetadata?.status === 'string' ? detailMetadata.status : null;
   const detailStatusLabel = detailStatus ? detailStatus.replace(/_/g, ' ') : null;
+  const detailReportDescription =
+    typeof detailMetadata?.reportDescription === 'string'
+      ? detailMetadata.reportDescription
+      : null;
+  const detailReportReason =
+    typeof detailMetadata?.reportReason === 'string' ? detailMetadata.reportReason : null;
+  const detailReportId =
+    typeof detailMetadata?.reportId === 'string' ? detailMetadata.reportId : null;
   const detailTimestamp = (typeof detailMetadata?.resolvedAt === 'string'
     ? detailMetadata.resolvedAt
     : undefined) ?? activeNotification?.created_at;
@@ -609,19 +620,19 @@ export function NotificationPopover() {
               </p>
             </div>
           )}
-          {detailMetadata?.reportDescription && (
+          {detailReportDescription && (
             <div className="rounded-lg border bg-muted/40 p-3">
               <p className="text-xs font-medium text-muted-foreground">Your original report</p>
               <p className="mt-1 text-sm text-foreground whitespace-pre-line">
-                {detailMetadata.reportDescription}
+                {detailReportDescription}
               </p>
-              {detailMetadata.reportReason && (
-                <p className="mt-2 text-xs text-muted-foreground">Tagged as: {detailMetadata.reportReason}</p>
+              {detailReportReason && (
+                <p className="mt-2 text-xs text-muted-foreground">Tagged as: {detailReportReason}</p>
               )}
             </div>
           )}
-          {detailMetadata?.reportId && (
-            <p className="text-xs text-muted-foreground">Reference ID: {detailMetadata.reportId}</p>
+          {detailReportId && (
+            <p className="text-xs text-muted-foreground">Reference ID: {detailReportId}</p>
           )}
         </div>
         <DialogFooter>

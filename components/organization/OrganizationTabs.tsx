@@ -18,7 +18,6 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
 import { Button } from "@/components/ui/button"; 
@@ -31,11 +30,35 @@ import { ProjectStatusBadge } from "@/components/ui/status-badge";
 import { getProjectStatus } from "@/utils/project";
 import ReportsTab from "@/app/organization/[id]/ReportsTab";
 import { cn } from "@/lib/utils";
+import type { Organization, Project } from "@/types";
+
+type OrganizationMember = {
+  id: string;
+  user_id: string;
+  role: "admin" | "staff" | "member";
+  joined_at: string;
+  profiles?: {
+    id?: string;
+    username?: string | null;
+    full_name?: string | null;
+    avatar_url?: string | null;
+  } | Array<{
+    id?: string;
+    username?: string | null;
+    full_name?: string | null;
+    avatar_url?: string | null;
+  }> | null;
+};
+
+type OrganizationWithWebsite = Organization & {
+  website?: string | null;
+  created_at?: string | null;
+};
 
 interface OrganizationTabsProps {
-  organization: any;
-  members: any[];
-  projects: any[];
+  organization: OrganizationWithWebsite;
+  members: OrganizationMember[];
+  projects: Project[];
   userRole: string | null;
   currentUserId: string | undefined;
   reportSummary?: {
@@ -50,7 +73,7 @@ function LeaveOrganizationDialog({
   organization, 
   userRole 
 }: { 
-  organization: any;
+  organization: Organization;
   userRole: string;
 }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -138,11 +161,6 @@ export default function OrganizationTabs({
   reportSummary,
 }: OrganizationTabsProps) {
   const [activeTab, setActiveTab] = useState("overview");
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -191,8 +209,6 @@ export default function OrganizationTabs({
   // but better to just use them directly if projects are static
   const upcomingProjects = projects.filter(p => getProjectStatus(p) === "upcoming").length;
   const completedProjects = projects.filter(p => getProjectStatus(p) === "completed").length;
-  const adminCount = members.filter(m => m.role === "admin").length;
-  const staffCount = members.filter(m => m.role === "staff").length;
   const canViewReports = userRole === "admin" || userRole === "staff";
 
   return (
@@ -204,45 +220,45 @@ export default function OrganizationTabs({
     >
       <TabsList
         className={cn(
-          "mb-6 w-full max-w-full flex flex-wrap items-center gap-1 rounded-md border bg-card p-1 text-muted-foreground shadow-sm sm:inline-flex sm:w-auto sm:gap-1.5"
+          "mb-6 w-full max-w-full grid grid-cols-4 gap-1 rounded-md border bg-card p-1 text-muted-foreground shadow-sm sm:inline-flex sm:w-auto sm:flex-nowrap sm:gap-1.5"
         )}
       >
         <TabsTrigger 
           value="overview" 
-          className="flex w-full min-w-0 items-center justify-center gap-1.5 px-2 py-1.5 data-[state=active]:text-foreground sm:w-auto sm:justify-start sm:px-3"
+          className="flex w-full items-center justify-center gap-1.5 px-2 py-1.5 data-[state=active]:text-foreground sm:w-auto sm:justify-start sm:px-3"
         >
           <LayoutDashboard className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
-          <span className="truncate text-[11px] sm:text-sm">Overview</span>
+          <span className="sr-only sm:not-sr-only sm:text-sm">Overview</span>
         </TabsTrigger>
         <TabsTrigger 
           value="members" 
-          className="flex w-full min-w-0 items-center justify-center gap-1.5 px-2 py-1.5 data-[state=active]:text-foreground sm:w-auto sm:justify-start sm:px-3"
+          className="flex w-full items-center justify-center gap-1.5 px-2 py-1.5 data-[state=active]:text-foreground sm:w-auto sm:justify-start sm:px-3"
         >
           <Users className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
-          <span className="truncate text-[11px] sm:text-sm">Members</span>
+          <span className="sr-only sm:not-sr-only sm:text-sm">Members</span>
         </TabsTrigger>
         <TabsTrigger 
           value="projects" 
-          className="flex w-full min-w-0 items-center justify-center gap-1.5 px-2 py-1.5 data-[state=active]:text-foreground sm:w-auto sm:justify-start sm:px-3"
+          className="flex w-full items-center justify-center gap-1.5 px-2 py-1.5 data-[state=active]:text-foreground sm:w-auto sm:justify-start sm:px-3"
         >
           <Folders className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
-          <span className="truncate text-[11px] sm:text-sm">Projects</span>
+          <span className="sr-only sm:not-sr-only sm:text-sm">Projects</span>
         </TabsTrigger>
         {canViewReports && (
           <TabsTrigger
             value="reports"
-            className="flex w-full min-w-0 items-center justify-center gap-1.5 px-2 py-1.5 data-[state=active]:text-foreground sm:w-auto sm:justify-start sm:px-3"
+            className="flex w-full items-center justify-center gap-1.5 px-2 py-1.5 data-[state=active]:text-foreground sm:w-auto sm:justify-start sm:px-3"
           >
             <BarChart3 className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
-            <span className="truncate text-[11px] sm:text-sm">Reports</span>
+            <span className="sr-only sm:not-sr-only sm:text-sm">Reports</span>
           </TabsTrigger>
         )}
       </TabsList>
       
       <TabsContent value="overview" className="space-y-6">
-        <div className="grid gap-4 sm:gap-6 lg:grid-cols-2 items-stretch">
+        <div className="grid gap-4 sm:gap-6 lg:grid-cols-2 items-stretch justify-items-center sm:justify-items-stretch">
           {/* About Card */}
-          <Card className="flex flex-col overflow-hidden">
+          <Card className="flex flex-col overflow-hidden w-full max-w-[560px] sm:max-w-none">
             <CardContent className="p-4 sm:p-6 flex flex-col flex-1">
               <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">About</h3>
               <div className="space-y-4 flex-1">
@@ -285,7 +301,9 @@ export default function OrganizationTabs({
                     <div className="min-w-0 flex-1">
                       <h4 className="text-xs sm:text-sm font-medium">Created</h4>
                       <p className="text-xs sm:text-sm text-muted-foreground truncate">
-                        {format(new Date(organization.created_at), "MMMM d, yyyy")}
+                        {organization.created_at
+                          ? format(new Date(organization.created_at), "MMMM d, yyyy")
+                          : "N/A"}
                       </p>
                     </div>
                   </div>
@@ -295,7 +313,7 @@ export default function OrganizationTabs({
             </CardContent>
           </Card>
           {/* Quick Stats Card */}
-          <Card className="flex flex-col overflow-hidden">
+          <Card className="flex flex-col overflow-hidden w-full max-w-[560px] sm:max-w-none">
             <CardContent className="p-4 sm:p-6 flex flex-col flex-1">
               <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">Quick Stats</h3>
               <div className="grid grid-cols-2 gap-2 sm:gap-3 mb-4">
@@ -354,8 +372,8 @@ export default function OrganizationTabs({
           </Card>
         </div>
         
-  {userRole && (
-          <Card className="overflow-hidden">
+    {userRole && (
+      <Card className="overflow-hidden w-full max-w-[560px] sm:max-w-none">
             <CardContent className="p-4 sm:p-6">
               <div className="flex flex-col sm:flex-row items-start gap-4">
           {userRole === "admin" ? (

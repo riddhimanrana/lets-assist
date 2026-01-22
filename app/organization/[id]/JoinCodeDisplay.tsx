@@ -47,7 +47,7 @@ export default function JoinCodeDisplay({
       await navigator.clipboard.writeText(displayedJoinCode);
       setIsCopied(true);
       toast.success("Join code copied to clipboard");
-    } catch (err) {
+    } catch {
       toast.error("Failed to copy join code");
     }
   };

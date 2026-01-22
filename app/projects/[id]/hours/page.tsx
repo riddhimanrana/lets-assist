@@ -1,5 +1,4 @@
 import { createClient } from "@/utils/supabase/server";
-import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { Metadata } from "next";
 import { differenceInHours, isAfter, format, parseISO } from "date-fns";
@@ -10,7 +9,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { AlertCircle, ArrowLeft, CalendarClock, Clock } from "lucide-react";
+import { AlertCircle, ArrowLeft, CalendarClock } from "lucide-react";
 import { getProject } from "../actions";
 
 // Define session type for easier handling
@@ -19,6 +18,11 @@ type ProjectSession = {
   name: string;
   endDateTime: Date;
   hoursRemaining: number;
+};
+
+type SignupRow = Omit<ProjectSignup, "profile" | "anonymous_signup"> & {
+  profile?: ProjectSignup["profile"] | ProjectSignup["profile"][] | null;
+  anonymous_signup?: ProjectSignup["anonymous_signup"] | ProjectSignup["anonymous_signup"][] | null;
 };
 
 // Helper function to check if user has permission (Creator or Org Admin/Staff)
@@ -141,7 +145,6 @@ export async function generateMetadata({
 }
 
 export default async function HoursPage({ params }: { params: Promise<{ id: string }> }) {
-  const cookieStore = cookies();
   const supabase = await createClient();
   const { id: projectId } = await params;
 
@@ -225,7 +228,7 @@ export default async function HoursPage({ params }: { params: Promise<{ id: stri
   }
 
   // 6. Fetch Attendance Data (Signups)
-  const { data: signupsData, error: signupsError } = await supabase
+  const { data: signupsData, error: signupsError } = (await supabase
     .from("project_signups")
     .select(`
       id,
@@ -252,7 +255,10 @@ export default async function HoursPage({ params }: { params: Promise<{ id: stri
       )
     `)
     .eq("project_id", projectId)
-    .in("status", ["attended", "approved"]); // Fetch both attended and approved
+    .in("status", ["attended", "approved"])) as {
+    data: SignupRow[] | null;
+    error: { message: string } | null;
+  }; // Fetch both attended and approved
 
   if (signupsError) {
     console.error("Error fetching signups:", signupsError);
@@ -266,11 +272,18 @@ export default async function HoursPage({ params }: { params: Promise<{ id: stri
   }
 
   // Transform Supabase response arrays to single objects for profile and anonymous_signup
-  const signups: ProjectSignup[] = (signupsData || []).map((s: any) => ({
-    ...s,
-    profile: Array.isArray(s.profile) ? s.profile[0] : s.profile,
-    anonymous_signup: Array.isArray(s.anonymous_signup) ? s.anonymous_signup[0] : s.anonymous_signup,
-  }));
+  const signups: ProjectSignup[] = (signupsData || []).map((s: SignupRow) => {
+    const profile = Array.isArray(s.profile) ? s.profile[0] : s.profile;
+    const anonymousSignup = Array.isArray(s.anonymous_signup)
+      ? s.anonymous_signup[0]
+      : s.anonymous_signup;
+
+    return {
+      ...s,
+      profile: profile ?? undefined,
+      anonymous_signup: anonymousSignup ?? undefined,
+    };
+  });
 
   // 7. Render Client Component or "Not Yet Available" Message
   if (!hasActiveSessions) {

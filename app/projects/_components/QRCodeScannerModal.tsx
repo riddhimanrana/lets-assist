@@ -3,10 +3,10 @@
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-// Import Scanner, TrackFunction and necessary types
-import { Scanner, TrackFunction, IDetectedBarcode, boundingBox } from "@yudiel/react-qr-scanner";
+// Import Scanner and necessary types
+import { Scanner, IDetectedBarcode, boundingBox } from "@yudiel/react-qr-scanner";
 import { toast } from "sonner";
-import { AlertCircle, ScanLine, X } from "lucide-react";
+import { AlertCircle, ScanLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface QRCodeScannerModalProps {
@@ -20,7 +20,7 @@ export function QRCodeScannerModal({
   isOpen,
   onClose,
   projectId,
-  expectedScheduleId,
+  expectedScheduleId: _expectedScheduleId,
 }: QRCodeScannerModalProps) {
   const router = useRouter();
   const [scanError, setScanError] = useState<string | null>(null);
@@ -29,7 +29,12 @@ export function QRCodeScannerModal({
   // Sound synthesizer for a "modern" beep
   const playScanSound = useCallback(() => {
     try {
-      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const AudioContextConstructor =
+        window.AudioContext ||
+        (window as typeof window & { webkitAudioContext?: typeof AudioContext })
+          .webkitAudioContext;
+      if (!AudioContextConstructor) return;
+      const audioCtx = new AudioContextConstructor();
       
       const playTone = (freq: number, startTime: number, duration: number, volume: number) => {
         const osc = audioCtx.createOscillator();

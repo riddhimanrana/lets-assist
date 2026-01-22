@@ -49,11 +49,17 @@ export async function GET(request: NextRequest) {
     return redirectToSuccess(request, undefined, type === "email_change" ? "email_change" : "signup");
   }
 
-  const otpParams: any = { type };
-  if (token_hash) otpParams.token_hash = token_hash;
-  if (token) otpParams.token = token;
+  const tokenValue = token_hash ?? token;
 
-  const { data, error } = await supabase.auth.verifyOtp(otpParams);
+  if (!tokenValue) {
+    console.error("Missing token for verification");
+    return redirect("/error");
+  }
+
+  const { data, error } = await supabase.auth.verifyOtp({
+    type,
+    token_hash: tokenValue,
+  });
 
   if (error) {
     console.error("Verification error:", error);
@@ -64,13 +70,13 @@ export async function GET(request: NextRequest) {
   }
 
   if (type === "email_change" && data?.user) {
-    const { error: profileError } = await supabase
+    const { error: profileError } = (await supabase
       .from("profiles")
       .update({
         email: data.user.email,
         updated_at: new Date().toISOString(),
       })
-      .eq("id", data.user.id);
+      .eq("id", data.user.id)) as { error: { message?: string } | null };
 
     if (profileError) {
       console.error("Profile update error:", profileError);

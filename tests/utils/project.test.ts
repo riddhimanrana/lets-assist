@@ -6,7 +6,6 @@
 import { describe, expect, it, beforeEach, vi } from "vitest";
 import {
   getProjectEventDate,
-  getProjectEndDate,
   getProjectStartDateTime,
   getProjectEndDateTime,
   getProjectStatus,
@@ -20,8 +19,6 @@ import {
   isMultiDaySlotPast,
   getAvailableMultiDaySlots,
   hasAvailableMultiDaySlots,
-  isMultiDaySlotPastByScheduleId,
-  isSameDayMultiAreaSlotPast,
   isOneTimeSlotPast,
 } from "@/utils/project";
 import {

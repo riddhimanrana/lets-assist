@@ -21,7 +21,8 @@ interface ProjectCancellationProps {
 export default function ProjectCancellation({
   volunteerName = "John Doe",
   projectName = "Beach Cleanup Drive",
-  cancellationReason = "Due to unforeseen weather conditions, we need to cancel this event for the safety of all volunteers.",
+  cancellationReason =
+    "Due to unforeseen weather conditions, we need to cancel this event for the safety of all volunteers.",
 }: ProjectCancellationProps) {
   return (
     <Html lang="en">
@@ -50,7 +51,8 @@ export default function ProjectCancellation({
               <Heading style={headingRed}>Project cancelled</Heading>
               <Text style={paragraph}>Hi {volunteerName},</Text>
               <Text style={paragraph}>
-                We’re sorry, the project <strong>{projectName}</strong> you signed up for has been cancelled.
+                We’re sorry, the project <strong>{projectName}</strong> you
+                signed up for has been cancelled.
               </Text>
 
               {cancellationReason ? (
@@ -62,26 +64,28 @@ export default function ProjectCancellation({
                 <Section style={subtleBox}>
                   <Text style={label}>Update</Text>
                   <Text style={smallText}>
-                    The organizers have cancelled this project. We’ll share more details if they become available.
+                    The organizers have cancelled this project. We’ll share
+                    more details if they become available.
                   </Text>
                 </Section>
               )}
 
-              {/* <Section style={subtleBox}>
+              <Section style={subtleBox}>
                 <Text style={label}>We’re here if you need us</Text>
                 <Text style={smallText}>
-                  We sincerely apologize for any inconvenience this may cause. If you have questions, reply to this email or
-                  contact{" "}
+                  We sincerely apologize for any inconvenience this may cause.
+                  If you have questions, reply to this email or contact{" "}
                   <Link href="mailto:support@lets-assist.com" style={link}>
                     support@lets-assist.com
                   </Link>
                   .
                 </Text>
-              </Section> */}
+              </Section>
 
               <Section style={encouragementBox}>
                 <Text style={encouragementText}>
-                  Thank you for your commitment to volunteering. We hope to see you in future projects.
+                  Thank you for your commitment to volunteering. We hope to see
+                  you in future projects.
                 </Text>
               </Section>
             </Section>
@@ -153,21 +157,6 @@ const reasonText = {
   margin: "0",
 };
 
-const encouragementBox = {
-  padding: "16px",
-  margin: "14px 0 0",
-  backgroundColor: "#f0fdf4",
-  border: "1px solid #dcfce7",
-  borderRadius: "12px",
-};
-
-const encouragementText = {
-  color: "#166534",
-  fontSize: "14px",
-  lineHeight: "1.6",
-  margin: "0",
-};
-
 const subtleBox = {
   backgroundColor: "#f9fafb",
   border: "1px solid #eef2f7",
@@ -196,4 +185,18 @@ const link = {
   fontWeight: "500" as const,
   textDecoration: "underline",
   wordBreak: "break-all" as const,
+};
+const encouragementBox = {
+  padding: "16px",
+  margin: "14px 0 0",
+  backgroundColor: "#f0fdf4",
+  border: "1px solid #dcfce7",
+  borderRadius: "12px",
+};
+
+const encouragementText = {
+  color: "#166534",
+  fontSize: "14px",
+  lineHeight: "1.6",
+  margin: "0",
 };

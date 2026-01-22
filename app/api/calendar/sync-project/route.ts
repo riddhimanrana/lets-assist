@@ -84,13 +84,13 @@ export async function POST(request: Request) {
     }
 
     // Update project with calendar event ID
-    const { error: updateError } = await supabase
+    const { error: updateError } = (await supabase
       .from("projects")
       .update({
         creator_calendar_event_id: eventId,
         creator_synced_at: new Date().toISOString(),
       })
-      .eq("id", project_id);
+      .eq("id", project_id)) as { error: { message?: string } | null };
 
     if (updateError) {
       console.error("Failed to update project:", updateError);
