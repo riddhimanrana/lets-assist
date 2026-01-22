@@ -31,14 +31,11 @@ interface LocationMapProps {
 
 export function LocationMap({
   location,
-  readOnly = true,
   height = "h-[300px]",
-  showAttribution = true,
-}: LocationMapProps) {
+}: Omit<LocationMapProps, "readOnly" | "showAttribution">) {
   const mapRef = useRef<google.maps.Map | null>(null)
   const [map, setMap] = useState<google.maps.Map | null>(null)
   const { theme, systemTheme } = useTheme()
-  const [currentMapId, setCurrentMapId] = useState<string>(MAP_ID)
 
   // Determine if dark mode is active
   const isDarkMode = theme === "dark" || (theme === "system" && systemTheme === "dark")
@@ -46,7 +43,7 @@ export function LocationMap({
   // Load Google Maps script
   const { isLoaded, loadError } = useLoadScript({
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
-    libraries: libraries as any,
+    libraries: libraries as "places"[],
   })
 
   // Update map styling when theme changes
@@ -129,7 +126,7 @@ export function LocationMap({
             streetViewControl: false,
             mapTypeControl: false,
             zoomControl: true,
-            mapTypeId: (window as any).google?.maps?.MapTypeId.ROADMAP,
+            mapTypeId: google.maps.MapTypeId.ROADMAP,
             mapId: MAP_ID, // Apply your map ID here
           }}
         >

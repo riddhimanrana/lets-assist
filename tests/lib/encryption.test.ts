@@ -3,7 +3,7 @@
  * @see lib/encryption.ts
  */
 
-import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
+import { describe, expect, it, beforeEach, afterEach } from "vitest";
 import { encrypt, decrypt, generateEncryptionKey } from "@/lib/encryption";
 
 describe("Encryption utilities", () => {

@@ -106,9 +106,9 @@ export async function getFlaggedContent(status?: 'pending' | 'blocked' | 'confir
   const orgMap = new Map(organizations.map((org) => [org.id, org]));
 
   const enriched = flags.map((flag) => {
-    const details = (flag.flag_details || {}) as Record<string, any>;
-    let contentDetails: any = null;
-    let creatorDetails: any = null;
+    const details = (flag.flag_details || {}) as Record<string, unknown>;
+    let contentDetails: Record<string, unknown> | null = null;
+    let creatorDetails: Record<string, unknown> | null = null;
 
     if (flag.content_type === 'project') {
       const project = projectMap.get(flag.content_id);

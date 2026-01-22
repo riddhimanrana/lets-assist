@@ -24,6 +24,7 @@ export interface WaiverSignature {
   signature_text?: string | null;
   signature_storage_path?: string | null;
   upload_storage_path?: string | null;
+  form_data?: Record<string, unknown> | null;
   signed_at: string;
   ip_address?: string | null;
   user_agent?: string | null;
@@ -42,6 +43,7 @@ export interface WaiverSignatureInput {
   signerName?: string;
   signerEmail?: string;
   waiverPdfUrl?: string;
+  formData?: Record<string, string | boolean | string[]>;
 }
 
 // Project waiver configuration

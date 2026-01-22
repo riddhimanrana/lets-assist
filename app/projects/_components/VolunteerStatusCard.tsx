@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { parseISO, differenceInSeconds, format } from "date-fns";
+import { parseISO, differenceInSeconds } from "date-fns";
 import { Project } from "@/types";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";

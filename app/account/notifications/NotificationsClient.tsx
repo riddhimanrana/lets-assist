@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle, AlertTriangle, CircleCheck } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 type NotificationSettings = {
@@ -18,39 +17,13 @@ type NotificationSettings = {
   general: boolean;
 };
 
-type Notification = {
-  id: string;
-  title: string;
-  body: string;
-  type: string;
-  severity: 'info' | 'warning' | 'success';
-  read: boolean;
-  created_at: string;
-  action_url?: string;
-};
-
 export function NotificationsClient() {
   const { user } = useAuth(); // Use cached auth instead of getUser() calls
   const [settings, setSettings] = useState<NotificationSettings | null>(null);
   const [originalSettings, setOriginalSettings] = useState<NotificationSettings | null>(null);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
-  const [notificationsLoading, setNotificationsLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const supabase = createClient();
-
-  // Helper function to get icon based on severity
-  const getNotificationIcon = (severity: string = 'info') => {
-    switch (severity) {
-      case 'warning':
-        return <AlertTriangle className="h-5 w-5 text-chart-6" />;
-      case 'success':
-        return <CircleCheck className="h-5 w-5 text-primary" />;
-      case 'info':
-      default:
-        return <AlertCircle className="h-5 w-5 text-chart-3" />;
-    }
-  };
 
   useEffect(() => {
     // Skip if user is not available yet
@@ -61,18 +34,22 @@ export function NotificationsClient() {
 
     async function loadSettings() {
       try {
-        const { data, error } = await supabase
+        const { data, error } = (await supabase
           .from("notification_settings")
           .select("*")
-          .eq("user_id", userId);
+          .eq("user_id", userId)) as {
+          data: NotificationSettings[] | null;
+          error: { message?: string } | null;
+        };
 
         if (error) {
           console.error("Error loading notification settings:", error);
           return;
         }
 
-        setSettings(data[0]);
-        setOriginalSettings(data[0]);
+        const firstSetting = data?.[0] ?? null;
+        setSettings(firstSetting);
+        setOriginalSettings(firstSetting);
       } catch (error) {
         console.error("Failed to load notification settings", error);
       } finally {
@@ -80,30 +57,7 @@ export function NotificationsClient() {
       }
     }
 
-    async function loadNotifications() {
-      try {
-        setNotificationsLoading(true);
-        const { data, error } = await supabase
-          .from("notifications")
-          .select("*")
-          .order("created_at", { ascending: false })
-          .limit(10);
-        
-        if (error) {
-          console.error("Error loading notifications:", error);
-          return;
-        }
-        
-        setNotifications(data || []);
-      } catch (error) {
-        console.error("Error loading notifications:", error);
-      } finally {
-        setNotificationsLoading(false);
-      }
-    }
-
     loadSettings();
-    loadNotifications();
   }, [user?.id]); // Re-run when user changes
 
   const handleChange = (field: keyof NotificationSettings, value: boolean) => {
@@ -116,10 +70,10 @@ export function NotificationsClient() {
     
     setSaving(true);
     try {
-      const { error } = await supabase
+      const { error } = (await supabase
         .from("notification_settings")
         .update(settings)
-        .eq("user_id", user.id);
+        .eq("user_id", user.id)) as { error: { message?: string } | null };
 
       if (error) {
         toast.error("Failed to save notification settings");

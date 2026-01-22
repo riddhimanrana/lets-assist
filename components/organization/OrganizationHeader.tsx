@@ -4,15 +4,18 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Share2, GlobeIcon, UsersIcon, Plus, Building2, BadgeCheck, GraduationCap, Building } from "lucide-react";
-import Link from "next/link";
 import { useState } from "react";
 import JoinCodeDialog from "@/app/organization/[id]/JoinCodeDialog";
-import { toast } from "sonner";
-import { JoinOrganizationDialog } from "@/app/organization/JoinOrganizationDialog";
 import { useRouter } from "next/navigation";
+import type { Organization } from "@/types";
+import { toast } from "sonner";
+
+type OrganizationHeaderOrg = Organization & {
+  website?: string | null;
+};
 
 interface OrganizationHeaderProps {
-  organization: any;
+  organization: OrganizationHeaderOrg;
   userRole: string | null;
   memberCount: number;
 }

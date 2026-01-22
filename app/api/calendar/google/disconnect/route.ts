@@ -30,18 +30,21 @@ export async function POST(request: Request) {
     try {
       const body = await request.json();
       revoke_access = body.revoke_access ?? true;
-    } catch (error) {
+    } catch {
       // No body provided, use default
     }
 
     // Get the user's connection
-    const { data: connection, error: fetchError } = await supabase
+    const { data: connection, error: fetchError } = (await supabase
       .from("user_calendar_connections")
       .select("*")
       .eq("user_id", user.id)
       .eq("provider", "google")
       .eq("is_active", true)
-      .single();
+      .single()) as {
+      data: { id: string; refresh_token?: string | null } | null;
+      error: { message?: string } | null;
+    };
 
     if (fetchError || !connection) {
       return NextResponse.json(
@@ -51,7 +54,7 @@ export async function POST(request: Request) {
     }
 
     // Optionally revoke access with Google
-    if (revoke_access) {
+    if (revoke_access && connection.refresh_token) {
       try {
         const decryptedRefreshToken = decrypt(connection.refresh_token);
         await revokeGoogleCalendarAccess(decryptedRefreshToken);
@@ -62,10 +65,10 @@ export async function POST(request: Request) {
     }
 
     // Delete the connection
-    const { error: deleteError } = await supabase
+    const { error: deleteError } = (await supabase
       .from("user_calendar_connections")
       .delete()
-      .eq("id", connection.id);
+      .eq("id", connection.id)) as { error: { message?: string } | null };
 
     if (deleteError) {
       console.error("Failed to delete connection:", deleteError);

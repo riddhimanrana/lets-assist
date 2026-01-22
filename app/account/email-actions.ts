@@ -15,7 +15,7 @@ export async function sendVerificationEmail(email: string) {
     }
 
     // Check if email already exists as a primary account in profiles table
-    const { data: existingProfile, error: profileError } = await supabase
+    const { data: existingProfile } = await supabase
         .from("profiles")
         .select("id, email")
         .eq("email", email.toLowerCase())
@@ -26,7 +26,7 @@ export async function sendVerificationEmail(email: string) {
     }
 
     // Check if email already exists in user_emails (globally unique)
-    const { data: existingEmail, error: checkError } = await supabase
+    const { data: existingEmail } = await supabase
         .from("user_emails")
         .select("id, user_id")
         .eq("email", email.toLowerCase())
@@ -45,7 +45,7 @@ export async function sendVerificationEmail(email: string) {
     const token = crypto.randomInt(100000, 999999).toString();
 
     // Insert/Update user_emails with token
-    const { error: insertError } = await supabase
+    const { error: insertError } = (await supabase
         .from("user_emails")
         .upsert({
             user_id: user.id,
@@ -53,7 +53,7 @@ export async function sendVerificationEmail(email: string) {
             verification_token: token,
             verified_at: null, // Reset verification if re-adding/verifying
             is_primary: false
-        }, { onConflict: 'email' }); // Use email as conflict target since it's unique
+        }, { onConflict: 'email' })) as { error: { message?: string } | null }; // Use email as conflict target since it's unique
 
     if (insertError) {
         console.error("Error inserting email:", insertError);
@@ -76,10 +76,11 @@ export async function sendVerificationEmail(email: string) {
         }
 
         console.log("Verification email sent successfully");
-    } catch (e: any) {
+    } catch (e: unknown) {
+        const error = e as Error;
         console.error("Email sending exception:", e);
-        console.error("Exception details:", e.message, e.stack);
-        return { error: `Failed to send verification email: ${e.message || 'Unknown error'}` };
+        console.error("Exception details:", error.message, error.stack);
+        return { error: `Failed to send verification email: ${error.message || 'Unknown error'}` };
     }
 
     return { success: true };
@@ -110,13 +111,13 @@ export async function verifyEmailToken(email: string, token: string) {
     }
 
     // Mark as verified
-    const { error: updateError } = await supabase
+    const { error: updateError } = (await supabase
         .from("user_emails")
         .update({
             verified_at: new Date().toISOString(),
             verification_token: null // Clear token
         })
-        .eq("id", emailRecord.id);
+        .eq("id", emailRecord.id)) as { error: { message?: string } | null };
 
     if (updateError) {
         return { error: "Failed to verify email" };
@@ -186,7 +187,7 @@ export async function setPrimaryEmailAction(email: string): Promise<SetPrimaryEm
     }
 
     const confirmedEmail = updateData?.user?.email?.toLowerCase?.();
-    const pendingEmail = (updateData?.user as any)?.new_email?.toLowerCase?.();
+    const pendingEmail = (updateData?.user as { new_email?: string })?.new_email?.toLowerCase?.();
     const needsConfirmation = confirmedEmail !== normalizedEmail && pendingEmail === normalizedEmail;
 
     if (needsConfirmation) {
@@ -197,34 +198,34 @@ export async function setPrimaryEmailAction(email: string): Promise<SetPrimaryEm
         };
     }
 
-    const { error: profileError } = await supabase
-        .from("profiles")
-        .update({
-            email: normalizedEmail,
-            updated_at: new Date().toISOString(),
-        })
-        .eq("id", user.id);
+        const { error: profileError } = (await supabase
+            .from("profiles")
+            .update({
+                email: normalizedEmail,
+                updated_at: new Date().toISOString(),
+            })
+            .eq("id", user.id)) as { error: { message?: string } | null };
 
     if (profileError) {
         console.error("Profile update error:", profileError);
         return { success: false, error: "Failed to sync profile email" };
     }
 
-    const { error: demoteError } = await supabase
+    const { error: demoteError } = (await supabase
         .from("user_emails")
         .update({
             is_primary: false,
             updated_at: new Date().toISOString(),
         })
         .eq("user_id", user.id)
-        .neq("email", normalizedEmail);
+        .neq("email", normalizedEmail)) as { error: { message?: string } | null };
 
     if (demoteError) {
         console.error("Failed to demote aliases:", demoteError);
         return { success: false, error: "Failed to update existing emails" };
     }
 
-    const { error: promoteError } = await supabase
+    const { error: promoteError } = (await supabase
         .from("user_emails")
         .update({
             is_primary: true,
@@ -233,7 +234,7 @@ export async function setPrimaryEmailAction(email: string): Promise<SetPrimaryEm
             updated_at: new Date().toISOString(),
         })
         .eq("user_id", user.id)
-        .eq("email", normalizedEmail);
+        .eq("email", normalizedEmail)) as { error: { message?: string } | null };
 
     if (promoteError) {
         console.error("Failed to promote alias:", promoteError);

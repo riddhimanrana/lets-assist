@@ -1,14 +1,11 @@
 import { createClient } from "@/utils/supabase/server";
-import { cookies } from "next/headers";
 import { getProject, getCreatorProfile } from "./actions";
-import { redirect, notFound } from "next/navigation";
+import { notFound } from "next/navigation";
 import { getSlotCapacities } from "@/utils/project";
-import { getProjectStatus } from "@/utils/project";
 import ProjectUnauthorized from "./ProjectUnauthorized";
-// Make sure Signup type is imported
-import { Project, Signup } from "@/types";
+import { Signup } from "@/types";
 import VolunteerStatusCard from "@/app/projects/_components/VolunteerStatusCard";
-import ProjectClient from "./ProjectClient"; // Import the new client component
+import ProjectClient from "./ProjectClient";
 import { Metadata } from "next";
 
 export async function generateMetadata({
@@ -77,6 +74,19 @@ interface PageProps {
   params: Promise<{ id: string }>;
   searchParams: Promise<{ checkedIn?: string; schedule?: string }>; // expects checkedIn and schedule flags
 }
+
+type ApprovedSignupRow = {
+  id: string;
+  schedule_id: string;
+  status: string;
+  check_in_time: string | null;
+  check_out_time: string | null;
+  created_at: string;
+};
+
+type RejectionRow = {
+  schedule_id: string;
+};
 
 export default async function ProjectPage({
   params,
@@ -156,7 +166,7 @@ export default async function ProjectPage({
   let userSignupsData: Signup[] = [];
   if (user) {
     // Fetch approved signups first
-    const { data: approvedSignups, error: approvedError } = await supabase
+    const { data: approvedSignups, error: approvedError } = (await supabase
       .from("project_signups")
       // Select all necessary fields for UserDashboard
       .select(
@@ -164,7 +174,10 @@ export default async function ProjectPage({
       )
       .eq("project_id", project.id)
       .eq("user_id", user.id)
-      .in("status", ["approved", "attended"]); // Fetch both approved and attended signups
+      .in("status", ["approved", "attended"])) as {
+      data: ApprovedSignupRow[] | null;
+      error: { message: string } | null;
+    }; // Fetch both approved and attended signups
 
     if (approvedError) {
       console.error("Error fetching user approved signups:", approvedError);
@@ -184,12 +197,15 @@ export default async function ProjectPage({
   // Get user's rejected slots
   const rejectedSlots: Record<string, boolean> = {};
   if (user) {
-    const { data: rejections } = await supabase
+    const { data: rejections } = (await supabase
       .from("project_signups")
       .select("schedule_id")
       .eq("project_id", project.id)
       .eq("user_id", user.id)
-      .eq("status", "rejected");
+      .eq("status", "rejected")) as {
+      data: RejectionRow[] | null;
+      error: { message: string } | null;
+    };
 
     if (rejections) {
       rejections.forEach((rejection: { schedule_id: string }) => {

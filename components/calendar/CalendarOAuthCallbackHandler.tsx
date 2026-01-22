@@ -14,11 +14,23 @@ export default function CalendarOAuthCallbackHandler() {
   const router = useRouter();
 
   useEffect(() => {
-    const sync = async (syncData: any) => {
-      try {
-        const { type, signupId, projectId, scheduleId } = syncData;
+    type PendingSyncData =
+      | {
+          type: "signup";
+          signupId: string;
+          projectId: string;
+          scheduleId: string;
+        }
+      | {
+          type: "project";
+          projectId: string;
+        };
 
-        if (type === "signup" && signupId && projectId && scheduleId) {
+    const sync = async (syncData: PendingSyncData) => {
+      try {
+        if (syncData.type === "signup") {
+          const { signupId, projectId, scheduleId } = syncData;
+          if (signupId && projectId && scheduleId) {
           const response = await fetch("/api/calendar/add-signup", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -39,11 +51,12 @@ export default function CalendarOAuthCallbackHandler() {
             description: "Event added to your Google Calendar",
             duration: 5000,
           });
-        } else if (type === "project" && projectId) {
+          }
+        } else if (syncData.type === "project" && syncData.projectId) {
           const response = await fetch("/api/calendar/sync-project", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ projectId }),
+            body: JSON.stringify({ projectId: syncData.projectId }),
           });
 
           if (!response.ok) {
@@ -75,7 +88,7 @@ export default function CalendarOAuthCallbackHandler() {
       const redirectUrl = sessionStorage.getItem("calendarRedirectUrl");
 
       if (pendingSyncDataString) {
-        const pendingSyncData = JSON.parse(pendingSyncDataString);
+        const pendingSyncData = JSON.parse(pendingSyncDataString) as PendingSyncData;
         sessionStorage.removeItem("pendingCalendarSync");
         await sync(pendingSyncData);
       }

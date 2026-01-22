@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { NotificationService } from "@/services/notifications";
 import { createClient } from "@/utils/supabase/client";
 import { toast } from "sonner";
-import { RealtimeChannel } from "@supabase/supabase-js";
+import type { RealtimeChannel } from "@supabase/realtime-js";
 
 interface NotificationListenerProps {
   userId: string;
@@ -16,6 +15,14 @@ const NOTIFICATION_DELAY = 300;
 const MAX_RETRIES = 3; // Maximum number of retry attempts
 const MAX_BACKOFF_DELAY = 30000; // Maximum delay between retries (30 seconds)
 
+type NotificationRecord = {
+  id: string;
+  title: string;
+  body: string;
+  severity?: "warning" | "success" | "info";
+  action_url?: string | null;
+};
+
 export function NotificationListener({ userId }: NotificationListenerProps) {
   const channelRef = useRef<RealtimeChannel | null>(null);
   const initializedRef = useRef(false);
@@ -23,7 +30,7 @@ export function NotificationListener({ userId }: NotificationListenerProps) {
   const unmountedRef = useRef(false);
 
   // Modified displayNotificationToast to check if component is still mounted
-  const displayNotificationToast = async (notification: any) => {
+  const displayNotificationToast = async (notification: NotificationRecord) => {
     if (unmountedRef.current) return;
     if (displayedNotifications.has(notification.id)) return;
 
@@ -36,12 +43,19 @@ export function NotificationListener({ userId }: NotificationListenerProps) {
         ? toast.success
         : toast.info;
 
+    const actionUrl = notification.action_url;
+    const action = actionUrl
+      ? {
+          label: "View",
+          onClick: () => {
+            window.location.href = actionUrl;
+          },
+        }
+      : undefined;
+
     toastMethod(notification.title, {
       description: notification.body,
-      action: notification.action_url ? {
-        label: "View",
-        onClick: () => window.location.href = notification.action_url
-      } : undefined
+      action,
     });
 
     const supabase = createClient();
@@ -68,6 +82,10 @@ export function NotificationListener({ userId }: NotificationListenerProps) {
       }
 
       const supabase = createClient();
+      const realtimeClient = supabase as unknown as {
+        channel: (name: string) => RealtimeChannel;
+        removeChannel: (channel: RealtimeChannel) => Promise<unknown>;
+      };
 
       try {
         // Removed connection test query - it's redundant since we're about to make a real query anyway
@@ -97,10 +115,10 @@ export function NotificationListener({ userId }: NotificationListenerProps) {
         const channelName = `personal-notifications:${userId}`;
         
         if (channelRef.current) {
-          await supabase.removeChannel(channelRef.current);
+          await realtimeClient.removeChannel(channelRef.current);
         }
 
-        const channel = supabase
+        const channel = realtimeClient
           .channel(channelName)
           .on('postgres_changes', 
             {
@@ -111,7 +129,7 @@ export function NotificationListener({ userId }: NotificationListenerProps) {
             },
             payload => {
               if (!unmountedRef.current && payload.new) {
-                displayNotificationToast(payload.new);
+                displayNotificationToast(payload.new as NotificationRecord);
               }
             }
           )
@@ -126,7 +144,7 @@ export function NotificationListener({ userId }: NotificationListenerProps) {
               console.log(`Subscription failed (attempt ${retryCountRef.current + 1}/${MAX_RETRIES})`);
               
               if (channelRef.current) {
-                supabase.removeChannel(channelRef.current);
+                realtimeClient.removeChannel(channelRef.current);
                 channelRef.current = null;
               }
 
@@ -156,8 +174,11 @@ export function NotificationListener({ userId }: NotificationListenerProps) {
     return () => {
       unmountedRef.current = true;
       const supabase = createClient();
+      const realtimeClient = supabase as unknown as {
+        removeChannel: (channel: RealtimeChannel) => Promise<unknown>;
+      };
       if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
+        realtimeClient.removeChannel(channelRef.current);
         channelRef.current = null;
       }
     };

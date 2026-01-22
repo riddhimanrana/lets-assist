@@ -12,7 +12,7 @@ import {
   AvatarImage,
   AvatarFallback,
 } from "@/components/ui/avatar";
-import { Upload, CircleCheck, XCircle, Shield, Info, AlertCircle, MoreHorizontal, Loader2, ShieldCheck, Trash, Trash2 } from "lucide-react";
+import { Upload, CircleCheck, XCircle, Shield, AlertCircle, MoreHorizontal, Loader2, ShieldCheck, Trash, Trash2 } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -52,7 +52,6 @@ import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
-    DropdownMenuLabel,
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -244,7 +243,7 @@ export default function ProfileClient() {
   const [profileVisibility, setProfileVisibility] = useState<ProfileVisibility>('private');
   const [isVisibilityLoading, setIsVisibilityLoading] = useState(false);
   const [canChangeVisibility, setCanChangeVisibility] = useState(true);
-  const [emailDomain, setEmailDomain] = useState<string | null>(null);
+  const [pendingPrimaryEmail, setPendingPrimaryEmail] = useState<string | null>(null);
 
   // Email management state
   const [emails, setEmails] = useState<UserEmail[]>([]);
@@ -255,7 +254,7 @@ export default function ProfileClient() {
   const [verificationCode, setVerificationCode] = useState("");
   const [pendingEmail, setPendingEmail] = useState("");
   const [verifying, setVerifying] = useState(false);
-  const [pendingPrimaryEmail, setPendingPrimaryEmail] = useState<string | null>(null);
+
   const { user, isLoading: isAuthLoading } = useAuth();
   const { profile, isLoading: isProfileLoading } = useUserProfile();
   const isDataLoading = isAuthLoading || isProfileLoading;
@@ -285,9 +284,6 @@ export default function ProfileClient() {
       setPhoneNumberLength(0);
       setProfileVisibility("private");
       setCanChangeVisibility(true);
-
-      const fallbackDomain = user?.email?.split("@")[1] ?? null;
-      setEmailDomain(fallbackDomain);
       return;
     }
 
@@ -313,11 +309,6 @@ export default function ProfileClient() {
       (profile.profile_visibility as ProfileVisibility) || "private",
     );
     setCanChangeVisibility(true);
-
-    // Email is from auth user, not profile table
-    const emailSource = user?.email || null;
-    const domain = emailSource ? emailSource.split("@")[1] ?? null : null;
-    setEmailDomain(domain);
   }, [profile, isProfileLoading, user?.email, form]);
 
   const fetchEmails = useCallback(async () => {
@@ -353,7 +344,7 @@ export default function ProfileClient() {
     setAdding(true);
     try {
       const result = await addEmail(newEmail);
-      if (result.error && (result as any).warning) {
+      if (result.error && (result as { warning?: boolean }).warning) {
         toast.warning(result.error);
         setAdding(false);
         return;
@@ -368,9 +359,10 @@ export default function ProfileClient() {
       setPendingEmail(newEmail);
       setVerificationStep(true);
       toast.success("Verification code sent to " + newEmail);
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as Error;
       console.error("Error adding email:", error);
-      toast.error(error.message || "Failed to add email");
+      toast.error(err.message || "Failed to add email");
     } finally {
       setAdding(false);
     }
@@ -389,9 +381,10 @@ export default function ProfileClient() {
       setVerificationCode("");
       setPendingEmail("");
       fetchEmails();
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as Error;
       console.error("Error verifying email:", error);
-      toast.error(error.message || "Invalid verification code");
+      toast.error(err.message || "Invalid verification code");
     } finally {
       setVerifying(false);
     }
@@ -402,9 +395,10 @@ export default function ProfileClient() {
       await unlinkEmail(id);
       toast.success("Email removed successfully");
       fetchEmails();
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as Error;
       console.error("Error removing email:", error);
-      toast.error(error.message || "Failed to remove email");
+      toast.error(err.message || "Failed to remove email");
     }
   };
 
@@ -424,9 +418,10 @@ export default function ProfileClient() {
       toast.success("Primary email updated");
       setPendingPrimaryEmail(null);
       setTimeout(fetchEmails, 500);
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as Error;
       console.error("Error setting primary email:", error);
-      toast.error(error.message || "Failed to update primary email");
+      toast.error(err.message || "Failed to update primary email");
     }
   };
 
@@ -482,12 +477,13 @@ export default function ProfileClient() {
 
       if (result.error) {
         const errors = result.error;
+        type FormErrorKey = keyof OnboardingValues | "root.serverError";
         Object.keys(errors).forEach((key) => {
           // Map server error keys back to form field names if necessary
-          const formKey = key === 'server' ? 'root.serverError' : key as keyof OnboardingValues;
+          const formKey = key === 'server' ? 'root.serverError' : (key as keyof OnboardingValues);
           // Check if the key exists in the form before setting error
           if (formKey in form.getValues() || formKey === 'root.serverError' || formKey === 'phoneNumber') {
-            form.setError(formKey as any, { // Use 'any' temporarily if type mapping is complex
+            form.setError(formKey as FormErrorKey, {
               type: "server",
               message: errors[key as keyof typeof errors]?.[0],
             });

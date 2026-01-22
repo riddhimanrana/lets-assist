@@ -29,6 +29,20 @@ interface MemberHoursExport {
   joinedDate: string;
 }
 
+type CertificateRowBase = {
+  user_id: string;
+  project_title: string;
+  event_start: string;
+  event_end: string;
+  issued_at: string;
+  is_certified: boolean;
+  organization_name: string | null;
+};
+
+type CertificateRowWithId = CertificateRowBase & {
+  id: string;
+};
+
 // Helper function to calculate hours from event start/end times
 function calculateHours(startTime: string, endTime: string): number {
   try {
@@ -75,7 +89,9 @@ export async function getMemberVolunteerHours(
       .eq("user_id", user.id)
       .single();
 
-    const isAdminOrStaff = userMembership?.role === "admin" || userMembership?.role === "staff";
+    if (!userMembership) {
+      return { memberHours: {}, error: "Only organization members can view hours" };
+    }
     
     // Get all organization projects to filter certificates
     const { data: orgProjects } = await supabase
@@ -112,7 +128,10 @@ export async function getMemberVolunteerHours(
         .lt("issued_at", dateRange.to.toISOString());
     }
 
-    const { data: certificates, error: certsError } = await query;
+    const { data: certificates, error: certsError } = (await query) as {
+      data: CertificateRowBase[] | null;
+      error: unknown;
+    };
 
     if (certsError) {
       console.error("Error fetching certificates:", certsError);
@@ -220,7 +239,10 @@ export async function getMemberEventDetails(
         .lt("issued_at", dateRange.to.toISOString());
     }
 
-    const { data: certificates, error: certsError } = await query;
+    const { data: certificates, error: certsError } = (await query) as {
+      data: CertificateRowWithId[] | null;
+      error: unknown;
+    };
 
     if (certsError) {
       console.error("Error fetching member certificates:", certsError);

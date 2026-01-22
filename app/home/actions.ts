@@ -1,6 +1,6 @@
 "use server";
 import { createClient } from "@/utils/supabase/server";
-import type { Project, ProjectStatus, Organization, ProjectSignup } from "@/types";
+import type { Project, ProjectStatus, Organization } from "@/types";
 import { getProjectStatus } from "@/utils/project";
 
 // Define the Profile type with an id property
@@ -8,8 +8,10 @@ export type Profile = {
   id: string;
   avatar_url: string | null;
   full_name: string | null;
+  email: string;
   username: string | null;
   created_at: string;
+  phone?: string | null;
 };
 
 export async function getActiveProjects(
@@ -17,7 +19,7 @@ export async function getActiveProjects(
   offset: number = 0,
   status?: ProjectStatus,
   organizationId?: string,
-  userId?: string
+  _userId?: string
 ): Promise<Project[]> {
   const supabase = await createClient();
 
@@ -51,7 +53,10 @@ export async function getActiveProjects(
   query = query.range(offset, offset + limit - 1)
     .order("created_at", { ascending: false });
 
-  const { data: projects, error } = await query;
+  const { data: projects, error } = (await query) as {
+    data: Project[] | null;
+    error: { message?: string } | null;
+  };
 
   if (error || !projects) {
     console.error("Error fetching projects:", error);
@@ -64,15 +69,20 @@ export async function getActiveProjects(
   
   if (projectIds.length > 0) {
     // Get confirmed signups for all projects in a single query
-    const { data } = await supabase
+    const { data } = (await supabase
       .from("project_signups")
       .select(`
         project_id,
         schedule_id
       `)
       .eq("status", "approved")
-      .in("project_id", projectIds);
-    confirmedSignups = data;
+      .in("project_id", projectIds)) as {
+      data: { project_id: string; schedule_id: string | null }[] | null;
+    };
+    confirmedSignups = (data || []).filter(
+      (signup): signup is { project_id: string; schedule_id: string } =>
+        !!signup.schedule_id
+    );
   }
 
   // Process projects and add signup counts
@@ -101,10 +111,13 @@ export async function getActiveProjects(
   // Short-circuit: Skip profile query if no creator IDs
   let profiles: Profile[] | null = null;
   if (creatorIds.length > 0) {
-    const { data, error: profilesError } = await supabase
+    const { data, error: profilesError } = (await supabase
       .from("profiles")
       .select("id, avatar_url, full_name, username, created_at")
-      .in("id", creatorIds);
+      .in("id", creatorIds)) as {
+      data: Profile[] | null;
+      error: { message?: string } | null;
+    };
 
     if (profilesError) {
       console.error("Error fetching profiles:", profilesError);
@@ -116,15 +129,18 @@ export async function getActiveProjects(
   // Fetch organizations if needed
   let orgs: Organization[] = [];
   if (orgIds.length > 0) {
-    const { data: organizations, error: orgsError } = await supabase
+    const { data: organizations, error: orgsError } = (await supabase
       .from("organizations")
       .select("id, name, username, logo_url, verified, type")
-      .in("id", orgIds);
+      .in("id", orgIds)) as {
+      data: Organization[] | null;
+      error: { message?: string } | null;
+    };
 
     if (orgsError) {
       console.error("Error fetching organizations:", orgsError);
     } else {
-      orgs = organizations;
+      orgs = organizations ?? [];
     }
   }
 
@@ -143,7 +159,9 @@ export async function getActiveProjects(
   return processedProjects.map(project => ({
     ...project,
     profiles: profilesMap[project.creator_id] || null,
-    organization: project.organization_id ? orgsMap[project.organization_id] || null : null,
+      organization: project.organization_id
+        ? orgsMap[project.organization_id] || undefined
+        : undefined,
     status: getProjectStatus(project)
   }));
 }

@@ -70,11 +70,30 @@ interface Sort {
 }
 
 interface MembersTabProps {
-  members: any[];
+  members: OrganizationMember[];
   userRole: string | null;
   organizationId: string;
   currentUserId: string | undefined;
 }
+
+type MemberProfile = {
+  full_name?: string | null;
+  username?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  avatar_url?: string | null;
+};
+
+type OrganizationMember = {
+  id: string;
+  user_id: string;
+  role: "admin" | "staff" | "member";
+  joined_at: string;
+  profiles?: MemberProfile | MemberProfile[] | null;
+};
+
+const getMemberProfile = (member: OrganizationMember): MemberProfile | null =>
+  Array.isArray(member.profiles) ? member.profiles[0] ?? null : member.profiles ?? null;
 
 export default function MembersTab({
   members,
@@ -83,13 +102,13 @@ export default function MembersTab({
   currentUserId,
 }: MembersTabProps) {
   const [searchTerm, setSearchTerm] = useState("");
-  const [filteredMembers, setFilteredMembers] = useState<any[]>([]);
+  const [filteredMembers, setFilteredMembers] = useState<OrganizationMember[]>([]);
   const [processingMember, setProcessingMember] = useState<string | null>(null);
   const [removingMember, setRemovingMember] = useState<{ id: string; name: string } | null>(null);
   const [sort, setSort] = useState<Sort>({ field: "role", direction: "asc" });
   const [memberHours, setMemberHours] = useState<Record<string, { totalHours: number; eventCount: number; lastEventDate?: string }>>({});
   const [loadingHours, setLoadingHours] = useState(false);
-  const [selectedMember, setSelectedMember] = useState<any | null>(null);
+  const [selectedMember, setSelectedMember] = useState<OrganizationMember | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
@@ -132,8 +151,9 @@ export default function MembersTab({
     if (searchTerm.trim() !== "") {
       const lowercasedFilter = searchTerm.toLowerCase();
       result = result.filter((member) => {
-        const fullName = member?.profiles?.full_name?.toLowerCase() || "";
-        const username = member?.profiles?.username?.toLowerCase() || "";
+        const profile = getMemberProfile(member);
+        const fullName = profile?.full_name?.toLowerCase() || "";
+        const username = profile?.username?.toLowerCase() || "";
         return fullName.includes(lowercasedFilter) || 
                username.includes(lowercasedFilter);
       });
@@ -189,7 +209,7 @@ export default function MembersTab({
     return `${m}m`;
   };
 
-  const handleViewDetails = (member: any) => {
+  const handleViewDetails = (member: OrganizationMember) => {
     setSelectedMember(member);
     setIsDetailsOpen(true);
   };
@@ -201,7 +221,7 @@ export default function MembersTab({
       const exportData = [];
       
       for (const member of filteredMembers) {
-        const profile = Array.isArray(member.profiles) ? member.profiles[0] : member.profiles;
+        const profile = getMemberProfile(member);
         const memberName = profile?.full_name || "Unknown User";
         const username = profile?.username || "";
         const totalHours = memberHours[member.user_id]?.totalHours || 0;
@@ -266,7 +286,12 @@ export default function MembersTab({
     }
   };
   
-  const handleUpdateRole = async (memberId: string, userId: string, userName: string, newRole: string) => {
+  const handleUpdateRole = async (
+    memberId: string,
+    userId: string,
+    userName: string,
+    newRole: OrganizationMember["role"]
+  ) => {
     if (userId === currentUserId && newRole !== "admin") {
       toast.error("You cannot demote yourself. Another admin must change your role.");
       return;
@@ -485,29 +510,31 @@ export default function MembersTab({
             </TableHeader>
             <TableBody>
               {filteredMembers && filteredMembers.length > 0 ? (
-                filteredMembers.map((member) => (
+                filteredMembers.map((member) => {
+                  const profile = getMemberProfile(member);
+                  return (
                   <TableRow key={member.id} className="hover:bg-muted/30">
                     <TableCell className="py-3 min-w-[200px]">
                       <div className="flex items-center gap-3">
                         <Avatar className="h-9 w-9 flex-shrink-0 border border-border">
                           <AvatarImage
-                            src={member.profiles?.avatar_url || undefined}
-                            alt={member.profiles?.full_name || ""}
+                            src={profile?.avatar_url || undefined}
+                            alt={profile?.full_name || ""}
                           />
                           <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                            <NoAvatar fullName={member.profiles?.full_name || ""} />
+                            <NoAvatar fullName={profile?.full_name || ""} />
                           </AvatarFallback>
                         </Avatar>
                         <div className="min-w-0">
                           <Link
-                            href={`/profile/${member.profiles?.username || ''}`}
+                            href={`/profile/${profile?.username || ''}`}
                             className="font-medium hover:underline transition-colors block truncate"
                           >
-                            {member.profiles?.full_name || "Unknown User"}
+                            {profile?.full_name || "Unknown User"}
                           </Link>
-                          {member.profiles?.username && (
+                          {profile?.username && (
                             <p className="text-xs text-muted-foreground truncate">
-                              @{member.profiles.username}
+                              @{profile.username}
                             </p>
                           )}
                         </div>
@@ -580,7 +607,7 @@ export default function MembersTab({
                                     onClick={() => handleUpdateRole(
                                       member.id, 
                                       member.user_id, 
-                                      member.profiles?.full_name || "Member",
+                                      profile?.full_name || "Member",
                                       "admin"
                                     )}
                                     disabled={member.role === "admin"}
@@ -593,7 +620,7 @@ export default function MembersTab({
                                     onClick={() => handleUpdateRole(
                                       member.id, 
                                       member.user_id, 
-                                      member.profiles?.full_name || "Member",
+                                      profile?.full_name || "Member",
                                       "staff"
                                     )}
                                     disabled={member.role === "staff"}
@@ -606,7 +633,7 @@ export default function MembersTab({
                                     onClick={() => handleUpdateRole(
                                       member.id, 
                                       member.user_id, 
-                                      member.profiles?.full_name || "Member",
+                                      profile?.full_name || "Member",
                                       "member"
                                     )}
                                     disabled={member.role === "member"}
@@ -624,7 +651,7 @@ export default function MembersTab({
                                   onClick={() => handleUpdateRole(
                                     member.id, 
                                     member.user_id, 
-                                    member.profiles?.full_name || "Member",
+                                      profile?.full_name || "Member",
                                     "staff"
                                   )}
                                 >
@@ -641,7 +668,7 @@ export default function MembersTab({
                                 className="text-destructive focus:text-destructive focus:bg-destructive/10"
                                 onClick={() => setRemovingMember({
                                   id: member.id,
-                                  name: member.profiles?.full_name || "Member"
+                                  name: profile?.full_name || "Member"
                                 })}
                               >
                                 Remove from Organization
@@ -654,7 +681,8 @@ export default function MembersTab({
                       </TableCell>
                     )}
                   </TableRow>
-                ))
+                );
+                })
               ) : (
                 <TableRow>
                   <TableCell colSpan={canManageMembers ? (canViewHours ? 6 : 4) : (canViewHours ? 5 : 3)} className="h-32 text-center">

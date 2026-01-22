@@ -30,18 +30,6 @@ type ProfileRecord = {
   trusted_member?: boolean | null;
 };
 
-function getBaseUrl() {
-  if (process.env.NEXT_PUBLIC_SITE_URL) {
-    return process.env.NEXT_PUBLIC_SITE_URL;
-  }
-
-  if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}`;
-  }
-
-  return "http://localhost:3000";
-}
-
 const palette = {
   background: "hsl(0, 0%, 100%)",
   text: "hsl(240, 10%, 3.9%)",
@@ -51,13 +39,6 @@ const palette = {
   accent: "hsl(142.1, 76.2%, 36.3%)",
   accentText: "hsl(355.7, 100%, 97.3%)",
 };
-
-function normalizeUrl(url: string | null | undefined, baseUrl: string) {
-  if (!url) return null;
-  if (url.startsWith("http://") || url.startsWith("https://")) return url;
-  if (url.startsWith("/")) return `${baseUrl}${url}`;
-  return `${baseUrl}/${url}`;
-}
 
 function formatMonthYear(dateInput?: string | null) {
   if (!dateInput) return null;

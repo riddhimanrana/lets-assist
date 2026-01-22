@@ -3,11 +3,30 @@ import { createClient } from "@/utils/supabase/server";
 import { Metadata } from "next";
 import OrganizationHeader from "@/components/organization/OrganizationHeader";
 import OrganizationTabs from "@/components/organization/OrganizationTabs";
-import { Separator } from "@/components/ui/separator";
 import { getOrganizationReportData } from "./reports/actions";
 
 type Props = {
   params: Promise<{ id: string }>;
+};
+
+type OrganizationMemberRecord = {
+  user_id: string;
+  role: string;
+};
+
+type OrganizationMemberRow = {
+  id: string;
+  role: "admin" | "staff" | "member";
+  joined_at: string;
+  user_id: string;
+  organization_id: string;
+};
+
+type ProfileRow = {
+  id: string;
+  username: string | null;
+  full_name: string | null;
+  avatar_url: string | null;
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -116,7 +135,7 @@ export default async function OrganizationPage({
   let userRole = null;
   if (user) {
     const memberRecord = organization.organization_members.find(
-      (member: any) => member.user_id === user.id,
+      (member: OrganizationMemberRecord) => member.user_id === user.id,
     );
     userRole = memberRecord?.role || null;
   }
@@ -124,7 +143,7 @@ export default async function OrganizationPage({
   console.log("Fetching members for organization ID:", organization.id);
 
   // FIXED: First fetch members from organization_members table
-  const { data: membersData, error: membersError } = await supabase
+  const { data: membersData, error: membersError } = (await supabase
     .from("organization_members")
     .select(
       `
@@ -136,7 +155,10 @@ export default async function OrganizationPage({
     `,
     )
     .eq("organization_id", organization.id)
-    .order("role", { ascending: false });
+    .order("role", { ascending: false })) as {
+    data: OrganizationMemberRow[] | null;
+    error: { message: string } | null;
+  };
 
   if (membersError) {
     console.error("Error fetching organization members:", membersError);
@@ -146,13 +168,16 @@ export default async function OrganizationPage({
   const userIds = membersData?.map((member) => member.user_id) || [];
 
   // No need to query profiles if there are no members
-  let profilesData: any[] = [];
+  let profilesData: ProfileRow[] = [];
   if (userIds.length > 0) {
     // Then fetch profile data for those users
-    const { data: profiles, error: profilesError } = await supabase
+    const { data: profiles, error: profilesError } = (await supabase
       .from("profiles")
       .select("id, username, full_name, avatar_url")
-      .in("id", userIds);
+      .in("id", userIds)) as {
+      data: ProfileRow[] | null;
+      error: { message: string } | null;
+    };
 
     if (profilesError) {
       console.error("Error fetching member profiles:", profilesError);

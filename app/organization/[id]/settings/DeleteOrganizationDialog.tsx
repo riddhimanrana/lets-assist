@@ -16,9 +16,10 @@ import { Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { deleteOrganization } from "./actions";
 import { useRouter } from "next/navigation";
+import type { Organization } from "@/types";
 
 interface DeleteOrganizationDialogProps {
-  organization: any;
+  organization: Organization;
 }
 
 export default function DeleteOrganizationDialog({

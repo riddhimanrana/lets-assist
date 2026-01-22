@@ -20,7 +20,6 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Form,
   FormControl,
@@ -35,8 +34,8 @@ import { updateOrganization, checkUsernameAvailability, checkDomainAvailability 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import ImageCropper from "@/components/shared/ImageCropper";
-import Link from "next/link";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
+import type { Organization } from "@/types";
 
 // Constants
 const USERNAME_MAX_LENGTH = 32;
@@ -45,6 +44,8 @@ const WEBSITE_MAX_LENGTH = 100;
 const DESCRIPTION_MAX_LENGTH = 650;
 const USERNAME_REGEX = /^[a-zA-Z0-9_.-]+$/;
 const normalizeDomain = (value: string | null | undefined) => (value ?? "").toLowerCase().trim();
+const ORG_TYPE_OPTIONS = ["nonprofit", "school", "company", "government", "other"] as const;
+type OrganizationTypeOption = (typeof ORG_TYPE_OPTIONS)[number];
 
 // Form schema
 const orgUpdateSchema = z.object({
@@ -86,12 +87,24 @@ const orgUpdateSchema = z.object({
 type OrganizationFormValues = z.infer<typeof orgUpdateSchema>;
 
 interface EditOrganizationFormProps {
-  organization: any;
+  organization: OrganizationWithSettings;
   userId: string;
 }
 
-export default function EditOrganizationForm({ organization, userId }: EditOrganizationFormProps) {
+type OrganizationWithSettings = Organization & {
+  website?: string | null;
+  auto_join_domain?: string | null;
+  type?: string | null;
+  logo_url?: string | null;
+};
+
+export default function EditOrganizationForm({ organization, userId: _userId }: EditOrganizationFormProps) {
   const router = useRouter();
+  const resolvedOrgType: OrganizationTypeOption = ORG_TYPE_OPTIONS.includes(
+    organization.type as OrganizationTypeOption
+  )
+    ? (organization.type as OrganizationTypeOption)
+    : "nonprofit";
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
   const [checkingUsername, setCheckingUsername] = useState(false);
@@ -113,7 +126,7 @@ export default function EditOrganizationForm({ organization, userId }: EditOrgan
       username: organization.username || "",
       description: organization.description || "",
       website: organization.website || "",
-      type: organization.type || "nonprofit",
+      type: resolvedOrgType,
       logoUrl: organization.logo_url || null,
       enableAutoJoin: !!organization.auto_join_domain,
       autoJoinDomain: organization.auto_join_domain || "",
@@ -127,10 +140,11 @@ export default function EditOrganizationForm({ organization, userId }: EditOrgan
   const formValues = form.watch();
   
   useEffect(() => {
-    const subscription = form.watch((value, { name, type }) => {
+    const subscription = form.watch((value) => {
       // Check if any field has changed from initial values
       const hasFormChanges = Object.keys(value).some(key => {
-        const initialValue = organization[key === 'logoUrl' ? 'logo_url' : key];
+        const orgKey = (key === "logoUrl" ? "logo_url" : key) as keyof OrganizationWithSettings;
+        const initialValue = organization[orgKey];
         const currentValue = value[key as keyof OrganizationFormValues];
         
         // Handle empty strings and null values

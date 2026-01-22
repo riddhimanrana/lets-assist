@@ -57,7 +57,7 @@ describe("useAuth", () => {
   });
   
   describe("initial state", () => {
-    it("returns loading state when cache is not initialized", () => {
+    it("returns loading state when cache is not initialized", async () => {
       mockIsCacheInitialized.mockReturnValue(false);
       mockGetCachedUser.mockReturnValue(null);
       
@@ -65,6 +65,9 @@ describe("useAuth", () => {
       
       expect(result.current.isLoading).toBe(true);
       expect(result.current.user).toBeNull();
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
     });
     
     it("returns cached user immediately if available", async () => {
@@ -122,9 +125,13 @@ describe("useAuth", () => {
   });
   
   describe("cache subscription", () => {
-    it("subscribes to cache changes on mount", () => {
-      renderHook(() => useAuth());
-      
+    it("subscribes to cache changes on mount", async () => {
+      const { result } = renderHook(() => useAuth());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
       expect(mockSubscribeToCacheChanges).toHaveBeenCalled();
     });
     
@@ -146,6 +153,10 @@ describe("useAuth", () => {
       });
       
       const { result } = renderHook(() => useAuth());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
       
       // Simulate cache update
       const newUser = createMockUser({ email: "new@example.com" });

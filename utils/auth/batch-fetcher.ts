@@ -13,6 +13,7 @@
  */
 
 import { createClient } from '@/utils/supabase/client';
+import type { RealtimeChannel } from '@supabase/realtime-js';
 import {
   updateCachedUserData,
   updateFetchTimestamp,
@@ -167,9 +168,13 @@ export async function getOrFetchUserData(
  */
 export function subscribeToProfileUpdates(userId: string): () => void {
   const supabase = createClient();
+  const realtimeClient = supabase as unknown as {
+    channel: (name: string) => RealtimeChannel;
+    removeChannel: (channel: RealtimeChannel) => Promise<unknown>;
+  };
 
   // Subscribe to profile changes
-  const profileSubscription = supabase
+  const profileSubscription = realtimeClient
     .channel(`public.profiles:id=eq.${userId}`)
     .on(
       'postgres_changes',
@@ -189,7 +194,7 @@ export function subscribeToProfileUpdates(userId: string): () => void {
     .subscribe();
 
   // Subscribe to settings changes
-  const settingsSubscription = supabase
+  const settingsSubscription = realtimeClient
     .channel(`public.notification_settings:user_id=eq.${userId}`)
     .on(
       'postgres_changes',
@@ -213,7 +218,7 @@ export function subscribeToProfileUpdates(userId: string): () => void {
 
   // Return unsubscribe function
   return () => {
-    supabase.removeChannel(profileSubscription);
-    supabase.removeChannel(settingsSubscription);
+    realtimeClient.removeChannel(profileSubscription);
+    realtimeClient.removeChannel(settingsSubscription);
   };
 }

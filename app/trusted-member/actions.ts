@@ -26,8 +26,8 @@ export async function submitTrustedMember(input: { name: string; email: string; 
   // Check existing application
   const { data: existing, error: selectError } = await supabase
     .from("trusted_member")
-    .select("id, status")
-    .eq("id", user.id)
+    .select("id, user_id, status")
+    .or(`id.eq.${user.id},user_id.eq.${user.id}`)
     .maybeSingle();
 
     console.log("existing:", existing);
@@ -56,6 +56,7 @@ export async function submitTrustedMember(input: { name: string; email: string; 
       .upsert(
         {
           id: user.id,
+          user_id: user.id,
           name: parsed.data.name,
           email: parsed.data.email,
           reason: parsed.data.reason,

@@ -47,7 +47,7 @@ export async function GET(request: Request) {
       if (Date.now() - stateData.timestamp > fiveMinutes) {
         throw new Error("State expired");
       }
-    } catch (err) {
+    } catch {
       return NextResponse.redirect(
         `${process.env.NEXT_PUBLIC_SITE_URL}/account/calendar?error=invalid_state`
       );
@@ -129,14 +129,22 @@ export async function GET(request: Request) {
     const expiresAt = new Date(Date.now() + tokens.expires_in * 1000);
 
     // Check if user already has a connection of this type
-    const { data: existingConnections } = await supabase
+    const { data: existingConnections } = (await supabase
       .from("user_calendar_connections")
       .select("id, refresh_token, connection_type")
       .eq("user_id", userId)
       .eq("provider", "google")
       // Find connections that match or can be upgraded to this type
       .in("connection_type", [connectionType, "both"])
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })) as {
+      data:
+        | Array<{
+            id: string;
+            refresh_token: string | null;
+            connection_type: string;
+          }>
+        | null;
+    };
 
     const existingConnection = existingConnections?.[0];
 
@@ -154,7 +162,7 @@ export async function GET(request: Request) {
 
     if (existingConnection) {
       // Update existing connection (and reactivate if it was inactive)
-      const { error: updateError } = await supabase
+      const { error: updateError } = (await supabase
         .from("user_calendar_connections")
         .update({
           access_token: encryptedAccessToken,
@@ -167,7 +175,7 @@ export async function GET(request: Request) {
           granted_scopes_updated_at: grantedScopesUpdatedAt,
           connection_type: connectionType,
         })
-        .eq("id", existingConnection.id);
+        .eq("id", existingConnection.id)) as { error: { message?: string } | null };
 
       // Clean up any other duplicate connections of the same type
       if (existingConnections && existingConnections.length > 1) {
@@ -188,25 +196,25 @@ export async function GET(request: Request) {
       }
     } else {
       // Create new connection
-      const { error: insertError } = await supabase
-        .from("user_calendar_connections")
-        .insert({
-          user_id: userId,
-          provider: "google",
-          access_token: encryptedAccessToken,
-          refresh_token: encryptedRefreshToken,
-          token_expires_at: expiresAt.toISOString(),
-          calendar_email: calendarEmail,
-          is_active: true,
-          connection_type: connectionType,
-          granted_scopes: grantedScopes,
-          granted_scopes_updated_at: grantedScopesUpdatedAt,
-          preferences: {
-            reminder_minutes: 15,
-            auto_sync_new_projects: false,
-            auto_sync_signups: false,
-          },
-        });
+        const { error: insertError } = (await supabase
+          .from("user_calendar_connections")
+          .insert({
+            user_id: userId,
+            provider: "google",
+            access_token: encryptedAccessToken,
+            refresh_token: encryptedRefreshToken,
+            token_expires_at: expiresAt.toISOString(),
+            calendar_email: calendarEmail,
+            is_active: true,
+            connection_type: connectionType,
+            granted_scopes: grantedScopes,
+            granted_scopes_updated_at: grantedScopesUpdatedAt,
+            preferences: {
+              reminder_minutes: 15,
+              auto_sync_new_projects: false,
+              auto_sync_signups: false,
+            },
+          })) as { error: { message?: string } | null };
 
       if (insertError) {
         console.error("Failed to save calendar connection:", insertError);

@@ -6,11 +6,10 @@ import { Input } from "@/components/ui/input";
 import { ProgressCircle } from "./ProgressCircle";
 import { createClient } from "@/utils/supabase/client";
 import { toast } from "sonner";
-import { PencilIcon, SaveIcon, CheckCircle, Clock, Users, Target, Calendar } from "lucide-react";
+import { PencilIcon, SaveIcon, CheckCircle, Target, Calendar } from "lucide-react";
 import { DateRange } from "react-day-picker";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { startOfMonth, endOfMonth, startOfYear, endOfYear, addMonths, format } from "date-fns";
 // Import the type for the goals data
 import { VolunteerGoalsData } from "@/types";
 
@@ -154,7 +153,10 @@ export function VolunteerGoals({ userId, totalHours, totalEvents }: GoalsProps) 
         query = query.lte('event_end', endDate.toISOString());
       }
 
-      const { data: certificates, error } = await query;
+      const { data: certificates, error } = (await query) as {
+        data: { event_start: string; event_end: string }[] | null;
+        error: { message?: string } | null;
+      };
 
       if (error) {
         console.error('Error filtering certificates:', error);
@@ -267,10 +269,10 @@ export function VolunteerGoals({ userId, totalHours, totalEvents }: GoalsProps) 
       };
 
       // Update the volunteer_goals column in the profiles table
-      const { error } = await supabase
+      const { error } = (await supabase
         .from("profiles")
         .update({ volunteer_goals: updatedGoalsData }) // Update the JSONB column
-        .eq("id", userId); // Filter by user ID
+        .eq("id", userId)) as { error: { message?: string } | null }; // Filter by user ID
 
       if (error) {
         throw error;

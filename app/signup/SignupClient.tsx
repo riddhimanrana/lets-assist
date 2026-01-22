@@ -54,7 +54,6 @@ type SignupValues = z.infer<typeof signupSchema>;
 export default function SignupClient({ redirectPath, staffToken, orgUsername }: SignupClientProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-  const [turnstileVerified, setTurnstileVerified] = useState(false);
   const turnstileRef = useRef<TurnstileRef>(null);
   const [turnstileReady, setTurnstileReady] = useState(false);
   const [isResendCaptchaOpen, setIsResendCaptchaOpen] = useState(false);
@@ -63,6 +62,7 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
   const [resendTurnstileToken, setResendTurnstileToken] = useState<string | null>(null);
   const [resendTurnstileReady, setResendTurnstileReady] = useState(false);
   const resendTurnstileRef = useRef<TurnstileRef>(null);
+  const isTurnstileBypassed = process.env.NEXT_PUBLIC_TURNSTILE_BYPASS === "true";
 
   const router = useRouter();
 
@@ -80,14 +80,15 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
   });
 
   const handleResendWithCaptcha = async () => {
-    if (!unconfirmedEmailForResend || !resendTurnstileToken) {
+    if (!unconfirmedEmailForResend || (!resendTurnstileToken && !isTurnstileBypassed)) {
       toast.error("Please complete the verification challenge.");
       return;
     }
 
     setIsResending(true);
     try {
-      const resendResult = await resendVerificationEmail(unconfirmedEmailForResend, resendTurnstileToken);
+      const resendToken = resendTurnstileToken ?? (isTurnstileBypassed ? "turnstile-bypass" : undefined);
+      const resendResult = await resendVerificationEmail(unconfirmedEmailForResend, resendToken);
       if (resendResult.success) {
         toast.success(resendResult.message || "Verification email sent!");
         router.push(`/signup/success?email=${encodeURIComponent(unconfirmedEmailForResend)}`);
@@ -95,7 +96,7 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
       } else {
         toast.error(resendResult.error || "Failed to resend email");
       }
-    } catch (error) {
+    } catch {
       toast.error("An error occurred. Please try again.");
     } finally {
       setIsResending(false);
@@ -145,7 +146,6 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
         });
         setIsLoading(false);
         turnstileRef.current?.reset();
-        setTurnstileVerified(false);
         return;
       }
 
@@ -166,7 +166,6 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
         });
         setIsLoading(false);
         turnstileRef.current?.reset();
-        setTurnstileVerified(false);
         return;
       }
 
@@ -194,7 +193,6 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
     setIsLoading(false);
     // Reset Turnstile after submission
     turnstileRef.current?.reset();
-    setTurnstileVerified(false);
   }
 
   const handleGoogleSignIn = async () => {
@@ -216,7 +214,7 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
       if (result.url) {
         window.location.href = result.url;
       }
-    } catch (error) {
+    } catch {
       toast.error("An error occurred. Please try again.");
     } finally {
       setIsGoogleLoading(false);
@@ -370,15 +368,12 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
                       ref={turnstileRef}
                       onLoad={() => setTurnstileReady(true)}
                       onVerify={(token) => {
-                        setTurnstileVerified(true);
                         form.setValue("turnstileToken", token);
                       }}
                       onError={() => {
-                        setTurnstileVerified(false);
                         toast.error("Security verification failed. Please try again.");
                       }}
                       onExpire={() => {
-                        setTurnstileVerified(false);
                         form.setValue("turnstileToken", "");
                       }}
                     />
@@ -411,7 +406,7 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
           </DialogHeader>
           <div className="flex justify-center py-4">
             <div className="relative w-[300px] h-[65px] overflow-hidden rounded-lg bg-muted/30 border border-border/50 flex items-center justify-center">
-              {!resendTurnstileReady && (
+              {!resendTurnstileReady && !isTurnstileBypassed && (
                 <div className="absolute inset-0 z-10 flex items-center justify-center gap-2 rounded-lg bg-background/80 text-[0.7rem] font-semibold uppercase tracking-wide text-muted-foreground text-center px-4">
                    <Shield className="h-4 w-4 text-muted-foreground/80 shrink-0" />
                    <span>Bot verification loading…</span>
@@ -432,7 +427,7 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
           <DialogFooter className="flex flex-col gap-2">
             <Button
               onClick={handleResendWithCaptcha}
-              disabled={!resendTurnstileToken || isResending}
+              disabled={(!resendTurnstileToken && !isTurnstileBypassed) || isResending}
               className="w-full"
             >
               {isResending ? "Sending…" : "Verify & Send"}

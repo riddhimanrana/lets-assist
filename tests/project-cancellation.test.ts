@@ -2,8 +2,31 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Project } from "@/types";
 import { updateProjectStatus } from "@/app/projects/[id]/actions";
 
-let mockSupabase: any;
-let serviceRoleMock: any;
+type SupabaseQueryBuilder = {
+  select: () => SupabaseQueryBuilder;
+  update: (data: Record<string, unknown>) => SupabaseQueryBuilder;
+  eq: () => Promise<{ data: null; error: null }> | SupabaseQueryBuilder;
+  single: () => Promise<{ data: Project | null; error: null }>;
+};
+
+type SupabaseMock = {
+  auth: {
+    getUser: () => Promise<{ data: { user: { id: string } } | null; error: null }>;
+  };
+  from: (table: string) => SupabaseQueryBuilder;
+};
+
+type ServiceRoleMock = {
+  from: () => {
+    upsert: () => Promise<{ error: { message?: string } | null }>;
+    select: () => {
+      eq: () => Promise<{ data: unknown[]; error: null }>;
+    };
+  };
+};
+
+let mockSupabase: SupabaseMock;
+let serviceRoleMock: ServiceRoleMock;
 let lastUpdateData: Record<string, unknown> | undefined;
 let upsertResult: { error: { message?: string } | null } = { error: null };
 
@@ -58,7 +81,7 @@ const createSupabaseMock = (project: Project) => {
 
   const from = vi.fn((table: string) => {
     let mode: "select" | "update" | null = null;
-    const builder: any = {
+    const builder: SupabaseQueryBuilder = {
       select: vi.fn(() => {
         mode = "select";
         return builder;

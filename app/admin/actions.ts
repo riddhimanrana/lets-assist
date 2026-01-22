@@ -339,6 +339,7 @@ export async function addTrustedMember(userId: string, email: string, name: stri
   const { error } = await supabase
     .from('trusted_member')
     .upsert({
+      id: userId,
       user_id: userId,
       email,
       name,
