@@ -1,6 +1,8 @@
 import { Project, ProjectStatus } from "@/types";
 import { parseISO, isAfter, isBefore, isEqual } from "date-fns";
 
+const shouldLogProjectDebug = process.env.NODE_ENV === "development";
+
 type SupabaseFromClient = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   from: (table: string) => any;
@@ -353,7 +355,9 @@ export async function getSlotCapacities(
 
 export function getSlotDetails(project: Project, scheduleId: string) {
   if (!project || !scheduleId) {
-    console.log("Invalid project or scheduleId:", { project: !!project, scheduleId });
+    if (shouldLogProjectDebug) {
+      console.log("Invalid project or scheduleId:", { project: !!project, scheduleId });
+    }
     return null;
   }
 
@@ -371,7 +375,9 @@ export function getSlotDetails(project: Project, scheduleId: string) {
       const slotIndexStr = parts.pop(); // Get last element (slot index)
       const date = parts.join("-"); // Rejoin the rest as the date
       
-      console.log("Parsing multiDay scheduleId:", { date, slotIndexStr, parts });
+      if (shouldLogProjectDebug) {
+        console.log("Parsing multiDay scheduleId:", { date, slotIndexStr, parts });
+      }
       
       const day = project.schedule.multiDay.find(d => d.date === date);
       if (day) {
@@ -379,13 +385,19 @@ export function getSlotDetails(project: Project, scheduleId: string) {
         if (!isNaN(slotIdx) && slotIdx >= 0 && slotIdx < day.slots.length) {
           return day.slots[slotIdx];
         } else {
-          console.log("Invalid slot index:", { slotIdx, slotsLength: day.slots.length });
+          if (shouldLogProjectDebug) {
+            console.log("Invalid slot index:", { slotIdx, slotsLength: day.slots.length });
+          }
         }
       } else {
-        console.log("Day not found:", { date, availableDays: project.schedule.multiDay.map(d => d.date) });
+        if (shouldLogProjectDebug) {
+          console.log("Day not found:", { date, availableDays: project.schedule.multiDay.map(d => d.date) });
+        }
       }
     } else {
-      console.log("Invalid multiDay scheduleId format:", scheduleId);
+      if (shouldLogProjectDebug) {
+        console.log("Invalid multiDay scheduleId format:", scheduleId);
+      }
     }
   } else if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
     const role = project.schedule.sameDayMultiArea.roles.find(r => r.name === scheduleId);
@@ -394,7 +406,9 @@ export function getSlotDetails(project: Project, scheduleId: string) {
     }
   }
   
-  console.log("No slot found for scheduleId:", scheduleId);
+  if (shouldLogProjectDebug) {
+    console.log("No slot found for scheduleId:", scheduleId);
+  }
   return null;
 }
 
@@ -405,34 +419,42 @@ export function isSlotAvailable(
   clientStatus?: ProjectStatus // Add optional parameter to override project.status
 ): boolean {
   // Debug logging to help identify issues
-  console.log("isSlotAvailable check:", {
-    projectId: project.id,
-    scheduleId,
-    remainingSlots,
-    projectType: project.event_type,
-    effectiveStatus: clientStatus || project.status
-  });
+  if (shouldLogProjectDebug) {
+    console.log("isSlotAvailable check:", {
+      projectId: project.id,
+      scheduleId,
+      remainingSlots,
+      projectType: project.event_type,
+      effectiveStatus: clientStatus || project.status
+    });
+  }
 
   // Use client-provided status if available, otherwise use project.status
   const effectiveStatus = clientStatus || project.status;
   
   // Check if the project is cancelled or completed
   if (effectiveStatus === "cancelled" || effectiveStatus === "completed") {
-    console.log("Project is cancelled or completed, slot not available");
+    if (shouldLogProjectDebug) {
+      console.log("Project is cancelled or completed, slot not available");
+    }
     return false;
   }
   
   // Check if the schedule ID is valid for this project
   const slotDetails = getSlotDetails(project, scheduleId);
   if (!slotDetails) {
-    console.log("Invalid slot details for", scheduleId);
+    if (shouldLogProjectDebug) {
+      console.log("Invalid slot details for", scheduleId);
+    }
     return false;
   }
   
   // Check if there are remaining slots
   const slotsRemaining = remainingSlots[scheduleId];
   
-  console.log("Slots remaining:", slotsRemaining, "for scheduleId:", scheduleId);
+  if (shouldLogProjectDebug) {
+    console.log("Slots remaining:", slotsRemaining, "for scheduleId:", scheduleId);
+  }
   
   return slotsRemaining !== undefined && slotsRemaining > 0;
 }
