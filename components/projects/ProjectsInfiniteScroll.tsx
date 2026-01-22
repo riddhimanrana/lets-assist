@@ -436,66 +436,67 @@ export const ProjectsInfiniteScroll: React.FC = () => {
               />
             </div>
 
-            <div className="flex items-center gap-2 flex-grow order-last sm:order-none">
-              <DateRangePicker
-                value={dateFilter}
-                onChange={setDateFilter}
-                align="end"
-                className="w-full max-w-[180px]"
-              />
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="icon"
-                className={cn("h-9 w-9", view === "card" && "bg-muted")}
-                onClick={() => setView("card")}
-              >
-                <LayoutGrid className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className={cn("h-9 w-9", view === "list" && "bg-muted")}
-                onClick={() => setView("list")}
-              >
-                <List className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className={cn("h-9 w-9", view === "table" && "bg-muted")}
-                onClick={() => setView("table")}
-              >
-                <Table2 className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className={cn("h-9 w-9", view === "map" && "bg-muted")}
-                onClick={() => setView("map")}
-              >
-                <Map className="h-4 w-4" />
-              </Button>
-            </div>
-
-            <Popover open={isFilterOpen} onOpenChange={setIsFilterOpen}>
-              <PopoverTrigger asChild>
-                <Button 
-                  variant="outline" 
-                  size="icon" 
-                  className="relative h-9 w-9"
+            <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:flex-nowrap">
+              <div className="flex flex-1 items-center gap-2 min-w-[120px] sm:flex-none">
+                <DateRangePicker
+                  value={dateFilter}
+                  onChange={setDateFilter}
+                  align="end"
+                  className="w-full max-w-[140px] sm:max-w-[180px]"
+                />
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn("h-8 w-8 sm:h-9 sm:w-9", view === "card" && "bg-muted")}
+                  onClick={() => setView("card")}
                 >
-                  <SlidersHorizontal className="h-4 w-4" />
-                  {activeFilterCount > 0 && (
-                    <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-medium text-primary-foreground">
-                      {activeFilterCount}
-                    </span>
-                  )}
+                  <LayoutGrid className="h-4 w-4" />
                 </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-80">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn("h-8 w-8 sm:h-9 sm:w-9", view === "list" && "bg-muted")}
+                  onClick={() => setView("list")}
+                >
+                  <List className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn("h-8 w-8 sm:h-9 sm:w-9", view === "table" && "bg-muted")}
+                  onClick={() => setView("table")}
+                >
+                  <Table2 className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn("h-8 w-8 sm:h-9 sm:w-9", view === "map" && "bg-muted")}
+                  onClick={() => setView("map")}
+                >
+                  <Map className="h-4 w-4" />
+                </Button>
+              </div>
+
+              <Popover open={isFilterOpen} onOpenChange={setIsFilterOpen}>
+                <PopoverTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    size="icon" 
+                    className="relative h-8 w-8 sm:h-9 sm:w-9"
+                  >
+                    <SlidersHorizontal className="h-4 w-4" />
+                    {activeFilterCount > 0 && (
+                      <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-medium text-primary-foreground">
+                        {activeFilterCount}
+                      </span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <h4 className="font-medium">Filters</h4>
@@ -585,8 +586,9 @@ export const ProjectsInfiniteScroll: React.FC = () => {
                     </Select>
                   </div>
                 </div>
-              </PopoverContent>
-            </Popover>
+                </PopoverContent>
+              </Popover>
+            </div>
             
           </div>
           
@@ -747,68 +749,69 @@ export const ProjectsInfiniteScroll: React.FC = () => {
               />
             </div>
 
-            <div className="flex items-center gap-2 flex-grow">
-            <DateRangePicker
-              value={dateFilter}
-              onChange={setDateFilter}
-              align="end"
-              className="w-full max-w-[180px]"
-            />
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:flex-nowrap">
+            <div className="flex flex-1 items-center gap-2 min-w-[120px] sm:flex-none">
+              <DateRangePicker
+                value={dateFilter}
+                onChange={setDateFilter}
+                align="end"
+                className="w-full max-w-[140px] sm:max-w-[180px]"
+              />
             </div>
           
-          {/* View Toggle */}
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              className={cn("h-9 w-9", view === "card" && "bg-muted")}
-              onClick={() => setView("card")}
-            >
-              <LayoutGrid className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className={cn("h-9 w-9", view === "list" && "bg-muted")}
-              onClick={() => setView("list")}
-            >
-              <List className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className={cn("h-9 w-9", view === "table" && "bg-muted")}
-              onClick={() => setView("table")}
-            >
-              <Table2 className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className={cn("h-9 w-9", view === "map" && "bg-muted")}
-              onClick={() => setView("map")}
-            >
-              <Map className="h-4 w-4" />
-            </Button>
-          </div>
-
-          {/* Filters */}
-          <Popover open={isFilterOpen} onOpenChange={setIsFilterOpen}>
-            <PopoverTrigger asChild>
-              <Button 
-                variant="outline" 
-                size="icon" 
-                className="relative h-9 w-9"
+            {/* View Toggle */}
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn("h-8 w-8 sm:h-9 sm:w-9", view === "card" && "bg-muted")}
+                onClick={() => setView("card")}
               >
-                <SlidersHorizontal className="h-4 w-4" />
-                {activeFilterCount > 0 && (
-                  <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-medium text-primary-foreground">
-                    {activeFilterCount}
-                  </span>
-                )}
+                <LayoutGrid className="h-4 w-4" />
               </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-80">
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn("h-8 w-8 sm:h-9 sm:w-9", view === "list" && "bg-muted")}
+                onClick={() => setView("list")}
+              >
+                <List className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn("h-8 w-8 sm:h-9 sm:w-9", view === "table" && "bg-muted")}
+                onClick={() => setView("table")}
+              >
+                <Table2 className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn("h-8 w-8 sm:h-9 sm:w-9", view === "map" && "bg-muted")}
+                onClick={() => setView("map")}
+              >
+                <Map className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {/* Filters */}
+            <Popover open={isFilterOpen} onOpenChange={setIsFilterOpen}>
+              <PopoverTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  className="relative h-8 w-8 sm:h-9 sm:w-9"
+                >
+                  <SlidersHorizontal className="h-4 w-4" />
+                  {activeFilterCount > 0 && (
+                    <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-medium text-primary-foreground">
+                      {activeFilterCount}
+                    </span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80">
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h4 className="font-medium">Filters</h4>
@@ -887,8 +890,9 @@ export const ProjectsInfiniteScroll: React.FC = () => {
                   </Select>
                 </div>
               </div>
-            </PopoverContent>
-          </Popover>
+              </PopoverContent>
+            </Popover>
+          </div>
         </div>
 
         {/* Active filters display */}
