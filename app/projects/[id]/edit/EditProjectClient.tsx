@@ -21,6 +21,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import {
@@ -1094,7 +1095,7 @@ export default function EditProjectClient({ project }: Props) {
                 <div className="rounded-lg border p-4 space-y-4">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                      <FormLabel>Project Waiver PDF</FormLabel>
+                      <Label className="text-sm font-medium">Project Waiver PDF</Label>
                       <CardDescription>
                         Upload a PDF waiver to show volunteers during signup.
                       </CardDescription>

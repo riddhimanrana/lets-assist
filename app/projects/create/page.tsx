@@ -112,7 +112,7 @@ export default async function CreateProjectPage({
     const { data: tmApp } = await supabase
       .from('trusted_member')
       .select('status')
-      .eq('id', user.id)
+      .or(`id.eq.${user.id},user_id.eq.${user.id}`)
       .maybeSingle();
     const status = tmApp?.status ?? null;
     if (status === true) {

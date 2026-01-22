@@ -62,6 +62,7 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
   const [resendTurnstileToken, setResendTurnstileToken] = useState<string | null>(null);
   const [resendTurnstileReady, setResendTurnstileReady] = useState(false);
   const resendTurnstileRef = useRef<TurnstileRef>(null);
+  const isTurnstileBypassed = process.env.NEXT_PUBLIC_TURNSTILE_BYPASS === "true";
 
   const router = useRouter();
 
@@ -79,14 +80,15 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
   });
 
   const handleResendWithCaptcha = async () => {
-    if (!unconfirmedEmailForResend || !resendTurnstileToken) {
+    if (!unconfirmedEmailForResend || (!resendTurnstileToken && !isTurnstileBypassed)) {
       toast.error("Please complete the verification challenge.");
       return;
     }
 
     setIsResending(true);
     try {
-      const resendResult = await resendVerificationEmail(unconfirmedEmailForResend, resendTurnstileToken);
+      const resendToken = resendTurnstileToken ?? (isTurnstileBypassed ? "turnstile-bypass" : undefined);
+      const resendResult = await resendVerificationEmail(unconfirmedEmailForResend, resendToken);
       if (resendResult.success) {
         toast.success(resendResult.message || "Verification email sent!");
         router.push(`/signup/success?email=${encodeURIComponent(unconfirmedEmailForResend)}`);
@@ -404,7 +406,7 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
           </DialogHeader>
           <div className="flex justify-center py-4">
             <div className="relative w-[300px] h-[65px] overflow-hidden rounded-lg bg-muted/30 border border-border/50 flex items-center justify-center">
-              {!resendTurnstileReady && (
+              {!resendTurnstileReady && !isTurnstileBypassed && (
                 <div className="absolute inset-0 z-10 flex items-center justify-center gap-2 rounded-lg bg-background/80 text-[0.7rem] font-semibold uppercase tracking-wide text-muted-foreground text-center px-4">
                    <Shield className="h-4 w-4 text-muted-foreground/80 shrink-0" />
                    <span>Bot verification loading…</span>
@@ -425,7 +427,7 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
           <DialogFooter className="flex flex-col gap-2">
             <Button
               onClick={handleResendWithCaptcha}
-              disabled={!resendTurnstileToken || isResending}
+              disabled={(!resendTurnstileToken && !isTurnstileBypassed) || isResending}
               className="w-full"
             >
               {isResending ? "Sending…" : "Verify & Send"}

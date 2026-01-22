@@ -6,6 +6,12 @@ interface TurnstileVerificationResponse {
 }
 
 export async function verifyTurnstileToken(token: string): Promise<boolean> {
+  const shouldBypass = process.env.NODE_ENV !== "production" && process.env.TURNSTILE_BYPASS === "true";
+
+  if (shouldBypass) {
+    return true;
+  }
+
   const secretKey = process.env.TURNSTILE_SECRET_KEY;
   
   if (!secretKey) {
@@ -40,5 +46,6 @@ export async function verifyTurnstileToken(token: string): Promise<boolean> {
 }
 
 export function isTurnstileEnabled(): boolean {
-  return !!(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && process.env.TURNSTILE_SECRET_KEY);
+  const shouldBypass = process.env.NODE_ENV !== "production" && process.env.TURNSTILE_BYPASS === "true";
+  return !shouldBypass && !!(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && process.env.TURNSTILE_SECRET_KEY);
 }

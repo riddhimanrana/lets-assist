@@ -1591,7 +1591,9 @@ export async function updateProjectStatus(
         );
 
       if (enqueueError) {
-        console.error("Error enqueueing project cancellation job:", enqueueError);
+        if (process.env.NODE_ENV !== "test") {
+          console.error("Error enqueueing project cancellation job:", enqueueError);
+        }
         cancellationNotifications.error = "Failed to queue cancellation notifications.";
       } else {
         cancellationNotifications.enqueued = true;
@@ -1612,14 +1614,18 @@ export async function updateProjectStatus(
               authorization: `Bearer ${workerToken}`,
             },
           }).catch((err) => {
-            console.error("Failed to trigger project cancellation worker:", err);
+            if (process.env.NODE_ENV !== "test") {
+              console.error("Failed to trigger project cancellation worker:", err);
+            }
           });
         } else {
           cancellationNotifications.error = "Project cancellation worker is not configured.";
         }
       }
     } catch (notificationError) {
-      console.error("Error enqueueing project cancellation notifications:", notificationError);
+      if (process.env.NODE_ENV !== "test") {
+        console.error("Error enqueueing project cancellation notifications:", notificationError);
+      }
       cancellationNotifications.error = "Failed to queue cancellation notifications.";
       // Don't fail the cancellation if notifications queueing fails
     }

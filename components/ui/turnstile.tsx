@@ -24,17 +24,29 @@ export interface TurnstileRef {
 export const TurnstileComponent = forwardRef<TurnstileRef, TurnstileComponentProps>(
   ({ onVerify, onError, onExpire, onLoad, className, theme = "auto" }, ref) => {
     const turnstileRef = useRef<TurnstileInstance>(null);
+    const bypassEnabled = process.env.NEXT_PUBLIC_TURNSTILE_BYPASS === "true";
 
     useImperativeHandle(ref, () => ({
       reset: () => {
-        turnstileRef.current?.reset();
+        if (!bypassEnabled) {
+          turnstileRef.current?.reset();
+        }
       },
       getResponse: () => {
+        if (bypassEnabled) {
+          return "turnstile-bypass";
+        }
         return turnstileRef.current?.getResponse();
       },
     }));
 
     useEffect(() => {
+      if (bypassEnabled) {
+        onLoad?.();
+        onVerify?.("turnstile-bypass");
+        return;
+      }
+
       if (typeof window === "undefined") {
         return;
       }
@@ -59,6 +71,10 @@ export const TurnstileComponent = forwardRef<TurnstileRef, TurnstileComponentPro
 
       return () => window.clearInterval(interval);
     }, [onLoad]);
+
+    if (bypassEnabled) {
+      return null;
+    }
 
     const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
