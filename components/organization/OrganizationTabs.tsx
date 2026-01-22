@@ -220,45 +220,45 @@ export default function OrganizationTabs({
     >
       <TabsList
         className={cn(
-          "mb-6 w-full max-w-full flex flex-wrap items-center gap-1 rounded-md border bg-card p-1 text-muted-foreground shadow-sm sm:inline-flex sm:w-auto sm:gap-1.5"
+          "mb-6 w-full max-w-full grid grid-cols-4 gap-1 rounded-md border bg-card p-1 text-muted-foreground shadow-sm sm:inline-flex sm:w-auto sm:flex-nowrap sm:gap-1.5"
         )}
       >
         <TabsTrigger 
           value="overview" 
-          className="flex w-full min-w-0 items-center justify-center gap-1.5 px-2 py-1.5 data-[state=active]:text-foreground sm:w-auto sm:justify-start sm:px-3"
+          className="flex w-full items-center justify-center gap-1.5 px-2 py-1.5 data-[state=active]:text-foreground sm:w-auto sm:justify-start sm:px-3"
         >
           <LayoutDashboard className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
-          <span className="truncate text-[11px] sm:text-sm">Overview</span>
+          <span className="sr-only sm:not-sr-only sm:text-sm">Overview</span>
         </TabsTrigger>
         <TabsTrigger 
           value="members" 
-          className="flex w-full min-w-0 items-center justify-center gap-1.5 px-2 py-1.5 data-[state=active]:text-foreground sm:w-auto sm:justify-start sm:px-3"
+          className="flex w-full items-center justify-center gap-1.5 px-2 py-1.5 data-[state=active]:text-foreground sm:w-auto sm:justify-start sm:px-3"
         >
           <Users className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
-          <span className="truncate text-[11px] sm:text-sm">Members</span>
+          <span className="sr-only sm:not-sr-only sm:text-sm">Members</span>
         </TabsTrigger>
         <TabsTrigger 
           value="projects" 
-          className="flex w-full min-w-0 items-center justify-center gap-1.5 px-2 py-1.5 data-[state=active]:text-foreground sm:w-auto sm:justify-start sm:px-3"
+          className="flex w-full items-center justify-center gap-1.5 px-2 py-1.5 data-[state=active]:text-foreground sm:w-auto sm:justify-start sm:px-3"
         >
           <Folders className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
-          <span className="truncate text-[11px] sm:text-sm">Projects</span>
+          <span className="sr-only sm:not-sr-only sm:text-sm">Projects</span>
         </TabsTrigger>
         {canViewReports && (
           <TabsTrigger
             value="reports"
-            className="flex w-full min-w-0 items-center justify-center gap-1.5 px-2 py-1.5 data-[state=active]:text-foreground sm:w-auto sm:justify-start sm:px-3"
+            className="flex w-full items-center justify-center gap-1.5 px-2 py-1.5 data-[state=active]:text-foreground sm:w-auto sm:justify-start sm:px-3"
           >
             <BarChart3 className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
-            <span className="truncate text-[11px] sm:text-sm">Reports</span>
+            <span className="sr-only sm:not-sr-only sm:text-sm">Reports</span>
           </TabsTrigger>
         )}
       </TabsList>
       
       <TabsContent value="overview" className="space-y-6">
-        <div className="grid gap-4 sm:gap-6 lg:grid-cols-2 items-stretch">
+        <div className="grid gap-4 sm:gap-6 lg:grid-cols-2 items-stretch justify-items-center sm:justify-items-stretch">
           {/* About Card */}
-          <Card className="flex flex-col overflow-hidden">
+          <Card className="flex flex-col overflow-hidden w-full max-w-[560px] sm:max-w-none">
             <CardContent className="p-4 sm:p-6 flex flex-col flex-1">
               <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">About</h3>
               <div className="space-y-4 flex-1">
@@ -313,7 +313,7 @@ export default function OrganizationTabs({
             </CardContent>
           </Card>
           {/* Quick Stats Card */}
-          <Card className="flex flex-col overflow-hidden">
+          <Card className="flex flex-col overflow-hidden w-full max-w-[560px] sm:max-w-none">
             <CardContent className="p-4 sm:p-6 flex flex-col flex-1">
               <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">Quick Stats</h3>
               <div className="grid grid-cols-2 gap-2 sm:gap-3 mb-4">
@@ -372,8 +372,8 @@ export default function OrganizationTabs({
           </Card>
         </div>
         
-  {userRole && (
-          <Card className="overflow-hidden">
+    {userRole && (
+      <Card className="overflow-hidden w-full max-w-[560px] sm:max-w-none">
             <CardContent className="p-4 sm:p-6">
               <div className="flex flex-col sm:flex-row items-start gap-4">
           {userRole === "admin" ? (
