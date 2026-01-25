@@ -516,7 +516,7 @@ export default function MembersTab({
                   <TableRow key={member.id} className="hover:bg-muted/30">
                     <TableCell className="py-3 min-w-[200px]">
                       <div className="flex items-center gap-3">
-                        <Avatar className="h-9 w-9 flex-shrink-0 border border-border">
+                        <Avatar className="h-9 w-9 shrink-0 border border-border">
                           <AvatarImage
                             src={profile?.avatar_url || undefined}
                             alt={profile?.full_name || ""}

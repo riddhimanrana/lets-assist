@@ -177,7 +177,7 @@ export default function DraftsClient({ drafts: initialDrafts }: DraftsClientProp
           <Card key={draft.id} className="overflow-hidden">
             <div className="flex flex-col sm:flex-row">
               {/* Cover image or placeholder */}
-              <div className="sm:w-48 h-32 sm:h-auto bg-muted flex-shrink-0">
+              <div className="sm:w-48 h-32 sm:h-auto bg-muted shrink-0">
                 {draft.cover_image_url ? (
                   <img
                     src={draft.cover_image_url}
@@ -199,7 +199,7 @@ export default function DraftsClient({ drafts: initialDrafts }: DraftsClientProp
                       <h3 className="font-semibold text-lg truncate">
                         {draft.title || "Untitled Draft"}
                       </h3>
-                      <Badge variant="secondary" className="flex-shrink-0">
+                      <Badge variant="secondary" className="shrink-0">
                         Draft
                       </Badge>
                     </div>
@@ -245,7 +245,7 @@ export default function DraftsClient({ drafts: initialDrafts }: DraftsClientProp
                   {/* Actions */}
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="flex-shrink-0">
+                      <Button variant="ghost" size="icon" className="shrink-0">
                         <MoreVertical className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>

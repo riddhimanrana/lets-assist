@@ -345,7 +345,7 @@ function LocationAutocompleteContent({
               <CommandEmpty className="p-3 text-center text-sm">
                   {query.length < 3 && query.length > 0 ? (
                     <div className="py-6 text-center flex flex-row justify-center items-center gap-4 px-4">
-                      <Search className="h-7 w-7 text-muted-foreground opacity-80 flex-shrink-0" />
+                      <Search className="h-7 w-7 text-muted-foreground opacity-80 shrink-0" />
                       <div className="text-left">
                       <p className="font-medium">Keep typing to search</p>
                       <p className="text-xs text-muted-foreground">Enter at least 3 characters to search for locations</p>
@@ -353,7 +353,7 @@ function LocationAutocompleteContent({
                     </div>
                     ) : isLoading ? (
                     <div className="py-6 text-center flex flex-row justify-center items-center gap-4 px-4">
-                      <Loader2 className="h-7 w-7 animate-spin opacity-80 flex-shrink-0" />
+                      <Loader2 className="h-7 w-7 animate-spin opacity-80 shrink-0" />
                       <div className="text-left">
                       <p className="font-medium">Searching locations</p>
                       <p className="text-xs text-muted-foreground">Please wait while we find matching locations...</p>
@@ -361,7 +361,7 @@ function LocationAutocompleteContent({
                     </div>
                     ) : (
                     <div className="py-6 text-center flex flex-row justify-center items-center gap-4 px-4">
-                      <MapPin className="h-7 w-7 text-muted-foreground opacity-80 flex-shrink-0" />
+                      <MapPin className="h-7 w-7 text-muted-foreground opacity-80 shrink-0" />
                       <div className="text-left">
                       <p className="font-medium">No locations found</p>
                       <p className="text-xs text-muted-foreground">Try adjusting your search terms</p>
@@ -384,7 +384,7 @@ function LocationAutocompleteContent({
                       )}
                     >
                       <div className="flex items-center w-full">
-                          <MapPin className="mr-2 h-4 w-4 text-muted-foreground flex-shrink-0" />
+                          <MapPin className="mr-2 h-4 w-4 text-muted-foreground shrink-0" />
                           <div className="flex-1 truncate">
                             <p className="truncate">{prediction.structured_formatting.main_text}</p>
                             <p className="text-xs text-muted-foreground truncate">
@@ -392,7 +392,7 @@ function LocationAutocompleteContent({
                             </p>
                           </div>
                           {isCurrentSelection && (
-                            <Check className="ml-2 h-4 w-4 text-primary flex-shrink-0" />
+                            <Check className="ml-2 h-4 w-4 text-primary shrink-0" />
                           )}
                         </div>
                     </CommandItem>
@@ -405,13 +405,13 @@ function LocationAutocompleteContent({
       )}
     {value?.coordinates && (
           <div className="flex items-center gap-1.5 text-sm text-primary pl-1">
-            <Check className="h-4 w-4 flex-shrink-0" />
+            <Check className="h-4 w-4 shrink-0" />
             <span className="truncate">Address set: {value.display_name}</span>
           </div>
         )}
       {error && errorMessage && (
         <div id={ariaErrorMessage} className="text-destructive text-sm flex items-center gap-1.5 mt-1">
-          <AlertCircle className="h-4 w-4 flex-shrink-0" />
+          <AlertCircle className="h-4 w-4 shrink-0" />
           <span>{errorMessage}</span>
         </div>
       )}

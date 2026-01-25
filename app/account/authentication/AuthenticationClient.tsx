@@ -187,7 +187,7 @@ function AuthenticationContent() {
             Manage your connected accounts and sign-in methods
           </p>
         </div>
-        <Card className="border shadow-sm">
+        <Card className="border shadow-xs">
           <CardHeader className="px-5 py-5">
             <CardTitle className="text-xl">Connected Accounts</CardTitle>
             <CardDescription>
@@ -225,7 +225,7 @@ function AuthenticationContent() {
               </div>
               <div>
                 <Button
-                  variant={isGoogleConnected ? "outline" : "default"}
+                  variant={isGoogleConnected ? "outline-solid" : "default"}
                   onClick={handleGoogleConnect}
                   disabled={isConnecting}
                   className="w-full sm:w-auto"
@@ -241,7 +241,7 @@ function AuthenticationContent() {
             </div>
           </CardContent>
         </Card>
-        <Card className="border shadow-sm">
+        <Card className="border shadow-xs">
           <CardHeader className="p-5">
             <CardTitle className="text-xl">Two-Factor Authentication</CardTitle>
             <CardDescription>

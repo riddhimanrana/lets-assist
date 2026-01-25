@@ -220,7 +220,7 @@ export default function OrganizationTabs({
     >
       <TabsList
         className={cn(
-          "mb-6 w-full max-w-full grid grid-cols-4 gap-1 rounded-md border bg-card p-1 text-muted-foreground shadow-sm sm:inline-flex sm:w-auto sm:flex-nowrap sm:gap-1.5"
+          "mb-6 w-full max-w-full grid grid-cols-4 gap-1 rounded-md border bg-card p-1 text-muted-foreground shadow-xs sm:inline-flex sm:w-auto sm:flex-nowrap sm:gap-1.5"
         )}
       >
         <TabsTrigger 
@@ -265,14 +265,14 @@ export default function OrganizationTabs({
                 <div className="min-w-0">
                   <h4 className="text-xs sm:text-sm font-medium text-muted-foreground mb-1">Description</h4>
                   <div className="relative">
-                    <p className="text-xs sm:text-sm break-words leading-relaxed">
+                    <p className="text-xs sm:text-sm wrap-break-word leading-relaxed">
                       {organization.description || "No description provided."}
                     </p>
                 </div>
                 </div>
                 <div className="space-y-3">
                   <div className="flex gap-2 min-w-0">
-                    <Building2 className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                    <Building2 className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
                     <div className="min-w-0 flex-1">
                       <h4 className="text-xs sm:text-sm font-medium">Organization Type</h4>
                       <p className="text-xs sm:text-sm text-muted-foreground capitalize truncate">
@@ -282,7 +282,7 @@ export default function OrganizationTabs({
                   </div>
                   {organization.website && (
                     <div className="flex gap-2 min-w-0">
-                      <Globe className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                      <Globe className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
                       <div className="min-w-0 flex-1">
                         <h4 className="text-xs sm:text-sm font-medium">Website</h4>
                         <Link
@@ -297,7 +297,7 @@ export default function OrganizationTabs({
                     </div>
                   )}
                   <div className="flex gap-2 min-w-0">
-                    <Calendar className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                    <Calendar className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
                     <div className="min-w-0 flex-1">
                       <h4 className="text-xs sm:text-sm font-medium">Created</h4>
                       <p className="text-xs sm:text-sm text-muted-foreground truncate">
@@ -359,7 +359,7 @@ export default function OrganizationTabs({
                         </div>
                         {project.location && (
                           <div className="flex items-center text-[10px] sm:text-xs text-muted-foreground mt-1 min-w-0">
-                            <MapPin className="h-3 w-3 mr-1 flex-shrink-0" />
+                            <MapPin className="h-3 w-3 mr-1 shrink-0" />
                             <span className="truncate">{project.location}</span>
                           </div>
                         )}
@@ -378,7 +378,7 @@ export default function OrganizationTabs({
               <div className="flex flex-col sm:flex-row items-start gap-4">
           {userRole === "admin" ? (
             <>
-              <div className="bg-primary/10 p-3 rounded-full h-12 w-12 flex items-center justify-center flex-shrink-0">
+              <div className="bg-primary/10 p-3 rounded-full h-12 w-12 flex items-center justify-center shrink-0">
                 <ShieldCheck className="h-6 w-6 text-primary" />
               </div>
               <div className="w-full">
@@ -454,7 +454,7 @@ export default function OrganizationTabs({
               <div className="mt-10 flex justify-center">
                 <div className="space-y-6 max-w-sm mt-6">
                 <div className="flex items-center gap-4">
-                  <div className="bg-primary/10 p-3 rounded-full h-10 w-10 flex items-center justify-center flex-shrink-0">
+                  <div className="bg-primary/10 p-3 rounded-full h-10 w-10 flex items-center justify-center shrink-0">
                   <span className="text-primary font-semibold">1</span>
                   </div>
                   <div className="text-left">
@@ -464,7 +464,7 @@ export default function OrganizationTabs({
                 </div>
 
                 <div className="flex items-center gap-4">
-                  <div className="bg-primary/10 p-3 rounded-full h-10 w-10 flex items-center justify-center flex-shrink-0">
+                  <div className="bg-primary/10 p-3 rounded-full h-10 w-10 flex items-center justify-center shrink-0">
                   <span className="text-primary font-semibold">2</span>
                   </div>
                   <div className="text-left">
@@ -474,7 +474,7 @@ export default function OrganizationTabs({
                 </div>
 
                 <div className="flex items-center gap-4">
-                  <div className="bg-primary/10 p-3 rounded-full h-10 w-10 flex items-center justify-center flex-shrink-0">
+                  <div className="bg-primary/10 p-3 rounded-full h-10 w-10 flex items-center justify-center shrink-0">
                   <span className="text-primary font-semibold">3</span>
                   </div>
                   <div className="text-left">
@@ -496,7 +496,7 @@ export default function OrganizationTabs({
             </>
           ) : userRole === "staff" ? (
             <>
-              <div className="bg-primary/10 p-3 rounded-full h-12 w-12 flex items-center justify-center flex-shrink-0">
+              <div className="bg-primary/10 p-3 rounded-full h-12 w-12 flex items-center justify-center shrink-0">
                 <Folders className="h-6 w-6 text-primary" />
               </div>
               <div className="w-full">
@@ -520,7 +520,7 @@ export default function OrganizationTabs({
             </>
           ) : (
             <>
-              <div className="bg-primary/10 p-3 rounded-full h-12 w-12 flex items-center justify-center flex-shrink-0">
+              <div className="bg-primary/10 p-3 rounded-full h-12 w-12 flex items-center justify-center shrink-0">
                 <Users className="h-6 w-6 text-primary" />
               </div>
               <div className="w-full">

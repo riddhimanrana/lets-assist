@@ -211,15 +211,15 @@ export default function VerificationSettings({
             >
               <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                  <RadioGroupItem value="qr-code" id="qr-code" className="flex-shrink-0" />
+                  <RadioGroupItem value="qr-code" id="qr-code" className="shrink-0" />
                   <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-wrap">
-                    <QrCode className="flex-shrink-0 h-5 w-5 text-primary" />
+                    <QrCode className="shrink-0 h-5 w-5 text-primary" />
                     <span className="font-medium text-sm sm:text-base leading-snug">QR Code Self Check-in</span>
                   </div>
                 </div>
                 <Badge
                   variant="secondary"
-                  className="pointer-events-none text-xs flex-shrink-0 self-start sm:self-center whitespace-nowrap"
+                  className="pointer-events-none text-xs shrink-0 self-start sm:self-center whitespace-nowrap"
                 >
                   Recommended
                 </Badge>
@@ -241,9 +241,9 @@ export default function VerificationSettings({
             >
               <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                  <RadioGroupItem value="manual" id="manual" className="flex-shrink-0" />
+                  <RadioGroupItem value="manual" id="manual" className="shrink-0" />
                   <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-wrap">
-                    <UserCheck className="flex-shrink-0 h-5 w-5 text-primary" />
+                    <UserCheck className="shrink-0 h-5 w-5 text-primary" />
                     <span className="font-medium text-sm sm:text-base leading-snug">Manual Check-in by Organizer</span>
                   </div>
                 </div>
@@ -265,14 +265,14 @@ export default function VerificationSettings({
             >
               <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                  <RadioGroupItem value="auto" id="auto" className="flex-shrink-0" />
+                  <RadioGroupItem value="auto" id="auto" className="shrink-0" />
                   <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-wrap">
-                    <Clock className="flex-shrink-0 h-5 w-5 text-primary" />
+                    <Clock className="shrink-0 h-5 w-5 text-primary" />
                     <span className="font-medium text-sm sm:text-base leading-snug">Automatic Check-in/out</span>
                   </div>
                 </div>
-                <div className="flex items-center gap-1 flex-shrink-0 self-start sm:self-center">
-                  <AlertTriangle className="h-4 w-4 text-chart-4 flex-shrink-0" />
+                <div className="flex items-center gap-1 shrink-0 self-start sm:self-center">
+                  <AlertTriangle className="h-4 w-4 text-chart-4 shrink-0" />
                   <Badge
                     variant="secondary"
                     className="pointer-events-none text-chart-4 bg-chart-4/10 text-xs whitespace-nowrap"
@@ -298,9 +298,9 @@ export default function VerificationSettings({
             >
               <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                  <RadioGroupItem value="signup-only" id="signup-only" className="flex-shrink-0" />
+                  <RadioGroupItem value="signup-only" id="signup-only" className="shrink-0" />
                   <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-wrap">
-                    <Clipboard className="flex-shrink-0 h-5 w-5 text-primary" />
+                    <Clipboard className="shrink-0 h-5 w-5 text-primary" />
                     <span className="font-medium text-sm sm:text-base leading-snug">
                       Sign-up Only (No Hour Tracking)
                     </span>

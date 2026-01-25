@@ -113,7 +113,7 @@ export function QRCodeScannerModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[450px] w-[92vw] md:w-full p-0 overflow-hidden rounded-[2rem] sm:rounded-3xl border-none shadow-2xl">
+      <DialogContent className="sm:max-w-[450px] w-[92vw] md:w-full p-0 overflow-hidden rounded-4xl sm:rounded-3xl border-none shadow-2xl">
         <DialogHeader className="p-6 pb-0">
           <DialogTitle className="flex items-center gap-2 text-xl font-bold">
             <ScanLine className="h-6 w-6 text-primary" /> Scan Check-in QR Code
@@ -129,13 +129,13 @@ export function QRCodeScannerModal({
               role="alert"
               className="absolute top-6 left-6 right-6 z-20 bg-destructive/95 text-destructive-foreground p-4 rounded-2xl text-sm flex items-center gap-3 shadow-xl backdrop-blur-md transition-all animate-in fade-in slide-in-from-top-4"
             >
-              <AlertCircle className="h-5 w-5 flex-shrink-0" />
+              <AlertCircle className="h-5 w-5 shrink-0" />
               <span>{scanError}</span>
             </div>
           )}
 
           {/* Scanner Component with corrected props */}
-          <div className="overflow-hidden rounded-[2rem] border-4 border-muted/50 relative aspect-square max-h-[340px] mx-auto w-full group shadow-inner bg-black/5">
+          <div className="overflow-hidden rounded-4xl border-4 border-muted/50 relative aspect-square max-h-[340px] mx-auto w-full group shadow-inner bg-black/5">
             {isOpen && (
               <Scanner
                 onScan={handleScan}

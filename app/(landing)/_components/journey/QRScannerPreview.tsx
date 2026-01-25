@@ -32,7 +32,7 @@ export function QRScannerPreview() {
       {/* Phone-like scanner frame */}
       <div className="relative w-[250px] h-[290px] rounded-3xl border border-border/60 bg-card shadow-lg overflow-hidden">
         {/* Top bar (camera / notch hint) */}
-        <div className="absolute top-0 left-0 right-0 h-10 bg-gradient-to-b from-background/80 to-transparent" />
+        <div className="absolute top-0 left-0 right-0 h-10 bg-linear-to-b from-background/80 to-transparent" />
 
         {/* Subtle camera feed placeholder */}
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,theme(colors.gray.200/_60%),transparent_60%)] dark:bg-[radial-gradient(ellipse_at_top,theme(colors.gray.900/_60%),transparent_60%)]" />
@@ -45,7 +45,7 @@ export function QRScannerPreview() {
           <motion.div
             animate={{ scale: [1, 1.02, 1] }}
             transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
-            className="relative h-40 w-40 rounded-xl bg-background/50 backdrop-blur-sm border-2 border-primary/40"
+            className="relative h-40 w-40 rounded-xl bg-background/50 backdrop-blur-xs border-2 border-primary/40"
           >
             {/* QR hint */}
             <QrCode className="absolute inset-0 m-auto h-24 w-24 text-muted-foreground/30" />
@@ -59,7 +59,7 @@ export function QRScannerPreview() {
             <motion.div
               animate={scanLineAnim}
               transition={scanLineTransition}
-              className="absolute left-1 right-1 h-0.5 bg-gradient-to-r from-transparent via-primary to-transparent opacity-90"
+              className="absolute left-1 right-1 h-0.5 bg-linear-to-r from-transparent via-primary to-transparent opacity-90"
             />
           </motion.div>
         </div>
@@ -77,7 +77,7 @@ export function QRScannerPreview() {
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="absolute bottom-5 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-background/80 backdrop-blur border border-border/60 text-xs text-muted-foreground flex items-center gap-2"
+          className="absolute bottom-5 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-background/80 backdrop-blur-sm border border-border/60 text-xs text-muted-foreground flex items-center gap-2"
         >
           <Scan className="h-3.5 w-3.5 text-primary" /> Scanning…
         </motion.div>

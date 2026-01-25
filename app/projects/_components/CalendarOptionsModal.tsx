@@ -253,19 +253,19 @@ export default function CalendarOptionsModal({
         {/* Project Info Card - Only show when success message is shown */}
         {showSuccessMessage && (
           <div className="rounded-lg border p-3 space-y-2 bg-muted/30">
-            <p className="font-semibold text-sm break-words">{project.title}</p>
+            <p className="font-semibold text-sm wrap-break-word">{project.title}</p>
             {project.location_data && (
               <p className="text-xs text-muted-foreground flex items-start gap-1">
-                <MapPin className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
-                <span className="break-words">
+                <MapPin className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                <span className="wrap-break-word">
                   {project.location_data.text}
                 </span>
               </p>
             )}
             {project.schedule?.oneTime?.date && (
               <p className="text-xs text-muted-foreground flex items-start gap-1">
-                <CalendarIcon className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
-                <span className="break-words">
+                <CalendarIcon className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                <span className="wrap-break-word">
                   {new Date(project.schedule.oneTime.date).toLocaleDateString(
                     "en-US",
                     {
@@ -290,12 +290,12 @@ export default function CalendarOptionsModal({
           ) : isConnected ? (
             <div className="space-y-3">
               <div className="flex items-center gap-3 p-4 bg-chart-5/10 border border-chart-5/30 rounded-lg text-chart-5">
-                <CheckCircle className="h-5 w-5 flex-shrink-0" />
+                <CheckCircle className="h-5 w-5 shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-sm mb-0.5 break-words">
+                  <p className="font-semibold text-sm mb-0.5 wrap-break-word">
                     Calendar Connected
                   </p>
-                  <p className="text-xs text-muted-foreground leading-relaxed break-words">
+                  <p className="text-xs text-muted-foreground leading-relaxed wrap-break-word">
                     We&apos;ll automatically add this to your calendar.
                   </p>
                   {connectedEmail && (
@@ -315,21 +315,21 @@ export default function CalendarOptionsModal({
             >
               <div className="flex items-center gap-3 text-left w-full min-w-0">
                 {isConnecting ? (
-                  <Loader2 className="h-5 w-5 animate-spin flex-shrink-0 text-primary" />
+                  <Loader2 className="h-5 w-5 animate-spin shrink-0 text-primary" />
                 ) : (
                   <Image
                     src="/googlecalendar.svg"
                     alt="Google Calendar"
                     width={20}
                     height={20}
-                    className="flex-shrink-0"
+                    className="shrink-0"
                   />
                 )}
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-sm mb-0.5 break-words">
+                  <p className="font-semibold text-sm mb-0.5 wrap-break-word">
                     Connect Google Calendar
                   </p>
-                  <p className="text-xs text-muted-foreground leading-relaxed break-words">
+                  <p className="text-xs text-muted-foreground leading-relaxed wrap-break-word">
                     Connect your account to auto-sync this event
                   </p>
                 </div>
@@ -346,15 +346,15 @@ export default function CalendarOptionsModal({
           >
             <div className="flex items-center gap-3 text-left w-full min-w-0">
               {isDownloading ? (
-                <Loader2 className="h-5 w-5 animate-spin flex-shrink-0 text-primary" />
+                <Loader2 className="h-5 w-5 animate-spin shrink-0 text-primary" />
               ) : (
-                <Download className="h-5 w-5 flex-shrink-0 text-primary" />
+                <Download className="h-5 w-5 shrink-0 text-primary" />
               )}
               <div className="flex-1 min-w-0">
-                <p className="font-semibold text-sm mb-0.5 break-words">
+                <p className="font-semibold text-sm mb-0.5 wrap-break-word">
                   Download iCal File
                 </p>
-                <p className="text-xs text-muted-foreground leading-relaxed break-words">
+                <p className="text-xs text-muted-foreground leading-relaxed wrap-break-word">
                   For Apple Calendar, Outlook, and other calendar apps
                 </p>
               </div>

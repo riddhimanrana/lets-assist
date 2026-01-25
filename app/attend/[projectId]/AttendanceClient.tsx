@@ -593,7 +593,7 @@ export default function AttendanceClient({
             {/* Warning if not mobile */}
             {!scanInfo.isMobileDevice && (
               <div className="flex items-start gap-2 rounded-md border border-amber-500/30 p-3 bg-amber-500/10 mb-4"> {/* Added mb-4 */}
-                <AlertTriangle className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
                 <div className="text-sm text-muted-foreground">
                   <p>This page is intended for QR code scans on mobile devices. Functionality may be limited.</p> {/* Updated text */}
                 </div>
@@ -688,10 +688,10 @@ export default function AttendanceClient({
 
                   {/* Divider */}
                   <div className="flex items-center my-2 text-sm text-muted-foreground">
-                    <span className="flex-grow border-t"></span>
+                    <span className="grow border-t"></span>
                     {/* Updated divider text */}
                     <span className="px-2">Not sure?</span>
-                    <span className="flex-grow border-t"></span>
+                    <span className="grow border-t"></span>
                   </div>
 
                   {/* Email Lookup Section */}
@@ -735,7 +735,7 @@ export default function AttendanceClient({
                               : "bg-muted border-muted-foreground/30"
                         : "bg-muted border-muted-foreground/30"
                     }`}>
-                      <p className="mb-2 font-medium break-words">{lookupResult.message}</p>
+                      <p className="mb-2 font-medium wrap-break-word">{lookupResult.message}</p>
 
                       {/* Prompt to log in if registered user found */}
                       {lookupResult.isRegistered && (

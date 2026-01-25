@@ -109,7 +109,7 @@ export function AllHoursSection({ certificates }: AllHoursSectionProps) {
             )}
           </div>
         </div>
-        <div className="flex-shrink-0 w-full sm:w-auto">
+        <div className="shrink-0 w-full sm:w-auto">
           <Button size="sm" variant="outline" asChild className="w-full sm:w-auto">
             <Link href={`/certificates/${cert.id}`} target="_blank" rel="noopener noreferrer">
               <TicketCheck className="h-4 w-4 mr-2" />
@@ -128,7 +128,7 @@ export function AllHoursSection({ certificates }: AllHoursSectionProps) {
       <Card>
         <CardHeader>
           <div className="flex items-center gap-2">
-            <CircleCheck className="h-5 w-5 text-primary flex-shrink-0" />
+            <CircleCheck className="h-5 w-5 text-primary shrink-0" />
             <CardTitle>Let&apos;s Assist Platform Hours</CardTitle>
             <Badge variant="secondary">{totalVerified}</Badge>
           </div>

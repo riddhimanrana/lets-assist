@@ -73,7 +73,7 @@ export default function OrganizationHeader({
       <div className="flex w-full flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex flex-col items-center sm:flex-1 sm:min-w-0 sm:flex-row sm:items-start gap-4 sm:gap-6 w-full">
           {/* Avatar - smaller on mobile */}
-          <Avatar className="h-16 w-16 sm:h-24 sm:w-24 rounded-full border-4 border-background shadow-sm flex-shrink-0">
+          <Avatar className="h-16 w-16 sm:h-24 sm:w-24 rounded-full border-4 border-background shadow-xs shrink-0">
             <AvatarImage src={organization.logo_url || undefined} alt={organization.name} />
             <AvatarFallback className="text-base sm:text-xl bg-primary/10 rounded-2xl">
               {(() => {
@@ -97,7 +97,7 @@ export default function OrganizationHeader({
           <div className="flex-1 min-w-0 text-center sm:text-left">
             {/* Organization name and badges */}
             <div className="flex flex-col items-center sm:items-start">
-              <h1 className="flex flex-wrap break-words text-xl sm:text-3xl font-bold tracking-tight">
+              <h1 className="flex flex-wrap wrap-break-word text-xl sm:text-3xl font-bold tracking-tight">
                 {organization.name}
                 {organization.verified && (
                   <BadgeCheck

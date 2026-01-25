@@ -768,7 +768,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
                     {project?.enable_volunteer_comments && (
                       <TableCell className="text-sm text-muted-foreground max-w-[200px]">
                         {signup.volunteer_comment ? (
-                          <div className="max-h-[60px] overflow-y-auto text-wrap break-words whitespace-pre-wrap border border-border rounded p-2 bg-muted/20 text-xs leading-relaxed">
+                          <div className="max-h-[60px] overflow-y-auto text-wrap wrap-break-word whitespace-pre-wrap border border-border rounded p-2 bg-muted/20 text-xs leading-relaxed">
                             {signup.volunteer_comment}
                           </div>
                         ) : (

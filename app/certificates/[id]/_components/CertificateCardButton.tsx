@@ -21,7 +21,7 @@ export function CertificateCardButton({ projectId, translateZ = 40 }: Certificat
 
   return (
     <CardItem translateZ={translateZ} className="ml-auto">
-      <Button variant="outline" size="sm" className="backdrop-blur-sm" asChild>
+      <Button variant="outline" size="sm" className="backdrop-blur-xs" asChild>
         <Link href={`/projects/${projectId}`} className="flex items-center gap-1.5">
           View Project Details
           <ExternalLink className="h-3.5 w-3.5" />

@@ -87,7 +87,7 @@ export default function JoinCodeAdminDisplay({
             size="icon"
             variant="outline"
             onClick={copyToClipboard}
-            className="flex-shrink-0"
+            className="shrink-0"
           >
             {isCopied ? (
               <CheckCircle2 className="h-4 w-4 text-primary" />

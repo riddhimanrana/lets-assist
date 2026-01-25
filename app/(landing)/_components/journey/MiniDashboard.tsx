@@ -64,7 +64,7 @@ export function MiniDashboard({
   return (
     <div className="space-y-3 p-2 md:p-3">
       <div className="grid gap-3 md:grid-cols-3">
-        <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/30">
+        <Card className="bg-linear-to-br from-primary/10 to-primary/5 border border-primary/30">
           <CardContent className="p-3">
             <div className="flex items-center justify-between">
               <div>
@@ -78,7 +78,7 @@ export function MiniDashboard({
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-chart-3/10 to-chart-3/5 border border-chart-3/30">
+        <Card className="bg-linear-to-br from-chart-3/10 to-chart-3/5 border border-chart-3/30">
           <CardContent className="p-3">
             <div className="flex items-center justify-between">
               <div>
@@ -92,7 +92,7 @@ export function MiniDashboard({
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-chart-4/10 to-chart-4/5 border border-chart-4/30">
+        <Card className="bg-linear-to-br from-chart-4/10 to-chart-4/5 border border-chart-4/30">
           <CardContent className="p-3">
             <div className="flex items-center justify-between mb-2">
               <div>

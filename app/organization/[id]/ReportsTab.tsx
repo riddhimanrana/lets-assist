@@ -1346,14 +1346,14 @@ export default function ReportsTab({ organizationId, organizationName, userRole 
                       <div className="space-y-4">
                         <div className="grid gap-2 sm:grid-cols-2">
                           <Button
-                            variant={setupMode === "create" ? "default" : "outline"}
+                            variant={setupMode === "create" ? "default" : "outline-solid"}
                             onClick={() => handleSetupModeChange("create")}
                             disabled={needsSheetScopes}
                           >
                             Create new sheet
                           </Button>
                           <Button
-                            variant={setupMode === "existing" ? "default" : "outline"}
+                            variant={setupMode === "existing" ? "default" : "outline-solid"}
                             onClick={() => handleSetupModeChange("existing")}
                             disabled={needsSheetScopes}
                           >

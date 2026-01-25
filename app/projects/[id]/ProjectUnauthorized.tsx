@@ -54,21 +54,21 @@ export default function ProjectUnauthorized({ projectId: _projectId }: ProjectUn
               <Separator className="my-1.5" />
               <ul className="mt-2 space-y-2 text-left text-sm">
                 <li className="flex items-center">
-                  <span className="flex-shrink-0 inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-xs font-medium text-primary mr-2">
+                  <span className="shrink-0 inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-xs font-medium text-primary mr-2">
                     1
                   </span>
                   <span>Be a member of the organization that owns this project</span>
                 </li>
                 {!isLoggedIn && (
                   <li className="flex items-center">
-                    <span className="flex-shrink-0 inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-xs font-medium text-primary mr-2">
+                    <span className="shrink-0 inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-xs font-medium text-primary mr-2">
                       2
                     </span>
                     <span>Log in with an account that has access to this organization</span>
                   </li>
                 )}
                 <li className="flex items-center">
-                  <span className="flex-shrink-0 inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-xs font-medium text-primary mr-2">
+                  <span className="shrink-0 inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-xs font-medium text-primary mr-2">
                     {!isLoggedIn ? "3" : "2"}
                   </span>
                   <span>Request access from the organization administrator if needed</span>
@@ -80,7 +80,7 @@ export default function ProjectUnauthorized({ projectId: _projectId }: ProjectUn
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div className="flex items-center justify-center p-2 bg-muted/30 rounded-lg border border-border/50 hover:bg-muted/50 transition-colors cursor-help">
-                    <Shield className="h-4 w-4 text-muted-foreground mr-2 flex-shrink-0" />
+                    <Shield className="h-4 w-4 text-muted-foreground mr-2 shrink-0" />
                     <p className="text-xs text-muted-foreground">
                       Private projects help organizations maintain confidentiality
                     </p>

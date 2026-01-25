@@ -571,7 +571,7 @@ export default function ProfileClient() {
               Manage your personal information and how others see you
             </p>
           </div>
-          <Card className="border shadow-sm">
+          <Card className="border shadow-xs">
             <CardHeader className="px-5 py-5 sm:px-6">
               <CardTitle className="text-xl">Profile Picture</CardTitle>
               <CardDescription>
@@ -607,7 +607,7 @@ export default function ProfileClient() {
               )}
             </CardContent>
           </Card>
-          <Card className="border shadow-sm">
+          <Card className="border shadow-xs">
             <CardHeader className="p-5">
               <CardTitle className="text-xl">Personal Information</CardTitle>
               <CardDescription>
@@ -780,7 +780,7 @@ export default function ProfileClient() {
 
           {/* Email Management Section */}
           {emailLoading ? (
-            <Card className="border shadow-sm">
+            <Card className="border shadow-xs">
               <CardContent className="pt-6 flex justify-center">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               </CardContent>
@@ -791,7 +791,7 @@ export default function ProfileClient() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
             >
-              <Card className="border shadow-sm">
+              <Card className="border shadow-xs">
                 <CardHeader className="px-5 py-5 sm:px-6">
                   <div className="flex items-center gap-2">
                     <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
@@ -961,7 +961,7 @@ export default function ProfileClient() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.15 }}
           >
-            <Card className="border shadow-sm">
+            <Card className="border shadow-xs">
               <CardHeader className="px-5 py-5 sm:px-6">
                 <div className="flex items-center gap-2">
                   <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">

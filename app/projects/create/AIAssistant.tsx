@@ -128,7 +128,7 @@ export default function AIAssistant({ onApplyData, onClose, isOpen }: AIAssistan
         }
       `}</style>
 
-      <Card className={`mb-6 border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-transparent transition-all duration-500 ${
+      <Card className={`mb-6 border-2 border-primary/20 bg-linear-to-br from-primary/5 to-transparent transition-all duration-500 ${
         isApplying ? 'scale-98 opacity-60' : 'scale-100 opacity-100'
       }`}>
         <CardHeader className="pb-3">

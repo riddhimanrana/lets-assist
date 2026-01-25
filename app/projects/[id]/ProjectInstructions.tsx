@@ -189,7 +189,7 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
         <div className="space-y-2">
           <div className="rounded-lg bg-primary/5 border p-4">
             <div className="flex items-start gap-3">
-              <div className="bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0">1</div>
+              <div className="bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center shrink-0">1</div>
               <div>
                 <p className="font-medium">Review Project Details</p>
                 <p className="text-sm text-muted-foreground mt-1">Read through all project information and requirements.</p>
@@ -199,7 +199,7 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
           
           <div className="rounded-lg bg-primary/5 border p-4">
             <div className="flex items-start gap-3">
-              <div className="bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0">2</div>
+              <div className="bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center shrink-0">2</div>
               <div>
                 <p className="font-medium">Select Available Slot</p>
                 <p className="text-sm text-muted-foreground mt-1">
@@ -215,7 +215,7 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
           
           <div className="rounded-lg bg-primary/5 border p-4">
             <div className="flex items-start gap-3">
-              <div className="bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0">3</div>
+              <div className="bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center shrink-0">3</div>
               <div>
                 <p className="font-medium">Click the &quot;Sign Up&quot; Button</p>
                 <p className="text-sm text-muted-foreground mt-1">
@@ -228,7 +228,7 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
           {verification_method !== "signup-only" && (
             <div className="rounded-lg bg-primary/5 border p-4">
               <div className="flex items-start gap-3">
-                <div className="bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0">4</div>
+                <div className="bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center shrink-0">4</div>
                 <div>
                   <p className="font-medium">Check In on Event Day</p>
                   <p className="text-sm text-muted-foreground mt-1">
@@ -410,7 +410,7 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
             <div className="space-y-4">
               <div className="rounded-lg bg-primary/5 border border-primary/20 p-4">
                 <div className="flex items-start gap-3">
-                  <div className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0 font-semibold">1</div>
+                  <div className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center shrink-0 font-semibold">1</div>
                   <div>
                     <p className="font-medium">Arrive at the Event</p>
                     <p className="text-sm text-muted-foreground mt-1">Get to the event location a few minutes early and look for the check-in area.</p>
@@ -420,7 +420,7 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
               
               <div className="rounded-lg bg-primary/5 border border-primary/20 p-4">
                 <div className="flex items-start gap-3">
-                  <div className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0 font-semibold">2</div>
+                  <div className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center shrink-0 font-semibold">2</div>
                   <div>
                     <p className="font-medium">Find the QR Code</p>
                     <p className="text-sm text-muted-foreground mt-1">Look for the event coordinator with the QR code display for your session.</p>
@@ -430,7 +430,7 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
               
               <div className="rounded-lg bg-primary/5 border border-primary/20 p-4">
                 <div className="flex items-start gap-3">
-                  <div className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0 font-semibold">3</div>
+                  <div className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center shrink-0 font-semibold">3</div>
                   <div>
                     <p className="font-medium">Scan to Check In</p>
                     <p className="text-sm text-muted-foreground mt-1">
@@ -442,7 +442,7 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
               
               <div className="rounded-lg bg-primary/5 border border-primary/20 p-4">
                 <div className="flex items-start gap-3">
-                  <div className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0 font-semibold">4</div>
+                  <div className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center shrink-0 font-semibold">4</div>
                   <div>
                     <p className="font-medium">Complete Your Shift</p>
                     <p className="text-sm text-muted-foreground mt-1">When your volunteer time is finished, we automatically track the hours, and if you worked longer or there needs to be any changes contact the project coordinator and they can fix that.</p>
@@ -481,7 +481,7 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
             <div className="space-y-4">
               <div className="rounded-lg bg-primary/5 border border-primary/20 p-4">
                 <div className="flex items-start gap-3">
-                  <div className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0 font-semibold">1</div>
+                  <div className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center shrink-0 font-semibold">1</div>
                   <div>
                     <p className="font-medium">Arrive and Find the Coordinator</p>
                     <p className="text-sm text-muted-foreground mt-1">When you arrive, look for the event coordinator or check-in table.</p>
@@ -491,7 +491,7 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
               
               <div className="rounded-lg bg-primary/5 border border-primary/20 p-4">
                 <div className="flex items-start gap-3">
-                  <div className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0 font-semibold">2</div>
+                  <div className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center shrink-0 font-semibold">2</div>
                   <div>
                     <p className="font-medium">Check In</p>
                     <p className="text-sm text-muted-foreground mt-1">Give your name to the coordinator - they&apos;ll mark you as present and record your arrival time.</p>
@@ -501,7 +501,7 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
               
               <div className="rounded-lg bg-primary/5 border border-primary/20 p-4">
                 <div className="flex items-start gap-3">
-                  <div className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0 font-semibold">3</div>
+                  <div className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center shrink-0 font-semibold">3</div>
                   <div>
                     <p className="font-medium">Check Out When Leaving</p>
                     <p className="text-sm text-muted-foreground mt-1">Before you leave, find the coordinator again to check out and record your departure time.</p>
@@ -540,7 +540,7 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
             <div className="space-y-4">
               <div className="rounded-lg bg-primary/5 border border-primary/20 p-4">
                 <div className="flex items-start gap-3">
-                  <div className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0 font-semibold">1</div>
+                  <div className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center shrink-0 font-semibold">1</div>
                   <div>
                     <p className="font-medium">Simply Arrive on Time</p>
                     <p className="text-sm text-muted-foreground mt-1">Show up at the scheduled time and location. No check-in process required!</p>
@@ -550,7 +550,7 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
               
               <div className="rounded-lg bg-primary/5 border border-primary/20 p-4">
                 <div className="flex items-start gap-3">
-                  <div className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0 font-semibold">2</div>
+                  <div className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center shrink-0 font-semibold">2</div>
                   <div>
                     <p className="font-medium">Participate in the Event</p>
                     <p className="text-sm text-muted-foreground mt-1">Follow the event coordinator&apos;s instructions and contribute your time.</p>
@@ -560,7 +560,7 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
               
               <div className="rounded-lg bg-primary/5 border border-primary/20 p-4">
                 <div className="flex items-start gap-3">
-                  <div className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0 font-semibold">3</div>
+                  <div className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center shrink-0 font-semibold">3</div>
                   <div>
                     <p className="font-medium">Hours Credited Automatically</p>
                     <p className="text-sm text-muted-foreground mt-1">Your volunteer hours will be automatically credited based on the event schedule.</p>
@@ -599,7 +599,7 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
             <div className="space-y-4">
               <div className="rounded-lg bg-primary/5 border border-primary/20 p-4">
                 <div className="flex items-start gap-3">
-                  <div className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0 font-semibold">1</div>
+                  <div className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center shrink-0 font-semibold">1</div>
                   <div>
                     <p className="font-medium">Arrive at the Event</p>
                     <p className="text-sm text-muted-foreground mt-1">Show up at the scheduled time and location ready to help!</p>
@@ -609,7 +609,7 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
               
               <div className="rounded-lg bg-primary/5 border border-primary/20 p-4">
                 <div className="flex items-start gap-3">
-                  <div className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0 font-semibold">2</div>
+                  <div className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center shrink-0 font-semibold">2</div>
                   <div>
                     <p className="font-medium">Participate</p>
                     <p className="text-sm text-muted-foreground mt-1">Follow the event coordinator&apos;s guidance and contribute your time and energy.</p>
@@ -619,7 +619,7 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
               
               <div className="rounded-lg bg-primary/5 border border-primary/20 p-4">
                 <div className="flex items-start gap-3">
-                  <div className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0 font-semibold">3</div>
+                  <div className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center shrink-0 font-semibold">3</div>
                   <div>
                     <p className="font-medium">That&apos;s It!</p>
                     <p className="text-sm text-muted-foreground mt-1">No check-in, no check-out - just show up and make a difference.</p>

@@ -217,7 +217,7 @@ export default async function OrganizationPage({
 
   return (
     <div className="flex flex-col w-full">
-      <div className="w-full absolute bg-gradient-to-br from-primary/15 via-primary/5 to-background/0 min-h-72 before:content-[''] before:absolute before:inset-0 before:bg-gradient-to-b before:from-transparent before:to-background" />
+      <div className="w-full absolute bg-linear-to-br from-primary/15 via-primary/5 to-background/0 min-h-72 before:content-[''] before:absolute before:inset-0 before:bg-linear-to-b before:from-transparent before:to-background" />
 
       <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 pt-6 sm:pt-10">
         <OrganizationHeader
@@ -226,7 +226,7 @@ export default async function OrganizationPage({
           memberCount={formattedMembers?.length || 0}
         />
 
-        <div className="mt-8 sm:mt-12 bg-card rounded-xl border border-border/60 shadow-sm p-4 sm:p-6 mb-8">
+        <div className="mt-8 sm:mt-12 bg-card rounded-xl border border-border/60 shadow-xs p-4 sm:p-6 mb-8">
           <OrganizationTabs
             organization={organization}
             members={formattedMembers}

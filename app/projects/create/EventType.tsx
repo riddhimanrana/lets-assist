@@ -34,7 +34,7 @@ export default function EventType({
       onClick={() => setEventTypeAction(type)}
     >
       <div className="flex gap-3">
-        <div className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0 flex items-center justify-center rounded-md sm:rounded-lg bg-primary/10">
+        <div className="w-10 h-10 sm:w-12 sm:h-12 shrink-0 flex items-center justify-center rounded-md sm:rounded-lg bg-primary/10">
           {icon}
         </div>
         <div className="flex-1 min-w-0">

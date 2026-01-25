@@ -114,7 +114,7 @@ export function NotificationsClient() {
           </p>
         </div>
 
-        <Card className="border shadow-sm">
+        <Card className="border shadow-xs">
           <CardHeader className="px-5 py-5 sm:px-6">
             <CardTitle className="text-xl">Notification Preferences</CardTitle>
             <CardDescription>

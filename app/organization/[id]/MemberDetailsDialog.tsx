@@ -199,10 +199,10 @@ export default function MemberDetailsDialog({
     <Dialog open={isOpen} onOpenChange={() => onClose()}>
       <DialogContent className="sm:max-w-4xl w-[calc(100vw-1rem)] sm:w-[92vw] max-h-[85vh] sm:max-h-[90vh] overflow-hidden flex flex-col p-0">
         {/* Fixed Header */}
-        <DialogHeader className="space-y-2 sm:space-y-3 p-3 sm:p-6 pb-2 sm:pb-4 border-b flex-shrink-0">
+        <DialogHeader className="space-y-2 sm:space-y-3 p-3 sm:p-6 pb-2 sm:pb-4 border-b shrink-0">
           <DialogTitle className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
             <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-              <Avatar className="h-9 w-9 sm:h-12 sm:w-12 border border-border flex-shrink-0">
+              <Avatar className="h-9 w-9 sm:h-12 sm:w-12 border border-border shrink-0">
                 <AvatarImage
                   src={profile?.avatar_url || undefined}
                   alt={profile?.full_name || ""}
@@ -226,7 +226,7 @@ export default function MemberDetailsDialog({
                 disabled={isExporting}
                 variant="outline"
                 size="sm"
-                className="gap-1.5 sm:gap-2 self-start sm:self-center flex-shrink-0 h-8 px-2 sm:px-3 text-xs sm:text-sm"
+                className="gap-1.5 sm:gap-2 self-start sm:self-center shrink-0 h-8 px-2 sm:px-3 text-xs sm:text-sm"
               >
                 {isExporting ? (
                   <>
@@ -267,7 +267,7 @@ export default function MemberDetailsDialog({
             <Card className="overflow-hidden">
               <CardHeader className="pb-0.5 sm:pb-2 px-2 sm:px-4 pt-2 sm:pt-4">
                 <CardTitle className="text-[10px] sm:text-sm font-medium flex items-center gap-1 sm:gap-2">
-                  <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-primary flex-shrink-0" />
+                  <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-primary shrink-0" />
                   <span className="truncate">Hours</span>
                 </CardTitle>
               </CardHeader>
@@ -281,7 +281,7 @@ export default function MemberDetailsDialog({
             <Card className="overflow-hidden">
               <CardHeader className="pb-0.5 sm:pb-2 px-2 sm:px-4 pt-2 sm:pt-4">
                 <CardTitle className="text-[10px] sm:text-sm font-medium flex items-center gap-1 sm:gap-2">
-                  <Award className="h-3 w-3 sm:h-4 sm:w-4 text-primary flex-shrink-0" />
+                  <Award className="h-3 w-3 sm:h-4 sm:w-4 text-primary shrink-0" />
                   <span className="truncate">Events</span>
                 </CardTitle>
               </CardHeader>
@@ -295,7 +295,7 @@ export default function MemberDetailsDialog({
             <Card className="overflow-hidden">
               <CardHeader className="pb-0.5 sm:pb-2 px-2 sm:px-4 pt-2 sm:pt-4">
                 <CardTitle className="text-[10px] sm:text-sm font-medium flex items-center gap-1 sm:gap-2">
-                  <Calendar className="h-3 w-3 sm:h-4 sm:w-4 text-primary flex-shrink-0" />
+                  <Calendar className="h-3 w-3 sm:h-4 sm:w-4 text-primary shrink-0" />
                   <span className="truncate">Joined</span>
                 </CardTitle>
               </CardHeader>
@@ -409,12 +409,12 @@ export default function MemberDetailsDialog({
                             {event.projectTitle}
                           </h4>
                           {event.isCertified ? (
-                            <Badge variant="default" className="gap-0.5 sm:gap-1 text-[10px] sm:text-xs flex-shrink-0 px-1.5 sm:px-2">
+                            <Badge variant="default" className="gap-0.5 sm:gap-1 text-[10px] sm:text-xs shrink-0 px-1.5 sm:px-2">
                               <BadgeCheck className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                               <span className="hidden sm:inline">Certified</span>
                             </Badge>
                           ) : (
-                            <Badge variant="outline" className="gap-0.5 sm:gap-1 text-[10px] sm:text-xs flex-shrink-0 px-1.5 sm:px-2">
+                            <Badge variant="outline" className="gap-0.5 sm:gap-1 text-[10px] sm:text-xs shrink-0 px-1.5 sm:px-2">
                               <CheckCheck className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                               <span className="hidden sm:inline">Completed</span>
                             </Badge>

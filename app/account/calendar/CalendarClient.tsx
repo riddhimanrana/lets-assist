@@ -315,7 +315,7 @@ export default function CalendarClient({
                 </div>
                 <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                   <Button
-                    variant={sheetsEnabled ? "outline" : "default"}
+                    variant={sheetsEnabled ? "outline-solid" : "default"}
                     size="sm"
                     onClick={() => {
                       window.location.href = sheetsConnectUrl;
@@ -461,7 +461,7 @@ export default function CalendarClient({
         <CardContent className="space-y-4">
           <div className="space-y-3 text-sm">
             <div className="flex gap-3">
-              <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold">
+              <div className="shrink-0 w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold">
                 1
               </div>
               <div>
@@ -473,7 +473,7 @@ export default function CalendarClient({
               </div>
             </div>
             <div className="flex gap-3">
-              <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold">
+              <div className="shrink-0 w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold">
                 2
               </div>
               <div>
@@ -486,7 +486,7 @@ export default function CalendarClient({
               </div>
             </div>
             <div className="flex gap-3">
-              <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold">
+              <div className="shrink-0 w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold">
                 3
               </div>
               <div>
@@ -498,7 +498,7 @@ export default function CalendarClient({
               </div>
             </div>
             <div className="flex gap-3">
-              <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold">
+              <div className="shrink-0 w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold">
                 4
               </div>
               <div>

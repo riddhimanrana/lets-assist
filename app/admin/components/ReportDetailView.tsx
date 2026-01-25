@@ -195,7 +195,7 @@ export function ReportDetailView({
                     ? "default"
                     : report.status === "under_review"
                       ? "secondary"
-                      : "outline"
+                      : "outline-solid"
                 }
               >
                 {report.status}
@@ -206,7 +206,7 @@ export function ReportDetailView({
                     ? "destructive"
                     : report.priority === "high"
                       ? "secondary"
-                      : "outline"
+                      : "outline-solid"
                 }
               >
                 {report.priority}

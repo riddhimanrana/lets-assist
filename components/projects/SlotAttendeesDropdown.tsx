@@ -85,7 +85,7 @@ export function SlotAttendeesDropdown({
                     "flex items-center gap-2",
                     !attendee.is_anonymous && "cursor-pointer hover:text-foreground"
                   )}>
-                    <Avatar className="h-6 w-6 flex-shrink-0">
+                    <Avatar className="h-6 w-6 shrink-0">
                       {attendee.avatar_url && !attendee.is_anonymous ? (
                         <AvatarImage src={attendee.avatar_url} alt={displayName} />
                       ) : null}
@@ -106,7 +106,7 @@ export function SlotAttendeesDropdown({
 
                 {attendee.volunteer_comment && (
                   <div className="mt-1.5 ml-8">
-                    <p className="text-xs text-muted-foreground bg-background/60 rounded px-2.5 py-1.5 border border-border/60 break-words leading-relaxed">
+                    <p className="text-xs text-muted-foreground bg-background/60 rounded px-2.5 py-1.5 border border-border/60 wrap-break-word leading-relaxed">
                       {attendee.volunteer_comment}
                     </p>
                   </div>

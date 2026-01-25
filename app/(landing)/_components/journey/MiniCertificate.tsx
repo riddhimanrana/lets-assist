@@ -24,7 +24,7 @@ export function MiniCertificate({
       transition={{ duration: 0.5 }}
       className="p-4"
     >
-      <div className="relative overflow-hidden rounded-xl border-2 border-primary/20 bg-gradient-to-br from-primary/10 via-background to-primary/5 p-6 shadow-lg">
+      <div className="relative overflow-hidden rounded-xl border-2 border-primary/20 bg-linear-to-br from-primary/10 via-background to-primary/5 p-6 shadow-lg">
         {/* Header */}
         <div className="flex items-start justify-between mb-4">
           <motion.div
@@ -63,7 +63,7 @@ export function MiniCertificate({
             <span>{organizationName}</span>
           </div>
 
-          <div className="p-3 bg-gradient-to-r from-primary/5 to-transparent backdrop-blur-sm rounded-lg border border-primary/10">
+          <div className="p-3 bg-linear-to-r from-primary/5 to-transparent backdrop-blur-xs rounded-lg border border-primary/10">
             <p className="text-sm font-semibold mb-1">{volunteerName}</p>
             <div className="flex items-center gap-2">
               <Clock className="h-3.5 w-3.5 text-primary" />

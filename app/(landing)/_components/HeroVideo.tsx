@@ -39,14 +39,14 @@ export const HeroVideo = () => {
                   >
                     {/* subtle glow behind the video thumbnail */}
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                      <div className="w-3/4 h-3/4 rounded-2xl bg-gradient-to-r from-indigo-500/30 via-purple-500/20 to-pink-500/10 blur-2xl opacity-0 transform scale-90 transition-all duration-300 group-hover:opacity-90 group-hover:scale-100" />
+                      <div className="w-3/4 h-3/4 rounded-2xl bg-linear-to-r from-indigo-500/30 via-purple-500/20 to-pink-500/10 blur-2xl opacity-0 transform scale-90 transition-all duration-300 group-hover:opacity-90 group-hover:scale-100" />
                     </div>
 
                     <div
                       className="absolute inset-0 bg-cover bg-center"
                       style={{ backgroundImage: `url(${thumbnailUrl})` }}
                     />
-                    <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/5 to-black/40" />
+                    <div className="absolute inset-0 bg-linear-to-b from-black/20 via-black/5 to-black/40" />
                     <motion.div
                       className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-white"
                       initial={{ opacity: 0, y: 10 }}

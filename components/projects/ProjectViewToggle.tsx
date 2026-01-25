@@ -334,7 +334,7 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                     {project.title}
                   </h3>
                   <div className="flex items-center gap-2 mb-4">
-                    <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    <MapPin className="h-4 w-4 text-muted-foreground shrink-0" />
                     <span className="text-sm text-muted-foreground truncate">
                       {project.location}
                     </span>
@@ -395,7 +395,7 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                             </ProfileHoverCard>
                           )}
                           {project.organization_id && isOrganizationVerified(project) && (
-                            <BadgeCheck className="h-4 w-4 flex-shrink-0" fill="hsl(var(--primary))" stroke="hsl(var(--popover))" strokeWidth={2.5} />
+                            <BadgeCheck className="h-4 w-4 shrink-0" fill="hsl(var(--primary))" stroke="hsl(var(--popover))" strokeWidth={2.5} />
                           )}
                         </div>
                       </div>
@@ -453,23 +453,23 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                           {project.title}
                         </h3>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2 md:mb-3 project-location">
-                          <MapPin className="h-4 w-4 flex-shrink-0" />
+                          <MapPin className="h-4 w-4 shrink-0" />
                           <span className="truncate">{project.location}</span>
                         </div>
                       </div>
-                      <div className="flex flex-wrap items-start gap-2 order-1 md:order-none project-badges">
+                      <div className="flex flex-wrap items-start gap-2 order-1 md:order-0 project-badges">
                         <Badge
                           variant="outline"
                           className="gap-1 py-0.5 text-xs"
                         >
-                          <Calendar className="h-3 w-3 md:h-2.5 md:w-2.5 project-badge-icon flex-shrink-0" />
+                          <Calendar className="h-3 w-3 md:h-2.5 md:w-2.5 project-badge-icon shrink-0" />
                           {formatDateDisplay(project)}
                         </Badge>
                         <Badge
                           variant="outline"
                           className="gap-1 py-0.5 text-xs"
                         >
-                          <Users className="h-3 w-3 md:h-2.5 md:w-2.5 project-badge-icon flex-shrink-0" />
+                          <Users className="h-3 w-3 md:h-2.5 md:w-2.5 project-badge-icon shrink-0" />
                           {formatSpots(getRemainingSpots(project))}
                         </Badge>
                       </div>
@@ -515,7 +515,7 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                           </ProfileHoverCard>
                         )}
                         {project.organization_id && isOrganizationVerified(project) && (
-                          <BadgeCheck className="h-4 w-4 flex-shrink-0" fill="hsl(var(--primary))" stroke="hsl(var(--popover))" strokeWidth={2.5} />
+                          <BadgeCheck className="h-4 w-4 shrink-0" fill="hsl(var(--primary))" stroke="hsl(var(--popover))" strokeWidth={2.5} />
                         )}
                       </div>
                   </div>
@@ -523,7 +523,7 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="hidden md:flex opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                    className="hidden md:flex opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
                   >
                     <ChevronRight className="h-4 w-4" />
                   </Button>
@@ -575,11 +575,11 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                         {project.title}
                       </div>
                       <div className="text-xs text-muted-foreground sm:hidden flex items-center gap-2 mt-1">
-                        <MapPin className="h-3 w-3 flex-shrink-0" />
+                        <MapPin className="h-3 w-3 shrink-0" />
                         <span className="truncate">{project.location}</span>
                       </div>
                       <div className="text-xs text-muted-foreground sm:hidden flex items-center gap-2 mt-1">
-                        <Calendar className="h-3 w-3 flex-shrink-0" />
+                        <Calendar className="h-3 w-3 shrink-0" />
                         <span className="truncate">
                           {getEventScheduleSummary(project)}
                         </span>
@@ -588,7 +588,7 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                   </TableCell>
                   <TableCell className="hidden sm:table-cell">
                     <div className="flex items-center gap-1">
-                      <Calendar className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                      <Calendar className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                       <span className="text-sm">
                         {getEventScheduleSummary(project)}
                       </span>
@@ -596,7 +596,7 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                   </TableCell>
                   <TableCell className="hidden sm:table-cell">
                     <div className="flex items-center gap-1">
-                      <MapPin className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                      <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                       <span className="text-sm truncate max-w-[180px]">
                         {project.location}
                       </span>
@@ -628,7 +628,7 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                               {getProjectCreator(project)}
                             </span>
                             {isOrganizationVerified(project) && (
-                              <BadgeCheck className="h-4 w-4 flex-shrink-0" fill="hsl(var(--primary))" stroke="hsl(var(--popover))" strokeWidth={2.5} />
+                              <BadgeCheck className="h-4 w-4 shrink-0" fill="hsl(var(--primary))" stroke="hsl(var(--popover))" strokeWidth={2.5} />
                             )}
                           </div>
                         </div>
@@ -659,7 +659,7 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                   </TableCell>
                   <TableCell className="text-center">
                     <Badge
-                      variant={volunteerSort ? "secondary" : "outline"}
+                      variant={volunteerSort ? "secondary" : "outline-solid"}
                       className="gap-1"
                     >
                       <Users className="h-3 w-3" />

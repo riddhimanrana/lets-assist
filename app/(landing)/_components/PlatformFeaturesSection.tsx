@@ -87,7 +87,7 @@ export default function PlatformFeaturesSection() {
               viewport={{ once: true, amount: 0.3 }}
               transition={{ duration: 0.4, delay: i * 0.06 }}
             >
-              <Card className="h-full border-border/60 bg-background shadow-sm hover:shadow-md transition">
+              <Card className="h-full border-border/60 bg-background shadow-xs hover:shadow-md transition">
                 <CardContent className="p-5">
                   <div className="flex items-start justify-between mb-3">
                     <div className="rounded-lg bg-primary/10 p-2.5 text-primary">

@@ -505,7 +505,7 @@ export default function Finalize({
     if (isProfanityChecking) {
       return (
         <>
-          <AlertTriangle className="flex-shrink-0 h-8 w-8 text-muted-foreground animate-pulse mt-0.5" />
+          <AlertTriangle className="shrink-0 h-8 w-8 text-muted-foreground animate-pulse mt-0.5" />
           <div>
             <h4 className="font-semibold">Checking content...</h4>
             <p className="text-sm text-muted-foreground">
@@ -519,7 +519,7 @@ export default function Finalize({
     if (profanityResult?.hasProfanity) {
       return (
         <>
-          <AlertTriangle className="flex-shrink-0 h-8 w-8 text-destructive mt-0.5" />
+          <AlertTriangle className="shrink-0 h-8 w-8 text-destructive mt-0.5" />
           <div>
             <h4 className="font-semibold">Content warning</h4>
             <p className="text-sm text-muted-foreground">
@@ -582,7 +582,7 @@ export default function Finalize({
     
     return (
       <>
-        <CheckCircle2 className="flex-shrink-0 h-8 w-8 text-primary mt-0.5" />
+        <CheckCircle2 className="shrink-0 h-8 w-8 text-primary mt-0.5" />
         <div>
           <h4 className="font-semibold">Ready to create your project</h4>
           <p className="text-sm text-muted-foreground">
@@ -642,7 +642,7 @@ export default function Finalize({
               ) : (
                 <>
                   <div className="flex flex-col items-center justify-center space-y-2 py-6">
-                    <div className="rounded-full bg-background p-2 shadow-sm">
+                    <div className="rounded-full bg-background p-2 shadow-xs">
                       <ImageIcon className="h-6 w-6 text-muted-foreground" />
                     </div>
                     <div className="text-center space-y-1">
@@ -662,7 +662,7 @@ export default function Finalize({
               
             </div>
             <div className="flex items-center mt-2 text-xs text-muted-foreground">
-                <AlertTriangle className="h-3 w-3 mr-1 flex-shrink-0" />
+                <AlertTriangle className="h-3 w-3 mr-1 shrink-0" />
                 <span>Cover images are optional, but if you have an image feel free to show it!</span>
               </div>
           </div>
@@ -685,7 +685,7 @@ export default function Finalize({
               onMouseLeave={() => setHoverUpload(null)}
             >
               <div className="flex flex-col items-center justify-center space-y-2 my-6">
-                <div className="rounded-full bg-background p-2 shadow-sm">
+                <div className="rounded-full bg-background p-2 shadow-xs">
                   <Upload className="h-6 w-6 text-muted-foreground" />
                 </div>
                 <div className="text-center space-y-1">
@@ -740,7 +740,7 @@ export default function Finalize({
             
             {!localDocuments.length && (
               <div className="flex items-center mt-2 text-xs text-muted-foreground">
-                <AlertTriangle className="h-3 w-3 mr-1 flex-shrink-0" />
+                <AlertTriangle className="h-3 w-3 mr-1 shrink-0" />
                 <span>Documents are optional but recommended for projects requiring additional information</span>
               </div>
             )}

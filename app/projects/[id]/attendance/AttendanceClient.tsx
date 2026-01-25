@@ -629,26 +629,26 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
                           </TableCell>
                           <TableCell>
                               <Badge
-                              variant={checkInTime !== "N/A" ? "default" : "outline"}
+                              variant={checkInTime !== "N/A" ? "default" : "outline-solid"}
                               className="gap-1"
                               >
                               {checkInTime !== "N/A" ? (
-                                <CheckCircle className="h-3 w-3 flex-shrink-0" aria-label="Checked in" />
+                                <CheckCircle className="h-3 w-3 shrink-0" aria-label="Checked in" />
                               ) : (
-                                <Clock className="h-3 w-3 flex-shrink-0" aria-label="Not checked in" />
+                                <Clock className="h-3 w-3 shrink-0" aria-label="Not checked in" />
                               )}
                               {checkInTime}
                               </Badge>
                           </TableCell>
                           <TableCell>
                               <Badge
-                              variant={checkOutTime !== "N/A" ? "default" : "outline"}
+                              variant={checkOutTime !== "N/A" ? "default" : "outline-solid"}
                               className="gap-1"
                               >
                               {checkOutTime !== "N/A" ? (
-                                <CheckCircle className="h-3 w-3 flex-shrink-0" aria-label="Checked out" />
+                                <CheckCircle className="h-3 w-3 shrink-0" aria-label="Checked out" />
                               ) : (
-                                <Clock className="h-3 w-3 flex-shrink-0" aria-label="Not checked out" />
+                                <Clock className="h-3 w-3 shrink-0" aria-label="Not checked out" />
                               )}
                               {checkOutTime}
                               </Badge>

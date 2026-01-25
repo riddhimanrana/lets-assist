@@ -507,7 +507,7 @@ export default function ModerationDashboard({
     }
   };
 
-  const getPriorityVariant = (priority?: string | null): 'outline' | 'secondary' | 'destructive' => {
+  const getPriorityVariant = (priority?: string | null): 'outline-solid' | 'secondary' | 'destructive' => {
     switch ((priority || '').toLowerCase()) {
       case 'high':
       case 'critical':
@@ -515,16 +515,16 @@ export default function ModerationDashboard({
       case 'medium':
         return 'secondary';
       default:
-        return 'outline';
+        return 'outline-solid';
     }
   };
 
-  const getStatusVariant = (status?: string | null): 'default' | 'outline' | 'secondary' => {
+  const getStatusVariant = (status?: string | null): 'default' | 'outline-solid' | 'secondary' => {
     switch ((status || '').toLowerCase()) {
       case 'resolved':
         return 'default';
       case 'dismissed':
-        return 'outline';
+        return 'outline-solid';
       default:
         return 'secondary';
     }
@@ -1122,7 +1122,7 @@ export default function ModerationDashboard({
                       <CollapsibleTrigger asChild>
                         <Button variant="ghost" size="sm" className="w-full justify-between">
                           <span className="flex items-center gap-2">
-                            <ChevronRight className="h-4 w-4 transition-transform [[data-state=open]_&]:rotate-90" />
+                            <ChevronRight className="h-4 w-4 transition-transform in-data-[state=open]:rotate-90" />
                             Reasoning Steps ({selectedFlag.flag_details.reasoningSteps.length})
                           </span>
                         </Button>
@@ -1458,7 +1458,7 @@ export default function ModerationDashboard({
                         <CollapsibleTrigger asChild>
                           <Button variant="ghost" size="sm" className="w-full justify-between">
                             <span className="flex items-center gap-2">
-                              <ChevronRight className="h-4 w-4 transition-transform [[data-state=open]_&]:rotate-90" />
+                              <ChevronRight className="h-4 w-4 transition-transform in-data-[state=open]:rotate-90" />
                               Reasoning Steps ({selectedReport.ai_metadata.reasoningSteps.length})
                             </span>
                           </Button>
@@ -1676,14 +1676,14 @@ function formatFlagStatus(status?: string | null) {
   }
 }
 
-function getFlagStatusVariant(status?: string | null): 'default' | 'secondary' | 'outline' | 'destructive' {
+function getFlagStatusVariant(status?: string | null): 'default' | 'secondary' | 'outline-solid' | 'destructive' {
   switch ((status || 'pending').toLowerCase()) {
     case 'blocked':
       return 'destructive';
     case 'confirmed':
       return 'default';
     case 'dismissed':
-      return 'outline';
+      return 'outline-solid';
     default:
       return 'secondary';
   }

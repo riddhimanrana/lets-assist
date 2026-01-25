@@ -823,7 +823,7 @@ export default function CreatorDashboard({ project }: Props) {
           {/* Cancelled Project Info */}
           {isCancelled ? (
             <div className="flex flex-col sm:flex-row items-start gap-2 rounded-md border border-destructive p-3 sm:p-4 bg-destructive/10">
-              <AlertTriangle className="h-5 w-5 text-destructive flex-shrink-0" />
+              <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
               <div className="text-sm text-muted-foreground space-y-2">
                 <p>
                   This project has been cancelled. You can still edit details and manage existing signups,
@@ -840,7 +840,7 @@ export default function CreatorDashboard({ project }: Props) {
             <div className="flex flex-col sm:flex-row items-start gap-2 rounded-md border p-3 sm:p-4 bg-muted/50">
               
               <div className="text-sm text-muted-foreground space-y-2">
-              <AlertCircle className="h-5 w-5 mr-2 text-muted-foreground inline flex-shrink-0" />
+              <AlertCircle className="h-5 w-5 mr-2 text-muted-foreground inline shrink-0" />
                 <p className="inline">
                   As the project creator, you have full control over this project.
                   You can edit project details, manage volunteer signups, update
@@ -848,7 +848,7 @@ export default function CreatorDashboard({ project }: Props) {
                 </p>
                 {isInDeletionRestrictionPeriod && (
                   <div className="mt-2 flex items-center text-chart-6">
-                    <AlertTriangle className="h-4 w-4 inline mr-2 flex-shrink-0" />
+                    <AlertTriangle className="h-4 w-4 inline mr-2 shrink-0" />
                     <span className="inline">
                       Project deletion is restricted during the 72-hour window around the event (24 hours before until 48 hours after).
                     </span>

@@ -28,7 +28,7 @@ export default function OrganizationCard({ org, memberCount, isUserMember = fals
     <Link href={`/organization/${org.username}`}>
       <Card className={`h-full overflow-hidden hover:shadow-md transition-shadow ${isUserMember ? 'border-primary/30 bg-primary/5' : ''}`}>
         <CardContent className="p-0">
-          <div className="h-20 sm:h-24 bg-gradient-to-r from-primary/40 via-primary/20 to-primary/10 relative">
+          <div className="h-20 sm:h-24 bg-linear-to-r from-primary/40 via-primary/20 to-primary/10 relative">
             {org.logo_url && (
               <div className="absolute bottom-0 left-4 transform translate-y-1/2">
                 <Avatar className="h-12 w-12 sm:h-14 sm:w-14 rounded-full border-4 border-background">
@@ -50,7 +50,7 @@ export default function OrganizationCard({ org, memberCount, isUserMember = fals
                 <Badge 
                   variant={
                     userRole === "admin" ? "default" : 
-                    userRole === "staff" ? "secondary" : "outline"
+                    userRole === "staff" ? "secondary" : "outline-solid"
                   }
                   className="text-xs flex items-center gap-1"
                 >

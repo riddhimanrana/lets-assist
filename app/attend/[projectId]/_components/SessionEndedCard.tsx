@@ -95,7 +95,7 @@ export function SessionEndedCard({
   return (
     <>
       {showConfetti && <Confetti />}
-      <div className="min-h-screen bg-gradient-to-b from-primary/5 via-background to-background">
+      <div className="min-h-screen bg-linear-to-b from-primary/5 via-background to-background">
         <div className="container mx-auto flex min-h-screen items-center justify-center px-4 py-10 md:px-6">
           <div className="w-full max-w-md">
           <motion.div
@@ -104,7 +104,7 @@ export function SessionEndedCard({
             transition={{ duration: 0.4, ease: "easeOut" }}
           >
             <Card className="relative overflow-hidden border-primary/20">
-              <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-primary/10 to-transparent" />
+              <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-linear-to-b from-primary/10 to-transparent" />
               <CardHeader className="pb-4 pt-8">
                 <div className="mb-4 flex justify-center">
                   <motion.div
@@ -143,14 +143,14 @@ export function SessionEndedCard({
                       <div className="flex items-start justify-between gap-4">
                         <div className="min-w-0">
                           <p className="text-xs font-medium text-muted-foreground">Project</p>
-                          <p className="break-words font-medium leading-snug">{projectTitle}</p>
+                          <p className="wrap-break-word font-medium leading-snug">{projectTitle}</p>
                         </div>
                       </div>
 
                       <div className="flex items-start justify-between gap-4">
                         <div className="min-w-0">
                           <p className="text-xs font-medium text-muted-foreground">Session</p>
-                          <p className="break-words font-medium leading-snug">{sessionName}</p>
+                          <p className="wrap-break-word font-medium leading-snug">{sessionName}</p>
                         </div>
                         <div className="shrink-0 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary ring-1 ring-primary/20">
                           {elapsedTime}

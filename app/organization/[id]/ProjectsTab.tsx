@@ -187,19 +187,19 @@ function ProjectCard({ project }: { project: Project }) {
           <div className="flex flex-col gap-1.5">
             {project.location && (
               <div className="flex items-center text-xs text-muted-foreground">
-                <MapPin className="h-3 w-3 mr-1.5 flex-shrink-0" />
+                <MapPin className="h-3 w-3 mr-1.5 shrink-0" />
                 <span className="truncate">{project.location}</span>
               </div>
             )}
             
             <div className="flex items-center text-xs text-muted-foreground">
-              <CalendarIcon className="h-3 w-3 mr-1.5 flex-shrink-0" />
+              <CalendarIcon className="h-3 w-3 mr-1.5 shrink-0" />
               <span>Created {format(new Date(project.created_at), "MMM d, yyyy")}</span>
             </div>
             
             {startDateTime && (
               <div className="flex items-center text-xs text-muted-foreground">
-                <Clock className="h-3 w-3 mr-1.5 flex-shrink-0" />
+                <Clock className="h-3 w-3 mr-1.5 shrink-0" />
                 <span>{format(startDateTime, "MMM d, yyyy h:mm a")}</span>
               </div>
             )}

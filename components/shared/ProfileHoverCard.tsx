@@ -115,13 +115,13 @@ export function ProfileHoverCard({
                 </h4>
                 {showTrustedBadge && (
                   <BadgeCheck
-                    className="h-4 w-4 text-green-600 dark:text-green-500 flex-shrink-0"
+                    className="h-4 w-4 text-green-600 dark:text-green-500 shrink-0"
                     fill="currentColor"
                   />
                 )}
                 {showVerifiedBadge && (
                   <BadgeCheck
-                    className="h-4 w-4 text-primary flex-shrink-0"
+                    className="h-4 w-4 text-primary shrink-0"
                     fill="hsl(var(--primary))"
                     stroke="hsl(var(--popover))"
                     strokeWidth={2}

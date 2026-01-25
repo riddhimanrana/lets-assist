@@ -319,7 +319,7 @@ export default function BasicInfo({
             <div className="space-x-2">
               <Button 
                 type="button" 
-                variant={previewMode ? "outline" : "default"} 
+                variant={previewMode ? "outline-solid" : "default"} 
                 size="sm" 
                 onClick={() => setPreviewMode(false)}
               >
@@ -327,7 +327,7 @@ export default function BasicInfo({
               </Button>
               <Button 
                 type="button" 
-                variant={!previewMode ? "outline" : "default"} 
+                variant={!previewMode ? "outline-solid" : "default"} 
                 size="sm" 
                 onClick={() => setPreviewMode(true)}
               >
@@ -337,7 +337,7 @@ export default function BasicInfo({
           </div>
           
           {previewMode ? (
-            <div className="rounded-md border text-sm bg-background p-4 shadow-sm">
+            <div className="rounded-md border text-sm bg-background p-4 shadow-xs">
               <RichTextContent content={state.basicInfo.description ?? ''} />
             </div>
           ) : (
