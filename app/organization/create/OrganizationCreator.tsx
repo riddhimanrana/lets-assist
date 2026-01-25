@@ -13,14 +13,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem, SelectGroup, SelectLabel } from "@/components/ui/select";
 import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+  Field,
+  FieldLabel,
+  FieldDescription,
+  FieldError as FormMessage,
+} from "@/components/ui/field";
+import { Controller } from "react-hook-form";
 import { Switch } from "@/components/ui/switch";
 import { createOrganization, checkOrgUsername, checkDomainAvailability } from "./actions";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -83,10 +81,7 @@ const orgCreationSchema = z.object({
 
     .or(z.literal("")),
 
-  type: z.enum(["nonprofit", "school", "company", "government", "other"], {
-    required_error: "Please select an organization type",
-    invalid_type_error: "Please select a valid organization type",
-  }),
+  type: z.enum(["nonprofit", "school", "company", "government", "other"] as const),
 
   logoUrl: z.string().nullable().optional(),
 
@@ -225,324 +220,323 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
 
   return (
     <>
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-          <Card>
-            <CardHeader>
-              <CardTitle>Basic Information</CardTitle>
-              <CardDescription>
-                Provide the essential details about your organization
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 mb-6">
-                <Avatar className="w-24 h-24">
-                  <AvatarImage src={form.watch("logoUrl") || undefined} alt="Organization logo" />
-                  <AvatarFallback className="bg-muted">
-                    <Building2 className="h-8 w-8 text-muted-foreground" />
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => document.getElementById("logo-upload")?.click()}
-                  >
-                    <Upload className="h-4 w-4 mr-2" />
-                    Upload Logo
-                  </Button>
-                  <input
-                    id="logo-upload"
-                    type="file"
-                    className="hidden"
-                    accept="image/jpeg,image/png,image/jpg"
-                    onChange={handleImageUpload}
-                  />
-                  <p className="text-sm text-muted-foreground mt-2">
-                    Optional, but highly recommended. Upload a square logo for your organization.
-                  </p>
-                </div>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+        <Card>
+          <CardHeader>
+            <CardTitle>Basic Information</CardTitle>
+            <CardDescription>
+              Provide the essential details about your organization
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 mb-6">
+              <Avatar className="w-24 h-24">
+                <AvatarImage src={form.watch("logoUrl") || undefined} alt="Organization logo" />
+                <AvatarFallback className="bg-muted">
+                  <Building2 className="h-8 w-8 text-muted-foreground" />
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => document.getElementById("logo-upload")?.click()}
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  Upload Logo
+                </Button>
+                <input
+                  id="logo-upload"
+                  type="file"
+                  className="hidden"
+                  accept="image/jpeg,image/png,image/jpg"
+                  onChange={handleImageUpload}
+                />
+                <p className="text-sm text-muted-foreground mt-2">
+                  Optional, but highly recommended. Upload a square logo for your organization.
+                </p>
               </div>
+            </div>
 
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Organization Name *</FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <Input
-                          {...field}
-                          placeholder="Enter organization name"
-                          maxLength={CONSTANTS.NAME.MAX}
-                          className={field.value && field.value.length < CONSTANTS.NAME.MIN ? "border-destructive" : ""}
-                        />
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-                          {nameLength}/{CONSTANTS.NAME.MAX}
-                        </span>
+            <Controller
+              control={form.control}
+              name="name"
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor={field.name}>Organization Name *</FieldLabel>
+                  <div className="relative">
+                    <Input
+                      id={field.name}
+                      {...field}
+                      placeholder="Enter organization name"
+                      maxLength={CONSTANTS.NAME.MAX}
+                      className={field.value && field.value.length < CONSTANTS.NAME.MIN ? "border-destructive" : ""}
+                      aria-invalid={fieldState.invalid}
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                      {nameLength}/{CONSTANTS.NAME.MAX}
+                    </span>
+                  </div>
+                  <FieldDescription>
+                    This will be your organization&apos;s display name (minimum {CONSTANTS.NAME.MIN} characters)
+                  </FieldDescription>
+                  {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                </Field>
+              )}
+            />
+
+            <Controller
+              control={form.control}
+              name="username"
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor={field.name}>Username *</FieldLabel>
+                  <div className="relative">
+                    <Input
+                      id={field.name}
+                      {...field}
+                      placeholder="Enter organization username"
+                      maxLength={CONSTANTS.USERNAME.MAX}
+                      onChange={(e) => {
+                        const noSpaces = e.target.value.replace(/\s/g, "");
+                        field.onChange(noSpaces);
+                        // Clear errors and reset availability when typing
+                        if (form.formState.errors.username) {
+                          form.clearErrors("username");
+                        }
+                        setUsernameAvailable(null);
+                      }}
+                      onBlur={(e) => {
+                        if (e.target.value.toLowerCase() === "create") {
+                          setUsernameAvailable(false);
+                          return;
+                        }
+                        field.onBlur();
+                        checkUsernameAvailability(e.target.value);
+                      }}
+                      aria-invalid={fieldState.invalid}
+                    />
+                    {checkingUsername && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-foreground border-t-transparent" />
                       </div>
-                    </FormControl>
-                    <FormDescription>
-                      This will be your organization&apos;s display name (minimum {CONSTANTS.NAME.MIN} characters)
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
+                    )}
+                    {usernameAvailable !== null && !checkingUsername && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        {usernameAvailable ? (
+                          <CheckCircle2 className="h-5 w-5 text-primary" />
+                        ) : (
+                          <AlertCircle className="h-5 w-5 text-destructive" />
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <FieldDescription>
+                    Used in your organization&apos;s URL (minimum 3 characters): lets-assist.com/organization/<span className="font-mono">{field.value || "username"}</span>
+                  </FieldDescription>
+                  {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                </Field>
+              )}
+            />
+
+            <Controller
+              control={form.control}
+              name="description"
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor={field.name}>Description *</FieldLabel>
+                  <div className="relative">
+                    <Textarea
+                      id={field.name}
+                      {...field}
+                      placeholder="Describe your organization"
+                      className={`resize-none ${field.value && field.value.length < CONSTANTS.DESCRIPTION.MIN ? "border-destructive" : ""
+                        }`}
+                      rows={4}
+                      maxLength={CONSTANTS.DESCRIPTION.MAX}
+                      aria-invalid={fieldState.invalid}
+                    />
+                    <span className="absolute right-3 bottom-3 text-xs text-muted-foreground">
+                      {descriptionLength}/{CONSTANTS.DESCRIPTION.MAX}
+                    </span>
+                  </div>
+                  <FieldDescription>
+                    Provide a short description of your organization (minimum {CONSTANTS.DESCRIPTION.MIN} characters)
+                  </FieldDescription>
+                  {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                </Field>
+              )}
+            />
+
+            <Controller
+              control={form.control}
+              name="website"
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor={field.name}>Website</FieldLabel>
+                  <div className="relative">
+                    <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id={field.name}
+                      {...field}
+                      placeholder="https://your-website.com"
+                      className="pl-10"
+                      maxLength={CONSTANTS.WEBSITE.MAX}
+                      aria-invalid={fieldState.invalid}
+                    />
+                  </div>
+                  <FieldDescription>
+                    Optional. Include your organization&apos;s website. Must start with https:// or http://
+                  </FieldDescription>
+                  {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                </Field>
+              )}
+            />
+
+            <Controller
+              control={form.control}
+              name="type"
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor={field.name}>Organization Type *</FieldLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                  >
+                    <SelectTrigger
+                      id={field.name}
+                      data-empty={!field.value}
+                      className="data-[empty=true]:text-muted-foreground"
+                      aria-invalid={fieldState.invalid}
+                    >
+                      <SelectValue placeholder="Select organization type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectLabel>Type</SelectLabel>
+                        <SelectItem value="nonprofit">Nonprofit Organization</SelectItem>
+                        <SelectItem value="school">Educational Institution</SelectItem>
+                        <SelectItem value="company">Company/Business</SelectItem>
+                        <SelectItem value="government">Government Agency</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                  <FieldDescription>
+                    Choose the type that best describes your organization
+                  </FieldDescription>
+                  {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                </Field>
+              )}
+            />
+
+            {/* Auto-join domain section */}
+            <div className="space-y-4 rounded-lg border p-4 bg-muted/30">
+              <Controller
+                control={form.control}
+                name="enableAutoJoin"
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid} className="flex flex-row items-center justify-between">
+                    <div className="space-y-0.5">
+                      <FieldLabel htmlFor={field.name} className="text-base">Auto-join by Email Domain</FieldLabel>
+                      <FieldDescription>
+                        Automatically add users to this organization when they sign up with a specific email domain
+                      </FieldDescription>
+                    </div>
+                    <Switch
+                      id={field.name}
+                      checked={field.value}
+                      onCheckedChange={(checked) => {
+                        field.onChange(checked);
+                        if (!checked) {
+                          form.setValue("autoJoinDomain", "");
+                          setDomainAvailable(null);
+                        }
+                      }}
+                      aria-invalid={fieldState.invalid}
+                    />
+                  </Field>
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name="username"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Username *</FormLabel>
-                    <div className="relative">
-                      <FormControl>
+              {enableAutoJoin && (
+                <Controller
+                  control={form.control}
+                  name="autoJoinDomain"
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel htmlFor={field.name}>Email Domain</FieldLabel>
+                      <div className="relative">
                         <Input
+                          id={field.name}
                           {...field}
-                          placeholder="Enter organization username"
-                          maxLength={CONSTANTS.USERNAME.MAX}
+                          placeholder="e.g. school.net"
                           onChange={(e) => {
-                            const noSpaces = e.target.value.replace(/\s/g, "");
-                            field.onChange(noSpaces);
-                            // Clear errors and reset availability when typing
-                            if (form.formState.errors.username) {
-                              form.clearErrors("username");
-                            }
-                            setUsernameAvailable(null);
+                            const value = e.target.value.toLowerCase().trim();
+                            field.onChange(value);
                           }}
                           onBlur={(e) => {
-                            if (e.target.value.toLowerCase() === "create") {
-                              setUsernameAvailable(false);
-                              return;
-                            }
                             field.onBlur();
-                            checkUsernameAvailability(e.target.value);
+                            checkDomainAvailabilityHandler(e.target.value);
                           }}
+                          className="pr-10"
+                          aria-invalid={fieldState.invalid}
                         />
-                      </FormControl>
-                      {checkingUsername && (
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-foreground border-t-transparent" />
-                        </div>
-                      )}
-                      {usernameAvailable !== null && !checkingUsername && (
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                          {usernameAvailable ? (
-                            <CheckCircle2 className="h-5 w-5 text-primary" />
-                          ) : (
-                            <AlertCircle className="h-5 w-5 text-destructive" />
-                          )}
-                        </div>
-                      )}
-                    </div>
-                    <FormDescription>
-                      Used in your organization&apos;s URL (minimum 3 characters): lets-assist.com/organization/<span className="font-mono">{field.value || "username"}</span>
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Description *</FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <Textarea
-                          {...field}
-                          placeholder="Describe your organization"
-                          className={`resize-none ${field.value && field.value.length < CONSTANTS.DESCRIPTION.MIN ? "border-destructive" : ""
-                            }`}
-                          rows={4}
-                          maxLength={CONSTANTS.DESCRIPTION.MAX}
-                        />
-                        <span className="absolute right-3 bottom-3 text-xs text-muted-foreground">
-                          {descriptionLength}/{CONSTANTS.DESCRIPTION.MAX}
+                        {checkingDomain && (
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-foreground border-t-transparent" />
+                          </div>
+                        )}
+                        {domainAvailable !== null && !checkingDomain && (
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                            {domainAvailable ? (
+                              <CheckCircle2 className="h-5 w-5 text-primary" />
+                            ) : (
+                              <AlertCircle className="h-5 w-5 text-destructive" />
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      <FieldDescription className="flex items-start gap-2">
+                        <Info className="h-4 w-4 mt-0.5 shrink-0" />
+                        <span>
+                          Users signing up with emails from this domain (e.g., user@{field.value || "example.org"}) will automatically become members of this organization. Each domain can only be linked to one organization.
                         </span>
-                      </div>
-                    </FormControl>
-                    <FormDescription>
-                      Provide a short description of your organization (minimum {CONSTANTS.DESCRIPTION.MIN} characters)
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="website"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Website</FormLabel>
-                    <div className="relative">
-                      <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <FormControl>
-                        <Input
-                          {...field}
-                          placeholder="https://your-website.com"
-                          className="pl-10"
-                          maxLength={CONSTANTS.WEBSITE.MAX}
-                        />
-                      </FormControl>
-                    </div>
-                    <FormDescription>
-                      Optional. Include your organization&apos;s website. Must start with https:// or http://
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="type"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Organization Type *</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger
-                          data-empty={!field.value}
-                          className="data-[empty=true]:text-muted-foreground"
-                        >
-                          <SelectValue placeholder="Select organization type" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectGroup>
-                          <SelectLabel>Type</SelectLabel>
-                          <SelectItem value="nonprofit">Nonprofit Organization</SelectItem>
-                          <SelectItem value="school">Educational Institution</SelectItem>
-                          <SelectItem value="company">Company/Business</SelectItem>
-                          <SelectItem value="government">Government Agency</SelectItem>
-                          <SelectItem value="other">Other</SelectItem>
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
-                    <FormDescription>
-                      Choose the type that best describes your organization
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              {/* Auto-join domain section */}
-              <div className="space-y-4 rounded-lg border p-4 bg-muted/30">
-                <FormField
-                  control={form.control}
-                  name="enableAutoJoin"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-center justify-between">
-                      <div className="space-y-0.5">
-                        <FormLabel className="text-base">Auto-join by Email Domain</FormLabel>
-                        <FormDescription>
-                          Automatically add users to this organization when they sign up with a specific email domain
-                        </FormDescription>
-                      </div>
-                      <FormControl>
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={(checked) => {
-                            field.onChange(checked);
-                            if (!checked) {
-                              form.setValue("autoJoinDomain", "");
-                              setDomainAvailable(null);
-                            }
-                          }}
-                        />
-                      </FormControl>
-                    </FormItem>
+                      </FieldDescription>
+                      {domainAvailable === false && (
+                        <p className="text-sm text-destructive">This domain is already linked to another organization</p>
+                      )}
+                      {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                    </Field>
                   )}
                 />
-
-                {enableAutoJoin && (
-                  <FormField
-                    control={form.control}
-                    name="autoJoinDomain"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email Domain</FormLabel>
-                        <div className="relative">
-                          <FormControl>
-                            <Input
-                              {...field}
-                              placeholder="e.g. school.net"
-                              onChange={(e) => {
-                                const value = e.target.value.toLowerCase().trim();
-                                field.onChange(value);
-                              }}
-                              onBlur={(e) => {
-                                field.onBlur();
-                                checkDomainAvailabilityHandler(e.target.value);
-                              }}
-                            />
-                          </FormControl>
-                          {checkingDomain && (
-                            <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                              <div className="h-4 w-4 animate-spin rounded-full border-2 border-foreground border-t-transparent" />
-                            </div>
-                          )}
-                          {domainAvailable !== null && !checkingDomain && (
-                            <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                              {domainAvailable ? (
-                                <CheckCircle2 className="h-5 w-5 text-primary" />
-                              ) : (
-                                <AlertCircle className="h-5 w-5 text-destructive" />
-                              )}
-                            </div>
-                          )}
-                        </div>
-                        <FormDescription className="flex items-start gap-2">
-                          <Info className="h-4 w-4 mt-0.5 shrink-0" />
-                          <span>
-                            Users signing up with emails from this domain (e.g., user@{field.value || "example.org"}) will automatically become members of this organization. Each domain can only be linked to one organization.
-                          </span>
-                        </FormDescription>
-                        {domainAvailable === false && (
-                          <p className="text-sm text-destructive">This domain is already linked to another organization</p>
-                        )}
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                )}
-              </div>
-            </CardContent>
-            <CardFooter>
-              <Button
-                type="submit"
-                disabled={
-                  isCreating ||
-                  !usernameAvailable ||
-                  !form.formState.isValid ||
-                  Object.keys(form.formState.errors).length > 0 ||
-                  (enableAutoJoin && !!form.watch("autoJoinDomain") && domainAvailable === false)
-                }
-                className="ml-auto"
-              >
-                {isCreating ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Creating...
-                  </>
-                ) : (
-                  "Create Organization"
-                )}
-              </Button>
-            </CardFooter>
-          </Card>
-        </form>
-      </Form>
+              )}
+            </div>
+          </CardContent>
+          <CardFooter>
+            <Button
+              type="submit"
+              disabled={
+                isCreating ||
+                !usernameAvailable ||
+                !form.formState.isValid ||
+                Object.keys(form.formState.errors).length > 0 ||
+                (enableAutoJoin && !!form.watch("autoJoinDomain") && domainAvailable === false)
+              }
+              className="ml-auto"
+            >
+              {isCreating ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                "Create Organization"
+              )}
+            </Button>
+          </CardFooter>
+        </Card>
+      </form>
 
       <Dialog open={showCropper} onOpenChange={setShowCropper}>
         <DialogContent className="sm:max-w-[425px]">

@@ -4,7 +4,8 @@ import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Search, Filter, MessageSquareText } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
@@ -57,11 +58,11 @@ export function FeedbackTab({ feedback, onDelete }: FeedbackTabProps) {
   const [selectedFeedback, setSelectedFeedback] = useState<FeedbackItem | null>(null);
 
   const filteredFeedback = feedback.filter(item => {
-    const matchesSearch = 
+    const matchesSearch =
       item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.feedback.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.email.toLowerCase().includes(searchQuery.toLowerCase());
-    
+
     const matchesType = typeFilter === "all" || item.section === typeFilter;
 
     return matchesSearch && matchesType;
@@ -86,7 +87,7 @@ export function FeedbackTab({ feedback, onDelete }: FeedbackTabProps) {
           />
         </div>
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
-          <Select value={typeFilter} onValueChange={setTypeFilter}>
+          <Select value={typeFilter} onValueChange={(val) => val && setTypeFilter(val)}>
             <SelectTrigger className="w-full sm:w-[180px]">
               <Filter className="mr-2 h-4 w-4" />
               <SelectValue placeholder="Filter by type" />
@@ -134,11 +135,9 @@ export function FeedbackTab({ feedback, onDelete }: FeedbackTabProps) {
                     </div>
                   </div>
                   <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
-                        <MessageSquareText className="h-4 w-4" />
-                        <span className="sr-only">Feedback actions</span>
-                      </Button>
+                    <DropdownMenuTrigger className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "h-8 w-8 text-muted-foreground hover:text-foreground")}>
+                      <MessageSquareText className="h-4 w-4" />
+                      <span className="sr-only">Feedback actions</span>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onClick={() => setSelectedFeedback(item)}>

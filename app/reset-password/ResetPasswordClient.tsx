@@ -15,13 +15,11 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
-  Form,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormControl,
-  FormMessage,
-} from "@/components/ui/form";
+  Field,
+  FieldLabel,
+  FieldError as FormMessage,
+} from "@/components/ui/field";
+import { Controller } from "react-hook-form";
 import { toast } from "sonner";
 import Link from "next/link";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -54,11 +52,11 @@ export default function ResetPasswordClient({ error }: ResetPasswordClientProps)
 
   async function onSubmit(data: ResetPasswordValues) {
     const turnstileToken = turnstileRef.current?.getResponse();
-    
+
     setIsLoading(true);
     const formData = new FormData();
     formData.append("email", data.email);
-    
+
     if (turnstileToken) {
       formData.append("turnstileToken", turnstileToken);
     }
@@ -108,7 +106,7 @@ export default function ResetPasswordClient({ error }: ResetPasswordClientProps)
                 Try another email
               </Button>
               <Link href="/login">
-                  <Button variant="link" className="w-full">
+                <Button variant="link" className="w-full">
                   Back to login
                 </Button>
               </Link>
@@ -134,59 +132,57 @@ export default function ResetPasswordClient({ error }: ResetPasswordClientProps)
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="email"
-                        placeholder="m@example.com"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <div className="flex justify-center">
-                <div className="relative w-[300px] h-[65px] overflow-hidden bg-muted/30 rounded-lg flex items-center justify-center border border-border/50">
-                  {!turnstileReady && (
-                    <div className="absolute inset-0 z-10 flex items-center justify-center gap-2 rounded-lg bg-background/80 text-[0.7rem] font-semibold uppercase tracking-wide text-muted-foreground">
-                      <Shield className="h-4 w-4 text-muted-foreground/80" />
-                      <span className="text-[0.7rem] font-semibold normal-case tracking-wide">Bot verification loading…</span>
-                    </div>
-                  )}
-                  <TurnstileComponent
-                    ref={turnstileRef}
-                    onLoad={() => setTurnstileReady(true)}
-                    onVerify={(token) => {
-                      form.setValue("turnstileToken", token);
-                    }}
-                    onError={() => {
-                      toast.error("Security verification failed. Please try again.");
-                    }}
-                    onExpire={() => {
-                      form.setValue("turnstileToken", "");
-                    }}
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <Controller
+              control={form.control}
+              name="email"
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor={field.name}>Email</FieldLabel>
+                  <Input
+                    id={field.name}
+                    type="email"
+                    placeholder="m@example.com"
+                    {...field}
+                    aria-invalid={fieldState.invalid}
                   />
-                </div>
+                  {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                </Field>
+              )}
+            />
+            <div className="flex justify-center">
+              <div className="relative w-[300px] h-[65px] overflow-hidden bg-muted/30 rounded-lg flex items-center justify-center border border-border/50">
+                {!turnstileReady && (
+                  <div className="absolute inset-0 z-10 flex items-center justify-center gap-2 rounded-lg bg-background/80 text-[0.7rem] font-semibold uppercase tracking-wide text-muted-foreground">
+                    <Shield className="h-4 w-4 text-muted-foreground/80" />
+                    <span className="text-[0.7rem] font-semibold normal-case tracking-wide">Bot verification loading…</span>
+                  </div>
+                )}
+                <TurnstileComponent
+                  ref={turnstileRef}
+                  onLoad={() => setTurnstileReady(true)}
+                  onVerify={(token) => {
+                    form.setValue("turnstileToken", token);
+                  }}
+                  onError={() => {
+                    toast.error("Security verification failed. Please try again.");
+                  }}
+                  onExpire={() => {
+                    form.setValue("turnstileToken", "");
+                  }}
+                />
               </div>
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "Sending Reset Link..." : "Send Reset Link"}
-              </Button>
-              <div className="text-center text-sm">
-                Remember your password?{" "}
-                <Link href="/login" className="underline">
-                  Sign in
-                </Link>
-              </div>
-            </form>
-          </Form>
+            </div>
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? "Sending Reset Link..." : "Send Reset Link"}
+            </Button>
+            <div className="text-center text-sm">
+              Remember your password?{" "}
+              <Link href="/login" className="underline">
+                Sign in
+              </Link>
+            </div>
+          </form>
         </CardContent>
       </Card>
     </div>

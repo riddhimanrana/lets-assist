@@ -20,7 +20,7 @@ import {
 import { User, Mail, Phone, Calendar, MapPin, Clock, Loader2, ChevronDown, Download, CheckCircle } from 'lucide-react';
 import Image from "next/image";
 import { getUserProfile } from '@/app/projects/[id]/actions';
-import { toast } from '@/hooks/use-toast';
+import { toast } from "sonner";
 import { TimezoneBadge } from '@/components/shared/TimezoneBadge';
 import { WaiverSignatureSection } from '@/app/projects/_components/WaiverSignatureSection';
 import type { Project, WaiverSignatureInput, WaiverTemplate } from '@/types';
@@ -167,10 +167,8 @@ export function SignupConfirmationModal({
       window.location.href = `/api/calendar/google/connect?return_to=${encodeURIComponent(returnUrl)}`;
     } catch (error) {
       console.error('Failed to connect calendar:', error);
-      toast({
-        title: 'Connection Failed',
+      toast.error('Connection Failed', {
         description: error instanceof Error ? error.message : 'Failed to connect Google Calendar',
-        variant: 'destructive',
       });
       setConnectingCalendar(false);
     }
@@ -216,16 +214,13 @@ export function SignupConfirmationModal({
         const filename = generateICalFilename(projectData, scheduleId);
         downloadICalFile(icalContent, filename);
 
-        toast({
-          title: 'iCal Downloaded',
+        toast.success('iCal Downloaded', {
           description: 'Open the file to add the event to your calendar app',
         });
       } catch (error) {
         console.error('Failed to download iCal:', error);
-        toast({
-          title: 'Download Failed',
+        toast.error('Download Failed', {
           description: 'Failed to download calendar file',
-          variant: 'destructive',
         });
       }
     });
@@ -416,7 +411,7 @@ export function SignupConfirmationModal({
                   </div>
                 </div>
                 <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
+                  <DropdownMenuTrigger render={
                     <Button
                       variant="ghost"
                       size="sm"
@@ -424,7 +419,7 @@ export function SignupConfirmationModal({
                     >
                       <ChevronDown className="h-4 w-4" />
                     </Button>
-                  </DropdownMenuTrigger>
+                  } />
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem onClick={handleDownloadICal}>
                       <Download className="h-4 w-4 mr-2" />

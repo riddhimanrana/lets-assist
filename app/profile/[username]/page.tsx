@@ -84,9 +84,9 @@ export async function generateMetadata(
 
   const baseUrl = new URL(
     process.env.NEXT_PUBLIC_SITE_URL ??
-      (process.env.VERCEL_URL
-        ? `https://${process.env.VERCEL_URL}`
-        : "http://localhost:3000"),
+    (process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : "http://localhost:3000"),
   );
   const profileUrl = new URL(`/profile/${username}`, baseUrl);
   const ogImageUrl = new URL(
@@ -97,7 +97,7 @@ export async function generateMetadata(
   const isPublic = (profile as { profile_visibility?: string | null })
     ?.profile_visibility
     ? (profile as { profile_visibility?: string | null }).profile_visibility ===
-      "public"
+    "public"
     : false;
   const description = isPublic
     ? `Profile page for ${displayName}`
@@ -155,16 +155,16 @@ export default async function ProfilePage(
 ): Promise<React.ReactElement> {
   const supabase = await createClient();
   const { username } = await params.params;
-  
+
   // Fetch user profile data including visibility
   const { data: profile, error } = (await supabase
     .from("profiles")
     .select("*, profile_visibility")
     .eq("username", username)
     .single()) as {
-    data: (Profile & { profile_visibility?: string | null }) | null;
-    error: { message: string } | null;
-  };
+      data: (Profile & { profile_visibility?: string | null }) | null;
+      error: { message: string } | null;
+    };
 
   if (error || !profile) {
     notFound();
@@ -193,7 +193,7 @@ export default async function ProfilePage(
         </div>
       );
     }
-    
+
     // Organization-only profile - check if viewer is in same org
     if (profile.profile_visibility === 'organization_only') {
       // Get viewer's organizations
@@ -201,19 +201,19 @@ export default async function ProfilePage(
         .from("organization_members")
         .select("organization_id")
         .eq("user_id", user?.id || '');
-      
+
       // Get profile owner's organizations
       const { data: ownerOrgs } = await supabase
         .from("organization_members")
         .select("organization_id")
         .eq("user_id", profile.id);
-      
+
       const viewerOrgIds = viewerOrgs?.map(o => o.organization_id) || [];
       const ownerOrgIds = ownerOrgs?.map(o => o.organization_id) || [];
-      
+
       // Check for any overlap
       const hasSharedOrg = viewerOrgIds.some(id => ownerOrgIds.includes(id));
-      
+
       if (!hasSharedOrg) {
         return (
           <div className="container mx-auto px-4 py-8">
@@ -257,7 +257,7 @@ export default async function ProfilePage(
       .select("*")
       .in("id", projectIds)
       .order("created_at", { ascending: false });
-    
+
     attendedProjects = fetchedProjects || [];
   }
 
@@ -278,9 +278,9 @@ export default async function ProfilePage(
     `)
     .eq('user_id', profile.id)
     .order('role', { ascending: false })) as {
-    data: OrganizationResponse[] | null;
-    error: { message: string } | null;
-  };
+      data: OrganizationResponse[] | null;
+      error: { message: string } | null;
+    };
 
   // Fetch certificates for this user
   // This query should select event_start and event_end if they exist in the table
@@ -294,7 +294,7 @@ export default async function ProfilePage(
     console.error("Error fetching certificates for profile page:", certificatesError);
     // Handle error appropriately
   }
-  
+
   // Calculate total hours from certificates
   let totalHours = 0;
   if (certificates) {
@@ -307,14 +307,14 @@ export default async function ProfilePage(
     }, 0);
   }
 
-// Utility: Format hours as "Xh Ym"
-function formatHours(hours: number): string {
-  const h = Math.floor(hours);
-  const m = Math.round((hours - h) * 60);
-  if (h > 0 && m > 0) return `${h}h ${m}m`;
-  if (h > 0) return `${h}h`;
-  return `${m}m`;
-}
+  // Utility: Format hours as "Xh Ym"
+  function formatHours(hours: number): string {
+    const h = Math.floor(hours);
+    const m = Math.round((hours - h) * 60);
+    if (h > 0 && m > 0) return `${h}h ${m}m`;
+    if (h > 0) return `${h}h`;
+    return `${m}m`;
+  }
 
   // Transform the data to match the expected structure
   const formattedOrganizations: OrganizationMembership[] =
@@ -326,10 +326,10 @@ function formatHours(hours: number): string {
   // Stats calculation
   const completedCreatedProjects = createdProjects?.filter(p => p.status === "completed").length || 0;
   const totalCreatedProjects = createdProjects?.length || 0;
-  
+
   const totalAttendedProjects = attendedProjects?.length || 0;
   const totalProjects = totalCreatedProjects + totalAttendedProjects;
-  
+
   return (
     <div className="flex justify-center w-full">
       <div className="container max-w-5xl py-4 sm:py-8 px-4 sm:px-6">
@@ -338,7 +338,7 @@ function formatHours(hours: number): string {
           {/* Three-dot menu in top-right corner */}
           <div className="absolute top-4 right-4 z-10">
             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
+              <DropdownMenuTrigger render={
                 <Button
                   variant="ghost"
                   size="sm"
@@ -347,7 +347,7 @@ function formatHours(hours: number): string {
                   <MoreVertical className="h-4 w-4" />
                   <span className="sr-only">Open menu</span>
                 </Button>
-              </DropdownMenuTrigger>
+              } />
               <DropdownMenuContent align="end">
                 <ReportContentButton
                   contentType="profile"
@@ -364,7 +364,7 @@ function formatHours(hours: number): string {
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-          
+
           <div className="h-24 sm:h-32 bg-linear-to-r from-primary/40 via-primary/20 to-primary/10"></div>
           <CardHeader className="pt-0 px-4 sm:px-6 pb-2">
             <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 -mt-6 sm:-mt-16">
@@ -374,21 +374,21 @@ function formatHours(hours: number): string {
                   alt={profile.full_name}
                 />
                 <AvatarFallback className="sm:text-2xl">
-                  <NoAvatar fullName={profile?.full_name} className="text-2xl sm:text-3xl"/>
+                  <NoAvatar fullName={profile?.full_name} className="text-2xl sm:text-3xl" />
                 </AvatarFallback>
               </Avatar>
-                <div className="sm:pt-16 flex flex-col justify-center">
+              <div className="sm:pt-16 flex flex-col justify-center">
                 <div className="flex items-center gap-2 flex-wrap">
                   <h1 className="text-xl sm:text-2xl font-bold">{profile.full_name}</h1>
                   {isTrusted && (
                     <TooltipProvider delayDuration={150}>
                       <Tooltip>
-                        <TooltipTrigger asChild>
+                        <TooltipTrigger render={
                           <Badge variant="default" className="h-6 px-2 py-0 text-xs flex items-center gap-1">
                             <BadgeCheck className="h-4 w-4" aria-hidden="true" />
                             Trusted
                           </Badge>
-                        </TooltipTrigger>
+                        } />
                         <TooltipContent side="bottom" align="start">
                           <p className="max-w-xs text-sm">Trusted Member: verified by Let’s Assist. Projects they create are marked as Verified.</p>
                         </TooltipContent>
@@ -397,7 +397,7 @@ function formatHours(hours: number): string {
                   )}
                 </div>
                 <p className="text-muted-foreground text-xs">@{profile.username}</p>
-                </div>
+              </div>
             </div>
           </CardHeader>
           <CardContent className="px-4 sm:px-6 pt-2 pb-4">
@@ -422,7 +422,7 @@ function formatHours(hours: number): string {
             Volunteer Hours
           </h2>
           <Separator className="mb-4" />
-          
+
           <Card className="overflow-hidden">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
@@ -503,72 +503,72 @@ function formatHours(hours: number): string {
           <div className="mb-6 sm:mb-8">
             <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">Organizations</h2>
             <Separator className="mb-4 sm:mb-6" />
-            
+
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {formattedOrganizations.map((membership: OrganizationMembership) => {
-          const org = Array.isArray(membership.organizations)
-            ? membership.organizations[0]
-            : membership.organizations;
-          if (!org) return null;
-          return (
-            <Link href={`/organization/${org.username}`} key={org.id} className="relative block">
-              {/* Gradient background behind the card */}
-              <div className="absolute inset-0 h-full w-full bg-linear-to-r from-primary/40 via-primary/20 to-primary/10 rounded-lg"></div>
-              
-              <Card className="relative h-full hover:shadow-md transition-shadow overflow-hidden">
-                <CardContent className="p-4">
-            <div className="flex flex-col">
-              {/* Header with Avatar and Name */}
-              <div className="flex items-center gap-3 mb-3">
-                <Avatar className="h-14 w-14 border-2 border-background shrink-0">
-                  {org.logo_url ? (
-              <AvatarImage src={org.logo_url} alt={org.name} />
-                  ) : (
-              <AvatarFallback>
-                <NoAvatar fullName={org.name} className="text-base" />
-              </AvatarFallback>
-                  )}
-                </Avatar>
-                
-                <div>
-                  <div className="flex items-center gap-2">
-              <h3 className="font-semibold text-base sm:text-lg line-clamp-1">{org.name}</h3>
-              {org.verified && (
-                <BadgeCheck className="h-5 w-5" fill="hsl(var(--primary))" stroke="hsl(var(--popover))" strokeWidth={2.5} />
-              )}
-                  </div>
-                  <p className="text-xs sm:text-sm text-muted-foreground">@{org.username}</p>
-                </div>
-              </div>
-              
-              {/* Badges */}
-              <div className="flex gap-2 mb-2">
-                <Badge variant="outline" className="text-xs capitalize">
-                  {org.type}
-                </Badge>
-                <Badge 
-                  variant={
-              membership.role === "admin" ? "default" : 
-              membership.role === "staff" ? "secondary" : "outline"
-                  }
-                  className="text-xs flex items-center gap-1"
-                >
-                  {membership.role === "admin" && <Shield className="h-3 w-3" />}
-                  {membership.role === "staff" && <UserRoundCog className="h-3 w-3" />}
-                  {membership.role === "member" && <UserRound className="h-3 w-3" />}
-                  {membership.role.charAt(0).toUpperCase() + membership.role.slice(1)}
-                </Badge>
-              </div>
-              
-              {/* Description */}
-              <p className="text-xs sm:text-sm line-clamp-2 text-muted-foreground">
-                {org.description || "No description provided."}
-              </p>
-            </div>
-                </CardContent>
-              </Card>
-            </Link>
-          );
+                const org = Array.isArray(membership.organizations)
+                  ? membership.organizations[0]
+                  : membership.organizations;
+                if (!org) return null;
+                return (
+                  <Link href={`/organization/${org.username}`} key={org.id} className="relative block">
+                    {/* Gradient background behind the card */}
+                    <div className="absolute inset-0 h-full w-full bg-linear-to-r from-primary/40 via-primary/20 to-primary/10 rounded-lg"></div>
+
+                    <Card className="relative h-full hover:shadow-md transition-shadow overflow-hidden">
+                      <CardContent className="p-4">
+                        <div className="flex flex-col">
+                          {/* Header with Avatar and Name */}
+                          <div className="flex items-center gap-3 mb-3">
+                            <Avatar className="h-14 w-14 border-2 border-background shrink-0">
+                              {org.logo_url ? (
+                                <AvatarImage src={org.logo_url} alt={org.name} />
+                              ) : (
+                                <AvatarFallback>
+                                  <NoAvatar fullName={org.name} className="text-base" />
+                                </AvatarFallback>
+                              )}
+                            </Avatar>
+
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h3 className="font-semibold text-base sm:text-lg line-clamp-1">{org.name}</h3>
+                                {org.verified && (
+                                  <BadgeCheck className="h-5 w-5" fill="hsl(var(--primary))" stroke="hsl(var(--popover))" strokeWidth={2.5} />
+                                )}
+                              </div>
+                              <p className="text-xs sm:text-sm text-muted-foreground">@{org.username}</p>
+                            </div>
+                          </div>
+
+                          {/* Badges */}
+                          <div className="flex gap-2 mb-2">
+                            <Badge variant="outline" className="text-xs capitalize">
+                              {org.type}
+                            </Badge>
+                            <Badge
+                              variant={
+                                membership.role === "admin" ? "default" :
+                                  membership.role === "staff" ? "secondary" : "outline"
+                              }
+                              className="text-xs flex items-center gap-1"
+                            >
+                              {membership.role === "admin" && <Shield className="h-3 w-3" />}
+                              {membership.role === "staff" && <UserRoundCog className="h-3 w-3" />}
+                              {membership.role === "member" && <UserRound className="h-3 w-3" />}
+                              {membership.role.charAt(0).toUpperCase() + membership.role.slice(1)}
+                            </Badge>
+                          </div>
+
+                          {/* Description */}
+                          <p className="text-xs sm:text-sm line-clamp-2 text-muted-foreground">
+                            {org.description || "No description provided."}
+                          </p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                );
               })}
             </div>
           </div>
@@ -578,51 +578,51 @@ function formatHours(hours: number): string {
         <div className="mb-6 sm:mb-8">
           <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">Created Projects</h2>
           <Separator className="mb-4 sm:mb-6" />
-          
+
           {createdProjects && createdProjects.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {createdProjects.map((project) => (
                 <Link key={project.id} href={`/projects/${project.id}`}>
-                <Card className="h-full hover:shadow-md transition-shadow cursor-pointer">
-                  <CardContent className="p-3 sm:p-4">
-                  <div className="flex justify-between items-start gap-2 mb-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <h3 className="font-semibold text-base sm:text-lg line-clamp-1 truncate">{project.title}</h3>
-                      {isTrusted && (
-                        <TooltipProvider delayDuration={150}>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Badge variant="secondary" className="h-5 px-1.5 py-0 text-[10px] flex items-center gap-1">
-                                <BadgeCheck className="h-3 w-3" aria-hidden="true" />
-                                Verified
-                              </Badge>
-                            </TooltipTrigger>
-                            <TooltipContent side="bottom" align="start">
-                              <p className="max-w-xs text-xs">Created by a Trusted Member. This project is Let’s Assist verified.</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      )}
-                    </div>
-                    <ProjectStatusBadge 
-                      status={project.status}
-                      size="sm"
-                      className="ml-auto shrink-0"
-                    />
-                  </div>
-                  <p className="text-muted-foreground text-xs sm:text-sm mb-2 sm:mb-3 line-clamp-2">
-                    {stripHtml(project.description)}
-                  </p>
-                  <div className="flex items-center text-xs text-muted-foreground">
-                    <MapPin className="h-3 w-3 mr-1 shrink-0" />
-                    <span className="truncate">{project.location}</span>
-                  </div>
-                  <div className="flex items-center mt-1.5 sm:mt-2 text-xs text-muted-foreground">
-                    <CalendarIcon className="h-3 w-3 mr-1" />
-                    <span>Created {format(new Date(project.created_at), "MMM d, yyyy")}</span>
-                  </div>
-                  </CardContent>
-                </Card>
+                  <Card className="h-full hover:shadow-md transition-shadow cursor-pointer">
+                    <CardContent className="p-3 sm:p-4">
+                      <div className="flex justify-between items-start gap-2 mb-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <h3 className="font-semibold text-base sm:text-lg line-clamp-1 truncate">{project.title}</h3>
+                          {isTrusted && (
+                            <TooltipProvider delayDuration={150}>
+                              <Tooltip>
+                                <TooltipTrigger render={
+                                  <Badge variant="secondary" className="h-5 px-1.5 py-0 text-[10px] flex items-center gap-1">
+                                    <BadgeCheck className="h-3 w-3" aria-hidden="true" />
+                                    Verified
+                                  </Badge>
+                                } />
+                                <TooltipContent side="bottom" align="start">
+                                  <p className="max-w-xs text-xs">Created by a Trusted Member. This project is Let’s Assist verified.</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
+                        </div>
+                        <ProjectStatusBadge
+                          status={project.status}
+                          size="sm"
+                          className="ml-auto shrink-0"
+                        />
+                      </div>
+                      <p className="text-muted-foreground text-xs sm:text-sm mb-2 sm:mb-3 line-clamp-2">
+                        {stripHtml(project.description)}
+                      </p>
+                      <div className="flex items-center text-xs text-muted-foreground">
+                        <MapPin className="h-3 w-3 mr-1 shrink-0" />
+                        <span className="truncate">{project.location}</span>
+                      </div>
+                      <div className="flex items-center mt-1.5 sm:mt-2 text-xs text-muted-foreground">
+                        <CalendarIcon className="h-3 w-3 mr-1" />
+                        <span>Created {format(new Date(project.created_at), "MMM d, yyyy")}</span>
+                      </div>
+                    </CardContent>
+                  </Card>
                 </Link>
               ))}
             </div>
@@ -639,34 +639,34 @@ function formatHours(hours: number): string {
         <div className="mb-6 sm:mb-8">
           <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">Attended Projects</h2>
           <Separator className="mb-4 sm:mb-6" />
-          
+
           {attendedProjects && attendedProjects.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {attendedProjects.map((project) => (
                 <Link key={project.id} href={`/projects/${project.id}`}>
-                <Card className="h-full hover:shadow-md transition-shadow cursor-pointer">
-                  <CardContent className="p-3 sm:p-4">
-                  <div className="flex justify-between items-start gap-2 mb-2">
-                    <h3 className="font-semibold text-base sm:text-lg line-clamp-1">{project.title}</h3>
-                    <ProjectStatusBadge 
-                      status={project.status}
-                      size="sm"
-                      className="ml-auto shrink-0"
-                    />
-                  </div>
-                  <p className="text-muted-foreground text-xs sm:text-sm mb-2 sm:mb-3 line-clamp-2">
-                    {stripHtml(project.description)}
-                  </p>
-                  <div className="flex items-center text-xs text-muted-foreground">
-                    <MapPin className="h-3 w-3 mr-1 shrink-0" />
-                    <span className="truncate">{project.location}</span>
-                  </div>
-                  <div className="flex items-center mt-1.5 sm:mt-2 text-xs text-muted-foreground">
-                    <Users className="h-3 w-3 mr-1" />
-                    <span>Attended</span>
-                  </div>
-                  </CardContent>
-                </Card>
+                  <Card className="h-full hover:shadow-md transition-shadow cursor-pointer">
+                    <CardContent className="p-3 sm:p-4">
+                      <div className="flex justify-between items-start gap-2 mb-2">
+                        <h3 className="font-semibold text-base sm:text-lg line-clamp-1">{project.title}</h3>
+                        <ProjectStatusBadge
+                          status={project.status}
+                          size="sm"
+                          className="ml-auto shrink-0"
+                        />
+                      </div>
+                      <p className="text-muted-foreground text-xs sm:text-sm mb-2 sm:mb-3 line-clamp-2">
+                        {stripHtml(project.description)}
+                      </p>
+                      <div className="flex items-center text-xs text-muted-foreground">
+                        <MapPin className="h-3 w-3 mr-1 shrink-0" />
+                        <span className="truncate">{project.location}</span>
+                      </div>
+                      <div className="flex items-center mt-1.5 sm:mt-2 text-xs text-muted-foreground">
+                        <Users className="h-3 w-3 mr-1" />
+                        <span>Attended</span>
+                      </div>
+                    </CardContent>
+                  </Card>
                 </Link>
               ))}
             </div>
@@ -679,6 +679,6 @@ function formatHours(hours: number): string {
           )}
         </div>
       </div>
-    </div>
+    </div >
   );
 }

@@ -132,7 +132,7 @@ export function RichTextEditor({
                     editor={editor}
                     className="flex overflow-hidden rounded-md border bg-background p-1 shadow-md"
                 >
-                    <ToggleGroup type="multiple" className="flex">
+                    <ToggleGroup className="flex">
                         <ToggleGroupItem
                             value="bold"
                             size="sm"
@@ -189,7 +189,7 @@ export function RichTextEditor({
                     <span
                         className={cn(
                             "text-xs transition-colors",
-                            getCounterColor(characterCount, maxLength)
+                            getCounterColor(characterCount || 0, maxLength)
                         )}
                     >
                         {characterCount}/{maxLength}

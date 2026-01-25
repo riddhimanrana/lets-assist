@@ -2,7 +2,8 @@
 
 import React from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -110,13 +111,11 @@ export function AllHoursSection({ certificates }: AllHoursSectionProps) {
           </div>
         </div>
         <div className="shrink-0 w-full sm:w-auto">
-          <Button size="sm" variant="outline" asChild className="w-full sm:w-auto">
-            <Link href={`/certificates/${cert.id}`} target="_blank" rel="noopener noreferrer">
-              <TicketCheck className="h-4 w-4 mr-2" />
-              <span className="hidden sm:inline">View Certificate</span>
-              <span className="sm:hidden">Certificate</span>
-            </Link>
-          </Button>
+          <Link href={`/certificates/${cert.id}`} target="_blank" rel="noopener noreferrer" className={cn(buttonVariants({ variant: "outline", size: "sm" }), "w-full sm:w-auto")}>
+            <TicketCheck className="h-4 w-4 mr-2" />
+            <span className="hidden sm:inline">View Certificate</span>
+            <span className="sm:hidden">Certificate</span>
+          </Link>
         </div>
       </div>
     );

@@ -4,7 +4,8 @@ import { useState, useEffect, useMemo } from "react";
 import { Project, Signup } from "@/types";
 import { User } from "@supabase/supabase-js";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
 import { getSlotDetails } from "@/utils/project";
 import { getProjectStartDateTime, getProjectEndDateTime } from "@/utils/project";
@@ -429,12 +430,10 @@ export default function UserDashboard({ project, user: _user, signups }: Props) 
 
                 {/* Link to Profile */}
                 <div className="mt-3 flex justify-end">
-                  <Button size="sm" variant="outline" asChild>
-                    <Link href={`/certificates/${status.certificateId}`}>
-                      <TicketCheck className="h-4 w-4 mr-1.5" />
-                      View Certificate
-                    </Link>
-                  </Button>
+                  <Link href={`/certificates/${status.certificateId}`} className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
+                    <TicketCheck className="h-4 w-4 mr-1.5" />
+                    View Certificate
+                  </Link>
                 </div>
               </CardContent>
             </Card>

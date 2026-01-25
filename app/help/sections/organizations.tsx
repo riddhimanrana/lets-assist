@@ -2,7 +2,8 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Users, Shield, Download, FileSpreadsheet, UserRoundCog, Eye, Settings } from "lucide-react";
 import Link from "next/link";
@@ -27,7 +28,7 @@ export function OrganizationsSection() {
                 <UserRoundCog className="h-4 w-4" />
                 For Volunteers
               </h4>
-              <Accordion type="single" collapsible>
+              <Accordion>
                 <AccordionItem value="join-org">
                   <AccordionTrigger>Joining Organizations</AccordionTrigger>
                   <AccordionContent className="space-y-2 text-sm">
@@ -37,9 +38,7 @@ export function OrganizationsSection() {
                       <li>Wait for approval from organization administrator</li>
                       <li>Start participating in organization projects</li>
                     </ol>
-                    <Button asChild size="sm" variant="outline" className="mt-2">
-                      <Link href="/organization">Browse Organizations</Link>
-                    </Button>
+                    <Link href="/organization" className={cn(buttonVariants({ size: "sm", variant: "outline", className: "mt-2" }))}>Browse Organizations</Link>
                   </AccordionContent>
                 </AccordionItem>
 
@@ -111,7 +110,7 @@ export function OrganizationsSection() {
                 <Shield className="h-4 w-4" />
                 For Organization Admins
               </h4>
-              <Accordion type="single" collapsible>
+              <Accordion>
                 <AccordionItem value="create-org">
                   <AccordionTrigger>Creating Organizations</AccordionTrigger>
                   <AccordionContent className="space-y-2 text-sm">
@@ -122,9 +121,7 @@ export function OrganizationsSection() {
                       <li>Invite volunteers to join your organization</li>
                       <li>Apply for official verification (optional)</li>
                     </ol>
-                    <Button asChild size="sm" className="mt-2">
-                      <Link href="/organization/create">Create Organization</Link>
-                    </Button>
+                    <Link href="/organization/create" className={cn(buttonVariants({ size: "sm", className: "mt-2" }))}>Create Organization</Link>
                   </AccordionContent>
                 </AccordionItem>
 

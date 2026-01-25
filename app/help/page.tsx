@@ -3,7 +3,8 @@
 import { useState, useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
 import { Badge } from "@/components/ui/badge";
@@ -31,7 +32,7 @@ const searchIndex = [
   {
     id: "getting-started-account",
     title: "Setting Up Your Account",
-    category: "getting-started", 
+    category: "getting-started",
     content: "account setup profile full name contact information upload picture avatar time zone notification preferences connect organizations settings dashboard",
     section: "Account Setup"
   },
@@ -142,7 +143,7 @@ const searchIndex = [
   {
     id: "schools-students",
     title: "CSF Hour Tracking",
-    category: "schools", 
+    category: "schools",
     content: "csf hour tracking school approved projects csf eligible volunteer work tutoring students school events community clean up library nonprofit senior center activities csf documentation",
     section: "Student Guide"
   },
@@ -223,10 +224,10 @@ export default function HelpPage() {
   // Filter search results based on query
   const searchResults = useMemo(() => {
     if (!searchQuery.trim()) return [];
-    
+
     const query = searchQuery.toLowerCase();
     return searchIndex
-      .filter(item => 
+      .filter(item =>
         item.title.toLowerCase().includes(query) ||
         item.content.toLowerCase().includes(query) ||
         item.section.toLowerCase().includes(query)
@@ -238,7 +239,7 @@ export default function HelpPage() {
     setSelectedTab(item.category);
     setSearchQuery("");
     setShowSearchResults(false);
-    
+
     // Scroll to the section after a brief delay to allow tab change
     setTimeout(() => {
       const element = document.getElementById(item.id);
@@ -330,7 +331,7 @@ export default function HelpPage() {
         )}
       </div>
 
-      <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-full">
+      <Tabs value={selectedTab} onValueChange={(val) => val && setSelectedTab(val)} className="w-full">
         <TabsList className="grid w-full grid-cols-2 lg:grid-cols-6 mb-8">
           <TabsTrigger value="getting-started">Getting Started</TabsTrigger>
           <TabsTrigger value="projects">Projects</TabsTrigger>
@@ -378,9 +379,7 @@ export default function HelpPage() {
               Can&apos;t find what you&apos;re looking for? We&apos;re here to help!
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <Button variant="outline" asChild>
-                <Link href="/contact">Contact Support</Link>
-              </Button>
+              <Link href="/contact" className={cn(buttonVariants({ variant: "outline" }))}>Contact Support</Link>
               {/* <Button variant="outline" asChild>
                 <Link href="/">Send Feedback</Link>
               </Button> */}

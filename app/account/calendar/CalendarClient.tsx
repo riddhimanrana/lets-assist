@@ -31,7 +31,7 @@ import {
   CalendarCheck,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import type { CalendarConnection } from "@/types";
 
 interface CalendarClientProps {
@@ -110,22 +110,18 @@ export default function CalendarClient({
         throw new Error(data.error || "Failed to disconnect calendar");
       }
 
-      toast({
-        title: "Calendar Disconnected",
-        description:
-          "Your Google Calendar has been disconnected. Existing synced events will remain in your calendar.",
+      toast.success("Calendar Disconnected", {
+        description: "Your Google Calendar has been disconnected. Existing synced events will remain in your calendar.",
       });
 
       router.refresh();
     } catch (error) {
       console.error("Failed to disconnect calendar:", error);
-      toast({
-        title: "Disconnection Failed",
+      toast.error("Disconnection Failed", {
         description:
           error instanceof Error
             ? error.message
             : "Failed to disconnect Google Calendar",
-        variant: "destructive",
       });
     } finally {
       setIsDisconnecting(false);
@@ -150,21 +146,18 @@ export default function CalendarClient({
         throw new Error(data.error || "Failed to remove event");
       }
 
-      toast({
-        title: "Event Removed",
+      toast.success("Event Removed", {
         description: "The event has been removed from your calendar.",
       });
 
       router.refresh();
     } catch (error) {
       console.error("Failed to remove event:", error);
-      toast({
-        title: "Removal Failed",
+      toast.error("Removal Failed", {
         description:
           error instanceof Error
             ? error.message
             : "Failed to remove event from calendar",
-        variant: "destructive",
       });
     } finally {
       setRemovingEventId(null);

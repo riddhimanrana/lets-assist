@@ -1,4 +1,5 @@
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   Card,
   CardContent,
@@ -35,17 +36,13 @@ export function SuccessMessage({ anonymousSignupId }: SuccessMessageProps) {
           </p>
         </CardContent>
         <CardFooter className="flex flex-col gap-3 sm:flex-row sm:justify-center">
-          <Button asChild variant="secondary" className="w-full sm:w-auto">
-            <Link href={`/anonymous/${anonymousSignupId}`}>
-              View signup details
-            </Link>
-          </Button>
-          <Button asChild className="w-full sm:w-auto">
-            <Link href="/projects" className="flex items-center gap-2">
-              <Home className="h-4 w-4" />
-              Find another project
-            </Link>
-          </Button>
+          <Link href={`/anonymous/${anonymousSignupId}`} className={cn(buttonVariants({ variant: "secondary" }), "w-full sm:w-auto")}>
+            View signup details
+          </Link>
+          <Link href="/projects" className={cn(buttonVariants(), "w-full sm:w-auto flex items-center gap-2")}>
+            <Home className="h-4 w-4" />
+            Find another project
+          </Link>
         </CardFooter>
       </Card>
     </div>

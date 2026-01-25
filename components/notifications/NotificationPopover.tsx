@@ -702,9 +702,7 @@ export function NotificationPopover() {
   return (
     <>
       <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          {NotificationButton}
-        </PopoverTrigger>
+        <PopoverTrigger render={NotificationButton} />
         <PopoverContent align="end" className="w-[360px] p-0">
           <div>
             {/* Simple Header */}

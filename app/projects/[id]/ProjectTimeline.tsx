@@ -3,17 +3,19 @@
 import { useState, useEffect, useMemo } from "react"; // Removed useRef
 import { Project } from "@/types";
 import { format, addHours, subHours, isAfter, isBefore, isSameDay } from "date-fns";
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
   DialogTitle,
   DialogDescription,
   DialogClose
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Clock, Calendar, UsersRound, UserCheck, ClipboardList, AlertTriangle, CalendarClock, 
-  CalendarDays, GanttChart, CheckCheck, CalendarCheck, Star, ChevronRight } from "lucide-react";
+import {
+  Clock, Calendar, UsersRound, UserCheck, ClipboardList, AlertTriangle, CalendarClock,
+  CalendarDays, GanttChart, CheckCheck, CalendarCheck, Star, ChevronRight
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getProjectStartDateTime, getProjectEndDateTime } from "@/utils/project";
 import { Badge } from "@/components/ui/badge";
@@ -76,9 +78,9 @@ export default function ProjectTimeline({ project, open, onOpenAction }: Project
   const [activeTab, setActiveTab] = useState<string>("all");
   // Removed currentProgress state
   const [milestones, setMilestones] = useState<TimelineMilestone[]>([]);
-  
+
   // Removed refs (containerRef, milestoneRefs) and isCalculatingPositions state
-  
+
   // Removed useEffect for resetting milestoneRefs
 
   // Update current time every minute
@@ -86,18 +88,18 @@ export default function ProjectTimeline({ project, open, onOpenAction }: Project
     const interval = setInterval(() => {
       setCurrentTimestamp(Date.now());
     }, 60000);
-    
+
     return () => clearInterval(interval);
   }, []); // Empty dependency array since this effect only needs to run once
-  
+
   // Removed useEffect for calculateProgressFromDOM (lines 170-178)
-  
+
   // Removed the calculateProgressFromDOM function (lines 180-328)
 
   // Get tabs based on project type
   const tabs = useMemo(() => {
     const result = [{ id: "all", label: "All Events" }];
-    
+
     if (project.event_type === "multiDay" && project.schedule.multiDay) {
       project.schedule.multiDay.forEach((day, index) => {
         result.push({
@@ -113,7 +115,7 @@ export default function ProjectTimeline({ project, open, onOpenAction }: Project
         });
       });
     }
-    
+
     return result;
   }, [project]);
 
@@ -396,35 +398,35 @@ export default function ProjectTimeline({ project, open, onOpenAction }: Project
         // Find the latest deadline for *this day*
         let latestDayDeadline = new Date(0);
         day.slots.forEach(slot => {
-            const slotEnd = new Date(dayDate);
-            slotEnd.setHours(parseInt(slot.endTime.split(':')[0]), parseInt(slot.endTime.split(':')[1]));
-            const editDeadline = addHours(slotEnd, 48);
-            if (editDeadline > latestDayDeadline) latestDayDeadline = editDeadline;
+          const slotEnd = new Date(dayDate);
+          slotEnd.setHours(parseInt(slot.endTime.split(':')[0]), parseInt(slot.endTime.split(':')[1]));
+          const editDeadline = addHours(slotEnd, 48);
+          if (editDeadline > latestDayDeadline) latestDayDeadline = editDeadline;
         });
         const isDayAttendanceCurrent = isAfter(now, dayEndTime) && isBefore(now, latestDayDeadline);
 
         const dayAttendanceMilestone: TimelineMilestone = {
-            id: `attendance-day-${dayIndex}`,
-            title: `Attendance Reporting`,
-            date: dayEndTime, // Position after the last event of the day
-            startDate: dayEndTime,
-            endDate: latestDayDeadline,
-            description: `Update attendance records for Day ${dayIndex + 1}.`,
-            icon: <ClipboardList className="h-5 w-5" />,
+          id: `attendance-day-${dayIndex}`,
+          title: `Attendance Reporting`,
+          date: dayEndTime, // Position after the last event of the day
+          startDate: dayEndTime,
+          endDate: latestDayDeadline,
+          description: `Update attendance records for Day ${dayIndex + 1}.`,
+          icon: <ClipboardList className="h-5 w-5" />,
+          isPassed: isAfter(now, latestDayDeadline),
+          isCurrent: isDayAttendanceCurrent,
+          category: category, // Specific day category
+          children: [{
+            id: `attendance-deadline-day-${dayIndex}`,
+            title: "Deadline",
+            date: latestDayDeadline,
+            startDate: latestDayDeadline,
+            description: `Submit by ${format(latestDayDeadline, "MMMM d, yyyy, h:mm a")}`,
+            icon: <CalendarCheck className="h-4 w-4" />,
             isPassed: isAfter(now, latestDayDeadline),
-            isCurrent: isDayAttendanceCurrent,
-            category: category, // Specific day category
-            children: [{
-                id: `attendance-deadline-day-${dayIndex}`,
-                title: "Deadline",
-                date: latestDayDeadline,
-                startDate: latestDayDeadline,
-                description: `Submit by ${format(latestDayDeadline, "MMMM d, yyyy, h:mm a")}`,
-                icon: <CalendarCheck className="h-4 w-4" />,
-                isPassed: isAfter(now, latestDayDeadline),
-                isCurrent: false,
-                category: category
-            }]
+            isCurrent: false,
+            category: category
+          }]
         };
 
         newMilestones.push({
@@ -676,7 +678,7 @@ export default function ProjectTimeline({ project, open, onOpenAction }: Project
 
   // Filter milestones for the active tab
   const filteredMilestones = useMemo(() => {
-    return milestones.filter(milestone => 
+    return milestones.filter(milestone =>
       activeTab === "all" ? milestone.category === "all" : milestone.category === activeTab
     );
   }, [milestones, activeTab]);
@@ -723,7 +725,7 @@ export default function ProjectTimeline({ project, open, onOpenAction }: Project
     }
     return "Date not specified";
   };
-  
+
   return (
     <Dialog open={open} onOpenChange={onOpenAction}>
       <DialogContent className="sm:max-w-[800px] max-h-[85vh] overflow-y-auto">
@@ -736,7 +738,7 @@ export default function ProjectTimeline({ project, open, onOpenAction }: Project
             View the complete lifecycle of your project from creation to completion
           </DialogDescription>
         </DialogHeader>
-        
+
         <div className="py-2">
           <div className="flex flex-wrap items-center gap-2 mb-4">
             <Badge variant="outline" className="flex items-center gap-1.5">
@@ -747,11 +749,11 @@ export default function ProjectTimeline({ project, open, onOpenAction }: Project
               {getFormattedEventDates()}
             </Badge>
           </div>
-          
+
           {/* Tabs for multi-day or multi-role events */}
           {tabs.length > 1 && (
-            <Tabs 
-              defaultValue="all" 
+            <Tabs
+              defaultValue="all"
               className="w-full mb-4"
               onValueChange={setActiveTab}
             >
@@ -770,14 +772,14 @@ export default function ProjectTimeline({ project, open, onOpenAction }: Project
             {filteredMilestones.map((milestone, index) => {
               const status = milestone.isCurrent ? "current" : milestone.isPassed ? "passed" : "future";
               return (
-                <TimelineItem 
-                  key={`${milestone.id}-${milestone.category}`} 
+                <TimelineItem
+                  key={`${milestone.id}-${milestone.category}`}
                   status={status}
                   className="group" // Add group class for connector styling
                 >
                   {/* Render connector unless it's the last item */}
                   {index < filteredMilestones.length - 1 && <TimelineConnector />}
-                  
+
                   <TimelineHeader>
                     <TimelineIcon status={status}>
                       {milestone.icon}
@@ -795,12 +797,12 @@ export default function ProjectTimeline({ project, open, onOpenAction }: Project
                       </div>
                     </div>
                   </TimelineHeader>
-                  
+
                   <TimelineContent>
                     <p className="text-sm mb-2 text-muted-foreground">
                       {milestone.description}
                     </p>
-                    
+
                     {/* Milestone children events */}
                     {milestone.children && milestone.children.length > 0 && (
                       <div className="mt-4 space-y-3 pl-2 border-l-2 border-muted">
@@ -815,15 +817,15 @@ export default function ProjectTimeline({ project, open, onOpenAction }: Project
                               )}
                             >
                               {/* Event connector */}
-                              <div 
+                              <div
                                 className={cn(
                                   "absolute left-[-5px] top-2.5 h-px w-5 transition-colors duration-300",
                                   (eventStatus === "current" || eventStatus === "passed") ? "bg-primary" : "bg-muted"
                                 )}
                               />
-                              
+
                               {/* Event marker */}
-                              <div 
+                              <div
                                 className={cn(
                                   "absolute left-[-10px] top-1 w-[10px] h-[10px] rounded-full transition-colors duration-300",
                                   eventStatus === "current"
@@ -833,7 +835,7 @@ export default function ProjectTimeline({ project, open, onOpenAction }: Project
                                       : "bg-muted" // Future style
                                 )}
                               />
-                              
+
                               {/* Event icon */}
                               <div className={cn(
                                 "min-w-[26px] h-[26px] rounded-full flex items-center justify-center transition-colors duration-300",
@@ -845,15 +847,15 @@ export default function ProjectTimeline({ project, open, onOpenAction }: Project
                               )}>
                                 {event.icon}
                               </div>
-                              
+
                               {/* Event content */}
                               <div className="flex-1">
                                 <div className="flex items-center gap-1">
                                   <h4 className={cn(
-                                      "text-sm font-medium",
-                                      (eventStatus === "current" || eventStatus === "passed") ? "text-primary" : ""
+                                    "text-sm font-medium",
+                                    (eventStatus === "current" || eventStatus === "passed") ? "text-primary" : ""
                                   )}>
-                                      {event.title}
+                                    {event.title}
                                   </h4>
                                   {event.startDate && event.endDate && (
                                     <span className="flex items-center text-xs">
@@ -878,7 +880,7 @@ export default function ProjectTimeline({ project, open, onOpenAction }: Project
                         })}
                       </div>
                     )}
-                    
+
                     {project.pause_signups && milestone.id.startsWith("signup") && (
                       <div className="mt-3 flex items-center bg-yellow-50 text-yellow-800 px-3 py-2 rounded-md text-xs">
                         <AlertTriangle className="h-3.5 w-3.5 mr-2 shrink-0" />
@@ -893,9 +895,7 @@ export default function ProjectTimeline({ project, open, onOpenAction }: Project
         </div>
 
         <div className="mt-4 flex justify-end">
-          <DialogClose asChild>
-            <Button>Close</Button>
-          </DialogClose>
+          <DialogClose render={<Button>Close</Button>} />
         </div>
       </DialogContent>
     </Dialog>

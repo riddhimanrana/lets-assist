@@ -1,7 +1,8 @@
-/** @type {import('next').NextConfig} */
-const nextConfig = {
-  allowedDevOrigins: ['192.168.86.25', '127.0.0.1', 'localhost'],
-  
+import type { NextConfig } from "next";
+
+const nextConfig: NextConfig = {
+  cacheComponents: false,
+
   async rewrites() {
     return [
       {
@@ -37,12 +38,6 @@ const nextConfig = {
         pathname: "/**",
       }
     ],
-  },
-  experimental: {
-    turbopackFileSystemCacheForBuild: false,
-    serverActions: {
-      bodySizeLimit: '12mb', // Increased from 10MB to 12MB for safety
-    },
   },
 };
 

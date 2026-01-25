@@ -17,13 +17,11 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
-  Form,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormControl,
-  FormMessage,
-} from "@/components/ui/form";
+  Field,
+  FieldLabel,
+  FieldError as FormMessage,
+} from "@/components/ui/field";
+import { Controller } from "react-hook-form";
 import {
   Dialog,
   DialogContent,
@@ -237,152 +235,146 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full"
-                onClick={handleGoogleSignIn}
-                disabled={isGoogleLoading}
+
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={handleGoogleSignIn}
+              disabled={isGoogleLoading}
+            >
+              {isGoogleLoading ? (
+                "Connecting..."
+              ) : (
+                <>
+                  <svg
+                    className="mr-2 h-4 w-4"
+                    aria-hidden="true"
+                    focusable="false"
+                    data-prefix="fab"
+                    data-icon="google"
+                    role="img"
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 488 512"
+                  >
+                    <path
+                      fill="currentColor"
+                      d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 123 24.5 166.3 64.9l-67.5 64.9C258.5 52.6 94.3 116.6 94.3 256c0 86.5 69.1 156.6 153.7 156.6 98.2 0 135-70.4 140.8-106.9H248v-85.3h236.1c2.3 12.7 3.9 24.9 3.9 41.4z"
+                    ></path>
+                  </svg>
+                  Continue with Google
+                </>
+              )}
+            </Button>
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">
+                  Or continue with
+                </span>
+              </div>
+            </div>
+            <Controller
+              control={form.control}
+              name="fullName"
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor={field.name}>Full Name</FieldLabel>
+                  <Input id={field.name} placeholder="John Doe" {...field} aria-invalid={fieldState.invalid} />
+                  {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                </Field>
+              )}
+            />
+            <Controller
+              control={form.control}
+              name="email"
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor={field.name}>Email</FieldLabel>
+                  <Input id={field.name} placeholder="m@example.com" {...field} aria-invalid={fieldState.invalid} />
+                  {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                </Field>
+              )}
+            />
+            <Controller
+              control={form.control}
+              name="password"
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor={field.name}>Password</FieldLabel>
+                  <Input id={field.name} type="password" {...field} aria-invalid={fieldState.invalid} />
+                  {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                  <div className="mt-3 space-y-2">
+                    <div className="rounded-lg bg-[hsl(var(--warning)/0.15)] border border-[hsl(var(--warning)/0.4)] p-3 shadow-xs">
+                      <p className="text-xs font-semibold text-[hsl(var(--warning))] dark:text-[hsl(var(--warning))] mb-2 flex items-center gap-2">
+                        <AlertCircle className="h-3.5 w-3.5" />
+                        Password Requirements
+                      </p>
+                      <ul className="space-y-1.5 text-xs text-[hsl(var(--warning))] dark:text-[hsl(var(--warning))] opacity-90">
+                        <li className="flex items-start gap-2">
+                          <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                          <span>At least 8 characters long</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                          <span>Cannot be a commonly used or compromised password</span>
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                </Field>
+              )}
+            />
+            <p className="text-sm text-muted-foreground text-center">
+              By joining, you agree to our{" "}
+              <Link href="/terms" className="text-primary hover:underline">
+                Terms of Service
+              </Link>{" "}
+              and{" "}
+              <Link href="/privacy" className="text-primary hover:underline">
+                Privacy Policy
+              </Link>
+            </p>
+            <div className="flex justify-center">
+              <div className="relative w-[300px] h-[65px] overflow-hidden bg-muted/30 rounded-lg flex items-center justify-center border border-border/50">
+                {!turnstileReady && (
+                  <div className="absolute inset-0 z-10 flex items-center justify-center gap-2 rounded-lg bg-background/80 text-[0.7rem] font-semibold uppercase tracking-wide text-muted-foreground">
+                    <Shield className="h-4 w-4 text-muted-foreground/80" />
+                    <span className="text-[0.7rem] font-semibold normal-case tracking-wide">Bot verification loading…</span>
+                  </div>
+                )}
+                <TurnstileComponent
+                  ref={turnstileRef}
+                  onLoad={() => setTurnstileReady(true)}
+                  onVerify={(token) => {
+                    form.setValue("turnstileToken", token);
+                  }}
+                  onError={() => {
+                    toast.error("Security verification failed. Please try again.");
+                  }}
+                  onExpire={() => {
+                    form.setValue("turnstileToken", "");
+                  }}
+                />
+              </div>
+            </div>
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? "Creating Account..." : "Create Account"}
+            </Button>
+            <div className="mt-4 text-center text-sm">
+              Already have an account?{" "}
+              <Link
+                href={redirectPath ? `/login?redirect=${encodeURIComponent(redirectPath)}` : "/login"}
+                className="underline"
               >
-                {isGoogleLoading ? (
-                  "Connecting..."
-                ) : (
-                  <>
-                    <svg
-                      className="mr-2 h-4 w-4"
-                      aria-hidden="true"
-                      focusable="false"
-                      data-prefix="fab"
-                      data-icon="google"
-                      role="img"
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 488 512"
-                    >
-                      <path
-                        fill="currentColor"
-                        d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 123 24.5 166.3 64.9l-67.5 64.9C258.5 52.6 94.3 116.6 94.3 256c0 86.5 69.1 156.6 153.7 156.6 98.2 0 135-70.4 140.8-106.9H248v-85.3h236.1c2.3 12.7 3.9 24.9 3.9 41.4z"
-                      ></path>
-                    </svg>
-                    Continue with Google
-                  </>
-                )}
-              </Button>
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-card px-2 text-muted-foreground">
-                    Or continue with
-                  </span>
-                </div>
-              </div>
-              <FormField
-                control={form.control}
-                name="fullName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Full Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="John Doe" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input placeholder="m@example.com" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Password</FormLabel>
-                    <FormControl>
-                      <Input type="password" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                    <div className="mt-3 space-y-2">
-                      <div className="rounded-lg bg-[hsl(var(--warning)/0.15)] border border-[hsl(var(--warning)/0.4)] p-3 shadow-xs">
-                        <p className="text-xs font-semibold text-[hsl(var(--warning))] dark:text-[hsl(var(--warning))] mb-2 flex items-center gap-2">
-                          <AlertCircle className="h-3.5 w-3.5" />
-                          Password Requirements
-                        </p>
-                        <ul className="space-y-1.5 text-xs text-[hsl(var(--warning))] dark:text-[hsl(var(--warning))] opacity-90">
-                          <li className="flex items-start gap-2">
-                            <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                            <span>At least 8 characters long</span>
-                          </li>
-                          <li className="flex items-start gap-2">
-                            <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                            <span>Cannot be a commonly used or compromised password</span>
-                          </li>
-                        </ul>
-                      </div>
-                    </div>
-                  </FormItem>
-                )}
-              />
-              <p className="text-sm text-muted-foreground text-center">
-                By joining, you agree to our{" "}
-                <Link href="/terms" className="text-primary hover:underline">
-                  Terms of Service
-                </Link>{" "}
-                and{" "}
-                <Link href="/privacy" className="text-primary hover:underline">
-                  Privacy Policy
-                </Link>
-              </p>
-              <div className="flex justify-center">
-                <div className="relative w-[300px] h-[65px] overflow-hidden bg-muted/30 rounded-lg flex items-center justify-center border border-border/50">
-                  {!turnstileReady && (
-                    <div className="absolute inset-0 z-10 flex items-center justify-center gap-2 rounded-lg bg-background/80 text-[0.7rem] font-semibold uppercase tracking-wide text-muted-foreground">
-                      <Shield className="h-4 w-4 text-muted-foreground/80" />
-                      <span className="text-[0.7rem] font-semibold normal-case tracking-wide">Bot verification loading…</span>
-                    </div>
-                  )}
-                  <TurnstileComponent
-                    ref={turnstileRef}
-                    onLoad={() => setTurnstileReady(true)}
-                    onVerify={(token) => {
-                      form.setValue("turnstileToken", token);
-                    }}
-                    onError={() => {
-                      toast.error("Security verification failed. Please try again.");
-                    }}
-                    onExpire={() => {
-                      form.setValue("turnstileToken", "");
-                    }}
-                  />
-                </div>
-              </div>
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "Creating Account..." : "Create Account"}
-              </Button>
-              <div className="mt-4 text-center text-sm">
-                Already have an account?{" "}
-                <Link
-                  href={redirectPath ? `/login?redirect=${encodeURIComponent(redirectPath)}` : "/login"}
-                  className="underline"
-                >
-                  Sign in
-                </Link>
-              </div>
-            </form>
-          </Form>
+                Sign in
+              </Link>
+            </div>
+          </form>
+
         </CardContent>
       </Card>
 

@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertCircle, ExternalLink, Lock, LogIn, Shield, Users } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -78,14 +79,14 @@ export default function ProjectUnauthorized({ projectId: _projectId }: ProjectUn
 
             <TooltipProvider>
               <Tooltip>
-                <TooltipTrigger asChild>
+                <TooltipTrigger render={
                   <div className="flex items-center justify-center p-2 bg-muted/30 rounded-lg border border-border/50 hover:bg-muted/50 transition-colors cursor-help">
                     <Shield className="h-4 w-4 text-muted-foreground mr-2 shrink-0" />
                     <p className="text-xs text-muted-foreground">
                       Private projects help organizations maintain confidentiality
                     </p>
                   </div>
-                </TooltipTrigger>
+                } />
                 <TooltipContent>
                   <p className="max-w-xs text-xs">Organization administrators can manage access in the project settings</p>
                 </TooltipContent>
@@ -111,16 +112,12 @@ export default function ProjectUnauthorized({ projectId: _projectId }: ProjectUn
             )}
 
             <div className="flex flex-col sm:flex-row gap-3 w-full">
-              <Button variant="outline" asChild className="w-full" size="sm">
-                <Link href="/organization/join">
-                  Join Organization
-                  <ExternalLink className="ml-2 h-3 w-3" />
-                </Link>
-              </Button>
+              <Link href="/organization/join" className={cn(buttonVariants({ variant: "outline", size: "sm" }), "w-full")}>
+                Join Organization
+                <ExternalLink className="ml-2 h-3 w-3" />
+              </Link>
 
-              <Button variant="ghost" asChild className="w-full" size="sm">
-                <Link href="/projects">Browse Public Projects</Link>
-              </Button>
+              <Link href="/projects" className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "w-full")}>Browse Public Projects</Link>
             </div>
           </CardFooter>
         </Card>

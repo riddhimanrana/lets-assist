@@ -23,9 +23,15 @@ type Props = {
     searchParams: Promise<{ session?: string; schedule?: string }>;
 };
 
-export default async function AttendPage(props: Props): Promise<React.ReactElement> {
-    const { projectId } = await (await props.params);
-    const { session: sessionUuid, schedule: scheduleId } = await props.searchParams;
+async function AttendanceContent({
+    projectId,
+    sessionUuid,
+    scheduleId
+}: {
+    projectId: string;
+    sessionUuid?: string;
+    scheduleId?: string;
+}) {
     console.log(`AttendPage: projectId=${projectId}, sessionUuid=${sessionUuid}, scheduleId=${scheduleId}`);
 
     // require session and event
@@ -127,28 +133,41 @@ export default async function AttendPage(props: Props): Promise<React.ReactEleme
     existingCheckIn = data;
 
     return (
+        <AttendanceClient
+            project={project}
+            scheduleId={scheduleId}
+            user={
+                user
+                    ? {
+                        ...user,
+                        user_metadata: {
+                            ...(user.user_metadata ?? {}),
+                            full_name:
+                                userProfile?.full_name ??
+                                (user.user_metadata as { full_name?: string | null } | null)
+                                    ?.full_name ??
+                                null,
+                        },
+                    }
+                    : null
+            }
+            existingCheckIn={existingCheckIn}
+            scanInfo={scanValidation}
+            projectAllowsAnonymous={!project.require_login}
+        />
+    );
+}
+
+export default async function AttendPage(props: Props): Promise<React.ReactElement> {
+    const { projectId } = await (await props.params);
+    const { session: sessionUuid, schedule: scheduleId } = await props.searchParams;
+
+    return (
         <Suspense fallback={<div className="container mx-auto py-12 px-4 text-center">Loading attendance page...</div>}>
-            <AttendanceClient
-                project={project}
+            <AttendanceContent
+                projectId={projectId}
+                sessionUuid={sessionUuid}
                 scheduleId={scheduleId}
-                user={
-                    user
-                        ? {
-                            ...user,
-                            user_metadata: {
-                                ...(user.user_metadata ?? {}),
-                                full_name:
-                                    userProfile?.full_name ??
-                                    (user.user_metadata as { full_name?: string | null } | null)
-                                        ?.full_name ??
-                                    null,
-                            },
-                        }
-                        : null
-                }
-                existingCheckIn={existingCheckIn}
-                scanInfo={scanValidation}
-                projectAllowsAnonymous={!project.require_login}
             />
         </Suspense>
     );

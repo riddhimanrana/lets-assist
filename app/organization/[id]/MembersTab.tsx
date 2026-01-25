@@ -21,16 +21,16 @@ import {
 import { NoAvatar } from "@/components/shared/NoAvatar";
 import { format } from "date-fns";
 import { useEffect, useState } from "react";
-import { 
-  MoreHorizontal, 
-  Search, 
-  Shield, 
-  UserRoundCog, 
+import {
+  MoreHorizontal,
+  Search,
+  Shield,
+  UserRoundCog,
   UserRound,
   X,
   Users,
-  ArrowUpDown, 
-  ChevronDown, 
+  ArrowUpDown,
+  ChevronDown,
   ChevronUp,
   Eye,
   Clock,
@@ -49,7 +49,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Card } from "@/components/ui/card";
-import { 
+import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -124,7 +124,7 @@ export default function MembersTab({
   const loadMemberHours = async () => {
     setLoadingHours(true);
     try {
-      const dateRangeParam = dateRange?.from && dateRange?.to 
+      const dateRangeParam = dateRange?.from && dateRange?.to
         ? { from: dateRange.from, to: dateRange.to }
         : undefined;
       const result = await getMemberVolunteerHours(organizationId, dateRangeParam);
@@ -154,37 +154,37 @@ export default function MembersTab({
         const profile = getMemberProfile(member);
         const fullName = profile?.full_name?.toLowerCase() || "";
         const username = profile?.username?.toLowerCase() || "";
-        return fullName.includes(lowercasedFilter) || 
-               username.includes(lowercasedFilter);
+        return fullName.includes(lowercasedFilter) ||
+          username.includes(lowercasedFilter);
       });
     }
 
     // Apply sorting
     result.sort((a, b) => {
       const direction = sort.direction === "asc" ? 1 : -1;
-      
+
       if (sort.field === "role") {
         // Custom role order: admin > staff > member
         const roleOrder = { admin: 3, staff: 2, member: 1 };
         return (roleOrder[a.role as keyof typeof roleOrder] - roleOrder[b.role as keyof typeof roleOrder]) * direction;
       }
-      
+
       if (sort.field === "joined_at") {
         return (new Date(a.joined_at).getTime() - new Date(b.joined_at).getTime()) * direction;
       }
-      
+
       if (sort.field === "hours") {
         const aHours = memberHours[a.user_id]?.totalHours || 0;
         const bHours = memberHours[b.user_id]?.totalHours || 0;
         return (aHours - bHours) * direction;
       }
-      
+
       if (sort.field === "events") {
         const aEvents = memberHours[a.user_id]?.eventCount || 0;
         const bEvents = memberHours[b.user_id]?.eventCount || 0;
         return (aEvents - bEvents) * direction;
       }
-      
+
       return 0;
     });
 
@@ -219,14 +219,14 @@ export default function MembersTab({
     try {
       // Create simple hours export data
       const exportData = [];
-      
+
       for (const member of filteredMembers) {
         const profile = getMemberProfile(member);
         const memberName = profile?.full_name || "Unknown User";
         const username = profile?.username || "";
         const totalHours = memberHours[member.user_id]?.totalHours || 0;
         const eventCount = memberHours[member.user_id]?.eventCount || 0;
-        
+
         exportData.push({
           memberName,
           username,
@@ -236,13 +236,13 @@ export default function MembersTab({
           eventCount
         });
       }
-      
+
       // Generate CSV
       const headers = [
         "Member Name", "Username", "Role", "Joined Date", "Total Hours", "Events Attended"
       ];
       const csvRows = [headers.join(",")];
-      
+
       exportData.forEach(row => {
         const csvRow = [
           `"${row.memberName}"`,
@@ -254,13 +254,13 @@ export default function MembersTab({
         ].join(",");
         csvRows.push(csvRow);
       });
-      
+
       const csvData = csvRows.join("\n");
       const blob = new Blob([csvData], { type: 'text/csv' });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      
+
       // Create filename with date range if applicable
       const today = new Date().toISOString().split('T')[0];
       let filename = `member-hours-${today}`;
@@ -272,7 +272,7 @@ export default function MembersTab({
         filename = `member-hours-lifetime-${today}`;
       }
       a.download = `${filename}.csv`;
-      
+
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -285,7 +285,7 @@ export default function MembersTab({
       setIsExporting(false);
     }
   };
-  
+
   const handleUpdateRole = async (
     memberId: string,
     userId: string,
@@ -296,7 +296,7 @@ export default function MembersTab({
       toast.error("You cannot demote yourself. Another admin must change your role.");
       return;
     }
-    
+
     setProcessingMember(memberId);
     try {
       const result = await updateMemberRole(organizationId, memberId, newRole);
@@ -304,11 +304,11 @@ export default function MembersTab({
         toast.error(result.error);
       } else {
         toast.success(`${userName}'s role updated to ${newRole}`);
-        
+
         // Update local state to reflect the change
-        setFilteredMembers(prevMembers => 
-          prevMembers.map(member => 
-            member.id === memberId ? {...member, role: newRole} : member
+        setFilteredMembers(prevMembers =>
+          prevMembers.map(member =>
+            member.id === memberId ? { ...member, role: newRole } : member
           )
         );
       }
@@ -319,10 +319,10 @@ export default function MembersTab({
       setProcessingMember(null);
     }
   };
-  
+
   const handleRemoveConfirm = async () => {
     if (!removingMember) return;
-    
+
     setProcessingMember(removingMember.id);
     try {
       const result = await removeMember(organizationId, removingMember.id);
@@ -330,9 +330,9 @@ export default function MembersTab({
         toast.error(result.error);
       } else {
         toast.success(`${removingMember.name} has been removed from the organization`);
-        
+
         // Update local state to remove the member
-        setFilteredMembers(prevMembers => 
+        setFilteredMembers(prevMembers =>
           prevMembers.filter(member => member.id !== removingMember.id)
         );
       }
@@ -357,9 +357,9 @@ export default function MembersTab({
   const toggleSort = (field: SortField) => {
     setSort(current => ({
       field,
-      direction: 
-        current.field === field && current.direction === "asc" 
-          ? "desc" 
+      direction:
+        current.field === field && current.direction === "asc"
+          ? "desc"
           : "asc"
     }));
   };
@@ -384,7 +384,7 @@ export default function MembersTab({
             {filteredMembers?.length || 0} total members
           </p>
         </div>
-        
+
         <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
           {/* Date Range Filter for admins and staff */}
           {canViewHours && (
@@ -401,13 +401,13 @@ export default function MembersTab({
               />
             </div>
           )}
-          
+
           {/* Export button for admins and staff */}
           {canViewHours && (
             <TooltipProvider>
               <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button 
+                <TooltipTrigger render={
+                  <Button
                     onClick={handleExportCSV}
                     disabled={isExporting}
                     variant="outline"
@@ -426,34 +426,34 @@ export default function MembersTab({
                       </>
                     )}
                   </Button>
-                </TooltipTrigger>
+                } />
                 <TooltipContent>
                   <p>Export member hours summary</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
           )}
-          
-           <div className="relative w-full sm:w-auto">
-             <div className="relative w-full sm:w-auto sm:flex-1 sm:max-w-md">
-            
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search members..."
-            className="pl-8 pr-9"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-          {searchTerm && (
-            <button 
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              onClick={() => setSearchTerm("")}
-            >
-              <X className="h-4 w-4" />
-            </button>
-          )}
+
+          <div className="relative w-full sm:w-auto">
+            <div className="relative w-full sm:w-auto sm:flex-1 sm:max-w-md">
+
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search members..."
+                className="pl-8 pr-9"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+              {searchTerm && (
+                <button
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  onClick={() => setSearchTerm("")}
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
           </div>
-        </div>
         </div>
       </div>
 
@@ -463,7 +463,7 @@ export default function MembersTab({
             <TableHeader>
               <TableRow>
                 <TableHead className="min-w-[200px]">Member</TableHead>
-                <TableHead 
+                <TableHead
                   className="min-w-[100px] cursor-pointer hover:text-foreground"
                   onClick={() => toggleSort("role")}
                 >
@@ -474,7 +474,7 @@ export default function MembersTab({
                 </TableHead>
                 {canViewHours && (
                   <>
-                    <TableHead 
+                    <TableHead
                       className="min-w-[100px] cursor-pointer hover:text-foreground"
                       onClick={() => toggleSort("hours")}
                     >
@@ -485,7 +485,7 @@ export default function MembersTab({
                       </div>
                     </TableHead>
                     <TableHead className="min-w-[100px]">
-                      <div 
+                      <div
                         className="flex items-center gap-1 cursor-pointer hover:text-foreground"
                         onClick={() => toggleSort("events")}
                       >
@@ -496,7 +496,7 @@ export default function MembersTab({
                     </TableHead>
                   </>
                 )}
-                <TableHead 
+                <TableHead
                   className="min-w-[120px] cursor-pointer hover:text-foreground"
                   onClick={() => toggleSort("joined_at")}
                 >
@@ -513,175 +513,175 @@ export default function MembersTab({
                 filteredMembers.map((member) => {
                   const profile = getMemberProfile(member);
                   return (
-                  <TableRow key={member.id} className="hover:bg-muted/30">
-                    <TableCell className="py-3 min-w-[200px]">
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-9 w-9 shrink-0 border border-border">
-                          <AvatarImage
-                            src={profile?.avatar_url || undefined}
-                            alt={profile?.full_name || ""}
-                          />
-                          <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                            <NoAvatar fullName={profile?.full_name || ""} />
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="min-w-0">
-                          <Link
-                            href={`/profile/${profile?.username || ''}`}
-                            className="font-medium hover:underline transition-colors block truncate"
-                          >
-                            {profile?.full_name || "Unknown User"}
-                          </Link>
-                          {profile?.username && (
-                            <p className="text-xs text-muted-foreground truncate">
-                              @{profile.username}
-                            </p>
-                          )}
+                    <TableRow key={member.id} className="hover:bg-muted/30">
+                      <TableCell className="py-3 min-w-[200px]">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-9 w-9 shrink-0 border border-border">
+                            <AvatarImage
+                              src={profile?.avatar_url || undefined}
+                              alt={profile?.full_name || ""}
+                            />
+                            <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                              <NoAvatar fullName={profile?.full_name || ""} />
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0">
+                            <Link
+                              href={`/profile/${profile?.username || ''}`}
+                              className="font-medium hover:underline transition-colors block truncate"
+                            >
+                              {profile?.full_name || "Unknown User"}
+                            </Link>
+                            {profile?.username && (
+                              <p className="text-xs text-muted-foreground truncate">
+                                @{profile.username}
+                              </p>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="min-w-[100px]">
-                      <RoleBadge role={member.role} />
-                    </TableCell>
-                    {canViewHours && (
-                      <>
-                        <TableCell className="min-w-[100px]">
-                          {loadingHours ? (
-                            <Skeleton className="h-4 w-12" />
-                          ) : (
-                            <div className="flex items-center gap-2">
-                              <div className="font-medium text-primary">
-                                {formatHours(memberHours[member.user_id]?.totalHours || 0)}
-                              </div>
-                              {(canViewHours && (isAdmin || userRole === "staff" || member.user_id === currentUserId)) && (
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-6 w-6"
-                                  onClick={() => handleViewDetails(member)}
-                                >
-                                  <Eye className="h-3 w-3" />
-                                </Button>
-                              )}
-                            </div>
-                          )}
-                        </TableCell>
-                        <TableCell className="min-w-[100px]">
-                          {loadingHours ? (
-                            <Skeleton className="h-4 w-8" />
-                          ) : (
-                            <div className="font-medium">
-                              {memberHours[member.user_id]?.eventCount || 0}
-                            </div>
-                          )}
-                        </TableCell>
-                      </>
-                    )}
-                    <TableCell className="text-sm text-muted-foreground min-w-[120px] whitespace-nowrap">
-                      {member.joined_at ? format(new Date(member.joined_at), "MMM d, yyyy") : "N/A"}
-                    </TableCell>
-                    {canManageMembers && (
-                      <TableCell className="text-right">
-                        {(isAdmin || (userRole === "staff" && member.role === "member")) &&
-                         member.user_id !== currentUserId ? (
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild disabled={processingMember === member.id}>
-                              <Button variant="ghost" size="icon" className="h-8 w-8">
-                                {processingMember === member.id ? (
-                                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-foreground border-t-transparent" />
-                                ) : (
-                                  <MoreHorizontal className="h-4 w-4" />
-                                )}
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-48">
-                              <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
-                                Change Role
-                              </div>
-                              
-                              {/* Admin role options */}
-                              {isAdmin && (
-                                <>
-                                  <DropdownMenuItem
-                                    className="gap-2"
-                                    onClick={() => handleUpdateRole(
-                                      member.id, 
-                                      member.user_id, 
-                                      profile?.full_name || "Member",
-                                      "admin"
-                                    )}
-                                    disabled={member.role === "admin"}
+                      </TableCell>
+                      <TableCell className="min-w-[100px]">
+                        <RoleBadge role={member.role} />
+                      </TableCell>
+                      {canViewHours && (
+                        <>
+                          <TableCell className="min-w-[100px]">
+                            {loadingHours ? (
+                              <Skeleton className="h-4 w-12" />
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                <div className="font-medium text-primary">
+                                  {formatHours(memberHours[member.user_id]?.totalHours || 0)}
+                                </div>
+                                {(canViewHours && (isAdmin || userRole === "staff" || member.user_id === currentUserId)) && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6"
+                                    onClick={() => handleViewDetails(member)}
                                   >
-                                    <Shield className="h-4 w-4" />
-                                    Make Admin
-                                  </DropdownMenuItem>
+                                    <Eye className="h-3 w-3" />
+                                  </Button>
+                                )}
+                              </div>
+                            )}
+                          </TableCell>
+                          <TableCell className="min-w-[100px]">
+                            {loadingHours ? (
+                              <Skeleton className="h-4 w-8" />
+                            ) : (
+                              <div className="font-medium">
+                                {memberHours[member.user_id]?.eventCount || 0}
+                              </div>
+                            )}
+                          </TableCell>
+                        </>
+                      )}
+                      <TableCell className="text-sm text-muted-foreground min-w-[120px] whitespace-nowrap">
+                        {member.joined_at ? format(new Date(member.joined_at), "MMM d, yyyy") : "N/A"}
+                      </TableCell>
+                      {canManageMembers && (
+                        <TableCell className="text-right">
+                          {(isAdmin || (userRole === "staff" && member.role === "member")) &&
+                            member.user_id !== currentUserId ? (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger render={
+                                <Button variant="ghost" size="icon" className="h-8 w-8" disabled={processingMember === member.id}>
+                                  {processingMember === member.id ? (
+                                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-foreground border-t-transparent" />
+                                  ) : (
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  )}
+                                </Button>
+                              } />
+                              <DropdownMenuContent align="end" className="w-48">
+                                <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+                                  Change Role
+                                </div>
+
+                                {/* Admin role options */}
+                                {isAdmin && (
+                                  <>
+                                    <DropdownMenuItem
+                                      className="gap-2"
+                                      onClick={() => handleUpdateRole(
+                                        member.id,
+                                        member.user_id,
+                                        profile?.full_name || "Member",
+                                        "admin"
+                                      )}
+                                      disabled={member.role === "admin"}
+                                    >
+                                      <Shield className="h-4 w-4" />
+                                      Make Admin
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      className="gap-2"
+                                      onClick={() => handleUpdateRole(
+                                        member.id,
+                                        member.user_id,
+                                        profile?.full_name || "Member",
+                                        "staff"
+                                      )}
+                                      disabled={member.role === "staff"}
+                                    >
+                                      <UserRoundCog className="h-4 w-4" />
+                                      Make Staff
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      className="gap-2"
+                                      onClick={() => handleUpdateRole(
+                                        member.id,
+                                        member.user_id,
+                                        profile?.full_name || "Member",
+                                        "member"
+                                      )}
+                                      disabled={member.role === "member"}
+                                    >
+                                      <UserRound className="h-4 w-4" />
+                                      Make Member
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
+
+                                {/* Staff role options */}
+                                {userRole === "staff" && member.role === "member" && (
                                   <DropdownMenuItem
                                     className="gap-2"
                                     onClick={() => handleUpdateRole(
-                                      member.id, 
-                                      member.user_id, 
+                                      member.id,
+                                      member.user_id,
                                       profile?.full_name || "Member",
                                       "staff"
                                     )}
-                                    disabled={member.role === "staff"}
                                   >
                                     <UserRoundCog className="h-4 w-4" />
                                     Make Staff
                                   </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    className="gap-2"
-                                    onClick={() => handleUpdateRole(
-                                      member.id, 
-                                      member.user_id, 
-                                      profile?.full_name || "Member",
-                                      "member"
-                                    )}
-                                    disabled={member.role === "member"}
-                                  >
-                                    <UserRound className="h-4 w-4" />
-                                    Make Member
-                                  </DropdownMenuItem>
-                                </>
-                              )}
-                              
-                              {/* Staff role options */}
-                              {userRole === "staff" && member.role === "member" && (
+                                )}
+
+                                <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+                                  Danger Zone
+                                </div>
+
                                 <DropdownMenuItem
-                                  className="gap-2"
-                                  onClick={() => handleUpdateRole(
-                                    member.id, 
-                                    member.user_id, 
-                                      profile?.full_name || "Member",
-                                    "staff"
-                                  )}
+                                  className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                                  onClick={() => setRemovingMember({
+                                    id: member.id,
+                                    name: profile?.full_name || "Member"
+                                  })}
                                 >
-                                  <UserRoundCog className="h-4 w-4" />
-                                  Make Staff
+                                  Remove from Organization
                                 </DropdownMenuItem>
-                              )}
-                              
-                              <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
-                                Danger Zone
-                              </div>
-                              
-                              <DropdownMenuItem
-                                className="text-destructive focus:text-destructive focus:bg-destructive/10"
-                                onClick={() => setRemovingMember({
-                                  id: member.id,
-                                  name: profile?.full_name || "Member"
-                                })}
-                              >
-                                Remove from Organization
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        ) : (
-                          <div className="w-4 h-4"></div>
-                        )}
-                      </TableCell>
-                    )}
-                  </TableRow>
-                );
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          ) : (
+                            <div className="w-4 h-4"></div>
+                          )}
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  );
                 })
               ) : (
                 <TableRow>
@@ -689,8 +689,8 @@ export default function MembersTab({
                     {searchTerm ? (
                       <div className="text-muted-foreground">
                         <p>No members found matching &quot;{searchTerm}&quot;</p>
-                        <Button 
-                          variant="link" 
+                        <Button
+                          variant="link"
                           onClick={() => setSearchTerm("")}
                           className="mt-2"
                         >
@@ -729,21 +729,21 @@ export default function MembersTab({
           <DialogHeader>
             <DialogTitle>Remove Member</DialogTitle>
             <DialogDescription>
-              Are you sure you want to remove {removingMember?.name} from this organization? 
+              Are you sure you want to remove {removingMember?.name} from this organization?
               They will lose access to all organization resources.
             </DialogDescription>
           </DialogHeader>
-          
+
           <DialogFooter className="mt-4 gap-2">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => setRemovingMember(null)}
               disabled={processingMember === removingMember?.id}
             >
               Cancel
             </Button>
-            <Button 
-              variant="destructive" 
+            <Button
+              variant="destructive"
               onClick={handleRemoveConfirm}
               disabled={processingMember === removingMember?.id}
             >

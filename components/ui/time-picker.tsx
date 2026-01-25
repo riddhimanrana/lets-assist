@@ -91,7 +91,7 @@ export function TimePicker({
         <Label>{label}</Label>
       )}
       <Popover>
-        <PopoverTrigger asChild>
+        <PopoverTrigger render={
           <Button
             variant="outline"
             className={cn(
@@ -108,7 +108,7 @@ export function TimePicker({
             />
             {value ? formatTime(value) : "Select time"}
           </Button>
-        </PopoverTrigger>
+        } />
         <PopoverContent
           align="start"
           side="bottom"
@@ -119,8 +119,9 @@ export function TimePicker({
             <div className="grid grid-cols-3 gap-2">
               <Select
                 value={selectedHour.toString()}
-                onValueChange={(value) => {
-                  const newHour = parseInt(value);
+                onValueChange={(val) => {
+                  if (!val) return;
+                  const newHour = parseInt(val);
                   setSelectedHour(newHour);
                   handleTimeChange(newHour, selectedMinute, selectedPeriod);
                 }}
@@ -130,7 +131,6 @@ export function TimePicker({
                   <SelectValue placeholder="Hour" />
                 </SelectTrigger>
                 <SelectContent
-                  position="popper"
                   className="h-[180px] min-w-[80px]"
                 >
                   {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => (
@@ -143,8 +143,9 @@ export function TimePicker({
 
               <Select
                 value={selectedMinute.toString()}
-                onValueChange={(value) => {
-                  const newMinute = parseInt(value);
+                onValueChange={(val) => {
+                  if (!val) return;
+                  const newMinute = parseInt(val);
                   setSelectedMinute(newMinute);
                   handleTimeChange(selectedHour, newMinute, selectedPeriod);
                 }}
@@ -154,7 +155,6 @@ export function TimePicker({
                   <SelectValue placeholder="Min" />
                 </SelectTrigger>
                 <SelectContent
-                  position="popper"
                   className="h-[180px] min-w-[80px]"
                 >
                   {Array.from({ length: 60 }, (_, i) => i).map((m) => (
@@ -167,16 +167,17 @@ export function TimePicker({
 
               <Select
                 value={selectedPeriod}
-                onValueChange={(value: "AM" | "PM") => {
-                  setSelectedPeriod(value);
-                  handleTimeChange(selectedHour, selectedMinute, value);
+                onValueChange={(val: "AM" | "PM" | null) => {
+                  if (!val) return;
+                  setSelectedPeriod(val);
+                  handleTimeChange(selectedHour, selectedMinute, val);
                 }}
                 disabled={disabled}
               >
                 <SelectTrigger className="h-9">
                   <SelectValue placeholder="AM/PM" />
                 </SelectTrigger>
-                <SelectContent position="popper" className="min-w-[80px]">
+                <SelectContent className="min-w-[80px]">
                   <SelectItem value="AM">AM</SelectItem>
                   <SelectItem value="PM">PM</SelectItem>
                 </SelectContent>

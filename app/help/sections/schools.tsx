@@ -2,7 +2,8 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { GraduationCap, Award, Target, Download, FileCheck, BookOpen } from "lucide-react";
 import Link from "next/link";
@@ -43,7 +44,7 @@ export function SchoolsSection() {
                 <BookOpen className="h-4 w-4" />
                 For Students
               </h4>
-              <Accordion type="single" collapsible>
+              <Accordion>
                 <AccordionItem value="csf-tracking">
                   <AccordionTrigger>CSF Hour Tracking</AccordionTrigger>
                   <AccordionContent className="space-y-2 text-sm">
@@ -113,7 +114,7 @@ export function SchoolsSection() {
                 <Award className="h-4 w-4" />
                 For Schools & Advisors
               </h4>
-              <Accordion type="single" collapsible>
+              <Accordion>
                 <AccordionItem value="school-setup">
                   <AccordionTrigger>Setting Up School Programs</AccordionTrigger>
                   <AccordionContent className="space-y-2 text-sm">
@@ -124,9 +125,7 @@ export function SchoolsSection() {
                       <li>Monitor student progress and verify hours</li>
                       <li>Generate reports for administrative review</li>
                     </ol>
-                    <Button asChild size="sm" className="mt-2">
-                      <Link href="/organization/create">Set Up School Program</Link>
-                    </Button>
+                    <Link href="/organization/create" className={cn(buttonVariants({ size: "sm", className: "mt-2" }))}>Set Up School Program</Link>
                   </AccordionContent>
                 </AccordionItem>
 
@@ -189,12 +188,8 @@ export function SchoolsSection() {
                 <li>Export final report when ready to submit to school</li>
               </ol>
               <div className="mt-4 flex gap-2">
-                <Button asChild size="sm" variant="outline">
-                  <Link href="/projects/create">Start CSF Project</Link>
-                </Button>
-                <Button asChild size="sm" variant="outline">
-                  <Link href="/organization">Find School Program</Link>
-                </Button>
+                <Link href="/projects/create" className={cn(buttonVariants({ size: "sm", variant: "outline" }))}>Start CSF Project</Link>
+                <Link href="/organization" className={cn(buttonVariants({ size: "sm", variant: "outline" }))}>Find School Program</Link>
               </div>
             </CardContent>
           </Card>
@@ -205,7 +200,7 @@ export function SchoolsSection() {
               <CardTitle className="text-lg">Common CSF Questions & Resources</CardTitle>
             </CardHeader>
             <CardContent>
-              <Accordion type="single" collapsible>
+              <Accordion>
                 <AccordionItem value="csf-requirements">
                   <AccordionTrigger>What are the typical CSF requirements?</AccordionTrigger>
                   <AccordionContent className="space-y-2 text-sm">

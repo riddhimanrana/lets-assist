@@ -180,11 +180,11 @@ export default function VerificationSettings({
             Volunteer Check-in Method
             <TooltipProvider>
               <Tooltip>
-                <TooltipTrigger asChild>
+                <TooltipTrigger render={
                   <Button variant="ghost" size="icon" className="h-6 w-6">
                     <Info className="h-4 w-4" />
                   </Button>
-                </TooltipTrigger>
+                } />
                 <TooltipContent className="text-xs font-normal">
                   Choose how volunteers will check in and record their hours at
                   your event.
@@ -329,11 +329,11 @@ export default function VerificationSettings({
             Volunteer Sign-up Requirements
             <TooltipProvider>
               <Tooltip>
-                <TooltipTrigger asChild>
+                <TooltipTrigger render={
                   <Button variant="ghost" size="icon" className="h-6 w-6">
                     <Info className="h-4 w-4" />
                   </Button>
-                </TooltipTrigger>
+                } />
                 <TooltipContent className="text-xs font-normal">
                   <p>
                     Control whether volunteers need to create an account to sign
@@ -414,11 +414,11 @@ export default function VerificationSettings({
             Volunteer Options
             <TooltipProvider>
               <Tooltip>
-                <TooltipTrigger asChild>
+                <TooltipTrigger render={
                   <Button variant="ghost" size="icon" className="h-6 w-6">
                     <Info className="h-4 w-4" />
                   </Button>
-                </TooltipTrigger>
+                } />
                 <TooltipContent className="text-xs font-normal max-w-xs">
                   <p>
                     Optional settings that control what volunteers can submit and what is visible publicly.
@@ -481,11 +481,11 @@ export default function VerificationSettings({
             Waiver & Consent
             <TooltipProvider>
               <Tooltip>
-                <TooltipTrigger asChild>
+                <TooltipTrigger render={
                   <Button variant="ghost" size="icon" className="h-6 w-6">
                     <Info className="h-4 w-4" />
                   </Button>
-                </TooltipTrigger>
+                } />
                 <TooltipContent className="text-xs font-normal max-w-xs">
                   <p>
                     Upload your organization&apos;s waiver PDF and require volunteers to sign it during signup. Supports e-signatures (draw or type).
@@ -668,11 +668,11 @@ export default function VerificationSettings({
             Who Can See This Project?
             <TooltipProvider>
               <Tooltip>
-                <TooltipTrigger asChild>
+                <TooltipTrigger render={
                   <Button variant="ghost" size="icon" className="h-6 w-6">
                     <Info className="h-4 w-4" />
                   </Button>
-                </TooltipTrigger>
+                } />
                 <TooltipContent className="text-xs font-normal max-w-xs">
                   <p>
                     Choose who can discover and view your project on the Let&apos;s Assist platform.
@@ -782,11 +782,11 @@ export default function VerificationSettings({
               Email Domain Requirements
               <TooltipProvider>
                 <Tooltip>
-                  <TooltipTrigger asChild>
+                  <TooltipTrigger render={
                     <Button variant="ghost" size="icon" className="h-6 w-6">
                       <Info className="h-4 w-4" />
                     </Button>
-                  </TooltipTrigger>
+                  } />
                   <TooltipContent className="text-xs font-normal max-w-xs">
                     <p>
                       Optionally require volunteers to have an email from your organization&apos;s approved domains to sign up.

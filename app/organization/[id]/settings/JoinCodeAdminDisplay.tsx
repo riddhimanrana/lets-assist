@@ -32,14 +32,14 @@ export default function JoinCodeAdminDisplay({
   const [isCopied, setIsCopied] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [showRegenerateAlert, setShowRegenerateAlert] = useState(false);
-  
+
   // Copy join code to clipboard
   const copyToClipboard = async () => {
     try {
       await navigator.clipboard.writeText(displayedJoinCode);
       setIsCopied(true);
       toast.success("Join code copied to clipboard");
-      
+
       // Reset copy confirmation after 2 seconds
       setTimeout(() => {
         setIsCopied(false);
@@ -48,14 +48,14 @@ export default function JoinCodeAdminDisplay({
       toast.error("Failed to copy join code");
     }
   };
-  
+
   // Regenerate join code
   const handleRegenerateJoinCode = async () => {
     setIsRegenerating(true);
-    
+
     try {
       const result = await regenerateJoinCode(organizationId);
-      
+
       if (result.error) {
         toast.error(result.error);
       } else {
@@ -70,7 +70,7 @@ export default function JoinCodeAdminDisplay({
       setShowRegenerateAlert(false);
     }
   };
-  
+
   return (
     <div className="space-y-4">
       <div>
@@ -97,13 +97,13 @@ export default function JoinCodeAdminDisplay({
           </Button>
         </div>
       </div>
-      
+
       <div>
         <AlertDialog
           open={showRegenerateAlert}
           onOpenChange={setShowRegenerateAlert}
         >
-          <AlertDialogTrigger asChild>
+          <AlertDialogTrigger render={
             <Button
               variant="outline"
               type="button"
@@ -112,7 +112,7 @@ export default function JoinCodeAdminDisplay({
               <RefreshCw className="h-4 w-4 mr-2" />
               Regenerate Join Code
             </Button>
-          </AlertDialogTrigger>
+          } />
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Regenerate Join Code?</AlertDialogTitle>

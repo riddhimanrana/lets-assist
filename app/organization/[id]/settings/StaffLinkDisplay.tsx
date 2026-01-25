@@ -5,11 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Copy, 
-  RefreshCw, 
-  Trash2, 
-  Clock, 
+import {
+  Copy,
+  RefreshCw,
+  Trash2,
+  Clock,
   Link as LinkIcon,
   Check,
   Users
@@ -40,9 +40,9 @@ interface StaffLinkDisplayProps {
   organizationUsername: string;
 }
 
-export default function StaffLinkDisplay({ 
-  organizationId, 
-  organizationUsername 
+export default function StaffLinkDisplay({
+  organizationId,
+  organizationUsername
 }: StaffLinkDisplayProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [hasToken, setHasToken] = useState(false);
@@ -55,11 +55,11 @@ export default function StaffLinkDisplay({
   const [isInitializing, setIsInitializing] = useState(true);
 
   // Get base URL for the staff link
-  const baseUrl = typeof window !== 'undefined' 
+  const baseUrl = typeof window !== 'undefined'
     ? `${window.location.origin}/signup`
     : '';
 
-  const staffLink = token 
+  const staffLink = token
     ? `${baseUrl}?staff_token=${token}&org=${organizationUsername}`
     : '';
 
@@ -83,7 +83,7 @@ export default function StaffLinkDisplay({
     setIsLoading(true);
     try {
       const result = await generateStaffLink(organizationId, parseInt(expirationDays));
-      
+
       if (result.error) {
         toast.error(result.error);
         return;
@@ -107,7 +107,7 @@ export default function StaffLinkDisplay({
     setIsLoading(true);
     try {
       const result = await revokeStaffLink(organizationId);
-      
+
       if (result.error) {
         toast.error(result.error);
         return;
@@ -129,7 +129,7 @@ export default function StaffLinkDisplay({
 
   const handleCopy = async () => {
     if (!staffLink) return;
-    
+
     try {
       await navigator.clipboard.writeText(staffLink);
       setCopied(true);
@@ -178,7 +178,7 @@ export default function StaffLinkDisplay({
           </div>
 
           <div className="flex gap-2">
-            <Input 
+            <Input
               value={staffLink}
               readOnly
               className="font-mono text-sm"
@@ -198,7 +198,7 @@ export default function StaffLinkDisplay({
           </div>
 
           <p className="text-sm text-muted-foreground">
-            Share this link with teachers or staff members. They will be automatically 
+            Share this link with teachers or staff members. They will be automatically
             added to your organization with staff-level access when they sign up.
           </p>
 
@@ -212,9 +212,9 @@ export default function StaffLinkDisplay({
               <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
               Regenerate Link
             </Button>
-            
+
             <AlertDialog>
-              <AlertDialogTrigger asChild>
+              <AlertDialogTrigger render={
                 <Button
                   variant="destructive"
                   disabled={isLoading}
@@ -223,13 +223,13 @@ export default function StaffLinkDisplay({
                   <Trash2 className="h-4 w-4" />
                   Revoke Link
                 </Button>
-              </AlertDialogTrigger>
+              } />
               <AlertDialogContent>
                 <AlertDialogHeader>
                   <AlertDialogTitle>Revoke Staff Link?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This will invalidate the current staff invite link. Anyone who 
-                    hasn't used it yet won't be able to join as staff. You can 
+                    This will invalidate the current staff invite link. Anyone who
+                    hasn't used it yet won't be able to join as staff. You can
                     generate a new link afterward.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
@@ -248,9 +248,9 @@ export default function StaffLinkDisplay({
           <div className="flex items-center gap-4">
             <div className="flex-1">
               <Label htmlFor="expiration">Link Expiration</Label>
-              <Select 
-                value={expirationDays} 
-                onValueChange={setExpirationDays}
+              <Select
+                value={expirationDays}
+                onValueChange={(val) => val && setExpirationDays(val)}
               >
                 <SelectTrigger id="expiration" className="mt-1.5">
                   <SelectValue />
@@ -275,7 +275,7 @@ export default function StaffLinkDisplay({
           </Button>
 
           <p className="text-sm text-muted-foreground">
-            Generate a special link that allows teachers or staff members to join 
+            Generate a special link that allows teachers or staff members to join
             your organization directly with staff-level access.
           </p>
         </div>

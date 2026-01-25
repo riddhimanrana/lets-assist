@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
@@ -12,7 +12,7 @@ import { ProjectStatus, Project } from "@/types";
 import { ProjectStatusBadge } from "@/components/ui/status-badge";
 import { getProjectStartDateTime, getProjectStatus } from "@/utils/project";
 import { useRouter } from "next/navigation";
-import { stripHtml } from "@/lib/utils";
+import { stripHtml, cn } from "@/lib/utils";
 
 interface ProjectsTabProps {
   projects: Project[];
@@ -36,12 +36,12 @@ export default function ProjectsTab({
       ...project,
       status: getProjectStatus(project)
     }));
-    
+
     // Filter by status
     if (activeTab !== "all") {
       result = result.filter(project => project.status === activeTab);
     }
-    
+
     // Filter by search term
     if (searchTerm.trim() !== "") {
       const lowercasedFilter = searchTerm.toLowerCase();
@@ -49,29 +49,29 @@ export default function ProjectsTab({
         const title = project.title.toLowerCase();
         const description = (project.description || "").toLowerCase();
         const location = (project.location || "").toLowerCase();
-        return title.includes(lowercasedFilter) || 
-              description.includes(lowercasedFilter) || 
-              location.includes(lowercasedFilter);
+        return title.includes(lowercasedFilter) ||
+          description.includes(lowercasedFilter) ||
+          location.includes(lowercasedFilter);
       });
     }
-    
+
     setFilteredProjects(result);
   }, [searchTerm, activeTab, projects]);
 
   const canCreateProjects = userRole === "admin" || userRole === "staff";
-  
+
   // Handle navigation to create project with organization context
   const handleCreateProject = () => {
     router.push(`/projects/create?org=${organizationId}`);
   };
-  
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row justify-between gap-3">
         <h2 className="text-xl font-semibold">Organization Projects</h2>
-        
+
         <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
-            <div className="relative w-full sm:w-64">
+          <div className="relative w-full sm:w-64">
             <Search className="absolute left-2 top-1/2 h-4 w-4 text-muted-foreground -translate-y-1/2" />
             <Input
               placeholder="Search projects..."
@@ -79,8 +79,8 @@ export default function ProjectsTab({
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
-            </div>
-          
+          </div>
+
           {canCreateProjects && (
             <Button onClick={handleCreateProject} className="w-full sm:w-auto">
               <Plus className="h-4 w-4 mr-1.5" />
@@ -89,9 +89,9 @@ export default function ProjectsTab({
           )}
         </div>
       </div>
-      
-      <Tabs 
-        defaultValue="all" 
+
+      <Tabs
+        defaultValue="all"
         value={activeTab}
         onValueChange={(value) => setActiveTab(value as ProjectStatus | "all")}
         className="w-full"
@@ -128,7 +128,7 @@ export default function ProjectsTab({
           ) : (
             <div className="text-center py-8 border rounded-md bg-muted/10">
               <p className="text-muted-foreground">
-                {searchTerm 
+                {searchTerm
                   ? `No projects found matching "${searchTerm}"`
                   : activeTab === "all"
                     ? "No projects found in this organization"
@@ -136,12 +136,10 @@ export default function ProjectsTab({
                 }
               </p>
               {canCreateProjects && activeTab !== "cancelled" && (
-                <Button asChild variant="outline" className="mt-4">
-                  <Link href={`/projects/create?org=${organizationId}`}>
-                    <Plus className="h-4 w-4 mr-1.5" />
-                    Create Project
-                  </Link>
-                </Button>
+                <Link href={`/projects/create?org=${organizationId}`} className={cn(buttonVariants({ variant: "outline" }), "mt-4")}>
+                  <Plus className="h-4 w-4 mr-1.5" />
+                  Create Project
+                </Link>
               )}
             </div>
           )}
@@ -179,11 +177,11 @@ function ProjectCard({ project }: { project: Project }) {
             <h3 className="font-medium text-lg line-clamp-1">{project.title}</h3>
             <ProjectStatusBadge status={currentStatus} />
           </div>
-          
+
           <p className="text-muted-foreground text-sm line-clamp-2 mb-3">
             {project.description ? stripHtml(project.description) : "No description provided."}
           </p>
-          
+
           <div className="flex flex-col gap-1.5">
             {project.location && (
               <div className="flex items-center text-xs text-muted-foreground">
@@ -191,12 +189,12 @@ function ProjectCard({ project }: { project: Project }) {
                 <span className="truncate">{project.location}</span>
               </div>
             )}
-            
+
             <div className="flex items-center text-xs text-muted-foreground">
               <CalendarIcon className="h-3 w-3 mr-1.5 shrink-0" />
               <span>Created {format(new Date(project.created_at), "MMM d, yyyy")}</span>
             </div>
-            
+
             {startDateTime && (
               <div className="flex items-center text-xs text-muted-foreground">
                 <Clock className="h-3 w-3 mr-1.5 shrink-0" />

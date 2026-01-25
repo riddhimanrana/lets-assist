@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 /**
  * Handles pending calendar syncs after OAuth callback.
@@ -16,41 +16,40 @@ export default function CalendarOAuthCallbackHandler() {
   useEffect(() => {
     type PendingSyncData =
       | {
-          type: "signup";
-          signupId: string;
-          projectId: string;
-          scheduleId: string;
-        }
+        type: "signup";
+        signupId: string;
+        projectId: string;
+        scheduleId: string;
+      }
       | {
-          type: "project";
-          projectId: string;
-        };
+        type: "project";
+        projectId: string;
+      };
 
     const sync = async (syncData: PendingSyncData) => {
       try {
         if (syncData.type === "signup") {
           const { signupId, projectId, scheduleId } = syncData;
           if (signupId && projectId && scheduleId) {
-          const response = await fetch("/api/calendar/add-signup", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ 
-              signup_id: signupId, 
-              project_id: projectId,
-              schedule_id: scheduleId 
-            }),
-          });
+            const response = await fetch("/api/calendar/add-signup", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                signup_id: signupId,
+                project_id: projectId,
+                schedule_id: scheduleId
+              }),
+            });
 
-          if (!response.ok) {
-            const data = await response.json();
-            throw new Error(data.error || "Failed to sync signup");
-          }
+            if (!response.ok) {
+              const data = await response.json();
+              throw new Error(data.error || "Failed to sync signup");
+            }
 
-          toast({
-            title: "✓ Success!",
-            description: "Event added to your Google Calendar",
-            duration: 5000,
-          });
+            toast.success("Success!", {
+              description: "Event added to your Google Calendar",
+              duration: 5000,
+            });
           }
         } else if (syncData.type === "project" && syncData.projectId) {
           const response = await fetch("/api/calendar/sync-project", {
@@ -64,21 +63,18 @@ export default function CalendarOAuthCallbackHandler() {
             throw new Error(data.error || "Failed to sync project");
           }
 
-          toast({
-            title: "✓ Project Synced",
+          toast.success("Project Synced", {
             description: "Your project has been synced to Google Calendar",
             duration: 5000,
           });
         }
       } catch (error) {
         console.error("Failed to handle pending calendar sync:", error);
-        toast({
-          title: "Calendar Sync Failed",
+        toast.error("Calendar Sync Failed", {
           description:
             error instanceof Error
               ? error.message
               : "Failed to sync event to calendar",
-          variant: "destructive",
         });
       }
     };
@@ -100,7 +96,7 @@ export default function CalendarOAuthCallbackHandler() {
     };
 
     const timeout = setTimeout(handlePendingSync, 500);
-    
+
     return () => clearTimeout(timeout);
   }, [router]);
 

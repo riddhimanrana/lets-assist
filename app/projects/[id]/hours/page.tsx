@@ -7,7 +7,8 @@ import { Project, ProjectSignup } from "@/types";
 import { HoursClient } from "./HoursClient";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { AlertCircle, ArrowLeft, CalendarClock } from "lucide-react";
 import { getProject } from "../actions";
@@ -177,12 +178,10 @@ export default async function HoursPage({ params }: { params: Promise<{ id: stri
     return (
       <div className="container mx-auto px-4 py-6 max-w-5xl">
         <div className="mb-6">
-          <Button variant="ghost" className="gap-2" asChild>
-            <Link href={`/projects/${projectId}`}>
-              <ArrowLeft className="h-4 w-4" />
-              Back to Project
-            </Link>
-          </Button>
+          <Link href={`/projects/${projectId}`} className={cn(buttonVariants({ variant: "ghost" }), "gap-2")}>
+            <ArrowLeft className="h-4 w-4" />
+            Back to Project
+          </Link>
         </div>
         <Card>
           <CardHeader>
@@ -199,11 +198,9 @@ export default async function HoursPage({ params }: { params: Promise<{ id: stri
             </Alert>
           </CardContent>
           <CardFooter className="justify-center border-t p-4">
-            <Button variant="outline" asChild>
-              <Link href={`/projects/${projectId}/attendance`}>
-                View Attendance Records
-              </Link>
-            </Button>
+            <Link href={`/projects/${projectId}/attendance`} className={cn(buttonVariants({ variant: "outline" }))}>
+              View Attendance Records
+            </Link>
           </CardFooter>
         </Card>
       </div>
@@ -293,12 +290,10 @@ export default async function HoursPage({ params }: { params: Promise<{ id: stri
     return (
       <div className="container mx-auto px-4 py-6 max-w-5xl">
         <div className="mb-6">
-          <Button variant="ghost" className="gap-2" asChild>
-            <Link href={`/projects/${projectId}`}>
-              <ArrowLeft className="h-4 w-4" />
-              Back to Project
-            </Link>
-          </Button>
+          <Link href={`/projects/${projectId}`} className={cn(buttonVariants({ variant: "ghost" }), "gap-2")}>
+            <ArrowLeft className="h-4 w-4" />
+            Back to Project
+          </Link>
         </div>
         <Card className="min-h-[400px] relative">
           <CardHeader>
@@ -333,11 +328,9 @@ export default async function HoursPage({ params }: { params: Promise<{ id: stri
             </p>
           </CardContent>
           <CardFooter className="justify-center border-t p-4">
-            <Button variant="outline" asChild>
-              <Link href={`/projects/${projectId}`}>
-                Return to Project
-              </Link>
-            </Button>
+            <Link href={`/projects/${projectId}`} className={cn(buttonVariants({ variant: "outline" }))}>
+              Return to Project
+            </Link>
           </CardFooter>
         </Card>
       </div>

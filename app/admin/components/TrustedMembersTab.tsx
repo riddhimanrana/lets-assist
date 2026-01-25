@@ -11,8 +11,9 @@ import {
 } from "@/components/ui/table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Check, X, Trash2, Plus, Search, Loader2 } from "lucide-react";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { Check, X, Trash2, Plus, Search, Loader2, ShieldCheck } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -146,11 +147,9 @@ export function TrustedMembersTab({ trustedMembers }: TrustedMembersTabProps) {
     <div className="space-y-6">
       <div className="flex justify-end">
         <Dialog open={addMemberOpen} onOpenChange={setAddMemberOpen}>
-          <DialogTrigger asChild>
-            <Button className="w-full sm:w-auto">
-              <Plus className="mr-2 h-4 w-4" />
-              Add Member
-            </Button>
+          <DialogTrigger className={cn(buttonVariants({ className: "w-full sm:w-auto" }))}>
+            <ShieldCheck className="mr-2 h-4 w-4" />
+            Add Trusted Member
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
@@ -160,8 +159,8 @@ export function TrustedMembersTab({ trustedMembers }: TrustedMembersTabProps) {
               </DialogDescription>
             </DialogHeader>
             <div className="flex gap-2 py-4">
-              <Input 
-                placeholder="user@example.com" 
+              <Input
+                placeholder="user@example.com"
                 value={searchEmail}
                 onChange={(e) => setSearchEmail(e.target.value)}
                 onKeyDown={(e) => {
@@ -175,7 +174,7 @@ export function TrustedMembersTab({ trustedMembers }: TrustedMembersTabProps) {
                 {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
               </Button>
             </div>
-            
+
             <div className="space-y-2 max-h-[200px] overflow-y-auto">
               {searchResults.map((user) => (
                 <div key={user.id} className="flex items-center justify-between p-2 border rounded-md hover:bg-muted/50">
@@ -355,10 +354,8 @@ function ReasonDialog({ reason, name, email }: { reason: string; name: string; e
 
   return (
     <Dialog>
-      <DialogTrigger asChild>
-        <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs text-muted-foreground">
-          View full reason
-        </Button>
+      <DialogTrigger className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "h-7 px-2 text-xs text-muted-foreground")}>
+        View full reason
       </DialogTrigger>
       <DialogContent className="max-w-lg">
         <DialogHeader>

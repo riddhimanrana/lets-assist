@@ -752,12 +752,12 @@ export default function ProjectDetails({
     if (rejectedSlots[scheduleId]) {
       return (
         <HoverCard>
-          <HoverCardTrigger asChild>
+          <HoverCardTrigger render={
             <span className="flex items-center gap-1.5">
               <XCircle className="h-4 w-4" />
               Rejected
             </span>
-          </HoverCardTrigger>
+          } />
           <HoverCardContent className="w-80 p-3">
             <p className="text-sm">
               Your signup for this slot has been rejected by the project coordinator.
@@ -785,12 +785,12 @@ export default function ProjectDetails({
     if (attendedSlots[scheduleId]) {
       return (
         <HoverCard>
-          <HoverCardTrigger asChild>
+          <HoverCardTrigger render={
             <span className="flex items-center gap-1.5">
               <CheckCircle2 className="h-4 w-4" />
               Attended
             </span>
-          </HoverCardTrigger>
+          } />
           <HoverCardContent className="w-80 p-3">
             <p className="text-sm">
               You have been marked as attended for this slot. Attendance records cannot be changed.
@@ -882,12 +882,12 @@ export default function ProjectDetails({
                 {/* Report button - only show for non-creators */}
                 {!isCreator && (
                   <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
+                    <DropdownMenuTrigger render={
                       <Button variant="outline" size="icon" suppressHydrationWarning>
                         <MoreVertical className="h-4 w-4" />
                         <span className="sr-only">More options</span>
                       </Button>
-                    </DropdownMenuTrigger>
+                    } />
                     <DropdownMenuContent align="end">
                       <ReportContentButton
                         contentType="project"

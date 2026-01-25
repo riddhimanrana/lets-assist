@@ -104,7 +104,7 @@ export default function Schedule({
     // Create new date with just the year, month, and day components to avoid timezone issues
     return format(new Date(date.getFullYear(), date.getMonth(), date.getDate()), "yyyy-MM-dd");
   };
-  
+
   // Helper function to parse date string to Date object without timezone shifting
   const parseStringToDate = (dateString: string): Date | undefined => {
     if (!dateString) return undefined;
@@ -130,14 +130,14 @@ export default function Schedule({
 
   const isTimeInPast = (date: string, time: string) => {
     if (!date || !time) return false;
-    
+
     const [hours, minutes] = time.split(':').map(Number);
     const selectedDate = parseStringToDate(date);
     if (!selectedDate) return false;
-    
+
     const datetime = new Date(selectedDate);
     datetime.setHours(hours, minutes, 0, 0);
-    
+
     return datetime < new Date();
   };
 
@@ -145,8 +145,8 @@ export default function Schedule({
   const getFieldError = (fieldPath: string): string | undefined => {
     const error = errors.find(issue => {
       return issue.path.join('.') === fieldPath ||
-             issue.path.join('.').startsWith(fieldPath + '[') ||
-             issue.path.join('.').startsWith(fieldPath + '.');
+        issue.path.join('.').startsWith(fieldPath + '[') ||
+        issue.path.join('.').startsWith(fieldPath + '.');
     });
     return error?.message;
   };
@@ -159,8 +159,8 @@ export default function Schedule({
 
   // For multi-day validation error display
   const getMultiDayError = (dayIndex: number): string | undefined => {
-    return errors.find(issue => 
-      issue.path[0] === dayIndex || 
+    return errors.find(issue =>
+      issue.path[0] === dayIndex ||
       (Array.isArray(issue.path) && issue.path[0] === dayIndex)
     )?.message;
   };
@@ -179,131 +179,131 @@ export default function Schedule({
 
     return (
       <>
-      <Card>
-        <CardHeader>
-          <CardTitle>Schedule Your Event</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Pick a date and time for your event
-          </p>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-6">
-            <div className="grid sm:grid-cols-2 gap-4">
-              <div>
-                <Label>Event Date</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal mt-1.5",
-                        !state.schedule.oneTime.date && "text-muted-foreground",
-                        dateError && "border-destructive",
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {state.schedule.oneTime.date
-                        ? format(parseStringToDate(state.schedule.oneTime.date) as Date, "PPP")
-                        : "Pick a date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={parseStringToDate(state.schedule.oneTime.date)}
-                      onSelect={(date) => {
-                        const newDate = formatDateToString(date);
-                        if (newDate !== state.schedule.oneTime.date) {
-                          updateOneTimeScheduleAction("date", newDate);
-                        }
-                      }}
-                      disabled={isPastDate}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-                {dateError && (
-                  <div className="text-destructive text-sm flex items-center gap-2 mt-1">
-                    <AlertCircle className="h-4 w-4" />
-                    {dateError}
-                  </div>
-                )}
-              </div>
-              <div>
-                <Label>Volunteers Needed</Label>
-                <Input
-                  type="number"
-                  min="1"
-                  max="1000"
-                  placeholder="Enter number of volunteers"
-                  className={cn(
-                    "mt-1.5",
-                    volunteersError && "border-destructive"
+        <Card>
+          <CardHeader>
+            <CardTitle>Schedule Your Event</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Pick a date and time for your event
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-6">
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <Label>Event Date</Label>
+                  <Popover>
+                    <PopoverTrigger render={
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal mt-1.5",
+                          !state.schedule.oneTime.date && "text-muted-foreground",
+                          dateError && "border-destructive",
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {state.schedule.oneTime.date
+                          ? format(parseStringToDate(state.schedule.oneTime.date) as Date, "PPP")
+                          : "Pick a date"}
+                      </Button>
+                    } />
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={parseStringToDate(state.schedule.oneTime.date)}
+                        onSelect={(date) => {
+                          const newDate = formatDateToString(date);
+                          if (newDate !== state.schedule.oneTime.date) {
+                            updateOneTimeScheduleAction("date", newDate);
+                          }
+                        }}
+                        disabled={isPastDate}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  {dateError && (
+                    <div className="text-destructive text-sm flex items-center gap-2 mt-1">
+                      <AlertCircle className="h-4 w-4" />
+                      {dateError}
+                    </div>
                   )}
-                  value={state.schedule.oneTime.volunteers || ''}
-                  onChange={(e) => {
-                    const value = parseInt(e.target.value);
-                    updateOneTimeScheduleAction(
-                      "volunteers",
-                      value
-                    );
-                  }}
+                </div>
+                <div>
+                  <Label>Volunteers Needed</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    max="1000"
+                    placeholder="Enter number of volunteers"
+                    className={cn(
+                      "mt-1.5",
+                      volunteersError && "border-destructive"
+                    )}
+                    value={state.schedule.oneTime.volunteers || ''}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value);
+                      updateOneTimeScheduleAction(
+                        "volunteers",
+                        value
+                      );
+                    }}
+                  />
+                  {volunteersError && (
+                    <div className="text-destructive text-sm flex items-center gap-2 mt-1">
+                      <AlertCircle className="h-4 w-4" />
+                      {volunteersError}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="grid sm:grid-cols-2 gap-4">
+                <TimePicker
+                  label="Start Time"
+                  value={state.schedule.oneTime.startTime}
+                  onChangeAction={(time: string) =>
+                    updateOneTimeScheduleAction("startTime", time)
+                  }
+                  error={timeRangeInvalid || isTimeInPast(state.schedule.oneTime.date, state.schedule.oneTime.startTime) || !!startTimeError}
+                  errorMessage={
+                    startTimeError ? startTimeError :
+                      timeRangeInvalid
+                        ? "Start time must be before end time"
+                        : isTimeInPast(state.schedule.oneTime.date, state.schedule.oneTime.startTime)
+                          ? "Start time must be in the future"
+                          : undefined
+                  }
                 />
-                {volunteersError && (
-                  <div className="text-destructive text-sm flex items-center gap-2 mt-1">
-                    <AlertCircle className="h-4 w-4" />
-                    {volunteersError}
-                  </div>
-                )}
+                <TimePicker
+                  label="End Time"
+                  value={state.schedule.oneTime.endTime}
+                  onChangeAction={(time: string) =>
+                    updateOneTimeScheduleAction("endTime", time)
+                  }
+                  error={timeRangeInvalid || isTimeInPast(state.schedule.oneTime.date, state.schedule.oneTime.endTime) || !!endTimeError}
+                  errorMessage={
+                    endTimeError ? endTimeError :
+                      timeRangeInvalid
+                        ? "End time must be after start time"
+                        : isTimeInPast(state.schedule.oneTime.date, state.schedule.oneTime.endTime)
+                          ? "End time must be in the future"
+                          : undefined
+                  }
+                />
               </div>
             </div>
-            <div className="grid sm:grid-cols-2 gap-4">
-              <TimePicker
-                label="Start Time"
-                value={state.schedule.oneTime.startTime}
-                onChangeAction={(time: string) =>
-                  updateOneTimeScheduleAction("startTime", time)
-                }
-                error={timeRangeInvalid || isTimeInPast(state.schedule.oneTime.date, state.schedule.oneTime.startTime) || !!startTimeError}
-                errorMessage={
-                  startTimeError ? startTimeError :
-                  timeRangeInvalid
-                    ? "Start time must be before end time"
-                    : isTimeInPast(state.schedule.oneTime.date, state.schedule.oneTime.startTime)
-                    ? "Start time must be in the future"
-                    : undefined
-                }
-              />
-              <TimePicker
-                label="End Time"
-                value={state.schedule.oneTime.endTime}
-                onChangeAction={(time: string) =>
-                  updateOneTimeScheduleAction("endTime", time)
-                }
-                error={timeRangeInvalid || isTimeInPast(state.schedule.oneTime.date, state.schedule.oneTime.endTime) || !!endTimeError}
-                errorMessage={
-                  endTimeError ? endTimeError :
-                  timeRangeInvalid
-                    ? "End time must be after start time"
-                    : isTimeInPast(state.schedule.oneTime.date, state.schedule.oneTime.endTime)
-                    ? "End time must be in the future"
-                    : undefined
-                }
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-      
-      {/* Recurrence Settings for oneTime events */}
-      {updateRecurrenceAction && (
-        <RecurrenceSettings
-          recurrence={state.recurrence}
-          updateRecurrence={updateRecurrenceAction}
-          eventType={state.eventType}
-        />
-      )}
-    </>
+          </CardContent>
+        </Card>
+
+        {/* Recurrence Settings for oneTime events */}
+        {updateRecurrenceAction && (
+          <RecurrenceSettings
+            recurrence={state.recurrence}
+            updateRecurrence={updateRecurrenceAction}
+            eventType={state.eventType}
+          />
+        )}
+      </>
     );
   }
 
@@ -376,7 +376,7 @@ export default function Schedule({
                     <div className="space-y-4">
                       <div>
                         <Popover>
-                          <PopoverTrigger asChild>
+                          <PopoverTrigger render={
                             <Button
                               variant="outline"
                               className={cn(
@@ -390,7 +390,7 @@ export default function Schedule({
                                 ? format(parseStringToDate(day.date) as Date, "PPP")
                                 : "Pick a date"}
                             </Button>
-                          </PopoverTrigger>
+                          } />
                           <PopoverContent className="w-auto p-0" align="start">
                             <Calendar
                               mode="single"
@@ -428,12 +428,12 @@ export default function Schedule({
                             slot.startTime,
                             slot.endTime,
                           );
-                          
+
                           // Get slot-specific errors
                           const startTimeError = getArrayError(`${dayIndex}.slots`, slotIndex, 'startTime');
                           const endTimeError = getArrayError(`${dayIndex}.slots`, slotIndex, 'endTime');
                           const volunteersError = getArrayError(`${dayIndex}.slots`, slotIndex, 'volunteers');
-                          
+
                           return (
                             <div
                               key={slotIndex}
@@ -474,11 +474,11 @@ export default function Schedule({
                                     error={timeRangeInvalid || isTimeInPast(day.date, slot.startTime) || !!startTimeError}
                                     errorMessage={
                                       startTimeError ? startTimeError :
-                                      timeRangeInvalid
-                                        ? "Invalid time"
-                                        : isTimeInPast(day.date, slot.startTime)
-                                        ? "Start time must be in the future"
-                                        : undefined
+                                        timeRangeInvalid
+                                          ? "Invalid time"
+                                          : isTimeInPast(day.date, slot.startTime)
+                                            ? "Start time must be in the future"
+                                            : undefined
                                     }
                                   />
                                   <TimePicker
@@ -494,11 +494,11 @@ export default function Schedule({
                                     error={timeRangeInvalid || isTimeInPast(day.date, slot.endTime) || !!endTimeError}
                                     errorMessage={
                                       endTimeError ? endTimeError :
-                                      timeRangeInvalid
-                                        ? "Invalid time"
-                                        : isTimeInPast(day.date, slot.endTime)
-                                        ? "End time must be in the future"
-                                        : undefined
+                                        timeRangeInvalid
+                                          ? "Invalid time"
+                                          : isTimeInPast(day.date, slot.endTime)
+                                            ? "End time must be in the future"
+                                            : undefined
                                     }
                                   />
                                 </div>
@@ -573,266 +573,266 @@ export default function Schedule({
 
     return (
       <>
-      <Card>
-        <CardHeader>
-          <CardTitle>Schedule Your Event</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Define different roles and timings for a single day event
-          </p>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <Label>Event Date</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal mt-1.5",
-                        !state.schedule.sameDayMultiArea.date &&
+        <Card>
+          <CardHeader>
+            <CardTitle>Schedule Your Event</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Define different roles and timings for a single day event
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Label>Event Date</Label>
+                  <Popover>
+                    <PopoverTrigger render={
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal mt-1.5",
+                          !state.schedule.sameDayMultiArea.date &&
                           "text-muted-foreground",
-                        dateError && "border-destructive"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {state.schedule.sameDayMultiArea.date
-                        ? format(
+                          dateError && "border-destructive"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {state.schedule.sameDayMultiArea.date
+                          ? format(
                             parseStringToDate(state.schedule.sameDayMultiArea.date) as Date,
                             "PPP",
                           )
-                        : "Pick a date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={parseStringToDate(state.schedule.sameDayMultiArea.date)}
-                      onSelect={(date) => {
-                        const newDate = formatDateToString(date);
-                        if (newDate !== state.schedule.sameDayMultiArea.date) {
-                          updateMultiRoleScheduleAction("date", newDate);
-                        }
-                      }}
-                      disabled={isPastDate}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-                {dateError && (
-                  <div className="text-destructive text-sm flex items-center gap-2 mt-1">
-                    <AlertCircle className="h-4 w-4" />
-                    {dateError}
-                  </div>
-                )}
-              </div>
-              <div>
-                <Label>Overall Event Hours (Auto-calculated)</Label>
-                <div className="grid grid-cols-2 gap-2 mt-1.5">
-                  <TimePicker
-                    value={state.schedule.sameDayMultiArea.overallStart}
-                    onChangeAction={(time: string) =>
-                      updateMultiRoleScheduleAction("overallStart", time)
-                    }
-                    error={!!overallStartError}
-                    errorMessage={overallStartError}
-                    disabled={true}
-                  />
-                  <TimePicker
-                    value={state.schedule.sameDayMultiArea.overallEnd}
-                    onChangeAction={(time: string) =>
-                      updateMultiRoleScheduleAction("overallEnd", time)
-                    }
-                    error={!!overallEndError}
-                    errorMessage={overallEndError}
-                    disabled={true}
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground mt-1.5">
-                  Overall times auto-adjust by earliest/latest role times.
-                </p>
-              </div>
-            </div>
-
-            {rolesError && (
-              <div className="text-destructive text-sm flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/30 rounded-md">
-                <AlertCircle className="h-4 w-4" />
-                {rolesError}
-              </div>
-            )}
-
-            {state.schedule.sameDayMultiArea.roles.map(
-              (
-                role: {
-                  name: string;
-                  startTime: string;
-                  endTime: string;
-                  volunteers: number;
-                },
-                roleIndex: number,
-              ) => {
-                const roleTimeInvalid = isTimeRangeInvalid(
-                  role.startTime,
-                  role.endTime,
-                );
-                
-                // Get role-specific errors
-                const nameError = getArrayError('roles', roleIndex, 'name');
-                const startTimeError = getArrayError('roles', roleIndex, 'startTime');
-                const endTimeError = getArrayError('roles', roleIndex, 'endTime');
-                const volunteersError = getArrayError('roles', roleIndex, 'volunteers');
-                const hasRoleErrors = nameError || startTimeError || endTimeError || volunteersError;
-
-                return (
-                  <div
-                    key={roleIndex}
-                    className={cn(
-                      "p-4 border rounded-lg space-y-4",
-                      hasRoleErrors && "border-destructive bg-destructive/5"
-                    )}
-                  >
-                    <div className="flex items-center justify-between">
-                      <Label className="text-base sm:text-lg font-medium">
-                        Role {roleIndex + 1}
-                      </Label>
-                      {roleIndex > 0 && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => removeRoleAction(roleIndex)}
-                          className="h-8 w-8 hover:bg-muted/80"
-                        >
-                          ✕
-                        </Button>
-                      )}
-                    </div>
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-baseline mb-1.5">
-                        <Label>Role Name</Label>
-                        <span className="text-xs">{role.name.length}/75</span>
-                      </div>
-                      <Input
-                        placeholder="Role name (e.g., Event Decoration)"
-                        value={role.name}
-                        onChange={(e) => {
-                          if (e.target.value.length <= 75) {
-                            updateMultiRoleScheduleAction(
-                              "name",
-                              e.target.value,
-                              roleIndex,
-                            );
+                          : "Pick a date"}
+                      </Button>
+                    } />
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={parseStringToDate(state.schedule.sameDayMultiArea.date)}
+                        onSelect={(date) => {
+                          const newDate = formatDateToString(date);
+                          if (newDate !== state.schedule.sameDayMultiArea.date) {
+                            updateMultiRoleScheduleAction("date", newDate);
                           }
                         }}
-                        maxLength={75}
-                        className={nameError ? "border-destructive" : ""}
+                        disabled={isPastDate}
+                        initialFocus
                       />
-                      {nameError && (
-                        <div className="text-destructive text-sm flex items-center gap-2 mt-1">
-                          <AlertCircle className="h-4 w-4" />
-                          {nameError}
-                        </div>
+                    </PopoverContent>
+                  </Popover>
+                  {dateError && (
+                    <div className="text-destructive text-sm flex items-center gap-2 mt-1">
+                      <AlertCircle className="h-4 w-4" />
+                      {dateError}
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <Label>Overall Event Hours (Auto-calculated)</Label>
+                  <div className="grid grid-cols-2 gap-2 mt-1.5">
+                    <TimePicker
+                      value={state.schedule.sameDayMultiArea.overallStart}
+                      onChangeAction={(time: string) =>
+                        updateMultiRoleScheduleAction("overallStart", time)
+                      }
+                      error={!!overallStartError}
+                      errorMessage={overallStartError}
+                      disabled={true}
+                    />
+                    <TimePicker
+                      value={state.schedule.sameDayMultiArea.overallEnd}
+                      onChangeAction={(time: string) =>
+                        updateMultiRoleScheduleAction("overallEnd", time)
+                      }
+                      error={!!overallEndError}
+                      errorMessage={overallEndError}
+                      disabled={true}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1.5">
+                    Overall times auto-adjust by earliest/latest role times.
+                  </p>
+                </div>
+              </div>
+
+              {rolesError && (
+                <div className="text-destructive text-sm flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/30 rounded-md">
+                  <AlertCircle className="h-4 w-4" />
+                  {rolesError}
+                </div>
+              )}
+
+              {state.schedule.sameDayMultiArea.roles.map(
+                (
+                  role: {
+                    name: string;
+                    startTime: string;
+                    endTime: string;
+                    volunteers: number;
+                  },
+                  roleIndex: number,
+                ) => {
+                  const roleTimeInvalid = isTimeRangeInvalid(
+                    role.startTime,
+                    role.endTime,
+                  );
+
+                  // Get role-specific errors
+                  const nameError = getArrayError('roles', roleIndex, 'name');
+                  const startTimeError = getArrayError('roles', roleIndex, 'startTime');
+                  const endTimeError = getArrayError('roles', roleIndex, 'endTime');
+                  const volunteersError = getArrayError('roles', roleIndex, 'volunteers');
+                  const hasRoleErrors = nameError || startTimeError || endTimeError || volunteersError;
+
+                  return (
+                    <div
+                      key={roleIndex}
+                      className={cn(
+                        "p-4 border rounded-lg space-y-4",
+                        hasRoleErrors && "border-destructive bg-destructive/5"
                       )}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <Label>Time Slot</Label>
-                          <div className="grid grid-cols-2 gap-2 mt-1.5">
-                            <TimePicker
-                              value={role.startTime}
-                              onChangeAction={(time: string) =>
-                                updateMultiRoleScheduleAction(
-                                  "startTime",
-                                  time,
-                                  roleIndex,
-                                )
-                              }
-                              error={roleTimeInvalid || isTimeInPast(state.schedule.sameDayMultiArea.date, role.startTime) || !!startTimeError}
-                              errorMessage={
-                                startTimeError ? startTimeError :
-                                roleTimeInvalid 
-                                  ? "Invalid time" 
-                                  : isTimeInPast(state.schedule.sameDayMultiArea.date, role.startTime)
-                                  ? "Start time must be in the future"
-                                  : undefined
-                              }
-                            />
-                            <TimePicker
-                              value={role.endTime}
-                              onChangeAction={(time: string) =>
-                                updateMultiRoleScheduleAction(
-                                  "endTime",
-                                  time,
-                                  roleIndex,
-                                )
-                              }
-                              error={roleTimeInvalid || isTimeInPast(state.schedule.sameDayMultiArea.date, role.endTime) || !!endTimeError}
-                              errorMessage={
-                                endTimeError ? endTimeError :
-                                roleTimeInvalid 
-                                  ? "Invalid time" 
-                                  : isTimeInPast(state.schedule.sameDayMultiArea.date, role.endTime)
-                                  ? "End time must be in the future"
-                                  : undefined
-                              }
-                            />
-                          </div>
+                    >
+                      <div className="flex items-center justify-between">
+                        <Label className="text-base sm:text-lg font-medium">
+                          Role {roleIndex + 1}
+                        </Label>
+                        {roleIndex > 0 && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeRoleAction(roleIndex)}
+                            className="h-8 w-8 hover:bg-muted/80"
+                          >
+                            ✕
+                          </Button>
+                        )}
+                      </div>
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-baseline mb-1.5">
+                          <Label>Role Name</Label>
+                          <span className="text-xs">{role.name.length}/75</span>
                         </div>
-                        <div>
-                          <Label>Volunteers Needed</Label>
+                        <Input
+                          placeholder="Role name (e.g., Event Decoration)"
+                          value={role.name}
+                          onChange={(e) => {
+                            if (e.target.value.length <= 75) {
+                              updateMultiRoleScheduleAction(
+                                "name",
+                                e.target.value,
+                                roleIndex,
+                              );
+                            }
+                          }}
+                          maxLength={75}
+                          className={nameError ? "border-destructive" : ""}
+                        />
+                        {nameError && (
+                          <div className="text-destructive text-sm flex items-center gap-2 mt-1">
+                            <AlertCircle className="h-4 w-4" />
+                            {nameError}
+                          </div>
+                        )}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <div>
-                            <Input
-                              type="number"
-                              min="1"
-                              max="1000"
-                              placeholder="Enter number of volunteers"
-                              className={cn(
-                                "mt-1.5",
-                                volunteersError && "border-destructive"
+                            <Label>Time Slot</Label>
+                            <div className="grid grid-cols-2 gap-2 mt-1.5">
+                              <TimePicker
+                                value={role.startTime}
+                                onChangeAction={(time: string) =>
+                                  updateMultiRoleScheduleAction(
+                                    "startTime",
+                                    time,
+                                    roleIndex,
+                                  )
+                                }
+                                error={roleTimeInvalid || isTimeInPast(state.schedule.sameDayMultiArea.date, role.startTime) || !!startTimeError}
+                                errorMessage={
+                                  startTimeError ? startTimeError :
+                                    roleTimeInvalid
+                                      ? "Invalid time"
+                                      : isTimeInPast(state.schedule.sameDayMultiArea.date, role.startTime)
+                                        ? "Start time must be in the future"
+                                        : undefined
+                                }
+                              />
+                              <TimePicker
+                                value={role.endTime}
+                                onChangeAction={(time: string) =>
+                                  updateMultiRoleScheduleAction(
+                                    "endTime",
+                                    time,
+                                    roleIndex,
+                                  )
+                                }
+                                error={roleTimeInvalid || isTimeInPast(state.schedule.sameDayMultiArea.date, role.endTime) || !!endTimeError}
+                                errorMessage={
+                                  endTimeError ? endTimeError :
+                                    roleTimeInvalid
+                                      ? "Invalid time"
+                                      : isTimeInPast(state.schedule.sameDayMultiArea.date, role.endTime)
+                                        ? "End time must be in the future"
+                                        : undefined
+                                }
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <Label>Volunteers Needed</Label>
+                            <div>
+                              <Input
+                                type="number"
+                                min="1"
+                                max="1000"
+                                placeholder="Enter number of volunteers"
+                                className={cn(
+                                  "mt-1.5",
+                                  volunteersError && "border-destructive"
+                                )}
+                                value={role.volunteers || ''}
+                                onChange={(e) => {
+                                  const value = parseInt(e.target.value);
+                                  updateMultiRoleScheduleAction(
+                                    "volunteers",
+                                    value,
+                                    roleIndex,
+                                  );
+                                }}
+                              />
+                              {volunteersError && (
+                                <div className="text-destructive text-sm flex items-center gap-2 mt-1">
+                                  <AlertCircle className="h-4 w-4" />
+                                  {volunteersError}
+                                </div>
                               )}
-                              value={role.volunteers || ''}
-                              onChange={(e) => {
-                                const value = parseInt(e.target.value);
-                                updateMultiRoleScheduleAction(
-                                  "volunteers",
-                                  value,
-                                  roleIndex,
-                                );
-                              }}
-                            />
-                            {volunteersError && (
-                              <div className="text-destructive text-sm flex items-center gap-2 mt-1">
-                                <AlertCircle className="h-4 w-4" />
-                                {volunteersError}
-                              </div>
-                            )}
+                            </div>
                           </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                );
-              },
-            )}
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={addRoleAction}
-            >
-              + Add Another Role
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-      
-      {/* Recurrence Settings for sameDayMultiArea events */}
-      {updateRecurrenceAction && (
-        <RecurrenceSettings
-          recurrence={state.recurrence}
-          updateRecurrence={updateRecurrenceAction}
-          eventType={state.eventType}
-        />
-      )}
-    </>
+                  );
+                },
+              )}
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={addRoleAction}
+              >
+                + Add Another Role
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Recurrence Settings for sameDayMultiArea events */}
+        {updateRecurrenceAction && (
+          <RecurrenceSettings
+            recurrence={state.recurrence}
+            updateRecurrence={updateRecurrenceAction}
+            eventType={state.eventType}
+          />
+        )}
+      </>
     );
   }
 

@@ -2,7 +2,8 @@
 
 import { useMemo, useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CheckCircle2, Trophy, Sparkles } from "lucide-react";
 import Link from "next/link";
@@ -171,14 +172,10 @@ export function SessionEndedCard({
 
                 {/* Action buttons */}
                 <div className="px-6 pb-6 flex flex-col gap-2">
-                  <Button asChild className="w-full">
-                    <Link href={`/projects/${projectId}`}>
-                      View Project Details
-                    </Link>
-                  </Button>
-                  <Button variant="outline" asChild className="w-full">
-                    <Link href="/dashboard">Back to Dashboard</Link>
-                  </Button>
+                  <Link href={`/projects/${projectId}`} className={cn(buttonVariants(), "w-full")}>
+                    View Project Details
+                  </Link>
+                  <Link href="/dashboard" className={cn(buttonVariants({ variant: "outline" }), "w-full")}>Back to Dashboard</Link>
                 </div>
               </Card>
             </motion.div>

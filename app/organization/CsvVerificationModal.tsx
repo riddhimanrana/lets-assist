@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { FileCheck, Upload, AlertCircle, CheckCircle, XCircle, FileText, ChevronRight, Clock, CircleCheck, UserCheck, BadgeCheck } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
@@ -163,7 +163,7 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [_currentVerifyIndex, setCurrentVerifyIndex] = useState<number>(-1);
   const [verificationProgress, setVerificationProgress] = useState<number>(0);
-  const { toast } = useToast();
+
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0];
@@ -489,16 +489,12 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
       });
 
       if (processedResults.filter(r => !r.valid).length > 0) {
-        toast({
-          title: "Format Issues Found",
+        toast.error("Format Issues Found", {
           description: `${processedResults.filter(r => !r.valid).length} records have format issues. Check the details below.`,
-          variant: "destructive",
         });
       } else {
-        toast({
-          title: "Verification Complete",
+        toast.success("Verification Complete", {
           description: `Processed ${processedResults.length} records, verified ${formatHours(totalHours)} total hours`,
-          variant: "default",
         });
       }
 
@@ -625,17 +621,19 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
     }}>
       <TooltipProvider>
         <Tooltip>
-          <TooltipTrigger asChild>
-            <DialogTrigger asChild>
-              {children || (
-                <Button variant="outline" size="sm" className="text-xs sm:text-sm">
-                  <FileCheck className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                  <span className="hidden sm:inline">Verify Certificates</span>
-                  <span className="sm:hidden">Verify</span>
-                </Button>
-              )}
-            </DialogTrigger>
-          </TooltipTrigger>
+          <TooltipTrigger render={
+            <DialogTrigger render={
+              <div>
+                {children || (
+                  <Button variant="outline" size="sm" className="text-xs sm:text-sm">
+                    <FileCheck className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                    <span className="hidden sm:inline">Verify Certificates</span>
+                    <span className="sm:hidden">Verify</span>
+                  </Button>
+                )}
+              </div>
+            } />
+          } />
           <TooltipContent>
             <p>Upload a CSV file to verify certificate data format and validity</p>
           </TooltipContent>
@@ -762,7 +760,7 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
 
                   <TooltipProvider>
                     <Tooltip>
-                      <TooltipTrigger asChild>
+                      <TooltipTrigger render={
                         <Card className={`min-w-0 ${summary.certifiedHours > 0 ? "" : "opacity-60"}`}>
                           <CardContent className="flex items-center gap-1 sm:gap-2 p-2 sm:p-3">
                             <BadgeCheck className="w-4 h-4 sm:w-5 sm:h-5 text-secondary shrink-0" />
@@ -772,7 +770,7 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                             </div>
                           </CardContent>
                         </Card>
-                      </TooltipTrigger>
+                      } />
                       <TooltipContent>
                         <p>Hours from verified organizations that have been audited by Let&apos;s Assist</p>
                       </TooltipContent>
@@ -781,7 +779,7 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
 
                   <TooltipProvider>
                     <Tooltip>
-                      <TooltipTrigger asChild>
+                      <TooltipTrigger render={
                         <Card className={`min-w-0 ${summary.verifiedHours > 0 ? "" : "opacity-60"}`}>
                           <CardContent className="flex items-center gap-1 sm:gap-2 p-2 sm:p-3">
                             <CircleCheck className="w-4 h-4 sm:w-5 sm:h-5 text-success shrink-0" />
@@ -791,7 +789,7 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                             </div>
                           </CardContent>
                         </Card>
-                      </TooltipTrigger>
+                      } />
                       <TooltipContent>
                         <p>Hours from projects that were hosted directly on the Let&apos;s Assist platform</p>
                       </TooltipContent>
@@ -800,7 +798,7 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
 
                   <TooltipProvider>
                     <Tooltip>
-                      <TooltipTrigger asChild>
+                      <TooltipTrigger render={
                         <Card className={`min-w-0 ${summary.selfReportedHours > 0 ? "" : "opacity-60"}`}>
                           <CardContent className="flex items-center gap-1 sm:gap-2 p-2 sm:p-3">
                             <UserCheck className="w-4 h-4 sm:w-5 sm:h-5 text-warning shrink-0" />
@@ -810,7 +808,7 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                             </div>
                           </CardContent>
                         </Card>
-                      </TooltipTrigger>
+                      } />
                       <TooltipContent>
                         <p>Self-reported volunteer hours from outside Let&apos;s Assist</p>
                       </TooltipContent>
@@ -819,7 +817,7 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
 
                   <TooltipProvider>
                     <Tooltip>
-                      <TooltipTrigger asChild>
+                      <TooltipTrigger render={
                         <Card className="min-w-0">
                           <CardContent className="flex items-center gap-1 sm:gap-2 p-2 sm:p-3">
                             <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-info shrink-0" />
@@ -829,7 +827,7 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                             </div>
                           </CardContent>
                         </Card>
-                      </TooltipTrigger>
+                      } />
                       <TooltipContent>
                         <p>Total hours from all verified certificates (Official + Platform + Self-Reported)</p>
                       </TooltipContent>
@@ -869,7 +867,7 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                               row.verificationStatus === 'failed' ? "border-destructive/50 bg-destructive/10" : ""
                       }>
                         <Collapsible>
-                          <CollapsibleTrigger asChild>
+                          <CollapsibleTrigger render={
                             <div className="p-3 cursor-pointer hover:bg-muted/50 rounded-t-lg max-w-full">
                               <div className="flex items-center justify-between gap-2">
                                 <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -896,12 +894,12 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                                         (row.verificationResult?.certificate?.type || 'platform') === 'verified') ? (
                                       <TooltipProvider>
                                         <Tooltip>
-                                          <TooltipTrigger>
+                                          <TooltipTrigger render={
                                             <Badge variant="default" className="text-xs h-5 px-1.5 bg-primary/10 text-primary shrink-0">
                                               <CircleCheck className="w-3 h-3" />
                                               <span className="ml-1">Official</span>
                                             </Badge>
-                                          </TooltipTrigger>
+                                          } />
                                           <TooltipContent>
                                             <p>Hours from verified organizations audited by Let&apos;s Assist</p>
                                           </TooltipContent>
@@ -911,12 +909,12 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                                       (row.verificationResult?.certificate?.type || 'platform') === 'verified') ? (
                                       <TooltipProvider>
                                         <Tooltip>
-                                          <TooltipTrigger>
+                                          <TooltipTrigger render={
                                             <Badge variant="default" className="text-xs h-5 px-1.5 bg-success/10 text-success shrink-0">
                                               <CheckCircle className="w-3 h-3" />
                                               <span className="ml-1">Platform</span>
                                             </Badge>
-                                          </TooltipTrigger>
+                                          } />
                                           <TooltipContent>
                                             <p>Hours from projects hosted on the Let&apos;s Assist platform</p>
                                           </TooltipContent>
@@ -925,12 +923,12 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                                     ) : (
                                       <TooltipProvider>
                                         <Tooltip>
-                                          <TooltipTrigger>
+                                          <TooltipTrigger render={
                                             <Badge variant="secondary" className="text-xs h-5 px-1.5 bg-info/10 text-info shrink-0">
                                               <UserCheck className="w-3 h-3" />
                                               <span className="ml-1">Self-reported</span>
                                             </Badge>
-                                          </TooltipTrigger>
+                                          } />
                                           <TooltipContent>
                                             <p>Self-reported volunteer hours from outside Let&apos;s Assist</p>
                                           </TooltipContent>
@@ -953,7 +951,6 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                                       <span className="ml-1">Unknown</span>
                                     </Badge>
                                   )}
-
                                   <p className="text-sm font-medium truncate" title={row.projectTitle}>
                                     {row.projectTitle || 'Untitled Project'}
                                   </p>
@@ -966,7 +963,7 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                                 </p>
                               </div>
                             </div>
-                          </CollapsibleTrigger>
+                          } />
                           <CollapsibleContent>
                             <div className="px-3 pb-3 pt-2 space-y-3 border-t bg-background">
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-2 text-xs">
@@ -1116,9 +1113,9 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                             <TableHead className="w-[80px]">
                               <TooltipProvider>
                                 <Tooltip>
-                                  <TooltipTrigger asChild>
+                                  <TooltipTrigger render={
                                     <span className="cursor-help text-xs sm:text-sm">Hours</span>
-                                  </TooltipTrigger>
+                                  } />
                                   <TooltipContent>
                                     <p>Volunteer hours spent on this project</p>
                                   </TooltipContent>
@@ -1128,9 +1125,9 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                             <TableHead className="w-[100px]">
                               <TooltipProvider>
                                 <Tooltip>
-                                  <TooltipTrigger asChild>
+                                  <TooltipTrigger render={
                                     <span className="cursor-help text-xs sm:text-sm">Certificate</span>
-                                  </TooltipTrigger>
+                                  } />
                                   <TooltipContent>
                                     <p>Link to view the actual certificate</p>
                                   </TooltipContent>
@@ -1155,9 +1152,9 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                                 {!row.valid ? (
                                   <TooltipProvider delayDuration={100}>
                                     <Tooltip>
-                                      <TooltipTrigger asChild>
+                                      <TooltipTrigger render={
                                         <XCircle className="w-4 h-4 text-destructive cursor-help" />
-                                      </TooltipTrigger>
+                                      } />
                                       <TooltipContent>
                                         <div>
                                           <div className="font-medium mb-1">Format Issues:</div>
@@ -1173,9 +1170,9 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                                 ) : row.isVerified ? (
                                   <TooltipProvider delayDuration={100}>
                                     <Tooltip>
-                                      <TooltipTrigger asChild>
+                                      <TooltipTrigger render={
                                         <CheckCircle className="w-4 h-4 text-success cursor-help" />
-                                      </TooltipTrigger>
+                                      } />
                                       <TooltipContent>
                                         <div>
                                           <div className="font-medium mb-1">Data Verified</div>
@@ -1188,9 +1185,9 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                                 ) : row.verificationStatus === 'verified' ? (
                                   <TooltipProvider delayDuration={100}>
                                     <Tooltip>
-                                      <TooltipTrigger asChild>
+                                      <TooltipTrigger render={
                                         <AlertCircle className="w-4 h-4 text-destructive cursor-help" />
-                                      </TooltipTrigger>
+                                      } />
                                       <TooltipContent>
                                         <div>
                                           <div className="font-medium mb-1">Data Comparison Issues</div>
@@ -1202,9 +1199,9 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                                 ) : row.verificationStatus === 'failed' ? (
                                   <TooltipProvider delayDuration={100}>
                                     <Tooltip>
-                                      <TooltipTrigger asChild>
+                                      <TooltipTrigger render={
                                         <XCircle className="w-4 h-4 text-destructive cursor-help" />
-                                      </TooltipTrigger>
+                                      } />
                                       <TooltipContent>
                                         <p>Certificate ID not found in our database</p>
                                       </TooltipContent>
@@ -1226,11 +1223,11 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                               <TableCell>
                                 <TooltipProvider delayDuration={100}>
                                   <Tooltip>
-                                    <TooltipTrigger asChild>
+                                    <TooltipTrigger render={
                                       <div className="truncate cursor-default text-xs sm:text-sm" title={row.projectTitle}>
                                         {row.projectTitle || '-'}
                                       </div>
-                                    </TooltipTrigger>
+                                    } />
                                     <TooltipContent>
                                       <p className="max-w-xs">{row.projectTitle}</p>
                                       {row.certificateId && (
@@ -1267,7 +1264,7 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                                 ) : row.certificateId ? (
                                   <TooltipProvider delayDuration={100}>
                                     <Tooltip>
-                                      <TooltipTrigger asChild>
+                                      <TooltipTrigger render={
                                         <Button
                                           variant="outline"
                                           size="sm"
@@ -1277,7 +1274,7 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                                           <FileCheck className="w-3 h-3 mr-1" />
                                           View
                                         </Button>
-                                      </TooltipTrigger>
+                                      } />
                                       <TooltipContent>
                                         <p>Certificate not verified or not found</p>
                                       </TooltipContent>
@@ -1386,10 +1383,8 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                 variant="outline"
                 onClick={() => {
                   resetModal();
-                  toast({
-                    title: "Reset Complete",
+                  toast.success("Reset Complete", {
                     description: "Form has been reset. You can now upload a new CSV file.",
-                    variant: "default",
                   });
                 }}
                 disabled={isProcessing || verifying}

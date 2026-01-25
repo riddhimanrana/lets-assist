@@ -35,7 +35,7 @@ interface SlotAttendeesDropdownProps {
  * Small dropdown showing who signed up for a specific slot.
  * Integrated into each volunteer opportunity time slot.
  */
-export function SlotAttendeesDropdown({ 
+export function SlotAttendeesDropdown({
   attendees,
   defaultOpen = false
 }: SlotAttendeesDropdownProps) {
@@ -47,10 +47,10 @@ export function SlotAttendeesDropdown({
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen} className="w-full mt-2">
-      <CollapsibleTrigger asChild>
-        <Button 
-          variant="ghost" 
-          size="sm" 
+      <CollapsibleTrigger render={
+        <Button
+          variant="ghost"
+          size="sm"
           className="h-7 px-2 text-xs gap-1.5 hover:bg-muted/50 w-full justify-start"
         >
           <Users className="h-3 w-3" />
@@ -61,17 +61,17 @@ export function SlotAttendeesDropdown({
             <ChevronDown className="h-3 w-3 ml-auto" />
           )}
         </Button>
-      </CollapsibleTrigger>
-      
+      } />
+
       <CollapsibleContent className="mt-2">
         <div className="space-y-2.5 pl-2 pr-1 py-2">
           {attendees.map((attendee) => {
-            const displayName = attendee.is_anonymous 
-              ? attendee.anonymous_name 
+            const displayName = attendee.is_anonymous
+              ? attendee.anonymous_name
               : attendee.full_name;
 
             return (
-              <div 
+              <div
                 key={attendee.signup_id}
                 className="text-xs"
               >

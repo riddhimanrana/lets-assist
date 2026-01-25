@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { LayoutDashboard, Menu, MessageSquare, ShieldAlert, Users } from "lucide-react";
 import {
@@ -40,18 +40,18 @@ export function AdminSidebar({ activeTab, onTabChange }: AdminSidebarProps = {})
         {navItems.map((item) => {
           const isActive = activeTab !== undefined
             ? activeTab === item.id
-            : item.exact 
-              ? pathname === item.href 
+            : item.exact
+              ? pathname === item.href
               : pathname.startsWith(item.href);
 
           const buttonProps = onTabChange
             ? {
-                onClick: () => onTabChange(item.id),
-                asChild: false,
-              }
+              onClick: () => onTabChange(item.id),
+              asChild: false,
+            }
             : {
-                asChild: true,
-              };
+              asChild: true,
+            };
 
           return (
             <Button
@@ -87,11 +87,8 @@ export function AdminMobileNav({ activeTab, onTabChange }: AdminSidebarProps = {
 
   return (
     <Sheet>
-      <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="md:hidden">
-          <Menu className="h-5 w-5" />
-          <span className="sr-only">Open admin menu</span>
-        </Button>
+      <SheetTrigger className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "md:hidden")}>
+        <Menu className="h-5 w-5" />
       </SheetTrigger>
       <SheetContent side="left" className="flex h-full w-72 flex-col p-4">
         <SheetHeader className="text-left">
@@ -108,32 +105,30 @@ export function AdminMobileNav({ activeTab, onTabChange }: AdminSidebarProps = {
 
             if (onTabChange) {
               return (
-                <SheetClose asChild key={item.id}>
-                  <Button
-                    variant={isActive ? "secondary" : "ghost"}
-                    className={cn("w-full justify-start gap-2", isActive && "bg-secondary")}
-                    onClick={() => onTabChange(item.id)}
-                  >
-                    <item.icon className="h-4 w-4" />
-                    {item.label}
-                  </Button>
+                <SheetClose
+                  key={item.id}
+                  className={cn(buttonVariants({ variant: isActive ? "secondary" : "ghost" }), "w-full justify-start gap-2", isActive && "bg-secondary")}
+                  onClick={() => onTabChange(item.id)}
+                >
+                  <item.icon className="h-4 w-4" />
+                  {item.label}
                 </SheetClose>
               );
             }
 
             return (
-              <SheetClose asChild key={item.id}>
-                <Button
-                  variant={isActive ? "secondary" : "ghost"}
-                  className={cn("w-full justify-start gap-2", isActive && "bg-secondary")}
-                  asChild
-                >
-                  <Link href={item.href} className="flex items-center gap-2">
+              <SheetClose
+                key={item.id}
+                render={
+                  <Link
+                    href={item.href}
+                    className={cn(buttonVariants({ variant: isActive ? "secondary" : "ghost" }), "w-full justify-start gap-2 flex items-center", isActive && "bg-secondary")}
+                  >
                     <item.icon className="h-4 w-4" />
                     {item.label}
                   </Link>
-                </Button>
-              </SheetClose>
+                }
+              />
             );
           })}
         </nav>

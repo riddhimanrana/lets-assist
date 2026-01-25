@@ -3,7 +3,8 @@
 import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Users, Key, BarChart3, Eye, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import OrganizationHeader from "@/components/organization/OrganizationHeader";
@@ -221,56 +222,58 @@ export default function OrgToolingSection() {
             ))}
           </div>
 
-            <div className="rounded-2xl border border-border/70 bg-muted/50 p-6 sm:p-8">
+          <div className="rounded-2xl border border-border/70 bg-muted/50 p-6 sm:p-8">
             <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
               <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.3em] text-primary/80">Why teams switch</p>
-              <h3 className="mt-2 text-xl font-semibold text-foreground">
-                Built-in tools SignUpGenius doesn’t offer
-              </h3>
-              <p className="mt-2 text-sm text-muted-foreground max-w-prose">
-                Attendance verification, auto-published certificates, member exports, and organization roles are all
-                native here. No plug-ins, no workarounds.
-              </p>
+                <p className="text-sm font-semibold uppercase tracking-[0.3em] text-primary/80">Why teams switch</p>
+                <h3 className="mt-2 text-xl font-semibold text-foreground">
+                  Built-in tools SignUpGenius doesn’t offer
+                </h3>
+                <p className="mt-2 text-sm text-muted-foreground max-w-prose">
+                  Attendance verification, auto-published certificates, member exports, and organization roles are all
+                  native here. No plug-ins, no workarounds.
+                </p>
               </div>
 
               <ul className="grid gap-3 text-sm text-foreground sm:grid-cols-2">
-              <li className="flex items-start gap-3">
-                <span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-semibold text-primary whitespace-nowrap">Let's Assist</span>
-                <span className="leading-relaxed">Verified QR check‑in/out with optional supervisor approvals</span>
-              </li>
+                <li className="flex items-start gap-3">
+                  <span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-semibold text-primary whitespace-nowrap">Let's Assist</span>
+                  <span className="leading-relaxed">Verified QR check‑in/out with optional supervisor approvals</span>
+                </li>
 
-              <li className="flex items-start gap-3">
-                <span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-semibold text-primary whitespace-nowrap">Let's Assist</span>
-                <span className="leading-relaxed">Certificate automation + downloadable proof for students and volunteers</span>
-              </li>
+                <li className="flex items-start gap-3">
+                  <span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-semibold text-primary whitespace-nowrap">Let's Assist</span>
+                  <span className="leading-relaxed">Certificate automation + downloadable proof for students and volunteers</span>
+                </li>
 
-              <li className="flex items-start gap-3">
-                <span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-semibold text-primary whitespace-nowrap">Let's Assist</span>
-                <span className="leading-relaxed">Org roles (admin / staff / member) with audit‑ready exports and filters</span>
-              </li>
+                <li className="flex items-start gap-3">
+                  <span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-semibold text-primary whitespace-nowrap">Let's Assist</span>
+                  <span className="leading-relaxed">Org roles (admin / staff / member) with audit‑ready exports and filters</span>
+                </li>
 
-              <li className="flex items-start gap-3 text-muted-foreground/80">
-                <span className="rounded-full border border-border px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap">SignUpGenius</span>
-                <span className="leading-relaxed">Sign-up lists only — no verified hours, certificates, or compliance features</span>
-              </li>
+                <li className="flex items-start gap-3 text-muted-foreground/80">
+                  <span className="rounded-full border border-border px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap">SignUpGenius</span>
+                  <span className="leading-relaxed">Sign-up lists only — no verified hours, certificates, or compliance features</span>
+                </li>
               </ul>
             </div>
-            </div>
+          </div>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-center">
-            <Button asChild size="lg" className="gap-2">
-              <Link href="/trusted-member">
-                Apply for trusted member access
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </Button>
-            <Button asChild size="lg" variant="outline" className="gap-2">
-              <Link href="/organization">
-                Explore organizations
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </Button>
+            <Link
+              href="/trusted-member"
+              className={cn(buttonVariants({ size: "lg", className: "gap-2" }))}
+            >
+              Apply for trusted member access
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+            <Link
+              href="/organization"
+              className={cn(buttonVariants({ size: "lg", variant: "outline", className: "gap-2" }))}
+            >
+              Explore organizations
+              <ArrowRight className="h-4 w-4" />
+            </Link>
           </div>
         </div>
       </div>

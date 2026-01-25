@@ -30,7 +30,7 @@ export function JoinOrganizationDialog() {
 
     try {
       const result = await joinOrganization(joinCode);
-      
+
       if (result.error) {
         toast.error(result.error);
         return;
@@ -38,7 +38,7 @@ export function JoinOrganizationDialog() {
 
       toast.success("Successfully joined the organization!");
       setIsOpen(false);
-      
+
       // Redirect to the organization page
       if (result.organizationUsername) {
         router.push(`/organization/${result.organizationUsername}`);
@@ -60,12 +60,12 @@ export function JoinOrganizationDialog() {
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
+      <DialogTrigger render={
         <Button variant="outline">
           <Users className="w-4 h-4" />
           Join Organization
         </Button>
-      </DialogTrigger>
+      } />
       <DialogContent>
         <DialogHeader>
           <DialogTitle className="text-xl">Join an Organization</DialogTitle>
@@ -74,7 +74,7 @@ export function JoinOrganizationDialog() {
           <p className="text-sm text-muted-foreground">
             Enter the 6-digit join code provided by the organization admin.
           </p>
-          
+
           <div className="flex justify-center py-4">
             <InputOTP
               maxLength={6}

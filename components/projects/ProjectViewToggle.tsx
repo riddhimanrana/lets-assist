@@ -403,20 +403,21 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                   </div>
                 </Card>
               </Link>
-              
+
               {/* Three-dot menu in top-right corner */}
               <div className="absolute top-4 right-4 z-10">
                 <DropdownMenu>
-                  <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                  <DropdownMenuTrigger render={
                     <Button
                       variant="ghost"
                       size="sm"
                       className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={(e) => e.stopPropagation()}
                     >
                       <MoreVertical className="h-4 w-4" />
                       <span className="sr-only">Open menu</span>
                     </Button>
-                  </DropdownMenuTrigger>
+                  } />
                   <DropdownMenuContent align="end">
                     <ReportContentButton
                       contentType="project"
@@ -518,7 +519,7 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                           <BadgeCheck className="h-4 w-4 shrink-0" fill="hsl(var(--primary))" stroke="hsl(var(--popover))" strokeWidth={2.5} />
                         )}
                       </div>
-                  </div>
+                    </div>
                   </div>
                   <Button
                     variant="ghost"

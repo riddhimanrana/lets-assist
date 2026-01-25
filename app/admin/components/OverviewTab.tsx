@@ -5,7 +5,8 @@ import { Bar, BarChart, CartesianGrid, XAxis } from "recharts";
 import { Users, MessageSquare, ShieldAlert, Activity, Bot, ArrowUpRight, AlertTriangle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 
 interface OverviewTabProps {
@@ -243,12 +244,10 @@ export function OverviewTab({ stats, flaggedContent, reportPreview, reportsStats
             )}
           </CardContent>
           <CardFooter>
-            <Button asChild variant="ghost" size="sm" className="gap-1 text-xs">
-              <Link href="/admin/moderation">
-                Review flags
-                <ArrowUpRight className="h-3 w-3" />
-              </Link>
-            </Button>
+            <Link href="/admin/moderation" className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "gap-1 text-xs")}>
+              View all
+              <ArrowUpRight className="h-3 w-3" />
+            </Link>
           </CardFooter>
         </Card>
 
@@ -293,12 +292,10 @@ export function OverviewTab({ stats, flaggedContent, reportPreview, reportsStats
             )}
           </CardContent>
           <CardFooter>
-            <Button asChild variant="ghost" size="sm" className="gap-1 text-xs">
-              <Link href="/admin/moderation">
-                Go to reports
-                <ArrowUpRight className="h-3 w-3" />
-              </Link>
-            </Button>
+            <Link href="/admin/moderation" className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "gap-1 text-xs")}>
+              Go to reports
+              <ArrowUpRight className="h-3 w-3" />
+            </Link>
           </CardFooter>
         </Card>
       </div>

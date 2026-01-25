@@ -5,7 +5,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   Card,
   CardContent,
@@ -16,13 +17,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Form,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormControl,
-  FormMessage,
-} from "@/components/ui/form";
+  Field,
+  FieldLabel,
+  FieldError,
+} from "@/components/ui/field";
+import { Controller } from "react-hook-form";
 import {
   Dialog,
   DialogContent,
@@ -236,53 +235,59 @@ export default function SecurityClient() {
               <CardDescription>Change your email address</CardDescription>
             </CardHeader>
             <CardContent className="flex-1 p-5">
-              <Form {...emailForm}>
-                <form onSubmit={emailForm.handleSubmit(handleEmailChange)} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="current-email">Current Email</Label>
-                    <Input
-                      id="current-email"
-                      type="email"
-                      value={currentEmail}
-                      disabled
-                      readOnly
-                    />
-                  </div>
-                  <FormField
-                    control={emailForm.control}
-                    name="newEmail"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>New Email</FormLabel>
-                        <FormControl>
-                          <Input type="email" placeholder="Enter new email" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+              <form onSubmit={emailForm.handleSubmit(handleEmailChange)} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="current-email">Current Email</Label>
+                  <Input
+                    id="current-email"
+                    type="email"
+                    value={currentEmail}
+                    disabled
+                    readOnly
                   />
-                  <FormField
-                    control={emailForm.control}
-                    name="confirmEmail"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Confirm New Email</FormLabel>
-                        <FormControl>
-                          <Input type="email" placeholder="Confirm new email" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <Button
-                    type="submit"
-                    disabled={isEmailLoading}
-                    className="w-full sm:w-auto"
-                  >
-                    {isEmailLoading ? "Updating..." : "Update Email"}
-                  </Button>
-                </form>
-              </Form>
+                </div>
+                <Controller
+                  control={emailForm.control}
+                  name="newEmail"
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel htmlFor={field.name}>New Email</FieldLabel>
+                      <Input
+                        id={field.name}
+                        type="email"
+                        placeholder="Enter new email"
+                        {...field}
+                        aria-invalid={fieldState.invalid}
+                      />
+                      <FieldError errors={[fieldState.error]} />
+                    </Field>
+                  )}
+                />
+                <Controller
+                  control={emailForm.control}
+                  name="confirmEmail"
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel htmlFor={field.name}>Confirm New Email</FieldLabel>
+                      <Input
+                        id={field.name}
+                        type="email"
+                        placeholder="Confirm new email"
+                        {...field}
+                        aria-invalid={fieldState.invalid}
+                      />
+                      <FieldError errors={[fieldState.error]} />
+                    </Field>
+                  )}
+                />
+                <Button
+                  type="submit"
+                  disabled={isEmailLoading}
+                  className="w-full sm:w-auto"
+                >
+                  {isEmailLoading ? "Updating..." : "Update Email"}
+                </Button>
+              </form>
             </CardContent>
           </Card>
           <Card className="flex flex-col h-full">
@@ -291,33 +296,41 @@ export default function SecurityClient() {
               <CardDescription>Change your password</CardDescription>
             </CardHeader>
             <CardContent className="flex-1 p-5">
-              <Form {...passwordForm}>
+              <CardContent className="flex-1 p-5">
                 <form onSubmit={passwordForm.handleSubmit(handlePasswordChange)} className="space-y-4">
                   <div className="space-y-2">
-                    <FormField
+                    <Controller
                       control={passwordForm.control}
                       name="currentPassword"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Current Password</FormLabel>
-                          <FormControl>
-                            <Input type="password" placeholder="Enter current password" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
+                      render={({ field, fieldState }) => (
+                        <Field data-invalid={fieldState.invalid}>
+                          <FieldLabel htmlFor={field.name}>Current Password</FieldLabel>
+                          <Input
+                            id={field.name}
+                            type="password"
+                            placeholder="Enter current password"
+                            {...field}
+                            aria-invalid={fieldState.invalid}
+                          />
+                          <FieldError errors={[fieldState.error]} />
+                        </Field>
                       )}
                     />
                   </div>
-                  <FormField
+                  <Controller
                     control={passwordForm.control}
                     name="newPassword"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>New Password</FormLabel>
-                        <FormControl>
-                          <Input type="password" placeholder="Enter new password" {...field} />
-                        </FormControl>
-                        <FormMessage />
+                    render={({ field, fieldState }) => (
+                      <Field data-invalid={fieldState.invalid}>
+                        <FieldLabel htmlFor={field.name}>New Password</FieldLabel>
+                        <Input
+                          id={field.name}
+                          type="password"
+                          placeholder="Enter new password"
+                          {...field}
+                          aria-invalid={fieldState.invalid}
+                        />
+                        <FieldError errors={[fieldState.error]} />
                         <div className="mt-3 space-y-2">
                           <div className="rounded-lg bg-[hsl(var(--warning)/0.15)] border border-[hsl(var(--warning)/0.4)] p-3 shadow-xs">
                             <p className="text-xs font-semibold text-[hsl(var(--warning))] dark:text-[hsl(var(--warning))] mb-2 flex items-center gap-2">
@@ -336,20 +349,24 @@ export default function SecurityClient() {
                             </ul>
                           </div>
                         </div>
-                      </FormItem>
+                      </Field>
                     )}
                   />
-                  <FormField
+                  <Controller
                     control={passwordForm.control}
                     name="confirmPassword"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Confirm New Password</FormLabel>
-                        <FormControl>
-                          <Input type="password" placeholder="Confirm new password" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
+                    render={({ field, fieldState }) => (
+                      <Field data-invalid={fieldState.invalid}>
+                        <FieldLabel htmlFor={field.name}>Confirm New Password</FieldLabel>
+                        <Input
+                          id={field.name}
+                          type="password"
+                          placeholder="Confirm new password"
+                          {...field}
+                          aria-invalid={fieldState.invalid}
+                        />
+                        <FieldError errors={[fieldState.error]} />
+                      </Field>
                     )}
                   />
                   <Button
@@ -360,7 +377,7 @@ export default function SecurityClient() {
                     {isPasswordLoading ? "Updating..." : "Update Password"}
                   </Button>
                 </form>
-              </Form>
+              </CardContent>
             </CardContent>
           </Card>
         </div>
@@ -373,10 +390,8 @@ export default function SecurityClient() {
           </CardHeader>
           <CardContent className="p-6">
             <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-              <DialogTrigger asChild>
-                <Button variant="destructive" className="w-full sm:w-auto">
-                  Delete Account
-                </Button>
+              <DialogTrigger className={cn(buttonVariants({ variant: "destructive" }), "w-full sm:w-auto")}>
+                Delete Account
               </DialogTrigger>
               <DialogContent className="sm:max-w-lg max-w-[95vw]">
                 <DialogHeader>

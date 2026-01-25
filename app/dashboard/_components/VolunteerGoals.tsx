@@ -48,13 +48,13 @@ interface GoalsProps {
 }
 
 // Use the imported type
-interface Goals extends VolunteerGoalsData {}
+interface Goals extends VolunteerGoalsData { }
 
 // Define semester periods
 const getSemesterPeriods = () => {
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth();
-  
+
   // Determine current semester
   let currentSemester = '';
   if (currentMonth >= 7 && currentMonth <= 11) { // Aug-Dec
@@ -105,7 +105,7 @@ export function VolunteerGoals({ userId, totalHours, totalEvents }: GoalsProps) 
   const [tempHoursGoal, setTempHoursGoal] = useState("");
   const [tempEventsGoal, setTempEventsGoal] = useState("");
   const [loading, setLoading] = useState(true);
-  
+
   // Date range state
   const [selectedPeriod, setSelectedPeriod] = useState<string>('lifetime');
   const [customDateRange, setCustomDateRange] = useState<DateRange | undefined>();
@@ -184,7 +184,8 @@ export function VolunteerGoals({ userId, totalHours, totalEvents }: GoalsProps) 
   };
 
   // Handle period selection
-  const handlePeriodChange = (period: string) => {
+  const handlePeriodChange = (period: string | null) => {
+    if (!period) return;
     setSelectedPeriod(period);
     if (period !== 'custom') {
       setCustomDateRange(undefined);
@@ -257,7 +258,7 @@ export function VolunteerGoals({ userId, totalHours, totalEvents }: GoalsProps) 
 
       // Validate the input (no negative numbers)
       if ((type === 'hours' && newHoursGoal < 0) ||
-          (type === 'events' && newEventsGoal < 0)) {
+        (type === 'events' && newEventsGoal < 0)) {
         toast.error("Goals cannot be negative numbers");
         return;
       }
@@ -331,7 +332,7 @@ export function VolunteerGoals({ userId, totalHours, totalEvents }: GoalsProps) 
           <Calendar className="h-4 w-4" />
           Goal Period
         </div>
-        
+
         <div className="space-y-3">
           <Select value={selectedPeriod} onValueChange={handlePeriodChange}>
             <SelectTrigger className="w-full">
@@ -346,7 +347,7 @@ export function VolunteerGoals({ userId, totalHours, totalEvents }: GoalsProps) 
               <SelectItem value="custom">Custom Date Range</SelectItem>
             </SelectContent>
           </Select>
-          
+
           {selectedPeriod === 'custom' && (
             <DateRangePicker
               value={customDateRange}
@@ -356,7 +357,7 @@ export function VolunteerGoals({ userId, totalHours, totalEvents }: GoalsProps) 
             />
           )}
         </div>
-        
+
         {selectedPeriod !== 'lifetime' && (
           <div className="text-xs text-muted-foreground">
             Showing progress for selected period only
@@ -371,7 +372,7 @@ export function VolunteerGoals({ userId, totalHours, totalEvents }: GoalsProps) 
           <div className="text-sm text-muted-foreground">
             {goals.hours_goal > 0
               ? // Use formatTotalDuration for both current and goal hours
-                `${formatTotalDuration(Math.min(filteredHours, goals.hours_goal))} / ${formatTotalDuration(goals.hours_goal)} completed`
+              `${formatTotalDuration(Math.min(filteredHours, goals.hours_goal))} / ${formatTotalDuration(goals.hours_goal)} completed`
               : "Set a target for volunteer hours"}
           </div>
 

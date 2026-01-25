@@ -115,7 +115,7 @@ export function DateTimePicker({
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
-      <PopoverTrigger asChild>
+      <PopoverTrigger render={
         <Button
           variant="outline"
           className={cn(
@@ -131,7 +131,7 @@ export function DateTimePicker({
             <span>{placeholder}</span>
           )}
         </Button>
-      </PopoverTrigger>
+      } />
       <PopoverContent className="w-auto p-0">
         <div className="sm:flex">
           <Calendar
@@ -191,8 +191,8 @@ export function DateTimePicker({
                     size="icon"
                     variant={
                       date &&
-                      ((ampm === "AM" && date.getHours() < 12) ||
-                        (ampm === "PM" && date.getHours() >= 12))
+                        ((ampm === "AM" && date.getHours() < 12) ||
+                          (ampm === "PM" && date.getHours() >= 12))
                         ? "default"
                         : "ghost"
                     }

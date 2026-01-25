@@ -1018,7 +1018,7 @@ export default function ReportsTab({ organizationId, organizationName, userRole 
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     {sheetStatus.syncConfig?.sheetUrl && (
-                      <Button asChild variant="outline" size="sm">
+                      <Button variant="outline" size="sm" asChild>
                         <a href={sheetStatus.syncConfig.sheetUrl} target="_blank" rel="noreferrer">
                           Open sheet
                         </a>
@@ -1069,9 +1069,8 @@ export default function ReportsTab({ organizationId, organizationName, userRole 
                   <div className="space-y-4">
                     {isAdmin ? (
                       <Accordion
-                        type="multiple"
                         value={sheetConfigSections}
-                        onValueChange={setSheetConfigSections}
+                        onValueChange={(val) => val && setSheetConfigSections(val)}
                       >
                         <AccordionItem value="destination">
                           <AccordionTrigger className="text-sm font-semibold">
@@ -1284,7 +1283,7 @@ export default function ReportsTab({ organizationId, organizationName, userRole 
                               </div>
                               <Select
                                 value={String(sheetStatus.syncConfig.syncIntervalMinutes)}
-                                onValueChange={handleIntervalChange}
+                                onValueChange={(val) => val && handleIntervalChange(val)}
                               >
                                 <SelectTrigger className="w-[140px]">
                                   <SelectValue placeholder="Interval" />
@@ -1405,7 +1404,7 @@ export default function ReportsTab({ organizationId, organizationName, userRole 
                               />
                             </div>
 
-                            <Accordion type="single" collapsible>
+                            <Accordion>
                               <AccordionItem value="layout">
                                 <AccordionTrigger className="text-sm font-semibold">
                                   Layout & preview
@@ -1585,7 +1584,7 @@ export default function ReportsTab({ organizationId, organizationName, userRole 
                               />
                             </div>
 
-                            <Accordion type="single" collapsible>
+                            <Accordion>
                               <AccordionItem value="layout">
                                 <AccordionTrigger className="text-sm font-semibold">
                                   Layout & preview
@@ -1893,7 +1892,7 @@ function RangeBuilder({
               Anchor (top-left)
             </p>
             <div className="mt-2 flex items-center gap-2">
-              <Select value={startColumn} onValueChange={onStartColumnChange} disabled={disabled}>
+              <Select value={startColumn} onValueChange={(val) => val && onStartColumnChange(val)} disabled={disabled}>
                 <SelectTrigger className="h-9 w-[90px]">
                   <SelectValue placeholder="Col" />
                 </SelectTrigger>
