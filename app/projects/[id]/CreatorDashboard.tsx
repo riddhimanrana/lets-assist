@@ -185,7 +185,10 @@ export default function CreatorDashboard({ project }: Props) {
 
       // Extract emails from the signups
       const emails = signups
-        .map((signup: { profiles?: { email?: string | null } | null }) => signup.profiles?.email)
+        .map((signup: any) => {
+          const profile = Array.isArray(signup.profiles) ? signup.profiles[0] : signup.profiles;
+          return profile?.email;
+        })
         .filter(email => email) // Remove any null/undefined emails
         .join(',');
 
