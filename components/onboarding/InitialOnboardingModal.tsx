@@ -117,9 +117,9 @@ export default function InitialOnboardingModal({
       const data = await res.json();
       setUsernameAvailable(data.available);
       if (!data.available && data.error) {
-        form.setError("username", { 
+        form.setError("username", {
           type: "manual",
-          message: data.error 
+          message: data.error
         });
       }
     } catch (error) {
@@ -231,9 +231,9 @@ export default function InitialOnboardingModal({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+    <Dialog open={isOpen} onOpenChange={() => { }}>
       <DialogContent
-        className="w-full max-w-[95vw] sm:max-w-[480px] p-0 overflow-hidden gap-0"
+        className="w-full max-w-[95vw] sm:max-w-[480px] p-0 overflow-hidden gap-0 [&>button]:hidden"
         onInteractOutside={handleInteractOutside}
         onEscapeKeyDown={handleInteractOutside}
       >
@@ -246,7 +246,7 @@ export default function InitialOnboardingModal({
             >
               {/* Header with gradient background */}
               <div className="relative bg-gradient-to-br from-primary/10 via-primary/5 to-background px-6 pt-8 pb-6 border-b">
-                <motion.div 
+                <motion.div
                   initial={{ scale: 0.8, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   transition={{ delay: 0.1, duration: 0.4 }}
@@ -257,9 +257,14 @@ export default function InitialOnboardingModal({
                   </div>
                   <div>
                     <DialogTitle className="text-xl font-semibold">Welcome to Let&apos;s Assist!</DialogTitle>
-                    <DialogDescription className="text-sm">
-                      Let&apos;s set up your profile
-                    </DialogDescription>
+                    <div className="space-y-1">
+                      <DialogDescription className="text-sm">
+                        Let&apos;s set up your profile
+                      </DialogDescription>
+                      <p className="text-xs text-muted-foreground/80">
+                        This will keep showing up until filled out and then go away forever.
+                      </p>
+                    </div>
                   </div>
                 </motion.div>
 
