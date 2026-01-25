@@ -20,16 +20,16 @@ import { ProjectStatusBadge } from "@/components/ui/status-badge";
 import { Separator } from "@/components/ui/separator";
 import { RichTextContent } from "@/components/ui/rich-text-content";
 import { LocationMapCard } from "@/app/projects/_components/LocationMapCard";
-import { 
+import {
   CheckCircle2,
-  MapPin, 
-  Users, 
-  Share2, 
-  Clock, 
-  FileText, 
-  Download, 
-  Eye, 
-  File, 
+  MapPin,
+  Users,
+  Share2,
+  Clock,
+  FileText,
+  Download,
+  Eye,
+  File,
   FileImage,
   Lock,
   UserPlus,
@@ -73,12 +73,12 @@ import { OrganizationHoverCard, ProfileHoverCard } from "@/components/shared/Pro
 import FilePreview from "@/app/projects/_components/FilePreview";
 import CreatorDashboard from "./CreatorDashboard";
 // Import the new UserDashboard
-import UserDashboard from "./UserDashboard"; 
+import UserDashboard from "./UserDashboard";
 import { ProjectSignupForm } from "./ProjectForm";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { useRef } from "react";
 // Import User type from supabase
-import { User } from "@supabase/supabase-js"; 
+import { User } from "@supabase/supabase-js";
 import ProjectInstructionsModal from "./ProjectInstructionsModalWrapper";
 import { SlotAttendeesDropdown, type SlotAttendee } from "@/components/projects/SlotAttendeesDropdown";
 import { SignupConfirmationModal } from "@/app/projects/_components/SignupConfirmationModal";
@@ -108,9 +108,9 @@ interface Props {
   initialSlotData: SlotData;
   initialIsCreator: boolean;
   // Use the specific User type
-  initialUser: User | null; 
+  initialUser: User | null;
   // Add prop for full signup data
-  userSignupsData: Signup[]; 
+  userSignupsData: Signup[];
 }
 
 const getFileIcon = (type: string) => {
@@ -138,15 +138,15 @@ const downloadFile = async (url: string, filename: string) => {
   }
 };
 
-export default function ProjectDetails({ 
-  project, 
-  creator, 
-  organization, 
-  initialSlotData, 
-  initialIsCreator, 
+export default function ProjectDetails({
+  project,
+  creator,
+  organization,
+  initialSlotData,
+  initialIsCreator,
   initialUser,
   // Destructure the new prop
-  userSignupsData 
+  userSignupsData
 }: Props) {
   const router = useRouter();
   const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
@@ -154,7 +154,7 @@ export default function ProjectDetails({
   const [remainingSlots, setRemainingSlots] = useState<Record<string, number>>(initialSlotData.remainingSlots);
   const [hasSignedUp, setHasSignedUp] = useState<Record<string, boolean>>(initialSlotData.userSignups);
   // Use the specific User type
-  const [user] = useState<User | null>(initialUser); 
+  const [user] = useState<User | null>(initialUser);
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [anonymousDialogOpen, setAnonymousDialogOpen] = useState(false);
   const [currentScheduleId, setCurrentScheduleId] = useState<string>("");
@@ -163,35 +163,35 @@ export default function ProjectDetails({
   const [previewDocName, setPreviewDocName] = useState<string>("Document");
   const [previewDocType, setPreviewDocType] = useState<string>("");
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
-  
+
   // Initialize rejectedSlots from props instead of empty object
   const [rejectedSlots, setRejectedSlots] = useState<Record<string, boolean>>(initialSlotData.rejectedSlots || {});
-  
+
   // Add state for attended slots
   const [attendedSlots, setAttendedSlots] = useState<Record<string, boolean>>(initialSlotData.attendedSlots || {});
 
   // Add state for the confirmation alert
   const [showConfirmationAlert, setShowConfirmationAlert] = useState(false);
-  
+
   // Add state for confirmation modals
   const [showSignupConfirmation, setShowSignupConfirmation] = useState(false);
   const [showCancelConfirmation, setShowCancelConfirmation] = useState(false);
   const [pendingScheduleId, setPendingScheduleId] = useState<string>("");
   const [publicAttendees, setPublicAttendees] = useState<SlotAttendee[]>([]);
   const [waiverTemplate, setWaiverTemplate] = useState<WaiverTemplate | null>(null);
-  
+
   // Add state to track calculated status
   // Initialize with project.status to avoid hydration mismatch, then update on client
   const [calculatedStatus, setCalculatedStatus] = useState<ProjectStatus>(project.status);
 
   useEffect(() => {
     setCalculatedStatus(getProjectStatus(project));
-    
+
     // Update status every minute
     const interval = setInterval(() => {
       setCalculatedStatus(getProjectStatus(project));
     }, 60000);
-    
+
     return () => clearInterval(interval);
   }, [project]);
 
@@ -258,7 +258,7 @@ export default function ProjectDetails({
 
   // Remove userRejected state as rejectedSlots handles this per slot
   // const [userRejected, setUserRejected] = useState<boolean>(false);
-  
+
   // Remove the first useEffect for general rejection check
   // useEffect(() => { ... checkPreviousRejection ... }, [user, project.id]);
 
@@ -267,7 +267,7 @@ export default function ProjectDetails({
     async function checkPreviousRejections() {
       if (user) {
         const supabase = createClient();
-        
+
         // Query for all rejected signups for this user and project
         const { data: rejectedData, error: rejectedError } = (await supabase
           .from("project_signups")
@@ -275,10 +275,10 @@ export default function ProjectDetails({
           .eq("project_id", project.id)
           .eq("user_id", user.id)
           .eq("status", "rejected")) as {
-          data: SignupStatusRow[] | null;
-          error: { message: string } | null;
-        };
-          
+            data: SignupStatusRow[] | null;
+            error: { message: string } | null;
+          };
+
         if (rejectedError) {
           console.error("Error checking for rejections:", rejectedError);
         } else if (rejectedData && rejectedData.length > 0) {
@@ -287,7 +287,7 @@ export default function ProjectDetails({
           rejectedData.forEach(rejection => {
             rejections[rejection.schedule_id] = true;
           });
-          
+
           // Update state with rejected slots
           setRejectedSlots(rejections);
         }
@@ -299,10 +299,10 @@ export default function ProjectDetails({
           .eq("project_id", project.id)
           .eq("user_id", user.id)
           .eq("status", "attended")) as {
-          data: SignupStatusRow[] | null;
-          error: { message: string } | null;
-        };
-          
+            data: SignupStatusRow[] | null;
+            error: { message: string } | null;
+          };
+
         if (attendedError) {
           console.error("Error checking for attended status:", attendedError);
         } else if (attendedData && attendedData.length > 0) {
@@ -311,7 +311,7 @@ export default function ProjectDetails({
           attendedData.forEach(slot => {
             attended[slot.schedule_id] = true;
           });
-          
+
           // Update state with attended slots
           setAttendedSlots(attended);
           // Capture a completed signup for calendar modal and certificate display
@@ -321,40 +321,40 @@ export default function ProjectDetails({
           });
         }
       } else {
-         // Clear rejected and attended slots if user logs out
-         setRejectedSlots({});
-         setAttendedSlots({});
+        // Clear rejected and attended slots if user logs out
+        setRejectedSlots({});
+        setAttendedSlots({});
       }
     }
-    
+
     checkPreviousRejections();
   }, [user, project.id]);
 
   // Handle reopening signup modal after OAuth
   useEffect(() => {
     const modalState = sessionStorage.getItem("signupModalState");
-    
+
     // Also check URL params for OAuth callback
     const urlParams = new URLSearchParams(window.location.search);
     const oauthSuccess = urlParams.get("success");
-    
+
     if (modalState) {
       try {
         const { projectId, scheduleId, returnToModal } = JSON.parse(modalState);
-        
+
         // Only reopen if it's for this project and we should return to modal
         if (returnToModal && projectId === project.id && user) {
           // Clear the state
           sessionStorage.removeItem("signupModalState");
-          
+
           // If returning from OAuth, set the just connected flag
           if (oauthSuccess === "connected") {
             sessionStorage.setItem("calendarJustConnected", "true");
-            
+
             // Clean URL
             window.history.replaceState({}, '', `/projects/${project.id}`);
           }
-          
+
           // Reopen the signup modal
           setPendingScheduleId(scheduleId);
           setShowSignupConfirmation(true);
@@ -397,16 +397,16 @@ export default function ProjectDetails({
   // Move updateProjectStatusInDB outside useCallback to break circular dependency
   const updateProjectStatusInDB = async (newStatus: ProjectStatus) => {
     if (isUpdatingStatus) return;
-    
+
     try {
       setIsUpdatingStatus(true);
       const supabase = createClient();
-      
+
       const { error } = await supabase
         .from('projects')
         .update({ status: newStatus })
         .eq('id', project.id);
-        
+
       if (error) {
         console.error("Failed to update project status:", error);
       } else {
@@ -465,11 +465,11 @@ export default function ProjectDetails({
   useEffect(() => {
     const checkStatus = () => {
       const newStatus = getProjectStatus(project);
-      
+
       setCalculatedStatus(prevStatus => {
         if (newStatus !== prevStatus) {
           console.log("Status updated via interval:", newStatus);
-          
+
           if (isCreator && !isUpdatingStatus && newStatus !== project.status) {
             updateProjectStatusInDB(newStatus);
           }
@@ -498,7 +498,7 @@ export default function ProjectDetails({
       toast.info("You cannot sign up for your own project");
       return;
     }
-    
+
     // Check if this specific slot has been rejected
     if (rejectedSlots[scheduleId]) {
       toast.error("You have been rejected for this slot and cannot sign up again.");
@@ -616,7 +616,7 @@ export default function ProjectDetails({
             try {
               const statusResponse = await fetch("/api/calendar/connection-status");
               const statusData = await statusResponse.json();
-              
+
               // API returns 'connected' not 'isConnected'
               if (statusData.connected) {
                 // Automatically sync to calendar
@@ -629,7 +629,7 @@ export default function ProjectDetails({
                     schedule_id: scheduleId,
                   }),
                 });
-                
+
                 if (syncResponse.ok) {
                   calendarSynced = true;
                 }
@@ -639,27 +639,27 @@ export default function ProjectDetails({
               // Don't fail the signup if calendar sync fails
             }
           }
-          
+
           // Success toast with calendar info
           toast.success(
-            calendarSynced 
-              ? "Successfully signed up and added to Google Calendar!" 
+            calendarSynced
+              ? "Successfully signed up and added to Google Calendar!"
               : "Successfully signed up!",
             {
               duration: 5000,
             }
           );
-          
+
           // Update local state to reflect the successful signup
           setHasSignedUp(prev => ({ ...prev, [scheduleId]: true }));
           setRemainingSlots(prev => ({
             ...prev,
             [scheduleId]: Math.max(0, (prev[scheduleId] || 0) - 1)
           }));
-          
+
           // Refetch attendees to update the list in real-time
           await refetchAttendees();
-          
+
           // Force a refresh of the page data to ensure we're in sync with the server
           router.refresh();
         }
@@ -681,11 +681,11 @@ export default function ProjectDetails({
   // Handle resending confirmation email
   const handleResendConfirmation = async () => {
     if (!resendAnonymousId) return;
-    
+
     setIsResending(true);
     try {
       const result = await resendAnonymousConfirmationEmail(resendAnonymousId);
-      
+
       if (result.error) {
         toast.error(result.error);
       } else if (result.success) {
@@ -747,7 +747,7 @@ export default function ProjectDetails({
     if (isCreator) {
       return "You are the creator";
     }
-    
+
     // Check if this particular slot is rejected
     if (rejectedSlots[scheduleId]) {
       return (
@@ -760,7 +760,7 @@ export default function ProjectDetails({
           </HoverCardTrigger>
           <HoverCardContent className="w-80 p-3">
             <p className="text-sm">
-              Your signup for this slot has been rejected by the project coordinator. 
+              Your signup for this slot has been rejected by the project coordinator.
               Please contact them directly if you have questions.
             </p>
             {creator?.email && (
@@ -780,7 +780,7 @@ export default function ProjectDetails({
         </HoverCard>
       );
     }
-    
+
     // Check if user has attended this slot
     if (attendedSlots[scheduleId]) {
       return (
@@ -799,7 +799,7 @@ export default function ProjectDetails({
         </HoverCard>
       );
     }
-    
+
     if (hasSignedUp[scheduleId]) {
       return (
         <>
@@ -808,11 +808,11 @@ export default function ProjectDetails({
         </>
       );
     }
-    
+
     if (remainingSlots[scheduleId] === 0) {
       return "Full";
     }
-    
+
     if (loadingStates[scheduleId]) {
       return (
         <>
@@ -821,11 +821,11 @@ export default function ProjectDetails({
         </>
       );
     }
-    
+
     if (calculatedStatus === "cancelled") {
       return "Unavailable";
     }
-    
+
     return (
       <>
         <UserPlus className="h-4 w-4" />
@@ -838,7 +838,7 @@ export default function ProjectDetails({
     <>
       <div className="container mx-auto px-4 py-6 max-w-6xl">
         {/* Render Creator Dashboard if user is creator */}
-        
+
 
         {/* Confirmation Alert */}
         {showConfirmationAlert && (
@@ -878,12 +878,12 @@ export default function ProjectDetails({
                 >
                   <Share2 className="h-4 w-4 shrink-0" />
                 </Button>
-                
+
                 {/* Report button - only show for non-creators */}
                 {!isCreator && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="icon">
+                      <Button variant="outline" size="icon" suppressHydrationWarning>
                         <MoreVertical className="h-4 w-4" />
                         <span className="sr-only">More options</span>
                       </Button>
@@ -910,7 +910,7 @@ export default function ProjectDetails({
           </div>
         </div>
 
-{isCreator && <CreatorDashboard project={project} />}
+        {isCreator && <CreatorDashboard project={project} />}
         {/* Render User Dashboard if user is logged in, NOT creator, and has signups */}
         {user && !isCreator && userSignupsData && userSignupsData.length > 0 && (
           <UserDashboard project={project} user={user} signups={userSignupsData} />
@@ -925,8 +925,8 @@ export default function ProjectDetails({
                 <CardTitle>About this Project</CardTitle>
               </CardHeader>
               <CardContent>
-                <RichTextContent 
-                  content={project.description} 
+                <RichTextContent
+                  content={project.description}
                   className="text-muted-foreground text-sm"
                 />
               </CardContent>
@@ -949,36 +949,36 @@ export default function ProjectDetails({
               <CardContent>
                 {project.pause_signups && (
                   <Alert className="bg-chart-4/15 border-chart-4/50 mb-4">
-                  <Pause className="h-4 w-4 text-chart-4" />
-                  <AlertTitle className="text-chart-4/90">
-                    Signups are currently paused
-                  </AlertTitle>
-                  <AlertDescription className="text-chart-4">
-                  The project organizer has temporarily paused new volunteer signups. Please check back later or contact the organizer.
-                  </AlertDescription>
-                </Alert>
+                    <Pause className="h-4 w-4 text-chart-4" />
+                    <AlertTitle className="text-chart-4/90">
+                      Signups are currently paused
+                    </AlertTitle>
+                    <AlertDescription className="text-chart-4">
+                      The project organizer has temporarily paused new volunteer signups. Please check back later or contact the organizer.
+                    </AlertDescription>
+                  </Alert>
                 )}
-                
+
                 {project.event_type === "oneTime" && project.schedule.oneTime && (
                   <div className="border rounded-lg p-3 sm:p-4 bg-card/50 hover:bg-card/80 transition-colors">
                     <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
                         <h3 className="font-semibold text-sm sm:text-base mb-2">
                           {(() => {
-                          // Create date with no timezone offset issues
-                          const dateStr = project.schedule.oneTime.date;
-                          const [year, month, dayNum] = dateStr.split("-").map(Number);
-                          // Validate date components
-                          if (!year || !month || !dayNum || isNaN(year) || isNaN(month) || isNaN(dayNum)) {
-                            return "Invalid date";
-                          }
-                          // Use Date to correctly handle timezones
-                          const date = new Date(year, month - 1, dayNum);
-                          // Check if date is valid
-                          if (isNaN(date.getTime())) {
-                            return "Invalid date";
-                          }
-                          return format(date, "EEEE, MMMM d");
+                            // Create date with no timezone offset issues
+                            const dateStr = project.schedule.oneTime.date;
+                            const [year, month, dayNum] = dateStr.split("-").map(Number);
+                            // Validate date components
+                            if (!year || !month || !dayNum || isNaN(year) || isNaN(month) || isNaN(dayNum)) {
+                              return "Invalid date";
+                            }
+                            // Use Date to correctly handle timezones
+                            const date = new Date(year, month - 1, dayNum);
+                            // Check if date is valid
+                            if (isNaN(date.getTime())) {
+                              return "Invalid date";
+                            }
+                            return format(date, "EEEE, MMMM d");
                           })()}
                         </h3>
                         <div className="space-y-1 text-xs sm:text-sm text-muted-foreground">
@@ -995,7 +995,7 @@ export default function ProjectDetails({
                               <TimezoneBadge timezone={project.project_timezone} />
                             )}
                           </div>
-                          
+
                           <div className="flex items-center gap-1.5">
                             <Users className="h-3.5 w-3.5 shrink-0" />
                             <span>
@@ -1010,11 +1010,11 @@ export default function ProjectDetails({
                           size="sm"
                           onClick={() => handleSignUpClick("oneTime")}
                           disabled={
-                            isCreator || 
-                            loadingStates["oneTime"] || 
-                            calculatedStatus === "cancelled" || 
+                            isCreator ||
+                            loadingStates["oneTime"] ||
+                            calculatedStatus === "cancelled" ||
                             isOneTimeSlotPast(project) ||
-                            rejectedSlots["oneTime"] || 
+                            rejectedSlots["oneTime"] ||
                             attendedSlots["oneTime"] ||
                             (!hasSignedUp["oneTime"] && (remainingSlots["oneTime"] === 0))
                           }
@@ -1037,7 +1037,7 @@ export default function ProjectDetails({
                         const scheduleId = `${day.date}-${slotIndex}`;
                         return isMultiDaySlotPastByScheduleId(project, scheduleId);
                       });
-                      
+
                       return (
                         <div key={day.date} className="mb-4">
                           <div className="flex items-center justify-between mb-2">
@@ -1089,29 +1089,29 @@ export default function ProjectDetails({
                                         size="sm"
                                         onClick={() => handleSignUpClick(scheduleId)}
                                         disabled={
-                                          isCreator || 
-                                          loadingStates[scheduleId] || 
-                                          calculatedStatus === "cancelled" || 
-                                          rejectedSlots[scheduleId] || 
+                                          isCreator ||
+                                          loadingStates[scheduleId] ||
+                                          calculatedStatus === "cancelled" ||
+                                          rejectedSlots[scheduleId] ||
                                           attendedSlots[scheduleId] ||
                                           isMultiDaySlotPastByScheduleId(project, scheduleId) ||
                                           (!hasSignedUp[scheduleId] && (remainingSlots[scheduleId] === 0))
                                         }
-                                      className={`w-full sm:w-auto ${attendedSlots[scheduleId] || isMultiDaySlotPastByScheduleId(project, scheduleId) ? "opacity-50 cursor-not-allowed" : ""}`}
-                                    >
-                                      {isMultiDaySlotPastByScheduleId(project, scheduleId) ? "Time Passed" : renderSignupButton(scheduleId)}
-                                    </Button>
+                                        className={`w-full sm:w-auto ${attendedSlots[scheduleId] || isMultiDaySlotPastByScheduleId(project, scheduleId) ? "opacity-50 cursor-not-allowed" : ""}`}
+                                      >
+                                        {isMultiDaySlotPastByScheduleId(project, scheduleId) ? "Time Passed" : renderSignupButton(scheduleId)}
+                                      </Button>
                                     </div>
                                   </div>
                                   {project.show_attendees_publicly && (
                                     <SlotAttendeesDropdown attendees={getAttendeesForSlot(scheduleId)} />
                                   )}
                                 </div>
-                            );
-                          })}
+                              );
+                            })}
+                          </div>
                         </div>
-                      </div>
-                    );
+                      );
                     })}
                   </div>
                 )}
@@ -1162,11 +1162,11 @@ export default function ProjectDetails({
                                   size="sm"
                                   onClick={() => handleSignUpClick(role.name)}
                                   disabled={
-                                    isCreator || 
-                                    loadingStates[role.name] || 
-                                    calculatedStatus === "cancelled" || 
+                                    isCreator ||
+                                    loadingStates[role.name] ||
+                                    calculatedStatus === "cancelled" ||
                                     isSameDayMultiAreaSlotPast(project, role.name) ||
-                                    rejectedSlots[role.name] || 
+                                    rejectedSlots[role.name] ||
                                     attendedSlots[role.name] ||
                                     (!hasSignedUp[role.name] && (remainingSlots[role.name] === 0))
                                   }
@@ -1243,9 +1243,9 @@ export default function ProjectDetails({
                           className="object-cover w-full aspect-video h-auto hover:scale-105 transition-transform"
                         />
                       </div>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         className="absolute bottom-2 right-2 bg-background/80 backdrop-blur-xs"
                         onClick={(e) => {
                           e.stopPropagation();
@@ -1272,13 +1272,13 @@ export default function ProjectDetails({
                       <Link href={`/profile/${creator?.username || ""}`} className="flex items-center gap-3">
                         <Avatar className="h-10 w-10">
                           {creator?.avatar_url ? (
-                            <AvatarImage 
+                            <AvatarImage
                               src={creator.avatar_url}
                               alt={creator?.full_name || "Creator"}
                             />
                           ) : null}
                           <AvatarFallback className="bg-muted">
-                            <NoAvatar 
+                            <NoAvatar
                               fullName={creator?.full_name}
                               className="text-sm font-medium"
                             />
@@ -1297,50 +1297,50 @@ export default function ProjectDetails({
 
                     {project.organization && (
                       <>
-                      <div className="flex items-center my-2">
-                        <Separator className="shrink" />
-                        <span className="px-2 text-xs text-muted-foreground flex items-center">
-                        <Building2 className="h-4 w-4 mr-1 shrink-0" /> Organization
-                        </span>
-                        <Separator className="shrink" />
-                      </div>
-                      <OrganizationHoverCard organization={project.organization}>
-                        <Link
-                          href={`/organization/${project.organization.username}`}
-                          className="flex items-center gap-3"
-                        >
-                          <Avatar className="h-9 w-9 border border-muted">
-                            {project.organization.logo_url ? (
-                              <AvatarImage
-                                src={project.organization.logo_url}
-                                alt={project.organization.name}
-                              />
-                            ) : (
-                              <AvatarFallback className="bg-muted text-xs">
-                                {project.organization.name.substring(0, 2).toUpperCase()}
-                              </AvatarFallback>
-                            )}
-                          </Avatar>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1.5">
-                              <p className="text-sm font-medium hover:underline underline-offset-4 truncate">
-                                {project.organization.name}
-                              </p>
-                              {project.organization.verified && (
-                                <BadgeCheck
-                                  className="h-4 w-4 text-primary"
-                                  fill="hsl(var(--primary))"
-                                  stroke="hsl(var(--popover))"
-                                  strokeWidth={2}
+                        <div className="flex items-center my-2">
+                          <Separator className="shrink" />
+                          <span className="px-2 text-xs text-muted-foreground flex items-center">
+                            <Building2 className="h-4 w-4 mr-1 shrink-0" /> Organization
+                          </span>
+                          <Separator className="shrink" />
+                        </div>
+                        <OrganizationHoverCard organization={project.organization}>
+                          <Link
+                            href={`/organization/${project.organization.username}`}
+                            className="flex items-center gap-3"
+                          >
+                            <Avatar className="h-9 w-9 border border-muted">
+                              {project.organization.logo_url ? (
+                                <AvatarImage
+                                  src={project.organization.logo_url}
+                                  alt={project.organization.name}
                                 />
+                              ) : (
+                                <AvatarFallback className="bg-muted text-xs">
+                                  {project.organization.name.substring(0, 2).toUpperCase()}
+                                </AvatarFallback>
                               )}
+                            </Avatar>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <p className="text-sm font-medium hover:underline underline-offset-4 truncate">
+                                  {project.organization.name}
+                                </p>
+                                {project.organization.verified && (
+                                  <BadgeCheck
+                                    className="h-4 w-4 text-primary"
+                                    fill="hsl(var(--primary))"
+                                    stroke="hsl(var(--popover))"
+                                    strokeWidth={2}
+                                  />
+                                )}
+                              </div>
+                              <p className="text-xs text-muted-foreground truncate">
+                                @{project.organization.username}
+                              </p>
                             </div>
-                            <p className="text-xs text-muted-foreground truncate">
-                              @{project.organization.username}
-                            </p>
-                          </div>
-                        </Link>
-                      </OrganizationHoverCard>
+                          </Link>
+                        </OrganizationHoverCard>
                       </>
                     )}
                   </div>
@@ -1349,26 +1349,26 @@ export default function ProjectDetails({
                 {/* Contact Information */}
                 {creator?.email && (
                   <div>
-                  <h3 className="text-sm font-medium text-muted-foreground mb-2">
-                    Contact Information
-                  </h3>
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-1 text-sm">
-                    <span>{creator.email}</span>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-2">
+                      Contact Information
+                    </h3>
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-1 text-sm">
+                        <span>{creator.email}</span>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          window.location.href = `mailto:${creator.email}?subject=Regarding project: ${project.title}`;
+                          toast.success("Opening email client");
+                        }}
+                        className="mt-1 flex items-center gap-2"
+                      >
+                        <Mail className="h-4 w-4" />
+                        Contact Project Coordinator
+                      </Button>
                     </div>
-                    <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      window.location.href = `mailto:${creator.email}?subject=Regarding project: ${project.title}`;
-                      toast.success("Opening email client");
-                    }}
-                    className="mt-1 flex items-center gap-2"
-                    >
-                    <Mail className="h-4 w-4" />
-                    Contact Project Coordinator
-                    </Button>
-                  </div>
                   </div>
                 )}
 
@@ -1404,9 +1404,9 @@ export default function ProjectDetails({
                         Waiver Required
                       </Badge>
                     )}
-                    
+
                     {/* Add verification method badge */}
-                    <Badge 
+                    <Badge
                       variant="outline"
                       className="text-xs flex items-center gap-1"
                     >
@@ -1439,9 +1439,9 @@ export default function ProjectDetails({
 
 
             {/* Location Map */}
-            <LocationMapCard 
-              location={project.location} 
-              locationData={project.location_data} 
+            <LocationMapCard
+              location={project.location}
+              locationData={project.location_data}
             />
 
             {/* Project Documents Section */}
@@ -1453,8 +1453,8 @@ export default function ProjectDetails({
                 <CardContent className="p-4">
                   <div className="space-y-3">
                     {project.documents.map((doc: ProjectDocument, index: number) => (
-                      <div 
-                        key={index} 
+                      <div
+                        key={index}
                         className="flex items-center justify-between p-3 rounded-lg border bg-background hover:bg-muted/20 transition-colors"
                       >
                         <div className="flex items-center gap-3 w-0 flex-1">
@@ -1468,8 +1468,8 @@ export default function ProjectDetails({
                         </div>
                         <div className="flex gap-2 shrink-0 ml-2">
                           {isPreviewable(doc.type) && (
-                            <Button 
-                              variant="outline" 
+                            <Button
+                              variant="outline"
                               size="icon"
                               className="h-8 w-8"
                               onClick={() => openPreview(doc.url, doc.name, doc.type)}
@@ -1477,7 +1477,7 @@ export default function ProjectDetails({
                               <Eye className="h-4 w-4" />
                             </Button>
                           )}
-                          <Button 
+                          <Button
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8"
@@ -1507,15 +1507,15 @@ export default function ProjectDetails({
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="flex flex-col gap-4">
-              <Button 
+              <Button
                 onClick={() => redirectToAuth('login')}
                 className="flex items-center justify-center gap-2"
               >
                 <LogIn className="h-4 w-4" />
                 Login to Your Account
               </Button>
-              <Button 
-                onClick={() => redirectToAuth('signup')} 
+              <Button
+                onClick={() => redirectToAuth('signup')}
                 variant="outline"
                 className="flex items-center justify-center gap-2"
               >
@@ -1596,7 +1596,7 @@ export default function ProjectDetails({
       </Dialog>
 
       {/* Document Preview */}
-      <FilePreview 
+      <FilePreview
         url={previewDoc || ""}
         open={previewOpen}
         onOpenChange={setPreviewOpen}
@@ -1678,8 +1678,8 @@ export default function ProjectDetails({
           onSuccess={(scheduleId) => {
             // Handle successful cancellation
             setHasSignedUp(prev => ({ ...prev, [scheduleId]: false }));
-            setRemainingSlots(prev => ({ 
-              ...prev, 
+            setRemainingSlots(prev => ({
+              ...prev,
               [scheduleId]: (prev[scheduleId] || 0) + 1
             }));
             // Refetch attendees to update the list in real-time

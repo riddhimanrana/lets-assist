@@ -54,7 +54,7 @@ export function DateRangePicker({
   const handleQuickSelect = (value: string) => {
     const now = new Date()
     let startDate: Date
-    
+
     switch (value) {
       case "academic-year":
         // Academic year: August 1st of current year to July 31st of next year
@@ -107,7 +107,7 @@ export function DateRangePicker({
         startDate = new Date(now.getFullYear(), now.getMonth() - 6, now.getDate())
         break
     }
-    
+
     const adjustedEndDate = new Date(now);
     adjustedEndDate.setDate(adjustedEndDate.getDate() + 1);
     onChange?.({ from: startDate, to: adjustedEndDate })
