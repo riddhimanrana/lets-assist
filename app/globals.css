@@ -1,54 +1,255 @@
 @import 'tailwindcss';
+@import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
 
-@theme {
-  --color-background: hsl(var(--background));
-  --color-foreground: hsl(var(--foreground));
+:root {
+  /* Light theme variables */
+  --page-background: hsl(0 0% 100%);
+  /* base */
+  --page-foreground: hsl(240 10% 3.9%);
+  /* text */
+  --background: hsl(0 0% 100%);
+  /* base */
+  --foreground: hsl(240 10% 3.9%);
+  /* text */
+  --card: hsl(0 0% 100%);
+  /* base */
+  --card-foreground: hsl(240 10% 3.9%);
+  /* text */
+  --popover: hsl(0 0% 100%);
+  /* base */
+  --popover-foreground: hsl(240 10% 3.9%);
+  /* text */
+  --primary: hsl(142.1 76.2% 36.3%);
+  /* accent - green */
+  --primary-foreground: hsl(355.7 100% 97.3%);
+  /* base */
+  --secondary: hsl(240 4.8% 95.9%);
+  /* surface0 */
+  --secondary-foreground: hsl(240 5.9% 10%);
+  /* text */
+  --muted: hsl(240 4.8% 95.9%);
+  /* surface0 */
+  --muted-foreground: hsl(240 3.8% 46.1%);
+  /* subtext1 */
+  --accent: hsl(240 4.8% 95.9%);
+  /* surface0 */
+  --accent-foreground: hsl(240 5.9% 10%);
+  /* text */
+  --destructive: hsl(0 84.2% 60.2%);
+  /* red */
+  --destructive-foreground: hsl(0 0% 98%);
+  /* mantle */
+  --border: hsl(240 5.9% 90%);
+  /* surface1 */
+  --input: hsl(240 5.9% 90%);
+  /* surface1 */
+  --ring: hsl(142.1 76.2% 36.3%);
+  /* text */
+  --radius: 1rem;
+  --chart-1: hsl(12 76% 61%);
+  /* red */
+  --chart-2: hsl(173 58% 39%);
+  /* teal/aqua */
+  --chart-3: hsl(220 91% 54%);
+  /* blue */
+  --chart-4: hsl(35 77% 49%);
+  /* yellow */
+  --chart-5: hsl(109 58% 40%);
+  /* green */
+  --chart-6: hsl(22 99% 52%);
+  /* orange */
+  --chart-7: hsl(355 76% 59%);
+  /* maroon */
+  --chart-8: hsl(231 97% 72%);
+  /* lavender */
+  --chart-9: hsl(220 21% 89%);
+  /* base */
 
-  --color-card: hsl(var(--card));
-  --color-card-foreground: hsl(var(--card-foreground));
+  /* Toast colors */
+  --toast-success-bg: hsl(142.1 70% 95%);
+  /* light green bg */
+  --toast-success-foreground: hsl(142.1 76.2% 28%);
+  /* darker green text */
+  --toast-success-border: hsl(142.1 60% 70%);
+  /* green border */
+  --toast-error-bg: hsl(0 84% 96%);
+  /* light red bg */
+  --toast-error-foreground: hsl(0 84.2% 50%);
+  /* red text */
+  --toast-error-border: hsl(0 84% 75%);
+  /* red border */
+  --toast-info-bg: hsl(220 91% 96%);
+  /* light blue bg */
+  --toast-info-foreground: hsl(220 91% 45%);
+  /* blue text */
+  --toast-info-border: hsl(220 91% 75%);
+  /* blue border */
+  --toast-warning-bg: hsl(35 77% 96%);
+  /* light yellow bg */
+  --toast-warning-foreground: hsl(35 77% 40%);
+  /* yellow text */
+  --toast-warning-border: hsl(35 77% 70%);
+  /* yellow border */
+  --sidebar-background: hsl(0 0% 98%);
+  --sidebar-foreground: hsl(240 5.3% 26.1%);
+  --sidebar-primary: hsl(240 5.9% 10%);
+  --sidebar-primary-foreground: hsl(0 0% 98%);
+  --sidebar-accent: hsl(240 4.8% 95.9%);
+  --sidebar-accent-foreground: hsl(240 5.9% 10%);
+  --sidebar-border: hsl(220 13% 91%);
+  --sidebar-ring: hsl(217.2 91.2% 59.8%);
+  --sidebar: hsl(0 0% 98%);
+}
 
-  --color-popover: hsl(var(--popover));
-  --color-popover-foreground: hsl(var(--popover-foreground));
+.dark {
+  /* Dark theme variables */
+  --page-background: hsl(240 21% 12%);
+  /* mantle */
+  --page-foreground: hsl(226 64% 88%);
+  /* text */
+  --background: hsl(240 21% 12%);
+  /* base */
+  --foreground: hsl(226 64% 88%);
+  /* text */
+  --muted: hsl(237 16.239316761493683% 23%);
+  /* surface0 */
+  --muted-foreground: hsl(227 35.29411852359772% 80%);
+  /* subtext1 */
+  --popover: hsl(240 21% 15%);
+  /* base */
+  --popover-foreground: hsl(226 64% 88%);
+  /* text */
+  --card: hsl(240 21% 15%);
+  /* base */
+  --card-foreground: hsl(226 64% 88%);
+  /* text */
+  --border: hsl(234 13% 31%);
+  /* surface1 */
+  --input: hsl(234 13% 31%);
+  /* surface1 */
+  --primary: hsl(115 54% 76%);
+  /* accent - Green */
+  --primary-foreground: hsl(240 21% 15%);
+  /* base */
+  --secondary: hsl(237 16% 23%);
+  /* surface0 */
+  --secondary-foreground: hsl(226 64% 88%);
+  /* text */
+  --accent: hsl(237 16% 23%);
+  /* surface0 */
+  --accent-foreground: hsl(226 64% 88%);
+  /* text */
+  --destructive: hsl(343 81 75%);
+  /* red */
+  --destructive-foreground: hsl(240 21% 12%);
+  /* mantle */
+  --ring: hsl(226 64% 88%);
+  /* text */
+  --radius: 1rem;
+  --chart-1: hsl(343 81% 75%);
+  /* red */
+  --chart-2: hsl(170 57% 73%);
+  /* teal/aqua */
+  --chart-3: hsl(217 92% 76%);
+  /* blue */
+  --chart-4: hsl(41 86% 83%);
+  /* yellow */
+  --chart-5: hsl(115 54% 76%);
+  /* green */
+  --chart-6: hsl(23 92% 75%);
+  /* orange */
+  --chart-7: hsl(350 65% 77%);
+  /* maroon */
+  --chart-8: hsl(232 97% 85%);
+  /* lavender */
+  --chart-9: hsl(240 23% 9%);
+  /* mantle */
 
-  --color-primary: hsl(var(--primary));
-  --color-primary-foreground: hsl(var(--primary-foreground));
+  /* Toast colors - Catppuccin Mocha inspired */
+  --toast-success-bg: hsl(115 30% 18%);
+  /* green-tinted surface */
+  --toast-success-foreground: hsl(115 54% 76%);
+  /* catppuccin green */
+  --toast-success-border: hsl(115 45% 40%);
+  /* muted green border */
+  --toast-error-bg: hsl(343 35% 22%);
+  /* red-tinted surface */
+  --toast-error-foreground: hsl(343 81% 75%);
+  /* catppuccin red */
+  --toast-error-border: hsl(343 65% 48%);
+  /* muted red border */
+  --toast-info-bg: hsl(217 40% 24%);
+  /* blue-tinted surface */
+  --toast-info-foreground: hsl(217 92% 76%);
+  /* catppuccin blue */
+  --toast-info-border: hsl(217 70% 52%);
+  /* muted blue border */
+  --toast-warning-bg: hsl(41 38% 24%);
+  /* yellow-tinted surface */
+  --toast-warning-foreground: hsl(41 86% 83%);
+  /* catppuccin yellow */
+  --toast-warning-border: hsl(41 68% 58%);
+  /* muted yellow border */
+  --sidebar-background: hsl(240 5.9% 10%);
+  --sidebar-foreground: hsl(240 4.8% 95.9%);
+  --sidebar-primary: hsl(224.3 76.3% 48%);
+  --sidebar-primary-foreground: hsl(0 0% 100%);
+  --sidebar-accent: hsl(240 3.7% 15.9%);
+  --sidebar-accent-foreground: hsl(240 4.8% 95.9%);
+  --sidebar-border: hsl(240 3.7% 15.9%);
+  --sidebar-ring: hsl(217.2 91.2% 59.8%);
+  --sidebar: hsl(240 5.9% 10%);
+}
 
-  --color-secondary: hsl(var(--secondary));
-  --color-secondary-foreground: hsl(var(--secondary-foreground));
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
 
-  --color-muted: hsl(var(--muted));
-  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
 
-  --color-accent: hsl(var(--accent));
-  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
 
-  --color-destructive: hsl(var(--destructive));
-  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
 
-  --color-border: hsl(var(--border));
-  --color-input: hsl(var(--input));
-  --color-ring: hsl(var(--ring));
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
 
-  --color-chart-1: hsl(var(--chart-1));
-  --color-chart-2: hsl(var(--chart-2));
-  --color-chart-3: hsl(var(--chart-3));
-  --color-chart-4: hsl(var(--chart-4));
-  --color-chart-5: hsl(var(--chart-5));
-  --color-chart-6: hsl(var(--chart-6));
-  --color-chart-7: hsl(var(--chart-7));
-  --color-chart-8: hsl(var(--chart-8));
-  --color-chart-9: hsl(var(--chart-9));
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
 
-  --color-sidebar: hsl(var(--sidebar-background));
-  --color-sidebar-foreground: hsl(var(--sidebar-foreground));
-  --color-sidebar-primary: hsl(var(--sidebar-primary));
-  --color-sidebar-primary-foreground: hsl(var(--sidebar-primary-foreground));
-  --color-sidebar-accent: hsl(var(--sidebar-accent));
-  --color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
-  --color-sidebar-border: hsl(var(--sidebar-border));
-  --color-sidebar-ring: hsl(var(--sidebar-ring));
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-chart-6: var(--chart-6);
+  --color-chart-7: var(--chart-7);
+  --color-chart-8: var(--chart-8);
+  --color-chart-9: var(--chart-9);
+
+  --color-sidebar: var(--sidebar-background);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
 
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
@@ -66,248 +267,32 @@
     from {
       height: 0;
     }
+
     to {
       height: var(--radix-accordion-content-height);
     }
   }
+
   @keyframes accordion-up {
     from {
       height: var(--radix-accordion-content-height);
     }
+
     to {
       height: 0;
     }
   }
+
   @keyframes gradient {
+
     0%,
     100% {
       background-position: 0% 50%;
     }
+
     50% {
       background-position: 100% 50%;
     }
-  }
-}
-
-/*
-  The default border color has changed to `currentcolor` in Tailwind CSS v4,
-  so we've added these compatibility styles to make sure everything still
-  looks the same as it did with Tailwind CSS v3.
-
-  If we ever want to remove these styles, we need to add an explicit border
-  color utility to any element that depends on these defaults.
-*/
-@layer base {
-  *,
-  ::after,
-  ::before,
-  ::backdrop,
-  ::file-selector-button {
-    border-color: var(--color-gray-200, currentcolor);
-  }
-}
-
-@utility text-balance {
-  text-wrap: balance;
-}
-
-@layer base {
-  :root {
-    /* Light theme variables */
-    --page-background: 0 0% 100%;
-    /* base */
-    --page-foreground: 240 10% 3.9%;
-    /* text */
-    --background: 0 0% 100%;
-    /* base */
-    --foreground: 240 10% 3.9%;
-    /* text */
-    --card: 0 0% 100%;
-    /* base */
-    --card-foreground: 240 10% 3.9%;
-    /* text */
-    --popover: 0 0% 100%;
-    /* base */
-    --popover-foreground: 240 10% 3.9%;
-    /* text */
-    --primary: 142.1 76.2% 36.3%;
-    /* accent - green */
-    --primary-foreground: 355.7 100% 97.3%;
-    /* base */
-    --secondary: 240 4.8% 95.9%;
-    /* surface0 */
-    --secondary-foreground: 240 5.9% 10%;
-    /* text */
-    --muted: 240 4.8% 95.9%;
-    /* surface0 */
-    --muted-foreground: 240 3.8% 46.1%;
-    /* subtext1 */
-    --accent: 240 4.8% 95.9%;
-    /* surface0 */
-    --accent-foreground: 240 5.9% 10%;
-    /* text */
-    --destructive: 0 84.2% 60.2%;
-    /* red */
-    --destructive-foreground: 0 0% 98%;
-    /* mantle */
-    --border: 240 5.9% 90%;
-    /* surface1 */
-    --input: 240 5.9% 90%;
-    /* surface1 */
-    --ring: 142.1 76.2% 36.3%;
-    /* text */
-    --radius: 1rem;
-    --chart-1: 12 76% 61%;
-    /* red */
-    --chart-2: 173 58% 39%;
-    /* teal/aqua */
-    --chart-3: 220 91% 54%;
-    /* blue */
-    --chart-4: 35 77% 49%;
-    /* yellow */
-    --chart-5: 109 58% 40%;
-    /* green */
-    --chart-6: 22 99% 52%;
-    /* orange */
-    --chart-7: 355 76% 59%;
-    /* maroon */
-    --chart-8: 231 97% 72%;
-    /* lavender */
-    --chart-9: 220 21% 89%;
-    /* base */
-
-    /* Toast colors */
-    --toast-success-bg: 142.1 70% 95%;
-    /* light green bg */
-    --toast-success-foreground: 142.1 76.2% 28%;
-    /* darker green text */
-    --toast-success-border: 142.1 60% 70%;
-    /* green border */
-    --toast-error-bg: 0 84% 96%;
-    /* light red bg */
-    --toast-error-foreground: 0 84.2% 50%;
-    /* red text */
-    --toast-error-border: 0 84% 75%;
-    /* red border */
-    --toast-info-bg: 220 91% 96%;
-    /* light blue bg */
-    --toast-info-foreground: 220 91% 45%;
-    /* blue text */
-    --toast-info-border: 220 91% 75%;
-    /* blue border */
-    --toast-warning-bg: 35 77% 96%;
-    /* light yellow bg */
-    --toast-warning-foreground: 35 77% 40%;
-    /* yellow text */
-    --toast-warning-border: 35 77% 70%;
-    /* yellow border */
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
-  }
-
-  .dark {
-    /* Dark theme variables */
-    --page-background: 240 21% 12%;
-    /* mantle */
-    --page-foreground: 226 64% 88%;
-    /* text */
-    --background: 240 21% 12%;
-    /* base */
-    --foreground: 226 64% 88%;
-    /* text */
-    --muted: 237 16.239316761493683% 23%;
-    /* surface0 */
-    --muted-foreground: 227 35.29411852359772% 80%;
-    /* subtext1 */
-    --popover: 240 21% 15%;
-    /* base */
-    --popover-foreground: 226 64% 88%;
-    /* text */
-    --card: 240 21% 15%;
-    /* base */
-    --card-foreground: 226 64% 88%;
-    /* text */
-    --border: 234 13% 31%;
-    /* surface1 */
-    --input: 234 13% 31%;
-    /* surface1 */
-    --primary: 115 54% 76%;
-    /* accent - Green */
-    --primary-foreground: 240 21% 15%;
-    /* base */
-    --secondary: 237 16% 23%;
-    /* surface0 */
-    --secondary-foreground: 226 64% 88%;
-    /* text */
-    --accent: 237 16% 23%;
-    /* surface0 */
-    --accent-foreground: 226 64% 88%;
-    /* text */
-    --destructive: 343 81 75%;
-    /* red */
-    --destructive-foreground: 240 21% 12%;
-    /* mantle */
-    --ring: 226 64% 88%;
-    /* text */
-    --radius: 1rem;
-    --chart-1: 343 81% 75%;
-    /* red */
-    --chart-2: 170 57% 73%;
-    /* teal/aqua */
-    --chart-3: 217 92% 76%;
-    /* blue */
-    --chart-4: 41 86% 83%;
-    /* yellow */
-    --chart-5: 115 54% 76%;
-    /* green */
-    --chart-6: 23 92% 75%;
-    /* orange */
-    --chart-7: 350 65% 77%;
-    /* maroon */
-    --chart-8: 232 97% 85%;
-    /* lavender */
-    --chart-9: 240 23% 9%;
-    /* mantle */
-
-    /* Toast colors - Catppuccin Mocha inspired */
-    --toast-success-bg: 115 30% 18%;
-    /* green-tinted surface */
-    --toast-success-foreground: 115 54% 76%;
-    /* catppuccin green */
-    --toast-success-border: 115 45% 40%;
-    /* muted green border */
-    --toast-error-bg: 343 35% 22%;
-    /* red-tinted surface */
-    --toast-error-foreground: 343 81% 75%;
-    /* catppuccin red */
-    --toast-error-border: 343 65% 48%;
-    /* muted red border */
-    --toast-info-bg: 217 40% 24%;
-    /* blue-tinted surface */
-    --toast-info-foreground: 217 92% 76%;
-    /* catppuccin blue */
-    --toast-info-border: 217 70% 52%;
-    /* muted blue border */
-    --toast-warning-bg: 41 38% 24%;
-    /* yellow-tinted surface */
-    --toast-warning-foreground: 41 86% 83%;
-    /* catppuccin yellow */
-    --toast-warning-border: 41 68% 58%;
-    /* muted yellow border */
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
   }
 }
 
@@ -326,6 +311,7 @@
 }
 
 @layer utilities {
+
   /* Add Tippy.js animations */
   @keyframes shift-away {
     0% {
@@ -352,5 +338,14 @@
     .flex-md {
       display: flex;
     }
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
   }
 }
