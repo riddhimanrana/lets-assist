@@ -77,18 +77,23 @@ export default function GlobalNotificationProvider({
 
   const markIntroTourComplete = useCallback(async () => {
     try {
-      const supabase = createClient();
-      const { data, error } = await supabase.auth.updateUser({
-        data: { has_completed_intro_tour: true },
-      });
+      const { markIntroTourAsComplete } = await import("@/components/onboarding/onboarding-actions");
+      const result = await markIntroTourAsComplete();
 
-      if (error) {
-        console.error("Failed to mark intro tour complete:", error);
+      if (result.error) {
+        console.error("Failed to mark intro tour complete via server action:", result.error);
         return;
       }
 
-      if (data?.user) {
-        updateCachedUser(data.user);
+      const supabase = createClient();
+      const { data: { user: updatedUser }, error } = await supabase.auth.getUser();
+
+      if (error) {
+        console.warn("Error fetching updated user after tour complete:", error);
+      }
+
+      if (updatedUser) {
+        updateCachedUser(updatedUser);
       }
     } catch (error) {
       console.error("Unexpected error updating intro tour status:", error);
@@ -101,7 +106,7 @@ export default function GlobalNotificationProvider({
       user.user_metadata?.full_name || user.email?.split("@")[0] || "User"
     );
     setCurrentUserEmail(user.email || null);
-    
+
     // Check for auto-joined organization
     const autoJoinedOrgId = user.user_metadata?.auto_joined_org_id;
     const autoJoinedOrgName = user.user_metadata?.auto_joined_org_name;
@@ -141,26 +146,42 @@ export default function GlobalNotificationProvider({
     const onboardingCompleted = user.user_metadata?.has_completed_onboarding === true;
     const introCompleted = user.user_metadata?.has_completed_intro_tour === true;
 
-    onboardingCompletedRef.current = onboardingCompleted;
-    introCompletedRef.current = introCompleted;
+    // Only update refs if server says true, otherwise keep local optimistic state
+    if (onboardingCompleted) onboardingCompletedRef.current = true;
+    if (introCompleted) introCompletedRef.current = true;
 
-    if (!introCompleted && !suppressOnboardingModal) {
-      if (!introTourStarted) {
-        if (!homeRouteReady && !showIntroTour) {
-          return;
-        }
-        setIntroTourStarted(true);
+    // Use the ref as the source of truth (combines server + local optimistic)
+    const isIntroEffectiveComplete = introCompletedRef.current;
+
+    // Priority 1: Tour (Only on Home)
+    // We only attempt to show the tour if:
+    // 1. It's not effectively complete
+    // 2. We're not in a suppressed route
+    // 3. AND we are on the Home page
+    const canShowTourOnThisRoute = !isIntroEffectiveComplete && !suppressOnboardingModal && isHomeRoute;
+
+    if (canShowTourOnThisRoute) {
+      // Condition A: Tour is already active -> allow it to continue
+      if (showIntroTour) {
+        setShowOnboardingModal(false);
+        return;
       }
 
-      setShowIntroTour(true);
-      setShowOnboardingModal(false);
-      return;
+      // Condition B: We are on Home and ready to start the tour -> Start it
+      if (homeRouteReady && !introTourStarted) {
+        setIntroTourStarted(true);
+        setShowIntroTour(true);
+        setShowOnboardingModal(false);
+        return;
+      }
     }
 
+    // Priority 2: Onboarding Modal (Any page)
+    // If we reach here, the Tour is NOT showing (either finished, skipped, invalid context, or not on home)
     setShowIntroTour(false);
     setIntroTourStarted(false);
 
-    if (!onboardingCompleted && !suppressOnboardingModal) {
+    if (!onboardingCompletedRef.current && !suppressOnboardingModal) {
       prepareOnboardingModal();
       setShowOnboardingModal(true);
     } else {
