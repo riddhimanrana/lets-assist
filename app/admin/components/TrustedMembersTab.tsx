@@ -213,7 +213,7 @@ export function TrustedMembersTab({ trustedMembers }: TrustedMembersTabProps) {
           </div>
         ) : (
           trustedMembers.map((member) => (
-            <div key={member.id} className="rounded-lg border bg-card p-4 shadow-sm">
+            <div key={member.id} className="rounded-lg border bg-card p-4 shadow-xs">
               <div className="flex items-start gap-3">
                 {member.profiles?.avatar_url ? (
                   <Avatar className="h-10 w-10">
@@ -240,7 +240,7 @@ export function TrustedMembersTab({ trustedMembers }: TrustedMembersTabProps) {
 
               <div className="mt-3 rounded-md border bg-muted/30 p-3">
                 <p className="text-xs font-semibold uppercase text-muted-foreground">Reason</p>
-                <p className="mt-2 text-sm text-muted-foreground line-clamp-1 break-words">
+                <p className="mt-2 text-sm text-muted-foreground line-clamp-1 wrap-break-word">
                   {member.reason}
                 </p>
                 <ReasonDialog
@@ -305,7 +305,7 @@ export function TrustedMembersTab({ trustedMembers }: TrustedMembersTabProps) {
                   </TableCell>
                   <TableCell className="min-w-[320px] max-w-[520px]">
                     <div className="space-y-2">
-                      <p className="text-sm text-muted-foreground line-clamp-1 break-words">
+                      <p className="text-sm text-muted-foreground line-clamp-1 wrap-break-word">
                         {member.reason}
                       </p>
                       <ReasonDialog
@@ -396,7 +396,7 @@ function ActionButtons({
         <>
           <Button
             size="sm"
-            variant={compact ? "outline" : "default"}
+            variant={compact ? "outline-solid" : "default"}
             className={compact ? "h-8 w-8 p-0 hover:bg-muted" : "w-full sm:w-auto"}
             onClick={() => onApprove(member.id, member.user_id)}
           >
@@ -418,7 +418,7 @@ function ActionButtons({
       {member.status === false && (
         <Button
           size="sm"
-          variant={compact ? "outline" : "default"}
+          variant={compact ? "outline-solid" : "default"}
           className={compact ? "h-8 w-8 p-0 hover:bg-muted" : "w-full sm:w-auto"}
           onClick={() => onApprove(member.id, member.user_id)}
         >

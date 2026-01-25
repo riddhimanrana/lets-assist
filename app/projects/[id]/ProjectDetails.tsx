@@ -856,7 +856,7 @@ export default function ProjectDetails({
         {/* Project Header */}
         <div className="mb-6">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:gap-4">
-            <div className="flex-1 min-w-0 order-1 sm:order-none">
+            <div className="flex-1 min-w-0 order-1 sm:order-0">
               <h1 className="text-2xl sm:text-3xl font-bold mb-1.5">
                 {project.title}
               </h1>
@@ -867,7 +867,7 @@ export default function ProjectDetails({
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-2 mb-1 sm:mb-0 flex-shrink-0 order-0 sm:order-none justify-between w-full sm:w-auto">
+            <div className="flex items-center gap-2 mb-1 sm:mb-0 shrink-0 order-0 sm:order-0 justify-between w-full sm:w-auto">
               {/* Use calculatedStatus instead of project.status */}
               <ProjectStatusBadge status={calculatedStatus} className="capitalize" />
               <div className="flex gap-2">
@@ -983,7 +983,7 @@ export default function ProjectDetails({
                         </h3>
                         <div className="space-y-1 text-xs sm:text-sm text-muted-foreground">
                           <div className="flex items-center gap-1.5">
-                            <Clock className="h-3.5 w-3.5 flex-shrink-0" />
+                            <Clock className="h-3.5 w-3.5 shrink-0" />
                             <span>
                               {(() => {
                                 const startLabel = project.schedule.oneTime.startTime ? formatTimeTo12Hour(project.schedule.oneTime.startTime) : "TBD";
@@ -997,14 +997,14 @@ export default function ProjectDetails({
                           </div>
                           
                           <div className="flex items-center gap-1.5">
-                            <Users className="h-3.5 w-3.5 flex-shrink-0" />
+                            <Users className="h-3.5 w-3.5 shrink-0" />
                             <span>
                               <span className="font-medium text-foreground">{remainingSlots["oneTime"] ?? project.schedule.oneTime.volunteers}</span> of {project.schedule.oneTime.volunteers} spots
                             </span>
                           </div>
                         </div>
                       </div>
-                      <div className="flex flex-col gap-2 items-stretch sm:items-end flex-shrink-0">
+                      <div className="flex flex-col gap-2 items-stretch sm:items-end shrink-0">
                         <Button
                           variant={hasSignedUp["oneTime"] ? "secondary" : rejectedSlots["oneTime"] ? "destructive" : "default"}
                           size="sm"
@@ -1064,7 +1064,7 @@ export default function ProjectDetails({
                                   <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                                     <div className="flex-1 min-w-0 space-y-1 text-xs sm:text-sm text-muted-foreground">
                                       <div className="flex items-center gap-1.5">
-                                        <Clock className="h-3.5 w-3.5 flex-shrink-0" />
+                                        <Clock className="h-3.5 w-3.5 shrink-0" />
                                         <span>
                                           {(() => {
                                             const startLabel = slot.startTime ? formatTimeTo12Hour(slot.startTime) : "TBD";
@@ -1077,13 +1077,13 @@ export default function ProjectDetails({
                                         )}
                                       </div>
                                       <div className="flex items-center gap-1.5">
-                                        <Users className="h-3.5 w-3.5 flex-shrink-0" />
+                                        <Users className="h-3.5 w-3.5 shrink-0" />
                                         <span>
                                           <span className="font-medium text-foreground">{remainingSlots[scheduleId] ?? slot.volunteers}</span> of {slot.volunteers} spots
                                         </span>
                                       </div>
                                     </div>
-                                    <div className="flex flex-col gap-2 items-stretch sm:items-end flex-shrink-0">
+                                    <div className="flex flex-col gap-2 items-stretch sm:items-end shrink-0">
                                       <Button
                                         variant={hasSignedUp[scheduleId] ? "secondary" : rejectedSlots[scheduleId] ? "destructive" : "default"}
                                         size="sm"
@@ -1133,10 +1133,10 @@ export default function ProjectDetails({
                           <div key={role.name} className="border rounded-lg p-3 bg-card/50 hover:bg-card/80 transition-colors">
                             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                               <div className="flex-1 min-w-0">
-                                <h4 className="font-semibold text-sm mb-1.5 break-words">{role.name}</h4>
+                                <h4 className="font-semibold text-sm mb-1.5 wrap-break-word">{role.name}</h4>
                                 <div className="space-y-1 text-xs sm:text-sm text-muted-foreground">
                                   <div className="flex items-center gap-1.5">
-                                    <Clock className="h-3.5 w-3.5 flex-shrink-0" />
+                                    <Clock className="h-3.5 w-3.5 shrink-0" />
                                     <span>
                                       {(() => {
                                         const startLabel = role.startTime ? formatTimeTo12Hour(role.startTime) : "TBD";
@@ -1149,14 +1149,14 @@ export default function ProjectDetails({
                                     )}
                                   </div>
                                   <div className="flex items-center gap-1.5">
-                                    <Users className="h-3.5 w-3.5 flex-shrink-0" />
+                                    <Users className="h-3.5 w-3.5 shrink-0" />
                                     <span>
                                       <span className="font-medium text-foreground">{remainingSlots[role.name] ?? role.volunteers}</span> of {role.volunteers} spots
                                     </span>
                                   </div>
                                 </div>
                               </div>
-                              <div className="flex flex-col gap-2 items-stretch sm:items-end flex-shrink-0">
+                              <div className="flex flex-col gap-2 items-stretch sm:items-end shrink-0">
                                 <Button
                                   variant={hasSignedUp[role.name] ? "secondary" : rejectedSlots[role.name] ? "destructive" : "default"}
                                   size="sm"
@@ -1189,7 +1189,7 @@ export default function ProjectDetails({
                 {/* Message for cancelled projects */}
                 {calculatedStatus === "cancelled" && (
                   <div className="flex items-start gap-2 rounded-md border border-destructive p-3 bg-destructive/10 mt-4">
-                    <AlertTriangle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
+                    <AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
                     <div className="text-sm text-muted-foreground">
                       <p>
                         This project has been cancelled and is no longer accepting signups.
@@ -1206,7 +1206,7 @@ export default function ProjectDetails({
                 {/* Message for completed projects */}
                 {calculatedStatus === "completed" && (
                   <div className="flex items-start gap-2 rounded-md border p-3 bg-muted/50 mt-4">
-                    <CheckCircle2 className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
+                    <CheckCircle2 className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
                     <div className="text-sm text-muted-foreground">
                       <p>
                         This project has been completed and is no longer accepting signups.
@@ -1246,7 +1246,7 @@ export default function ProjectDetails({
                       <Button 
                         variant="ghost" 
                         size="sm" 
-                        className="absolute bottom-2 right-2 bg-background/80 backdrop-blur-sm"
+                        className="absolute bottom-2 right-2 bg-background/80 backdrop-blur-xs"
                         onClick={(e) => {
                           e.stopPropagation();
                           openPreview(project.cover_image_url!, project.title, "image/jpeg");
@@ -1300,7 +1300,7 @@ export default function ProjectDetails({
                       <div className="flex items-center my-2">
                         <Separator className="shrink" />
                         <span className="px-2 text-xs text-muted-foreground flex items-center">
-                        <Building2 className="h-4 w-4 mr-1 flex-shrink-0" /> Organization
+                        <Building2 className="h-4 w-4 mr-1 shrink-0" /> Organization
                         </span>
                         <Separator className="shrink" />
                       </div>
@@ -1379,7 +1379,7 @@ export default function ProjectDetails({
                   </h3>
                   <div className="flex items-center gap-2 flex-wrap">
                     <Badge
-                      variant={project.require_login ? "secondary" : "outline"}
+                      variant={project.require_login ? "secondary" : "outline-solid"}
                       className="text-xs flex items-center gap-1"
                     >
                       {project.require_login ? (
@@ -1458,7 +1458,7 @@ export default function ProjectDetails({
                         className="flex items-center justify-between p-3 rounded-lg border bg-background hover:bg-muted/20 transition-colors"
                       >
                         <div className="flex items-center gap-3 w-0 flex-1">
-                          <div className="bg-muted p-2 rounded-md flex-shrink-0">
+                          <div className="bg-muted p-2 rounded-md shrink-0">
                             {getFileIcon(doc.type)}
                           </div>
                           <div className="min-w-0 w-full overflow-hidden">
@@ -1466,7 +1466,7 @@ export default function ProjectDetails({
                             <p className="text-xs text-muted-foreground">{formatBytes(doc.size)}</p>
                           </div>
                         </div>
-                        <div className="flex gap-2 flex-shrink-0 ml-2">
+                        <div className="flex gap-2 shrink-0 ml-2">
                           {isPreviewable(doc.type) && (
                             <Button 
                               variant="outline" 

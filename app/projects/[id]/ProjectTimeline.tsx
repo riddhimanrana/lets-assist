@@ -817,7 +817,7 @@ export default function ProjectTimeline({ project, open, onOpenAction }: Project
                               {/* Event connector */}
                               <div 
                                 className={cn(
-                                  "absolute left-[-5px] top-2.5 h-[1px] w-5 transition-colors duration-300",
+                                  "absolute left-[-5px] top-2.5 h-px w-5 transition-colors duration-300",
                                   (eventStatus === "current" || eventStatus === "passed") ? "bg-primary" : "bg-muted"
                                 )}
                               />
@@ -881,7 +881,7 @@ export default function ProjectTimeline({ project, open, onOpenAction }: Project
                     
                     {project.pause_signups && milestone.id.startsWith("signup") && (
                       <div className="mt-3 flex items-center bg-yellow-50 text-yellow-800 px-3 py-2 rounded-md text-xs">
-                        <AlertTriangle className="h-3.5 w-3.5 mr-2 flex-shrink-0" />
+                        <AlertTriangle className="h-3.5 w-3.5 mr-2 shrink-0" />
                         <span>Sign-ups are currently paused by project coordinator</span>
                       </div>
                     )}

@@ -397,7 +397,7 @@ export function SignupConfirmationModal({
             ) : calendarConnected ? (
               <div className="flex items-center justify-between gap-3 p-3 bg-chart-5/10 border border-chart-5/80 rounded-lg">
                 <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <div className="flex-shrink-0">
+                  <div className="shrink-0">
                     <div className="h-8 w-8 rounded-full bg-chart-5/20 flex items-center justify-center">
                       <Image
               src="/googlecalendar.svg"
@@ -424,7 +424,7 @@ export function SignupConfirmationModal({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-8 w-8 p-0 flex-shrink-0"
+                      className="h-8 w-8 p-0 shrink-0"
                     >
                       <ChevronDown className="h-4 w-4" />
                     </Button>
@@ -446,7 +446,7 @@ export function SignupConfirmationModal({
               >
                 <div className="flex items-center gap-3 w-full">
                   {connectingCalendar ? (
-                    <Loader2 className="h-5 w-5 animate-spin flex-shrink-0" />
+                    <Loader2 className="h-5 w-5 animate-spin shrink-0" />
                   ) : (
                     <Image
                       src="/googlecalendar.svg"

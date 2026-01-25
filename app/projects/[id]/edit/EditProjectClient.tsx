@@ -1411,7 +1411,7 @@ export default function EditProjectClient({ project }: Props) {
                         </div>
                       ) : (
                         <label className="flex flex-col items-center justify-center py-6 cursor-pointer">
-                          <div className="rounded-full bg-background p-3 shadow-sm mb-3">
+                          <div className="rounded-full bg-background p-3 shadow-xs mb-3">
                             <ImageIcon className="h-6 w-6 text-muted-foreground" />
                           </div>
                           <p className="text-sm font-medium mb-1">
@@ -1455,7 +1455,7 @@ export default function EditProjectClient({ project }: Props) {
                       <label className={`flex flex-col items-center justify-center py-6 ${
                         (project.documents || []).length >= MAX_DOCUMENTS_COUNT ? 'cursor-not-allowed' : 'cursor-pointer'
                       }`}>
-                        <div className="rounded-full bg-background p-3 shadow-sm mb-3">
+                        <div className="rounded-full bg-background p-3 shadow-xs mb-3">
                           <Upload className="h-6 w-6 text-muted-foreground" />
                         </div>
                         <p className="text-sm font-medium mb-1">
@@ -1501,7 +1501,7 @@ export default function EditProjectClient({ project }: Props) {
                                 <p className="text-xs text-muted-foreground">{formatBytes(doc.size)}</p>
                               </div>
                             </div>
-                            <div className="flex gap-1 flex-shrink-0">
+                            <div className="flex gap-1 shrink-0">
                               {isPreviewable(doc.type) && (
                                 <Button
                                   type="button"
@@ -1562,7 +1562,7 @@ export default function EditProjectClient({ project }: Props) {
             {/* Project status notification */}
             {isCancelled && (
               <div className="mb-6 flex items-start gap-3 p-4 rounded-md border border-destructive bg-destructive/10">
-                <AlertTriangle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
+                <AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
                 <div className="text-sm text-muted-foreground">
                   <p className="font-medium text-foreground mb-1">This project has been cancelled</p>
                   <p>

@@ -245,7 +245,7 @@ export default function InitialOnboardingModal({
               transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
             >
               {/* Header with gradient background */}
-              <div className="relative bg-gradient-to-br from-primary/10 via-primary/5 to-background px-6 pt-8 pb-6 border-b">
+              <div className="relative bg-linear-to-br from-primary/10 via-primary/5 to-background px-6 pt-8 pb-6 border-b">
                 <motion.div
                   initial={{ scale: 0.8, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
@@ -274,7 +274,7 @@ export default function InitialOnboardingModal({
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.2, duration: 0.4 }}
-                    className="flex items-center gap-3 p-3 rounded-lg bg-background/80 backdrop-blur-sm border shadow-sm"
+                    className="flex items-center gap-3 p-3 rounded-lg bg-background/80 backdrop-blur-xs border shadow-xs"
                   >
                     <Avatar className="h-10 w-10 border">
                       <AvatarImage src={orgLogoUrl || undefined} alt={autoJoinedOrg.name} />

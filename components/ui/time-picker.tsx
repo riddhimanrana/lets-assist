@@ -192,7 +192,7 @@ export function TimePicker({
       </Popover>
       {error && errorMessage && (
         <div className="text-destructive text-sm flex items-center gap-1.5 mt-1">
-          <AlertCircle className="h-4 w-4 flex-shrink-0" />
+          <AlertCircle className="h-4 w-4 shrink-0" />
           <span>{errorMessage}</span>
         </div>
       )}

@@ -591,7 +591,7 @@ export default async function VolunteerDashboard() {
                               {org.projects} {org.projects === 1 ? 'project' : 'projects'} • {org.hours.toFixed(1)} hours
                             </p>
                           </div>
-                          <div className="w-12 h-12 sm:w-16 sm:h-16 flex-shrink-0">
+                          <div className="w-12 h-12 sm:w-16 sm:h-16 shrink-0">
                             <ProgressCircle 
                               value={(org.hours / statistics.totalHours) * 100} 
                               size={48} 
@@ -668,7 +668,7 @@ export default async function VolunteerDashboard() {
                                   </Tooltip>
                                 </div>
                                 <div className="text-xs sm:text-sm text-muted-foreground flex items-center gap-2">
-                                  Status: <Badge variant={session.status === 'approved' ? 'default' : 'outline'}>
+                                  Status: <Badge variant={session.status === 'approved' ? 'default' : 'outline-solid'}>
                                     {session.status === "approved" ? "Confirmed" : "Pending"}
                                   </Badge>
                                 </div>

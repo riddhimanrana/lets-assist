@@ -52,12 +52,12 @@ export const HeroContent = () => {
 						initial={{ opacity: 0, y: 20 }}
 						animate={{ opacity: 1, y: 0 }}
 						transition={{ delay: 0.2, duration: 0.5 }}
-						className="mx-auto w-full max-w-screen-md px-2"
+						className="mx-auto w-full max-w-(--breakpoint-md) px-2"
 					>
 						<h1 className="font-overusedgrotesk text-[2.7rem] font-extrabold leading-[1.1] tracking-tight sm:text-4xl sm:leading-tight md:text-5xl lg:text-6xl">
 							Give back to your{" "}
 							<span
-								className="inline-block text-transparent bg-gradient-to-r from-[#4ed247] to-primary bg-clip-text align-baseline leading-[1.25]"
+								className="inline-block text-transparent bg-linear-to-r from-[#4ed247] to-primary bg-clip-text align-baseline leading-tight"
 								style={{ WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}
 							>
 								community
@@ -70,7 +70,7 @@ export const HeroContent = () => {
 						initial={{ opacity: 0 }}
 						animate={{ opacity: 1 }}
 						transition={{ delay: 0.4, duration: 0.5 }}
-						className="mx-auto max-w-screen-sm px-4 text-sm leading-relaxed text-muted-foreground sm:px-2 sm:text-base md:text-lg"
+						className="mx-auto max-w-(--breakpoint-sm) px-4 text-sm leading-relaxed text-muted-foreground sm:px-2 sm:text-base md:text-lg"
 					>
 						Find and track local volunteering opportunities, connect with organizations, and make a difference in your community.
 					</motion.p>
@@ -82,7 +82,7 @@ export const HeroContent = () => {
 							className="flex w-full flex-col items-center justify-center gap-4 px-4 sm:w-auto sm:flex-row sm:px-0"
 					>
 						<Link href="/signup" className="w-full max-w-[280px] sm:w-auto">
-							<Button className="group/arrow h-12 w-full transform text-sm font-semibold shadow-sm transition-all duration-200 hover:scale-[1.02] hover:shadow-md sm:h-11">
+							<Button className="group/arrow h-12 w-full transform text-sm font-semibold shadow-xs transition-all duration-200 hover:scale-[1.02] hover:shadow-md sm:h-11">
 								Get Started
 								<ArrowRight className="ml-2 size-5 transition-transform duration-500 group-hover/arrow:translate-x-1" />
 							</Button>
@@ -114,7 +114,7 @@ export const HeroContent = () => {
 								whileHover={shouldReduceMotion ? undefined : { scale: 1.03, y: -4 }}
 								whileTap={shouldReduceMotion ? undefined : { scale: 0.97 }}
 								transition={{ type: "spring", stiffness: 260, damping: 20 }}
-								className="flex h-full w-full flex-col items-center rounded-xl border border-border/60 bg-background/60 p-2 text-center shadow-sm transition-colors hover:border-primary/50 hover:bg-primary/5 sm:p-3"
+								className="flex h-full w-full flex-col items-center rounded-xl border border-border/60 bg-background/60 p-2 text-center shadow-xs transition-colors hover:border-primary/50 hover:bg-primary/5 sm:p-3"
 							>
 								<step.icon className="mb-1 h-5 w-5 text-primary sm:mb-2 sm:h-6 sm:w-6" />
 								<h4 className="mb-1 text-xs font-semibold sm:text-sm">{step.title}</h4>

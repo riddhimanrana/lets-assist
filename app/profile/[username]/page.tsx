@@ -365,7 +365,7 @@ function formatHours(hours: number): string {
             </DropdownMenu>
           </div>
           
-          <div className="h-24 sm:h-32 bg-gradient-to-r from-primary/40 via-primary/20 to-primary/10"></div>
+          <div className="h-24 sm:h-32 bg-linear-to-r from-primary/40 via-primary/20 to-primary/10"></div>
           <CardHeader className="pt-0 px-4 sm:px-6 pb-2">
             <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 -mt-6 sm:-mt-16">
               <Avatar className="h-20 w-20 sm:h-32 sm:w-32 border-4 border-background">
@@ -513,14 +513,14 @@ function formatHours(hours: number): string {
           return (
             <Link href={`/organization/${org.username}`} key={org.id} className="relative block">
               {/* Gradient background behind the card */}
-              <div className="absolute inset-0 h-full w-full bg-gradient-to-r from-primary/40 via-primary/20 to-primary/10 rounded-lg"></div>
+              <div className="absolute inset-0 h-full w-full bg-linear-to-r from-primary/40 via-primary/20 to-primary/10 rounded-lg"></div>
               
               <Card className="relative h-full hover:shadow-md transition-shadow overflow-hidden">
                 <CardContent className="p-4">
             <div className="flex flex-col">
               {/* Header with Avatar and Name */}
               <div className="flex items-center gap-3 mb-3">
-                <Avatar className="h-14 w-14 border-2 border-background flex-shrink-0">
+                <Avatar className="h-14 w-14 border-2 border-background shrink-0">
                   {org.logo_url ? (
               <AvatarImage src={org.logo_url} alt={org.name} />
                   ) : (
@@ -549,7 +549,7 @@ function formatHours(hours: number): string {
                 <Badge 
                   variant={
               membership.role === "admin" ? "default" : 
-              membership.role === "staff" ? "secondary" : "outline"
+              membership.role === "staff" ? "secondary" : "outline-solid"
                   }
                   className="text-xs flex items-center gap-1"
                 >
@@ -607,14 +607,14 @@ function formatHours(hours: number): string {
                     <ProjectStatusBadge 
                       status={project.status}
                       size="sm"
-                      className="ml-auto flex-shrink-0"
+                      className="ml-auto shrink-0"
                     />
                   </div>
                   <p className="text-muted-foreground text-xs sm:text-sm mb-2 sm:mb-3 line-clamp-2">
                     {stripHtml(project.description)}
                   </p>
                   <div className="flex items-center text-xs text-muted-foreground">
-                    <MapPin className="h-3 w-3 mr-1 flex-shrink-0" />
+                    <MapPin className="h-3 w-3 mr-1 shrink-0" />
                     <span className="truncate">{project.location}</span>
                   </div>
                   <div className="flex items-center mt-1.5 sm:mt-2 text-xs text-muted-foreground">
@@ -651,14 +651,14 @@ function formatHours(hours: number): string {
                     <ProjectStatusBadge 
                       status={project.status}
                       size="sm"
-                      className="ml-auto flex-shrink-0"
+                      className="ml-auto shrink-0"
                     />
                   </div>
                   <p className="text-muted-foreground text-xs sm:text-sm mb-2 sm:mb-3 line-clamp-2">
                     {stripHtml(project.description)}
                   </p>
                   <div className="flex items-center text-xs text-muted-foreground">
-                    <MapPin className="h-3 w-3 mr-1 flex-shrink-0" />
+                    <MapPin className="h-3 w-3 mr-1 shrink-0" />
                     <span className="truncate">{project.location}</span>
                   </div>
                   <div className="flex items-center mt-1.5 sm:mt-2 text-xs text-muted-foreground">

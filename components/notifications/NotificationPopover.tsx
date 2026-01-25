@@ -562,7 +562,7 @@ export function NotificationPopover() {
       {unreadCount > 0 && (
         <Badge
           variant="destructive"
-          className="absolute -top-0 -right-0 h-3 w-3 p-0 flex items-center justify-center"
+          className="absolute top-0 right-0 h-3 w-3 p-0 flex items-center justify-center"
         />
       )}
     </Button>
@@ -603,7 +603,7 @@ export function NotificationPopover() {
         <div className="space-y-3">
           {detailStatusLabel && (
             <Badge
-              variant={detailStatus === 'resolved' ? 'secondary' : detailStatus === 'dismissed' ? 'outline' : 'default'}
+              variant={detailStatus === 'resolved' ? 'secondary' : detailStatus === 'dismissed' ? 'outline-solid' : 'default'}
               className="w-fit uppercase"
             >
               {detailStatusLabel}
@@ -687,7 +687,7 @@ export function NotificationPopover() {
                   <Settings className="h-4 w-4" />
                 </Button>
               </div>
-              <div className="h-[1px] w-full bg-border"></div>
+              <div className="h-px w-full bg-border"></div>
             </DrawerHeader>
             <div className="pb-6">
               <NotificationsContent />
@@ -723,7 +723,7 @@ export function NotificationPopover() {
           </div>
           
           {/* Full-width separator */}
-          <div className="h-[1px] w-full bg-border"></div>
+          <div className="h-px w-full bg-border"></div>
         </div>
 
           <NotificationsContent />

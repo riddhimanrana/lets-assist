@@ -968,15 +968,15 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
       {/* Certificates Modal */}
       <Dialog open={showCertificatesModal} onOpenChange={setShowCertificatesModal}>
         <DialogContent className="w-[95vw] max-w-4xl flex flex-col">
-          <DialogHeader className="flex-shrink-0">
+          <DialogHeader className="shrink-0">
             <DialogTitle className="text-lg sm:text-xl flex items-center">
-              <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-primary mr-2 flex-shrink-0" />
+              <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-primary mr-2 shrink-0" />
               <span className="truncate">Certificate Details</span>
             </DialogTitle>
             <DialogDescription className="text-sm">
               {certificatesModalData ? (
                 <>
-                  <span className="block sm:inline">Session: <strong className="break-words">{certificatesModalData.sessionName}</strong></span>
+                  <span className="block sm:inline">Session: <strong className="wrap-break-word">{certificatesModalData.sessionName}</strong></span>
                   <span className="block sm:inline sm:ml-2">• {certificatesModalData.volunteers.length} volunteer{certificatesModalData.volunteers.length !== 1 ? 's' : ''}</span>
                 </>
               ) : (
@@ -1037,7 +1037,7 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
                 </div>
                 
                 {certificatesModalData.volunteers.length > 0 && (
-                  <div className="flex-shrink-0 bg-muted/30 rounded-md p-4">
+                  <div className="shrink-0 bg-muted/30 rounded-md p-4">
                     <p className="text-sm font-medium mb-2">Summary:</p>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 text-sm">
                       <div className="text-center sm:text-left">
@@ -1083,7 +1083,7 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
             )}
           </div>
           
-          <DialogFooter className="flex-shrink-0 gap-2 flex-col sm:flex-row mt-4">
+          <DialogFooter className="shrink-0 gap-2 flex-col sm:flex-row mt-4">
             <DialogClose asChild>
               <Button variant="outline" className="w-full sm:w-auto">Close</Button>
             </DialogClose>
@@ -1122,7 +1122,7 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
                 {activeUnpublishedSessions.map(session => (
                   <div
                     key={session.id}
-                    className="flex flex-col gap-1 p-3 sm:p-4 rounded-xl border border-chart-4/30 bg-gradient-to-br from-chart-4/10 to-white/80 dark:to-background shadow-sm transition hover:shadow-lg"
+                    className="flex flex-col gap-1 p-3 sm:p-4 rounded-xl border border-chart-4/30 bg-linear-to-br from-chart-4/10 to-white/80 dark:to-background shadow-xs transition hover:shadow-lg"
                     aria-label={`Editing window for ${session.name}`}
                   >
                     <div className="flex items-center gap-2">

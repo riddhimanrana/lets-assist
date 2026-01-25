@@ -185,8 +185,8 @@ export default function OrgToolingSection() {
           transition={{ duration: 0.5 }}
           className="relative mx-auto mt-12 w-full max-w-6xl"
         >
-          <div className="pointer-events-none absolute -inset-x-8 -inset-y-6 rounded-3xl bg-[radial-gradient(40%_30%_at_30%_20%,theme(colors.emerald.400/_18%),transparent_70%),radial-gradient(30%_25%_at_70%_10%,theme(colors.primary.DEFAULT/_16%),transparent_70%)] blur-2xl" />
-          <div className="relative rounded-2xl border border-primary/20 bg-card/90 shadow-2xl backdrop-blur-sm">
+          <div className="pointer-events-none absolute -inset-x-8 -inset-y-6 rounded-3xl bg-[radial-gradient(40%_30%_at_30%_20%,--theme(--color-emerald-400/18%),transparent_70%),radial-gradient(30%_25%_at_70%_10%,--theme(--color-primary/16%),transparent_70%)] blur-2xl" />
+          <div className="relative rounded-2xl border border-primary/20 bg-card/90 shadow-2xl backdrop-blur-xs">
             <div className="p-4 sm:p-6">
               <OrganizationHeader
                 organization={mockOrganization}
@@ -209,7 +209,7 @@ export default function OrgToolingSection() {
         <div className="mt-12 space-y-10">
           <div className="grid gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {orgFeatures.map((feat) => (
-              <Card key={feat.title} className="h-full border-border/60 bg-background/90 shadow-sm">
+              <Card key={feat.title} className="h-full border-border/60 bg-background/90 shadow-xs">
                 <CardContent className="p-4">
                   <div className="mb-2 inline-flex rounded-lg bg-primary/10 p-2 text-primary">
                     <feat.icon className="h-4 w-4" />

@@ -337,7 +337,7 @@ body[data-first-login-tour='true'] [data-radix-dialog-content] > button {
   const highlightLayer =
     highlightPortalRoot && isOpen
       ? createPortal(
-          <div className="pointer-events-none fixed inset-0 z-[90]">
+          <div className="pointer-events-none fixed inset-0 z-90">
             {highlightStyle ? (
               <>
                 {/* Use a single div with a massive box-shadow to create the overlay with a clear cutout */}
@@ -377,7 +377,7 @@ body[data-first-login-tour='true'] [data-radix-dialog-content] > button {
       {highlightLayer}
       <Dialog modal={false} open={isOpen} onOpenChange={() => {}}>
         <DialogPrimitive.Content
-          className="m-0 h-screen w-screen max-w-none border-none bg-transparent p-0 shadow-none z-[100] fixed inset-0"
+          className="m-0 h-screen w-screen max-w-none border-none bg-transparent p-0 shadow-none z-100 fixed inset-0"
           onInteractOutside={(event) => event.preventDefault()}
           onEscapeKeyDown={(event) => event.preventDefault()}
         >

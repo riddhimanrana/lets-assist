@@ -592,7 +592,7 @@ export default function UserDashboard({ project, user: _user, signups }: Props) 
               <CardContent className="space-y-3 text-sm">
                 <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                   <span className="font-medium text-muted-foreground">Session:</span>
-                  <span className="sm:max-w-[65%] sm:text-right break-words">
+                  <span className="sm:max-w-[65%] sm:text-right wrap-break-word">
                     {status.sessionDisplayName}
                   </span>
                 </div>
@@ -724,7 +724,7 @@ export default function UserDashboard({ project, user: _user, signups }: Props) 
             <Card key={status.signup.id} className="border-chart-3/30 bg-chart-3/5">
               <CardHeader>
                 <div className="flex items-center gap-3">
-                  <CalendarCheck className="h-6 w-6 text-chart-3 flex-shrink-0" />
+                  <CalendarCheck className="h-6 w-6 text-chart-3 shrink-0" />
                   <div>
                     <CardTitle className="text-lg">Upcoming Session</CardTitle>
                     <CardDescription>Your scheduled session for {project.title} is approaching.</CardDescription>

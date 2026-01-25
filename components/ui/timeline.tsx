@@ -123,7 +123,7 @@ const TimelineContent = React.forwardRef<
   <div
     ref={ref}
     className={cn(
-      "ml-[52px] mt-2 border rounded-lg p-4 shadow-sm", // Aligned with header content, added padding/border
+      "ml-[52px] mt-2 border rounded-lg p-4 shadow-xs", // Aligned with header content, added padding/border
       "border-muted", // Default border
       "group-data-[status=passed]:border-primary/30", // Passed border
       "group-data-[status=current]:border-primary border-2", // Current border

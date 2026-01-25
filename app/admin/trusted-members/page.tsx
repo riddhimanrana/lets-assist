@@ -36,7 +36,7 @@ export default async function TrustedMembersPage() {
         </p>
       </div>
       
-      <Card className="border-border bg-card text-card-foreground shadow-sm">
+      <Card className="border-border bg-card text-card-foreground shadow-xs">
         <CardHeader>
           <CardTitle>Applications & Members</CardTitle>
           <CardDescription>

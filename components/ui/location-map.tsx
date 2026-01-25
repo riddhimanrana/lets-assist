@@ -135,7 +135,7 @@ export function LocationMap({
 
         {/* Show a message if no location data is available */}
         {!location?.coordinates && (
-          <div className="absolute inset-0 flex items-center justify-center bg-muted/50 backdrop-blur-sm">
+          <div className="absolute inset-0 flex items-center justify-center bg-muted/50 backdrop-blur-xs">
             <p className="text-sm text-muted-foreground">No location selected</p>
           </div>
         )}

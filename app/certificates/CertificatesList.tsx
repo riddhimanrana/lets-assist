@@ -340,7 +340,7 @@ export function CertificatesList({ certificates, user }: CertificatesListProps) 
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
           </div>
-          <div className="flex flex-row flex-wrap gap-1 sm:gap-3 flex-shrink-0">
+          <div className="flex flex-row flex-wrap gap-1 sm:gap-3 shrink-0">
             {/* Date range filter */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -515,7 +515,7 @@ export function CertificatesList({ certificates, user }: CertificatesListProps) 
                         <span className="text-muted-foreground/50">•</span>
                       </div>
                     )}
-                    <span className="flex-shrink-0">{format(parseISO(cert.issued_at), "MMM d, yyyy")}</span>
+                    <span className="shrink-0">{format(parseISO(cert.issued_at), "MMM d, yyyy")}</span>
                   </div>
                 </CardHeader>
                 

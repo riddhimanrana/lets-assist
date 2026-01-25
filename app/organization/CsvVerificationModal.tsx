@@ -677,9 +677,9 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                 </div>
                 {file && (
                   <p className="text-xs text-muted-foreground flex items-center gap-1.5 bg-muted/30 p-1.5 px-2 rounded-md">
-                    <FileText className="w-3.5 h-3.5 flex-shrink-0" />
+                    <FileText className="w-3.5 h-3.5 shrink-0" />
                     <span className="truncate">{file.name}</span>
-                    <span className="flex-shrink-0">({Math.round(file.size / 1024)} KB)</span>
+                    <span className="shrink-0">({Math.round(file.size / 1024)} KB)</span>
                   </p>
                 )}
               </div>
@@ -690,7 +690,7 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                     onClick={processAndVerifyCsv} 
                     disabled={!file || isProcessing || verifying}
                     className="w-full h-10 text-xs sm:text-sm"
-                    variant={file ? "default" : "outline"}
+                    variant={file ? "default" : "outline-solid"}
                   >
                     {isProcessing || verifying ? (
                       <>
@@ -748,11 +748,11 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
             {/* Summary */}
             {summary && (
               <div>
-                <h3 className="text-sm sm:text-base font-semibold mb-3 break-words">Certificate Summary</h3>
+                <h3 className="text-sm sm:text-base font-semibold mb-3 wrap-break-word">Certificate Summary</h3>
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3 overflow-x-auto">
                   <Card className="min-w-0">
                     <CardContent className="flex items-center gap-1 sm:gap-2 p-2 sm:p-3">
-                      <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground flex-shrink-0" />
+                      <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground shrink-0" />
                       <div className="min-w-0 flex-1">
                         <div className="text-sm sm:text-lg font-bold truncate">{summary.total}</div>
                         <div className="text-xs text-muted-foreground truncate">Total Records</div>
@@ -765,7 +765,7 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                       <TooltipTrigger asChild>
                         <Card className={`min-w-0 ${summary.certifiedHours > 0 ? "" : "opacity-60"}`}>
                           <CardContent className="flex items-center gap-1 sm:gap-2 p-2 sm:p-3">
-                            <BadgeCheck className="w-4 h-4 sm:w-5 sm:h-5 text-chart-2 flex-shrink-0" />
+                            <BadgeCheck className="w-4 h-4 sm:w-5 sm:h-5 text-chart-2 shrink-0" />
                             <div className="min-w-0 flex-1">
                               <div className="text-sm sm:text-lg font-bold text-chart-2 truncate">{formatHours(summary.certifiedHours)}</div>
                               <div className="text-xs text-muted-foreground truncate">Official</div>
@@ -784,7 +784,7 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                       <TooltipTrigger asChild>
                         <Card className={`min-w-0 ${summary.verifiedHours > 0 ? "" : "opacity-60"}`}>
                           <CardContent className="flex items-center gap-1 sm:gap-2 p-2 sm:p-3">
-                            <CircleCheck className="w-4 h-4 sm:w-5 sm:h-5 text-chart-5 flex-shrink-0" />
+                            <CircleCheck className="w-4 h-4 sm:w-5 sm:h-5 text-chart-5 shrink-0" />
                             <div className="min-w-0 flex-1">
                               <div className="text-sm sm:text-lg font-bold text-chart-5 truncate">{formatHours(summary.verifiedHours)}</div>
                               <div className="text-xs text-muted-foreground truncate">Platform</div>
@@ -803,7 +803,7 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                       <TooltipTrigger asChild>
                         <Card className={`min-w-0 ${summary.selfReportedHours > 0 ? "" : "opacity-60"}`}>
                           <CardContent className="flex items-center gap-1 sm:gap-2 p-2 sm:p-3">
-                            <UserCheck className="w-4 h-4 sm:w-5 sm:h-5 text-chart-4 flex-shrink-0" />
+                            <UserCheck className="w-4 h-4 sm:w-5 sm:h-5 text-chart-4 shrink-0" />
                             <div className="min-w-0 flex-1">
                               <div className="text-sm sm:text-lg font-bold text-chart-4 truncate">{formatHours(summary.selfReportedHours)}</div>
                               <div className="text-xs text-muted-foreground truncate">Self-reported</div>
@@ -822,7 +822,7 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                       <TooltipTrigger asChild>
                         <Card className="min-w-0">
                           <CardContent className="flex items-center gap-1 sm:gap-2 p-2 sm:p-3">
-                            <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-chart-3 flex-shrink-0" />
+                            <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-chart-3 shrink-0" />
                             <div className="min-w-0 flex-1">
                               <div className="text-sm sm:text-lg font-bold text-chart-3 truncate">{formatHours(summary.totalHours)}</div>
                               <div className="text-xs text-muted-foreground truncate">Total Hours</div>
@@ -838,7 +838,7 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
 
                   <Card className="min-w-0">
                     <CardContent className="flex items-center gap-1 sm:gap-2 p-2 sm:p-3">
-                      <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-destructive flex-shrink-0" />
+                      <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-destructive shrink-0" />
                       <div className="min-w-0 flex-1">
                         <div className="text-sm sm:text-lg font-bold text-destructive truncate">{summary.invalidFormat}</div>
                         <div className="text-xs text-muted-foreground truncate">Invalid/Not Found</div>
@@ -853,7 +853,7 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
             {results.length > 0 && (
               <div className="space-y-3 sm:space-y-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-sm sm:text-base font-semibold break-words flex-1 min-w-0">
+                  <h3 className="text-sm sm:text-base font-semibold wrap-break-word flex-1 min-w-0">
                     Record Details ({results.length} record{results.length === 1 ? '' : 's'})
                   </h3>
                 </div>
@@ -874,17 +874,17 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                               <div className="flex items-center justify-between gap-2">
                                 <div className="flex items-center gap-2 flex-1 min-w-0">
                                   {!row.valid ? (
-                                    <Badge variant="destructive" className="text-xs h-5 px-1.5 flex-shrink-0">
-                                      <XCircle className="w-3 h-3 flex-shrink-0" />
+                                    <Badge variant="destructive" className="text-xs h-5 px-1.5 shrink-0">
+                                      <XCircle className="w-3 h-3 shrink-0" />
                                       <span className="ml-1">Invalid Format</span>
                                     </Badge>
                                   ) : !row.verificationStatus ? (
-                                    <Badge variant="secondary" className="text-xs h-5 px-1.5 flex-shrink-0">
+                                    <Badge variant="secondary" className="text-xs h-5 px-1.5 shrink-0">
                                       <CheckCircle className="w-3 h-3" />
                                       <span className="ml-1">Valid Format</span>
                                     </Badge>
                                   ) : row.verificationStatus === 'pending' ? (
-                                    <Badge variant="outline" className="text-xs h-5 px-1.5 flex items-center flex-shrink-0">
+                                    <Badge variant="outline" className="text-xs h-5 px-1.5 flex items-center shrink-0">
                                       <div className="w-3 h-3 mr-1 animate-spin rounded-full border-2 border-current border-t-transparent" />
                                       <span className="ml-1">Checking...</span>
                                     </Badge>
@@ -897,7 +897,7 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                                       <TooltipProvider>
                                         <Tooltip>
                                           <TooltipTrigger>
-                                            <Badge variant="default" className="text-xs h-5 px-1.5 bg-chart-8/10 text-chart-8 flex-shrink-0">
+                                            <Badge variant="default" className="text-xs h-5 px-1.5 bg-chart-8/10 text-chart-8 shrink-0">
                                               <CircleCheck className="w-3 h-3" />
                                               <span className="ml-1">Official</span>
                                             </Badge>
@@ -912,7 +912,7 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                                       <TooltipProvider>
                                         <Tooltip>
                                           <TooltipTrigger>
-                                            <Badge variant="default" className="text-xs h-5 px-1.5 bg-chart-5/10 text-chart-5 flex-shrink-0">
+                                            <Badge variant="default" className="text-xs h-5 px-1.5 bg-chart-5/10 text-chart-5 shrink-0">
                                               <CheckCircle className="w-3 h-3" />
                                               <span className="ml-1">Platform</span>
                                             </Badge>
@@ -926,7 +926,7 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                                       <TooltipProvider>
                                         <Tooltip>
                                           <TooltipTrigger>
-                                            <Badge variant="secondary" className="text-xs h-5 px-1.5 bg-chart-3/10 text-chart-3 flex-shrink-0">
+                                            <Badge variant="secondary" className="text-xs h-5 px-1.5 bg-chart-3/10 text-chart-3 shrink-0">
                                               <UserCheck className="w-3 h-3" />
                                               <span className="ml-1">Self-reported</span>
                                             </Badge>
@@ -938,17 +938,17 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                                       </TooltipProvider>
                                     )
                                   ) : row.verificationStatus === 'verified' && !row.isVerified ? (
-                                    <Badge variant="outline" className="text-xs h-5 px-1.5 border-chart-6 text-chart-6 flex-shrink-0">
+                                    <Badge variant="outline" className="text-xs h-5 px-1.5 border-chart-6 text-chart-6 shrink-0">
                                       <XCircle className="w-3 h-3" />
                                       <span className="ml-1">Data Mismatch</span>
                                     </Badge>
                                   ) : row.verificationStatus === 'failed' ? (
-                                    <Badge variant="destructive" className="text-xs h-5 px-1.5 flex-shrink-0">
+                                    <Badge variant="destructive" className="text-xs h-5 px-1.5 shrink-0">
                                       <XCircle className="w-3 h-3" />
                                       <span className="ml-1">Not Found</span>
                                     </Badge>
                                   ) : (
-                                    <Badge variant="secondary" className="text-xs h-5 px-1.5 flex-shrink-0">
+                                    <Badge variant="secondary" className="text-xs h-5 px-1.5 shrink-0">
                                       <CheckCircle className="w-3 h-3" />
                                       <span className="ml-1">Unknown</span>
                                     </Badge>
@@ -958,7 +958,7 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                                     {row.projectTitle || 'Untitled Project'}
                                   </p>
                                 </div>
-                                <ChevronRight className="w-4 h-4 text-muted-foreground transform transition-transform ui-open:rotate-90 flex-shrink-0" />
+                                <ChevronRight className="w-4 h-4 text-muted-foreground transform transition-transform ui-open:rotate-90 shrink-0" />
                               </div>
                               <div className="flex items-center justify-between mt-1">
                                 <p className="text-xs text-muted-foreground font-mono truncate" title={row.certificateId}>
@@ -1019,9 +1019,9 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                                     {Object.entries(row.verificationResult.verification.matches).map(([key, value]) => (
                                       <div key={key} className="flex items-center">
                                         {value ? (
-                                          <CheckCircle className="w-3 h-3 text-chart-5 mr-1.5 flex-shrink-0" />
+                                          <CheckCircle className="w-3 h-3 text-chart-5 mr-1.5 shrink-0" />
                                         ) : (
-                                          <XCircle className="w-3 h-3 text-chart-6 mr-1.5 flex-shrink-0" />
+                                          <XCircle className="w-3 h-3 text-chart-6 mr-1.5 shrink-0" />
                                         )}
                                         <span className="capitalize">
                                           {key === 'certificateId' ? 'Certificate ID' :

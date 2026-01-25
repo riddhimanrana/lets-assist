@@ -9,7 +9,7 @@ export const CallToAction = () => {
   return (
     <section id="cta" className="py-20 relative overflow-hidden">
       {/* Enhanced background gradient */}
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-muted/30 to-muted/80"></div>
+      <div className="absolute inset-0 bg-linear-to-b from-transparent via-muted/30 to-muted/80"></div>
       
       {/* Show accent circle only on desktop */}
       {/* <div className="hidden md:block absolute -left-24 bottom-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl"></div> */}
@@ -24,7 +24,7 @@ export const CallToAction = () => {
           className="text-center space-y-8 max-w-3xl mx-auto px-4"
         >
           <div className="relative inline-block">
-            <div className="absolute inset-0 bg-gradient-to-r from-primary/40 to-emerald-500/40 rounded-full blur-xl animate-pulse-slow"></div>
+            <div className="absolute inset-0 bg-linear-to-r from-primary/40 to-emerald-500/40 rounded-full blur-xl animate-pulse-slow"></div>
             <HeartHandshake className="w-16 h-16 text-primary mx-auto relative z-10" />
           </div>
           

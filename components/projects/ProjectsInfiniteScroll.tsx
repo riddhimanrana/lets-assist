@@ -360,7 +360,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
           <div className="w-full">
             <Skeleton className="h-10 w-full" />
           </div>
-          <div className="flex-shrink-0">
+          <div className="shrink-0">
             <Skeleton className="h-10 w-32" />
           </div>
         </div>
@@ -720,7 +720,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
                 </Button>
               )}
               
-              <Button asChild variant={activeFilterCount > 0 ? "outline" : "default"}>
+              <Button asChild variant={activeFilterCount > 0 ? "outline-solid" : "default"}>
                 <Link href="/projects/create" className="gap-2">
                   <Plus className="h-4 w-4" />
                   Create a project

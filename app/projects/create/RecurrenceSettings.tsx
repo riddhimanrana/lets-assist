@@ -234,7 +234,7 @@ export default function RecurrenceSettings({
                     variant={
                       recurrence.weekdays.includes(day.value)
                         ? "default"
-                        : "outline"
+                        : "outline-solid"
                     }
                     size="sm"
                     onClick={() => toggleWeekday(day.value)}

@@ -173,9 +173,9 @@ function ModernDashboardMockup() {
       className="relative"
     >
       {/* Glow effect */}
-      <div className="absolute -inset-2 sm:-inset-4 bg-gradient-to-r from-primary/20 via-emerald-500/20 to-primary/20 rounded-2xl sm:rounded-3xl blur-xl sm:blur-2xl opacity-60" />
+      <div className="absolute -inset-2 sm:-inset-4 bg-linear-to-r from-primary/20 via-emerald-500/20 to-primary/20 rounded-2xl sm:rounded-3xl blur-xl sm:blur-2xl opacity-60" />
       
-      <div className="relative rounded-xl sm:rounded-2xl border border-primary/30 bg-gradient-to-br from-background via-background to-primary/5 p-0.5 sm:p-1 shadow-xl sm:shadow-2xl">
+      <div className="relative rounded-xl sm:rounded-2xl border border-primary/30 bg-linear-to-br from-background via-background to-primary/5 p-0.5 sm:p-1 shadow-xl sm:shadow-2xl">
         {/* Browser chrome */}
         <div className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-3 border-b border-border/50 bg-muted/30 rounded-t-xl">
           <div className="flex gap-1 sm:gap-1.5">
@@ -274,7 +274,7 @@ function OutdatedMockup() {
     >
       <div className="relative rounded-xl sm:rounded-2xl border-2 border-dashed border-muted-foreground/30 bg-muted/20 p-0.5 sm:p-1 opacity-75">
         {/* Browser chrome - old style */}
-        <div className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-3 border-b border-muted-foreground/20 bg-gradient-to-b from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 rounded-t-lg sm:rounded-t-xl">
+        <div className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-3 border-b border-muted-foreground/20 bg-linear-to-b from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 rounded-t-lg sm:rounded-t-xl">
           <div className="flex gap-1 sm:gap-1.5">
             <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-gray-400" />
             <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-gray-400" />
@@ -288,7 +288,7 @@ function OutdatedMockup() {
         </div>
 
         {/* Old-style content */}
-        <div className="p-3 sm:p-4 md:p-6 space-y-3 sm:space-y-4 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
+        <div className="p-3 sm:p-4 md:p-6 space-y-3 sm:space-y-4 bg-linear-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
           {/* SignUpGenius logo */}
           <div className="flex items-center gap-2 sm:gap-3">
             <Image 
@@ -455,7 +455,7 @@ export default function ComparisonSection() {
   return (
     <section id="comparison" className="py-16 sm:py-24 relative overflow-hidden">
       {/* Background gradient */}
-      <div className="absolute inset-0 bg-gradient-to-b from-background via-muted/20 to-background" />
+      <div className="absolute inset-0 bg-linear-to-b from-background via-muted/20 to-background" />
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(34,197,94,0.05),transparent_70%)]" />
 
       <div className="container relative mx-auto px-4 sm:px-6">
@@ -472,7 +472,7 @@ export default function ComparisonSection() {
               SignUpGenius is <TextFlip words={flipWords} />
             </h2>
             <h2 className="font-overusedgrotesk text-xl xs:text-2xl sm:text-3xl md:text-4xl lg:text-5xl tracking-tight font-bold">
-              <span className="text-transparent bg-gradient-to-r from-primary via-emerald-500 to-primary bg-clip-text bg-[length:200%_auto] animate-gradient">
+              <span className="text-transparent bg-linear-to-r from-primary via-emerald-500 to-primary bg-clip-text bg-size-[200%_auto] animate-gradient">
                 Let&apos;s Assist is built for today.
               </span>
             </h2>
@@ -507,7 +507,7 @@ export default function ComparisonSection() {
           viewport={{ once: true }}
           className="max-w-4xl mx-auto mb-16"
         >
-          <div className="grid grid-cols-3 gap-4 sm:gap-8 p-6 sm:p-8 rounded-2xl bg-gradient-to-r from-primary/10 via-emerald-500/10 to-primary/10 border border-primary/20">
+          <div className="grid grid-cols-3 gap-4 sm:gap-8 p-6 sm:p-8 rounded-2xl bg-linear-to-r from-primary/10 via-emerald-500/10 to-primary/10 border border-primary/20">
             {[
               { value: 335, suffix: "+", label: "Saved per year" },
               { value: 100, suffix: "%", label: "Free forever" },
@@ -616,9 +616,9 @@ export default function ComparisonSection() {
                 transition={{ delay: i * 0.1, duration: 0.4 }}
                 whileHover={{ y: -4, transition: { duration: 0.2 } }}
               >
-                <Card className="h-full border-border/60 bg-background/80 backdrop-blur-sm hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300">
+                <Card className="h-full border-border/60 bg-background/80 backdrop-blur-xs hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300">
                   <CardContent className="p-4 sm:p-5">
-                    <div className="mb-2 sm:mb-3 inline-flex rounded-lg sm:rounded-xl bg-gradient-to-br from-primary/20 to-emerald-500/20 p-2 sm:p-3 text-primary">
+                    <div className="mb-2 sm:mb-3 inline-flex rounded-lg sm:rounded-xl bg-linear-to-br from-primary/20 to-emerald-500/20 p-2 sm:p-3 text-primary">
                       <reason.icon className="h-4 w-4 sm:h-5 sm:w-5" />
                     </div>
                     <h4 className="text-sm sm:text-base font-semibold text-foreground mb-1.5 sm:mb-2">{reason.title}</h4>
@@ -637,7 +637,7 @@ export default function ComparisonSection() {
           viewport={{ once: true }}
           className="max-w-2xl mx-auto mb-16"
         >
-          <Card className="border-primary/30 bg-gradient-to-br from-primary/5 via-background to-emerald-500/5 overflow-hidden shadow-xl">
+          <Card className="border-primary/30 bg-linear-to-br from-primary/5 via-background to-emerald-500/5 overflow-hidden shadow-xl">
             <CardContent className="p-6 sm:p-8">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-semibold flex items-center gap-2">
@@ -661,7 +661,7 @@ export default function ComparisonSection() {
                 whileInView={{ opacity: 1 }}
                 viewport={{ once: true }}
                 transition={{ delay: 0.5 }}
-                className="mt-6 p-4 rounded-xl bg-gradient-to-r from-primary/15 to-emerald-500/15 border border-primary/20"
+                className="mt-6 p-4 rounded-xl bg-linear-to-r from-primary/15 to-emerald-500/15 border border-primary/20"
               >
                 <p className="text-sm text-foreground font-medium">
                   🎉 Everything you need for volunteer management, <span className="text-primary">completely free</span>. No hidden fees, no premium tiers, no ads.

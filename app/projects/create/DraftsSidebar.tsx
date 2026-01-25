@@ -158,7 +158,7 @@ export default function DraftsSidebar({ initialDrafts }: DraftsSidebarProps) {
       <CardContent className="p-3">
         <div className="flex gap-3">
           {/* Thumbnail */}
-          <div className="w-12 h-12 bg-muted rounded flex-shrink-0">
+          <div className="w-12 h-12 bg-muted rounded shrink-0">
             {draft.cover_image_url ? (
               <img
                 src={draft.cover_image_url}
@@ -184,7 +184,7 @@ export default function DraftsSidebar({ initialDrafts }: DraftsSidebarProps) {
               </div>
               {draft.location && (
                 <div className="flex items-center gap-0.5 truncate max-w-[150px]">
-                  <MapPin className="h-3 w-3 flex-shrink-0" />
+                  <MapPin className="h-3 w-3 shrink-0" />
                   <span className="truncate">{draft.location}</span>
                 </div>
               )}
@@ -199,7 +199,7 @@ export default function DraftsSidebar({ initialDrafts }: DraftsSidebarProps) {
           {/* Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-              <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
+              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
                 <MoreVertical className="h-3 w-3" />
               </Button>
             </DropdownMenuTrigger>

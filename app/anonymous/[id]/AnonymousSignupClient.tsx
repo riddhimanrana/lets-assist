@@ -421,7 +421,7 @@ export default function AnonymousSignupClient({
         {isProjectCancelled && (
           <div className="bg-destructive/10 border-b border-destructive/30 p-3">
             <div className="flex items-center gap-2 text-destructive">
-              <AlertTriangle className="h-5 w-5 flex-shrink-0" />
+              <AlertTriangle className="h-5 w-5 shrink-0" />
               <div>
                 <p className="font-semibold">Project Has Been Cancelled</p>
                 <p className="text-sm">This project is no longer active. Your signup information is retained for your records.</p>
@@ -860,7 +860,7 @@ export default function AnonymousSignupClient({
           <div className="space-y-3 text-sm">
             <h3 className="font-medium text-base mb-2">Project & Slot Details</h3>
              <div className="flex items-center gap-2 text-muted-foreground">
-              <Calendar className="h-4 w-4 flex-shrink-0" />
+              <Calendar className="h-4 w-4 shrink-0" />
               <span>Slot:</span>
               <span className="text-foreground font-medium flex items-center gap-2">
                 {formatScheduleSlot(project, schedule_id)}

@@ -119,7 +119,7 @@ export function ReportLayoutCustomizer({
           <Label className="text-base font-semibold">Layout Orientation</Label>
           <div className="flex gap-2">
             <Button
-              variant={layout.orientation === "horizontal" ? "default" : "outline"}
+              variant={layout.orientation === "horizontal" ? "default" : "outline-solid"}
               size="sm"
               onClick={() => handleOrientationChange("horizontal")}
               disabled={isLoading}
@@ -128,7 +128,7 @@ export function ReportLayoutCustomizer({
               Horizontal (Traditional)
             </Button>
             <Button
-              variant={layout.orientation === "vertical" ? "default" : "outline"}
+              variant={layout.orientation === "vertical" ? "default" : "outline-solid"}
               size="sm"
               onClick={() => handleOrientationChange("vertical")}
               disabled={isLoading}
@@ -191,7 +191,7 @@ export function ReportLayoutCustomizer({
                         }
                       }}
                     >
-                      <GripVertical className="h-4 w-4 text-muted-foreground flex-shrink-0 cursor-grab active:cursor-grabbing" />
+                      <GripVertical className="h-4 w-4 text-muted-foreground shrink-0 cursor-grab active:cursor-grabbing" />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium">{column.label}</p>
                         <p className="text-xs text-muted-foreground">{column.key}</p>
@@ -223,9 +223,9 @@ export function ReportLayoutCustomizer({
                       className="w-full flex items-center gap-2 p-2 border rounded-md hover:bg-accent/50 transition-colors text-left disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {isSelected ? (
-                        <Eye className="h-4 w-4 text-primary flex-shrink-0" />
+                        <Eye className="h-4 w-4 text-primary shrink-0" />
                       ) : (
-                        <EyeOff className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        <EyeOff className="h-4 w-4 text-muted-foreground shrink-0" />
                       )}
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium">{column.label}</p>

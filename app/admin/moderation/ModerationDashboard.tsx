@@ -270,23 +270,23 @@ export default function ModerationDashboard({
     }
   };
 
-  const getPriorityVariant = (priority?: string | null): 'outline' | 'secondary' | 'destructive' => {
+  const getPriorityVariant = (priority?: string | null): 'outline-solid' | 'secondary' | 'destructive' => {
     switch ((priority || '').toLowerCase()) {
       case 'high':
         return 'destructive';
       case 'medium':
         return 'secondary';
       default:
-        return 'outline';
+        return 'outline-solid';
     }
   };
 
-  const getStatusVariant = (status?: string | null): 'default' | 'outline' | 'secondary' => {
+  const getStatusVariant = (status?: string | null): 'default' | 'outline-solid' | 'secondary' => {
     switch ((status || '').toLowerCase()) {
       case 'resolved':
         return 'default';
       case 'dismissed':
-        return 'outline';
+        return 'outline-solid';
       default:
         return 'secondary';
     }
@@ -782,7 +782,7 @@ export default function ModerationDashboard({
               </div>
               
               {/* Reported Content Info */}
-              <div className="rounded-md border border-border/60 bg-gradient-to-r from-muted/40 to-muted/20 p-4">
+              <div className="rounded-md border border-border/60 bg-linear-to-r from-muted/40 to-muted/20 p-4">
                 <div className="flex items-start gap-3">
                   <Badge 
                     variant={selectedReport.content_type === 'project' ? 'default' : 'secondary'} 

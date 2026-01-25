@@ -246,7 +246,7 @@ export default async function UserProjects() {
                       </CardHeader>
                       <CardContent className="p-4 pt-2 pb-0 space-y-2">
                         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <MapPin className="h-3 w-3 flex-shrink-0" />
+                          <MapPin className="h-3 w-3 shrink-0" />
                           <span className="truncate">{project.location}</span>
                         </div>
                         
@@ -300,7 +300,7 @@ export default async function UserProjects() {
                         </CardHeader>
                         <CardContent className="p-4 pt-2 pb-0 space-y-2">
                           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <MapPin className="h-3 w-3 flex-shrink-0" />
+                            <MapPin className="h-3 w-3 shrink-0" />
                             <span className="truncate">{project.location}</span>
                           </div>
                           
@@ -366,7 +366,7 @@ export default async function UserProjects() {
                         </CardHeader>
                         <CardContent className="p-4 pt-2 pb-0 space-y-2">
                           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <MapPin className="h-3 w-3 flex-shrink-0" />
+                            <MapPin className="h-3 w-3 shrink-0" />
                             <span className="truncate">{project.location}</span>
                           </div>
                           <div className="flex items-center gap-2">
@@ -434,7 +434,7 @@ export default async function UserProjects() {
                       </CardHeader>
                       <CardContent className="p-4 pt-2 pb-0 space-y-2">
                         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <MapPin className="h-3 w-3 flex-shrink-0" />
+                          <MapPin className="h-3 w-3 shrink-0" />
                           <span className="truncate">{project.location}</span>
                         </div>
                         
@@ -475,7 +475,7 @@ export default async function UserProjects() {
                         </CardHeader>
                         <CardContent className="p-4 pt-2 pb-0 space-y-2">
                           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <MapPin className="h-3 w-3 flex-shrink-0" />
+                            <MapPin className="h-3 w-3 shrink-0" />
                             <span className="truncate">{project.location}</span>
                           </div>
                           
@@ -515,7 +515,7 @@ export default async function UserProjects() {
                         </CardHeader>
                         <CardContent className="p-4 pt-2 pb-0 space-y-2">
                           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <MapPin className="h-3 w-3 flex-shrink-0" />
+                            <MapPin className="h-3 w-3 shrink-0" />
                             <span className="truncate">{project.location}</span>
                           </div>
                           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">

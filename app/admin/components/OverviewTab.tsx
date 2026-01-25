@@ -317,14 +317,14 @@ function formatPriority(priority?: string | null) {
   return priority.charAt(0).toUpperCase() + priority.slice(1);
 }
 
-function getPriorityVariant(priority?: string | null): "destructive" | "secondary" | "outline" {
+function getPriorityVariant(priority?: string | null): "destructive" | "secondary" | "outline-solid" {
   if (priority === "high" || priority === "critical") return "destructive";
-  if (priority === "low") return "outline";
+  if (priority === "low") return "outline-solid";
   return "secondary";
 }
 
-function getSeverityVariant(severity?: string): "destructive" | "secondary" | "outline" {
-  if (!severity) return "outline";
+function getSeverityVariant(severity?: string): "destructive" | "secondary" | "outline-solid" {
+  if (!severity) return "outline-solid";
   if (severity === "critical" || severity === "high") return "destructive";
   return "secondary";
 }
