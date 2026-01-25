@@ -107,14 +107,14 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
 
   async function onSubmit(data: SignupValues) {
     const turnstileToken = turnstileRef.current?.getResponse();
-    
+
     setIsLoading(true);
     const formData = new FormData();
     Object.entries(data).forEach(([key, value]) => formData.append(key, value));
     if (redirectPath) {
       formData.append("redirectUrl", redirectPath);
     }
-    
+
     if (turnstileToken) {
       formData.append("turnstileToken", turnstileToken);
     }
@@ -153,7 +153,7 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
       if ('emailStatus' in result && result.emailStatus === 'unconfirmed' && 'email' in result) {
         const unconfirmedEmail = result.email as string;
         const serverMessage = result.error?.server?.[0] || "It looks like you already signed up but haven't confirmed your email yet.";
-        
+
         toast.warning("Email Verification Pending", {
           description: serverMessage,
           action: {
@@ -232,8 +232,8 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
             {isStaffInvite
               ? `You've been invited to join as staff. Create your account to continue.`
               : redirectPath
-              ? "Sign up to continue with your project signup"
-              : "Enter your details below to create your account"}
+                ? "Sign up to continue with your project signup"
+                : "Enter your details below to create your account"}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -316,12 +316,12 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
                     </FormControl>
                     <FormMessage />
                     <div className="mt-3 space-y-2">
-                      <div className="rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/30 p-3">
-                        <p className="text-xs font-semibold text-amber-900 dark:text-amber-200 mb-2 flex items-center gap-2">
+                      <div className="rounded-lg bg-[hsl(var(--chart-4)/0.15)] border border-[hsl(var(--chart-4)/0.4)] p-3 shadow-sm">
+                        <p className="text-xs font-semibold text-[hsl(var(--chart-4))] dark:text-[hsl(var(--chart-4))] mb-2 flex items-center gap-2">
                           <AlertCircle className="h-3.5 w-3.5" />
                           Password Requirements
                         </p>
-                        <ul className="space-y-1.5 text-xs text-amber-800 dark:text-amber-300">
+                        <ul className="space-y-1.5 text-xs text-[hsl(var(--chart-4))] dark:text-[hsl(var(--chart-4))] opacity-90">
                           <li className="flex items-start gap-2">
                             <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
                             <span>At least 8 characters long</span>
@@ -331,60 +331,50 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
                             <span>Cannot be a commonly used or compromised password</span>
                           </li>
                         </ul>
-                        <p className="text-xs text-amber-700 dark:text-amber-400 mt-2 leading-relaxed">
-                          We check your password against a database of known compromised passwords powered by <a 
-                            href="https://haveibeenpwned.org/" 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="underline font-semibold hover:text-amber-900 dark:hover:text-amber-200"
-                          >
-                            HaveIBeenPwned.org
-                          </a> to keep your account secure.
-                        </p>
                       </div>
                     </div>
                   </FormItem>
                 )}
               />
-                <p className="text-sm text-muted-foreground text-center">
-                  By joining, you agree to our{" "}
-                  <Link href="/terms" className="text-chart-3">
-                    Terms of Service
-                  </Link>{" "}
-                  and{" "}
-                  <Link href="/privacy" className="text-chart-3">
-                    Privacy Policy
-                  </Link>
-                </p>
-                <div className="flex justify-center">
-                  <div className="relative w-[300px] h-[65px] overflow-hidden bg-muted/30 rounded-lg flex items-center justify-center border border-border/50">
-                    {!turnstileReady && (
-                      <div className="absolute inset-0 z-10 flex items-center justify-center gap-2 rounded-lg bg-background/80 text-[0.7rem] font-semibold uppercase tracking-wide text-muted-foreground">
-                        <Shield className="h-4 w-4 text-muted-foreground/80" />
-                        <span className="text-[0.7rem] font-semibold normal-case tracking-wide">Bot verification loading…</span>
-                      </div>
-                    )}
-                    <TurnstileComponent
-                      ref={turnstileRef}
-                      onLoad={() => setTurnstileReady(true)}
-                      onVerify={(token) => {
-                        form.setValue("turnstileToken", token);
-                      }}
-                      onError={() => {
-                        toast.error("Security verification failed. Please try again.");
-                      }}
-                      onExpire={() => {
-                        form.setValue("turnstileToken", "");
-                      }}
-                    />
-                  </div>
+              <p className="text-sm text-muted-foreground text-center">
+                By joining, you agree to our{" "}
+                <Link href="/terms" className="text-chart-3">
+                  Terms of Service
+                </Link>{" "}
+                and{" "}
+                <Link href="/privacy" className="text-chart-3">
+                  Privacy Policy
+                </Link>
+              </p>
+              <div className="flex justify-center">
+                <div className="relative w-[300px] h-[65px] overflow-hidden bg-muted/30 rounded-lg flex items-center justify-center border border-border/50">
+                  {!turnstileReady && (
+                    <div className="absolute inset-0 z-10 flex items-center justify-center gap-2 rounded-lg bg-background/80 text-[0.7rem] font-semibold uppercase tracking-wide text-muted-foreground">
+                      <Shield className="h-4 w-4 text-muted-foreground/80" />
+                      <span className="text-[0.7rem] font-semibold normal-case tracking-wide">Bot verification loading…</span>
+                    </div>
+                  )}
+                  <TurnstileComponent
+                    ref={turnstileRef}
+                    onLoad={() => setTurnstileReady(true)}
+                    onVerify={(token) => {
+                      form.setValue("turnstileToken", token);
+                    }}
+                    onError={() => {
+                      toast.error("Security verification failed. Please try again.");
+                    }}
+                    onExpire={() => {
+                      form.setValue("turnstileToken", "");
+                    }}
+                  />
                 </div>
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? "Creating Account..." : "Create Account"}
-                </Button>
+              </div>
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? "Creating Account..." : "Create Account"}
+              </Button>
               <div className="mt-4 text-center text-sm">
                 Already have an account?{" "}
-                <Link 
+                <Link
                   href={redirectPath ? `/login?redirect=${encodeURIComponent(redirectPath)}` : "/login"}
                   className="underline"
                 >
@@ -408,8 +398,8 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
             <div className="relative w-[300px] h-[65px] overflow-hidden rounded-lg bg-muted/30 border border-border/50 flex items-center justify-center">
               {!resendTurnstileReady && !isTurnstileBypassed && (
                 <div className="absolute inset-0 z-10 flex items-center justify-center gap-2 rounded-lg bg-background/80 text-[0.7rem] font-semibold uppercase tracking-wide text-muted-foreground text-center px-4">
-                   <Shield className="h-4 w-4 text-muted-foreground/80 shrink-0" />
-                   <span>Bot verification loading…</span>
+                  <Shield className="h-4 w-4 text-muted-foreground/80 shrink-0" />
+                  <span>Bot verification loading…</span>
                 </div>
               )}
               <TurnstileComponent

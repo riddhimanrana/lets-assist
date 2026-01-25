@@ -115,12 +115,12 @@ export default function ResetPasswordForm({ token }: ResetPasswordFormProps) {
                     </FormControl>
                     <FormMessage />
                     <div className="mt-3 space-y-2">
-                      <div className="rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/30 p-3">
-                        <p className="text-xs font-semibold text-amber-900 dark:text-amber-200 mb-2 flex items-center gap-2">
+                      <div className="rounded-lg bg-[hsl(var(--chart-4)/0.15)] border border-[hsl(var(--chart-4)/0.4)] p-3 shadow-sm">
+                        <p className="text-xs font-semibold text-[hsl(var(--chart-4))] dark:text-[hsl(var(--chart-4))] mb-2 flex items-center gap-2">
                           <AlertCircle className="h-3.5 w-3.5" />
                           Password Requirements
                         </p>
-                        <ul className="space-y-1.5 text-xs text-amber-800 dark:text-amber-300">
+                        <ul className="space-y-1.5 text-xs text-[hsl(var(--chart-4))] dark:text-[hsl(var(--chart-4))] opacity-90">
                           <li className="flex items-start gap-2">
                             <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
                             <span>At least 8 characters long</span>
@@ -130,16 +130,6 @@ export default function ResetPasswordForm({ token }: ResetPasswordFormProps) {
                             <span>Cannot be a commonly used or compromised password</span>
                           </li>
                         </ul>
-                        <p className="text-xs text-amber-700 dark:text-amber-400 mt-2 leading-relaxed">
-                          We check your password against a database of known compromised passwords powered by <a 
-                            href="https://haveibeenpwned.org/" 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="underline font-semibold hover:text-amber-900 dark:hover:text-amber-200"
-                          >
-                            HaveIBeenPwned.org
-                          </a> to keep your account secure.
-                        </p>
                       </div>
                     </div>
                   </FormItem>
