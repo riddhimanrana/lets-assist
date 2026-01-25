@@ -7,7 +7,8 @@ import {
     CardHeader,
     CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Lightbulb, Bug, Mail } from "lucide-react";
 import Link from "next/link";
 import { FeedbackDialog } from "@/components/feedback/FeedbackDialog";
@@ -103,9 +104,7 @@ export default function ContactClient() {
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <Button className="w-full bg-info hover:bg-info/90" asChild>
-                                <Link href="mailto:support@lets-assist.com">Contact Support</Link>
-                            </Button>
+                            <Link href="mailto:support@lets-assist.com" className={cn(buttonVariants(), "w-full bg-info hover:bg-info/90")}>Contact Support</Link>
                         </CardContent>
                     </Card>
                 </div>

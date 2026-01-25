@@ -13,16 +13,15 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+  Field,
+  FieldLabel,
+  FieldDescription,
+  FieldError as FormMessage,
+} from "@/components/ui/field";
+import { Controller } from "react-hook-form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import {
   Select,
@@ -933,620 +932,613 @@ export default function EditProjectClient({ project }: Props) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <FormField
-                control={form.control}
-                name="title"
-                render={({ field }) => (
-                  <FormItem>
-                    <div className="flex items-center justify-between">
-                      <FormLabel>Project Title</FormLabel>
-                      <span className={cn(
-                        "text-xs transition-colors",
-                        getCounterColor(titleChars, TITLE_LIMIT)
-                      )}>
-                        {titleChars}/{TITLE_LIMIT}
-                      </span>
-                    </div>
-                    <FormControl>
-                      <Input
-                        placeholder="Enter project title"
-                        {...field}
-                        onChange={e => {
-                          field.onChange(e);
-                          setTitleChars(e.target.value.length);
-                        }}
-                        maxLength={TITLE_LIMIT}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
 
-              <FormField
-                control={form.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Description</FormLabel>
-                    <FormControl>
-                      <RichTextEditor
-                        content={field.value}
-                        onChange={field.onChange}
-                        placeholder="Enter project description..."
-                        maxLength={DESCRIPTION_LIMIT}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="location"
-                render={({ field }) => (
-                  <FormItem>
-                    <div className="flex items-center justify-between">
-                      <FormLabel>Location</FormLabel>
-                      <span className={cn(
-                        "text-xs transition-colors",
-                        getCounterColor(locationChars, LOCATION_LIMIT)
-                      )}>
-                        {locationChars}/{LOCATION_LIMIT}
-                      </span>
-                    </div>
-                    <FormControl>
-                      <LocationAutocomplete
-                        id="location"
-                        value={form.getValues().location_data}
-                        onChangeAction={(location_data) => {
-                          if (location_data) {
-                            // Update both the location field and location_data
-                            field.onChange(location_data.text);
-                            form.setValue("location_data", location_data);
-                            setLocationChars(location_data.text.length);
-                          } else {
-                            field.onChange("");
-                            form.setValue("location_data", undefined);
-                            setLocationChars(0);
-                          }
-                        }}
-                        maxLength={LOCATION_LIMIT}
-                        required
-                        error={!!form.formState.errors.location}
-                        errorMessage={form.formState.errors.location?.message?.toString()}
-                        aria-invalid={!!form.formState.errors.location}
-                        aria-errormessage={form.formState.errors.location ? "location-error" : undefined}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="require_login"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                    <div className="space-y-0.5">
-                      <FormLabel>Require Account</FormLabel>
-                      <CardDescription>
-                        Require volunteers to create an account to sign up
-                      </CardDescription>
-                    </div>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="waiver_required"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                    <div className="space-y-0.5">
-                      <FormLabel>Require Waiver Signature</FormLabel>
-                      <CardDescription>
-                        Volunteers must sign your waiver PDF or the global template before signing up.
-                      </CardDescription>
-                    </div>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="waiver_allow_upload"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                    <div className="space-y-0.5">
-                      <FormLabel>Allow Print & Upload</FormLabel>
-                      <CardDescription>
-                        Allow volunteers to upload a signed PDF or image instead of drawing/typing.
-                      </CardDescription>
-                    </div>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                        disabled={!waiverRequired}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-
-              {waiverRequired && (
-                <div className="rounded-lg border p-4 space-y-4">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <Label className="text-sm font-medium">Project Waiver PDF</Label>
-                      <CardDescription>
-                        Upload a PDF waiver to show volunteers during signup.
-                      </CardDescription>
-                    </div>
-                    {project.waiver_pdf_url && (
-                      <div className="flex flex-wrap gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openPreview(project.waiver_pdf_url!, "Waiver PDF", "application/pdf")}
-                        >
-                          <Eye className="h-4 w-4 mr-1" />
-                          Preview
-                        </Button>
-                        <Button type="button" variant="outline" size="sm" asChild>
-                          <a href={project.waiver_pdf_url} download>
-                            <Download className="h-4 w-4 mr-1" />
-                            Download
-                          </a>
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="sm"
-                          onClick={handleRemoveWaiverPdf}
-                          disabled={waiverPdfUploading}
-                        >
-                          Remove
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-
-                  <input
-                    ref={waiverPdfInputRef}
-                    type="file"
-                    accept="application/pdf"
-                    className="hidden"
-                    onChange={handleWaiverPdfUpload}
-                    disabled={waiverPdfUploading}
-                  />
-
-                  {!project.waiver_pdf_url ? (
-                    <div
-                      className={cn(
-                        "border-2 border-dashed rounded-lg p-4 text-center cursor-pointer hover:border-primary/50 transition-colors",
-                        waiverPdfUploading && "opacity-50 pointer-events-none"
-                      )}
-                      onClick={() => waiverPdfInputRef.current?.click()}
-                    >
-                      <div className="flex flex-col items-center gap-2">
-                        {waiverPdfUploading ? (
-                          <Loader2 className="h-8 w-8 text-muted-foreground animate-spin" />
-                        ) : (
-                          <Upload className="h-8 w-8 text-muted-foreground" />
-                        )}
-                        <p className="text-sm font-medium">
-                          {waiverPdfUploading ? "Uploading waiver..." : "Click to upload waiver PDF"}
-                        </p>
-                        <p className="text-xs text-muted-foreground">Max size: {formatBytes(MAX_WAIVER_PDF_SIZE)}</p>
-                      </div>
-                    </div>
-                  ) : (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => waiverPdfInputRef.current?.click()}
-                      disabled={waiverPdfUploading}
-                    >
-                      Replace PDF
-                    </Button>
-                  )}
-
-                  {waiverPdfError && (
-                    <div className="text-sm text-destructive flex items-center gap-2">
-                      <AlertTriangle className="h-4 w-4" />
-                      {waiverPdfError}
-                    </div>
-                  )}
-
-                  {waiverPdfValidation && (
-                    <Alert className={cn(
-                      waiverPdfValidation.hasSignatureFields
-                        ? "border-green-200 bg-green-50 dark:bg-green-950/20"
-                        : "border-amber-200 bg-amber-50 dark:bg-amber-950/20"
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <Controller
+              control={form.control}
+              name="title"
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <div className="flex items-center justify-between">
+                    <FieldLabel htmlFor={field.name}>Project Title</FieldLabel>
+                    <span className={cn(
+                      "text-xs transition-colors",
+                      getCounterColor(titleChars, TITLE_LIMIT)
                     )}>
-                      <AlertDescription className="text-xs">
-                        {waiverPdfValidation.hasSignatureFields
-                          ? "Signature fields detected. Volunteers can sign directly on the PDF."
-                          : waiverPdfValidation.warnings.join(" ")}
-                      </AlertDescription>
-                    </Alert>
-                  )}
+                      {titleChars}/{TITLE_LIMIT}
+                    </span>
+                  </div>
+                  <Input
+                    id={field.name}
+                    placeholder="Enter project title"
+                    {...field}
+                    onChange={e => {
+                      field.onChange(e);
+                      setTitleChars(e.target.value.length);
+                    }}
+                    maxLength={TITLE_LIMIT}
+                    aria-invalid={fieldState.invalid}
+                  />
+                  {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                </Field>
+              )}
+            />
 
-                  {!project.waiver_pdf_url && (
-                    <Alert className="bg-blue-50 border-blue-200 dark:bg-blue-950/20 dark:border-blue-900">
-                      <AlertDescription className="text-xs text-blue-700 dark:text-blue-400">
-                        If you don&apos;t upload a custom waiver, the global platform waiver template will be used instead.
-                      </AlertDescription>
-                    </Alert>
+            <Controller
+              control={form.control}
+              name="description"
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor={field.name}>Description</FieldLabel>
+                  <RichTextEditor
+                    content={field.value}
+                    onChange={field.onChange}
+                    placeholder="Enter project description..."
+                    maxLength={DESCRIPTION_LIMIT}
+                  />
+                  {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                </Field>
+              )}
+            />
+
+            <Controller
+              control={form.control}
+              name="location"
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <div className="flex items-center justify-between">
+                    <FieldLabel htmlFor="location">Location</FieldLabel>
+                    <span className={cn(
+                      "text-xs transition-colors",
+                      getCounterColor(locationChars, LOCATION_LIMIT)
+                    )}>
+                      {locationChars}/{LOCATION_LIMIT}
+                    </span>
+                  </div>
+                  <LocationAutocomplete
+                    id="location"
+                    value={form.getValues().location_data}
+                    onChangeAction={(location_data) => {
+                      if (location_data) {
+                        // Update both the location field and location_data
+                        field.onChange(location_data.text);
+                        form.setValue("location_data", location_data);
+                        setLocationChars(location_data.text.length);
+                      } else {
+                        field.onChange("");
+                        form.setValue("location_data", undefined);
+                        setLocationChars(0);
+                      }
+                    }}
+                    maxLength={LOCATION_LIMIT}
+                    required
+                    error={!!fieldState.error}
+                    errorMessage={fieldState.error?.message?.toString()}
+                    aria-invalid={fieldState.invalid}
+                    aria-errormessage={fieldState.error ? "location-error" : undefined}
+                  />
+                  {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                </Field>
+              )}
+            />
+
+            <Controller
+              control={form.control}
+              name="require_login"
+              render={({ field, fieldState }) => (
+                <Field className="flex flex-row items-center justify-between rounded-lg border p-4" data-invalid={fieldState.invalid}>
+                  <div className="space-y-0.5">
+                    <FieldLabel htmlFor={field.name}>Require Account</FieldLabel>
+                    <FieldDescription>
+                      Require volunteers to create an account to sign up
+                    </FieldDescription>
+                  </div>
+                  <Switch
+                    id={field.name}
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                    aria-invalid={fieldState.invalid}
+                  />
+                  {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                </Field>
+              )}
+            />
+
+            <Controller
+              control={form.control}
+              name="waiver_required"
+              render={({ field, fieldState }) => (
+                <Field className="flex flex-row items-center justify-between rounded-lg border p-4" data-invalid={fieldState.invalid}>
+                  <div className="space-y-0.5">
+                    <FieldLabel htmlFor={field.name}>Require Waiver Signature</FieldLabel>
+                    <FieldDescription>
+                      Volunteers must sign your waiver PDF or the global template before signing up.
+                    </FieldDescription>
+                  </div>
+                  <Switch
+                    id={field.name}
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                    aria-invalid={fieldState.invalid}
+                  />
+                  {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                </Field>
+              )}
+            />
+
+            <Controller
+              control={form.control}
+              name="waiver_allow_upload"
+              render={({ field, fieldState }) => (
+                <Field className="flex flex-row items-center justify-between rounded-lg border p-4" data-invalid={fieldState.invalid}>
+                  <div className="space-y-0.5">
+                    <FieldLabel htmlFor={field.name}>Allow Print & Upload</FieldLabel>
+                    <FieldDescription>
+                      Allow volunteers to upload a signed PDF or image instead of drawing/typing.
+                    </FieldDescription>
+                  </div>
+                  <Switch
+                    id={field.name}
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                    disabled={!waiverRequired}
+                    aria-invalid={fieldState.invalid}
+                  />
+                  {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                </Field>
+              )}
+            />
+
+            {waiverRequired && (
+              <div className="rounded-lg border p-4 space-y-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <Label className="text-sm font-medium">Project Waiver PDF</Label>
+                    <CardDescription>
+                      Upload a PDF waiver to show volunteers during signup.
+                    </CardDescription>
+                  </div>
+                  {project.waiver_pdf_url && (
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openPreview(project.waiver_pdf_url!, "Waiver PDF", "application/pdf")}
+                      >
+                        <Eye className="h-4 w-4 mr-1" />
+                        Preview
+                      </Button>
+                      <a
+                        href={project.waiver_pdf_url}
+                        download
+                        className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+                      >
+                        <Download className="h-4 w-4 mr-1" />
+                        Download
+                      </a>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        onClick={handleRemoveWaiverPdf}
+                        disabled={waiverPdfUploading}
+                      >
+                        Remove
+                      </Button>
+                    </div>
                   )}
                 </div>
-              )}
 
-              <FormField
-                control={form.control}
-                name="enable_volunteer_comments"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                    <div className="space-y-0.5">
-                      <FormLabel>Enable Volunteer Comments</FormLabel>
-                      <CardDescription>
-                        Allow volunteers to include a short note when signing up
-                      </CardDescription>
-                    </div>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
+                <input
+                  ref={waiverPdfInputRef}
+                  type="file"
+                  accept="application/pdf"
+                  className="hidden"
+                  onChange={handleWaiverPdfUpload}
+                  disabled={waiverPdfUploading}
+                />
 
-              <FormField
-                control={form.control}
-                name="show_attendees_publicly"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                    <div className="space-y-0.5">
-                      <FormLabel>Show Attendees Publicly</FormLabel>
-                      <CardDescription>
-                        Display attendee count on the public project page
-                      </CardDescription>
-                    </div>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="verification_method"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Verification Method</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select verification method" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="qr-code">
-                          <div className="flex flex-col group">
-                            <span>QR Code Check-in</span>
-                            <span className="text-xs text-muted-foreground hidden group-hover:block group-focus:block">
-                              Volunteers scan a QR code at the event to check in
-                            </span>
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="manual">
-                          <div className="flex flex-col group">
-                            <span>Manual Check-in</span>
-                            <span className="text-xs text-muted-foreground hidden group-hover:block group-focus:block">
-                              Project coordinators manually check in volunteers from the attendance page
-                            </span>
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="auto">
-                          <div className="flex flex-col group">
-                            <span>Automatic Check-in</span>
-                            <span className="text-xs text-muted-foreground hidden group-hover:block group-focus:block">
-                              System automatically checks in volunteers at their scheduled time
-                            </span>
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="signup-only">
-                          <div className="flex flex-col group">
-                            <span>Sign-up Only</span>
-                            <span className="text-xs text-muted-foreground hidden group-hover:block group-focus:block">
-                              No check-in process, only tracks who signed up
-                            </span>
-                          </div>
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <Separator className="my-6" />
-
-              {/* Schedule Section - Collapsible */}
-              <Collapsible open={isScheduleOpen} onOpenChange={setIsScheduleOpen}>
-                <CollapsibleTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    className="w-full justify-between p-4 hover:bg-muted/50 h-auto"
-                  >
-                    <div className="flex items-center gap-2">
-                      <CalendarIconLucide className="h-5 w-5 text-muted-foreground" />
-                      <h3 className="text-lg font-semibold">Schedule & Timing</h3>
-                    </div>
-                    {isScheduleOpen ? (
-                      <ChevronDown className="h-5 w-5 text-muted-foreground" />
-                    ) : (
-                      <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                {!project.waiver_pdf_url ? (
+                  <div
+                    className={cn(
+                      "border-2 border-dashed rounded-lg p-4 text-center cursor-pointer hover:border-primary/50 transition-colors",
+                      waiverPdfUploading && "opacity-50 pointer-events-none"
                     )}
-                  </Button>
-                </CollapsibleTrigger>
-                <CollapsibleContent className="space-y-4 pt-4">
-                  <Alert>
-                    <AlertTriangle className="h-4 w-4" />
-                    <AlertTitle>Important</AlertTitle>
-                    <AlertDescription>
-                      Changing dates or times may affect volunteers who have already signed up.
-                      Consider notifying them of any changes. Reducing volunteer capacity below
-                      current signups is not recommended.
-                    </AlertDescription>
-                  </Alert>
-                  <p className="text-sm text-muted-foreground">
-                    Update the dates, times, and volunteer capacity for this project.
-                  </p>
-                  <Schedule
-                    state={{
-                      eventType: project.event_type,
-                      schedule: scheduleState,
-                      recurrence: recurrenceState
-                    }}
-                    updateOneTimeScheduleAction={updateOneTimeSchedule}
-                    updateMultiDayScheduleAction={updateMultiDaySchedule}
-                    updateMultiRoleScheduleAction={updateMultiRoleSchedule}
-                    addMultiDaySlotAction={addMultiDaySlot}
-                    addMultiDayEventAction={addMultiDayEvent}
-                    addRoleAction={addRole}
-                    removeDayAction={removeDay}
-                    removeSlotAction={removeSlot}
-                    removeRoleAction={removeRole}
-                    updateRecurrenceAction={updateRecurrence}
-                    errors={scheduleErrors}
-                  />
-                </CollapsibleContent>
-              </Collapsible>
-
-              <Separator className="my-6" />
-
-              {/* Media & Documents Section - Collapsible */}
-              <Collapsible open={isMediaOpen} onOpenChange={setIsMediaOpen}>
-                <CollapsibleTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    className="w-full justify-between p-4 hover:bg-muted/50 h-auto"
+                    onClick={() => waiverPdfInputRef.current?.click()}
                   >
-                    <div className="flex items-center gap-2">
-                      <ImageIcon className="h-5 w-5 text-muted-foreground" />
-                      <h3 className="text-lg font-semibold">Media & Documents</h3>
-                    </div>
-                    {isMediaOpen ? (
-                      <ChevronDown className="h-5 w-5 text-muted-foreground" />
-                    ) : (
-                      <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                    )}
-                  </Button>
-                </CollapsibleTrigger>
-                <CollapsibleContent className="space-y-6 pt-4">
-                  {/* Cover Image Upload */}
-                  <div className="space-y-3">
-                    <div>
-                      <h4 className="font-medium text-sm">Cover Image</h4>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Upload a cover image for your project (JPEG, PNG, WebP, max {formatBytes(MAX_COVER_IMAGE_SIZE)})
-                      </p>
-                    </div>
-
-                    <div className="border-2 border-dashed rounded-lg p-4 transition-colors hover:border-primary/50 hover:bg-primary/5">
-                      {project.cover_image_url ? (
-                        <div className="w-full max-w-md mx-auto">
-                          <AspectRatio ratio={16 / 9} className="bg-muted overflow-hidden rounded-md">
-                            <div className="relative w-full h-full">
-                              <Image
-                                src={project.cover_image_url}
-                                alt="Cover image"
-                                fill
-                                className="object-cover rounded-md"
-                              />
-                              <Button
-                                type="button"
-                                variant="destructive"
-                                size="icon"
-                                className="absolute top-2 right-2 h-8 w-8 shadow-lg"
-                                onClick={removeCoverImage}
-                                disabled={uploadingCoverImage}
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </AspectRatio>
-                        </div>
+                    <div className="flex flex-col items-center gap-2">
+                      {waiverPdfUploading ? (
+                        <Loader2 className="h-8 w-8 text-muted-foreground animate-spin" />
                       ) : (
-                        <label className="flex flex-col items-center justify-center py-6 cursor-pointer">
-                          <div className="rounded-full bg-background p-3 shadow-xs mb-3">
-                            <ImageIcon className="h-6 w-6 text-muted-foreground" />
-                          </div>
-                          <p className="text-sm font-medium mb-1">
-                            {uploadingCoverImage ? "Uploading..." : "Click to upload cover image"}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {uploadingCoverImage ? "Please wait..." : "or drag and drop"}
-                          </p>
-                          <input
-                            type="file"
-                            accept={ALLOWED_IMAGE_TYPES.join(",")}
-                            className="hidden"
-                            onChange={handleCoverImageChange}
-                            disabled={uploadingCoverImage}
-                          />
-                        </label>
+                        <Upload className="h-8 w-8 text-muted-foreground" />
                       )}
+                      <p className="text-sm font-medium">
+                        {waiverPdfUploading ? "Uploading waiver..." : "Click to upload waiver PDF"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">Max size: {formatBytes(MAX_WAIVER_PDF_SIZE)}</p>
                     </div>
                   </div>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => waiverPdfInputRef.current?.click()}
+                    disabled={waiverPdfUploading}
+                  >
+                    Replace PDF
+                  </Button>
+                )}
 
-                  {/* Supporting Documents */}
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h4 className="font-medium text-sm">Supporting Documents</h4>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Upload non-waiver materials like instructions or reference docs (PDF, Word, Text, Images)
-                        </p>
-                      </div>
-                      <div className="text-xs text-muted-foreground text-right">
-                        <div>{(project.documents || []).length}/{MAX_DOCUMENTS_COUNT} files</div>
-                        <div>{formatBytes(totalDocumentsSize)}/{formatBytes(MAX_DOCUMENT_SIZE)}</div>
-                      </div>
-                    </div>
+                {waiverPdfError && (
+                  <div className="text-sm text-destructive flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4" />
+                    {waiverPdfError}
+                  </div>
+                )}
 
-                    <div className={`border-2 border-dashed rounded-lg p-4 transition-colors ${(project.documents || []).length >= MAX_DOCUMENTS_COUNT
-                      ? 'opacity-50 cursor-not-allowed'
-                      : 'hover:border-primary/50 hover:bg-primary/5'
-                      }`}>
-                      <label className={`flex flex-col items-center justify-center py-6 ${(project.documents || []).length >= MAX_DOCUMENTS_COUNT ? 'cursor-not-allowed' : 'cursor-pointer'
-                        }`}>
+                {waiverPdfValidation && (
+                  <Alert className={cn(
+                    waiverPdfValidation.hasSignatureFields
+                      ? "border-green-200 bg-green-50 dark:bg-green-950/20"
+                      : "border-amber-200 bg-amber-50 dark:bg-amber-950/20"
+                  )}>
+                    <AlertDescription className="text-xs">
+                      {waiverPdfValidation.hasSignatureFields
+                        ? "Signature fields detected. Volunteers can sign directly on the PDF."
+                        : waiverPdfValidation.warnings.join(" ")}
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {!project.waiver_pdf_url && (
+                  <Alert className="bg-blue-50 border-blue-200 dark:bg-blue-950/20 dark:border-blue-900">
+                    <AlertDescription className="text-xs text-blue-700 dark:text-blue-400">
+                      If you don&apos;t upload a custom waiver, the global platform waiver template will be used instead.
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
+            )}
+
+            <Controller
+              control={form.control}
+              name="enable_volunteer_comments"
+              render={({ field, fieldState }) => (
+                <Field className="flex flex-row items-center justify-between rounded-lg border p-4" data-invalid={fieldState.invalid}>
+                  <div className="space-y-0.5">
+                    <FieldLabel htmlFor={field.name}>Enable Volunteer Comments</FieldLabel>
+                    <FieldDescription>
+                      Allow volunteers to include a short note when signing up
+                    </FieldDescription>
+                  </div>
+                  <Switch
+                    id={field.name}
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                    aria-invalid={fieldState.invalid}
+                  />
+                  {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                </Field>
+              )}
+            />
+
+            <Controller
+              control={form.control}
+              name="show_attendees_publicly"
+              render={({ field, fieldState }) => (
+                <Field className="flex flex-row items-center justify-between rounded-lg border p-4" data-invalid={fieldState.invalid}>
+                  <div className="space-y-0.5">
+                    <FieldLabel htmlFor={field.name}>Show Attendees Publicly</FieldLabel>
+                    <FieldDescription>
+                      Display attendee count on the public project page
+                    </FieldDescription>
+                  </div>
+                  <Switch
+                    id={field.name}
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                    aria-invalid={fieldState.invalid}
+                  />
+                  {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                </Field>
+              )}
+            />
+
+            <Controller
+              control={form.control}
+              name="verification_method"
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor={field.name}>Verification Method</FieldLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                  >
+                    <SelectTrigger id={field.name} aria-invalid={fieldState.invalid}>
+                      <SelectValue placeholder="Select verification method" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="qr-code">
+                        <div className="flex flex-col group">
+                          <span>QR Code Check-in</span>
+                          <span className="text-xs text-muted-foreground hidden group-hover:block group-focus:block">
+                            Volunteers scan a QR code at the event to check in
+                          </span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="manual">
+                        <div className="flex flex-col group">
+                          <span>Manual Check-in</span>
+                          <span className="text-xs text-muted-foreground hidden group-hover:block group-focus:block">
+                            Project coordinators manually check in volunteers from the attendance page
+                          </span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="auto">
+                        <div className="flex flex-col group">
+                          <span>Automatic Check-in</span>
+                          <span className="text-xs text-muted-foreground hidden group-hover:block group-focus:block">
+                            System automatically checks in volunteers at their scheduled time
+                          </span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="signup-only">
+                        <div className="flex flex-col group">
+                          <span>Sign-up Only</span>
+                          <span className="text-xs text-muted-foreground hidden group-hover:block group-focus:block">
+                            No check-in process, only tracks who signed up
+                          </span>
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                </Field>
+              )}
+            />
+
+            <Separator className="my-6" />
+
+            {/* Schedule Section - Collapsible */}
+            <Collapsible open={isScheduleOpen} onOpenChange={setIsScheduleOpen}>
+              <CollapsibleTrigger
+                className={cn(buttonVariants({ variant: "ghost" }), "w-full justify-between p-4 hover:bg-muted/50 h-auto")}
+              >
+                <div className="flex items-center gap-2">
+                  <CalendarIconLucide className="h-5 w-5 text-muted-foreground" />
+                  <h3 className="text-lg font-semibold">Schedule & Timing</h3>
+                </div>
+                {isScheduleOpen ? (
+                  <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                ) : (
+                  <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                )}
+              </CollapsibleTrigger>
+              <CollapsibleContent className="space-y-4 pt-4">
+                <Alert>
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>Important</AlertTitle>
+                  <AlertDescription>
+                    Changing dates or times may affect volunteers who have already signed up.
+                    Consider notifying them of any changes. Reducing volunteer capacity below
+                    current signups is not recommended.
+                  </AlertDescription>
+                </Alert>
+                <p className="text-sm text-muted-foreground">
+                  Update the dates, times, and volunteer capacity for this project.
+                </p>
+                <Schedule
+                  state={{
+                    eventType: project.event_type,
+                    schedule: scheduleState,
+                    recurrence: recurrenceState
+                  }}
+                  updateOneTimeScheduleAction={updateOneTimeSchedule}
+                  updateMultiDayScheduleAction={updateMultiDaySchedule}
+                  updateMultiRoleScheduleAction={updateMultiRoleSchedule}
+                  addMultiDaySlotAction={addMultiDaySlot}
+                  addMultiDayEventAction={addMultiDayEvent}
+                  addRoleAction={addRole}
+                  removeDayAction={removeDay}
+                  removeSlotAction={removeSlot}
+                  removeRoleAction={removeRole}
+                  updateRecurrenceAction={updateRecurrence}
+                  errors={scheduleErrors}
+                />
+              </CollapsibleContent>
+            </Collapsible>
+
+            <Separator className="my-6" />
+
+            {/* Media & Documents Section - Collapsible */}
+            <Collapsible open={isMediaOpen} onOpenChange={setIsMediaOpen}>
+              <CollapsibleTrigger
+                className={cn(buttonVariants({ variant: "ghost" }), "w-full justify-between p-4 hover:bg-muted/50 h-auto")}
+              >
+                <div className="flex items-center gap-2">
+                  <ImageIcon className="h-5 w-5 text-muted-foreground" />
+                  <h3 className="text-lg font-semibold">Media & Documents</h3>
+                </div>
+                {isMediaOpen ? (
+                  <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                ) : (
+                  <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                )}
+              </CollapsibleTrigger>
+              <CollapsibleContent className="space-y-6 pt-4">
+                {/* Cover Image Upload */}
+                <div className="space-y-3">
+                  <div>
+                    <h4 className="font-medium text-sm">Cover Image</h4>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Upload a cover image for your project (JPEG, PNG, WebP, max {formatBytes(MAX_COVER_IMAGE_SIZE)})
+                    </p>
+                  </div>
+
+                  <div className="border-2 border-dashed rounded-lg p-4 transition-colors hover:border-primary/50 hover:bg-primary/5">
+                    {project.cover_image_url ? (
+                      <div className="w-full max-w-md mx-auto">
+                        <AspectRatio ratio={16 / 9} className="bg-muted overflow-hidden rounded-md">
+                          <div className="relative w-full h-full">
+                            <Image
+                              src={project.cover_image_url}
+                              alt="Cover image"
+                              fill
+                              className="object-cover rounded-md"
+                            />
+                            <Button
+                              type="button"
+                              variant="destructive"
+                              size="icon"
+                              className="absolute top-2 right-2 h-8 w-8 shadow-lg"
+                              onClick={removeCoverImage}
+                              disabled={uploadingCoverImage}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </AspectRatio>
+                      </div>
+                    ) : (
+                      <label className="flex flex-col items-center justify-center py-6 cursor-pointer">
                         <div className="rounded-full bg-background p-3 shadow-xs mb-3">
-                          <Upload className="h-6 w-6 text-muted-foreground" />
+                          <ImageIcon className="h-6 w-6 text-muted-foreground" />
                         </div>
                         <p className="text-sm font-medium mb-1">
-                          {(project.documents || []).length >= MAX_DOCUMENTS_COUNT
-                            ? "Maximum files reached"
-                            : uploadingDocuments ? "Uploading..." : "Click to upload documents"
-                          }
+                          {uploadingCoverImage ? "Uploading..." : "Click to upload cover image"}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {(project.documents || []).length >= MAX_DOCUMENTS_COUNT
-                            ? `Limit of ${MAX_DOCUMENTS_COUNT} files reached`
-                            : uploadingDocuments ? "Please wait..." : "or drag and drop (multiple files allowed)"
-                          }
+                          {uploadingCoverImage ? "Please wait..." : "or drag and drop"}
                         </p>
                         <input
                           type="file"
-                          multiple
-                          accept={ALLOWED_DOCUMENT_TYPES.join(",")}
+                          accept={ALLOWED_IMAGE_TYPES.join(",")}
                           className="hidden"
-                          onChange={handleDocumentUpload}
-                          disabled={uploadingDocuments || (project.documents || []).length >= MAX_DOCUMENTS_COUNT}
+                          onChange={handleCoverImageChange}
+                          disabled={uploadingCoverImage}
                         />
                       </label>
-                    </div>
-
-                    {/* Documents List */}
-                    {project.documents && project.documents.length > 0 && (
-                      <div className="space-y-2 mt-4">
-                        {project.documents.map((doc, index) => (
-                          <div
-                            key={index}
-                            className={cn(
-                              "flex items-center justify-between p-3 rounded-md transition-colors",
-                              hoverIndex === index ? "bg-muted" : "bg-muted/40"
-                            )}
-                            onMouseEnter={() => setHoverIndex(index)}
-                            onMouseLeave={() => setHoverIndex(null)}
-                          >
-                            <div className="flex items-center gap-3 min-w-0 flex-1">
-                              {getFileIcon(doc.type)}
-                              <div className="min-w-0 flex-1">
-                                <p className="text-sm font-medium truncate">{doc.name}</p>
-                                <p className="text-xs text-muted-foreground">{formatBytes(doc.size)}</p>
-                              </div>
-                            </div>
-                            <div className="flex gap-1 shrink-0">
-                              {isPreviewable(doc.type) && (
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8"
-                                  onClick={() => openPreview(doc.url, doc.name, doc.type)}
-                                >
-                                  <Eye className="h-4 w-4" />
-                                </Button>
-                              )}
-                              <Button
-                                type="button"
-                                variant={hoverIndex === index ? "destructive" : "ghost"}
-                                size="icon"
-                                className="h-8 w-8 transition-colors"
-                                onClick={() => handleDeleteDocument(doc.url)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
                     )}
                   </div>
-                </CollapsibleContent>
-              </Collapsible>
+                </div>
 
-              <div className="flex justify-end gap-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => router.back()}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={saving || !hasChanges || !isFormValid}
-                >
-                  {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Save Changes
-                </Button>
-              </div>
-            </form>
-          </Form>
+                {/* Supporting Documents */}
+                <div className="space-y-3">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h4 className="font-medium text-sm">Supporting Documents</h4>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Upload non-waiver materials like instructions or reference docs (PDF, Word, Text, Images)
+                      </p>
+                    </div>
+                    <div className="text-xs text-muted-foreground text-right">
+                      <div>{(project.documents || []).length}/{MAX_DOCUMENTS_COUNT} files</div>
+                      <div>{formatBytes(totalDocumentsSize)}/{formatBytes(MAX_DOCUMENT_SIZE)}</div>
+                    </div>
+                  </div>
+
+                  <div className={`border-2 border-dashed rounded-lg p-4 transition-colors ${(project.documents || []).length >= MAX_DOCUMENTS_COUNT
+                    ? 'opacity-50 cursor-not-allowed'
+                    : 'hover:border-primary/50 hover:bg-primary/5'
+                    }`}>
+                    <label className={`flex flex-col items-center justify-center py-6 ${(project.documents || []).length >= MAX_DOCUMENTS_COUNT ? 'cursor-not-allowed' : 'cursor-pointer'
+                      }`}>
+                      <div className="rounded-full bg-background p-3 shadow-xs mb-3">
+                        <Upload className="h-6 w-6 text-muted-foreground" />
+                      </div>
+                      <p className="text-sm font-medium mb-1">
+                        {(project.documents || []).length >= MAX_DOCUMENTS_COUNT
+                          ? "Maximum files reached"
+                          : uploadingDocuments ? "Uploading..." : "Click to upload documents"
+                        }
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {(project.documents || []).length >= MAX_DOCUMENTS_COUNT
+                          ? `Limit of ${MAX_DOCUMENTS_COUNT} files reached`
+                          : uploadingDocuments ? "Please wait..." : "or drag and drop (multiple files allowed)"
+                        }
+                      </p>
+                      <input
+                        type="file"
+                        multiple
+                        accept={ALLOWED_DOCUMENT_TYPES.join(",")}
+                        className="hidden"
+                        onChange={handleDocumentUpload}
+                        disabled={uploadingDocuments || (project.documents || []).length >= MAX_DOCUMENTS_COUNT}
+                      />
+                    </label>
+                  </div>
+
+                  {/* Documents List */}
+                  {project.documents && project.documents.length > 0 && (
+                    <div className="space-y-2 mt-4">
+                      {project.documents.map((doc, index) => (
+                        <div
+                          key={index}
+                          className={cn(
+                            "flex items-center justify-between p-3 rounded-md transition-colors",
+                            hoverIndex === index ? "bg-muted" : "bg-muted/40"
+                          )}
+                          onMouseEnter={() => setHoverIndex(index)}
+                          onMouseLeave={() => setHoverIndex(null)}
+                        >
+                          <div className="flex items-center gap-3 min-w-0 flex-1">
+                            {getFileIcon(doc.type)}
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-medium truncate">{doc.name}</p>
+                              <p className="text-xs text-muted-foreground">{formatBytes(doc.size)}</p>
+                            </div>
+                          </div>
+                          <div className="flex gap-1 shrink-0">
+                            {isPreviewable(doc.type) && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => openPreview(doc.url, doc.name, doc.type)}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            )}
+                            <Button
+                              type="button"
+                              variant={hoverIndex === index ? "destructive" : "ghost"}
+                              size="icon"
+                              className="h-8 w-8 transition-colors"
+                              onClick={() => handleDeleteDocument(doc.url)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+
+            <div className="flex justify-end gap-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => router.back()}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={saving || !hasChanges || !isFormValid}
+              >
+                {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Save Changes
+              </Button>
+            </div>
+          </form>
+
         </CardContent>
 
         {/* Add Danger Zone section */}
@@ -1607,7 +1599,7 @@ export default function EditProjectClient({ project }: Props) {
                 </p>
                 <TooltipProvider>
                   <Tooltip>
-                    <TooltipTrigger asChild>
+                    <TooltipTrigger>
                       <div>
                         <Button
                           variant="destructive"

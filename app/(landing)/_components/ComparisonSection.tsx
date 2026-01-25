@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   Check,
   X,
@@ -174,7 +175,7 @@ function ModernDashboardMockup() {
     >
       {/* Glow effect */}
       <div className="absolute -inset-2 sm:-inset-4 bg-linear-to-r from-primary/20 via-emerald-500/20 to-primary/20 rounded-2xl sm:rounded-3xl blur-xl sm:blur-2xl opacity-60" />
-      
+
       <div className="relative rounded-xl sm:rounded-2xl border border-primary/30 bg-linear-to-br from-background via-background to-primary/5 p-0.5 sm:p-1 shadow-xl sm:shadow-2xl">
         {/* Browser chrome */}
         <div className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-3 border-b border-border/50 bg-muted/30 rounded-t-xl">
@@ -197,7 +198,7 @@ function ModernDashboardMockup() {
           {/* Header */}
           <div className="flex items-start sm:items-center justify-between gap-2">
             <div className="min-w-0 flex-1">
-              <motion.h4 
+              <motion.h4
                 initial={{ opacity: 0, x: -10 }}
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
@@ -291,11 +292,11 @@ function OutdatedMockup() {
         <div className="p-3 sm:p-4 md:p-6 space-y-3 sm:space-y-4 bg-linear-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
           {/* SignUpGenius logo */}
           <div className="flex items-center gap-2 sm:gap-3">
-            <Image 
-              src="/signupgenius.jpg" 
-              alt="SignUpGenius" 
-              width={32} 
-              height={32} 
+            <Image
+              src="/signupgenius.jpg"
+              alt="SignUpGenius"
+              width={32}
+              height={32}
               className="rounded opacity-70 w-8 h-8 sm:w-10 sm:h-10"
             />
             <div>
@@ -389,7 +390,7 @@ function AnimatedX({ delay = 0 }: { delay?: number }) {
 // Feature comparison row
 function ComparisonRow({ feature, index }: { feature: ComparisonFeature; index: number }) {
   const delay = index * 0.05;
-  
+
   return (
     <motion.tr
       initial={{ opacity: 0, y: 10 }}
@@ -485,7 +486,7 @@ export default function ComparisonSection() {
             transition={{ delay: 0.3 }}
             className="mt-4 sm:mt-6 text-sm sm:text-base lg:text-lg text-muted-foreground max-w-2xl mx-auto px-4"
           >
-            Stop using a tool designed for potlucks to manage your volunteer program. 
+            Stop using a tool designed for potlucks to manage your volunteer program.
             Modern hour tracking, auto-certificates, and compliance-ready reports — <span className="text-primary font-medium">completely free</span>.
           </motion.p>
         </motion.div>
@@ -560,11 +561,11 @@ export default function ComparisonSection() {
                     </th>
                     <th className="py-3 sm:py-4 px-2 sm:px-4 text-center w-20 sm:w-28">
                       <div className="flex flex-col items-center gap-0.5 sm:gap-1">
-                        <Image 
-                          src="/signupgenius.jpg" 
-                          alt="SignUpGenius" 
-                          width={24} 
-                          height={24} 
+                        <Image
+                          src="/signupgenius.jpg"
+                          alt="SignUpGenius"
+                          width={24}
+                          height={24}
                           className="rounded-lg opacity-60 w-5 h-5 sm:w-6 sm:h-6"
                         />
                         <span className="text-[10px] sm:text-xs font-medium text-muted-foreground">SignUpGenius</span>
@@ -680,19 +681,21 @@ export default function ComparisonSection() {
           className="text-center px-4"
         >
           <div className="inline-flex flex-col sm:flex-row gap-2 sm:gap-3 items-center w-full sm:w-auto">
-            <Button asChild size="lg" className="gap-2 px-6 sm:px-8 shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-shadow w-full sm:w-auto">
-              <Link href="/signup">
-                Start for free
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </Button>
-            <Button asChild variant="outline" size="lg" className="gap-2 hover:bg-primary/5 w-full sm:w-auto">
-              <Link href="/projects">
-                Explore opportunities
-              </Link>
-            </Button>
+            <Link
+              href="/signup"
+              className={cn(buttonVariants({ size: "lg", className: "gap-2 px-6 sm:px-8 shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-shadow w-full sm:w-auto" }))}
+            >
+              Start for free
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+            <Link
+              href="/projects"
+              className={cn(buttonVariants({ variant: "outline", size: "lg", className: "gap-2 hover:bg-primary/5 w-full sm:w-auto" }))}
+            >
+              Explore opportunities
+            </Link>
           </div>
-          <motion.p 
+          <motion.p
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}

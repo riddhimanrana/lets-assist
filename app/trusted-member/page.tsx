@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { SubmitTrustedMemberForm } from "@/app/trusted-member/submit-form";
 import { Shield, ShieldCheck, XCircle, Clock } from "lucide-react";
 
-export const dynamic = "force-dynamic";
+// export const dynamic = "force-dynamic"; - incompatible with cacheComponents
 
 export const metadata: Metadata = {
   title: "Trusted Member",

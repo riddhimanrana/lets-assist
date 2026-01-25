@@ -43,11 +43,11 @@ export default function BayAreaExamples() {
             volunteer ops built for districts, clubs, and nonprofits.
           </p>
         </div>
-        <TooltipProvider delayDuration={150}>
+        <TooltipProvider>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-4 sm:gap-6">
             {partners.map((partner) => (
               <Tooltip key={partner.name}>
-                <TooltipTrigger asChild>
+                <TooltipTrigger>
                   <motion.div
                     initial={{ opacity: 0, y: 8 }}
                     whileInView={{ opacity: 1, y: 0 }}

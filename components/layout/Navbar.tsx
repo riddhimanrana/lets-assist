@@ -18,7 +18,7 @@ import {
 import { NoAvatar } from "@/components/shared/NoAvatar";
 import { logout } from "@/app/logout/actions";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   NavigationMenu,
@@ -217,46 +217,42 @@ export default function Navbar() {
               <Skeleton className="h-6 w-48" />
             ) : user ? (
               <>
-                <Button variant="ghost" asChild>
-                  <Link
-                    className={cn(
-                      pathname === "/home" ? "text-primary font-semibold" : "text-muted-foreground"
-                    )}
-                    href="/home"
-                  >
-                    Home
-                  </Link>
-                </Button>
-                <Button variant="ghost" asChild>
-                  <Link
-                    className={cn(
-                      pathname === "/dashboard" ? "text-primary font-semibold" : "text-muted-foreground"
-                    )}
-                    href="/dashboard"
-                  >
-                    Volunteer Dashboard
-                  </Link>
-                </Button>
-                <Button variant="ghost" asChild>
-                  <Link
-                    className={cn(
-                      pathname === "/projects" ? "text-primary font-semibold" : "text-muted-foreground"
-                    )}
-                    href="/projects"
-                  >
-                    My Projects
-                  </Link>
-                </Button>
-                <Button variant="ghost" asChild>
-                  <Link
-                    className={cn(
-                      pathname === "/organization" ? "text-primary font-semibold" : "text-muted-foreground"
-                    )}
-                    href="/organization"
-                  >
-                    Organizations
-                  </Link>
-                </Button>
+                <Link
+                  className={cn(
+                    buttonVariants({ variant: "ghost" }),
+                    pathname === "/home" ? "text-primary font-semibold" : "text-muted-foreground"
+                  )}
+                  href="/home"
+                >
+                  Home
+                </Link>
+                <Link
+                  className={cn(
+                    buttonVariants({ variant: "ghost" }),
+                    pathname === "/dashboard" ? "text-primary font-semibold" : "text-muted-foreground"
+                  )}
+                  href="/dashboard"
+                >
+                  Volunteer Dashboard
+                </Link>
+                <Link
+                  className={cn(
+                    buttonVariants({ variant: "ghost" }),
+                    pathname === "/projects" ? "text-primary font-semibold" : "text-muted-foreground"
+                  )}
+                  href="/projects"
+                >
+                  My Projects
+                </Link>
+                <Link
+                  className={cn(
+                    buttonVariants({ variant: "ghost" }),
+                    pathname === "/organization" ? "text-primary font-semibold" : "text-muted-foreground"
+                  )}
+                  href="/organization"
+                >
+                  Organizations
+                </Link>
 
 
               </>
@@ -269,7 +265,7 @@ export default function Navbar() {
                       <NavigationMenuContent>
                         <ul className="grid gap-3 p-4 w-[320px] lg:w-[500px] lg:p-6 lg:grid-cols-[.75fr_1fr]">
                           <li className="row-span-3">
-                            <NavigationMenuLink asChild>
+                            <NavigationMenuLink render={
                               <Link
                                 className="flex h-full w-full select-none flex-col justify-end rounded-md bg-linear-to-b from-muted/50 to-muted p-6 no-underline outline-hidden focus:shadow-md"
                                 href="/"
@@ -287,7 +283,7 @@ export default function Navbar() {
                                   Helping communities and volunteers connect
                                 </p>
                               </Link>
-                            </NavigationMenuLink>
+                            } />
                           </li>
                           {features.map((feature) => (
                             <ListItem
@@ -303,23 +299,20 @@ export default function Navbar() {
                     </NavigationMenuItem>
                   </NavigationMenuList>
                 </NavigationMenu>
-                <Button variant="ghost" asChild>
-                  <Link href="/projects" className={cn(
-                    pathname === "/projects" ? "text-primary font-semibold" : "text-muted-foreground"
-                  )}>Volunteering Near Me</Link>
-                </Button>
-                <Button variant="ghost" asChild>
-                  <Link href="/organization" className={cn(
-                    pathname === "/organization" ? "text-primary font-semibold" : "text-muted-foreground"
-                  )}>Connected Organizations</Link>
-                </Button>
-                <Button variant="ghost" asChild>
-                  <Link href="/faq" className={cn(
-                    pathname === "/faq" ? "text-primary font-semibold" : "text-muted-foreground"
-                  )}>
-                    FAQ
-                  </Link>
-                </Button>
+                <Link href="/projects" className={cn(
+                  buttonVariants({ variant: "ghost" }),
+                  pathname === "/projects" ? "text-primary font-semibold" : "text-muted-foreground"
+                )}>Volunteering Near Me</Link>
+                <Link href="/organization" className={cn(
+                  buttonVariants({ variant: "ghost" }),
+                  pathname === "/organization" ? "text-primary font-semibold" : "text-muted-foreground"
+                )}>Connected Organizations</Link>
+                <Link href="/faq" className={cn(
+                  buttonVariants({ variant: "ghost" }),
+                  pathname === "/faq" ? "text-primary font-semibold" : "text-muted-foreground"
+                )}>
+                  FAQ
+                </Link>
               </>
             )}
           </div>
@@ -333,12 +326,11 @@ export default function Navbar() {
               <div className="flex items-center space-x-5 mr-2">
                 <NotificationPopover />
                 <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    {isProfileLoading ? (
-                      <Skeleton className="w-9 h-9 rounded-full" />
-                    ) : (
+                  {isProfileLoading ? (
+                    <div className="w-9 h-9 rounded-full bg-muted animate-pulse" />
+                  ) : (
+                    <DropdownMenuTrigger render={
                       <div className="relative group w-9 h-9">
-                        {/* The glowing circle behind the avatar, only visible on hover */}
                         <span
                           aria-hidden="true"
                           className="absolute inset-0 rounded-full bg-muted-foreground/10 scale-105 opacity-0 group-hover:opacity-100 group-hover:scale-125 transition-all duration-200 pointer-events-none"
@@ -350,12 +342,11 @@ export default function Navbar() {
                           </AvatarFallback>
                         </Avatar>
                       </div>
-                    )}
-                  </DropdownMenuTrigger>
+                    } />
+                  )}
                   <DropdownMenuContent
                     className="w-64 pt-3 px-2 pb-2"
                     align="end"
-                    forceMount
                   >
                     <DropdownMenuLabel className="font-normal mb-2">
                       <div className="flex flex-col space-y-2">
@@ -370,30 +361,30 @@ export default function Navbar() {
                     {/* <DropdownMenuSeparator className="my-2" /> */}
                     <DropdownMenuItem
                       className="py-2.5 text-muted-foreground cursor-pointer"
-                      asChild
-                    >
-                      <Link href="/home">
-                        <span>Volunteer Dashboard</span>
-                      </Link>
-                    </DropdownMenuItem>
+                      render={
+                        <Link href="/home">
+                          <span>Volunteer Dashboard</span>
+                        </Link>
+                      }
+                    />
 
 
                     <DropdownMenuItem
                       className="py-2.5 text-muted-foreground cursor-pointer"
-                      asChild
-                    >
-                      <Link href={`/profile/${profile?.username}`}>
-                        <span>My Profile</span>
-                      </Link>
-                    </DropdownMenuItem>
+                      render={
+                        <Link href={`/profile/${profile?.username}`}>
+                          <span>My Profile</span>
+                        </Link>
+                      }
+                    />
                     <DropdownMenuItem
                       className="py-2.5 text-muted-foreground cursor-pointer"
-                      asChild
-                    >
-                      <Link href="/account/profile">
-                        <span>Account Settings</span>
-                      </Link>
-                    </DropdownMenuItem>
+                      render={
+                        <Link href="/account/profile">
+                          <span>Account Settings</span>
+                        </Link>
+                      }
+                    />
                     <DropdownMenuSeparator className="my-2" />
 
                     {/* Replace custom theme selector with new Vercel-style ThemeSelector */}
@@ -469,12 +460,12 @@ export default function Navbar() {
               {/* Show theme toggle for non-logged in users only */}
               {!isAuthLoading && !user && <ModeToggle />}
             </div>
-            <SheetTrigger asChild>
+            <SheetTrigger render={
               <Button variant="ghost" size="icon" className="lg:hidden ml-2">
                 <Menu className="h-5 w-5" />
                 <span className="sr-only">Toggle menu</span>
               </Button>
-            </SheetTrigger>
+            } />
             <SheetContent side="right" className="w-[85%] sm:w-[380px] pt-10 px-4 pb-4 overflow-y-auto">
               <div className="flex flex-col h-full">
                 {isAuthLoading ? (
@@ -536,58 +527,50 @@ export default function Navbar() {
                 <div className="space-y-1">
                   {user ? (
                     <>
-                      <Button
-                        variant="ghost"
-                        className="w-full justify-between text-muted-foreground"
-                        asChild
+                      <Link
+                        href="/home"
+                        className={cn(buttonVariants({ variant: "ghost" }), "w-full justify-start text-muted-foreground")}
                         onClick={handleNavigation}
                       >
-                        <Link href="/home">Home</Link>
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        className="w-full justify-between text-muted-foreground"
-                        asChild
+                        Home
+                      </Link>
+                      <Link
+                        href="/dashboard"
+                        className={cn(buttonVariants({ variant: "ghost" }), "w-full justify-start text-muted-foreground")}
                         onClick={handleNavigation}
                       >
-                        <Link href="/dashboard">Volunteer Dashboard</Link>
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        className="w-full justify-between text-muted-foreground"
-                        asChild
+                        Volunteer Dashboard
+                      </Link>
+                      <Link
+                        href="/projects"
+                        className={cn(buttonVariants({ variant: "ghost" }), "w-full justify-start text-muted-foreground")}
                         onClick={handleNavigation}
                       >
-                        <Link href="/projects">My Projects</Link>
-                      </Button>
+                        My Projects
+                      </Link>
 
-                      <Button
-                        variant="ghost"
-                        className="w-full justify-between text-muted-foreground"
-                        asChild
+                      <Link
+                        href="/organization"
+                        className={cn(buttonVariants({ variant: "ghost" }), "w-full justify-start text-muted-foreground")}
                         onClick={handleNavigation}
                       >
-                        <Link href="/organization">Organizations</Link>
-                      </Button>
+                        Organizations
+                      </Link>
                     </>
                   ) : (
                     <>
-                      <Button
-                        variant="ghost"
-                        className="w-full justify-between text-muted-foreground"
+                      <Link href="/projects"
+                        className={cn(buttonVariants({ variant: "ghost" }), "w-full justify-start text-muted-foreground")}
                         onClick={handleNavigation}
-                        asChild
                       >
-                        <Link href="/projects">Volunteering Near Me</Link>
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        className="w-full justify-between text-muted-foreground"
+                        Volunteering Near Me
+                      </Link>
+                      <Link href="/organization"
+                        className={cn(buttonVariants({ variant: "ghost" }), "w-full justify-start text-muted-foreground")}
                         onClick={handleNavigation}
-                        asChild
                       >
-                        <Link href="/organization">Connected Organizations</Link>
-                      </Button>
+                        Connected Organizations
+                      </Link>
                     </>
                   )}
                 </div>
@@ -595,30 +578,24 @@ export default function Navbar() {
                 {user && (
                   <>
                     <Separator className="my-4" />
-                    <Button
-                      variant="ghost"
-                      className="w-full justify-between text-muted-foreground"
-                      asChild
+                    <Link
+                      href="/account/profile"
+                      className={cn(buttonVariants({ variant: "ghost" }), "w-full justify-between text-muted-foreground")}
                       onClick={handleNavigation}
                     >
-                      <Link href="/account/profile">
-                        Account Settings
-                        <Settings className="h-4 w-4" />
-                      </Link>
-                    </Button>
+                      Account Settings
+                      <Settings className="h-4 w-4" />
+                    </Link>
                     {/* Re-enable MobileNotificationButton now that we're storing notifications */}
                     {/* <MobileNotificationButton /> */}
-                    <Button
-                      variant="ghost"
-                      className="w-full justify-between text-muted-foreground"
-                      asChild
+                    <Link
+                      href={`/profile/${profile?.username}`}
+                      className={cn(buttonVariants({ variant: "ghost" }), "w-full justify-between text-muted-foreground")}
                       onClick={handleNavigation}
                     >
-                      <Link href={`/profile/${profile?.username}`}>
-                        My Profile
-                        <UserRound className="h-4 w-4" />
-                      </Link>
-                    </Button>
+                      My Profile
+                      <UserRound className="h-4 w-4" />
+                    </Link>
                   </>
                 )}
 
@@ -676,7 +653,7 @@ const ListItem = React.forwardRef<
 >(({ className, title, children, ...props }, ref) => {
   return (
     <li>
-      <NavigationMenuLink asChild>
+      <NavigationMenuLink render={
         <a
           ref={ref}
           className={cn(
@@ -690,7 +667,7 @@ const ListItem = React.forwardRef<
             {children}
           </p>
         </a>
-      </NavigationMenuLink>
+      } />
     </li>
   );
 });

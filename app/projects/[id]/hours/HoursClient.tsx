@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from "react";
 import { Project, ProjectSignup } from "@/types"; // Use ProjectSignup type
+import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Search, ArrowLeft, Clock, CheckCircle, Loader2, UserRoundCheck, Info, Edit, AlertCircle, PencilLine, FileText, Mail } from "lucide-react";
 import { format, parseISO, differenceInMinutes, differenceInSeconds, isAfter } from "date-fns";
@@ -17,7 +18,7 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogClose, DialogFooter
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -86,6 +87,7 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
   const [showPublishSuccessModal, setShowPublishSuccessModal] = useState(false);
   const [currentPublishedSessionName, setCurrentPublishedSessionName] = useState<string>("");
   const [emailErrors, setEmailErrors] = useState<string[]>([]);
+  const [emailsSentCount, setEmailsSentCount] = useState<number>(0);
 
   // State for certificates modal
   const [showCertificatesModal, setShowCertificatesModal] = useState(false);
@@ -835,13 +837,11 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
   return (
     <div className="container mx-auto px-4 py-6 max-w-7xl">
       <div className="mb-4 sm:mb-6">
-        <Button variant="ghost" className="gap-2" asChild>
-          <Link href={`/projects/${project.id}`}>
-            <ArrowLeft className="h-4 w-4" />
-            <span className="hidden sm:inline">Back to Project</span>
-            <span className="sm:hidden">Back</span>
-          </Link>
-        </Button>
+        <Link href={`/projects/${project.id}`} className={cn(buttonVariants({ variant: "ghost" }), "gap-2")}>
+          <ArrowLeft className="h-4 w-4" />
+          <span className="hidden sm:inline">Back to Project</span>
+          <span className="sm:hidden">Back</span>
+        </Link>
       </div>
 
       {/* Publish Success Modal */}
@@ -903,9 +903,9 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
             </DialogDescription>
           </div>
           <DialogFooter>
-            <DialogClose asChild>
+            <DialogClose render={
               <Button type="button" variant="secondary">Close</Button>
-            </DialogClose>
+            } />
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -937,9 +937,9 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
           </p>
 
           <DialogFooter className="gap-2 mt-4">
-            <DialogClose asChild>
+            <DialogClose render={
               <Button variant="outline">Cancel</Button>
-            </DialogClose>
+            } />
             <Button
               onClick={() => confirmPublishSessionId && handlePublishHours(confirmPublishSessionId)}
               variant="default"
@@ -1069,9 +1069,9 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
           </div>
 
           <DialogFooter className="shrink-0 gap-2 flex-col sm:flex-row mt-4">
-            <DialogClose asChild>
+            <DialogClose render={
               <Button variant="outline" className="w-full sm:w-auto">Close</Button>
-            </DialogClose>
+            } />
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1149,7 +1149,7 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
                 />
               </div>
               <div className="flex flex-row gap-2 w-full sm:w-auto items-center">
-                <Select value={sessionFilter} onValueChange={setSessionFilter}>
+                <Select value={sessionFilter} onValueChange={(val) => setSessionFilter(val || "all")}>
                   <SelectTrigger className="w-full sm:w-[180px]" aria-label="Filter by session">
                     <SelectValue placeholder="Filter by session" />
                   </SelectTrigger>
@@ -1310,7 +1310,7 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
                       {session.status === "editing" && hasSignups && !isPublished && (
                         <>
                           <Dialog>
-                            <DialogTrigger asChild>
+                            <DialogTrigger render={
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -1320,7 +1320,7 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
                                 <span className="hidden sm:inline">Adjust All Times</span>
                                 <span className="sm:hidden">Batch Edit</span>
                               </Button>
-                            </DialogTrigger>
+                            } />
                             <DialogContent className="sm:max-w-[425px]">
                               <DialogHeader>
                                 <DialogTitle>Batch Adjust Check-out Times</DialogTitle>
@@ -1357,9 +1357,9 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
                                 </div>
                               </div>
                               <DialogFooter>
-                                <DialogClose asChild>
+                                <DialogClose render={
                                   <Button variant="outline" className="hidden sm:inline">Cancel</Button>
-                                </DialogClose>
+                                } />
                                 <Button
                                   onClick={() => handleBatchAdjustment(session.id, batchMinutesAdjustment)}
                                   disabled={applyingBatchAdjustment[session.id]}
@@ -1473,11 +1473,11 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
                                 <div>
                                   <TooltipProvider>
                                     <Tooltip>
-                                      <TooltipTrigger asChild>
+                                      <TooltipTrigger render={
                                         <span tabIndex={0} aria-label="Duration info">
                                           <Info className="h-4 w-4 cursor-pointer" aria-hidden="true" />
                                         </span>
-                                      </TooltipTrigger>
+                                      } />
                                       <TooltipContent side="top" align="center">
                                         Times may be off by ±1 minute due to rounding seconds to the nearest minute.
                                       </TooltipContent>

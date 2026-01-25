@@ -3,7 +3,8 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -213,7 +214,7 @@ export default function ModerationDashboard({
   const [contentReports, setContentReports] = useState(initialReports);
   const [flaggedFilter, setFlaggedFilter] = useState<FlaggedFilter>('pending');
   const [reportFilter, setReportFilter] = useState<ReportsFilter>('pending');
-  
+
   const [isFlaggedLoading, setIsFlaggedLoading] = useState(false);
   const [isReportsLoading, setIsReportsLoading] = useState(false);
   const [isActionLoading, setIsActionLoading] = useState(false);
@@ -402,7 +403,7 @@ export default function ModerationDashboard({
     eventSource.onmessage = (event) => {
       try {
         const parsed: ScanEvent = JSON.parse(event.data);
-        
+
         switch (parsed.type) {
           case 'start':
             setScanProgress({
@@ -414,7 +415,7 @@ export default function ModerationDashboard({
             });
             toast.info(`Starting AI scan: ${parsed.data.totalReports} reports, ${parsed.data.totalProjects} projects`);
             break;
-            
+
           case 'analyzing':
             setScanProgress(prev => prev ? {
               ...prev,
@@ -423,7 +424,7 @@ export default function ModerationDashboard({
               current: parsed.data.current || prev.current,
             } : null);
             break;
-            
+
           case 'progress':
             setScanProgress(prev => prev ? {
               ...prev,
@@ -431,7 +432,7 @@ export default function ModerationDashboard({
               percentComplete: parsed.data.percentComplete || 0,
             } : null);
             break;
-            
+
           case 'result':
             setScanResults(prev => [...prev, {
               itemType: parsed.data.itemType || 'unknown',
@@ -447,7 +448,7 @@ export default function ModerationDashboard({
               setScanProgress(prev => prev ? { ...prev, projectsProcessed: prev.projectsProcessed + 1 } : null);
             }
             break;
-            
+
           case 'complete':
             toast.success(parsed.data.message || 'AI scan completed');
             eventSource.close();
@@ -461,7 +462,7 @@ export default function ModerationDashboard({
               setScanProgress(null);
             }, 2000);
             break;
-            
+
           case 'error':
             toast.error(parsed.data.message || 'AI scan failed');
             eventSource.close();
@@ -489,7 +490,7 @@ export default function ModerationDashboard({
     }
     const suggestedStatus = report.ai_metadata.suggestedStatus;
     const validStatuses: ReportsFilter[] = ['pending', 'under_review', 'resolved', 'dismissed'];
-    const action = validStatuses.includes(suggestedStatus as ReportsFilter) 
+    const action = validStatuses.includes(suggestedStatus as ReportsFilter)
       ? (suggestedStatus as ReportsFilter)
       : 'under_review';
     await handleReportStatusChange(report.id, action, 'Approved AI recommendation');
@@ -560,7 +561,7 @@ export default function ModerationDashboard({
   };
 
   return (
-    <TooltipProvider delayDuration={80}>
+    <TooltipProvider>
       <div className="container mx-auto max-w-7xl space-y-6 p-4 md:p-6">
         {/* Unified Header Row */}
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -570,7 +571,7 @@ export default function ModerationDashboard({
               Review flagged content and user reports with AI-powered analysis.
             </p>
           </div>
-          
+
           {/* Stats in header */}
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2">
@@ -601,8 +602,8 @@ export default function ModerationDashboard({
                 <span className="text-muted-foreground ml-1">this week</span>
               </div>
             </div>
-            <Button 
-              onClick={handleRunAiScan} 
+            <Button
+              onClick={handleRunAiScan}
               disabled={isScanActive}
               className="ml-2"
             >
@@ -628,7 +629,7 @@ export default function ModerationDashboard({
                 Analyzing content with step-by-step reasoning...
               </DialogDescription>
             </DialogHeader>
-            
+
             {scanProgress && (
               <div className="space-y-4">
                 <div>
@@ -638,7 +639,7 @@ export default function ModerationDashboard({
                   </div>
                   <Progress value={scanProgress.percentComplete} className="h-2" />
                 </div>
-                
+
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div className="rounded-lg border bg-muted/30 p-3">
                     <p className="text-muted-foreground">Reports Processed</p>
@@ -677,11 +678,10 @@ export default function ModerationDashboard({
                       return (
                         <div
                           key={`${result.itemId}-${i}`}
-                          className={`text-xs p-2 rounded flex items-center gap-2 ${
-                            result.success
-                              ? 'bg-primary/10 text-primary'
-                              : 'bg-destructive/10 text-destructive'
-                          }`}
+                          className={`text-xs p-2 rounded flex items-center gap-2 ${result.success
+                            ? 'bg-primary/10 text-primary'
+                            : 'bg-destructive/10 text-destructive'
+                            }`}
                         >
                           {result.success ? (
                             <CheckCircle className="h-3 w-3" />
@@ -744,7 +744,7 @@ export default function ModerationDashboard({
                     <TabsTrigger value="resolved">Resolved</TabsTrigger>
                     <TabsTrigger value="dismissed">Dismissed</TabsTrigger>
                   </TabsList>
-                  
+
                   <TabsContent value={reportFilter}>
                     {isReportsLoading ? (
                       <div className="flex items-center justify-center py-12">
@@ -771,21 +771,21 @@ export default function ModerationDashboard({
                             {contentReports.map((report) => {
                               const ai = report.ai_metadata;
                               const canQuickResolve = ['pending', 'under_review', null].includes(report.status ?? null);
-                              
+
                               const reporteeName = report.content_type === 'project'
                                 ? (report.content_details?.title || report.creator_details?.full_name || 'Unknown project')
                                 : (report.creator_details?.full_name || report.creator_details?.username || 'Unknown user');
-                              
+
                               return (
-                                <TableRow 
-                                  key={report.id} 
+                                <TableRow
+                                  key={report.id}
                                   className="cursor-pointer hover:bg-muted/50"
                                   onClick={() => setSelectedReport(report)}
                                 >
                                   <TableCell>
                                     <div className="flex flex-col gap-1.5">
-                                      <Badge 
-                                        variant={report.content_type === 'project' ? 'default' : 'secondary'} 
+                                      <Badge
+                                        variant={report.content_type === 'project' ? 'default' : 'secondary'}
                                         className="w-fit text-[11px]"
                                       >
                                         {report.content_type === 'project' ? '📋 Project' : '👤 Profile'}
@@ -842,44 +842,40 @@ export default function ModerationDashboard({
                                     <div className="flex items-center justify-end gap-1">
                                       {ai?.suggestedStatus && canQuickResolve && (
                                         <Tooltip>
-                                          <TooltipTrigger asChild>
+                                          <TooltipTrigger render={
                                             <Button
-                                              size="icon"
                                               variant="ghost"
+                                              size="icon"
                                               className="text-primary hover:text-primary/90 hover:bg-primary/10"
                                               onClick={() => handleReportAiApproval(report)}
                                               disabled={isActionLoading}
                                             >
                                               <Sparkles className="h-4 w-4" />
                                             </Button>
-                                          </TooltipTrigger>
+                                          } />
                                           <TooltipContent side="top">Approve AI</TooltipContent>
                                         </Tooltip>
                                       )}
                                       <Tooltip>
-                                        <TooltipTrigger asChild>
+                                        <TooltipTrigger render={
                                           <Button
-                                            size="icon"
                                             variant="ghost"
+                                            size="icon"
                                             onClick={() => setSelectedReport(report)}
                                           >
                                             <Eye className="h-4 w-4" />
                                           </Button>
-                                        </TooltipTrigger>
+                                        } />
                                         <TooltipContent side="top">View Details</TooltipContent>
                                       </Tooltip>
                                       {canQuickResolve && (
                                         <Tooltip>
-                                          <TooltipTrigger asChild>
-                                            <Button
-                                              size="icon"
-                                              variant="ghost"
-                                              className="text-muted-foreground hover:text-destructive"
-                                              onClick={() => handleReportStatusChange(report.id, 'dismissed', REPORT_DISMISS_NOTE)}
-                                              disabled={isActionLoading}
-                                            >
-                                              <XCircle className="h-4 w-4" />
-                                            </Button>
+                                          <TooltipTrigger
+                                            className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "text-muted-foreground hover:text-destructive")}
+                                            onClick={() => handleReportStatusChange(report.id, 'dismissed', REPORT_DISMISS_NOTE)}
+                                            disabled={isActionLoading}
+                                          >
+                                            <XCircle className="h-4 w-4" />
                                           </TooltipTrigger>
                                           <TooltipContent side="top">Dismiss</TooltipContent>
                                         </Tooltip>
@@ -921,7 +917,7 @@ export default function ModerationDashboard({
                     <TabsTrigger value="confirmed">Confirmed</TabsTrigger>
                     <TabsTrigger value="dismissed">Dismissed</TabsTrigger>
                   </TabsList>
-                  
+
                   <TabsContent value={flaggedFilter}>
                     {isFlaggedLoading ? (
                       <div className="flex items-center justify-center py-12">
@@ -986,28 +982,22 @@ export default function ModerationDashboard({
                                 <TableCell className="text-right">
                                   <div className="flex items-center justify-end gap-1.5">
                                     <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Button
-                                          size="icon"
-                                          variant="ghost"
-                                          onClick={() => setSelectedFlag(item)}
-                                        >
-                                          <Eye className="h-4 w-4" />
-                                        </Button>
+                                      <TooltipTrigger
+                                        className={cn(buttonVariants({ variant: "ghost", size: "icon" }))}
+                                        onClick={() => setSelectedFlag(item)}
+                                      >
+                                        <Eye className="h-4 w-4" />
                                       </TooltipTrigger>
                                       <TooltipContent>View</TooltipContent>
                                     </Tooltip>
                                     {item.content_type === 'project' && item.content_id && (
                                       <Tooltip>
-                                        <TooltipTrigger asChild>
-                                          <Button
-                                            size="icon"
-                                            variant="ghost"
-                                            onClick={() => handleRunAiReviewForFlag(item)}
-                                            disabled={isActionLoading}
-                                          >
-                                            <Sparkles className="h-4 w-4" />
-                                          </Button>
+                                        <TooltipTrigger
+                                          className={cn(buttonVariants({ variant: "ghost", size: "icon" }))}
+                                          onClick={() => handleRunAiReviewForFlag(item)}
+                                          disabled={isActionLoading}
+                                        >
+                                          <Sparkles className="h-4 w-4" />
                                         </TooltipTrigger>
                                         <TooltipContent>Run AI review</TooltipContent>
                                       </Tooltip>
@@ -1015,41 +1005,32 @@ export default function ModerationDashboard({
                                     {flaggedFilter === 'pending' && (
                                       <>
                                         <Tooltip>
-                                          <TooltipTrigger asChild>
-                                            <Button
-                                              size="icon"
-                                              variant="ghost"
-                                              onClick={() => handleFlagStatusUpdate(item.id, 'blocked', 'Blocked for policy violation')}
-                                              disabled={isActionLoading}
-                                            >
-                                              <ShieldX className="h-4 w-4" />
-                                            </Button>
+                                          <TooltipTrigger
+                                            className={cn(buttonVariants({ variant: "ghost", size: "icon" }))}
+                                            onClick={() => handleFlagStatusUpdate(item.id, 'blocked', 'Blocked for policy violation')}
+                                            disabled={isActionLoading}
+                                          >
+                                            <ShieldX className="h-4 w-4" />
                                           </TooltipTrigger>
                                           <TooltipContent>Block</TooltipContent>
                                         </Tooltip>
                                         <Tooltip>
-                                          <TooltipTrigger asChild>
-                                            <Button
-                                              size="icon"
-                                              variant="ghost"
-                                              onClick={() => handleFlagStatusUpdate(item.id, 'confirmed', 'Confirmed violation')}
-                                              disabled={isActionLoading}
-                                            >
-                                              <CheckCircle className="h-4 w-4" />
-                                            </Button>
+                                          <TooltipTrigger
+                                            className={cn(buttonVariants({ variant: "ghost", size: "icon" }))}
+                                            onClick={() => handleFlagStatusUpdate(item.id, 'confirmed', 'Confirmed violation')}
+                                            disabled={isActionLoading}
+                                          >
+                                            <CheckCircle className="h-4 w-4" />
                                           </TooltipTrigger>
                                           <TooltipContent>Confirm</TooltipContent>
                                         </Tooltip>
                                         <Tooltip>
-                                          <TooltipTrigger asChild>
-                                            <Button
-                                              size="icon"
-                                              variant="ghost"
-                                              onClick={() => handleFlagStatusUpdate(item.id, 'dismissed', 'False positive')}
-                                              disabled={isActionLoading}
-                                            >
-                                              <XCircle className="h-4 w-4" />
-                                            </Button>
+                                          <TooltipTrigger
+                                            className={cn(buttonVariants({ variant: "ghost", size: "icon" }))}
+                                            onClick={() => handleFlagStatusUpdate(item.id, 'dismissed', 'False positive')}
+                                            disabled={isActionLoading}
+                                          >
+                                            <XCircle className="h-4 w-4" />
                                           </TooltipTrigger>
                                           <TooltipContent>Dismiss</TooltipContent>
                                         </Tooltip>
@@ -1119,13 +1100,11 @@ export default function ModerationDashboard({
                 {selectedFlag.flag_details?.reasoningSteps &&
                   selectedFlag.flag_details.reasoningSteps.length > 0 && (
                     <Collapsible>
-                      <CollapsibleTrigger asChild>
-                        <Button variant="ghost" size="sm" className="w-full justify-between">
-                          <span className="flex items-center gap-2">
-                            <ChevronRight className="h-4 w-4 transition-transform in-data-[state=open]:rotate-90" />
-                            Reasoning Steps ({selectedFlag.flag_details.reasoningSteps.length})
-                          </span>
-                        </Button>
+                      <CollapsibleTrigger className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "w-full justify-between")}>
+                        <span className="flex items-center gap-2">
+                          <ChevronRight className="h-4 w-4 transition-transform in-data-[state=open]:rotate-90" />
+                          Reasoning Steps ({selectedFlag.flag_details.reasoningSteps.length})
+                        </span>
                       </CollapsibleTrigger>
                       <CollapsibleContent className="pt-2 space-y-2">
                         {selectedFlag.flag_details.reasoningSteps.map((step, idx) => (
@@ -1166,11 +1145,12 @@ export default function ModerationDashboard({
                     </Button>
                   )}
                   {getFlagContentUrl(selectedFlag) && (
-                    <Button size="sm" variant="outline" asChild>
-                      <Link href={getFlagContentUrl(selectedFlag)!}>
-                        View content
-                      </Link>
-                    </Button>
+                    <Link
+                      href={getFlagContentUrl(selectedFlag)!}
+                      className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+                    >
+                      View content
+                    </Link>
                   )}
                   <Button
                     size="sm"
@@ -1253,7 +1233,7 @@ export default function ModerationDashboard({
                 {selectedReport?.reason || 'Review report and take action'}
               </SheetDescription>
             </SheetHeader>
-            
+
             {selectedReport && (
               <div className="space-y-6">
                 {/* Status & Priority */}
@@ -1273,7 +1253,7 @@ export default function ModerationDashboard({
                 {selectedReport.reporter && (
                   <div className="rounded-lg border bg-card p-4">
                     <p className="text-xs uppercase text-muted-foreground mb-2">Reported By</p>
-                    <Link 
+                    <Link
                       href={`/profile/${selectedReport.reporter.username || selectedReport.reporter.id}`}
                       className="flex items-center gap-3 hover:opacity-80 transition-opacity"
                     >
@@ -1305,9 +1285,9 @@ export default function ModerationDashboard({
                         {selectedReport.content_type === 'project' ? '📋 Project' : '👤 Profile'}
                       </Badge>
                       <div className="flex-1 min-w-0">
-                        <Link 
-                          href={selectedReport.content_type === 'project' 
-                            ? `/projects/${selectedReport.content_id}` 
+                        <Link
+                          href={selectedReport.content_type === 'project'
+                            ? `/projects/${selectedReport.content_id}`
                             : `/profile/${selectedReport.creator_details?.username || selectedReport.content_id}`}
                           className="font-medium text-sm hover:underline flex items-center gap-1"
                         >
@@ -1318,10 +1298,10 @@ export default function ModerationDashboard({
                         </Link>
                       </div>
                     </div>
-                    
+
                     {/* Content Creator - Clickable */}
                     {selectedReport.creator_details && (
-                      <Link 
+                      <Link
                         href={`/profile/${selectedReport.creator_details.username || selectedReport.creator_details.id}`}
                         className="flex items-center gap-2 p-2 rounded-md bg-muted/50 hover:bg-muted transition-colors"
                       >
@@ -1421,11 +1401,9 @@ export default function ModerationDashboard({
                     {/* Confidence Breakdown */}
                     {selectedReport.ai_metadata.confidenceBreakdown && (
                       <Collapsible>
-                        <CollapsibleTrigger asChild>
-                          <Button variant="ghost" size="sm" className="w-full justify-between">
-                            Confidence Breakdown
-                            <ChevronDown className="h-4 w-4" />
-                          </Button>
+                        <CollapsibleTrigger className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "w-full justify-between")}>
+                          Confidence Breakdown
+                          <ChevronDown className="h-4 w-4" />
                         </CollapsibleTrigger>
                         <CollapsibleContent className="pt-2 space-y-2">
                           <div className="grid grid-cols-3 gap-2 text-center">
@@ -1455,13 +1433,11 @@ export default function ModerationDashboard({
                     {/* Reasoning Steps - Expandable */}
                     {selectedReport.ai_metadata.reasoningSteps && selectedReport.ai_metadata.reasoningSteps.length > 0 && (
                       <Collapsible>
-                        <CollapsibleTrigger asChild>
-                          <Button variant="ghost" size="sm" className="w-full justify-between">
-                            <span className="flex items-center gap-2">
-                              <ChevronRight className="h-4 w-4 transition-transform in-data-[state=open]:rotate-90" />
-                              Reasoning Steps ({selectedReport.ai_metadata.reasoningSteps.length})
-                            </span>
-                          </Button>
+                        <CollapsibleTrigger className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "w-full justify-between")}>
+                          <span className="flex items-center gap-2">
+                            <ChevronRight className="h-4 w-4 transition-transform in-data-[state=open]:rotate-90" />
+                            Reasoning Steps ({selectedReport.ai_metadata.reasoningSteps.length})
+                          </span>
                         </CollapsibleTrigger>
                         <CollapsibleContent className="pt-2 space-y-2">
                           {selectedReport.ai_metadata.reasoningSteps.map((step, idx) => (
@@ -1481,14 +1457,12 @@ export default function ModerationDashboard({
                     {/* Tools Used */}
                     {selectedReport.ai_metadata.toolsUsed && selectedReport.ai_metadata.toolsUsed.length > 0 && (
                       <Collapsible>
-                        <CollapsibleTrigger asChild>
-                          <Button variant="ghost" size="sm" className="w-full justify-between">
-                            <span className="flex items-center gap-2">
-                              <Wrench className="h-4 w-4" />
-                              Tools Used ({selectedReport.ai_metadata.toolsUsed.length})
-                            </span>
-                            <ChevronDown className="h-4 w-4" />
-                          </Button>
+                        <CollapsibleTrigger className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "w-full justify-between")}>
+                          <span className="flex items-center gap-2">
+                            <Wrench className="h-4 w-4" />
+                            Tools Used ({selectedReport.ai_metadata.toolsUsed.length})
+                          </span>
+                          <ChevronDown className="h-4 w-4" />
                         </CollapsibleTrigger>
                         <CollapsibleContent className="pt-2">
                           <div className="flex flex-wrap gap-1">

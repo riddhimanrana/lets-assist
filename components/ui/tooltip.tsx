@@ -6,12 +6,13 @@ import { cn } from "@/lib/utils"
 
 function TooltipProvider({
   delay = 0,
+  delayDuration,
   ...props
-}: TooltipPrimitive.Provider.Props) {
+}: TooltipPrimitive.Provider.Props & { delayDuration?: number }) {
   return (
     <TooltipPrimitive.Provider
       data-slot="tooltip-provider"
-      delay={delay}
+      delay={delayDuration ?? delay}
       {...props}
     />
   )

@@ -8,6 +8,8 @@ import { NextResponse } from "next/server";
 import { SyncedEvent } from "@/types";
 import type { Project } from "@/types";
 
+
+
 export async function GET(_request: Request) {
   try {
     const supabase = await createClient();
@@ -38,9 +40,9 @@ export async function GET(_request: Request) {
       .select("id, title, schedule, event_type, creator_calendar_event_id, creator_synced_at")
       .eq("creator_id", user.id)
       .not("creator_calendar_event_id", "is", null)) as {
-      data: SyncedProjectRow[] | null;
-      error: { message?: string } | null;
-    };
+        data: SyncedProjectRow[] | null;
+        error: { message?: string } | null;
+      };
 
     if (!projectsError && projects) {
       for (const project of projects) {
@@ -89,9 +91,9 @@ export async function GET(_request: Request) {
       volunteer_calendar_event_id: string | null;
       volunteer_synced_at: string | null;
       projects:
-        | Pick<Project, "id" | "title" | "schedule" | "event_type">
-        | Pick<Project, "id" | "title" | "schedule" | "event_type">[]
-        | null;
+      | Pick<Project, "id" | "title" | "schedule" | "event_type">
+      | Pick<Project, "id" | "title" | "schedule" | "event_type">[]
+      | null;
     };
 
     const { data: signups, error: signupsError } = (await supabase
@@ -110,16 +112,16 @@ export async function GET(_request: Request) {
       `)
       .eq("user_id", user.id)
       .not("volunteer_calendar_event_id", "is", null)) as {
-      data: SyncedSignupRow[] | null;
-      error: { message?: string } | null;
-    };
+        data: SyncedSignupRow[] | null;
+        error: { message?: string } | null;
+      };
 
     if (!signupsError && signups) {
       for (const signup of signups) {
         if (!signup.projects) continue;
 
-        const project = Array.isArray(signup.projects) 
-          ? signup.projects[0] 
+        const project = Array.isArray(signup.projects)
+          ? signup.projects[0]
           : signup.projects;
 
         // Parse schedule based on schedule_id
@@ -162,7 +164,7 @@ export async function GET(_request: Request) {
     }
 
     // Sort by synced_at descending
-    syncedEvents.sort((a, b) => 
+    syncedEvents.sort((a, b) =>
       new Date(b.synced_at).getTime() - new Date(a.synced_at).getTime()
     );
 

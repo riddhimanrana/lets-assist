@@ -1,9 +1,10 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, Building2, Search, Settings2, Check } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { JoinOrganizationDialog } from "./JoinOrganizationDialog";
 import { useEffect, useState } from "react";
@@ -42,8 +43,8 @@ interface OrganizationsDisplayProps {
 
 import { TrustedInfoIcon } from "@/components/shared/TrustedInfoIcon";
 
-export default function OrganizationsDisplay({ 
-  organizations, 
+export default function OrganizationsDisplay({
+  organizations,
   memberCounts,
   isLoggedIn,
   userMemberships,
@@ -67,18 +68,18 @@ export default function OrganizationsDisplay({
   // Simplified search and sort with single useEffect
   useEffect(() => {
     let result = [...organizations];
-    
+
     // Apply search filter
     if (search) {
       const searchLower = search.toLowerCase().trim();
-      result = result.filter(org => 
+      result = result.filter(org =>
         org.name.toLowerCase().includes(searchLower) ||
         org.username.toLowerCase().includes(searchLower) ||
         org.description?.toLowerCase().includes(searchLower) ||
         org.type.toLowerCase().includes(searchLower)
       );
     }
-    
+
     // Apply sorting
     switch (sortBy) {
       case "verified-first":
@@ -99,7 +100,7 @@ export default function OrganizationsDisplay({
         result.sort((a, b) => a.name.localeCompare(b.name));
         break;
     }
-    
+
     // Separate user's organizations and other organizations
     // Create a map of user memberships for quick lookup
     const membershipMap = new Map();
@@ -108,17 +109,17 @@ export default function OrganizationsDisplay({
         membershipMap.set(membership.organizations.id, membership.role);
       }
     });
-    
+
     // Separate organizations based on user membership
     const userOrganizations = userMemberships
       .map((membership) => membership.organizations)
       .filter((org): org is OrganizationDisplay => Boolean(org));
     const otherOrgsList = result.filter(org => !membershipMap.has(org.id));
-    
+
     // Update state
     setUserOrgs(userOrganizations);
     setOtherOrgs(otherOrgsList);
-    
+
     setFilteredOrgs(result);
   }, [organizations, search, sortBy, isLoggedIn, userMemberships]);
 
@@ -133,7 +134,7 @@ export default function OrganizationsDisplay({
               Join or create organizations to collaborate on projects
             </p>
           </div>
-          
+
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2" data-tour-id="org-actions">
             {isLoggedIn && (
               <>
@@ -141,12 +142,10 @@ export default function OrganizationsDisplay({
                 <JoinOrganizationDialog />
                 <div className="flex items-center gap-2">
                   {isTrusted || applicationStatus === true ? (
-                    <Button className="w-full sm:w-auto" asChild>
-                      <Link href="/organization/create">
-                        <Plus className="w-4 h-4 mr-2" />
-                        Create Organization
-                      </Link>
-                    </Button>
+                    <Link href="/organization/create" className={cn(buttonVariants(), "w-full sm:w-auto")}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Create Organization
+                    </Link>
                   ) : (
                     <Button className="w-full sm:w-auto cursor-not-allowed opacity-60" disabled>
                       <Plus className="w-4 h-4 mr-2" />
@@ -166,11 +165,9 @@ export default function OrganizationsDisplay({
               </>
             )}
             {!isLoggedIn && (
-              <Button className="w-full sm:w-auto" asChild variant="outline">
-                <Link href="/login?redirect=/organization">
-                  Sign In to Join or Create
-                </Link>
-              </Button>
+              <Link href="/login?redirect=/organization" className={cn(buttonVariants({ variant: "outline" }), "w-full sm:w-auto")}>
+                Sign In to Join or Create
+              </Link>
             )}
           </div>
         </div>
@@ -190,12 +187,12 @@ export default function OrganizationsDisplay({
           </div>
 
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+            <DropdownMenuTrigger render={
               <Button variant="outline">
                 <Settings2 className="mr-2 h-4 w-4" />
                 Filter & Sort
               </Button>
-            </DropdownMenuTrigger>
+            } />
             <DropdownMenuContent align="end" className="w-48">
               <DropdownMenuLabel>Sort By</DropdownMenuLabel>
               {[
@@ -228,12 +225,10 @@ export default function OrganizationsDisplay({
               {search ? "Try different keywords or filters" : "Be the first to create an organization!"}
             </p>
             {isLoggedIn && !search && (
-              <Button asChild className="mt-4">
-                <Link href="/organization/create">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create Organization
-                </Link>
-              </Button>
+              <Link href="/organization/create" className={cn(buttonVariants(), "mt-4")}>
+                <Plus className="w-4 h-4 mr-2" />
+                Create Organization
+              </Link>
             )}
           </div>
         ) : (
@@ -246,9 +241,9 @@ export default function OrganizationsDisplay({
                 </h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                   {userOrgs.map((org) => (
-                    <OrganizationCard 
-                      key={org.id} 
-                      org={org} 
+                    <OrganizationCard
+                      key={org.id}
+                      org={org}
                       memberCount={memberCounts[org.id] || 0}
                       isUserMember={true}
                       userRole={getUserRole(org.id)}
@@ -266,9 +261,9 @@ export default function OrganizationsDisplay({
                 </h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                   {otherOrgs.map((org) => (
-                    <OrganizationCard 
-                      key={org.id} 
-                      org={org} 
+                    <OrganizationCard
+                      key={org.id}
+                      org={org}
                       memberCount={memberCounts[org.id] || 0}
                     />
                   ))}

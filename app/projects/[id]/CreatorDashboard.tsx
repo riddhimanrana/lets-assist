@@ -1,5 +1,5 @@
 import { createClient } from "@/utils/supabase/client";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import Link from "next/link";
 import {
   Card,
@@ -14,6 +14,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 import { Project } from "@/types";
 import {
   Edit,
@@ -415,7 +416,7 @@ export default function CreatorDashboard({ project }: Props) {
 
             <TooltipProvider>
               <Tooltip>
-                <TooltipTrigger asChild>
+                <TooltipTrigger>
                   <span className="w-full sm:w-auto">
                     <Button
                       variant="outline"
@@ -440,7 +441,7 @@ export default function CreatorDashboard({ project }: Props) {
             {/* Calendar Sync Button */}
             <TooltipProvider>
               <Tooltip>
-                <TooltipTrigger asChild>
+                <TooltipTrigger>
                   <span className="w-full sm:w-auto">
                     <Button
                       variant="outline"
@@ -482,7 +483,7 @@ export default function CreatorDashboard({ project }: Props) {
               <div className="w-full sm:w-auto">
                 <TooltipProvider>
                   <Tooltip>
-                    <TooltipTrigger asChild>
+                    <TooltipTrigger>
                       <span className="w-full sm:w-auto">
                         <Button
                           variant="outline"
@@ -597,16 +598,12 @@ export default function CreatorDashboard({ project }: Props) {
                   <AlertDescription>
                     Your signup-only event starts within 24 hours. Consider pausing signups if you&apos;re no longer accepting volunteers. You can also view or print the current signup list from the Manage Signups page.
                     <div className="mt-3 flex gap-2">
-                      <Button variant="outline" size="sm" asChild>
-                        <Link href={`/projects/${project.id}/signups`}>
-                          <Pause className="h-4 w-4 mr-1.5" /> Pause/View Signups
-                        </Link>
-                      </Button>
-                      <Button variant="outline" size="sm" asChild>
-                        <Link href={`/projects/${project.id}/signups`}>
-                          <Printer className="h-4 w-4 mr-1.5" /> Print List
-                        </Link>
-                      </Button>
+                      <Link href={`/projects/${project.id}/signups`} className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
+                        <Pause className="h-4 w-4 mr-1.5" /> Pause/View Signups
+                      </Link>
+                      <Link href={`/projects/${project.id}/signups`} className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
+                        <Printer className="h-4 w-4 mr-1.5" /> Print List
+                      </Link>
                     </div>
                   </AlertDescription>
                 </Alert>
@@ -633,27 +630,26 @@ export default function CreatorDashboard({ project }: Props) {
                     <div className="mt-3">
                       <TooltipProvider>
                         <Tooltip>
-                          <TooltipTrigger asChild>
+                          <TooltipTrigger>
                             {/* Span needed for tooltip on disabled button */}
                             <span className="inline-block" tabIndex={hasActiveUnpublishedSessions ? -1 : 0}>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                asChild={hasActiveUnpublishedSessions} // Link only if active
-                                disabled={!hasActiveUnpublishedSessions} // Disable if no active sessions
-                                className={!hasActiveUnpublishedSessions ? "pointer-events-none opacity-60" : ""} // Style disabled button
-                              >
-                                {hasActiveUnpublishedSessions ? (
-                                  <Link href={`/projects/${project.id}/hours`}>
-                                    <Clock className="h-4 w-4 mr-1.5" /> Manage Hours
-                                  </Link>
-                                ) : (
-                                  // Content for disabled button
-                                  <>
-                                    <Clock className="h-4 w-4 mr-1.5" /> Manage Hours
-                                  </>
-                                )}
-                              </Button>
+                              {hasActiveUnpublishedSessions ? (
+                                <Link
+                                  href={`/projects/${project.id}/hours`}
+                                  className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+                                >
+                                  <Clock className="h-4 w-4 mr-1.5" /> Manage Hours
+                                </Link>
+                              ) : (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  disabled
+                                  className="pointer-events-none opacity-60"
+                                >
+                                  <Clock className="h-4 w-4 mr-1.5" /> Manage Hours
+                                </Button>
+                              )}
                             </span>
                           </TooltipTrigger>
                           {/* Tooltip for disabled button */}
@@ -688,11 +684,9 @@ export default function CreatorDashboard({ project }: Props) {
                           <QrCode className="h-4 w-4 mr-1.5" /> Preview QR Codes
                         </Button>
                       )}
-                      <Button variant="outline" size="sm" asChild>
-                        <Link href={`/projects/${project.id}/signups`}>
-                          <Users className="h-4 w-4 mr-1.5" /> View Signups
-                        </Link>
-                      </Button>
+                      <Link href={`/projects/${project.id}/signups`} className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
+                        <Users className="h-4 w-4 mr-1.5" /> View Signups
+                      </Link>
                     </div>
                   </AlertDescription>
                 </Alert>
@@ -711,11 +705,9 @@ export default function CreatorDashboard({ project }: Props) {
                           <QrCode className="h-4 w-4 mr-1.5" /> View QR Codes
                         </Button>
                       )}
-                      <Button variant="outline" size="sm" asChild>
-                        <Link href={`/projects/${project.id}/attendance`}>
-                          <UserCheck className="h-4 w-4 mr-1.5" /> Manage Attendance
-                        </Link>
-                      </Button>
+                      <Link href={`/projects/${project.id}/attendance`} className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
+                        <UserCheck className="h-4 w-4 mr-1.5" /> Manage Attendance
+                      </Link>
                     </div>
                   </AlertDescription>
                 </Alert>
@@ -732,11 +724,9 @@ export default function CreatorDashboard({ project }: Props) {
                           <QrCode className="h-4 w-4 mr-1.5" /> View QR Codes
                         </Button>
                       )}
-                      <Button variant="outline" size="sm" asChild>
-                        <Link href={`/projects/${project.id}/attendance`}>
-                          <UserCheck className="h-4 w-4 mr-1.5" /> Manage Attendance
-                        </Link>
-                      </Button>
+                      <Link href={`/projects/${project.id}/attendance`} className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
+                        <UserCheck className="h-4 w-4 mr-1.5" /> Manage Attendance
+                      </Link>
                     </div>
                   </AlertDescription>
                 </Alert>
@@ -755,32 +745,30 @@ export default function CreatorDashboard({ project }: Props) {
                       ? "Your event has finished. Please review, edit, and publish volunteer hours within 48 hours of the event end time to generate certificates. If you don't edit, hours will be published automatically."
                       : "Your event has finished, and the window for managing volunteer hours has closed or all sessions are published. You can still view the final attendance records."}
                     <div className="mt-3 flex gap-2 flex-wrap">
-                      <Button variant="outline" size="sm" asChild>
-                        <Link href={`/projects/${project.id}/attendance`}>
-                          <Users className="h-4 w-4 mr-1.5" /> View Attendance
-                        </Link>
-                      </Button>
+                      <Link href={`/projects/${project.id}/attendance`} className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
+                        <UserCheck className="h-4 w-4 mr-1.5" /> Manage Attendance
+                      </Link>
                       <TooltipProvider>
                         <Tooltip>
-                          <TooltipTrigger asChild>
+                          <TooltipTrigger>
                             <span className="inline-block" tabIndex={hasActiveUnpublishedSessions ? -1 : 0}>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                asChild={hasActiveUnpublishedSessions} // Link only if active
-                                disabled={!hasActiveUnpublishedSessions} // Disable if no active sessions
-                                className={!hasActiveUnpublishedSessions ? "pointer-events-none opacity-60" : ""} // Style disabled button
-                              >
-                                {hasActiveUnpublishedSessions ? (
-                                  <Link href={`/projects/${project.id}/hours`}>
-                                    <Clock className="h-4 w-4 mr-1.5" /> Manage Hours
-                                  </Link>
-                                ) : (
-                                  <>
-                                    <Clock className="h-4 w-4 mr-1.5" /> Manage Hours
-                                  </>
-                                )}
-                              </Button>
+                              {hasActiveUnpublishedSessions ? (
+                                <Link
+                                  href={`/projects/${project.id}/hours`}
+                                  className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+                                >
+                                  <Clock className="h-4 w-4 mr-1.5" /> Manage Hours
+                                </Link>
+                              ) : (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  disabled
+                                  className="pointer-events-none opacity-60"
+                                >
+                                  <Clock className="h-4 w-4 mr-1.5" /> Manage Hours
+                                </Button>
+                              )}
                             </span>
                           </TooltipTrigger>
                           {/* Tooltip for disabled button */}
@@ -806,11 +794,9 @@ export default function CreatorDashboard({ project }: Props) {
               <AlertDescription>
                 Volunteer check-in is automatic. Hours are recorded based on the schedule. Manual editing is not available for this project type.
                 <div className="mt-3 flex gap-2">
-                  <Button variant="outline" size="sm" asChild disabled={!isAttendanceAvailable}>
-                    <Link href={`/projects/${project.id}/attendance`}>
-                      <Users className="h-4 w-4 mr-1.5" /> {isCompleted ? "View Final Attendance" : "Monitor Attendance"}
-                    </Link>
-                  </Button>
+                  <Link href={`/projects/${project.id}/attendance`} className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
+                    <Users className="h-4 w-4 mr-1.5" /> View Attendance
+                  </Link>
                 </div>
               </AlertDescription>
             </Alert>

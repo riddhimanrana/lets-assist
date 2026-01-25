@@ -653,7 +653,7 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
+      <DialogTrigger render={
         <Button
           variant={"outline"}
           size={isCreator ? "default" : "sm"}
@@ -662,7 +662,7 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
           <HelpCircle className="h-4 w-4" />
           {isCreator ? "Creator Guide" : "How It Works"}
         </Button>
-      </DialogTrigger>
+      } />
       <DialogContent className="sm:max-w-[700px] p-0 max-h-[90vh]">
         <DialogHeader className="p-6 pb-2 flex flex-row items-center gap-2">
           <div className={`p-2 rounded-full ${isCreator ? "bg-secondary/20" : "bg-primary/10"}`}>

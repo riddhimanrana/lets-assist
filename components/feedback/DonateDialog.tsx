@@ -39,8 +39,8 @@ export function DonateDialog({ open, onOpenChange }: DonateDialogProps) {
             <Heart className="h-5 w-5 text-destructive" />
             Support Let&apos;s Assist
           </DialogTitle>
-          <DialogDescription asChild className="text-left space-y-3 pt-2">
-            <div>
+          <DialogDescription render={
+            <div className="text-left space-y-3 pt-2">
               <p>
                 It costs hundreds of dollars to run our servers every month to keep Let&apos;s Assist running smoothly for all our volunteers and organizations.
               </p>
@@ -51,7 +51,7 @@ export function DonateDialog({ open, onOpenChange }: DonateDialogProps) {
                 If you&apos;d like to support our mission, please contact me at:
               </p>
             </div>
-          </DialogDescription>
+          } />
         </DialogHeader>
 
         <div className="flex items-center space-x-2 p-3 bg-muted rounded-lg">

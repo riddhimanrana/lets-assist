@@ -2,7 +2,8 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { BookOpen, CheckCircle } from "lucide-react";
 import Link from "next/link";
@@ -54,7 +55,7 @@ export function GettingStartedSection() {
         </CardContent>
       </Card>
 
-      <Accordion type="single" collapsible className="w-full">
+      <Accordion className="w-full">
         <AccordionItem value="account-setup" id="getting-started-account">
           <AccordionTrigger>Setting Up Your Account</AccordionTrigger>
           <AccordionContent className="space-y-3">
@@ -65,9 +66,7 @@ export function GettingStartedSection() {
               <li>Set your time zone and notification preferences</li>
               <li>Connect with organizations you volunteer with</li>
             </ol>
-            <Button asChild size="sm">
-              <Link href="/dashboard">Go to Dashboard</Link>
-            </Button>
+            <Link href="/dashboard" className={cn(buttonVariants({ size: "sm" }))}>Go to Dashboard</Link>
           </AccordionContent>
         </AccordionItem>
 

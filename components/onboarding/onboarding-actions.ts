@@ -71,7 +71,7 @@ export async function completeInitialOnboarding(
   });
 
   if (!validatedFields.success) {
-    return { error: "Invalid input: " + validatedFields.error.errors[0].message };
+    return { error: "Invalid input: " + validatedFields.error.issues[0].message };
   }
 
   const { username: validUsername, phoneNumber: validPhoneNumber } = validatedFields.data;

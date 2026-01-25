@@ -3,7 +3,7 @@ import { getProjectStatus } from "@/utils/project";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { format, parseISO } from "date-fns";
 import { Calendar, MapPin, Users, Award } from "lucide-react";
@@ -12,6 +12,7 @@ import Link from "next/link";
 import { ProjectStatusBadge } from "@/components/ui/status-badge";
 import { redirect } from "next/navigation";
 import type { Project } from "@/types";
+import { cn } from "@/lib/utils";
 
 // Formats the date display for different project types
 function formatDateDisplay(project: Project) {
@@ -225,9 +226,7 @@ export default async function UserProjects() {
               <p className="text-muted-foreground mb-5 max-w-md mx-auto text-sm">
                 You haven&apos;t signed up for any volunteer projects yet.
               </p>
-              <Button asChild size="sm">
-                <Link href="/projects">Browse Projects</Link>
-              </Button>
+              <Link href="/projects" className={cn(buttonVariants({ size: "sm" }))}>Browse Projects</Link>
             </div>
           ) : (
             <>
@@ -273,11 +272,9 @@ export default async function UserProjects() {
                         </div>
                       </CardContent>
                       <CardFooter className="p-4 pt-3">
-                        <Button variant="default" size="sm" asChild className="w-full">
-                          <Link href={`/projects/${project.id}`}>
-                            View Project
-                          </Link>
-                        </Button>
+                        <Link href={`/projects/${project.id}`} className={cn(buttonVariants({ variant: "default", size: "sm" }), "w-full")}>
+                          View Project
+                        </Link>
                       </CardFooter>
                     </Card>
                   ))}
@@ -327,11 +324,9 @@ export default async function UserProjects() {
                           </div>
                         </CardContent>
                         <CardFooter className="p-4 pt-3">
-                          <Button variant="default" size="sm" asChild className="w-full">
-                            <Link href={`/projects/${project.id}`}>
-                              View Project
-                            </Link>
-                          </Button>
+                          <Link href={`/projects/${project.id}`} className={cn(buttonVariants({ variant: "default", size: "sm" }), "w-full")}>
+                            View Project
+                          </Link>
                         </CardFooter>
                       </Card>
                     ))}
@@ -385,11 +380,9 @@ export default async function UserProjects() {
                           </div>
                         </CardContent>
                         <CardFooter className="p-4 pt-3">
-                          <Button variant="outline" size="sm" asChild className="w-full">
-                            <Link href={`/projects/${project.id}`}>
-                              View Project
-                            </Link>
-                          </Button>
+                          <Link href={`/projects/${project.id}`} className={cn(buttonVariants({ variant: "outline", size: "sm" }), "w-full")}>
+                            View Project
+                          </Link>
                         </CardFooter>
                       </Card>
                     ))}
@@ -411,9 +404,7 @@ export default async function UserProjects() {
               <p className="text-muted-foreground mb-5 max-w-md mx-auto text-sm">
                 You haven&apos;t created any volunteer projects yet.
               </p>
-              <Button asChild size="sm">
-                <Link href="/projects/create">Create First Project</Link>
-              </Button>
+              <Link href="/projects/create" className={cn(buttonVariants({ size: "sm" }))}>Create First Project</Link>
             </div>
           ) : (
             <>
@@ -446,11 +437,9 @@ export default async function UserProjects() {
                         )} */}
                       </CardContent>
                       <CardFooter className="p-4 pt-3">
-                        <Button variant="default" size="sm" asChild className="w-full">
-                          <Link href={`/projects/${project.id}`}>
-                            View Project
-                          </Link>
-                        </Button>
+                        <Link href={`/projects/${project.id}`} className={cn(buttonVariants({ variant: "default", size: "sm" }), "w-full")}>
+                          View Project
+                        </Link>
                       </CardFooter>
                     </Card>
                   ))}
@@ -487,11 +476,9 @@ export default async function UserProjects() {
                           )} */}
                         </CardContent>
                         <CardFooter className="p-4 pt-3">
-                          <Button variant="default" size="sm" asChild className="w-full">
-                            <Link href={`/projects/${project.id}`}>
-                              View Project
-                            </Link>
-                          </Button>
+                          <Link href={`/projects/${project.id}`} className={cn(buttonVariants({ variant: "default", size: "sm" }), "w-full")}>
+                            View Project
+                          </Link>
                         </CardFooter>
                       </Card>
                     ))}
@@ -524,11 +511,9 @@ export default async function UserProjects() {
                           </div>
                         </CardContent>
                         <CardFooter className="p-4 pt-3">
-                          <Button variant="outline" size="sm" asChild className="w-full">
-                            <Link href={`/projects/${project.id}`}>
-                              View Project
-                            </Link>
-                          </Button>
+                          <Link href={`/projects/${project.id}`} className={cn(buttonVariants({ variant: "outline", size: "sm" }), "w-full")}>
+                            View Project
+                          </Link>
                         </CardFooter>
                       </Card>
                     ))}

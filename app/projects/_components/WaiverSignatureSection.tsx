@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
@@ -505,7 +505,7 @@ export function WaiverSignatureSection({
                       onValueChange={(value) =>
                         setPdfFieldValues((prev) => ({
                           ...prev,
-                          [field.name]: value,
+                          [field.name]: value || "",
                         }))
                       }
                     >
@@ -650,7 +650,7 @@ export function WaiverSignatureSection({
             disabled={!allowUpload}
           />
           <p className="text-xs text-muted-foreground">
-            {waiverPdfUrl 
+            {waiverPdfUrl
               ? "Download the waiver, sign, scan, and upload here (max 10 MB)."
               : "Upload a signed PDF or image (max 10 MB)."}
           </p>
@@ -707,18 +707,14 @@ export function WaiverSignatureSection({
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <Button type="button" variant="outline" size="sm" asChild>
-                      <a href={waiverPdfUrl} target="_blank" rel="noopener noreferrer">
-                        <ExternalLink className="h-4 w-4 mr-1" />
-                        View
-                      </a>
-                    </Button>
-                    <Button type="button" variant="outline" size="sm" asChild>
-                      <a href={waiverPdfUrl} download>
-                        <Download className="h-4 w-4 mr-1" />
-                        Download
-                      </a>
-                    </Button>
+                    <a href={waiverPdfUrl} target="_blank" rel="noopener noreferrer" className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
+                      <ExternalLink className="h-4 w-4 mr-1" />
+                      View
+                    </a>
+                    <a href={waiverPdfUrl} download className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
+                      <Download className="h-4 w-4 mr-1" />
+                      Download
+                    </a>
                   </div>
                 </div>
               </div>

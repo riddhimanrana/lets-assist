@@ -1,13 +1,13 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { CheckCircle2, Clock, Link as LinkIcon, User, Mail, Phone, Calendar, Info, Loader2, XCircle, AlertTriangle, Award, Medal, FileText } from "lucide-react"; // Use Medal instead of Certificate
 import Link from "next/link";
 import { format, addDays, parseISO, differenceInSeconds, differenceInHours, isAfter } from "date-fns";
-import { formatTimeTo12Hour } from "@/lib/utils";
+import { formatTimeTo12Hour, cn } from "@/lib/utils";
 import { TimezoneBadge } from "@/components/shared/TimezoneBadge";
 import { Project } from "@/types";
 import { useState, useMemo, useEffect } from "react"; // add useEffect
@@ -405,9 +405,12 @@ export default function AnonymousSignupClient({
               <p className="text-sm text-muted-foreground mb-4">
                 Redirecting you to the projects page...
               </p>
-              <Button asChild>
-                <Link href="/projects">Browse Projects</Link>
-              </Button>
+              <Link
+                href="/projects"
+                className={cn(buttonVariants())}
+              >
+                Browse Projects
+              </Link>
             </div>
           </CardContent>
         </Card>
@@ -494,12 +497,13 @@ export default function AnonymousSignupClient({
                   {/* Certificate Link */}
                   {certificateId && (
                     <div className="mt-3 flex justify-end">
-                      <Button size="sm" variant="outline" asChild>
-                        <Link href={`/certificates/${certificateId}`}>
-                          <Medal className="h-4 w-4 mr-1.5" />
-                          View Certificate
-                        </Link>
-                      </Button>
+                      <Link
+                        href={`/certificates/${certificateId}`}
+                        className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+                      >
+                        <Medal className="h-4 w-4 mr-1.5" />
+                        View Certificate
+                      </Link>
                     </div>
                   )}
 
@@ -933,12 +937,10 @@ export default function AnonymousSignupClient({
               </Button>
             )}
 
-            <Button variant="outline" asChild>
-              <Link href={`/projects/${project.id}`} className="flex items-center gap-2">
-                <Info className="h-4 w-4" />
-                View Project Details
-              </Link>
-            </Button>
+            <Link href={`/projects/${project.id}`} className={cn(buttonVariants({ variant: "outline" }), "flex items-center gap-2")}>
+              <Info className="h-4 w-4" />
+              View Project Details
+            </Link>
           </div>
 
           <div className="space-y-2">

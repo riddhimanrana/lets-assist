@@ -93,9 +93,9 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
   const toggleSort = (field: SortField) => {
     setSort(current => ({
       field,
-      direction: 
-        current.field === field && current.direction === "asc" 
-          ? "desc" 
+      direction:
+        current.field === field && current.direction === "asc"
+          ? "desc"
           : "asc"
     }));
   };
@@ -137,21 +137,21 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
       <h1>Attendance Record - ${project?.title || 'Project'}</h1>
       <div>Printed: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</div>
       ${Object.entries(filteredAttendanceBySession).map(([session, sessionAttendance]) => {
-        return sessionAttendance.length > 0 ? `
+      return sessionAttendance.length > 0 ? `
         <div class="session-attendance">
           <h2>${project && formatSessionName(project, session)}</h2>
           <table>
           <thead><tr><th>Name</th><th>Email</th><th>Type</th><th>Check-in Time</th><th>Check-out Time</th></tr></thead>
           <tbody>
             ${sessionAttendance.map(a => {
-              const isRegistered = !!a.user_id;
-              const name = isRegistered ? a.profile?.full_name : a.anonymous_signup?.name;
-              const email = isRegistered ? a.profile?.email : a.anonymous_signup?.email;
-              const type = isRegistered ? 'Registered' : 'Anonymous';
-              const checkInTime = a.check_in_time ? format(parseISO(a.check_in_time), 'MMM d, yyyy h:mm a') : 'N/A';
-              const checkOutTime = a.check_out_time ? format(parseISO(a.check_out_time), 'MMM d, yyyy h:mm a') : 'N/A';
+        const isRegistered = !!a.user_id;
+        const name = isRegistered ? a.profile?.full_name : a.anonymous_signup?.name;
+        const email = isRegistered ? a.profile?.email : a.anonymous_signup?.email;
+        const type = isRegistered ? 'Registered' : 'Anonymous';
+        const checkInTime = a.check_in_time ? format(parseISO(a.check_in_time), 'MMM d, yyyy h:mm a') : 'N/A';
+        const checkOutTime = a.check_out_time ? format(parseISO(a.check_out_time), 'MMM d, yyyy h:mm a') : 'N/A';
 
-              return `
+        return `
               <tr>
                 <td>${name || 'N/A'}</td>
                 <td>${email || 'N/A'}</td>
@@ -160,12 +160,12 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
                 <td>${checkOutTime}</td>
               </tr>
               `;
-            }).join('')}
+      }).join('')}
           </tbody>
           </table>
         </div>
         ` : '';
-      }).join('')}
+    }).join('')}
       ${Object.keys(filteredAttendanceBySession).length === 0 ? '<p>No attendance records found.</p>' : ''}
       </div>
     `;
@@ -173,7 +173,7 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
     // Set the content and trigger print
     if (printContainer) {
       printContainer.innerHTML = printContent;
-      
+
       // Give the browser a moment to render the content before printing
       setTimeout(() => {
         window.print();
@@ -196,7 +196,7 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
   const filteredAttendanceBySession = useMemo(() => {
     // First filter by session if needed
     let sessionData: Record<string, Attendance[]> = {};
-    
+
     if (sessionFilter === "all") {
       sessionData = { ...attendanceBySession };
     } else {
@@ -204,10 +204,10 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
         [sessionFilter]: attendanceBySession[sessionFilter] || []
       };
     }
-    
+
     // Then filter by search term
     let filtered: Record<string, Attendance[]> = {};
-    
+
     if (!searchTerm) {
       filtered = { ...sessionData };
     } else {
@@ -232,19 +232,19 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
     Object.keys(filtered).forEach(session => {
       filtered[session].sort((a, b) => {
         const direction = sort.direction === "asc" ? 1 : -1;
-        
+
         if (sort.field === "check_in_time") {
           const timeA = a.check_in_time || '';
           const timeB = b.check_in_time || '';
           return (timeA.localeCompare(timeB)) * direction;
         }
-        
+
         if (sort.field === "name") {
           const nameA = (a.user_id ? a.profile?.full_name : a.anonymous_signup?.name) || '';
           const nameB = (b.user_id ? b.profile?.full_name : b.anonymous_signup?.name) || '';
           return nameA.localeCompare(nameB) * direction;
         }
-        
+
         return 0;
       });
     });
@@ -266,11 +266,11 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
       const now = new Date();
       const openTime = addHours(earliestSessionTime, -2);
       const diffMs = openTime.getTime() - now.getTime();
-      
+
       if (diffMs > 0) {
         const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
         const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-        
+
         setTimeUntilOpen(`${diffHours} hour${diffHours !== 1 ? 's' : ''} and ${diffMinutes} minute${diffMinutes !== 1 ? 's' : ''}`);
       }
     }
@@ -301,7 +301,7 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
   const loadAttendance = async () => {
     setRefreshing(true);
     const supabase = createClient();
-    
+
     const { data, error } = await supabase
       .from("project_signups")
       .select(`
@@ -336,7 +336,7 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
         toast.success("Attendance records refreshed successfully");
       }
     }
-    
+
     setLoading(false);
     setRefreshing(false);
   };
@@ -379,7 +379,7 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
 
   const formatSessionName = (project: Project, sessionId: string) => {
     if (!project) return sessionId;
-  
+
     if (project.event_type === "oneTime") {
       if (sessionId === "oneTime" && project.schedule.oneTime) {
         const dateStr = project.schedule.oneTime.date;
@@ -388,20 +388,20 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
         return `${format(date, "MMMM d, yyyy")} from ${formatTimeTo12Hour(project.schedule.oneTime.startTime)} to ${formatTimeTo12Hour(project.schedule.oneTime.endTime)}`;
       }
     }
-  
+
     if (project.event_type === "multiDay") {
       const parts = sessionId.split("-");
-      
+
       if (parts.length >= 2) {
         const slotIndex = parts.pop();
         const date = parts.join("-");
-        
+
         const day = project.schedule.multiDay?.find(d => d.date === date);
-        
+
         if (day && slotIndex !== undefined) {
           const slotIdx = parseInt(slotIndex, 10);
           const slot = day.slots[slotIdx];
-          
+
           if (slot) {
             const [year, month, dayNum] = date.split('-').map(Number);
             const utcDate = new Date(year, month - 1, dayNum);
@@ -410,10 +410,10 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
         }
       }
     }
-  
+
     if (project.event_type === "sameDayMultiArea") {
       const role = project.schedule.sameDayMultiArea?.roles.find(r => r.name === sessionId);
-      
+
       if (role) {
         const eventDate = project.schedule.sameDayMultiArea?.date;
         if (eventDate) {
@@ -425,7 +425,7 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
         }
       }
     }
-  
+
     return sessionId;
   };
 
@@ -492,26 +492,26 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
               <div>
                 <CardTitle>Attendance Records</CardTitle>
                 <CardDescription>
-                  {project?.verification_method === 'manual' 
-                    ? "Check in volunteers and manage attendee records" 
+                  {project?.verification_method === 'manual'
+                    ? "Check in volunteers and manage attendee records"
                     : project?.verification_method === 'auto'
-                    ? "View volunteer attendance (check-ins are automatic)"
-                    : project?.verification_method === 'signup-only'
-                    ? "View volunteer attendance records"
-                    : "View and track check-ins for your project"}
+                      ? "View volunteer attendance (check-ins are automatic)"
+                      : project?.verification_method === 'signup-only'
+                        ? "View volunteer attendance records"
+                        : "View and track check-ins for your project"}
                 </CardDescription>
               </div>
             </div>
           </CardHeader>
-          
+
           {/* Display explanatory message for automatic or signup-only methods */}
           {(project?.verification_method === 'auto' || project?.verification_method === 'signup-only') && (
             <div className="mx-6 mb-4">
               <Alert>
                 <AlertCircle className="h-4 w-4" />
                 <AlertTitle>
-                  {project?.verification_method === 'auto' 
-                    ? "Automatic Check-in Enabled" 
+                  {project?.verification_method === 'auto'
+                    ? "Automatic Check-in Enabled"
                     : "Sign-up Only Project"}
                 </AlertTitle>
                 <AlertDescription>
@@ -541,7 +541,7 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
                 <div className="flex flex-row gap-2 w-full sm:w-auto items-center">
                   <Select
                     value={sessionFilter}
-                    onValueChange={setSessionFilter}
+                    onValueChange={(val) => setSessionFilter(val || "all")}
                   >
                     <SelectTrigger className="w-full sm:w-[180px]" aria-label="Filter by session">
                       <SelectValue placeholder="Filter by session" />
@@ -581,7 +581,7 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
                 </div>
               </div>
             </div>
-          
+
             {Object.entries(filteredAttendanceBySession).map(([session, sessionAttendance]) => (
               <div key={session} className="space-y-2">
                 <h3 className="font-medium text-sm text-muted-foreground">
@@ -590,7 +590,7 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead 
+                      <TableHead
                         className="cursor-pointer hover:text-foreground transition-colors"
                         onClick={() => toggleSort("name")}
                       >
@@ -599,7 +599,7 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
                           {getSortIcon("name")}
                         </div>
                       </TableHead>
-                      <TableHead 
+                      <TableHead
                         className="cursor-pointer hover:text-foreground transition-colors"
                         onClick={() => toggleSort("check_in_time")}
                       >
@@ -628,42 +628,42 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
                             {name || 'N/A'}
                           </TableCell>
                           <TableCell>
-                              <Badge
+                            <Badge
                               variant={checkInTime !== "N/A" ? "default" : "outline"}
                               className="gap-1"
-                              >
+                            >
                               {checkInTime !== "N/A" ? (
                                 <CheckCircle className="h-3 w-3 shrink-0" aria-label="Checked in" />
                               ) : (
                                 <Clock className="h-3 w-3 shrink-0" aria-label="Not checked in" />
                               )}
                               {checkInTime}
-                              </Badge>
+                            </Badge>
                           </TableCell>
                           <TableCell>
-                              <Badge
+                            <Badge
                               variant={checkOutTime !== "N/A" ? "default" : "outline"}
                               className="gap-1"
-                              >
+                            >
                               {checkOutTime !== "N/A" ? (
                                 <CheckCircle className="h-3 w-3 shrink-0" aria-label="Checked out" />
                               ) : (
                                 <Clock className="h-3 w-3 shrink-0" aria-label="Not checked out" />
                               )}
                               {checkOutTime}
-                              </Badge>
+                            </Badge>
                           </TableCell>
                           <TableCell><div className="flex flex-col gap-0.5">
-                              <span>{email}</span>
-                              {isRegistered && phone && (
-                                  <span className="text-xs text-muted-foreground">
-                                  {phone.replace(
-                                    /^(\d{3})(\d{3})(\d{4})$/,
-                                    "$1-$2-$3"
-                                  )}
-                                  </span>
-                              )}
-                              </div></TableCell>
+                            <span>{email}</span>
+                            {isRegistered && phone && (
+                              <span className="text-xs text-muted-foreground">
+                                {phone.replace(
+                                  /^(\d{3})(\d{3})(\d{4})$/,
+                                  "$1-$2-$3"
+                                )}
+                              </span>
+                            )}
+                          </div></TableCell>
                           <TableCell>
                             <div className="flex flex-col sm:flex-row gap-2">
                               <Button

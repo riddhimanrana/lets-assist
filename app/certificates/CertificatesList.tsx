@@ -4,7 +4,7 @@ import { useState } from "react";
 import { format, parseISO, differenceInMinutes, endOfDay, startOfDay } from "date-fns";
 import { Award, Calendar, ChevronRight, Clock, BadgeCheck, Filter, MapPin, Search, SlidersHorizontal, Printer, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
@@ -309,9 +309,7 @@ export function CertificatesList({ certificates, user }: CertificatesListProps) 
         <p className="text-muted-foreground max-w-md mt-1">
           Your certificates will appear here once you&apos;ve completed volunteer events and organizers have finalized your hours.
         </p>
-        <Button className="mt-6" asChild>
-          <Link href="/home">Find Opportunities</Link>
-        </Button>
+        <Link href="/home" className={cn(buttonVariants({ className: "mt-6" }))}>Find Opportunities</Link>
       </div>
     );
   }
@@ -343,7 +341,7 @@ export function CertificatesList({ certificates, user }: CertificatesListProps) 
           <div className="flex flex-row flex-wrap gap-1 sm:gap-3 shrink-0">
             {/* Date range filter */}
             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
+              <DropdownMenuTrigger render={
                 <Button
                   variant="outline"
                   size="sm"
@@ -355,7 +353,7 @@ export function CertificatesList({ certificates, user }: CertificatesListProps) 
                     Date: {dateFilter === 'all' ? 'All' : dateFilter === '6months' ? '6mo' : dateFilter === 'year' ? '1yr' : 'Custom'}
                   </span>
                 </Button>
-              </DropdownMenuTrigger>
+              } />
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel>Date Range</DropdownMenuLabel>
                 <DropdownMenuSeparator />
@@ -370,7 +368,7 @@ export function CertificatesList({ certificates, user }: CertificatesListProps) 
             {dateFilter === 'custom' && (
               <div className="flex flex-row flex-wrap items-center gap-1 sm:gap-2">
                 <Popover>
-                  <PopoverTrigger asChild>
+                  <PopoverTrigger render={
                     <Button
                       variant="outline"
                       size="sm"
@@ -383,7 +381,7 @@ export function CertificatesList({ certificates, user }: CertificatesListProps) 
                       <Calendar className="mr-1 h-3 w-3" />
                       {startDate ? format(startDate, "MM/dd/yy") : "Start"}
                     </Button>
-                  </PopoverTrigger>
+                  } />
                   <PopoverContent className="w-auto p-0" align="start">
                     <CalendarComponent
                       mode="single"
@@ -396,7 +394,7 @@ export function CertificatesList({ certificates, user }: CertificatesListProps) 
                 <span className="hidden sm:inline text-sm">to</span>
                 <span className="inline sm:hidden text-xs">-</span>
                 <Popover>
-                  <PopoverTrigger asChild>
+                  <PopoverTrigger render={
                     <Button
                       variant="outline"
                       size="sm"
@@ -409,7 +407,7 @@ export function CertificatesList({ certificates, user }: CertificatesListProps) 
                       <Calendar className="mr-1 h-3 w-3" />
                       {endDate ? format(endDate, "MM/dd/yy") : "End"}
                     </Button>
-                  </PopoverTrigger>
+                  } />
                   <PopoverContent className="w-auto p-0" align="start">
                     <CalendarComponent
                       mode="single"
@@ -438,7 +436,7 @@ export function CertificatesList({ certificates, user }: CertificatesListProps) 
             )}
             {/* Sort certificates */}
             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
+              <DropdownMenuTrigger render={
                 <Button
                   variant="outline"
                   size="sm"
@@ -448,7 +446,7 @@ export function CertificatesList({ certificates, user }: CertificatesListProps) 
                   <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
                   <span className="hidden sm:inline ml-1">Sort</span>
                 </Button>
-              </DropdownMenuTrigger>
+              } />
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel>Sort Certificates</DropdownMenuLabel>
                 <DropdownMenuSeparator />
@@ -491,9 +489,9 @@ export function CertificatesList({ certificates, user }: CertificatesListProps) 
                     <div className="absolute right-4 top-4">
                       <TooltipProvider>
                         <Tooltip>
-                          <TooltipTrigger>
+                          <TooltipTrigger render={
                             <BadgeCheck className={`h-5 w-5 ${cert.is_certified ? 'text-primary' : 'text-muted-foreground/30'}`} />
-                          </TooltipTrigger>
+                          } />
                           <TooltipContent>
                             <p>
                               {cert.is_certified

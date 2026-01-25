@@ -68,7 +68,7 @@ export function ProfileHoverCard({
   // Map org types to icons
   const getOrgTypeIcon = (type: string | undefined) => {
     if (!type) return <Building2 className="h-3.5 w-3.5 opacity-70" />;
-    
+
     const lowerType = type.toLowerCase();
     if (lowerType.includes("nonprofit") || lowerType.includes("non-profit")) {
       return <Building2 className="h-3.5 w-3.5 opacity-70" />;
@@ -86,10 +86,10 @@ export function ProfileHoverCard({
   };
 
   return (
-    <HoverCard openDelay={200} closeDelay={120}>
-      <HoverCardTrigger asChild>
+    <HoverCard>
+      <HoverCardTrigger render={
         <span className="inline-flex">{children}</span>
-      </HoverCardTrigger>
+      } />
 
       <HoverCardContent
         side={side}

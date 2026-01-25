@@ -172,7 +172,7 @@ export default function BasicInfo({
           <div className="space-y-2">
             <Label>Create Project As</Label>
             <Popover open={open} onOpenChange={setOpen}>
-              <PopoverTrigger asChild>
+              <PopoverTrigger render={
                 <Button
                   type="button"
                   variant="outline"
@@ -190,7 +190,7 @@ export default function BasicInfo({
                   )}
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
-              </PopoverTrigger>
+              } />
               <PopoverContent className="w-[300px] p-0" align="start">
                 <Command>
                   <CommandInput placeholder="Search organizations..." />

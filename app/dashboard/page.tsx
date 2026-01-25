@@ -8,7 +8,8 @@ import { format, subMonths, parseISO, differenceInMinutes, isBefore, isAfter } f
 import { TZDate, tz } from "@date-fns/tz";
 import { Award, Calendar, Users, Target, ChevronRight, Download, CalendarDays, BarChart3, CircleCheck, UserCheck } from "lucide-react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ActivityChart } from "./_components/ActivityChart";
@@ -553,17 +554,13 @@ export default async function VolunteerDashboard() {
                     <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold">{upcomingSessions.length}</h2>
                     <p className="text-xs text-muted-foreground hidden sm:block">Sessions</p>
                   </div>
-                  <Button
-                    asChild
-                    size="icon"
-                    variant="ghost"
+                  <Link
+                    href="/projects"
                     aria-label="See all upcoming projects"
-                    className="ml-auto hidden lg:flex"
+                    className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "ml-auto hidden lg:flex")}
                   >
-                    <Link href="/projects">
-                      <ChevronRight className="h-5 w-5" />
-                    </Link>
-                  </Button>
+                    <ChevronRight className="h-5 w-5" />
+                  </Link>
                 </div>
               </CardContent>
             </Card>
@@ -645,7 +642,7 @@ export default async function VolunteerDashboard() {
                 </CardHeader>
                 <CardContent>
                   {upcomingSessions.length > 0 ? (
-                    <TooltipProvider delayDuration={150}>
+                    <TooltipProvider delayDuration={0}>
                       <div className="space-y-3 sm:space-y-4">
                         <div className="max-h-[300px] sm:max-h-[350px] overflow-y-auto pr-2 custom-scrollbar">
                           <div className="space-y-3 sm:space-y-4">
@@ -662,7 +659,7 @@ export default async function VolunteerDashboard() {
                                     Starts: {format(session.sessionStartTime, "MMM d, yyyy 'at' h:mm a", { in: tz(session.project_timezone) })}
                                   </p>
                                   <Tooltip>
-                                    <TooltipTrigger asChild>
+                                    <TooltipTrigger className="cursor-default">
                                       <TimezoneBadge timezone={session.project_timezone} />
                                     </TooltipTrigger>
                                     <TooltipContent>
@@ -688,9 +685,9 @@ export default async function VolunteerDashboard() {
                       <p className="text-xs sm:text-sm text-muted-foreground mt-1 max-w-xs">
                         You don&apos;t have any upcoming volunteer commitments
                       </p>
-                      <Button className="mt-3 sm:mt-4" variant="outline" size="sm" asChild>
-                        <Link href="/home">Browse Opportunities</Link>
-                      </Button>
+                      <Link href="/home" className={cn(buttonVariants({ variant: "outline", size: "sm" }), "mt-3 sm:mt-4")}>
+                        Browse Opportunities
+                      </Link>
                     </div>
                   )}
                 </CardContent>

@@ -1,13 +1,11 @@
 import { z } from "zod";
 import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-  FormDescription, // Import FormDescription
-} from "@/components/ui/form";
+  Field,
+  FieldLabel,
+  FieldDescription,
+  FieldError as FormMessage,
+} from "@/components/ui/field";
+import { Controller } from "react-hook-form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -114,130 +112,123 @@ export function ProjectSignupForm({
 
 
   return (
-    <Form {...form}>
-      {/* Pass the modified handler to form.handleSubmit */}
-      <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-4">
-        <FormField
+    <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-4">
+      <Controller
+        control={form.control}
+        name="name"
+        render={({ field, fieldState }) => (
+          <Field data-invalid={fieldState.invalid}>
+            <FieldLabel htmlFor={field.name}>Full Name</FieldLabel>
+            <Input id={field.name} placeholder="Enter your name" {...field} aria-invalid={fieldState.invalid} />
+            {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+          </Field>
+        )}
+      />
+
+      <Controller
+        control={form.control}
+        name="email"
+        render={({ field, fieldState }) => (
+          <Field data-invalid={fieldState.invalid}>
+            <FieldLabel htmlFor={field.name}>Email</FieldLabel>
+            <Input id={field.name} placeholder="your@email.com" {...field} aria-invalid={fieldState.invalid} />
+            {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+          </Field>
+        )}
+      />
+
+      <Controller
+        control={form.control}
+        name="phone"
+        render={({ field, fieldState }) => (
+          <Field data-invalid={fieldState.invalid}>
+            <div className="flex justify-between items-center">
+              <FieldLabel htmlFor={field.name}>Phone Number (Optional)</FieldLabel>
+              {/* Display character count */}
+              <span
+                className={`text-xs ${phoneNumberLength > PHONE_LENGTH ? "text-destructive font-semibold" : "text-muted-foreground"}`}
+              >
+                {phoneNumberLength}/{PHONE_LENGTH}
+              </span>
+            </div>
+            <Input
+              id={field.name}
+              type="tel" // Use tel type for better mobile UX
+              placeholder="555-555-5555"
+              {...field}
+              value={field.value || ""} // Ensure value is controlled, default to empty string if undefined/null
+              onChange={(e) => {
+                const formatted = formatPhoneNumber(e.target.value);
+                field.onChange(formatted); // Update form with formatted value
+                // Update length count based on digits only
+                setPhoneNumberLength(formatted.replace(/-/g, "").length);
+              }}
+              maxLength={12} // Max length for XXX-XXX-XXXX format
+              aria-invalid={fieldState.invalid}
+            />
+            {/* Add FormDescription */}
+            {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+          </Field>
+        )}
+      />
+
+      {showCommentField && (
+        <Controller
           control={form.control}
-          name="name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Full Name</FormLabel>
-              <FormControl>
-                <Input placeholder="Enter your name" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        
-        <FormField
-          control={form.control}
-          name="email"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Email</FormLabel>
-              <FormControl>
-                <Input placeholder="your@email.com" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        
-        <FormField
-          control={form.control}
-          name="phone"
-          render={({ field }) => (
-            <FormItem>
-              <div className="flex justify-between items-center">
-                 <FormLabel>Phone Number (Optional)</FormLabel>
-                 {/* Display character count */}
-                 <span
-                   className={`text-xs ${phoneNumberLength > PHONE_LENGTH ? "text-destructive font-semibold" : "text-muted-foreground"}`}
-                 >
-                   {phoneNumberLength}/{PHONE_LENGTH}
-                 </span>
-              </div>
-              <FormControl>
-                <Input
-                  type="tel" // Use tel type for better mobile UX
-                  placeholder="555-555-5555"
+          name="comment"
+          render={({ field, fieldState }) => {
+            const commentLength = ((field.value as string) || "").length;
+            return (
+              <Field data-invalid={fieldState.invalid}>
+                <div className="flex justify-between items-center">
+                  <FieldLabel htmlFor={field.name}>Comment (Optional)</FieldLabel>
+                  <span className={`text-xs ${commentLength > 100 ? "text-destructive" : "text-muted-foreground"}`}>
+                    {commentLength}/100
+                  </span>
+                </div>
+                <Textarea
+                  id={field.name}
+                  placeholder="Add a note for the organizer..."
                   {...field}
-                  value={field.value || ""} // Ensure value is controlled, default to empty string if undefined/null
-                  onChange={(e) => {
-                    const formatted = formatPhoneNumber(e.target.value);
-                    field.onChange(formatted); // Update form with formatted value
-                    // Update length count based on digits only
-                    setPhoneNumberLength(formatted.replace(/-/g, "").length);
-                  }}
-                  maxLength={12} // Max length for XXX-XXX-XXXX format
+                  value={(field.value as string) || ""}
+                  rows={2}
+                  maxLength={100}
+                  className="resize-none text-sm"
+                  aria-invalid={fieldState.invalid}
                 />
-              </FormControl>
-              {/* Add FormDescription */}
-              <FormMessage />
-            </FormItem>
-          )}
+                <FieldDescription className="text-xs">
+                  Brief note visible to the organizer.
+                </FieldDescription>
+                {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+              </Field>
+            );
+          }}
         />
+      )}
 
-        {showCommentField && (
-          <FormField
-            control={form.control}
-            name="comment"
-            render={({ field }) => {
-              const commentLength = ((field.value as string) || "").length;
-              return (
-                <FormItem>
-                  <div className="flex justify-between items-center">
-                    <FormLabel>Comment (Optional)</FormLabel>
-                    <span className={`text-xs ${commentLength > 100 ? "text-destructive" : "text-muted-foreground"}`}>
-                      {commentLength}/100
-                    </span>
-                  </div>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Add a note for the organizer..."
-                      {...field}
-                      value={(field.value as string) || ""}
-                      rows={2}
-                      maxLength={100}
-                      className="resize-none text-sm"
-                    />
-                  </FormControl>
-                  <FormDescription className="text-xs">
-                    Brief note visible to the organizer.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              );
-            }}
-          />
-        )}
+      {waiverRequired && (
+        <WaiverSignatureSection
+          template={waiverTemplate}
+          waiverPdfUrl={waiverPdfUrl}
+          signerName={signerName}
+          signerEmail={signerEmail}
+          allowUpload={waiverAllowUpload}
+          required
+          onChange={setWaiverSignature}
+        />
+      )}
 
-        {waiverRequired && (
-          <WaiverSignatureSection
-            template={waiverTemplate}
-            waiverPdfUrl={waiverPdfUrl}
-            signerName={signerName}
-            signerEmail={signerEmail}
-            allowUpload={waiverAllowUpload}
-            required
-            onChange={setWaiverSignature}
-          />
-        )}
-        
-        <DialogFooter>
-          <Button 
-            type="submit"
-            disabled={isSubmitting || !waiverSatisfied}
-          >
-            {isSubmitting && (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            )}
-            Sign Up
-          </Button>
-        </DialogFooter>
-      </form>
-    </Form>
+      <DialogFooter>
+        <Button
+          type="submit"
+          disabled={isSubmitting || !waiverSatisfied}
+        >
+          {isSubmitting && (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          )}
+          Sign Up
+        </Button>
+      </DialogFooter>
+    </form>
   );
 }

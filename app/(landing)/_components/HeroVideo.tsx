@@ -30,7 +30,7 @@ export const HeroVideo = () => {
           <Dialog open={open} onOpenChange={setOpen}>
             <Card className="overflow-hidden border-border/60 shadow-[0_25px_80px_-40px_rgba(15,23,42,0.6)]">
               <CardContent className="p-0">
-                <DialogTrigger asChild>
+                <DialogTrigger render={
                   <motion.button
                     type="button"
                     whileHover={{ scale: 1.01 }}
@@ -60,7 +60,7 @@ export const HeroVideo = () => {
                       <p className="text-xs text-white/70 pt-5">3 min walkthrough</p>
                     </motion.div>
                   </motion.button>
-                </DialogTrigger>
+                } />
               </CardContent>
             </Card>
 

@@ -201,11 +201,11 @@ export default function DraftsSidebar({ initialDrafts }: DraftsSidebarProps) {
 
           {/* Menu */}
           <DropdownMenu>
-            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+            <DropdownMenuTrigger render={
+              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={(e) => e.stopPropagation()}>
                 <MoreVertical className="h-3 w-3" />
               </Button>
-            </DropdownMenuTrigger>
+            } />
             <DropdownMenuContent align="end" className="w-48" onClick={(e) => e.stopPropagation()}>
               <DropdownMenuItem
                 onClick={(e) => {
@@ -301,13 +301,13 @@ export default function DraftsSidebar({ initialDrafts }: DraftsSidebarProps) {
         <div className="md:hidden">
           <Drawer open={isOpenMobile} onOpenChange={setIsOpenMobile}>
             <Tooltip>
-              <TooltipTrigger asChild>
+              <TooltipTrigger render={
                 <DrawerTrigger asChild>
                   <Button variant="secondary" size="icon" className="h-9 w-9">
                     <FileText className="h-4 w-4" />
                   </Button>
                 </DrawerTrigger>
-              </TooltipTrigger>
+              } />
               <TooltipContent>
                 <p>My Drafts ({drafts.length})</p>
               </TooltipContent>
@@ -330,8 +330,8 @@ export default function DraftsSidebar({ initialDrafts }: DraftsSidebarProps) {
         <div className="hidden md:block">
           <Sheet open={isOpenDesktop} onOpenChange={setIsOpenDesktop}>
             <Tooltip>
-              <TooltipTrigger asChild>
-                <SheetTrigger asChild>
+              <TooltipTrigger render={
+                <SheetTrigger render={
                   <Button
                     variant="secondary"
                     size="icon"
@@ -339,8 +339,8 @@ export default function DraftsSidebar({ initialDrafts }: DraftsSidebarProps) {
                   >
                     <FileText className="h-4 w-4" />
                   </Button>
-                </SheetTrigger>
-              </TooltipTrigger>
+                } />
+              } />
               <TooltipContent>
                 <p>My Drafts ({drafts.length})</p>
               </TooltipContent>
@@ -357,8 +357,8 @@ export default function DraftsSidebar({ initialDrafts }: DraftsSidebarProps) {
               </div>
             </SheetContent>
           </Sheet>
-        </div>
-      </TooltipProvider>
+        </div >
+      </TooltipProvider >
     </>
   );
 }

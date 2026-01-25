@@ -31,8 +31,8 @@ const ImageCropper = ({
     setCrop(crop);
   };
 
-  const onZoomChange = (zoom: number[]) => {
-    setZoom(zoom[0]);
+  const onZoomChange = (zoom: number | readonly number[]) => {
+    setZoom(Array.isArray(zoom) ? zoom[0] : zoom);
   };
 
   const onCropComplete = useCallback(

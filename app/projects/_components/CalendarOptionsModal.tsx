@@ -17,7 +17,7 @@ import {
   MapPin,
   Calendar as CalendarIcon,
 } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import {
   generateProjectICalFile,
   downloadICalFile,
@@ -134,8 +134,7 @@ export default function CalendarOptionsModal({
           throw new Error(data.error || "Failed to sync signup");
         }
 
-        toast({
-          title: "✓ Added to Google Calendar",
+        toast.success("✓ Added to Google Calendar", {
           description: "Your volunteer signup has been added to your calendar",
         });
 
@@ -154,8 +153,7 @@ export default function CalendarOptionsModal({
           throw new Error(data.error || "Failed to sync project");
         }
 
-        toast({
-          title: "Project Synced",
+        toast.success("Project Synced", {
           description: "Your project has been synced to Google Calendar",
         });
 
@@ -166,13 +164,11 @@ export default function CalendarOptionsModal({
       onOpenChange(false);
     } catch (error) {
       console.error("Failed to sync to calendar:", error);
-      toast({
-        title: "Sync Failed",
+      toast.error("Sync Failed", {
         description:
           error instanceof Error
             ? error.message
             : "Failed to sync event to calendar",
-        variant: "destructive",
       });
     }
   };
@@ -195,20 +191,17 @@ export default function CalendarOptionsModal({
       const filename = generateICalFilename(project, scheduleId);
       downloadICalFile(icalContent, filename);
 
-      toast({
-        title: "iCal File Downloaded",
+      toast.success("iCal File Downloaded", {
         description: "Open the file to add the event to your calendar app",
       });
       onOpenChange(false);
     } catch (error) {
       console.error("Failed to download iCal:", error);
-      toast({
-        title: "Download Failed",
+      toast.error("Download Failed", {
         description:
           error instanceof Error
             ? error.message
             : "Failed to download iCal file",
-        variant: "destructive",
       });
     } finally {
       setIsDownloading(false);

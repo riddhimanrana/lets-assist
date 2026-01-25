@@ -22,14 +22,12 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
-  Form,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormControl,
-  FormMessage,
-  FormDescription,
-} from "@/components/ui/form";
+  Field,
+  FieldLabel,
+  FieldDescription,
+  FieldError as FieldMessage, // Alias to match usage if needed, or update usages
+} from "@/components/ui/field";
+import { Controller } from "react-hook-form";
 import { toast } from "sonner";
 import { completeOnboarding, removeProfilePicture, updateNameAndUsername, updateProfileVisibility } from "./actions";
 import type { OnboardingValues } from "./actions";
@@ -42,19 +40,21 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import type { ProfileVisibility } from "@/types";
 import {
-    addEmail,
-    unlinkEmail,
-    setPrimaryEmail,
-    getLinkedIdentities,
-    verifyEmail,
+  addEmail,
+  unlinkEmail,
+  setPrimaryEmail,
+  getLinkedIdentities,
+  verifyEmail,
 } from "@/utils/auth/account-management";
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
+import { buttonVariants } from "@/components/ui/button";
 
 // Constants for character limits
 const NAME_MAX_LENGTH = 64;
@@ -64,10 +64,10 @@ const USERNAME_REGEX = /^[a-zA-Z0-9_.-]+$/;
 const PHONE_REGEX = /^\d{3}-\d{3}-\d{4}$/; // Format XXX-XXX-XXXX
 
 interface UserEmail {
-    id: string;
-    email: string;
-    is_primary: boolean;
-    verified_at: string | null;
+  id: string;
+  email: string;
+  is_primary: boolean;
+  verified_at: string | null;
 }
 
 // Modified schema with character limits and validation
@@ -584,26 +584,20 @@ export default function ProfileClient() {
                   <Skeleton className="h-20 w-20 rounded-full" />
                 </div>
               ) : (
-                <Form {...form}>
-                  <FormField
-                    control={form.control}
-                    name="avatarUrl"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormControl>
-                          <Avatar
-                            url={
-                              typeof field.value === "string" ? field.value : ""
-                            }
-                            onUpload={(url) => field.onChange(url)}
-                            onRemove={handleRemoveAvatar}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </Form>
+                <Controller
+                  control={form.control}
+                  name="avatarUrl"
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <Avatar
+                        url={typeof field.value === "string" ? field.value : ""}
+                        onUpload={(url) => field.onChange(url)}
+                        onRemove={handleRemoveAvatar}
+                      />
+                      <FieldMessage />
+                    </Field>
+                  )}
+                />
               )}
             </CardContent>
           </Card>
@@ -622,158 +616,156 @@ export default function ProfileClient() {
                   <Skeleton className="h-10 w-full" /> {/* Skeleton for Phone */}
                 </div>
               ) : (
-                <Form {...form}>
-                  <form
-                    onSubmit={form.handleSubmit(onSubmit)}
-                    className="space-y-6"
-                  >
-                    <div className="grid gap-6">
-                      <FormField
-                        control={form.control}
-                        name="fullName"
-                        render={({ field }) => (
-                          <FormItem>
-                            <div className="flex justify-between items-center">
-                              <FormLabel>Full Name</FormLabel>
-                              <span
-                                className={`text-xs ${nameLength > NAME_MAX_LENGTH ? "text-destructive font-semibold" : "text-muted-foreground"}`}
-                              >
-                                {nameLength}/{NAME_MAX_LENGTH}
-                              </span>
-                            </div>
-                            <FormControl>
-                              <Input
-                                placeholder="Enter your full name"
-                                {...field}
-                                maxLength={NAME_MAX_LENGTH}
-                                onChange={(e) => {
-                                  field.onChange(e);
-                                  setNameLength(e.target.value.length);
-                                }}
-                              />
-                            </FormControl>
-                            <FormDescription>
-                              Your full name as you&apos;d like others to see it
-                            </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="username"
-                        render={({ field }) => (
-                          <FormItem>
-                            <div className="flex justify-between items-center">
-                              <FormLabel>Username</FormLabel>
-                              <span
-                                className={`text-xs ${usernameLength > USERNAME_MAX_LENGTH ? "text-destructive font-semibold" : "text-muted-foreground"}`}
-                              >
-                                {usernameLength}/{USERNAME_MAX_LENGTH}
-                              </span>
-                            </div>
-                            <div className="relative">
-                              <FormControl>
-                                <Input
-                                  placeholder="Enter your username"
-                                  {...field}
-                                  maxLength={USERNAME_MAX_LENGTH}
-                                  onChange={(e) => {
-                                    const noSpaces = e.target.value.replace(
-                                      /\s/g,
-                                      "",
-                                    );
-                                    const lower = noSpaces.toLowerCase();
-                                    field.onChange(lower);
-                                    setUsernameLength(lower.length);
-                                    // Clear errors and reset availability when typing
-                                    if (form.formState.errors.username) {
-                                      form.clearErrors("username");
-                                    }
-                                    setUsernameAvailable(null);
-                                  }}
-                                  onBlur={(e) => {
-                                    field.onBlur();
-                                    handleUsernameBlur(e);
-                                  }}
-                                  className={
-                                    !checkUsernameValid(field.value || "") &&
-                                      field.value
-                                      ? "border-destructive"
-                                      : ""
-                                  }
-                                />
-                              </FormControl>
-                              {checkingUsername && (
+                <form
+                  onSubmit={form.handleSubmit(onSubmit)}
+                  className="space-y-6"
+                >
+                  <div className="grid gap-6">
+                    <Controller
+                      control={form.control}
+                      name="fullName"
+                      render={({ field, fieldState }) => (
+                        <Field data-invalid={fieldState.invalid}>
+                          <div className="flex justify-between items-center">
+                            <FieldLabel htmlFor={field.name}>Full Name</FieldLabel>
+                            <span
+                              className={`text-xs ${nameLength > NAME_MAX_LENGTH ? "text-destructive font-semibold" : "text-muted-foreground"}`}
+                            >
+                              {nameLength}/{NAME_MAX_LENGTH}
+                            </span>
+                          </div>
+                          <Input
+                            id={field.name}
+                            placeholder="Enter your full name"
+                            {...field}
+                            maxLength={NAME_MAX_LENGTH}
+                            onChange={(e) => {
+                              field.onChange(e);
+                              setNameLength(e.target.value.length);
+                            }}
+                            aria-invalid={fieldState.invalid}
+                          />
+                          <FieldDescription>
+                            Your full name as you&apos;d like others to see it
+                          </FieldDescription>
+                          {fieldState.invalid && <FieldMessage errors={[fieldState.error]} />}
+                        </Field>
+                      )}
+                    />
+                    <Controller
+                      control={form.control}
+                      name="username"
+                      render={({ field, fieldState }) => (
+                        <Field data-invalid={fieldState.invalid}>
+                          <div className="flex justify-between items-center">
+                            <FieldLabel htmlFor={field.name}>Username</FieldLabel>
+                            <span
+                              className={`text-xs ${usernameLength > USERNAME_MAX_LENGTH ? "text-destructive font-semibold" : "text-muted-foreground"}`}
+                            >
+                              {usernameLength}/{USERNAME_MAX_LENGTH}
+                            </span>
+                          </div>
+                          <div className="relative">
+                            <Input
+                              id={field.name}
+                              placeholder="Enter your username"
+                              {...field}
+                              maxLength={USERNAME_MAX_LENGTH}
+                              onChange={(e) => {
+                                const noSpaces = e.target.value.replace(
+                                  /\s/g,
+                                  "",
+                                );
+                                const lower = noSpaces.toLowerCase();
+                                field.onChange(lower);
+                                setUsernameLength(lower.length);
+                                // Clear errors and reset availability when typing
+                                if (form.formState.errors.username) {
+                                  form.clearErrors("username");
+                                }
+                                setUsernameAvailable(null);
+                              }}
+                              onBlur={(e) => {
+                                field.onBlur();
+                                handleUsernameBlur(e);
+                              }}
+                              className={
+                                !checkUsernameValid(field.value || "") &&
+                                  field.value
+                                  ? "border-destructive"
+                                  : ""
+                              }
+                              aria-invalid={fieldState.invalid}
+                            />
+                            {checkingUsername && (
+                              <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                <div className="h-4 w-4 animate-spin rounded-full border-2 border-foreground border-t-transparent" />
+                              </div>
+                            )}
+                            {usernameAvailable !== null &&
+                              !checkingUsername && (
                                 <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-foreground border-t-transparent" />
+                                  {usernameAvailable ? (
+                                    <CircleCheck className="h-5 w-5 text-primary" />
+                                  ) : (
+                                    <XCircle className="h-5 w-5 text-destructive" />
+                                  )}
                                 </div>
                               )}
-                              {usernameAvailable !== null &&
-                                !checkingUsername && (
-                                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                                    {usernameAvailable ? (
-                                      <CircleCheck className="h-5 w-5 text-primary" />
-                                    ) : (
-                                      <XCircle className="h-5 w-5 text-destructive" />
-                                    )}
-                                  </div>
-                                )}
-                            </div>
-                            <FormDescription className="flex items-center gap-1.5">
-                              Only letters, numbers, underscores, dots, and
-                              hyphens allowed
-                            </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="phoneNumber"
-                        render={({ field }) => (
-                          <FormItem>
-                            <div className="flex justify-between items-center">
-                              <FormLabel>Phone Number (Optional)</FormLabel>
-                              <span
-                                className={`text-xs ${phoneNumberLength > PHONE_LENGTH ? "text-destructive font-semibold" : "text-muted-foreground"}`}
-                              >
-                                {phoneNumberLength}/{PHONE_LENGTH}
-                              </span>
-                            </div>
-                            <FormControl>
-                              <Input
-                                type="tel" // Use tel type for better mobile UX
-                                placeholder="XXX-XXX-XXXX"
-                                {...field}
-                                value={field.value || ""} // Ensure value is controlled
-                                onChange={(e) => {
-                                  const formatted = formatPhoneNumber(e.target.value);
-                                  field.onChange(formatted); // Update form with formatted value
-                                  setPhoneNumberLength(formatted.replace(/-/g, "").length); // Update length count (digits only)
-                                }}
-                                maxLength={12} // Max length for XXX-XXX-XXXX format
-                              />
-                            </FormControl>
-                            <FormDescription>
-                              Enter your 10-digit phone number. This will be used for contact when signing up/creating projects.
-                            </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                    <div className="flex justify-end">
-                      <Button
-                        type="submit"
-                        disabled={isLoading || !form.formState.isDirty}
-                        className="w-full sm:w-auto"
-                      >
-                        {isLoading ? "Saving Changes..." : "Save Changes"}
-                      </Button>
-                    </div>
-                  </form>
-                </Form>
+                          </div>
+                          <FieldDescription className="flex items-center gap-1.5">
+                            Only letters, numbers, underscores, dots, and
+                            hyphens allowed
+                          </FieldDescription>
+                          {fieldState.invalid && <FieldMessage errors={[fieldState.error]} />}
+                        </Field>
+                      )}
+                    />
+                    <Controller
+                      control={form.control}
+                      name="phoneNumber"
+                      render={({ field, fieldState }) => (
+                        <Field data-invalid={fieldState.invalid}>
+                          <div className="flex justify-between items-center">
+                            <FieldLabel htmlFor={field.name}>Phone Number (Optional)</FieldLabel>
+                            <span
+                              className={`text-xs ${phoneNumberLength > PHONE_LENGTH ? "text-destructive font-semibold" : "text-muted-foreground"}`}
+                            >
+                              {phoneNumberLength}/{PHONE_LENGTH}
+                            </span>
+                          </div>
+                          <Input
+                            id={field.name}
+                            type="tel" // Use tel type for better mobile UX
+                            placeholder="XXX-XXX-XXXX"
+                            {...field}
+                            value={field.value || ""} // Ensure value is controlled
+                            onChange={(e) => {
+                              const formatted = formatPhoneNumber(e.target.value);
+                              field.onChange(formatted); // Update form with formatted value
+                              setPhoneNumberLength(formatted.replace(/-/g, "").length); // Update length count (digits only)
+                            }}
+                            maxLength={12} // Max length for XXX-XXX-XXXX format
+                            aria-invalid={fieldState.invalid}
+                          />
+                          <FieldDescription>
+                            Enter your 10-digit phone number. This will be used for contact when signing up/creating projects.
+                          </FieldDescription>
+                          {fieldState.invalid && <FieldMessage errors={[fieldState.error]} />}
+                        </Field>
+                      )}
+                    />
+                  </div>
+                  <div className="flex justify-end">
+                    <Button
+                      type="submit"
+                      disabled={isLoading || !form.formState.isDirty}
+                      className="w-full sm:w-auto"
+                    >
+                      {isLoading ? "Saving Changes..." : "Save Changes"}
+                    </Button>
+                  </div>
+                </form>
               )}
             </CardContent>
           </Card>
@@ -847,10 +839,8 @@ export default function ProfileClient() {
                             </div>
                           </div>
                           <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
+                            <DropdownMenuTrigger className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity")}>
+                              <MoreHorizontal className="h-4 w-4" />
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-48">
                               <DropdownMenuItem

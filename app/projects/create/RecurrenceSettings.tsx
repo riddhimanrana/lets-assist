@@ -139,9 +139,9 @@ export default function RecurrenceSettings({
             <CardTitle className="text-lg">Recurring Event</CardTitle>
             <TooltipProvider>
               <Tooltip>
-                <TooltipTrigger asChild>
+                <TooltipTrigger render={
                   <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                </TooltipTrigger>
+                } />
                 <TooltipContent className="max-w-xs">
                   <p>
                     Set up this event to repeat automatically. New events will be
@@ -257,7 +257,7 @@ export default function RecurrenceSettings({
             <div>
               <Label>End date</Label>
               <Popover>
-                <PopoverTrigger asChild>
+                <PopoverTrigger render={
                   <Button
                     variant="outline"
                     className={cn(
@@ -270,7 +270,7 @@ export default function RecurrenceSettings({
                       ? format(parseStringToDate(recurrence.endDate)!, "PPP")
                       : "Pick an end date"}
                   </Button>
-                </PopoverTrigger>
+                } />
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
@@ -323,7 +323,8 @@ export default function RecurrenceSettings({
             </ul>
           </div>
         </CardContent>
-      )}
-    </Card>
+      )
+      }
+    </Card >
   );
 }

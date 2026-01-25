@@ -122,7 +122,9 @@ export function DateRangePicker({
   return (
     <div className={cn("flex flex-col sm:flex-row gap-2", className)}>
       {showQuickSelect && (
-        <Select onValueChange={handleQuickSelect}>
+        <Select onValueChange={(val: string | null) => {
+          if (typeof val === 'string' && val) handleQuickSelect(val);
+        }}>
           <SelectTrigger className="w-full sm:w-[140px] h-9">
             <SelectValue placeholder="Quick select" />
           </SelectTrigger>
@@ -137,7 +139,7 @@ export function DateRangePicker({
         </Select>
       )}
       <Popover>
-        <PopoverTrigger asChild>
+        <PopoverTrigger render={
           <Button
             id="date"
             variant={"outline"}
@@ -161,7 +163,7 @@ export function DateRangePicker({
               <span>{placeholder}</span>
             )}
           </Button>
-        </PopoverTrigger>
+        } />
         <PopoverContent className="w-auto p-0" align={align}>
           <Calendar
             initialFocus

@@ -185,18 +185,18 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
     autosaveTimerRef.current = setTimeout(async () => {
       try {
         setAutosaveStatus('saving');
-        
+
         const result = await autoSaveDraft(state, autosaveDraftId);
-        
+
         if (result.autosaved && result.id) {
           // Set the draft ID if this is the first autosave
           if (!autosaveDraftId) {
             setAutosaveDraftId(result.id);
           }
-          
+
           setAutosaveStatus('saved');
           setLastAutosaveTime(new Date());
-          
+
           // Clear saved status after 3 seconds
           setTimeout(() => {
             setAutosaveStatus(prev => prev === 'saved' ? 'idle' : prev);
@@ -204,7 +204,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
         } else if (result.error) {
           setAutosaveStatus('error');
           console.warn('Autosave error:', result.error);
-          
+
           // Clear error status after 5 seconds
           setTimeout(() => {
             setAutosaveStatus(prev => prev === 'error' ? 'idle' : prev);
@@ -687,7 +687,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
 
       toast.dismiss(loadingToast);
       toast.success("New draft saved! Refreshing...");
-      
+
       // Refresh the page to update the drafts list
       router.refresh();
 
@@ -888,7 +888,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
             {/* Save as New Draft button */}
             <TooltipProvider>
               <Tooltip>
-                <TooltipTrigger asChild>
+                <TooltipTrigger render={
                   <Button
                     variant="secondary"
                     size="icon"
@@ -902,7 +902,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
                       <Save className="h-4 w-4" />
                     )}
                   </Button>
-                </TooltipTrigger>
+                } />
                 <TooltipContent>
                   <p>Save as New Draft</p>
                 </TooltipContent>

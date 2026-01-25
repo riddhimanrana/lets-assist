@@ -1,14 +1,14 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogDescription, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogFooter, 
-  DialogTrigger 
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogTrigger
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { useState } from "react";
@@ -21,9 +21,9 @@ interface LeaveOrganizationDialogProps {
   organizationName: string;
 }
 
-export default function LeaveOrganizationDialog({ 
-  organizationId, 
-  organizationName 
+export default function LeaveOrganizationDialog({
+  organizationId,
+  organizationName
 }: LeaveOrganizationDialogProps) {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
@@ -51,17 +51,17 @@ export default function LeaveOrganizationDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        <Button 
-          variant="outline" 
+      <DialogTrigger render={
+        <Button
+          variant="outline"
           size="sm"
           className="text-destructive border-destructive/30 hover:bg-destructive/10"
         >
           <LogOut className="h-3.5 w-3.5 mr-1.5" />
           Leave Organization
         </Button>
-      </DialogTrigger>
-      
+      } />
+
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Leave Organization</DialogTitle>
@@ -69,16 +69,16 @@ export default function LeaveOrganizationDialog({
             Are you sure you want to leave this organization? You will lose access to all organization resources.
           </DialogDescription>
         </DialogHeader>
-        
+
         <DialogFooter className="mt-4 gap-2">
-          <Button 
+          <Button
             variant="outline"
             onClick={() => setIsOpen(false)}
             disabled={isLeaving}
           >
             Cancel
           </Button>
-          <Button 
+          <Button
             variant="destructive"
             onClick={handleLeaveOrganization}
             disabled={isLeaving}

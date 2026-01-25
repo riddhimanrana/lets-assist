@@ -32,7 +32,7 @@ export async function POST(request: Request) {
 
     if (!validation.success) {
       return NextResponse.json(
-        { error: "Invalid request data", details: validation.error.errors },
+        { error: "Invalid request data", details: (validation.error as any).errors || validation.error },
         { status: 400 }
       );
     }
@@ -121,7 +121,7 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error("Error adding signup to calendar:", error);
-    
+
     if (error instanceof Error) {
       if (error.message.includes("No valid calendar connection")) {
         return NextResponse.json(

@@ -2,7 +2,8 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Award, Download, Eye, Share2, Printer, BadgeCheck, MapPin } from "lucide-react";
 import Link from "next/link";
@@ -63,7 +64,7 @@ export function CertificatesSection() {
         </CardContent>
       </Card>
 
-      <Accordion type="single" collapsible className="w-full space-y-4">
+      <Accordion className="w-full space-y-4">
         <AccordionItem value="viewing-certificates" className="border rounded-lg px-4">
           <AccordionTrigger className="hover:no-underline">
             <div className="flex items-center gap-2">
@@ -93,9 +94,7 @@ export function CertificatesSection() {
                 </ol>
               </div>
             </div>
-            <Button asChild size="sm" className="mt-2">
-              <Link href="/certificates">View My Certificates</Link>
-            </Button>
+            <Link href="/certificates" className={cn(buttonVariants({ size: "sm", className: "mt-2" }))}>View My Certificates</Link>
           </AccordionContent>
         </AccordionItem>
 
