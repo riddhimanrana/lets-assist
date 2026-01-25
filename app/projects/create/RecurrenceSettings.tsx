@@ -21,10 +21,10 @@ import { Button } from "@/components/ui/button";
 import { Calendar as CalendarIcon, Repeat, Info } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import { 
-  RecurrenceFrequency, 
-  RecurrenceEndType, 
-  RecurrenceWeekday 
+import {
+  RecurrenceFrequency,
+  RecurrenceEndType,
+  RecurrenceWeekday
 } from "@/types";
 import {
   Tooltip,
@@ -107,7 +107,7 @@ export default function RecurrenceSettings({
     if (!recurrence.enabled) return null;
 
     let summary = `Repeats every ${getFrequencyLabel()}`;
-    
+
     if (recurrence.frequency === "weekly" && recurrence.weekdays.length > 0) {
       const dayNames = recurrence.weekdays
         .map((d) => WEEKDAYS.find((w) => w.value === d)?.short)
@@ -132,7 +132,7 @@ export default function RecurrenceSettings({
 
   return (
     <Card className="mt-6">
-      <CardHeader className="pb-4">
+      <CardHeader className="">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Repeat className="h-5 w-5 text-primary" />

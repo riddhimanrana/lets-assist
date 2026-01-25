@@ -141,21 +141,21 @@ export default function SecurityClient() {
         toast.error(result.error.server[0]);
       }
       if (result.error.currentPassword) {
-        passwordForm.setError("currentPassword", { 
-          type: "server", 
-          message: result.error.currentPassword[0] 
+        passwordForm.setError("currentPassword", {
+          type: "server",
+          message: result.error.currentPassword[0]
         });
       }
       if (result.error.newPassword) {
-        passwordForm.setError("newPassword", { 
-          type: "server", 
-          message: result.error.newPassword[0] 
+        passwordForm.setError("newPassword", {
+          type: "server",
+          message: result.error.newPassword[0]
         });
       }
       if (result.error.confirmPassword) {
-        passwordForm.setError("confirmPassword", { 
-          type: "server", 
-          message: result.error.confirmPassword[0] 
+        passwordForm.setError("confirmPassword", {
+          type: "server",
+          message: result.error.confirmPassword[0]
         });
       }
     } else if (result.success) {
@@ -170,7 +170,7 @@ export default function SecurityClient() {
       toast.error("Please type the confirmation phrase correctly");
       return;
     }
-    
+
     try {
       setIsDeleting(true);
       let count = 5;
@@ -184,9 +184,9 @@ export default function SecurityClient() {
         }
       }, 1000);
       setCountdownInterval(interval);
-      
+
       await new Promise((resolve) => setTimeout(resolve, 5000));
-      
+
       if (count === 0) {
         const result = await deleteAccount();
         if (result.success) {
@@ -237,51 +237,51 @@ export default function SecurityClient() {
             </CardHeader>
             <CardContent className="flex-1 p-5">
               <Form {...emailForm}>
-          <form onSubmit={emailForm.handleSubmit(handleEmailChange)} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="current-email">Current Email</Label>
-              <Input
-                id="current-email"
-                type="email"
-                value={currentEmail}
-                disabled
-                readOnly
-              />
-            </div>
-            <FormField
-              control={emailForm.control}
-              name="newEmail"
-              render={({ field }) => (
-                <FormItem>
-            <FormLabel>New Email</FormLabel>
-            <FormControl>
-              <Input type="email" placeholder="Enter new email" {...field} />
-            </FormControl>
-            <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={emailForm.control}
-              name="confirmEmail"
-              render={({ field }) => (
-                <FormItem>
-            <FormLabel>Confirm New Email</FormLabel>
-            <FormControl>
-              <Input type="email" placeholder="Confirm new email" {...field} />
-            </FormControl>
-            <FormMessage />
-                </FormItem>
-              )}
-            />
-            <Button
-              type="submit"
-              disabled={isEmailLoading}
-              className="w-full sm:w-auto"
-            >
-              {isEmailLoading ? "Updating..." : "Update Email"}
-            </Button>
-          </form>
+                <form onSubmit={emailForm.handleSubmit(handleEmailChange)} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="current-email">Current Email</Label>
+                    <Input
+                      id="current-email"
+                      type="email"
+                      value={currentEmail}
+                      disabled
+                      readOnly
+                    />
+                  </div>
+                  <FormField
+                    control={emailForm.control}
+                    name="newEmail"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>New Email</FormLabel>
+                        <FormControl>
+                          <Input type="email" placeholder="Enter new email" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={emailForm.control}
+                    name="confirmEmail"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Confirm New Email</FormLabel>
+                        <FormControl>
+                          <Input type="email" placeholder="Confirm new email" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <Button
+                    type="submit"
+                    disabled={isEmailLoading}
+                    className="w-full sm:w-auto"
+                  >
+                    {isEmailLoading ? "Updating..." : "Update Email"}
+                  </Button>
+                </form>
               </Form>
             </CardContent>
           </Card>
@@ -292,84 +292,74 @@ export default function SecurityClient() {
             </CardHeader>
             <CardContent className="flex-1 p-5">
               <Form {...passwordForm}>
-          <form onSubmit={passwordForm.handleSubmit(handlePasswordChange)} className="space-y-4">
-            <div className="space-y-2">
-              <FormField
-                control={passwordForm.control}
-                name="currentPassword"
-                render={({ field }) => (
-            <FormItem>
-              <FormLabel>Current Password</FormLabel>
-              <FormControl>
-                <Input type="password" placeholder="Enter current password" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-                )}
-              />
-            </div>
-            <FormField
-              control={passwordForm.control}
-              name="newPassword"
-              render={({ field }) => (
-                <FormItem>
-            <FormLabel>New Password</FormLabel>
-            <FormControl>
-              <Input type="password" placeholder="Enter new password" {...field} />
-            </FormControl>
-            <FormMessage />
-            <div className="mt-3 space-y-2">
-              <div className="rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/30 p-3">
-                <p className="text-xs font-semibold text-amber-900 dark:text-amber-200 mb-2 flex items-center gap-2">
-                  <AlertCircle className="h-3.5 w-3.5" />
-                  Password Requirements
-                </p>
-                <ul className="space-y-1.5 text-xs text-amber-800 dark:text-amber-300">
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
-                    <span>At least 8 characters long</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
-                    <span>Cannot be a commonly used or compromised password</span>
-                  </li>
-                </ul>
-                <p className="text-xs text-amber-700 dark:text-amber-400 mt-2 leading-relaxed">
-                  We check your password against a database of known compromised passwords powered by <a 
-                    href="https://haveibeenpwned.org/" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="underline font-semibold hover:text-amber-900 dark:hover:text-amber-200"
+                <form onSubmit={passwordForm.handleSubmit(handlePasswordChange)} className="space-y-4">
+                  <div className="space-y-2">
+                    <FormField
+                      control={passwordForm.control}
+                      name="currentPassword"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Current Password</FormLabel>
+                          <FormControl>
+                            <Input type="password" placeholder="Enter current password" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <FormField
+                    control={passwordForm.control}
+                    name="newPassword"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>New Password</FormLabel>
+                        <FormControl>
+                          <Input type="password" placeholder="Enter new password" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                        <div className="mt-3 space-y-2">
+                          <div className="rounded-lg bg-[hsl(var(--chart-4)/0.15)] border border-[hsl(var(--chart-4)/0.4)] p-3 shadow-sm">
+                            <p className="text-xs font-semibold text-[hsl(var(--chart-4))] dark:text-[hsl(var(--chart-4))] mb-2 flex items-center gap-2">
+                              <AlertCircle className="h-3.5 w-3.5" />
+                              Password Requirements
+                            </p>
+                            <ul className="space-y-1.5 text-xs text-[hsl(var(--chart-4))] dark:text-[hsl(var(--chart-4))] opacity-90">
+                              <li className="flex items-start gap-2">
+                                <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
+                                <span>At least 8 characters long</span>
+                              </li>
+                              <li className="flex items-start gap-2">
+                                <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
+                                <span>Cannot be a commonly used or compromised password</span>
+                              </li>
+                            </ul>
+                          </div>
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={passwordForm.control}
+                    name="confirmPassword"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Confirm New Password</FormLabel>
+                        <FormControl>
+                          <Input type="password" placeholder="Confirm new password" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <Button
+                    type="submit"
+                    disabled={isPasswordLoading}
+                    className="w-full sm:w-auto"
                   >
-                    HaveIBeenPwned.org
-                  </a> to keep your account secure.
-                </p>
-              </div>
-            </div>
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={passwordForm.control}
-              name="confirmPassword"
-              render={({ field }) => (
-                <FormItem>
-            <FormLabel>Confirm New Password</FormLabel>
-            <FormControl>
-              <Input type="password" placeholder="Confirm new password" {...field} />
-            </FormControl>
-            <FormMessage />
-                </FormItem>
-              )}
-            />
-            <Button
-              type="submit"
-              disabled={isPasswordLoading}
-              className="w-full sm:w-auto"
-            >
-              {isPasswordLoading ? "Updating..." : "Update Password"}
-            </Button>
-          </form>
+                    {isPasswordLoading ? "Updating..." : "Update Password"}
+                  </Button>
+                </form>
               </Form>
             </CardContent>
           </Card>
