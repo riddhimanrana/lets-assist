@@ -50,7 +50,7 @@ export default function OrganizationCard({ org, memberCount, isUserMember = fals
                 <Badge 
                   variant={
                     userRole === "admin" ? "default" : 
-                    userRole === "staff" ? "secondary" : "outline-solid"
+                    userRole === "staff" ? "secondary" : "outline"
                   }
                   className="text-xs flex items-center gap-1"
                 >

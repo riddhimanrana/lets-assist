@@ -119,7 +119,7 @@ export function ReportLayoutCustomizer({
           <Label className="text-base font-semibold">Layout Orientation</Label>
           <div className="flex gap-2">
             <Button
-              variant={layout.orientation === "horizontal" ? "default" : "outline-solid"}
+              variant={layout.orientation === "horizontal" ? "default" : "outline"}
               size="sm"
               onClick={() => handleOrientationChange("horizontal")}
               disabled={isLoading}
@@ -128,7 +128,7 @@ export function ReportLayoutCustomizer({
               Horizontal (Traditional)
             </Button>
             <Button
-              variant={layout.orientation === "vertical" ? "default" : "outline-solid"}
+              variant={layout.orientation === "vertical" ? "default" : "outline"}
               size="sm"
               onClick={() => handleOrientationChange("vertical")}
               disabled={isLoading}

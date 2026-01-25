@@ -109,7 +109,7 @@ export default function OrganizationCalendarSettings({
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-sm font-medium flex items-center gap-2">
-                  <CalendarCheck className="h-4 w-4 text-chart-5" />
+                  <CalendarCheck className="h-4 w-4 text-success" />
                   {status.autoSync ? "Calendar connected & syncing automatically" : "Calendar connected"}
                 </p>
                 <p className="text-xs text-muted-foreground">
@@ -142,7 +142,7 @@ export default function OrganizationCalendarSettings({
                 <div className="space-y-0.5">
                   <p className="text-sm font-medium">Automatic Sync</p>
                   <p className="text-xs text-muted-foreground">
-                    {status.autoSync 
+                    {status.autoSync
                       ? "Calendar syncs every hour automatically"
                       : "Enable to sync calendar hourly"}
                   </p>

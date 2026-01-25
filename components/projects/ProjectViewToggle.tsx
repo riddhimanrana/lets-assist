@@ -659,7 +659,7 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                   </TableCell>
                   <TableCell className="text-center">
                     <Badge
-                      variant={volunteerSort ? "secondary" : "outline-solid"}
+                      variant={volunteerSort ? "secondary" : "outline"}
                       className="gap-1"
                     >
                       <Users className="h-3 w-3" />

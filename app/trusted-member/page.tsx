@@ -57,7 +57,7 @@ export default async function TrustedMemberPage() {
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
-              <ShieldCheck className="h-5 w-5 text-chart-5" />
+              <ShieldCheck className="h-5 w-5 text-success" />
               <Badge variant="default">All set</Badge>
               <span className="font-semibold">You&apos;re a Trusted Member</span>
             </div>

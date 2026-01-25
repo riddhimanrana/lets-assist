@@ -91,7 +91,7 @@ export function SubmitTrustedMemberForm({
   useEffect(() => {
     // Wait for auth to load
     if (authLoading) return;
-    
+
     let mounted = true;
     (async () => {
       try {
@@ -179,7 +179,7 @@ export function SubmitTrustedMemberForm({
           <div className="flex items-center gap-2">
             <StatusIcon className={
               appStatus === "accepted"
-                ? "h-5 w-5 text-chart-5"
+                ? "h-5 w-5 text-success"
                 : appStatus === "rejected"
                   ? "h-5 w-5 text-destructive"
                   : "h-5 w-5 text-muted-foreground"

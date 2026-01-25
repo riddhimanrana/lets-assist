@@ -94,8 +94,8 @@ export default function ContactClient() {
                     {/* Support Card */}
                     <Card className="relative group hover:shadow-lg transition-shadow">
                         <CardHeader className="space-y-2 md:space-y-3">
-                            <div className="mb-2 md:mb-4 w-10 h-10 md:w-12 md:h-12 rounded-lg bg-chart-3/10 flex items-center justify-center">
-                                <Mail className="h-5 w-5 md:h-6 md:w-6 text-chart-3" />
+                            <div className="mb-2 md:mb-4 w-10 h-10 md:w-12 md:h-12 rounded-lg bg-info/10 flex items-center justify-center">
+                                <Mail className="h-5 w-5 md:h-6 md:w-6 text-info" />
                             </div>
                             <CardTitle className="text-lg md:text-xl">Need help?</CardTitle>
                             <CardDescription className="text-sm md:text-base">
@@ -103,7 +103,7 @@ export default function ContactClient() {
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <Button className="w-full bg-chart-3 hover:bg-chart-3/90" asChild>
+                            <Button className="w-full bg-info hover:bg-info/90" asChild>
                                 <Link href="mailto:support@lets-assist.com">Contact Support</Link>
                             </Button>
                         </CardContent>
@@ -111,8 +111,8 @@ export default function ContactClient() {
                 </div>
             </div>
             {showFeedbackDialog && (
-                <FeedbackDialog 
-                    onOpenChangeAction={setShowFeedbackDialog} 
+                <FeedbackDialog
+                    onOpenChangeAction={setShowFeedbackDialog}
                     initialType={feedbackType}
                 />
             )}

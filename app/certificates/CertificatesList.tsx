@@ -11,7 +11,7 @@ import Link from "next/link";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
-import { 
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
@@ -104,7 +104,7 @@ export function CertificatesList({ certificates, user }: CertificatesListProps) 
   const [dateFilter, setDateFilter] = useState<"all" | "6months" | "year" | "custom">("all");
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
-  
+
   // Calculate hours for a certificate
   const calculateHours = (startTime: string, endTime: string): number => {
     try {
@@ -115,13 +115,13 @@ export function CertificatesList({ certificates, user }: CertificatesListProps) 
       return 0;
     }
   };
-  
+
   // Add hours property to certificates
   const certificatesWithHours = certificates.map(cert => ({
     ...cert,
     hours: calculateHours(cert.event_start, cert.event_end)
   }));
-  
+
   // Apply search filter
   const filteredCertificates = certificatesWithHours.filter(cert => {
     // Search filter
@@ -166,11 +166,11 @@ export function CertificatesList({ certificates, user }: CertificatesListProps) 
     }
     return true;
   });
-  
+
   // Apply sorting
   const sortedCertificates = [...filteredCertificates].sort((a, b) => {
     let comparison = 0;
-    
+
     if (sortBy === "date") {
       comparison = new Date(a.issued_at).getTime() - new Date(b.issued_at).getTime();
     } else if (sortBy === "hours") {
@@ -178,10 +178,10 @@ export function CertificatesList({ certificates, user }: CertificatesListProps) 
     } else if (sortBy === "name") {
       comparison = a.project_title.localeCompare(b.project_title);
     }
-    
+
     return sortDirection === "asc" ? comparison : -comparison;
   });
-  
+
   // Toggle sort direction when clicking the same sort option
   const handleSortChange = (newSortBy: "date" | "hours" | "name") => {
     if (newSortBy === sortBy) {
@@ -191,7 +191,7 @@ export function CertificatesList({ certificates, user }: CertificatesListProps) 
       setSortDirection("desc"); // Default to descending for new sort option
     }
   };
-  
+
   // Print all certificates in a clean, styled container
   const printCertificates = () => {
     // Calculate total hours on filtered results
@@ -224,9 +224,9 @@ export function CertificatesList({ certificates, user }: CertificatesListProps) 
       <div>Email: ${user.email}</div>
       <div>Printed: ${new Date().toLocaleString()} ${(() => {
         try {
-          return new Intl.DateTimeFormat('en-US', { 
-            timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, 
-            timeZoneName: 'short' 
+          return new Intl.DateTimeFormat('en-US', {
+            timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            timeZoneName: 'short'
           }).formatToParts(new Date()).find(part => part.type === 'timeZoneName')?.value || '';
         } catch {
           return '';
@@ -245,52 +245,52 @@ export function CertificatesList({ certificates, user }: CertificatesListProps) 
         </thead>
         <tbody>
           ${certificatesWithHours
-            .filter(cert => {
-              // apply same date filtering
-              const issued = new Date(cert.issued_at);
-              const now = new Date();
-              switch (dateFilter) {
-                case "6months": {
-                  const cut = new Date(now);
-                  cut.setMonth(cut.getMonth() - 6);
-                  if (issued < cut) return false;
-                  break;
-                }
-                case "year": {
-                  const cut = new Date(now);
-                  cut.setFullYear(cut.getFullYear() - 1);
-                  if (issued < cut) return false;
-                  break;
-                }
-                case "custom": {
-                  if (startDate && issued < startOfDay(startDate)) return false;
-                  if (endDate && issued > endOfDay(endDate)) return false;
-                  break;
-                }
-              }
-              return true;
-            })
-            .map(cert => `
+        .filter(cert => {
+          // apply same date filtering
+          const issued = new Date(cert.issued_at);
+          const now = new Date();
+          switch (dateFilter) {
+            case "6months": {
+              const cut = new Date(now);
+              cut.setMonth(cut.getMonth() - 6);
+              if (issued < cut) return false;
+              break;
+            }
+            case "year": {
+              const cut = new Date(now);
+              cut.setFullYear(cut.getFullYear() - 1);
+              if (issued < cut) return false;
+              break;
+            }
+            case "custom": {
+              if (startDate && issued < startOfDay(startDate)) return false;
+              if (endDate && issued > endOfDay(endDate)) return false;
+              break;
+            }
+          }
+          return true;
+        })
+        .map(cert => `
               <tr>
                 <td>${cert.project_title}</td>
                 <td>${cert.organization_name || cert.creator_name || "-"}</td>
                 <td>${format(parseISO(cert.issued_at), "MMM d, yyyy")} ${(() => {
-                  const date = parseISO(cert.issued_at);
-                  const timezone = cert.projects?.project_timezone || 'America/Los_Angeles';
-                  try {
-                    return new Intl.DateTimeFormat('en-US', { 
-                      timeZone: timezone, 
-                      timeZoneName: 'short' 
-                    }).formatToParts(date).find(part => part.type === 'timeZoneName')?.value || '';
-                  } catch {
-                    return '';
-                  }
-                })()}</td>
+            const date = parseISO(cert.issued_at);
+            const timezone = cert.projects?.project_timezone || 'America/Los_Angeles';
+            try {
+              return new Intl.DateTimeFormat('en-US', {
+                timeZone: timezone,
+                timeZoneName: 'short'
+              }).formatToParts(date).find(part => part.type === 'timeZoneName')?.value || '';
+            } catch {
+              return '';
+            }
+          })()}</td>
                 <td>${formatTotalDuration(calculateDecimalHours(cert.event_start, cert.event_end))}</td>
                 <td>${cert.is_certified ? "Yes" : "No"}</td>
               </tr>
             `)
-            .join("")}
+        .join("")}
         </tbody>
       </table>
       <p style="margin-top:12px;font-size:12px;color:#555;">
@@ -300,7 +300,7 @@ export function CertificatesList({ certificates, user }: CertificatesListProps) 
     container.innerHTML = content;
     setTimeout(() => window.print(), 100);
   };
-  
+
   if (certificates.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -315,9 +315,9 @@ export function CertificatesList({ certificates, user }: CertificatesListProps) 
       </div>
     );
   }
-  
+
   return (
-<>
+    <>
 
       {/* Search and Filter */}
       <div className="w-full space-y-4 sm:space-y-8 mx-auto">
@@ -331,14 +331,14 @@ export function CertificatesList({ certificates, user }: CertificatesListProps) 
         </div>
         <div className="flex flex-row flex-wrap gap-2 items-center justify-between">
           <div className="relative w-auto sm:flex-1 min-w-[100px]">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" aria-hidden="true" />
-              <Input
-                placeholder="Search..."
-                aria-label="Search certificates"
-                className="pl-8 w-full h-9"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" aria-hidden="true" />
+            <Input
+              placeholder="Search..."
+              aria-label="Search certificates"
+              className="pl-8 w-full h-9"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
           </div>
           <div className="flex flex-row flex-wrap gap-1 sm:gap-3 shrink-0">
             {/* Date range filter */}
@@ -356,222 +356,222 @@ export function CertificatesList({ certificates, user }: CertificatesListProps) 
                   </span>
                 </Button>
               </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Date Range</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuGroup>
-                <DropdownMenuItem onClick={() => setDateFilter('all')}>All</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setDateFilter('6months')}>Last 6 Months</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setDateFilter('year')}>Last Year</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setDateFilter('custom')}>Custom Range</DropdownMenuItem>
-              </DropdownMenuGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          {dateFilter === 'custom' && (
-            <div className="flex flex-row flex-wrap items-center gap-1 sm:gap-2">
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className={cn(
-                      "w-auto p-4 justify-start text-left font-normal h-9",
-                      !startDate && "text-muted-foreground"
-                    )}
-                    aria-label="Select start date"
-                  >
-                    <Calendar className="mr-1 h-3 w-3" />
-                    {startDate ? format(startDate, "MM/dd/yy") : "Start"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <CalendarComponent
-                    mode="single"
-                    selected={startDate}
-                    onSelect={setStartDate}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-              <span className="hidden sm:inline text-sm">to</span>
-              <span className="inline sm:hidden text-xs">-</span>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className={cn(
-                      "w-auto p-4 justify-start text-left font-normal h-9",
-                      !endDate && "text-muted-foreground"
-                    )}
-                    aria-label="Select end date"
-                  >
-                    <Calendar className="mr-1 h-3 w-3" />
-                    {endDate ? format(endDate, "MM/dd/yy") : "End"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <CalendarComponent
-                    mode="single"
-                    selected={endDate}
-                    onSelect={setEndDate}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-              {(startDate || endDate) && (
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  onClick={() => {
-                    setStartDate(undefined);
-                    setEndDate(undefined);
-                  }}
-                  className="h-7 w-7"
-                  aria-label="Clear date selection"
-                >
-                  <span className="sr-only">Clear dates</span>
-                  <X className="h-3 w-3 text-muted-foreground" />
-                </Button>
-              )}
-            </div>
-          )}
-          {/* Sort certificates */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1 h-9"
-                aria-label="Sort certificates"
-              >
-                <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
-                <span className="hidden sm:inline ml-1">Sort</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Sort Certificates</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuGroup>
-                <DropdownMenuItem onClick={() => handleSortChange("date")}>
-                  <Calendar className="h-4 w-4 mr-2" aria-hidden="true" />
-                  <span>Date {sortBy === "date" && (sortDirection === "desc" ? "↓" : "↑")}</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleSortChange("hours")}>
-                  <Clock className="h-4 w-4 mr-2" aria-hidden="true" />
-                  <span>Hours {sortBy === "hours" && (sortDirection === "desc" ? "↓" : "↑")}</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleSortChange("name")}>
-                  <Award className="h-4 w-4 mr-2" aria-hidden="true" />
-                  <span>Project Name {sortBy === "name" && (sortDirection === "desc" ? "↓" : "↑")}</span>
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={printCertificates}
-            className="h-9"
-            aria-label="Print all certificates"
-          >
-            <Printer className="h-4 w-4" aria-hidden="true" />
-            <span className="hidden sm:inline ml-1">Print</span>
-          </Button>
-        </div>
-      </div>
-      
-      {/* Certificates Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {sortedCertificates.map((cert) => {
-          return (
-            <Link key={cert.id} href={`/certificates/${cert.id}`} passHref>
-              <Card className="group h-full cursor-pointer transition-all duration-300 hover:shadow-lg hover:border-primary/50 flex flex-col">
-                <CardHeader className="pb-3 relative">
-                  <div className="absolute right-4 top-4">
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger>
-                          <BadgeCheck className={`h-5 w-5 ${cert.is_certified ? 'text-primary' : 'text-muted-foreground/30'}`} />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>
-                            {cert.is_certified 
-                              ? "Certificate comes from a verified organization"
-                              : "Certificate does not come from a verified organization"
-                            }
-                          </p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-                  <CardTitle className="text-xl font-semibold leading-tight line-clamp-2 pr-8">
-                    {cert.project_title}
-                  </CardTitle>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2">
-                    {cert.organization_name && (
-                      <div className="flex items-center gap-2 max-w-full">
-                        <span className="truncate">{cert.organization_name}</span>
-                        <span className="text-muted-foreground/50">•</span>
-                      </div>
-                    )}
-                    <span className="shrink-0">{format(parseISO(cert.issued_at), "MMM d, yyyy")}</span>
-                  </div>
-                </CardHeader>
-                
-                <CardContent className="pb-4">
-                  <div className="flex flex-wrap gap-2">
-                    <Badge
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Date Range</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuGroup>
+                  <DropdownMenuItem onClick={() => setDateFilter('all')}>All</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setDateFilter('6months')}>Last 6 Months</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setDateFilter('year')}>Last Year</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setDateFilter('custom')}>Custom Range</DropdownMenuItem>
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            {dateFilter === 'custom' && (
+              <div className="flex flex-row flex-wrap items-center gap-1 sm:gap-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
                       variant="outline"
-                      className="bg-chart-4/5 border-chart-4/20 text-chart-4 hover:bg-chart-4/10 transition-colors"
+                      size="sm"
+                      className={cn(
+                        "w-auto p-4 justify-start text-left font-normal h-9",
+                        !startDate && "text-muted-foreground"
+                      )}
+                      aria-label="Select start date"
                     >
-                      <Clock className="h-3 w-3 mr-1" />
-                      {cert.hours} hours
-                    </Badge>
-                    {cert.is_certified && (
-                      <Badge 
-                        variant="outline" 
-                        className="bg-chart-5/5 border-chart-5/20 text-chart-5 hover:bg-chart-5/10 transition-colors"
-                      >
-                        <BadgeCheck className="h-3 w-3 mr-1" />
-                        Certified
-                      </Badge>
-                    )}
-                    {cert.project_location && (
-                      <Badge 
-                        variant="outline" 
-                        className="bg-muted/50 hover:bg-muted transition-colors"
-                      >
-                        <MapPin className="h-3 w-3 mr-1" />
-                        {cert.project_location}
-                      </Badge>
-                    )}
-                  </div>
-                </CardContent>
-                
-                <CardFooter className="mt-auto pt-3 pb-4 px-4 border-t">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="w-full justify-between"
+                      <Calendar className="mr-1 h-3 w-3" />
+                      {startDate ? format(startDate, "MM/dd/yy") : "Start"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                      mode="single"
+                      selected={startDate}
+                      onSelect={setStartDate}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+                <span className="hidden sm:inline text-sm">to</span>
+                <span className="inline sm:hidden text-xs">-</span>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className={cn(
+                        "w-auto p-4 justify-start text-left font-normal h-9",
+                        !endDate && "text-muted-foreground"
+                      )}
+                      aria-label="Select end date"
+                    >
+                      <Calendar className="mr-1 h-3 w-3" />
+                      {endDate ? format(endDate, "MM/dd/yy") : "End"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                      mode="single"
+                      selected={endDate}
+                      onSelect={setEndDate}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+                {(startDate || endDate) && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      setStartDate(undefined);
+                      setEndDate(undefined);
+                    }}
+                    className="h-7 w-7"
+                    aria-label="Clear date selection"
                   >
-                    <span>View Certificate</span>
-                    <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                    <span className="sr-only">Clear dates</span>
+                    <X className="h-3 w-3 text-muted-foreground" />
                   </Button>
-                </CardFooter>
-              </Card>
-            </Link>
-          );
-        })}
-      </div>
-      
-      {/* Show message if no results found */}
-      {filteredCertificates.length === 0 && (
-        <div className="text-center py-8">
-          <p className="text-muted-foreground">No certificates match your search.</p>
+                )}
+              </div>
+            )}
+            {/* Sort certificates */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1 h-9"
+                  aria-label="Sort certificates"
+                >
+                  <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
+                  <span className="hidden sm:inline ml-1">Sort</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Sort Certificates</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuGroup>
+                  <DropdownMenuItem onClick={() => handleSortChange("date")}>
+                    <Calendar className="h-4 w-4 mr-2" aria-hidden="true" />
+                    <span>Date {sortBy === "date" && (sortDirection === "desc" ? "↓" : "↑")}</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleSortChange("hours")}>
+                    <Clock className="h-4 w-4 mr-2" aria-hidden="true" />
+                    <span>Hours {sortBy === "hours" && (sortDirection === "desc" ? "↓" : "↑")}</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleSortChange("name")}>
+                    <Award className="h-4 w-4 mr-2" aria-hidden="true" />
+                    <span>Project Name {sortBy === "name" && (sortDirection === "desc" ? "↓" : "↑")}</span>
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={printCertificates}
+              className="h-9"
+              aria-label="Print all certificates"
+            >
+              <Printer className="h-4 w-4" aria-hidden="true" />
+              <span className="hidden sm:inline ml-1">Print</span>
+            </Button>
+          </div>
         </div>
-      )}
-    </div>
+
+        {/* Certificates Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {sortedCertificates.map((cert) => {
+            return (
+              <Link key={cert.id} href={`/certificates/${cert.id}`} passHref>
+                <Card className="group h-full cursor-pointer transition-all duration-300 hover:shadow-lg hover:border-primary/50 flex flex-col">
+                  <CardHeader className="pb-3 relative">
+                    <div className="absolute right-4 top-4">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <BadgeCheck className={`h-5 w-5 ${cert.is_certified ? 'text-primary' : 'text-muted-foreground/30'}`} />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>
+                              {cert.is_certified
+                                ? "Certificate comes from a verified organization"
+                                : "Certificate does not come from a verified organization"
+                              }
+                            </p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                    <CardTitle className="text-xl font-semibold leading-tight line-clamp-2 pr-8">
+                      {cert.project_title}
+                    </CardTitle>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2">
+                      {cert.organization_name && (
+                        <div className="flex items-center gap-2 max-w-full">
+                          <span className="truncate">{cert.organization_name}</span>
+                          <span className="text-muted-foreground/50">•</span>
+                        </div>
+                      )}
+                      <span className="shrink-0">{format(parseISO(cert.issued_at), "MMM d, yyyy")}</span>
+                    </div>
+                  </CardHeader>
+
+                  <CardContent className="pb-4">
+                    <div className="flex flex-wrap gap-2">
+                      <Badge
+                        variant="outline"
+                        className="bg-warning/5 border-warning/20 text-warning hover:bg-warning/10 transition-colors"
+                      >
+                        <Clock className="h-3 w-3 mr-1" />
+                        {cert.hours} hours
+                      </Badge>
+                      {cert.is_certified && (
+                        <Badge
+                          variant="outline"
+                          className="bg-success/5 border-success/20 text-success hover:bg-success/10 transition-colors"
+                        >
+                          <BadgeCheck className="h-3 w-3 mr-1" />
+                          Certified
+                        </Badge>
+                      )}
+                      {cert.project_location && (
+                        <Badge
+                          variant="outline"
+                          className="bg-muted/50 hover:bg-muted transition-colors"
+                        >
+                          <MapPin className="h-3 w-3 mr-1" />
+                          {cert.project_location}
+                        </Badge>
+                      )}
+                    </div>
+                  </CardContent>
+
+                  <CardFooter className="mt-auto pt-3 pb-4 px-4 border-t">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full justify-between"
+                    >
+                      <span>View Certificate</span>
+                      <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                    </Button>
+                  </CardFooter>
+                </Card>
+              </Link>
+            );
+          })}
+        </div>
+
+        {/* Show message if no results found */}
+        {filteredCertificates.length === 0 && (
+          <div className="text-center py-8">
+            <p className="text-muted-foreground">No certificates match your search.</p>
+          </div>
+        )}
+      </div>
     </>
   );
 }

@@ -225,7 +225,7 @@ function AuthenticationContent() {
               </div>
               <div>
                 <Button
-                  variant={isGoogleConnected ? "outline-solid" : "default"}
+                  variant={isGoogleConnected ? "outline" : "default"}
                   onClick={handleGoogleConnect}
                   disabled={isConnecting}
                   className="w-full sm:w-auto"

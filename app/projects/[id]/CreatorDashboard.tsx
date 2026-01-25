@@ -70,7 +70,7 @@ export default function CreatorDashboard({ project }: Props) {
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [timelineOpen, setTimelineOpen] = useState(false);
   const [qrCodeOpen, setQrCodeOpen] = useState(false);
-  
+
   // Calendar integration states
   const [showCalendarModal, setShowCalendarModal] = useState(false);
   const [isCalendarSynced, setIsCalendarSynced] = useState(!!project.creator_calendar_event_id);
@@ -123,7 +123,7 @@ export default function CreatorDashboard({ project }: Props) {
           toast.success("Project cancelled successfully.");
           toast.warning(
             notificationStatus?.error ||
-              "We couldn't queue cancellation emails. Please try again shortly."
+            "We couldn't queue cancellation emails. Please try again shortly."
           );
         }
         setShowCancelDialog(false);
@@ -185,7 +185,7 @@ export default function CreatorDashboard({ project }: Props) {
 
       // Extract emails from the signups
       const emails = signups
-        .map((signup: any) => {
+        .map((signup: { profiles: { email: string | null } | { email: string | null }[] }) => {
           const profile = Array.isArray(signup.profiles) ? signup.profiles[0] : signup.profiles;
           return profile?.email;
         })
@@ -204,7 +204,7 @@ export default function CreatorDashboard({ project }: Props) {
 
       // Open email client
       window.location.href = mailtoLink;
-      
+
       toast.success(`Opening email client with ${signups.length} volunteer emails`);
     } catch (_error) {
       console.error('Error fetching signups:', _error);
@@ -234,22 +234,22 @@ export default function CreatorDashboard({ project }: Props) {
       const { date, startTime } = project.schedule.oneTime;
       const [year, month, day] = date.split('-').map(Number);
       const [hours, minutes] = startTime.split(':').map(Number);
-      
+
       const sessionStart = new Date(year, month - 1, day, hours, minutes);
       const attendanceOpenTime = addHours(sessionStart, -2);
-      
+
       return !isBefore(now, attendanceOpenTime);
-    } 
+    }
     else if (project.event_type === "multiDay" && project.schedule.multiDay) {
       // Check if any session is within 2 hours of starting
       return project.schedule.multiDay.some(day => {
         const [year, month, dayNum] = day.date.split('-').map(Number);
-        
+
         return day.slots.some(slot => {
           const [hours, minutes] = slot.startTime.split(':').map(Number);
           const sessionStart = new Date(year, month - 1, dayNum, hours, minutes);
           const attendanceOpenTime = addHours(sessionStart, -2);
-          
+
           return !isBefore(now, attendanceOpenTime);
         });
       });
@@ -257,19 +257,19 @@ export default function CreatorDashboard({ project }: Props) {
     else if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
       const { date, roles } = project.schedule.sameDayMultiArea;
       const [year, month, day] = date.split('-').map(Number);
-      
+
       return roles.some(role => {
         const [hours, minutes] = role.startTime.split(':').map(Number);
         const sessionStart = new Date(year, month - 1, day, hours, minutes);
         const attendanceOpenTime = addHours(sessionStart, -2);
-        
+
         return !isBefore(now, attendanceOpenTime);
       });
     }
-    
+
     return false;
   }, [project]);
-  
+
   // --- Helper function to get the key used in the 'published' object ---
   const getPublishStateKey = (sessionId: string): string => {
     if (project.event_type === "oneTime" && sessionId === "oneTime") {
@@ -284,21 +284,21 @@ export default function CreatorDashboard({ project }: Props) {
         return dateKey ? `${dateKey}-${slotIndex}` : sessionId; // Fallback
       }
     } else if (project.event_type === "sameDayMultiArea") {
-       // For sameDayMultiArea, the session ID passed to this function might be role-${index}
-       // but the actual key in 'published' is the role name. We need the role name from the session list.
-       // This helper might need adjustment depending on where it's called, or we filter based on the session object directly.
-       // Let's assume the session object with the name is available where filtering happens.
-       // If called with just the ID like 'role-0', we need to look up the name.
-       const match = sessionId.match(/role-(\d+)/);
-       if (match && project.schedule.sameDayMultiArea?.roles) {
-         const roleIndex = parseInt(match[1], 10);
-         const roleName = project.schedule.sameDayMultiArea.roles[roleIndex]?.name;
-         return roleName || sessionId; // Use role name if found
-       }
-       // If the sessionId is already the role name (as used in HoursClient), return it directly
-       if (project.schedule.sameDayMultiArea?.roles.some(r => r.name === sessionId)) {
-         return sessionId;
-       }
+      // For sameDayMultiArea, the session ID passed to this function might be role-${index}
+      // but the actual key in 'published' is the role name. We need the role name from the session list.
+      // This helper might need adjustment depending on where it's called, or we filter based on the session object directly.
+      // Let's assume the session object with the name is available where filtering happens.
+      // If called with just the ID like 'role-0', we need to look up the name.
+      const match = sessionId.match(/role-(\d+)/);
+      if (match && project.schedule.sameDayMultiArea?.roles) {
+        const roleIndex = parseInt(match[1], 10);
+        const roleName = project.schedule.sameDayMultiArea.roles[roleIndex]?.name;
+        return roleName || sessionId; // Use role name if found
+      }
+      // If the sessionId is already the role name (as used in HoursClient), return it directly
+      if (project.schedule.sameDayMultiArea?.roles.some(r => r.name === sessionId)) {
+        return sessionId;
+      }
     }
     return sessionId; // Fallback
   };
@@ -412,7 +412,7 @@ export default function CreatorDashboard({ project }: Props) {
               <Users className="h-4 w-4" />
               Manage Signups
             </Button>
-            
+
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -444,16 +444,15 @@ export default function CreatorDashboard({ project }: Props) {
                   <span className="w-full sm:w-auto">
                     <Button
                       variant="outline"
-                      className={`w-full sm:w-auto flex items-center justify-center gap-2 ${
-                        isCalendarSynced 
-                          ? "bg-chart-5/10 hover:bg-chart-5/20 border-chart-5/80" 
-                          : ""
-                      }`}
+                      className={`w-full sm:w-auto flex items-center justify-center gap-2 ${isCalendarSynced
+                        ? "bg-success/10 hover:bg-success/20 border-success/80"
+                        : ""
+                        }`}
                       onClick={() => setShowCalendarModal(true)}
                     >
                       {isCalendarSynced ? (
                         <>
-                          <CalendarCheck className="h-4 w-4 text-chart-5" />
+                          <CalendarCheck className="h-4 w-4 text-success" />
                           Synced to Calendar
                         </>
                       ) : (
@@ -487,7 +486,7 @@ export default function CreatorDashboard({ project }: Props) {
                       <span className="w-full sm:w-auto">
                         <Button
                           variant="outline"
-                          className="w-full bg-chart-8/10 hover:bg-chart-8/20 border-chart-8/80 sm:w-auto flex items-center justify-center gap-2"
+                          className="w-full bg-primary/10 hover:bg-primary/20 border-primary/80 sm:w-auto flex items-center justify-center gap-2"
                           onClick={() => router.push(`/projects/${project.id}/hours`)}
                         >
                           <Clock className="h-4 w-4" />
@@ -511,7 +510,7 @@ export default function CreatorDashboard({ project }: Props) {
                           ))}
                         </ul>
                       )}
-                       <p className="text-xs mt-1 text-muted-foreground">Click to review/edit hours before publishing.</p>
+                      <p className="text-xs mt-1 text-muted-foreground">Click to review/edit hours before publishing.</p>
                     </TooltipContent>
                     {/* --- End Update --- */}
                   </Tooltip>
@@ -530,7 +529,7 @@ export default function CreatorDashboard({ project }: Props) {
                         variant="outline"
                         className={`w-full sm:w-auto flex items-center justify-center gap-2 ${
                           isAttendanceAvailable 
-                            ? "bg-chart-5/30 hover:bg-chart-5/20 border-chart-5/60" 
+                            ? "bg-success/30 hover:bg-success/20 border-success/60" 
                             : "opacity-70"
                         }`}
                         onClick={() => router.push(`/projects/${project.id}/attendance`)}
@@ -553,15 +552,14 @@ export default function CreatorDashboard({ project }: Props) {
               </TooltipProvider>
             )}  */}
             {/* Visual indicator for automatic check-in */}
-            
+
 
             {/* <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span className="w-full sm:w-auto">
                     <Button
-                      variant="destructive"
-                      className="w-full sm:w-auto flex items-center justify-center gap-2"
+                      className="w-full sm:w-auto flex items-center justify-center gap-2 bg-destructive/10 hover:bg-destructive/20 text-destructive"
                       onClick={() => setShowDeleteDialog(true)}
                       disabled={isDeleting || !canDelete || isInDeletionRestrictionPeriod}
                     >
@@ -593,9 +591,9 @@ export default function CreatorDashboard({ project }: Props) {
           {project.verification_method === 'signup-only' && !isCancelled && (
             <>
               {isStartingSoon && (
-                <Alert variant="default" className="border-chart-3/50 bg-chart-3/10 mt-4">
-                  <Info className="h-4 w-4 text-chart-3" />
-                  <AlertTitle className="text-chart-3">Event Starting Soon!</AlertTitle>
+                <Alert variant="default" className="border-info/50 bg-info/10 mt-4">
+                  <Info className="h-4 w-4 text-info" />
+                  <AlertTitle className="text-info">Event Starting Soon!</AlertTitle>
                   <AlertDescription>
                     Your signup-only event starts within 24 hours. Consider pausing signups if you&apos;re no longer accepting volunteers. You can also view or print the current signup list from the Manage Signups page.
                     <div className="mt-3 flex gap-2">
@@ -604,19 +602,19 @@ export default function CreatorDashboard({ project }: Props) {
                           <Pause className="h-4 w-4 mr-1.5" /> Pause/View Signups
                         </Link>
                       </Button>
-                       <Button variant="outline" size="sm" asChild>
-                         <Link href={`/projects/${project.id}/signups`}>
-                           <Printer className="h-4 w-4 mr-1.5" /> Print List
-                         </Link>
-                       </Button>
+                      <Button variant="outline" size="sm" asChild>
+                        <Link href={`/projects/${project.id}/signups`}>
+                          <Printer className="h-4 w-4 mr-1.5" /> Print List
+                        </Link>
+                      </Button>
                     </div>
                   </AlertDescription>
                 </Alert>
               )}
               {isInProgress && (
-                <Alert variant="default" className="border-chart-4/50 bg-chart-4/10 mt-4">
-                  <Info className="h-4 w-4 text-chart-4" />
-                  <AlertTitle className="text-chart-4">Event In Progress</AlertTitle>
+                <Alert variant="default" className="border-warning/50 bg-warning/10 mt-4">
+                  <Info className="h-4 w-4 text-warning" />
+                  <AlertTitle className="text-warning">Event In Progress</AlertTitle>
                   <AlertDescription>
                     Your signup-only event is currently ongoing based on the scheduled time.
                   </AlertDescription>
@@ -624,9 +622,9 @@ export default function CreatorDashboard({ project }: Props) {
               )}
               {/* --- MODIFIED: Signup-Only Completed Alert --- */}
               {isCompleted && ( // Condition already checks for completion
-                <Alert variant="default" className="border-chart-6/50 bg-chart-6/10 mt-4">
-                  <CheckCircle2 className="h-4 w-4 text-chart-6" />
-                  <AlertTitle className="text-chart-6">Event Completed</AlertTitle>
+                <Alert variant="default" className="border-success/50 bg-success/10 mt-4">
+                  <CheckCircle2 className="h-4 w-4 text-success" />
+                  <AlertTitle className="text-success">Event Completed</AlertTitle>
                   <AlertDescription>
                     {/* Use hasActiveUnpublishedSessions for conditional text */}
                     {hasActiveUnpublishedSessions
@@ -677,11 +675,11 @@ export default function CreatorDashboard({ project }: Props) {
           {(project.verification_method === 'qr-code' || project.verification_method === 'manual') && !isCancelled && (
             <>
               {isStartingSoon && !isCheckInOpen && ( // Show only if > 2 hours away
-                <Alert variant="default" className="border-chart-3/50 bg-chart-3/10 mt-4">
-                  <Info className="h-4 w-4 text-chart-3" />
-                  <AlertTitle className="text-chart-3">Event Starting Soon!</AlertTitle>
+                <Alert variant="default" className="border-info/50 bg-info/10 mt-4">
+                  <Info className="h-4 w-4 text-info" />
+                  <AlertTitle className="text-info">Event Starting Soon!</AlertTitle>
                   <AlertDescription>
-                    Your event starts within 24 hours. 
+                    Your event starts within 24 hours.
                     {project.verification_method === 'qr-code' && " QR codes for check-in will be available 2 hours before the start time."}
                     {project.verification_method === 'manual' && " Prepare for manual volunteer check-in."}
                     <div className="mt-3 flex gap-2">
@@ -723,9 +721,9 @@ export default function CreatorDashboard({ project }: Props) {
                 </Alert>
               )}
               {isInProgress && (
-                <Alert variant="default" className="border-chart-4/50 bg-chart-4/10 mt-4">
-                  <Info className="h-4 w-4 text-chart-4" />
-                  <AlertTitle className="text-chart-4">Event In Progress</AlertTitle>
+                <Alert variant="default" className="border-warning/50 bg-warning/10 mt-4">
+                  <Info className="h-4 w-4 text-warning" />
+                  <AlertTitle className="text-warning">Event In Progress</AlertTitle>
                   <AlertDescription>
                     Your event is currently ongoing. Manage check-ins and view attendance records.
                     <div className="mt-3 flex gap-2">
@@ -743,25 +741,25 @@ export default function CreatorDashboard({ project }: Props) {
                   </AlertDescription>
                 </Alert>
               )}
-                      {isCompleted && (project.verification_method === 'qr-code' || project.verification_method === 'manual') && !isCancelled && (
-                      <Alert
-                        variant="default"
-                        // Use hasActiveUnpublishedSessions for conditional styling
-                        className={`border-${hasActiveUnpublishedSessions ? "chart-3" : "chart-5"}/50 bg-${hasActiveUnpublishedSessions ? "chart-3" : "chart-5"}/10 mt-4`}
-                      >
-                        <CheckCircle2 className={`h-4 w-4 text-${hasActiveUnpublishedSessions ? "chart-3" : "chart-5"}`} />
-                        <AlertTitle className={`text-${hasActiveUnpublishedSessions ? "chart-3" : "chart-5"}`}>Event Completed</AlertTitle>
-                        <AlertDescription>
+              {isCompleted && (project.verification_method === 'qr-code' || project.verification_method === 'manual') && !isCancelled && (
+                <Alert
+                  variant="default"
+                  // Use hasActiveUnpublishedSessions for conditional styling
+                  className={`border-${hasActiveUnpublishedSessions ? "info" : "success"}/50 bg-${hasActiveUnpublishedSessions ? "info" : "success"}/10 mt-4`}
+                >
+                  <CheckCircle2 className={`h-4 w-4 text-${hasActiveUnpublishedSessions ? "info" : "success"}`} />
+                  <AlertTitle className={`text-${hasActiveUnpublishedSessions ? "info" : "success"}`}>Event Completed</AlertTitle>
+                  <AlertDescription>
                     {/* Use hasActiveUnpublishedSessions here */}
                     {hasActiveUnpublishedSessions
                       ? "Your event has finished. Please review, edit, and publish volunteer hours within 48 hours of the event end time to generate certificates. If you don't edit, hours will be published automatically."
                       : "Your event has finished, and the window for managing volunteer hours has closed or all sessions are published. You can still view the final attendance records."}
                     <div className="mt-3 flex gap-2 flex-wrap">
-                         <Button variant="outline" size="sm" asChild>
-                           <Link href={`/projects/${project.id}/attendance`}>
-                             <Users className="h-4 w-4 mr-1.5" /> View Attendance
-                           </Link>
-                         </Button>
+                      <Button variant="outline" size="sm" asChild>
+                        <Link href={`/projects/${project.id}/attendance`}>
+                          <Users className="h-4 w-4 mr-1.5" /> View Attendance
+                        </Link>
+                      </Button>
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -802,20 +800,20 @@ export default function CreatorDashboard({ project }: Props) {
           )}
           {/* Auto Check-in (Keep this separate as it has no hours management) */}
           {project.verification_method === 'auto' && !isCancelled && (
-             <Alert variant="default" className="border-chart-2/50 bg-chart-2/10 mt-4">
-               <Zap className="h-4 w-4 text-chart-2" />
-               <AlertTitle className="text-chart-2">Automatic Check-in Enabled</AlertTitle>
-               <AlertDescription>
-                 Volunteer check-in is automatic. Hours are recorded based on the schedule. Manual editing is not available for this project type.
-                 <div className="mt-3 flex gap-2">
-                   <Button variant="outline" size="sm" asChild disabled={!isAttendanceAvailable}>
-                     <Link href={`/projects/${project.id}/attendance`}>
-                       <Users className="h-4 w-4 mr-1.5" /> {isCompleted ? "View Final Attendance" : "Monitor Attendance"}
-                     </Link>
-                   </Button>
-                 </div>
-               </AlertDescription>
-             </Alert>
+            <Alert variant="default" className="border-secondary/50 bg-secondary/10 mt-4">
+              <Zap className="h-4 w-4 text-secondary" />
+              <AlertTitle className="text-secondary">Automatic Check-in Enabled</AlertTitle>
+              <AlertDescription>
+                Volunteer check-in is automatic. Hours are recorded based on the schedule. Manual editing is not available for this project type.
+                <div className="mt-3 flex gap-2">
+                  <Button variant="outline" size="sm" asChild disabled={!isAttendanceAvailable}>
+                    <Link href={`/projects/${project.id}/attendance`}>
+                      <Users className="h-4 w-4 mr-1.5" /> {isCompleted ? "View Final Attendance" : "Monitor Attendance"}
+                    </Link>
+                  </Button>
+                </div>
+              </AlertDescription>
+            </Alert>
           )}
           {/* --- End Conditional Alerts --- */}
 
@@ -827,7 +825,7 @@ export default function CreatorDashboard({ project }: Props) {
               <div className="text-sm text-muted-foreground space-y-2">
                 <p>
                   This project has been cancelled. You can still edit details and manage existing signups,
-                  but new signups are disabled and this project has been shut off. If this was a mistake, please contact <Link className="text-chart-3" href="mailto:support@lets-assist.com">support@lets-assist.com</Link>
+                  but new signups are disabled and this project has been shut off. If this was a mistake, please contact <Link className="text-primary hover:underline" href="mailto:support@lets-assist.com">support@lets-assist.com</Link>
                 </p>
                 {project.cancellation_reason && (
                   <p className="mt-1">
@@ -838,16 +836,16 @@ export default function CreatorDashboard({ project }: Props) {
             </div>
           ) : (
             <div className="flex flex-col sm:flex-row items-start gap-2 rounded-md border p-3 sm:p-4 bg-muted/50">
-              
+
               <div className="text-sm text-muted-foreground space-y-2">
-              <AlertCircle className="h-5 w-5 mr-2 text-muted-foreground inline shrink-0" />
+                <AlertCircle className="h-5 w-5 mr-2 text-muted-foreground inline shrink-0" />
                 <p className="inline">
                   As the project creator, you have full control over this project.
                   You can edit project details, manage volunteer signups, update
                   documents, and more.
                 </p>
                 {isInDeletionRestrictionPeriod && (
-                  <div className="mt-2 flex items-center text-chart-6">
+                  <div className="mt-2 flex items-center text-warning">
                     <AlertTriangle className="h-4 w-4 inline mr-2 shrink-0" />
                     <span className="inline">
                       Project deletion is restricted during the 72-hour window around the event (24 hours before until 48 hours after).
@@ -875,7 +873,7 @@ export default function CreatorDashboard({ project }: Props) {
             <AlertDialogCancel className="w-full sm:w-auto mt-0">Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteProject}
-              className="w-full sm:w-auto bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="w-full sm:w-auto bg-destructive/10 text-destructive hover:bg-destructive/20"
             >
               {isDeleting ? (
                 <>
@@ -899,12 +897,12 @@ export default function CreatorDashboard({ project }: Props) {
       />
 
       {/* Project Timeline */}
-      <ProjectTimeline 
-        project={project} 
-        open={timelineOpen} 
-        onOpenAction={setTimelineOpen} 
+      <ProjectTimeline
+        project={project}
+        open={timelineOpen}
+        onOpenAction={setTimelineOpen}
       />
-      
+
       {/* Add QR Code Modal - only for qr code method */}
       {project.verification_method === 'qr-code' && (
         <ProjectQRCodeModal

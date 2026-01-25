@@ -843,7 +843,7 @@ export default function ProjectDetails({
         {/* Confirmation Alert */}
         {showConfirmationAlert && (
           <Alert className="mb-6 border-primary/70 bg-primary/10">
-            <MailCheck className="h-5 w-5 text-chart-5" />
+            <MailCheck className="h-5 w-5 text-primary" />
             <AlertTitle className="font-semibold text-primary">
               Check Your Email
             </AlertTitle>
@@ -948,12 +948,12 @@ export default function ProjectDetails({
               </CardHeader>
               <CardContent>
                 {project.pause_signups && (
-                  <Alert className="bg-chart-4/15 border-chart-4/50 mb-4">
-                    <Pause className="h-4 w-4 text-chart-4" />
-                    <AlertTitle className="text-chart-4/90">
+                  <Alert className="bg-warning/15 border-warning/50 mb-4">
+                    <Pause className="h-4 w-4 text-warning" />
+                    <AlertTitle className="text-warning/90">
                       Signups are currently paused
                     </AlertTitle>
-                    <AlertDescription className="text-chart-4">
+                    <AlertDescription className="text-warning">
                       The project organizer has temporarily paused new volunteer signups. Please check back later or contact the organizer.
                     </AlertDescription>
                   </Alert>
@@ -1379,7 +1379,7 @@ export default function ProjectDetails({
                   </h3>
                   <div className="flex items-center gap-2 flex-wrap">
                     <Badge
-                      variant={project.require_login ? "secondary" : "outline-solid"}
+                      variant={project.require_login ? "secondary" : "outline"}
                       className="text-xs flex items-center gap-1"
                     >
                       {project.require_login ? (

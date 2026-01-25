@@ -15,7 +15,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogClose, DialogFooter 
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogClose, DialogFooter
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import {
@@ -74,10 +74,10 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
   const [_refreshing, _setRefreshing] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [sessionFilter, setSessionFilter] = useState<string>("all");
-  
+
   // State to track which sessions are currently being published
   const [publishingSessions, setPublishingSessions] = useState<Record<string, boolean>>({});
-  
+
   // Add state for confirmation dialog
   const [confirmPublishSessionId, setConfirmPublishSessionId] = useState<string | null>(null);
   const [confirmPublishCount, setConfirmPublishCount] = useState<number>(0);
@@ -85,9 +85,8 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
   // State for publish success modal
   const [showPublishSuccessModal, setShowPublishSuccessModal] = useState(false);
   const [currentPublishedSessionName, setCurrentPublishedSessionName] = useState<string>("");
-  const [emailsSentCount, setEmailsSentCount] = useState<number>(0);
   const [emailErrors, setEmailErrors] = useState<string[]>([]);
-  
+
   // State for certificates modal
   const [showCertificatesModal, setShowCertificatesModal] = useState(false);
   const [certificatesModalData, setCertificatesModalData] = useState<{
@@ -102,7 +101,7 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
     }>;
   } | null>(null);
   const [loadingCertificates, setLoadingCertificates] = useState(false);
-  
+
   // Log initial data for debugging
   useEffect(() => {
     console.log("HoursClient initialized with:", {
@@ -111,7 +110,7 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
       signupsCount: initialSignups.length,
       activeSessionsCount: activeSessions.length
     });
-    
+
     // Log the first few signups
     if (initialSignups.length > 0) {
       console.log("Sample signups:", initialSignups.slice(0, 3).map(s => ({
@@ -153,52 +152,52 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
   // - formatSessionName() -> Adapt from AttendanceClient or import
   // ---------------------------------
 
-   // Enhanced formatSessionName function
-   const formatSessionName = (proj: Project, sessionId: string): string => {
-     if (!proj) return sessionId; // Added missing return statement
-     
-     // One-time events
-     if (proj.event_type === "oneTime" && sessionId === "oneTime" && proj.schedule.oneTime) {
-       const date = parseISO(proj.schedule.oneTime.date);
-       const startTime = formatTimeTo12Hour(proj.schedule.oneTime.startTime);
-       const endTime = formatTimeTo12Hour(proj.schedule.oneTime.endTime);
-       return `${format(date, "MMMM d, yyyy")} (${startTime} - ${endTime})`;
-     }
-     
-     // Multi-day events
-     if (proj.event_type === "multiDay" && sessionId.startsWith("day-") && proj.schedule.multiDay) {
-       const parts = sessionId.split('-');
-       if (parts.length >= 4) {
-         const dayIndex = parseInt(parts[1], 10);
-         const slotIndex = parseInt(parts[3], 10);
-         
-         if (proj.schedule.multiDay[dayIndex] && proj.schedule.multiDay[dayIndex].slots[slotIndex]) {
-           const day = proj.schedule.multiDay[dayIndex];
-           const slot = day.slots[slotIndex];
-           const date = parseISO(day.date);
-           const startTime = formatTimeTo12Hour(slot.startTime);
-           const endTime = formatTimeTo12Hour(slot.endTime);
-           
-           return `${format(date, "MMMM d, yyyy")} (${startTime} - ${endTime})`;
-         }
-       }
-     }
-     
-     // Same-day multi-area events
-     if (proj.event_type === "sameDayMultiArea" && sessionId.startsWith("role-") && proj.schedule.sameDayMultiArea) {
-       const roleIndex = parseInt(sessionId.split('-')[1], 10);
-       if (proj.schedule.sameDayMultiArea.roles[roleIndex]) {
-         const role = proj.schedule.sameDayMultiArea.roles[roleIndex];
-         const date = parseISO(proj.schedule.sameDayMultiArea.date);
-         const startTime = formatTimeTo12Hour(role.startTime);
-         const endTime = formatTimeTo12Hour(role.endTime);
-         
-         return `${format(date, "MMMM d, yyyy")} - ${role.name} (${startTime} - ${endTime})`;
-       }
-     }
-     
-     return sessionId; // Fallback if no formatting rules matched
-   };
+  // Enhanced formatSessionName function
+  const formatSessionName = (proj: Project, sessionId: string): string => {
+    if (!proj) return sessionId; // Added missing return statement
+
+    // One-time events
+    if (proj.event_type === "oneTime" && sessionId === "oneTime" && proj.schedule.oneTime) {
+      const date = parseISO(proj.schedule.oneTime.date);
+      const startTime = formatTimeTo12Hour(proj.schedule.oneTime.startTime);
+      const endTime = formatTimeTo12Hour(proj.schedule.oneTime.endTime);
+      return `${format(date, "MMMM d, yyyy")} (${startTime} - ${endTime})`;
+    }
+
+    // Multi-day events
+    if (proj.event_type === "multiDay" && sessionId.startsWith("day-") && proj.schedule.multiDay) {
+      const parts = sessionId.split('-');
+      if (parts.length >= 4) {
+        const dayIndex = parseInt(parts[1], 10);
+        const slotIndex = parseInt(parts[3], 10);
+
+        if (proj.schedule.multiDay[dayIndex] && proj.schedule.multiDay[dayIndex].slots[slotIndex]) {
+          const day = proj.schedule.multiDay[dayIndex];
+          const slot = day.slots[slotIndex];
+          const date = parseISO(day.date);
+          const startTime = formatTimeTo12Hour(slot.startTime);
+          const endTime = formatTimeTo12Hour(slot.endTime);
+
+          return `${format(date, "MMMM d, yyyy")} (${startTime} - ${endTime})`;
+        }
+      }
+    }
+
+    // Same-day multi-area events
+    if (proj.event_type === "sameDayMultiArea" && sessionId.startsWith("role-") && proj.schedule.sameDayMultiArea) {
+      const roleIndex = parseInt(sessionId.split('-')[1], 10);
+      if (proj.schedule.sameDayMultiArea.roles[roleIndex]) {
+        const role = proj.schedule.sameDayMultiArea.roles[roleIndex];
+        const date = parseISO(proj.schedule.sameDayMultiArea.date);
+        const startTime = formatTimeTo12Hour(role.startTime);
+        const endTime = formatTimeTo12Hour(role.endTime);
+
+        return `${format(date, "MMMM d, yyyy")} - ${role.name} (${startTime} - ${endTime})`;
+      }
+    }
+
+    return sessionId; // Fallback if no formatting rules matched
+  };
 
   // Enhanced duration calculation with validation
   const calculateDuration = (checkInISO: string | null, checkOutISO: string | null): {
@@ -209,36 +208,36 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
     if (!checkInISO || !checkOutISO) {
       return { text: '--:--', isValid: false, minutes: 0 };
     }
-    
+
     try {
       const checkIn = parseISO(checkInISO);
       const checkOut = parseISO(checkOutISO);
-      
+
       // Calculate difference in seconds and convert to minutes with rounding
       const diffSeconds = differenceInSeconds(checkOut, checkIn);
       const diffMins = Math.round(diffSeconds / 60);
-      
+
       // Various validation checks
       if (diffMins < 0) {
         return { text: 'Invalid: Check-out before check-in', isValid: false, minutes: 0 };
       }
-      
+
       // Check for unreasonably long duration (more than 24 hours)
       if (diffMins > 24 * 60) {
-        return { 
-          text: `${Math.floor(diffMins / 60)}h ${diffMins % 60}m (Excessive)`, 
-          isValid: false, 
-          minutes: diffMins 
+        return {
+          text: `${Math.floor(diffMins / 60)}h ${diffMins % 60}m (Excessive)`,
+          isValid: false,
+          minutes: diffMins
         };
       }
-      
+
       // Valid duration
       const hours = Math.floor(diffMins / 60);
       const minutes = diffMins % 60;
-      return { 
-        text: `${hours}h ${minutes}m`, 
-        isValid: true, 
-        minutes: diffMins 
+      return {
+        text: `${hours}h ${minutes}m`,
+        isValid: true,
+        minutes: diffMins
       };
     } catch {
       return { text: 'Error parsing dates', isValid: false, minutes: 0 };
@@ -250,13 +249,13 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
     // Get existing date from the current value
     const currentValue = editedTimes[signupId]?.[field];
     const date = currentValue ? new Date(currentValue) : new Date();
-    
+
     // Parse the new time string (format: "HH:mm")
     const [hours, minutes] = timeStr.split(':').map(Number);
-    
+
     // Update just the time portion of the date
     date.setHours(hours, minutes);
-    
+
     setEditedTimes(prev => ({
       ...prev,
       [signupId]: {
@@ -273,7 +272,7 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
       // Find all signups for this session
       let sessionSignups: ProjectSignup[] = [];
       const allSessions = getAllProjectSessions;
-      
+
       // Try exact match first
       if (signupsBySession[sessionId]) {
         sessionSignups = signupsBySession[sessionId];
@@ -338,7 +337,7 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
     // Find all signups for this session to show count in confirmation
     let sessionSignups: ProjectSignup[] = [];
     const allSessions = getAllProjectSessions; // Ensure getAllProjectSessions is in scope
-    
+
     // Try exact match first
     if (signupsBySession[sessionId]) {
       sessionSignups = signupsBySession[sessionId];
@@ -354,14 +353,14 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
         }
       }
     }
-    
+
     // Count valid volunteers
     const validVolunteers = sessionSignups.filter(signup => {
       const edit = editedTimes[signup.id] || { check_in_time: null, check_out_time: null };
       const duration = calculateDuration(edit.check_in_time, edit.check_out_time);
       return duration.isValid && edit.check_in_time && edit.check_out_time;
     });
-    
+
     // Set state for confirmation dialog
     setConfirmPublishCount(validVolunteers.length);
     setConfirmPublishSessionId(sessionId);
@@ -371,12 +370,12 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
   const handlePublishHours = async (sessionId: string) => {
     // Close the confirmation dialog
     setConfirmPublishSessionId(null);
-    
+
     setPublishingSessions((prev: Record<string, boolean>) => ({ // Added type for prev
       ...prev,
       [sessionId]: true
     }));
-    
+
     try {
       // Find all signups for this session
       let sessionSignups: ProjectSignup[] = [];
@@ -421,9 +420,9 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
             isValid: duration.isValid,
           };
         })
-        .filter(v => v !== null && v.isValid) as { 
-            signupId: string; userId: string | null; name: string | null; email: string | null; 
-            checkIn: string; checkOut: string; durationMinutes: number; isValid: boolean; 
+        .filter(v => v !== null && v.isValid) as {
+          signupId: string; userId: string | null; name: string | null; email: string | null;
+          checkIn: string; checkOut: string; durationMinutes: number; isValid: boolean;
         }[]; // Type assertion
 
       if (volunteersData.length === 0) {
@@ -438,7 +437,7 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
       if (result.success) {
         const emailsSent = result.emailsSent ?? 0;
         const emailErrors = result.emailErrors ?? [];
-        
+
         if (emailsSent > 0) {
           toast.success("Hours Published & Emails Sent!", {
             description: `${result.certificatesCreated} certificates generated and ${emailsSent} email notifications sent for session: ${formatSessionName(project, sessionId)}.`,
@@ -448,14 +447,14 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
             description: `${result.certificatesCreated} certificates generated for session: ${formatSessionName(project, sessionId)}. ${emailErrors.length > 0 ? 'However, some email notifications failed to send.' : 'Email notifications were not sent.'}`,
           });
         }
-        
+
         // Update published status locally
         const publishKey = getPublishStateKey(sessionId); // Ensure getPublishStateKey is in scope
         setPublishedSessions((prev: Record<string, boolean>) => ({ ...prev, [publishKey]: true })); // Corrected to setPublishedSessions and added type for prev
 
         // Prepare for success modal with updated information
         setCurrentPublishedSessionName(formatSessionName(project, sessionId));
-        
+
         // Store email sent information for the modal
         setEmailsSentCount(emailsSent);
         setEmailErrors(emailErrors);
@@ -486,16 +485,16 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
       if ((record.status === 'attended' || record.status === 'approved') && record.check_in_time) {
         // Make sure we have a valid schedule_id
         const scheduleId = record.schedule_id || 'unknown';
-         
+
         if (!acc[scheduleId]) {
           acc[scheduleId] = [];
         }
         acc[scheduleId].push(record);
-        
+
         // For debugging purposes, log the first few records
         if (acc[scheduleId].length <= 2) {
-          console.log(`Signup in session ${scheduleId}:`, { 
-            id: record.id, 
+          console.log(`Signup in session ${scheduleId}:`, {
+            id: record.id,
             name: record.profile?.full_name || record.anonymous_signup?.name,
             checkIn: record.check_in_time,
             checkOut: record.check_out_time
@@ -524,11 +523,11 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
         const matchingSignups = sessionSignups.filter(record => {
           // --- CORRECTED ACCESS ---
           const nameMatch = record.user_id
-            ? (record.profile?.full_name?.toLowerCase().includes(searchLower) || false) 
-            : (record.anonymous_signup?.name?.toLowerCase().includes(searchLower) || false); 
+            ? (record.profile?.full_name?.toLowerCase().includes(searchLower) || false)
+            : (record.anonymous_signup?.name?.toLowerCase().includes(searchLower) || false);
           const emailMatch = record.user_id
-            ? (record.profile?.email?.toLowerCase().includes(searchLower) || false) 
-            : (record.anonymous_signup?.email?.toLowerCase().includes(searchLower) || false); 
+            ? (record.profile?.email?.toLowerCase().includes(searchLower) || false)
+            : (record.anonymous_signup?.email?.toLowerCase().includes(searchLower) || false);
           // --- END CORRECTION ---
           return nameMatch || emailMatch;
         });
@@ -538,17 +537,17 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
       });
     }
     // Basic sort by name for now
-     Object.keys(filtered).forEach(session => {
-       if (filtered[session]) { // Add null check for filtered[session]
+    Object.keys(filtered).forEach(session => {
+      if (filtered[session]) { // Add null check for filtered[session]
         filtered[session].sort((a, b) => {
-         // --- CORRECTED ACCESS ---
-         const nameA = (a.user_id ? a.profile?.full_name : a.anonymous_signup?.name) || ''; 
-         const nameB = (b.user_id ? b.profile?.full_name : b.anonymous_signup?.name) || ''; 
-         // --- END CORRECTION ---
-         return nameA.localeCompare(nameB);
-       });
-       }
-     });
+          // --- CORRECTED ACCESS ---
+          const nameA = (a.user_id ? a.profile?.full_name : a.anonymous_signup?.name) || '';
+          const nameB = (b.user_id ? b.profile?.full_name : b.anonymous_signup?.name) || '';
+          // --- END CORRECTION ---
+          return nameA.localeCompare(nameB);
+        });
+      }
+    });
 
     return filtered;
   }, [signupsBySession, searchTerm, sessionFilter]);
@@ -557,12 +556,12 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
   const getAllProjectSessions = useMemo(() => {
     const sessions: { id: string; name: string; endDateTime: Date; status: 'upcoming' | 'in-progress' | 'completed' | 'editing'; alternativeIds: string[] }[] = [];
     const now = new Date();
-    
+
     if (project.event_type === "oneTime" && project.schedule.oneTime) {
       const date = parseISO(project.schedule.oneTime.date);
       const [endHours, endMinutes] = project.schedule.oneTime.endTime.split(':').map(Number);
       const endDateTime = new Date(new Date(date).setHours(endHours, endMinutes));
-      
+
       // Determine status
       let status: 'upcoming' | 'in-progress' | 'completed' | 'editing' = 'upcoming';
       if (isAfter(now, endDateTime)) {
@@ -580,7 +579,7 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
           status = 'in-progress';
         }
       }
-      
+
       sessions.push({
         id: "oneTime",
         name: formatSessionName(project, "oneTime"),
@@ -589,16 +588,16 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
         alternativeIds: ["0", "oneTime", "default"]
       });
     }
-    
+
     else if (project.event_type === "multiDay" && project.schedule.multiDay) {
       project.schedule.multiDay.forEach((day, dayIndex) => {
         const dayDate = parseISO(day.date);
-        
+
         day.slots.forEach((slot, slotIndex) => {
           const sessionId = `day-${dayIndex}-slot-${slotIndex}`;
           const [endHours, endMinutes] = slot.endTime.split(':').map(Number);
           const endDateTime = new Date(new Date(dayDate).setHours(endHours, endMinutes));
-          
+
           // Determine status
           let status: 'upcoming' | 'in-progress' | 'completed' | 'editing' = 'upcoming';
           if (isAfter(now, endDateTime)) {
@@ -616,12 +615,12 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
               status = 'in-progress';
             }
           }
-          
+
           // Create alternative IDs that might be used in the database
           const simplifiedId = `${dayIndex}-${slotIndex}`;
           const dateString = format(dayDate, "yyyy-MM-dd");
           const dateBasedId = `${dateString}-${slotIndex}`;
-          
+
           sessions.push({
             id: sessionId,
             name: formatSessionName(project, sessionId),
@@ -632,17 +631,17 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
         });
       });
     }
-    
+
     else if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
       const date = parseISO(project.schedule.sameDayMultiArea.date);
-      
+
       project.schedule.sameDayMultiArea.roles.forEach((role) => {
         const [endHours, endMinutes] = role.endTime.split(':').map(Number);
         const endDateTime = new Date(new Date(date).setHours(endHours, endMinutes));
-        
+
         // Use role name directly as the session ID
         const sessionId = role.name;
-        
+
         // Determine status
         let status: 'upcoming' | 'in-progress' | 'completed' | 'editing' = 'upcoming';
         if (isAfter(now, endDateTime)) {
@@ -659,7 +658,7 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
             status = 'in-progress';
           }
         }
-        
+
         sessions.push({
           id: sessionId, // Use role name as ID
           name: formatSessionName(project, sessionId),
@@ -669,14 +668,14 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
         });
       });
     }
-    
+
     // Log session IDs for debugging 
-    console.log("All possible project sessions:", sessions.map(s => ({ 
-      id: s.id, 
+    console.log("All possible project sessions:", sessions.map(s => ({
+      id: s.id,
       status: s.status,
-      alternativeIds: s.alternativeIds 
+      alternativeIds: s.alternativeIds
     })));
-    
+
     return sessions;
   }, [project]);
 
@@ -692,11 +691,11 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
       [sessionId]: true
     }));
     const allSessions = getAllProjectSessions; // Ensure getAllProjectSessions is in scope
-    
+
     try {
       // Get all signups for this session
       let sessionSignups: ProjectSignup[] = [];
-      
+
       // First try exact match
       if (signupsBySession[sessionId]) {
         sessionSignups = signupsBySession[sessionId];
@@ -713,52 +712,52 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
           }
         }
       }
-      
+
       if (sessionSignups.length === 0) {
         toast.error("No volunteers found for this session.");
         return;
       }
-      
+
       // Apply the adjustment to all signups in the session
       const newEditedTimes = { ...editedTimes };
       let successCount = 0;
-      
+
       sessionSignups.forEach(signup => {
         const currentCheckOut = editedTimes[signup.id]?.check_out_time;
-        
+
         if (currentCheckOut) {
           // Create a date object from the current checkout time
           const checkOutDate = new Date(currentCheckOut);
-          
+
           // Add the specified minutes
           checkOutDate.setMinutes(checkOutDate.getMinutes() + minutes);
-          
+
           // Update the edited times
           newEditedTimes[signup.id] = {
             ...newEditedTimes[signup.id],
             check_out_time: checkOutDate.toISOString()
           };
-          
+
           successCount++;
         }
       });
-      
+
       // Update state with new times
       setEditedTimes(newEditedTimes);
-      
+
       // Show success message
       if (successCount > 0) {
         toast.success(`Successfully adjusted ${successCount} volunteer${successCount !== 1 ? 's' : ''} by ${minutes} minutes.`);
       } else {
         toast.warning("No checkout times were adjusted. Make sure volunteers have check-out times set.");
       }
-      
+
       // Close the batch adjustment UI
       setShowBatchAdjustment(prev => ({
         ...prev,
         [sessionId]: false
       }));
-      
+
     } catch (error) {
       console.error("Error applying batch adjustment:", error);
       toast.error("Failed to apply time adjustment.");
@@ -815,7 +814,7 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
   const activeUnpublishedSessions = useMemo(() => {
     // First get all sessions in editing status from getAllProjectSessions
     const editingSessions = getAllProjectSessions.filter(session => session.status === 'editing');
-    
+
     // Then filter out published sessions and add hoursRemaining calculation
     return editingSessions
       .filter(session => !isSessionPublished(session.id))
@@ -824,7 +823,7 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
         const now = new Date();
         const hoursSinceEnd = differenceInMinutes(now, session.endDateTime) / 60;
         const hoursRemaining = Math.max(0, 48 - hoursSinceEnd);
-        
+
         return {
           ...session,
           hoursRemaining: Math.floor(hoursRemaining)
@@ -856,66 +855,52 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="flex flex-col gap-3">
-              <div className="flex items-center gap-2 p-3 rounded-md bg-chart-5/10 border border-chart-5/80">
-                <CheckCircle className="h-5 w-5 text-chart-5" />
-                <div className="text-sm">
-                  <p className="font-medium">Certificates Created</p>
-                  <p className="text-muted-foreground">Generated certificates for all volunteers</p>
-                </div>
+              <div className="flex items-center gap-2 p-3 rounded-md bg-success/10 border border-success/80">
+                <CheckCircle className="h-5 w-5 text-success" />
+                <span className="text-sm font-medium">Volunteers: {certificatesModalData?.volunteers.length}</span>
               </div>
-              
-              {emailsSentCount > 0 ? (
-                <div className="flex items-center gap-2 p-3 rounded-md bg-chart-3/10 border border-chart-3/80">
-                  <Mail className="h-5 w-5 text-chart-3" />
-                  <div className="text-sm">
-                    <p className="font-medium">Email Notifications Sent</p>
-                    <p className="text-muted-foreground">
-                      Sent {emailsSentCount} email notification{emailsSentCount !== 1 ? 's' : ''} to volunteers with their certificate links
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2 p-3 rounded-md bg-orange-50 border border-orange-200">
-                  <AlertCircle className="h-5 w-5 text-orange-600" />
-                  <div className="text-sm">
-                    <p className="font-medium text-orange-800">Email Notifications</p>
-                    <p className="text-orange-600">
-                      {emailErrors.length > 0 
-                        ? "Some email notifications failed to send" 
-                        : "No email notifications were sent (missing email addresses)"}
-                    </p>
-                  </div>
-                </div>
-              )}
             </div>
 
-            {emailErrors.length > 0 && (
-              <div className="mt-4">
-                <details className="text-sm">
-                  <summary className="cursor-pointer text-orange-600 font-medium mb-2">
-                    View Email Errors ({emailErrors.length})
-                  </summary>
-                  <div className="bg-orange-50 border border-orange-200 rounded p-2 max-h-32 overflow-y-auto">
-                    {emailErrors.map((error, index) => (
-                      <p key={index} className="text-xs text-orange-700 mb-1">{error}</p>
-                    ))}
-                  </div>
-                </details>
+            <DialogDescription>
+              This will generate PDF certificates for {certificatesModalData?.volunteers.length} volunteer(s) and send them via email.
+              <br />
+              <div className="mt-4 p-3 bg-muted rounded-md text-xs text-muted-foreground border">
+                <div className="flex items-center gap-2 mb-2 font-semibold">
+                  <Info className="h-4 w-4" />
+                  Verification Info
+                </div>
+                All certificates will include a unique verification code that can be validated at:
+                <span className="block font-mono mt-1 select-all bg-background p-1 rounded border">
+                  https://letsassist.org/verify
+                </span>
               </div>
-            )}
-            
-            <Alert variant="default" className="mt-4">
-              <Info className="h-4 w-4" />
-              <AlertTitle className="font-semibold">What happens next?</AlertTitle>
-              <AlertDescription className="text-xs space-y-1">
-                <ul className="list-disc pl-5 space-y-0.5 mt-2">
-                  <li><strong>Volunteers with accounts:</strong> Can access certificates via their profile or the project page</li>
-                  <li><strong>Anonymous volunteers:</strong> Will receive email notifications with direct certificate links</li>
-                  <li><strong>All certificates:</strong> Are now permanently available and can be verified at any time</li>
-                </ul>
-                <p className="mt-2">If volunteers need help accessing their certificates, direct them to contact you or support@lets-assist.com</p>
-              </AlertDescription>
-            </Alert>
+
+              {/* Add warning about missing emails if any (logic could be added here) */}
+              <div className="flex items-center gap-2 p-3 rounded-md bg-info/10 border border-info/80">
+                <Mail className="h-5 w-5 text-info" />
+                <div className="text-sm">
+                  <p className="font-medium text-orange-800">Email Notifications</p>
+                  <p className="text-orange-600">
+                    {emailErrors.length > 0
+                      ? "Some email notifications failed to send"
+                      : "No email notifications were sent (missing email addresses)"}
+                  </p>
+                </div>
+              </div>
+
+              <Alert variant="default" className="mt-4">
+                <Info className="h-4 w-4" />
+                <AlertTitle className="font-semibold">What happens next?</AlertTitle>
+                <AlertDescription className="text-xs space-y-1">
+                  <ul className="list-disc pl-5 space-y-0.5 mt-2">
+                    <li><strong>Volunteers with accounts:</strong> Can access certificates via their profile or the project page</li>
+                    <li><strong>Anonymous volunteers:</strong> Will receive email notifications with direct certificate links</li>
+                    <li><strong>All certificates:</strong> Are now permanently available and can be verified at any time</li>
+                  </ul>
+                  <p className="mt-2">If volunteers need help accessing their certificates, direct them to contact you or support@lets-assist.com</p>
+                </AlertDescription>
+              </Alert>
+            </DialogDescription>
           </div>
           <DialogFooter>
             <DialogClose asChild>
@@ -930,32 +915,32 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle className="text-xl flex items-center">
-              <AlertCircle className="h-5 w-5 text-chart-4 mr-2" />
+              <AlertCircle className="h-5 w-5 text-warning mr-2" />
               Publish Volunteer Hours
             </DialogTitle>
             <DialogDescription className="pt-2">
-              You are about to publish volunteer hours and generate official certificates 
+              You are about to publish volunteer hours and generate official certificates
               for <strong>{confirmPublishCount}</strong> volunteer{confirmPublishCount !== 1 ? 's' : ''}.
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="my-2 p-3 border rounded-md bg-muted/50">
-            <p className="text-sm text-chart-4 font-medium">Important:</p>
+            <p className="text-sm text-warning font-medium">Important:</p>
             <p className="text-sm mt-1">
-              This action is final. Once published, these hours cannot be modified. 
+              This action is final. Once published, these hours cannot be modified.
               Volunteers will have access to their certificates immediately.
             </p>
           </div>
-          
+
           <p className="text-sm text-muted-foreground">
             For any changes after publishing, you&apos;ll need to contact support at <a href="mailto:support@lets-assist.com" className="text-primary underline">support@lets-assist.com</a>
           </p>
-          
+
           <DialogFooter className="gap-2 mt-4">
             <DialogClose asChild>
               <Button variant="outline">Cancel</Button>
             </DialogClose>
-            <Button 
+            <Button
               onClick={() => confirmPublishSessionId && handlePublishHours(confirmPublishSessionId)}
               variant="default"
             >
@@ -984,7 +969,7 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
               )}
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="flex-1 overflow-hidden flex flex-col min-h-0">
             {certificatesModalData ? (
               <div className="flex flex-col h-full space-y-4">
@@ -1035,7 +1020,7 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
                     </TableBody>
                   </Table>
                 </div>
-                
+
                 {certificatesModalData.volunteers.length > 0 && (
                   <div className="shrink-0 bg-muted/30 rounded-md p-4">
                     <p className="text-sm font-medium mb-2">Summary:</p>
@@ -1082,7 +1067,7 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
               </div>
             )}
           </div>
-          
+
           <DialogFooter className="shrink-0 gap-2 flex-col sm:flex-row mt-4">
             <DialogClose asChild>
               <Button variant="outline" className="w-full sm:w-auto">Close</Button>
@@ -1090,7 +1075,7 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      
+
       <Card className="min-h-[400px] relative">
         {loading && (
           <div className="absolute inset-0 flex items-center justify-center z-10 bg-background/50">
@@ -1109,42 +1094,46 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
               </CardDescription>
             </div>
           </div>
-          
+
           {/* Display active session information - ONLY if there are active UNPUBLISHED sessions */}
           {activeUnpublishedSessions.length > 0 && (
-            <div className="mt-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Edit className="h-4 w-4 text-chart-4" aria-hidden="true" />
-                <span className="text-sm sm:text-base font-semibold text-chart-4">Editing Windows Open</span>
+            <div className="space-y-4">
+              <div className="mt-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Edit className="h-4 w-4 text-warning" aria-hidden="true" />
+                  <span className="text-sm sm:text-base font-semibold text-warning">Editing Windows Open</span>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  You have active sessions that can still be edited.
+                </p>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                {/* Map over the filtered list */}
                 {activeUnpublishedSessions.map(session => (
-                  <div
+                  <button
                     key={session.id}
-                    className="flex flex-col gap-1 p-3 sm:p-4 rounded-xl border border-chart-4/30 bg-linear-to-br from-chart-4/10 to-white/80 dark:to-background shadow-xs transition hover:shadow-lg"
-                    aria-label={`Editing window for ${session.name}`}
+                    onClick={() => setSessionFilter(session.id)}
+                    className="flex flex-col gap-1 p-3 sm:p-4 rounded-xl border border-warning/30 bg-linear-to-br from-warning/10 to-white/80 dark:to-background shadow-xs transition hover:shadow-lg"
                   >
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-sm text-chart-4 line-clamp-1">{session.name}</span>
-                  </div>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Clock
-                      className="h-3.5 w-3.5 text-chart-4 animate-spin"
-                      style={{ animationDuration: "8s" }}
-                      aria-hidden="true"
-                    />
-                    <span className="text-xs text-muted-foreground">
-                      <span className="font-semibold text-chart-4">{session.hoursRemaining}h</span> left to edit
-                    </span>
-                  </div>
-                </div>
+                    <div className="flex items-center justify-between w-full">
+                      <span className="font-medium text-sm text-warning line-clamp-1">{session.name}</span>
+                      {publishingSessions[session.id] ? (
+                        <Loader2
+                          className="h-3.5 w-3.5 text-warning animate-spin"
+                        />
+                      ) : (
+                        <Clock className="h-3.5 w-3.5 text-warning/70" />
+                      )}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                      <span className="font-semibold text-warning">{session.hoursRemaining}h</span> left to edit
+                    </div>
+                  </button>
                 ))}
               </div>
             </div>
           )}
         </CardHeader>
-        
+
         <CardContent className="space-y-4 sm:space-y-6 px-3 sm:px-6">
           {/* Search and Filter */}
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center justify-between">
@@ -1166,7 +1155,7 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Sessions</SelectItem>
-                    
+
                     {/* Group sessions by status */}
                     {getAllProjectSessions.filter(s => s.status === 'editing').length > 0 && (
                       <>
@@ -1182,7 +1171,7 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
                           ))}
                       </>
                     )}
-                    
+
                     {getAllProjectSessions.filter(s => s.status === 'in-progress').length > 0 && (
                       <>
                         <SelectItem value="header-in-progress" disabled className="text-xs font-semibold opacity-70">
@@ -1197,7 +1186,7 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
                           ))}
                       </>
                     )}
-                    
+
                     {getAllProjectSessions.filter(s => s.status === 'upcoming').length > 0 && (
                       <>
                         <SelectItem value="header-upcoming" disabled className="text-xs font-semibold opacity-70">
@@ -1208,12 +1197,12 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
                           .map(session => (
                             <SelectItem key={`upcoming-${session.id}`} value={session.id} className="pl-6">
                               {session.name}
-                              
+
                             </SelectItem>
                           ))}
                       </>
                     )}
-                    
+
                     {getAllProjectSessions.filter(s => s.status === 'completed').length > 0 && (
                       <>
                         <SelectItem value="header-completed" disabled className="text-xs font-semibold opacity-70">
@@ -1239,7 +1228,7 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
             // Find signups for this session by checking both exact ID and alternative IDs
             let sessionSignups: ProjectSignup[] = [];
             const currentFilteredSignups = filteredSignupsBySession; // Ensure filteredSignupsBySession is in scope
-            
+
             // Try exact match first
             if (currentFilteredSignups[session.id]) {
               sessionSignups = currentFilteredSignups[session.id];
@@ -1253,12 +1242,12 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
                 }
               }
             }
-            
+
             // For debugging
             if (sessionSignups.length > 0) {
               console.log(`Session ${session.id} has ${sessionSignups.length} signups`);
             }
-            
+
             const hasSignups = sessionSignups.length > 0;
             const isPublishing = publishingSessions[session.id] || false;
             // --- Use the isSessionPublished function ---
@@ -1269,13 +1258,13 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
               const duration = calculateDuration(edit.check_in_time, edit.check_out_time);
               return !duration.isValid;
             });
-            
+
             // Check if any volunteer in this session has valid hours data
             const hasValidHoursData = hasSignups && sessionSignups.some(signup => {
               const edit = editedTimes[signup.id] || { check_in_time: null, check_out_time: null };
               return edit.check_in_time && edit.check_out_time;
             });
-            
+
             return (
               <div key={session.id} className="space-y-4 mb-8 border rounded-lg p-4">
                 <div className="flex flex-col gap-3">
@@ -1286,18 +1275,18 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
                       </h3>
                       <div className="flex items-center gap-2 mt-1">
                         {session.status === "upcoming" && (
-                          <span className="text-xs px-2 py-1 rounded-full bg-chart-3/10 text-chart-3 font-medium">
+                          <span className="text-xs px-2 py-1 rounded-full bg-info/10 text-info font-medium">
                             Upcoming
                           </span>
                         )}
                         {session.status === "in-progress" && (
-                          <span className="text-xs px-2 py-1 rounded-full bg-chart-2/10 text-chart-2 font-medium">
+                          <span className="text-xs px-2 py-1 rounded-full bg-secondary/10 text-secondary font-medium">
                             In Progress
                           </span>
                         )}
                         {/* --- Conditionally render Editing Window badge --- */}
                         {session.status === "editing" && !isPublished && (
-                          <span className="text-xs px-2 py-1 rounded-full bg-chart-4/10 text-chart-4 font-medium">
+                          <span className="text-xs px-2 py-1 rounded-full bg-warning/10 text-warning font-medium">
                             Editing Window Open
                           </span>
                         )}
@@ -1318,77 +1307,77 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
 
                     {/* Make the batch adjustment and publish buttons appear side by side, aligned horizontally */}
                     <div className="flex flex-row gap-2 items-center">
-                        {session.status === "editing" && hasSignups && !isPublished && (
+                      {session.status === "editing" && hasSignups && !isPublished && (
                         <>
                           <Dialog>
-                          <DialogTrigger asChild>
-                            <Button
-                            variant="outline"
-                            size="sm"
-                            className="whitespace-nowrap"
-                            >
-                            <Clock className="h-4 w-4 mr-2" />
-                            <span className="hidden sm:inline">Adjust All Times</span>
-                            <span className="sm:hidden">Batch Edit</span>
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent className="sm:max-w-[425px]">
-                            <DialogHeader>
-                            <DialogTitle>Batch Adjust Check-out Times</DialogTitle>
-                            <DialogDescription>
-                              Add time to all volunteer check-out times in this session. 
-                              This is useful when volunteers stayed longer than initially recorded.
-                            </DialogDescription>
-                            </DialogHeader>
-                            <div className="grid gap-4 py-4">
-                            <div className="flex items-center justify-center gap-4">
+                            <DialogTrigger asChild>
                               <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setBatchMinutesAdjustment(prev => Math.max(5, prev - 5))}
-                              disabled={applyingBatchAdjustment[session.id]}
+                                variant="outline"
+                                size="sm"
+                                className="whitespace-nowrap"
                               >
-                              -
+                                <Clock className="h-4 w-4 mr-2" />
+                                <span className="hidden sm:inline">Adjust All Times</span>
+                                <span className="sm:hidden">Batch Edit</span>
                               </Button>
-                              <div className="flex flex-col items-center gap-1">
-                              <span className="text-2xl font-semibold">{batchMinutesAdjustment}</span>
-                              <span className="text-sm text-muted-foreground">minutes</span>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-[425px]">
+                              <DialogHeader>
+                                <DialogTitle>Batch Adjust Check-out Times</DialogTitle>
+                                <DialogDescription>
+                                  Add time to all volunteer check-out times in this session.
+                                  This is useful when volunteers stayed longer than initially recorded.
+                                </DialogDescription>
+                              </DialogHeader>
+                              <div className="grid gap-4 py-4">
+                                <div className="flex items-center justify-center gap-4">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setBatchMinutesAdjustment(prev => Math.max(5, prev - 5))}
+                                    disabled={applyingBatchAdjustment[session.id]}
+                                  >
+                                    -
+                                  </Button>
+                                  <div className="flex flex-col items-center gap-1">
+                                    <span className="text-2xl font-semibold">{batchMinutesAdjustment}</span>
+                                    <span className="text-sm text-muted-foreground">minutes</span>
+                                  </div>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setBatchMinutesAdjustment(prev => Math.min(120, prev + 5))}
+                                    disabled={applyingBatchAdjustment[session.id]}
+                                  >
+                                    +
+                                  </Button>
+                                </div>
+                                <div className="text-sm text-muted-foreground text-center">
+                                  This will extend the check-out time for {sessionSignups.filter(signup => editedTimes[signup.id]?.check_out_time).length} volunteers
+                                </div>
                               </div>
-                              <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setBatchMinutesAdjustment(prev => Math.min(120, prev + 5))}
-                              disabled={applyingBatchAdjustment[session.id]}
-                              >
-                              +
-                              </Button>
-                            </div>
-                            <div className="text-sm text-muted-foreground text-center">
-                              This will extend the check-out time for {sessionSignups.filter(signup => editedTimes[signup.id]?.check_out_time).length} volunteers
-                            </div>
-                            </div>
-                            <DialogFooter>
-                            <DialogClose asChild>
-                              <Button variant="outline" className="hidden sm:inline">Cancel</Button>
-                            </DialogClose>
-                            <Button 
-                              onClick={() => handleBatchAdjustment(session.id, batchMinutesAdjustment)}
-                              disabled={applyingBatchAdjustment[session.id]}
-                            >
-                              {applyingBatchAdjustment[session.id] ? (
-                              <>
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Applying...
-                              </>
-                              ) : (
-                              'Apply Adjustment'
-                              )}
-                            </Button>
-                            </DialogFooter>
-                          </DialogContent>
+                              <DialogFooter>
+                                <DialogClose asChild>
+                                  <Button variant="outline" className="hidden sm:inline">Cancel</Button>
+                                </DialogClose>
+                                <Button
+                                  onClick={() => handleBatchAdjustment(session.id, batchMinutesAdjustment)}
+                                  disabled={applyingBatchAdjustment[session.id]}
+                                >
+                                  {applyingBatchAdjustment[session.id] ? (
+                                    <>
+                                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                      Applying...
+                                    </>
+                                  ) : (
+                                    'Apply Adjustment'
+                                  )}
+                                </Button>
+                              </DialogFooter>
+                            </DialogContent>
                           </Dialog>
                         </>
-                        )}
+                      )}
 
                       {session.status === "editing" && hasSignups && !isPublished && (
                         <Button
@@ -1410,7 +1399,7 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
                           )}
                         </Button>
                       )}
-                      
+
                       {/* Show view certificates button if published */}
                       {isPublished && (
                         <Button
@@ -1446,7 +1435,7 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
                     </div>
                   )}
                 </div>
-                
+
                 {hasInvalidTimes && (
                   <Alert variant="destructive" className="mb-4">
                     <AlertCircle className="h-4 w-4" />
@@ -1456,7 +1445,7 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
                     </AlertDescription>
                   </Alert>
                 )}
-                
+
                 {isPublished && (
                   <div className="border rounded-md p-4 bg-primary/5 flex flex-col items-center justify-center py-6 text-center">
                     <p className="text-primary font-medium">
@@ -1467,7 +1456,7 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
                     </p>
                   </div>
                 )}
-                
+
                 {hasSignups && !isPublished ? (
                   <div className="overflow-x-auto -mx-3 sm:mx-0 pb-2">
                     <div className="inline-block min-w-full align-middle">
@@ -1481,20 +1470,20 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
                             <TableHead className="whitespace-nowrap flex items-center gap-1">
                               Duration
                               <span>
-                              <div>
-                                <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                  <span tabIndex={0} aria-label="Duration info">
-                                    <Info className="h-4 w-4 cursor-pointer" aria-hidden="true" />
-                                  </span>
-                                  </TooltipTrigger>
-                                  <TooltipContent side="top" align="center">
-                                  Times may be off by ±1 minute due to rounding seconds to the nearest minute.
-                                  </TooltipContent>
-                                </Tooltip>
-                                </TooltipProvider>
-                              </div>
+                                <div>
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <span tabIndex={0} aria-label="Duration info">
+                                          <Info className="h-4 w-4 cursor-pointer" aria-hidden="true" />
+                                        </span>
+                                      </TooltipTrigger>
+                                      <TooltipContent side="top" align="center">
+                                        Times may be off by ±1 minute due to rounding seconds to the nearest minute.
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                </div>
                               </span>
                             </TableHead>
                           </TableRow>
@@ -1506,12 +1495,12 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
                             const email = isRegistered ? signup.profile?.email : signup.anonymous_signup?.email;
                             const currentEdit = editedTimes[signup.id] || { check_in_time: null, check_out_time: null };
                             const duration = calculateDuration(currentEdit.check_in_time, currentEdit.check_out_time);
-                            
+
                             // Check if this record has been edited 
                             const checkInOriginal = signup.check_in_time;
                             const checkOutOriginal = signup.check_out_time;
-                            const hasBeenEdited = 
-                              currentEdit.check_in_time !== checkInOriginal || 
+                            const hasBeenEdited =
+                              currentEdit.check_in_time !== checkInOriginal ||
                               currentEdit.check_out_time !== checkOutOriginal;
 
                             return (
@@ -1529,29 +1518,29 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
                                 </TableCell>
                                 <TableCell className="py-2.5 px-3 sm:p-4">
                                   <div className="max-w-[120px]">
-                                  <TimePicker
-                                    value={currentEdit.check_in_time 
-                                    ? format(new Date(currentEdit.check_in_time), 'HH:mm')
-                                    : ''}
-                                    onChangeAction={(time) => handleTimeChange(signup.id, 'check_in_time', time)}
-                                    disabled={session.status !== 'editing'}
-                                  />
+                                    <TimePicker
+                                      value={currentEdit.check_in_time
+                                        ? format(new Date(currentEdit.check_in_time), 'HH:mm')
+                                        : ''}
+                                      onChangeAction={(time) => handleTimeChange(signup.id, 'check_in_time', time)}
+                                      disabled={session.status !== 'editing'}
+                                    />
                                   </div>
                                 </TableCell>
                                 <TableCell className="py-2.5 px-3 sm:p-4">
                                   <div className="max-w-[120px]">
-                                  <TimePicker
-                                    value={currentEdit.check_out_time 
-                                    ? format(new Date(currentEdit.check_out_time), 'HH:mm')
-                                    : ''}
-                                    onChangeAction={(time) => handleTimeChange(signup.id, 'check_out_time', time)}
-                                    disabled={session.status !== 'editing'}
-                                  />
+                                    <TimePicker
+                                      value={currentEdit.check_out_time
+                                        ? format(new Date(currentEdit.check_out_time), 'HH:mm')
+                                        : ''}
+                                      onChangeAction={(time) => handleTimeChange(signup.id, 'check_out_time', time)}
+                                      disabled={session.status !== 'editing'}
+                                    />
                                   </div>
                                 </TableCell>
                                 <TableCell className="py-2.5 px-3 sm:p-4">
                                   <span className={`text-xs font-medium ${!duration.isValid ? 'text-destructive' : ''}`}>
-                                  {duration.text}
+                                    {duration.text}
                                   </span>
                                 </TableCell>
                               </TableRow>
@@ -1588,7 +1577,7 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
               </div>
             );
           })}
-          
+
           {getAllProjectSessions.length === 0 && !loading && (
             <div className="flex flex-col items-center text-muted-foreground space-y-2 py-10">
               <UserRoundCheck className="h-8 w-8 mt-10" />
@@ -1598,6 +1587,6 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
           )}
         </CardContent>
       </Card>
-    </div>
+    </div >
   );
 }

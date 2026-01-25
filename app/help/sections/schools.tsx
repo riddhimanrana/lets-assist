@@ -54,12 +54,12 @@ export function SchoolsSection() {
                       <li>Export CSF-ready reports for school submission</li>
                       <li>Maintain detailed logs of all volunteer activities</li>
                     </ul>
-                    <div className="mt-3 p-3 bg-chart-4/10 rounded-lg">
+                    <div className="mt-3 p-3 bg-warning/10 rounded-lg">
                       <p className="text-xs"><strong>CSF Tip:</strong> Most CSF programs require 10-15 hours per semester with proper documentation and verification.</p>
                     </div>
                   </AccordionContent>
                 </AccordionItem>
-                
+
                 <AccordionItem value="school-projects">
                   <AccordionTrigger>School-Approved Projects</AccordionTrigger>
                   <AccordionContent className="space-y-2 text-sm">
@@ -89,14 +89,14 @@ export function SchoolsSection() {
                     <p>Let&apos;s Assist automatically creates CSF-compliant documentation:</p>
                     <div className="space-y-2">
                       <div className="flex items-start gap-2">
-                        <FileCheck className="h-4 w-4 mt-1 text-chart-5" />
+                        <FileCheck className="h-4 w-4 mt-1 text-success" />
                         <div>
                           <h6 className="font-medium text-xs">Automatic Requirements</h6>
                           <p className="text-xs text-muted-foreground">Date, time, location, description, and supervisor info</p>
                         </div>
                       </div>
                       <div className="flex items-start gap-2">
-                        <Download className="h-4 w-4 mt-1 text-chart-5" />
+                        <Download className="h-4 w-4 mt-1 text-success" />
                         <div>
                           <h6 className="font-medium text-xs">Export Ready</h6>
                           <p className="text-xs text-muted-foreground">CSV and PDF formats accepted by most schools</p>
@@ -107,7 +107,7 @@ export function SchoolsSection() {
                 </AccordionItem>
               </Accordion>
             </div>
-            
+
             <div>
               <h4 className="font-semibold mb-3 flex items-center gap-2">
                 <Award className="h-4 w-4" />
@@ -129,7 +129,7 @@ export function SchoolsSection() {
                     </Button>
                   </AccordionContent>
                 </AccordionItem>
-                
+
                 <AccordionItem value="student-monitoring">
                   <AccordionTrigger>Monitoring Student Progress</AccordionTrigger>
                   <AccordionContent className="space-y-2 text-sm">
@@ -168,11 +168,11 @@ export function SchoolsSection() {
             </div>
           </div>
 
-          <Card className="border-chart-4/30 bg-chart-4/5">
+          <Card className="border-warning/30 bg-warning/5">
             <CardHeader>
               <div className="flex items-center gap-3">
-                <div className="bg-chart-4/10 p-2 rounded-full">
-                  <Target className="h-5 w-5 text-chart-4" />
+                <div className="bg-warning/10 p-2 rounded-full">
+                  <Target className="h-5 w-5 text-warning" />
                 </div>
                 <div>
                   <CardTitle className="text-lg">Quick CSF Setup Guide</CardTitle>
@@ -259,7 +259,7 @@ export function SchoolsSection() {
                       <li>Print individual certificates if required</li>
                       <li>Submit electronic or printed copies to school</li>
                     </ol>
-                    <div className="mt-2 p-2 bg-chart-5/10 rounded text-xs">
+                    <div className="mt-2 p-2 bg-success/10 rounded text-xs">
                       <strong>Pro Tip:</strong> Export your data regularly throughout the semester rather than waiting until the deadline.
                     </div>
                   </AccordionContent>

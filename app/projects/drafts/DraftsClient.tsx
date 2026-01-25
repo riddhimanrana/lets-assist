@@ -26,12 +26,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { 
-  Calendar, 
-  MapPin, 
-  Building2, 
-  Edit, 
-  Trash2, 
+import {
+  Calendar,
+  MapPin,
+  Building2,
+  Edit,
+  Trash2,
   MoreVertical,
   FileText,
   Plus,
@@ -41,6 +41,7 @@ import {
 import { toast } from "sonner";
 import type { ProjectSchedule, EventType } from "@/types";
 import { deleteDraft, publishDraft } from "../create/actions";
+import Image from "next/image";
 
 interface Draft {
   id: string;
@@ -138,7 +139,7 @@ export default function DraftsClient({ drafts: initialDrafts }: DraftsClientProp
             </Link>
           </Button>
         </div>
-        
+
         <Card className="text-center py-12">
           <CardContent>
             <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
@@ -179,10 +180,12 @@ export default function DraftsClient({ drafts: initialDrafts }: DraftsClientProp
               {/* Cover image or placeholder */}
               <div className="sm:w-48 h-32 sm:h-auto bg-muted shrink-0">
                 {draft.cover_image_url ? (
-                  <img
+                  <Image
                     src={draft.cover_image_url}
                     alt={draft.title}
-                    className="w-full h-full object-cover"
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 640px) 100vw, 192px"
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
@@ -287,7 +290,7 @@ export default function DraftsClient({ drafts: initialDrafts }: DraftsClientProp
                             <AlertDialogAction
                               onClick={() => handleDelete(draft.id)}
                               disabled={isDeleting === draft.id}
-                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              className="bg-destructive/10 text-destructive hover:bg-destructive/20"
                             >
                               {isDeleting === draft.id ? "Deleting..." : "Delete"}
                             </AlertDialogAction>

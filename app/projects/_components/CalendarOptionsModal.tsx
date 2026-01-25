@@ -221,8 +221,8 @@ export default function CalendarOptionsModal({
         <DialogHeader>
           {showSuccessMessage ? (
             <div className="flex items-center gap-3 mb-2">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-chart-5/20">
-                <CheckCircle className="h-6 w-6 text-chart-5" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-success/20">
+                <CheckCircle className="h-6 w-6 text-success" />
               </div>
               <div className="flex-1 min-w-0">
                 <DialogTitle className="text-xl">
@@ -289,7 +289,7 @@ export default function CalendarOptionsModal({
             </div>
           ) : isConnected ? (
             <div className="space-y-3">
-              <div className="flex items-center gap-3 p-4 bg-chart-5/10 border border-chart-5/30 rounded-lg text-chart-5">
+              <div className="flex items-center gap-3 p-4 bg-success/10 border border-success/30 rounded-lg text-success">
                 <CheckCircle className="h-5 w-5 shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-sm mb-0.5 wrap-break-word">

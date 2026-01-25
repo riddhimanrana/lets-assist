@@ -1,16 +1,11 @@
-import { useEditor, EditorContent, BubbleMenu } from '@tiptap/react';
+import { useEditor, EditorContent } from '@tiptap/react';
+import { BubbleMenu } from '@tiptap/react/menus';
 import StarterKit from '@tiptap/starter-kit';
-import Underline from '@tiptap/extension-underline';
-import { BulletList } from '@tiptap/extension-bullet-list';
-import { ListItem } from '@tiptap/extension-list-item';
-import { OrderedList } from '@tiptap/extension-ordered-list';
-import { Link } from '@tiptap/extension-link';
+import { Placeholder, CharacterCount } from '@tiptap/extensions';
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Bold, Italic, Underline as UnderlineIcon, Link as LinkIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from 'react';
-import Placeholder from '@tiptap/extension-placeholder';
-import CharacterCount from '@tiptap/extension-character-count';
 
 interface RichTextEditorProps {
     content: string;
@@ -20,42 +15,42 @@ interface RichTextEditorProps {
     className?: string;
 }
 
-export function RichTextEditor({ 
-    content, 
-    onChange, 
+export function RichTextEditor({
+    content,
+    onChange,
     placeholder = "e.g., Join us for a day of fun and community service...",
     maxLength,
-    className 
+    className
 }: RichTextEditorProps) {
     // Removed manual character count state
     const [mounted, setMounted] = useState(false);
-    
+
     const extensions = [
-        StarterKit,
-        BulletList.configure({
-            HTMLAttributes: {
-                class: 'list-disc list-outside ml-4',
+        StarterKit.configure({
+            bulletList: {
+                HTMLAttributes: {
+                    class: 'list-disc list-outside ml-4',
+                },
+            },
+            orderedList: {
+                HTMLAttributes: {
+                    class: 'list-decimal list-outside ml-4',
+                },
+            },
+            listItem: {
+                HTMLAttributes: {
+                    class: 'my-1',
+                },
+            },
+            link: {
+                openOnClick: true,
+                HTMLAttributes: {
+                    class: 'text-primary underline hover:text-primary/80 hover:cursor-pointer',
+                    rel: 'noopener noreferrer',
+                    target: '_blank',
+                },
             },
         }),
-        OrderedList.configure({
-            HTMLAttributes: {
-                class: 'list-decimal list-outside ml-4',
-            },
-        }),
-        ListItem.configure({
-            HTMLAttributes: {
-                class: 'my-1',
-            },
-        }),
-        Link.configure({
-            openOnClick: true,
-            HTMLAttributes: {
-                class: 'text-primary underline hover:text-primary/80 hover:cursor-pointer',
-                rel: 'noopener noreferrer',
-                target: '_blank',
-            },
-        }),
-        Underline,
         Placeholder.configure({
             placeholder,
             showOnlyWhenEditable: true,
@@ -64,7 +59,7 @@ export function RichTextEditor({
         // Add CharacterCount extension if maxLength is provided
         ...(maxLength ? [CharacterCount.configure({ limit: maxLength })] : [])
     ];
-    
+
     const editor = useEditor({
         extensions,
         content: content,
@@ -86,7 +81,7 @@ export function RichTextEditor({
 
     const setLink = () => {
         if (!editor) return;
-        
+
         const previousUrl = editor.getAttributes('link').href;
         const url = window.prompt('URL', previousUrl);
 
@@ -116,7 +111,7 @@ export function RichTextEditor({
         if (!max) return "text-muted-foreground";
         const percentage = (current / max) * 100;
         if (percentage >= 90) return "text-destructive";
-        if (percentage >= 75) return "text-chart-6";
+        if (percentage >= 75) return "text-warning";
         return "text-muted-foreground";
     };
 
@@ -133,11 +128,8 @@ export function RichTextEditor({
     return (
         <div className="space-y-2">
             {editor && (
-                <BubbleMenu 
-                    editor={editor} 
-                    tippyOptions={{ 
-                        duration: 200,
-                    }}
+                <BubbleMenu
+                    editor={editor}
                     className="flex overflow-hidden rounded-md border bg-background p-1 shadow-md"
                 >
                     <ToggleGroup type="multiple" className="flex">
@@ -194,7 +186,7 @@ export function RichTextEditor({
 
             {maxLength && (
                 <div className="flex justify-end">
-                    <span 
+                    <span
                         className={cn(
                             "text-xs transition-colors",
                             getCounterColor(characterCount, maxLength)

@@ -143,7 +143,7 @@ export default async function VolunteerRecordPage({
 
   // Type assertion after checking for null and converting to unknown first
   const data = record as unknown as CertificateData;
-  
+
   // Determine if this is a self-reported certificate (default to verified for backward compatibility)
   const isSelfReported = data.type === "self-reported";
 
@@ -168,8 +168,8 @@ export default async function VolunteerRecordPage({
             {isSelfReported ? "Self-Reported" : "Volunteer"} Certificate
           </h1>
           <p className="text-muted-foreground">
-            {isSelfReported 
-              ? "Self-reported volunteer activity record" 
+            {isSelfReported
+              ? "Self-reported volunteer activity record"
               : "Official record of volunteer activity"
             }
           </p>
@@ -190,19 +190,17 @@ export default async function VolunteerRecordPage({
       {/* <TimezoneDebugInfo show={true} className="mb-6" /> */}
 
       <CardContainer className="py-8" containerClassName="w-full">
-        <CardBody className={`relative h-auto w-full max-w-3xl rounded-xl border border-border/40 shadow-2xl ${
-          isSelfReported 
-            ? "bg-linear-to-br from-gray-50 via-gray-100/50 to-gray-200/30 dark:from-gray-800/20 dark:via-gray-700/10 dark:to-gray-600/20" 
+        <CardBody className={`relative h-auto w-full max-w-3xl rounded-xl border border-border/40 shadow-2xl ${isSelfReported
+            ? "bg-linear-to-br from-gray-50 via-gray-100/50 to-gray-200/30 dark:from-gray-800/20 dark:via-gray-700/10 dark:to-gray-600/20"
             : "bg-linear-to-br from-background via-background to-muted"
-        }`}>
+          }`}>
           {/* Certificate Header with Glow Effect */}
           <CardItem
             translateZ={20}
-            className={`w-full rounded-t-xl p-6 ${
-              isSelfReported 
-                ? "bg-linear-to-r from-gray-200/40 via-gray-100/30 to-gray-50/20 dark:from-gray-700/30 dark:via-gray-600/20 dark:to-gray-500/10" 
+            className={`w-full rounded-t-xl p-6 ${isSelfReported
+                ? "bg-linear-to-r from-gray-200/40 via-gray-100/30 to-gray-50/20 dark:from-gray-700/30 dark:via-gray-600/20 dark:to-gray-500/10"
                 : "bg-linear-to-r from-primary/10 via-primary/5 to-background"
-            }`}
+              }`}
           >
             <div className="relative z-10">
               <div className="flex justify-between items-start">
@@ -259,7 +257,7 @@ export default async function VolunteerRecordPage({
                         <TooltipTrigger asChild>
                           <Badge
                             variant="secondary"
-                            className="ml-auto backdrop-blur-xs bg-primary/10 border border-primary/20 text-chart-5"
+                            className="ml-auto backdrop-blur-xs bg-success/10 border border-success/20 text-success"
                             tabIndex={0}
                             aria-label="Verified badge"
                           >
@@ -445,9 +443,9 @@ export default async function VolunteerRecordPage({
                             : data.check_in_method.toLowerCase() === "auto"
                               ? "Automatic Check-in"
                               : data.check_in_method.toLowerCase() ===
-                                    "signup only" ||
-                                  data.check_in_method.toLowerCase() ===
-                                    "signup-only"
+                                "signup only" ||
+                                data.check_in_method.toLowerCase() ===
+                                "signup-only"
                                 ? "Signup Only"
                                 : data.check_in_method
                           : "Manual"}
@@ -482,18 +480,17 @@ export default async function VolunteerRecordPage({
 
       <div className="mt-8 text-center">
         <p className="text-sm text-muted-foreground mb-1">
-          {isSelfReported 
+          {isSelfReported
             ? "This is a self-reported record of volunteer hours logged by the user."
             : "This is an official record of volunteer hours from Let's Assist."
           }
         </p>
         <p className="text-xs text-muted-foreground">
           {isSelfReported ? "Record" : "Verification"} ID:{" "}
-          <span className={`font-medium transition-colors ${
-            isSelfReported 
-              ? "text-muted-foreground/80 hover:text-muted-foreground" 
+          <span className={`font-medium transition-colors ${isSelfReported
+              ? "text-muted-foreground/80 hover:text-muted-foreground"
               : "text-primary/80 hover:text-primary"
-          }`}>
+            }`}>
             {data.id}
           </span>
         </p>

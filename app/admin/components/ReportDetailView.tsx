@@ -8,6 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -195,7 +196,7 @@ export function ReportDetailView({
                     ? "default"
                     : report.status === "under_review"
                       ? "secondary"
-                      : "outline-solid"
+                      : "outline"
                 }
               >
                 {report.status}
@@ -206,7 +207,7 @@ export function ReportDetailView({
                     ? "destructive"
                     : report.priority === "high"
                       ? "secondary"
-                      : "outline-solid"
+                      : "outline"
                 }
               >
                 {report.priority}
@@ -245,11 +246,10 @@ export function ReportDetailView({
           <CardContent>
             <div className="flex items-center gap-3">
               {typeof reporter?.avatar_url === 'string' && reporter.avatar_url && (
-                <img
-                  src={reporter.avatar_url}
-                  alt={String(reporter.full_name || '')}
-                  className="h-10 w-10 rounded-full"
-                />
+                <Avatar className="h-10 w-10">
+                  <AvatarImage src={reporter.avatar_url} alt={String(reporter.full_name || '')} />
+                  <AvatarFallback>{String(reporter.full_name || '').charAt(0)}</AvatarFallback>
+                </Avatar>
               )}
               <div>
                 <p className="font-medium">{String(reporter?.full_name || '')}</p>
@@ -343,11 +343,10 @@ export function ReportDetailView({
                 <p className="text-sm text-muted-foreground mb-2">Content Creator</p>
                 <div className="flex items-center gap-3">
                   {typeof creator?.avatar_url === 'string' && creator.avatar_url && (
-                    <img
-                      src={creator.avatar_url}
-                      alt={String(creator.full_name || '')}
-                      className="h-10 w-10 rounded-full"
-                    />
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src={creator.avatar_url} alt={String(creator.full_name || '')} />
+                      <AvatarFallback>{String(creator.full_name || '').charAt(0)}</AvatarFallback>
+                    </Avatar>
                   )}
                   <div>
                     <p className="font-medium">{String(creator.full_name || '')}</p>

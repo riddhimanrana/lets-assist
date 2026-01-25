@@ -549,7 +549,7 @@ function formatHours(hours: number): string {
                 <Badge 
                   variant={
               membership.role === "admin" ? "default" : 
-              membership.role === "staff" ? "secondary" : "outline-solid"
+              membership.role === "staff" ? "secondary" : "outline"
                   }
                   className="text-xs flex items-center gap-1"
                 >

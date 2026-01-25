@@ -1,10 +1,19 @@
 @import 'tailwindcss';
 @import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
 @custom-variant dark (&:is(.dark *));
 
 :root {
   /* Light theme variables */
+  --success: hsl(142.1 76.2% 36.3%);
+  --success-foreground: hsl(355.7 100% 97.3%);
+
+  --warning: hsl(45 93% 47%);
+  --warning-foreground: hsl(0 0% 10%);
+
+  --info: hsl(221 83% 53%);
+  --info-foreground: hsl(0 0% 100%);
   --page-background: hsl(0 0% 100%);
   /* base */
   --page-foreground: hsl(240 10% 3.9%);
@@ -39,8 +48,6 @@
   /* text */
   --destructive: hsl(0 84.2% 60.2%);
   /* red */
-  --destructive-foreground: hsl(0 0% 98%);
-  /* mantle */
   --border: hsl(240 5.9% 90%);
   /* surface1 */
   --input: hsl(240 5.9% 90%);
@@ -66,32 +73,6 @@
   /* lavender */
   --chart-9: hsl(220 21% 89%);
   /* base */
-
-  /* Toast colors */
-  --toast-success-bg: hsl(142.1 70% 95%);
-  /* light green bg */
-  --toast-success-foreground: hsl(142.1 76.2% 28%);
-  /* darker green text */
-  --toast-success-border: hsl(142.1 60% 70%);
-  /* green border */
-  --toast-error-bg: hsl(0 84% 96%);
-  /* light red bg */
-  --toast-error-foreground: hsl(0 84.2% 50%);
-  /* red text */
-  --toast-error-border: hsl(0 84% 75%);
-  /* red border */
-  --toast-info-bg: hsl(220 91% 96%);
-  /* light blue bg */
-  --toast-info-foreground: hsl(220 91% 45%);
-  /* blue text */
-  --toast-info-border: hsl(220 91% 75%);
-  /* blue border */
-  --toast-warning-bg: hsl(35 77% 96%);
-  /* light yellow bg */
-  --toast-warning-foreground: hsl(35 77% 40%);
-  /* yellow text */
-  --toast-warning-border: hsl(35 77% 70%);
-  /* yellow border */
   --sidebar-background: hsl(0 0% 98%);
   --sidebar-foreground: hsl(240 5.3% 26.1%);
   --sidebar-primary: hsl(240 5.9% 10%);
@@ -105,6 +86,14 @@
 
 .dark {
   /* Dark theme variables */
+  --success: hsl(142.1 70.6% 45.3%);
+  --success-foreground: hsl(144 100% 97%);
+
+  --warning: hsl(48 96% 53%);
+  --warning-foreground: hsl(30 100% 9%);
+
+  --info: hsl(217 91% 60%);
+  --info-foreground: hsl(0 0% 100%);
   --page-background: hsl(240 21% 12%);
   /* mantle */
   --page-foreground: hsl(226 64% 88%);
@@ -143,8 +132,6 @@
   /* text */
   --destructive: hsl(343 81 75%);
   /* red */
-  --destructive-foreground: hsl(240 21% 12%);
-  /* mantle */
   --ring: hsl(226 64% 88%);
   /* text */
   --radius: 1rem;
@@ -167,7 +154,7 @@
   --chart-9: hsl(240 23% 9%);
   /* mantle */
 
-  /* Toast colors - Catppuccin Mocha inspired */
+  /* Toast colors - Catppuccin Mocha */
   --toast-success-bg: hsl(115 30% 18%);
   /* green-tinted surface */
   --toast-success-foreground: hsl(115 54% 76%);
@@ -226,11 +213,19 @@
   --color-accent-foreground: var(--accent-foreground);
 
   --color-destructive: var(--destructive);
-  --color-destructive-foreground: var(--destructive-foreground);
 
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
 
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
@@ -251,12 +246,17 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
   --radius-sm: calc(var(--radius) - 4px);
 
   --font-overusedgrotesk: var(--font-overusedgrotesk), sans-serif;
-  --font-inter: var(--font-inter), sans-serif;
+  --font-sans: var(--font-sans), sans-serif;
   --font-mono: var(--font-geist-mono), sans-serif;
 
   --animate-accordion-down: accordion-down 0.2s ease-out;
@@ -310,6 +310,7 @@
   }
 
   button:not(:disabled),
+  /* bring back pointer cursor from tailwind css v3*/
   [role="button"]:not(:disabled) {
     cursor: pointer;
   }

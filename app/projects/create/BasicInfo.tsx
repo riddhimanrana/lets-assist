@@ -57,9 +57,9 @@ interface BasicInfoProps {
   };
 }
 
-export default function BasicInfo({ 
-  state, 
-  updateBasicInfoAction, 
+export default function BasicInfo({
+  state,
+  updateBasicInfoAction,
   initialOrgId,
   initialOrganizations = [],
   errors = {}
@@ -68,18 +68,18 @@ export default function BasicInfo({
   const [previewMode, setPreviewMode] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [organizationOptions, _setOrganizationOptions] = useState<OrganizationOption[]>(
-    initialOrganizations.length > 0 
-      ? initialOrganizations 
+    initialOrganizations.length > 0
+      ? initialOrganizations
       : [{ id: "personal", name: "Personal Project", logo_url: null, role: "creator" }]
   );
   const initRef = useRef(false);
-  
+
   // Set default organization and timezone on initial render only
   useEffect(() => {
     if (initRef.current) return;
-    
+
     initRef.current = true;
-    
+
     // If initialOrgId is provided, use it
     if (initialOrgId && state.basicInfo.organizationId !== initialOrgId) {
       updateBasicInfoAction('organizationId', initialOrgId);
@@ -87,7 +87,7 @@ export default function BasicInfo({
       // Otherwise, if no organization is set, default to personal (null)
       updateBasicInfoAction('organizationId', null);
     }
-    
+
     // Initialize timezone to user's current timezone if not set
     if (!state.basicInfo.projectTimezone) {
       const detectedTimezone = getUserTimezone();
@@ -108,7 +108,7 @@ export default function BasicInfo({
     if (orgId === "personal") {
       updateBasicInfoAction("organizationId", null);
     } else {
-      updateBasicInfoAction("organizationId", orgId); 
+      updateBasicInfoAction("organizationId", orgId);
     }
     setOpen(false);
   };
@@ -128,7 +128,7 @@ export default function BasicInfo({
   const getCounterColor = (current: number, max: number) => {
     const percentage = (current / max) * 100;
     if (percentage >= 90) return "text-destructive";
-    if (percentage >= 75) return "text-chart-6";
+    if (percentage >= 75) return "text-warning";
     return "text-muted-foreground";
   };
 
@@ -217,7 +217,7 @@ export default function BasicInfo({
                             className={cn(
                               "ml-auto h-4 w-4",
                               ((org.id === state.basicInfo.organizationId) ||
-                               (state.basicInfo.organizationId === null && org.id === "personal"))
+                                (state.basicInfo.organizationId === null && org.id === "personal"))
                                 ? "opacity-100"
                                 : "opacity-0"
                             )}
@@ -273,8 +273,8 @@ export default function BasicInfo({
 
         {/* Project Location - Simplified */}
         <div className="space-y-2">
-          <Label htmlFor="location">Project Location</Label> {/* Added external Label */} 
-          <LocationAutocomplete 
+          <Label htmlFor="location">Project Location</Label> {/* Added external Label */}
+          <LocationAutocomplete
             id="location" // Pass id
             value={state.basicInfo.locationData}
             onChangeAction={handleLocationChange}
@@ -317,25 +317,25 @@ export default function BasicInfo({
           <div className="flex justify-between items-baseline">
             <Label htmlFor="description">Description</Label>
             <div className="space-x-2">
-              <Button 
-                type="button" 
-                variant={previewMode ? "outline-solid" : "default"} 
-                size="sm" 
+              <Button
+                type="button"
+                variant={previewMode ? "secondary" : "default"}
+                size="sm"
                 onClick={() => setPreviewMode(false)}
               >
                 Edit
               </Button>
-              <Button 
-                type="button" 
-                variant={!previewMode ? "outline-solid" : "default"} 
-                size="sm" 
+              <Button
+                type="button"
+                variant={!previewMode ? "secondary" : "default"}
+                size="sm"
                 onClick={() => setPreviewMode(true)}
               >
                 Preview
               </Button>
             </div>
           </div>
-          
+
           {previewMode ? (
             <div className="rounded-md border text-sm bg-background p-4 shadow-xs">
               <RichTextContent content={state.basicInfo.description ?? ''} />

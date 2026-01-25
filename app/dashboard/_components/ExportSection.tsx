@@ -8,9 +8,9 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { DateRange } from "react-day-picker";
-import { 
-  Download, 
-  Calendar, 
+import {
+  Download,
+  Calendar,
   CircleCheck,
   UserCheck,
 } from "lucide-react";
@@ -63,15 +63,15 @@ interface ExportData {
   issuedDate: string;
 }
 
-export function ExportSection({ 
-  userEmail, 
-  verifiedCount: _verifiedCount = 0, 
+export function ExportSection({
+  userEmail,
+  verifiedCount: _verifiedCount = 0,
   unverifiedCount: _unverifiedCount = 0,
   totalCertificates: _totalCertificates = 0,
   certificatesData = []
 }: ExportSectionProps) {
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
-  
+
   const [includeVerified, setIncludeVerified] = useState(true);
   const [includeUnverified, setIncludeUnverified] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
@@ -90,9 +90,9 @@ export function ExportSection({
         const timezone = cert.projects?.project_timezone || 'America/Los_Angeles';
         const timeStr = format(new Date(cert.event_start), "h:mm a");
         try {
-          const tzAbbr = new Intl.DateTimeFormat('en-US', { 
-            timeZone: timezone, 
-            timeZoneName: 'short' 
+          const tzAbbr = new Intl.DateTimeFormat('en-US', {
+            timeZone: timezone,
+            timeZoneName: 'short'
           }).formatToParts(new Date(cert.event_start)).find(part => part.type === 'timeZoneName')?.value;
           return tzAbbr ? `${timeStr} ${tzAbbr}` : timeStr;
         } catch {
@@ -103,9 +103,9 @@ export function ExportSection({
         const timezone = cert.projects?.project_timezone || 'America/Los_Angeles';
         const timeStr = format(new Date(cert.event_end), "h:mm a");
         try {
-          const tzAbbr = new Intl.DateTimeFormat('en-US', { 
-            timeZone: timezone, 
-            timeZoneName: 'short' 
+          const tzAbbr = new Intl.DateTimeFormat('en-US', {
+            timeZone: timezone,
+            timeZoneName: 'short'
           }).formatToParts(new Date(cert.event_end)).find(part => part.type === 'timeZoneName')?.value;
           return tzAbbr ? `${timeStr} ${tzAbbr}` : timeStr;
         } catch {
@@ -137,17 +137,17 @@ export function ExportSection({
     // If no date range is selected, show all data
     if (!dateRange?.from || !dateRange?.to) {
       return allExportData.filter(item => {
-        const typeIncluded = (item.isVerified && includeVerified) || 
-                            (!item.isVerified && includeUnverified);
+        const typeIncluded = (item.isVerified && includeVerified) ||
+          (!item.isVerified && includeUnverified);
         return typeIncluded;
       });
     }
-    
+
     return allExportData.filter(item => {
       const itemDate = new Date(item.date);
       const inDateRange = itemDate >= dateRange.from! && itemDate <= dateRange.to!;
-      const typeIncluded = (item.isVerified && includeVerified) || 
-                          (!item.isVerified && includeUnverified);
+      const typeIncluded = (item.isVerified && includeVerified) ||
+        (!item.isVerified && includeUnverified);
       return inDateRange && typeIncluded;
     });
   }, [allExportData, dateRange, includeVerified, includeUnverified]);
@@ -159,13 +159,13 @@ export function ExportSection({
     }
 
     setIsExporting(true);
-    
+
     try {
       // Build CSV with columns that match the verification modal expectations
       const headers = [
         "Certificate ID",
         "Project Title",
-        "Organization Name", 
+        "Organization Name",
         "Project Organizer Name",
         "Certification Status",
         "Certificate Type",
@@ -174,7 +174,7 @@ export function ExportSection({
         "Duration",
         "Location",
         "Check In Method",
-        "Volunteer Name", 
+        "Volunteer Name",
         "Volunteer Email",
         "Issued Date"
       ];
@@ -206,7 +206,7 @@ export function ExportSection({
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      
+
       // Generate filename based on date range or default to "all-time"
       let filename;
       if (dateRange?.from && dateRange?.to) {
@@ -218,7 +218,7 @@ export function ExportSection({
         filename = `volunteer-hours-all-time-${currentDate}.csv`;
       }
       link.download = filename;
-      
+
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -272,12 +272,12 @@ export function ExportSection({
               onCheckedChange={(checked) => setIncludeVerified(!!checked)}
             />
             <Label htmlFor="verified" className="flex items-center gap-2">
-              <CircleCheck className="h-4 w-4 text-chart-5" />
+              <CircleCheck className="h-4 w-4 text-success" />
               Verified Hours
               <Badge variant="secondary">{actualVerifiedCount}</Badge>
             </Label>
           </div>
-          
+
           <div className="flex items-center space-x-2">
             <Checkbox
               id="unverified"
@@ -285,7 +285,7 @@ export function ExportSection({
               onCheckedChange={(checked) => setIncludeUnverified(!!checked)}
             />
             <Label htmlFor="unverified" className="flex items-center gap-2">
-              <UserCheck className="h-4 w-4 text-chart-4" />
+              <UserCheck className="h-4 w-4 text-warning" />
               Self-Reported Hours
               <Badge variant="secondary">{actualUnverifiedCount}</Badge>
             </Label>
@@ -354,7 +354,7 @@ export function ExportSection({
                 {filteredData.length} entries selected for CSV export
               </p>
             </div>
-            <Button 
+            <Button
               onClick={handleExport}
               disabled={isExporting || filteredData.length === 0}
               className="gap-2"

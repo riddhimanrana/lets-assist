@@ -5,10 +5,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { 
-  Calendar, 
-  Clock, 
-  Award, 
+import {
+  Calendar,
+  Clock,
+  Award,
   TicketCheck,
   FileCheck,
   AlertTriangle,
@@ -55,7 +55,7 @@ function calculateDecimalHours(startTimeISO: string, endTimeISO: string): number
 function formatTotalDuration(totalHours: number): string {
   const hours = Math.floor(totalHours);
   const minutes = Math.round((totalHours - hours) * 60);
-  
+
   if (hours === 0 && minutes === 0) return "0m";
   if (hours === 0) return `${minutes}m`;
   if (minutes === 0) return `${hours}h`;
@@ -63,11 +63,11 @@ function formatTotalDuration(totalHours: number): string {
 }
 
 export function AllHoursSection({ certificates }: AllHoursSectionProps) {
-  
+
   // Separate platform and self-reported certificates (default to platform for backward compatibility)
   const verifiedCertificates = certificates.filter(cert => (cert.type || "platform") === "platform");
   const selfReportedCertificates = certificates.filter(cert => cert.type === "self-reported");
-  
+
   const totalVerified = verifiedCertificates.length;
   const totalSelfReported = selfReportedCertificates.length;
 
@@ -80,13 +80,13 @@ export function AllHoursSection({ certificates }: AllHoursSectionProps) {
         <div className="flex-1 space-y-1 min-w-0">
           <div className="flex items-center gap-2">
             {isSelfReported ? (
-              <Badge variant="secondary" className="text-xs bg-chart-4/10 text-chart-4 dark:bg-chart-4/10 dark:text-chart-4">
+              <Badge variant="secondary" className="text-xs bg-warning/10 text-warning dark:bg-warning/10 dark:text-warning">
                 Self-Reported
               </Badge>
             ) : (
               <Badge variant="default" className="text-xs">Platform</Badge>
             )}
-                        {!isSelfReported && cert.is_certified && (
+            {!isSelfReported && cert.is_certified && (
               <Badge variant="default" className="text-xs bg-emerald-600 hover:bg-emerald-700">
                 <Award className="h-3 w-3 mr-1" /> Official Org
               </Badge>
@@ -99,7 +99,7 @@ export function AllHoursSection({ certificates }: AllHoursSectionProps) {
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground pt-1">
             <div className="flex items-center gap-1.5">
               <span className="flex items-center gap-1">
-                <Calendar className="h-3 w-3" /> 
+                <Calendar className="h-3 w-3" />
                 {format(parseISO(cert.event_start), "MMM d, yyyy")}
               </span>
               <TimezoneBadge timezone={cert.projects?.project_timezone || 'America/Los_Angeles'} />
@@ -167,7 +167,7 @@ export function AllHoursSection({ certificates }: AllHoursSectionProps) {
       <Card>
         <CardHeader>
           <div className="flex items-center gap-2">
-            <UserCheck className="h-5 w-5 text-chart-4 dark:text-chart-4" />
+            <UserCheck className="h-5 w-5 text-warning dark:text-warning" />
             <CardTitle>Self-Reported Hours</CardTitle>
             <Badge variant="secondary">{totalSelfReported}</Badge>
           </div>

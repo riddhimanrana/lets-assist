@@ -132,8 +132,8 @@ export default function VerificationSettings({
 
       // Simple signature field detection (look for /Sig or /AcroForm in the PDF)
       const pdfText = new TextDecoder('latin1').decode(bytes);
-      const hasSignatureFields = 
-        pdfText.includes('/Sig') || 
+      const hasSignatureFields =
+        pdfText.includes('/Sig') ||
         pdfText.includes('/AcroForm') ||
         pdfText.includes('/SigFlags') ||
         pdfText.includes('signature') ||
@@ -272,10 +272,10 @@ export default function VerificationSettings({
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0 self-start sm:self-center">
-                  <AlertTriangle className="h-4 w-4 text-chart-4 shrink-0" />
+                  <AlertTriangle className="h-4 w-4 text-warning shrink-0" />
                   <Badge
                     variant="secondary"
-                    className="pointer-events-none text-chart-4 bg-chart-4/10 text-xs whitespace-nowrap"
+                    className="pointer-events-none text-warning bg-warning/10 text-xs whitespace-nowrap"
                   >
                     Not Recommended
                   </Badge>
@@ -390,12 +390,12 @@ export default function VerificationSettings({
             )}
 
             {!requireLogin && (
-              <div className="rounded-lg bg-chart-6/10 p-4 text-sm border border-chart-6/40">
+              <div className="rounded-lg bg-warning/10 p-4 text-sm border border-warning/40">
                 <div className="flex gap-2">
-                  <AlertTriangle className="h-5 w-5 text-chart-6 shrink-0 mt-0.5" />
+                  <AlertTriangle className="h-5 w-5 text-warning shrink-0 mt-0.5" />
                   <div>
-                    <p className="font-medium text-chart-6">Anonymous sign-ups</p>
-                    <p className="text-chart-4 mt-1">
+                    <p className="font-medium text-warning">Anonymous sign-ups</p>
+                    <p className="text-warning mt-1">
                       With anonymous sign-ups enabled, volunteers won&apos;t need to create
                       accounts. This may increase participation but makes tracking and
                       verification more challenging.
@@ -528,7 +528,7 @@ export default function VerificationSettings({
                 {/* PDF Upload Section */}
                 <div className="space-y-3 pt-2">
                   <Label className="text-sm font-medium">Waiver Document (PDF)</Label>
-                  
+
                   {!hasWaiverPdf ? (
                     <div className="space-y-2">
                       <div
@@ -576,7 +576,7 @@ export default function VerificationSettings({
                               {waiverPdfFile?.name || 'Waiver PDF'}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              {waiverPdfFile 
+                              {waiverPdfFile
                                 ? `${(waiverPdfFile.size / 1024).toFixed(1)} KB`
                                 : 'Uploaded'}
                             </p>

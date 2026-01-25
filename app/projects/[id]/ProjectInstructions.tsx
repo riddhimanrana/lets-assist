@@ -54,7 +54,7 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
     if (verification_method === 'signup-only') return 'signup';
     return 'overview';
   };
-  
+
   const [activeTab, setActiveTab] = useState<string>(getActiveTab());
 
   const getProjectTypeIcon = () => {
@@ -79,11 +79,11 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
               <Badge variant="outline">One-Time Event</Badge>
             </div>
             <p>This is a single event that happens on one specific date and time.</p>
-            
+
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <Calendar className="h-4 w-4" /> 
+                  <Calendar className="h-4 w-4" />
                   Event Date & Time
                 </CardTitle>
               </CardHeader>
@@ -91,11 +91,11 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
                 <p>All volunteers participate during the same time period.</p>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <MapPin className="h-4 w-4" /> 
+                  <MapPin className="h-4 w-4" />
                   Single Location
                 </CardTitle>
               </CardHeader>
@@ -113,11 +113,11 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
               <Badge className="bg-primary/20 text-primary border-primary/30">Multi-Day Event</Badge>
             </div>
             <p>This event spans multiple days with different time slots.</p>
-            
+
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <CalendarClock className="h-4 w-4" /> 
+                  <CalendarClock className="h-4 w-4" />
                   Multiple Sessions
                 </CardTitle>
               </CardHeader>
@@ -126,11 +126,11 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
                 <p className="mt-2">You may sign up for one or more sessions based on your availability.</p>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <Clock className="h-4 w-4" /> 
+                  <Clock className="h-4 w-4" />
                   Flexible Scheduling
                 </CardTitle>
               </CardHeader>
@@ -148,11 +148,11 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
               <Badge className="bg-primary/20 text-primary border-primary/30">Multi-Role Event</Badge>
             </div>
             <p>This event happens on a single day with multiple roles for volunteers.</p>
-            
+
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <UsersRound className="h-4 w-4" /> 
+                  <UsersRound className="h-4 w-4" />
                   Different Roles
                 </CardTitle>
               </CardHeader>
@@ -160,11 +160,11 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
                 <p>Different volunteer roles may have different responsibilities, locations, or time commitments.</p>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <Calendar className="h-4 w-4" /> 
+                  <Calendar className="h-4 w-4" />
                   Single Day
                 </CardTitle>
               </CardHeader>
@@ -185,7 +185,7 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
       <div className="space-y-4">
         <h3 className="font-medium">How to Sign Up</h3>
         <p>Follow these steps to sign up for this volunteer opportunity:</p>
-        
+
         <div className="space-y-2">
           <div className="rounded-lg bg-primary/5 border p-4">
             <div className="flex items-start gap-3">
@@ -196,23 +196,23 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
               </div>
             </div>
           </div>
-          
+
           <div className="rounded-lg bg-primary/5 border p-4">
             <div className="flex items-start gap-3">
               <div className="bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center shrink-0">2</div>
               <div>
                 <p className="font-medium">Select Available Slot</p>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {event_type === "oneTime" 
-                    ? "Confirm you're available for the scheduled date and time." 
-                    : event_type === "multiDay" 
-                    ? "Choose which day and time slot works best for you." 
-                    : "Select which role you'd like to volunteer for."}
+                  {event_type === "oneTime"
+                    ? "Confirm you're available for the scheduled date and time."
+                    : event_type === "multiDay"
+                      ? "Choose which day and time slot works best for you."
+                      : "Select which role you'd like to volunteer for."}
                 </p>
               </div>
             </div>
           </div>
-          
+
           <div className="rounded-lg bg-primary/5 border p-4">
             <div className="flex items-start gap-3">
               <div className="bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center shrink-0">3</div>
@@ -232,11 +232,11 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
                 <div>
                   <p className="font-medium">Check In on Event Day</p>
                   <p className="text-sm text-muted-foreground mt-1">
-                    {verification_method === "qr-code" 
+                    {verification_method === "qr-code"
                       ? "Scan the QR code when you arrive and leave."
                       : verification_method === "manual"
-                      ? "Check in with the event coordinator upon arrival."
-                      : "Your hours will be tracked automatically."}
+                        ? "Check in with the event coordinator upon arrival."
+                        : "Your hours will be tracked automatically."}
                   </p>
                 </div>
               </div>
@@ -253,9 +253,9 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
         <div className="text-center">
           <h3 className="text-lg font-semibold mb-2">Managing Your Project</h3>
           <p className="text-muted-foreground">
-            Here&apos;s how to effectively run your {event_type === "oneTime" ? "one-time event" : 
-                         event_type === "multiDay" ? "multi-day event" : 
-                         "multi-role event"} with {verification_method} verification.
+            Here&apos;s how to effectively run your {event_type === "oneTime" ? "one-time event" :
+              event_type === "multiDay" ? "multi-day event" :
+                "multi-role event"} with {verification_method} verification.
           </p>
         </div>
 
@@ -270,13 +270,13 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
             </CardHeader>
             <CardContent className="text-sm space-y-2">
               <p>Your project is live and accepting volunteers</p>
-              <p>Event type: {event_type === "oneTime" ? "One-time event" : 
-                         event_type === "multiDay" ? "Multi-day event" : 
-                         "Multi-role event"}</p>
+              <p>Event type: {event_type === "oneTime" ? "One-time event" :
+                event_type === "multiDay" ? "Multi-day event" :
+                  "Multi-role event"}</p>
               <p>Verification: {verification_method === 'qr-code' ? "QR Code check-in" :
-                                   verification_method === 'manual' ? "Manual check-in" :
-                                   verification_method === 'auto' ? "Automatic check-in" :
-                                   "Sign-up only"}</p>
+                verification_method === 'manual' ? "Manual check-in" :
+                  verification_method === 'auto' ? "Automatic check-in" :
+                    "Sign-up only"}</p>
             </CardContent>
           </Card>
 
@@ -406,7 +406,7 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
               <h3 className="text-lg font-semibold mt-2">How to Check In</h3>
               <p className="text-muted-foreground">Follow these steps to check in and out of your volunteer shift</p>
             </div>
-            
+
             <div className="space-y-4">
               <div className="rounded-lg bg-primary/5 border border-primary/20 p-4">
                 <div className="flex items-start gap-3">
@@ -417,7 +417,7 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
                   </div>
                 </div>
               </div>
-              
+
               <div className="rounded-lg bg-primary/5 border border-primary/20 p-4">
                 <div className="flex items-start gap-3">
                   <div className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center shrink-0 font-semibold">2</div>
@@ -427,7 +427,7 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
                   </div>
                 </div>
               </div>
-              
+
               <div className="rounded-lg bg-primary/5 border border-primary/20 p-4">
                 <div className="flex items-start gap-3">
                   <div className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center shrink-0 font-semibold">3</div>
@@ -439,7 +439,7 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
                   </div>
                 </div>
               </div>
-              
+
               <div className="rounded-lg bg-primary/5 border border-primary/20 p-4">
                 <div className="flex items-start gap-3">
                   <div className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center shrink-0 font-semibold">4</div>
@@ -450,7 +450,7 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
                 </div>
               </div>
             </div>
-            
+
             <Card className="bg-muted/30">
               <CardContent className="p-4">
                 <div className="flex items-start gap-2">
@@ -477,7 +477,7 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
               <h3 className="text-lg font-semibold">How to Check In</h3>
               <p className="text-muted-foreground">The event coordinator will handle your attendance</p>
             </div>
-            
+
             <div className="space-y-4">
               <div className="rounded-lg bg-primary/5 border border-primary/20 p-4">
                 <div className="flex items-start gap-3">
@@ -488,7 +488,7 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
                   </div>
                 </div>
               </div>
-              
+
               <div className="rounded-lg bg-primary/5 border border-primary/20 p-4">
                 <div className="flex items-start gap-3">
                   <div className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center shrink-0 font-semibold">2</div>
@@ -498,7 +498,7 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
                   </div>
                 </div>
               </div>
-              
+
               <div className="rounded-lg bg-primary/5 border border-primary/20 p-4">
                 <div className="flex items-start gap-3">
                   <div className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center shrink-0 font-semibold">3</div>
@@ -509,7 +509,7 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
                 </div>
               </div>
             </div>
-            
+
             <Card className="bg-muted/30">
               <CardContent className="p-4">
                 <div className="flex items-start gap-2">
@@ -536,7 +536,7 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
               <h3 className="text-lg font-semibold">Automatic Attendance</h3>
               <p className="text-muted-foreground">Your hours are tracked automatically - just show up!</p>
             </div>
-            
+
             <div className="space-y-4">
               <div className="rounded-lg bg-primary/5 border border-primary/20 p-4">
                 <div className="flex items-start gap-3">
@@ -547,7 +547,7 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
                   </div>
                 </div>
               </div>
-              
+
               <div className="rounded-lg bg-primary/5 border border-primary/20 p-4">
                 <div className="flex items-start gap-3">
                   <div className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center shrink-0 font-semibold">2</div>
@@ -557,7 +557,7 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
                   </div>
                 </div>
               </div>
-              
+
               <div className="rounded-lg bg-primary/5 border border-primary/20 p-4">
                 <div className="flex items-start gap-3">
                   <div className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center shrink-0 font-semibold">3</div>
@@ -568,7 +568,7 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
                 </div>
               </div>
             </div>
-            
+
             <Card className="bg-muted/30">
               <CardContent className="p-4">
                 <div className="flex items-start gap-2">
@@ -595,7 +595,7 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
               <h3 className="text-lg font-semibold">Just Show Up!</h3>
               <p className="text-muted-foreground">This is a simple registration event - no hour tracking</p>
             </div>
-            
+
             <div className="space-y-4">
               <div className="rounded-lg bg-primary/5 border border-primary/20 p-4">
                 <div className="flex items-start gap-3">
@@ -606,7 +606,7 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
                   </div>
                 </div>
               </div>
-              
+
               <div className="rounded-lg bg-primary/5 border border-primary/20 p-4">
                 <div className="flex items-start gap-3">
                   <div className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center shrink-0 font-semibold">2</div>
@@ -616,7 +616,7 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
                   </div>
                 </div>
               </div>
-              
+
               <div className="rounded-lg bg-primary/5 border border-primary/20 p-4">
                 <div className="flex items-start gap-3">
                   <div className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center shrink-0 font-semibold">3</div>
@@ -627,7 +627,7 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
                 </div>
               </div>
             </div>
-            
+
             <Card className="bg-muted/30">
               <CardContent className="p-4">
                 <div className="flex items-start gap-2">
@@ -656,7 +656,7 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
       <DialogTrigger asChild>
         <Button
           variant={"outline"}
-          size={isCreator ? "default": "sm"}
+          size={isCreator ? "default" : "sm"}
           className={`gap-2 `}
         >
           <HelpCircle className="h-4 w-4" />
@@ -665,14 +665,14 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
       </DialogTrigger>
       <DialogContent className="sm:max-w-[700px] p-0 max-h-[90vh]">
         <DialogHeader className="p-6 pb-2 flex flex-row items-center gap-2">
-          <div className={`p-2 rounded-full ${isCreator ? "bg-chart-6/20" : "bg-primary/10"}`}>
-            {isCreator ? <Settings className="h-5 w-5 text-chart-6" /> : getProjectTypeIcon()}
+          <div className={`p-2 rounded-full ${isCreator ? "bg-secondary/20" : "bg-primary/10"}`}>
+            {isCreator ? <Settings className="h-5 w-5 text-secondary" /> : getProjectTypeIcon()}
           </div>
           <DialogTitle className="text-xl">
             {isCreator ? "Creator Guide" : "How It Works"}
           </DialogTitle>
         </DialogHeader>
-        
+
         {/* <div className="px-6 pb-2">
           <p className="text-muted-foreground">
             {isCreator 
@@ -682,7 +682,7 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
                          "multi-role event"} works and how to participate.`}
           </p>
         </div> */}
-        
+
         <ScrollArea className="max-h-[70vh]">
           <div className="px-6 pb-6">
             {isCreator ? (
@@ -702,7 +702,7 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
                     {verification_method === 'signup-only' ? 'Attending' : 'Check-In'}
                   </TabsTrigger>
                 </TabsList>
-                
+
                 <TabsContent value="overview" className="mt-0 pt-4">
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
@@ -712,7 +712,7 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
                     {renderProjectTypeInstructions()}
                   </motion.div>
                 </TabsContent>
-                
+
                 <TabsContent value="signup" className="mt-0 pt-4">
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
@@ -722,7 +722,7 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
                     {renderSignupInstructions()}
                   </motion.div>
                 </TabsContent>
-                
+
                 <TabsContent value="check-in" className="mt-0 pt-4">
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
