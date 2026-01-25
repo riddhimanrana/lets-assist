@@ -198,7 +198,7 @@ export default function MembersClient({
                           variant={
                             member.status === "active"
                               ? "secondary"
-                              : "outline-solid"
+                              : "outline"
                           }
                           className={cn(
                             "capitalize",

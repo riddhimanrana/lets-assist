@@ -39,7 +39,7 @@ export function ProjectsSection() {
                   </div>
                 </AccordionContent>
               </AccordionItem>
-              
+
               {/* <AccordionItem value="project-types">
                 <AccordionTrigger>Project Types</AccordionTrigger>
                 <AccordionContent className="space-y-2 text-sm">
@@ -111,7 +111,7 @@ export function ProjectsSection() {
                   </div>
                 </AccordionContent>
               </AccordionItem>
-              
+
               <AccordionItem value="verification">
                 <AccordionTrigger>Hour Verification Process</AccordionTrigger>
                 <AccordionContent className="space-y-2 text-sm">
@@ -184,12 +184,12 @@ export function ProjectsSection() {
                     </ol>
                   </div>
                 </div>
-                <div className="bg-chart-3/20 p-3 rounded-lg">
+                <div className="bg-info/20 p-3 rounded-lg">
                   <p className="text-xs"><strong>Tip:</strong> CSV files can be opened in Excel or Google Sheets for further analysis and school submissions.</p>
                 </div>
               </AccordionContent>
             </AccordionItem>
-            
+
             <AccordionItem value="csv-import">
               <AccordionTrigger>Importing Existing Records</AccordionTrigger>
               <AccordionContent className="space-y-3 text-sm">

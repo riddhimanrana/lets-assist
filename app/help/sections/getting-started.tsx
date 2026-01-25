@@ -26,15 +26,15 @@ export function GettingStartedSection() {
               <h4 className="font-semibold">Quick Start</h4>
               <ul className="space-y-2 text-sm">
                 <li className="flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4 text-chart-5" />
+                  <CheckCircle className="h-4 w-4 text-success" />
                   Create your account and complete profile
                 </li>
                 <li className="flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4 text-chart-5" />
+                  <CheckCircle className="h-4 w-4 text-success" />
                   Browse or create your first project
                 </li>
                 <li className="flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4 text-chart-5" />
+                  <CheckCircle className="h-4 w-4 text-success" />
                   Start tracking your volunteer hours
                 </li>
               </ul>

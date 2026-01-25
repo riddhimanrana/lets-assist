@@ -17,7 +17,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { User, Mail, Phone, Calendar, MapPin, Clock, Loader2, ChevronDown, Download } from 'lucide-react';
+import { User, Mail, Phone, Calendar, MapPin, Clock, Loader2, ChevronDown, Download, CheckCircle } from 'lucide-react';
 import Image from "next/image";
 import { getUserProfile } from '@/app/projects/[id]/actions';
 import { toast } from '@/hooks/use-toast';
@@ -70,7 +70,7 @@ export function SignupConfirmationModal({
   const [isFetchingProfile, setIsFetchingProfile] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [waiverSignature, setWaiverSignature] = useState<WaiverSignatureInput | null>(null);
-  
+
   // Calendar connection state
   const [calendarConnected, setCalendarConnected] = useState(false);
   const [connectedEmail, setConnectedEmail] = useState<string | null>(null);
@@ -90,15 +90,15 @@ export function SignupConfirmationModal({
       if (!isOpen) {
         return;
       }
-      
+
       if (currentUserProfile) return;
 
       setIsFetchingProfile(true);
       setProfileError(null);
-      
+
       try {
         const result = await getUserProfile();
-        
+
         if (result.error) {
           setProfileError(result.error);
           setCurrentUserProfile(null);
@@ -134,7 +134,7 @@ export function SignupConfirmationModal({
       try {
         const response = await fetch('/api/calendar/connection-status');
         const data = await response.json();
-        
+
         // API returns 'connected' not 'isConnected'
         setCalendarConnected(data.connected || false);
         setConnectedEmail(data.calendar_email || null);
@@ -159,10 +159,10 @@ export function SignupConfirmationModal({
         scheduleId: scheduleId,
         returnToModal: true,
       }));
-      
+
       // Build return URL for this project
       const returnUrl = `/projects/${project.id}`;
-      
+
       // Redirect to OAuth
       window.location.href = `/api/calendar/google/connect?return_to=${encodeURIComponent(returnUrl)}`;
     } catch (error) {
@@ -269,7 +269,7 @@ export function SignupConfirmationModal({
             Please review your information and event details before confirming your signup.
           </DialogDescription>
         </DialogHeader>
-        
+
         <div className="space-y-6">
           {/* User Information */}
           <div className="space-y-3">
@@ -395,25 +395,21 @@ export function SignupConfirmationModal({
                 Checking connection...
               </div>
             ) : calendarConnected ? (
-              <div className="flex items-center justify-between gap-3 p-3 bg-chart-5/10 border border-chart-5/80 rounded-lg">
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <div className="shrink-0">
-                    <div className="h-8 w-8 rounded-full bg-chart-5/20 flex items-center justify-center">
-                      <Image
-              src="/googlecalendar.svg"
-              alt="Google Calendar"
-              width={20}
-              height={20}
-              className="h-4 w-4"
-            />
-                    </div>
+              <div className="flex items-center justify-between gap-3 p-3 bg-success/10 border border-success/80 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className="h-8 w-8 rounded-full bg-success/20 flex items-center justify-center">
+                    <CheckCircle className="h-5 w-5 text-success" />
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-chart-5">
-                      Connected to Google Calendar
+                  <div>
+                    <div className="text-sm font-medium text-success">
+                      Signup Confirmed
+                    </div>
+                    {/* Optional: Add timestamp or confirmation code here if available */}
+                    <div className="text-xs text-success/80 truncate">
+                      You are now registered for this project
                     </div>
                     {connectedEmail && (
-                      <div className="text-xs text-chart-5/80 truncate">
+                      <div className="text-xs text-success/80 truncate">
                         {connectedEmail}
                       </div>
                     )}

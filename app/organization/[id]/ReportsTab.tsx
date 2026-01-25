@@ -120,15 +120,15 @@ type GoogleApiWindow = Window & {
 const chartConfig = {
   verified: {
     label: "Verified",
-    color: "hsl(var(--chart-1))",
+    color: "hsl(var(--success))",
   },
   pending: {
     label: "Pending",
-    color: "hsl(var(--chart-3))",
+    color: "hsl(var(--warning))",
   },
   attendance: {
     label: "Unpublished",
-    color: "hsl(var(--chart-5))",
+    color: "hsl(var(--secondary))",
   },
 } satisfies ChartConfig;
 
@@ -1346,14 +1346,14 @@ export default function ReportsTab({ organizationId, organizationName, userRole 
                       <div className="space-y-4">
                         <div className="grid gap-2 sm:grid-cols-2">
                           <Button
-                            variant={setupMode === "create" ? "default" : "outline-solid"}
+                            variant={setupMode === "create" ? "default" : "outline"}
                             onClick={() => handleSetupModeChange("create")}
                             disabled={needsSheetScopes}
                           >
                             Create new sheet
                           </Button>
                           <Button
-                            variant={setupMode === "existing" ? "default" : "outline-solid"}
+                            variant={setupMode === "existing" ? "default" : "outline"}
                             onClick={() => handleSetupModeChange("existing")}
                             disabled={needsSheetScopes}
                           >
@@ -1864,8 +1864,8 @@ function RangeBuilder({
     mode === "full"
       ? "A1"
       : `${startColumn}${startRowNumber}:${indexToColumn(
-          startColumnIndex + columnSpan - 1
-        )}${startRowNumber + rowSpan - 1}`;
+        startColumnIndex + columnSpan - 1
+      )}${startRowNumber + rowSpan - 1}`;
 
   return (
     <div className="space-y-2">
@@ -2039,9 +2039,8 @@ function MiniSheetPreview({
                     return (
                       <td
                         key={`${col}-${rowNumber}`}
-                        className={`h-5 w-10 border-l text-center ${
-                          isOverlay ? "bg-primary/15" : "bg-transparent"
-                        }`}
+                        className={`h-5 w-10 border-l text-center ${isOverlay ? "bg-primary/15" : "bg-transparent"
+                          }`}
                       ></td>
                     );
                   })}

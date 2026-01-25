@@ -396,7 +396,7 @@ function ActionButtons({
         <>
           <Button
             size="sm"
-            variant={compact ? "outline-solid" : "default"}
+            variant={compact ? "outline" : "default"}
             className={compact ? "h-8 w-8 p-0 hover:bg-muted" : "w-full sm:w-auto"}
             onClick={() => onApprove(member.id, member.user_id)}
           >
@@ -418,7 +418,7 @@ function ActionButtons({
       {member.status === false && (
         <Button
           size="sm"
-          variant={compact ? "outline-solid" : "default"}
+          variant={compact ? "outline" : "default"}
           className={compact ? "h-8 w-8 p-0 hover:bg-muted" : "w-full sm:w-auto"}
           onClick={() => onApprove(member.id, member.user_id)}
         >

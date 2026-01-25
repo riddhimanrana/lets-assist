@@ -2,7 +2,7 @@
 
 import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
-import { fromZonedTime } from "date-fns-tz";
+import { TZDate } from "@date-fns/tz";
 import type { Project } from "@/types";
 
 /**
@@ -105,9 +105,9 @@ export async function lookupEmailStatus(projectId: string, scheduleId: string, e
       restrict_to_org_domains: boolean | null;
       organization_id: string | null;
       organizations?:
-        | { allowed_email_domains?: string[] | null }
-        | { allowed_email_domains?: string[] | null }[]
-        | null;
+      | { allowed_email_domains?: string[] | null }
+      | { allowed_email_domains?: string[] | null }[]
+      | null;
     };
 
     const { data: projectData, error: projectError } = await supabase
@@ -367,9 +367,9 @@ export async function checkInAnonymous(projectId: string, scheduleId: string, em
         .update(updatePayload)
         .eq('id', signup.id)
         .select()) as {
-        data: Record<string, unknown>[] | null;
-        error: { message?: string } | null;
-      }; // Get updated row for debugging
+          data: Record<string, unknown>[] | null;
+          error: { message?: string } | null;
+        }; // Get updated row for debugging
 
       if (updateErr) {
         console.error('[checkInAnonymous] Error updating check-in:', updateErr);
@@ -545,7 +545,12 @@ async function getScheduledCheckoutTime(
 
     try {
       if (timezone) {
-        return fromZonedTime(`${dateStr}T${timeStr}:00`, timezone);
+        // Parse date and time strings to construct TZDate numbers
+        // dateStr is YYYY-MM-DD, timeStr is HH:mm
+        const [year, month, day] = dateStr.split('-').map(Number);
+        const [hours, minutes] = timeStr.split(':').map(Number);
+        // Note: month is 0-indexed in Date constructors
+        return new TZDate(year, month - 1, day, hours, minutes, 0, timezone);
       }
 
       const [hours, minutes] = timeStr.split(':').map(Number);

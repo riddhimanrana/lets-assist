@@ -42,7 +42,7 @@ export function OrganizationsSection() {
                     </Button>
                   </AccordionContent>
                 </AccordionItem>
-                
+
                 <AccordionItem value="org-projects">
                   <AccordionTrigger>Organization Projects & Benefits</AccordionTrigger>
                   <AccordionContent className="space-y-3 text-sm">
@@ -105,7 +105,7 @@ export function OrganizationsSection() {
                 </AccordionItem>
               </Accordion>
             </div>
-            
+
             <div className="space-y-4">
               <h4 className="font-semibold flex items-center gap-2">
                 <Shield className="h-4 w-4" />
@@ -127,7 +127,7 @@ export function OrganizationsSection() {
                     </Button>
                   </AccordionContent>
                 </AccordionItem>
-                
+
                 <AccordionItem value="manage-volunteers">
                   <AccordionTrigger>Managing Volunteers & Members</AccordionTrigger>
                   <AccordionContent className="space-y-3 text-sm">
@@ -294,7 +294,7 @@ export function OrganizationsSection() {
                 <div className="space-y-3">
                   <div className="p-3 border rounded-lg">
                     <h6 className="font-medium text-xs mb-1 flex items-center gap-1">
-                      <Badge variant="outline" className="bg-chart-5/5 border-chart-5/20 text-chart-5">
+                      <Badge variant="outline" className="bg-success/5 border-success/20 text-success">
                         Verified
                       </Badge>
                       Organization Benefits

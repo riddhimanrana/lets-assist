@@ -720,7 +720,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
                 </Button>
               )}
               
-              <Button asChild variant={activeFilterCount > 0 ? "outline-solid" : "default"}>
+              <Button asChild variant={activeFilterCount > 0 ? "outline" : "default"}>
                 <Link href="/projects/create" className="gap-2">
                   <Plus className="h-4 w-4" />
                   Create a project

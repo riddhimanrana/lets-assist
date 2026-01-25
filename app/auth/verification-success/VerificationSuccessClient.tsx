@@ -18,7 +18,7 @@ function VerificationContent() {
   const searchParams = useSearchParams();
   const [errorInfo, setErrorInfo] = useState<{ message: string; code: string } | null>(null);
   const [isChecking, setIsChecking] = useState(true);
-  
+
   const type = searchParams.get("type") || "";
   const email = searchParams.get("email");
   const errorParam = searchParams.get("error");
@@ -94,7 +94,7 @@ function VerificationContent() {
 
   // Success UI
   let title = "Verification Successful";
-  let description = email 
+  let description = email
     ? `Your email ${email} has been verified successfully.`
     : "Your account has been verified successfully.";
   let message = "You can now use all features of Let's Assist.";
@@ -103,7 +103,7 @@ function VerificationContent() {
 
   if (type === "signup") {
     title = "Email Verified Successfully!";
-    description = email 
+    description = email
       ? `Your email ${email} has been confirmed.`
       : "Your email has been confirmed.";
     message = "Your account is now active. Please log in to complete your profile and start exploring volunteering opportunities.";
@@ -123,10 +123,10 @@ function VerificationContent() {
     <div className="flex items-center justify-center min-h-[80vh] p-4">
       <Card className="w-full max-w-md mx-auto">
         <CardHeader className="text-center">
-          <div className="flex justify-center mb-4">
-            <CheckCircle2 className="h-12 w-12 text-chart-5" />
+          <div className="flex flex-col justify-center items-center space-y-4">
+            <CheckCircle2 className="h-12 w-12 text-success" />
+            <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
           </div>
-          <CardTitle className="text-xl sm:text-2xl">{title}</CardTitle>
           <CardDescription>{description}</CardDescription>
         </CardHeader>
         <CardContent className="text-center text-muted-foreground">

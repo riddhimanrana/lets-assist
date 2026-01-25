@@ -212,7 +212,7 @@ export function ModerationTab({ flaggedContent, contentReports }: ModerationTabP
                               variant={
                                 report.priority === 'critical' ? 'destructive' : 
                                 report.priority === 'high' ? 'secondary' :
-                                'outline-solid'
+                                'outline'
                               }
                             >
                               {report.priority}

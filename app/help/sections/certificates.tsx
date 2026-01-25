@@ -26,19 +26,19 @@ export function CertificatesSection() {
               <h4 className="font-semibold">What are Certificates?</h4>
               <ul className="space-y-2 text-sm">
                 <li className="flex items-center gap-2">
-                  <Award className="h-4 w-4 text-chart-5" />
+                  <Award className="h-4 w-4 text-success" />
                   Digital proof of your volunteer work
                 </li>
                 <li className="flex items-center gap-2">
-                  <BadgeCheck className="h-4 w-4 text-chart-5" />
+                  <BadgeCheck className="h-4 w-4 text-success" />
                   Automatically generated after completing projects
                 </li>
                 <li className="flex items-center gap-2">
-                  <Share2 className="h-4 w-4 text-chart-5" />
+                  <Share2 className="h-4 w-4 text-success" />
                   Shareable links for verification
                 </li>
                 <li className="flex items-center gap-2">
-                  <Download className="h-4 w-4 text-chart-5" />
+                  <Download className="h-4 w-4 text-success" />
                   Downloadable for school/scholarship applications
                 </li>
               </ul>
@@ -47,7 +47,7 @@ export function CertificatesSection() {
               <h4 className="font-semibold">Certificate Types</h4>
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="bg-chart-5/5 border-chart-5/20 text-chart-5">
+                  <Badge variant="outline" className="bg-success/5 border-success/20 text-success">
                     <BadgeCheck className="h-3 w-3 mr-1" />
                     Certified
                   </Badge>
@@ -201,7 +201,7 @@ export function CertificatesSection() {
                 </ol>
               </div>
             </div>
-            <div className="bg-chart-3/20 p-3 rounded-lg">
+            <div className="bg-info/20 p-3 rounded-lg">
               <h6 className="font-medium text-xs mb-1">CSV Export Includes:</h6>
               <ul className="text-xs space-y-1">
                 <li>• Certificate ID and project details</li>
@@ -226,7 +226,7 @@ export function CertificatesSection() {
             <div className="space-y-3">
               <div className="p-3 border rounded-lg">
                 <h6 className="font-medium text-xs mb-2 flex items-center gap-1">
-                  <Badge variant="outline" className="bg-chart-5/5 border-chart-5/20 text-chart-5">
+                  <Badge variant="outline" className="bg-success/5 border-success/20 text-success">
                     <BadgeCheck className="h-3 w-3 mr-1" />
                     Verified Organizations
                   </Badge>

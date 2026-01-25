@@ -56,6 +56,7 @@ import {
 import { toast } from "sonner";
 import type { ProjectSchedule, EventType } from "@/types";
 import { deleteDraft, publishDraft } from "./actions";
+import Image from "next/image";
 
 interface Draft {
   id: string;
@@ -160,10 +161,12 @@ export default function DraftsSidebar({ initialDrafts }: DraftsSidebarProps) {
           {/* Thumbnail */}
           <div className="w-12 h-12 bg-muted rounded shrink-0">
             {draft.cover_image_url ? (
-              <img
+              <Image
                 src={draft.cover_image_url}
                 alt={draft.title}
-                className="w-full h-full object-cover rounded"
+                fill
+                className="object-cover rounded"
+                sizes="48px"
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center">
@@ -286,7 +289,7 @@ export default function DraftsSidebar({ initialDrafts }: DraftsSidebarProps) {
                   }
                 }}
                 disabled={!!isDeleting}
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                className="bg-destructive/10 text-destructive hover:bg-destructive/20"
               >
                 {isDeleting ? "Deleting..." : "Delete"}
               </AlertDialogAction>

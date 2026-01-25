@@ -94,7 +94,7 @@ export function DataExportSection() {
               </div>
             </div>
 
-            <div className="bg-chart-3/20 p-4 rounded-lg">
+            <div className="bg-info/20 p-4 rounded-lg">
               <h6 className="font-medium text-sm mb-2">CSV Export Contents:</h6>
               <div className="grid md:grid-cols-2 gap-3 text-xs">
                 <div>

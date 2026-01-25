@@ -407,7 +407,7 @@ export default function Navbar() {
                     <DropdownMenuSeparator className="my-2" />
 
                     <DropdownMenuItem
-                      className="text-chart-3 focus:text-chart-3 py-2.5 cursor-pointer flex justify-between"
+                      className="text-primary focus:text-primary py-2.5 cursor-pointer flex justify-between"
                       onSelect={(e) => {
                         e.preventDefault();
                         setShowFeedbackDialog(true);
@@ -417,7 +417,7 @@ export default function Navbar() {
                       <MessageSquare className="h-4 w-4" />
                     </DropdownMenuItem>
                     <DropdownMenuItem
-                      className="text-chart-4 focus:text-chart-4 py-2.5 cursor-pointer flex justify-between"
+                      className="text-destructive focus:text-destructive py-2.5 cursor-pointer flex justify-between"
                       onSelect={(e) => {
                         e.preventDefault();
                         setShowDonateDialog(true);
@@ -633,7 +633,7 @@ export default function Navbar() {
                 <div className="space-y-1">
                   <Button
                     variant="ghost"
-                    className="w-full justify-between text-chart-3 hover:text-chart-3 hover:bg-chart-3/10"
+                    className="w-full justify-between text-primary hover:text-primary hover:bg-primary/10"
                     onClick={() => {
                       setShowFeedbackDialog(true);
                       handleNavigation();
@@ -644,7 +644,7 @@ export default function Navbar() {
                   </Button>
                   <Button
                     variant="ghost"
-                    className="w-full justify-between text-chart-4 hover:text-chart-4 hover:bg-chart-4/10"
+                    className="w-full justify-between text-destructive hover:text-destructive hover:bg-destructive/10"
                     onClick={() => {
                       setShowDonateDialog(true);
                       handleNavigation();

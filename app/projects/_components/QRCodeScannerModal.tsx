@@ -35,7 +35,7 @@ export function QRCodeScannerModal({
           .webkitAudioContext;
       if (!AudioContextConstructor) return;
       const audioCtx = new AudioContextConstructor();
-      
+
       const playTone = (freq: number, startTime: number, duration: number, volume: number) => {
         const osc = audioCtx.createOscillator();
         const g = audioCtx.createGain();
@@ -109,7 +109,7 @@ export function QRCodeScannerModal({
       onClose();
     }
   };
-  
+
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
@@ -127,7 +127,7 @@ export function QRCodeScannerModal({
           {scanError && (
             <div
               role="alert"
-              className="absolute top-6 left-6 right-6 z-20 bg-destructive/95 text-destructive-foreground p-4 rounded-2xl text-sm flex items-center gap-3 shadow-xl backdrop-blur-md transition-all animate-in fade-in slide-in-from-top-4"
+              className="absolute top-6 left-6 right-6 z-20 bg-destructive/95 text-white p-4 rounded-2xl text-sm flex items-center gap-3 shadow-xl backdrop-blur-md transition-all animate-in fade-in slide-in-from-top-4"
             >
               <AlertCircle className="h-5 w-5 shrink-0" />
               <span>{scanError}</span>
@@ -155,14 +155,14 @@ export function QRCodeScannerModal({
                 }}
               />
             )}
-            
+
             {/* Scanner Frame/Overlay */}
             <div className="absolute inset-0 pointer-events-none border-[3px] border-primary/30 rounded-[1.8rem]" />
             <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                <div className="w-48 h-48 border-2 border-dashed border-primary/40 rounded-3xl animate-pulse" />
+              <div className="w-48 h-48 border-2 border-dashed border-primary/40 rounded-3xl animate-pulse" />
             </div>
           </div>
-          
+
           <p className="text-xs font-medium text-muted-foreground text-center mt-6 flex items-center justify-center gap-2">
             <span className="w-1.5 h-1.5 bg-primary/60 rounded-full animate-ping" />
             Ensure the QR code is well-lit and centered.

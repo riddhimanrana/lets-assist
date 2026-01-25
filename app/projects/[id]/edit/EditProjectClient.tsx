@@ -161,7 +161,7 @@ type FormValues = z.infer<typeof formSchema>;
 // Helper to initialize schedule state from project
 function initializeScheduleState(project: Project) {
   const eventType = project.event_type;
-  
+
   if (eventType === "oneTime" && project.schedule.oneTime) {
     return {
       oneTime: {
@@ -213,7 +213,7 @@ function initializeScheduleState(project: Project) {
       },
     };
   }
-  
+
   return {
     oneTime: { date: "", startTime: "", endTime: "", volunteers: 0 },
     multiDay: [{ date: "", slots: [{ startTime: "", endTime: "", volunteers: 0 }] }],
@@ -229,7 +229,7 @@ function initializeScheduleState(project: Project) {
 // Helper to initialize recurrence state from project
 function initializeRecurrenceState(project: Project) {
   const recurrence = project.recurrence_rule;
-  
+
   return {
     enabled: !!recurrence,
     frequency: (recurrence?.frequency || "weekly") as RecurrenceFrequency,
@@ -247,18 +247,18 @@ export default function EditProjectClient({ project }: Props) {
   const [titleChars, setTitleChars] = useState(project.title.length);
   const [locationChars, setLocationChars] = useState(project.location.length);
   const [hasChanges, setHasChanges] = useState(false);
-  
+
   // Add state for cancel/delete dialogs
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
-  
+
   // Schedule editing state
   const [scheduleState, setScheduleState] = useState(() => initializeScheduleState(project));
   const [recurrenceState, setRecurrenceState] = useState(() => initializeRecurrenceState(project));
   const [scheduleErrors, setScheduleErrors] = useState<z.ZodIssue[]>([]);
   const [isScheduleOpen, setIsScheduleOpen] = useState(false);
-  
+
   // Media & Documents state
   const [isMediaOpen, setIsMediaOpen] = useState(false);
   const [uploadingCoverImage, setUploadingCoverImage] = useState(false);
@@ -279,7 +279,7 @@ export default function EditProjectClient({ project }: Props) {
   const getCounterColor = (current: number, max: number) => {
     const percentage = (current / max) * 100;
     if (percentage >= 90) return "text-destructive";
-    if (percentage >= 75) return "text-chart-6";
+    if (percentage >= 75) return "text-warning";
     return "text-muted-foreground";
   };
 
@@ -416,7 +416,7 @@ export default function EditProjectClient({ project }: Props) {
   useEffect(() => {
     const subscription = form.watch(() => {
       const formValues = form.getValues();
-      const basicInfoChanged = 
+      const basicInfoChanged =
         formValues.title !== project.title ||
         formValues.description !== project.description ||
         formValues.location !== project.location ||
@@ -427,10 +427,10 @@ export default function EditProjectClient({ project }: Props) {
         formValues.waiver_required !== (project.waiver_required ?? false) ||
         formValues.waiver_allow_upload !== (project.waiver_allow_upload ?? true) ||
         formValues.verification_method !== project.verification_method;
-      
+
       const initialSchedule = initializeScheduleState(project);
       const scheduleChanged = JSON.stringify(scheduleState) !== JSON.stringify(initialSchedule);
-      
+
       setHasChanges(basicInfoChanged || scheduleChanged);
     });
     return () => subscription.unsubscribe();
@@ -440,9 +440,9 @@ export default function EditProjectClient({ project }: Props) {
   useEffect(() => {
     const initialSchedule = initializeScheduleState(project);
     const scheduleChanged = JSON.stringify(scheduleState) !== JSON.stringify(initialSchedule);
-    
+
     const formValues = form.getValues();
-    const basicInfoChanged = 
+    const basicInfoChanged =
       formValues.title !== project.title ||
       formValues.description !== project.description ||
       formValues.location !== project.location ||
@@ -453,7 +453,7 @@ export default function EditProjectClient({ project }: Props) {
       formValues.waiver_required !== (project.waiver_required ?? false) ||
       formValues.waiver_allow_upload !== (project.waiver_allow_upload ?? true) ||
       formValues.verification_method !== project.verification_method;
-    
+
     setHasChanges(basicInfoChanged || scheduleChanged);
   }, [scheduleState, form, project]);
 
@@ -546,7 +546,7 @@ export default function EditProjectClient({ project }: Props) {
 
       setUploadingCoverImage(true);
       const loadingToast = toast.loading("Uploading cover image...");
-      
+
       try {
         const supabase = createClient();
         const fileExt = file.name.split('.').pop();
@@ -616,7 +616,7 @@ export default function EditProjectClient({ project }: Props) {
 
     const files = Array.from(e.target.files);
     const totalFiles = (project.documents || []).length + files.length;
-    
+
     if (totalFiles > MAX_DOCUMENTS_COUNT) {
       toast.error(`Maximum ${MAX_DOCUMENTS_COUNT} documents allowed`);
       return;
@@ -624,7 +624,7 @@ export default function EditProjectClient({ project }: Props) {
 
     const currentTotalSize = (project.documents || []).reduce((sum, doc) => sum + (doc.size || 0), 0);
     const newFilesTotalSize = files.reduce((sum, file) => sum + file.size, 0);
-    
+
     if (currentTotalSize + newFilesTotalSize > MAX_DOCUMENT_SIZE) {
       toast.error("Total document size limit exceeded");
       return;
@@ -786,12 +786,12 @@ export default function EditProjectClient({ project }: Props) {
   const onSubmit = async (values: FormValues) => {
     setSaving(true);
     setScheduleErrors([]);
-    
+
     try {
       // Build schedule object based on event type
       let schedule: ProjectSchedule = {};
       const eventType = project.event_type;
-      
+
       if (eventType === "oneTime") {
         schedule = { oneTime: scheduleState.oneTime };
       } else if (eventType === "multiDay") {
@@ -799,7 +799,7 @@ export default function EditProjectClient({ project }: Props) {
       } else if (eventType === "sameDayMultiArea") {
         schedule = { sameDayMultiArea: scheduleState.sameDayMultiArea };
       }
-      
+
       // Build recurrence rule if enabled
       const recurrenceRule = recurrenceState.enabled ? {
         frequency: recurrenceState.frequency,
@@ -817,13 +817,13 @@ export default function EditProjectClient({ project }: Props) {
         schedule,
         recurrence_rule: normalizedRecurrenceRule,
       };
-      
+
       const result = await updateProject(project.id, updates);
       if (result.error) {
         toast.error(result.error);
       } else {
         toast.success("Project updated successfully");
-        
+
         // Update calendar event if details changed (non-blocking)
         try {
           await updateCalendarEventForProject(project.id);
@@ -831,7 +831,7 @@ export default function EditProjectClient({ project }: Props) {
           console.error("Error updating calendar event:", calendarError);
           // Don't show error to user - this is non-critical
         }
-        
+
         router.push(`/projects/${project.id}`);
         router.refresh();
       }
@@ -843,9 +843,9 @@ export default function EditProjectClient({ project }: Props) {
   };
 
   // Check if form is valid and has all required fields
-  const isFormValid = form.formState.isValid && 
-    form.getValues().title?.trim() && 
-    form.getValues().location?.trim() && 
+  const isFormValid = form.formState.isValid &&
+    form.getValues().title?.trim() &&
+    form.getValues().location?.trim() &&
     !isHTMLEmpty(form.getValues().description || '');
 
   // Add handlers for cancel and delete project
@@ -865,7 +865,7 @@ export default function EditProjectClient({ project }: Props) {
           toast.success("Project cancelled successfully.");
           toast.warning(
             notificationStatus?.error ||
-              "We couldn't queue cancellation emails. Please try again shortly."
+            "We couldn't queue cancellation emails. Please try again shortly."
           );
         }
         setShowCancelDialog(false);
@@ -908,7 +908,7 @@ export default function EditProjectClient({ project }: Props) {
   const endDateTime = getProjectEndDateTime(project);
   const hoursUntilStart = differenceInHours(startDateTime, now);
   const hoursAfterEnd = differenceInHours(now, endDateTime);
-  
+
   const isInDeletionRestrictionPeriod = hoursUntilStart <= 24 && hoursAfterEnd <= 48;
   const isCancelled = project.status === "cancelled";
 
@@ -950,9 +950,9 @@ export default function EditProjectClient({ project }: Props) {
                       </span>
                     </div>
                     <FormControl>
-                      <Input 
-                        placeholder="Enter project title" 
-                        {...field} 
+                      <Input
+                        placeholder="Enter project title"
+                        {...field}
                         onChange={e => {
                           field.onChange(e);
                           setTitleChars(e.target.value.length);
@@ -1255,43 +1255,43 @@ export default function EditProjectClient({ project }: Props) {
                       defaultValue={field.value}
                     >
                       <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select verification method" />
-                      </SelectTrigger>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select verification method" />
+                        </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                      <SelectItem value="qr-code">
-                        <div className="flex flex-col group">
-                        <span>QR Code Check-in</span>
-                        <span className="text-xs text-muted-foreground hidden group-hover:block group-focus:block">
-                          Volunteers scan a QR code at the event to check in
-                        </span>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="manual">
-                        <div className="flex flex-col group">
-                        <span>Manual Check-in</span>
-                        <span className="text-xs text-muted-foreground hidden group-hover:block group-focus:block">
-                          Project coordinators manually check in volunteers from the attendance page
-                        </span>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="auto">
-                        <div className="flex flex-col group">
-                        <span>Automatic Check-in</span>
-                        <span className="text-xs text-muted-foreground hidden group-hover:block group-focus:block">
-                          System automatically checks in volunteers at their scheduled time
-                        </span>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="signup-only">
-                        <div className="flex flex-col group">
-                        <span>Sign-up Only</span>
-                        <span className="text-xs text-muted-foreground hidden group-hover:block group-focus:block">
-                          No check-in process, only tracks who signed up
-                        </span>
-                        </div>
-                      </SelectItem>
+                        <SelectItem value="qr-code">
+                          <div className="flex flex-col group">
+                            <span>QR Code Check-in</span>
+                            <span className="text-xs text-muted-foreground hidden group-hover:block group-focus:block">
+                              Volunteers scan a QR code at the event to check in
+                            </span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="manual">
+                          <div className="flex flex-col group">
+                            <span>Manual Check-in</span>
+                            <span className="text-xs text-muted-foreground hidden group-hover:block group-focus:block">
+                              Project coordinators manually check in volunteers from the attendance page
+                            </span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="auto">
+                          <div className="flex flex-col group">
+                            <span>Automatic Check-in</span>
+                            <span className="text-xs text-muted-foreground hidden group-hover:block group-focus:block">
+                              System automatically checks in volunteers at their scheduled time
+                            </span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="signup-only">
+                          <div className="flex flex-col group">
+                            <span>Sign-up Only</span>
+                            <span className="text-xs text-muted-foreground hidden group-hover:block group-focus:block">
+                              No check-in process, only tracks who signed up
+                            </span>
+                          </div>
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -1325,8 +1325,8 @@ export default function EditProjectClient({ project }: Props) {
                     <AlertTriangle className="h-4 w-4" />
                     <AlertTitle>Important</AlertTitle>
                     <AlertDescription>
-                      Changing dates or times may affect volunteers who have already signed up. 
-                      Consider notifying them of any changes. Reducing volunteer capacity below 
+                      Changing dates or times may affect volunteers who have already signed up.
+                      Consider notifying them of any changes. Reducing volunteer capacity below
                       current signups is not recommended.
                     </AlertDescription>
                   </Alert>
@@ -1384,11 +1384,11 @@ export default function EditProjectClient({ project }: Props) {
                         Upload a cover image for your project (JPEG, PNG, WebP, max {formatBytes(MAX_COVER_IMAGE_SIZE)})
                       </p>
                     </div>
-                    
+
                     <div className="border-2 border-dashed rounded-lg p-4 transition-colors hover:border-primary/50 hover:bg-primary/5">
                       {project.cover_image_url ? (
                         <div className="w-full max-w-md mx-auto">
-                          <AspectRatio ratio={16/9} className="bg-muted overflow-hidden rounded-md">
+                          <AspectRatio ratio={16 / 9} className="bg-muted overflow-hidden rounded-md">
                             <div className="relative w-full h-full">
                               <Image
                                 src={project.cover_image_url}
@@ -1447,25 +1447,23 @@ export default function EditProjectClient({ project }: Props) {
                       </div>
                     </div>
 
-                    <div className={`border-2 border-dashed rounded-lg p-4 transition-colors ${
-                      (project.documents || []).length >= MAX_DOCUMENTS_COUNT 
-                        ? 'opacity-50 cursor-not-allowed' 
-                        : 'hover:border-primary/50 hover:bg-primary/5'
-                    }`}>
-                      <label className={`flex flex-col items-center justify-center py-6 ${
-                        (project.documents || []).length >= MAX_DOCUMENTS_COUNT ? 'cursor-not-allowed' : 'cursor-pointer'
+                    <div className={`border-2 border-dashed rounded-lg p-4 transition-colors ${(project.documents || []).length >= MAX_DOCUMENTS_COUNT
+                      ? 'opacity-50 cursor-not-allowed'
+                      : 'hover:border-primary/50 hover:bg-primary/5'
                       }`}>
+                      <label className={`flex flex-col items-center justify-center py-6 ${(project.documents || []).length >= MAX_DOCUMENTS_COUNT ? 'cursor-not-allowed' : 'cursor-pointer'
+                        }`}>
                         <div className="rounded-full bg-background p-3 shadow-xs mb-3">
                           <Upload className="h-6 w-6 text-muted-foreground" />
                         </div>
                         <p className="text-sm font-medium mb-1">
-                          {(project.documents || []).length >= MAX_DOCUMENTS_COUNT 
-                            ? "Maximum files reached" 
+                          {(project.documents || []).length >= MAX_DOCUMENTS_COUNT
+                            ? "Maximum files reached"
                             : uploadingDocuments ? "Uploading..." : "Click to upload documents"
                           }
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {(project.documents || []).length >= MAX_DOCUMENTS_COUNT 
+                          {(project.documents || []).length >= MAX_DOCUMENTS_COUNT
                             ? `Limit of ${MAX_DOCUMENTS_COUNT} files reached`
                             : uploadingDocuments ? "Please wait..." : "or drag and drop (multiple files allowed)"
                           }
@@ -1539,8 +1537,8 @@ export default function EditProjectClient({ project }: Props) {
                 >
                   Cancel
                 </Button>
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   disabled={saving || !hasChanges || !isFormValid}
                 >
                   {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -1558,7 +1556,7 @@ export default function EditProjectClient({ project }: Props) {
             <p className="text-sm text-muted-foreground mb-6">
               These actions can&apos;t be undone. Please proceed with caution.
             </p>
-            
+
             {/* Project status notification */}
             {isCancelled && (
               <div className="mb-6 flex items-start gap-3 p-4 rounded-md border border-destructive bg-destructive/10">
@@ -1567,7 +1565,7 @@ export default function EditProjectClient({ project }: Props) {
                   <p className="font-medium text-foreground mb-1">This project has been cancelled</p>
                   <p>
                     You can still edit details, but new signups are disabled and the project is marked as cancelled.
-                    If this was a mistake, please contact <Link className="text-chart-3 hover:underline" href="mailto:support@lets-assist.com">support@lets-assist.com</Link>
+                    If this was a mistake, please contact <Link className="text-primary hover:underline" href="mailto:support@lets-assist.com">support@lets-assist.com</Link>
                   </p>
                   {project.cancellation_reason && (
                     <p className="mt-2 font-medium">
@@ -1577,21 +1575,21 @@ export default function EditProjectClient({ project }: Props) {
                 </div>
               </div>
             )}
-            
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Cancel Project Button */}
               {!isCancelled && (
                 <div className="p-4 border rounded-lg bg-muted/30">
                   <h4 className="font-medium mb-2 flex items-center">
-                    <XCircle className="h-4 w-4 mr-2 text-chart-4" />
+                    <XCircle className="h-4 w-4 mr-2 text-warning" />
                     Cancel Project
                   </h4>
                   <p className="text-sm text-muted-foreground mb-4">
                     Cancels the project and emails approved volunteers (including anonymous signups with an email address). The project remains in the system but is marked as cancelled.
                   </p>
-                  <Button 
+                  <Button
                     onClick={() => setShowCancelDialog(true)}
-                    className="w-full bg-chart-4 hover:bg-chart-4/90"
+                    className="w-full bg-warning hover:bg-warning/90"
                   >
                     Cancel Project
                   </Button>
@@ -1611,10 +1609,10 @@ export default function EditProjectClient({ project }: Props) {
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <div>
-                        <Button 
+                        <Button
                           variant="destructive"
                           onClick={() => setShowDeleteDialog(true)}
-                          
+
                           className="w-full"
                         >
                           {isDeleting ? (
@@ -1652,7 +1650,7 @@ export default function EditProjectClient({ project }: Props) {
             <AlertDialogCancel className="w-full sm:w-auto mt-0">Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteProject}
-              className="w-full sm:w-auto bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="w-full sm:w-auto bg-destructive/10 text-destructive hover:bg-destructive/20"
             >
               {isDeleting ? (
                 <>
@@ -1676,7 +1674,7 @@ export default function EditProjectClient({ project }: Props) {
       />
 
       {/* File Preview */}
-      <FilePreview 
+      <FilePreview
         url={previewDoc || ""}
         open={previewOpen}
         onOpenChange={setPreviewOpen}

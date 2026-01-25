@@ -36,7 +36,7 @@ export function DonateDialog({ open, onOpenChange }: DonateDialogProps) {
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Heart className="h-5 w-5 text-chart-1" />
+            <Heart className="h-5 w-5 text-destructive" />
             Support Let&apos;s Assist
           </DialogTitle>
           <DialogDescription asChild className="text-left space-y-3 pt-2">
@@ -53,7 +53,7 @@ export function DonateDialog({ open, onOpenChange }: DonateDialogProps) {
             </div>
           </DialogDescription>
         </DialogHeader>
-        
+
         <div className="flex items-center space-x-2 p-3 bg-muted rounded-lg">
           <Mail className="h-4 w-4 text-muted-foreground" />
           <span className="flex-1 text-sm font-mono">{email}</span>
@@ -76,7 +76,7 @@ export function DonateDialog({ open, onOpenChange }: DonateDialogProps) {
             )}
           </Button>
         </div>
-        
+
         <div className="flex justify-end">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Close

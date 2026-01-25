@@ -214,7 +214,7 @@ export default function CalendarClient({
             <div className="space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                 <div className="flex items-start gap-3">
-                  <CheckCircle className="h-5 w-5 text-chart-5 mt-0.5" />
+                  <CheckCircle className="h-5 w-5 text-success mt-0.5" />
                   <div className="min-w-0">
                     <p className="font-medium">Connected</p>
                     <p className="text-sm text-muted-foreground break-all">
@@ -287,7 +287,7 @@ export default function CalendarClient({
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                 <div className="flex items-start gap-3">
                   {sheetsEnabled ? (
-                    <CheckCircle className="h-5 w-5 text-chart-5 mt-0.5" />
+                    <CheckCircle className="h-5 w-5 text-success mt-0.5" />
                   ) : (
                     <AlertCircle className="h-5 w-5 text-muted-foreground mt-0.5" />
                   )}
@@ -315,7 +315,7 @@ export default function CalendarClient({
                 </div>
                 <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                   <Button
-                    variant={sheetsEnabled ? "outline-solid" : "default"}
+                    variant={sheetsEnabled ? "secondary" : "default"}
                     size="sm"
                     onClick={() => {
                       window.location.href = sheetsConnectUrl;
@@ -532,7 +532,7 @@ export default function CalendarClient({
             <AlertDialogAction
               onClick={handleDisconnect}
               disabled={isDisconnecting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="bg-destructive/10 hover:bg-destructive/20 text-destructive"
             >
               {isDisconnecting ? "Disconnecting..." : "Disconnect"}
             </AlertDialogAction>

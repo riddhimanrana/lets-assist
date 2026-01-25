@@ -39,21 +39,21 @@ export function FeedbackDialog({ onOpenChangeAction, initialType = "issue" }: Fe
       id: "issue" as FeedbackType,
       label: "Issue",
       icon: AlertTriangle,
-      selectedColor: "bg-chart-6 hover:bg-chart-6/80 text-white border-chart-6",
+      selectedColor: "bg-destructive hover:bg-destructive/80 text-white border-destructive",
       defaultColor: "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground border-border hover:border-muted-foreground/20",
     },
     {
       id: "idea" as FeedbackType,
       label: "Idea",
       icon: Lightbulb,
-      selectedColor: "bg-chart-4 hover:bg-chart-4/80 text-white border-chart-4",
+      selectedColor: "bg-warning hover:bg-warning/80 text-white border-warning",
       defaultColor: "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground border-border hover:border-muted-foreground/20",
     },
     {
       id: "other" as FeedbackType,
       label: "Other",
       icon: MoreHorizontal,
-      selectedColor: "bg-chart-3 hover:bg-chart-3/80 text-white border-chart-3",
+      selectedColor: "bg-secondary hover:bg-secondary/80 text-white border-secondary",
       defaultColor: "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground border-border hover:border-muted-foreground/20",
     },
   ];
@@ -72,10 +72,10 @@ export function FeedbackDialog({ onOpenChangeAction, initialType = "issue" }: Fe
         .select("full_name")
         .eq("id", user.id)
         .single()) as {
-        data: { full_name: string } | null;
-        error: { message: string } | null;
-      };
-      
+          data: { full_name: string } | null;
+          error: { message: string } | null;
+        };
+
       setProfile(profileData);
       setEmail(user.email || "");
     };
@@ -116,7 +116,7 @@ export function FeedbackDialog({ onOpenChangeAction, initialType = "issue" }: Fe
 
     try {
       const supabase = createClient();
-      
+
       const pagePath = typeof window !== "undefined"
         ? `${window.location.pathname}${window.location.search}${window.location.hash}`
         : "";
@@ -131,7 +131,7 @@ export function FeedbackDialog({ onOpenChangeAction, initialType = "issue" }: Fe
         referrer: document.referrer,
         timestamp: new Date().toISOString(),
       } : {};
-      
+
       const { error } = await supabase
         .from("feedback")
         .insert({
@@ -173,7 +173,7 @@ export function FeedbackDialog({ onOpenChangeAction, initialType = "issue" }: Fe
           <p className="text-sm text-muted-foreground">
             Have some feedback for Let&apos;s Assist? We would love to hear your thoughts!
           </p>
-          
+
           {/* <p className="text-sm text-muted-foreground">
             This email will be used to contact you for further details on this feedback report{" "}
           </p> */}
@@ -191,14 +191,14 @@ export function FeedbackDialog({ onOpenChangeAction, initialType = "issue" }: Fe
             {feedbackTypes.map((type) => {
               const Icon = type.icon;
               const isSelected = selectedType === type.id;
-              
+
               return (
                 <button
                   key={type.id}
                   onClick={() => setSelectedType(type.id)}
                   className={cn(
                     "flex flex-col items-center justify-center p-3 sm:p-4 rounded-xl border-2 transition-all duration-200",
-                    isSelected 
+                    isSelected
                       ? cn("scale-105 shadow-md z-10", type.selectedColor)
                       : type.defaultColor
                   )}

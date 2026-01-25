@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -43,17 +43,34 @@ export function CancelSignupModal({
 }: CancelSignupModalProps) {
   const [isLoading, setIsLoading] = useState(false);
 
+  const isLateCancellation = useMemo(() => {
+    if (!project.date) return false;
+    try {
+      const eventDate = new Date(project.date);
+      if (project.start_time) {
+        const [hours, minutes] = project.start_time.split(':');
+        eventDate.setHours(parseInt(hours, 10), parseInt(minutes, 10));
+      }
+      const now = new Date();
+      const diffInHours = (eventDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+      return diffInHours < 24 && diffInHours > 0;
+    } catch (e) {
+      console.error("Error checking cancellation time", e);
+      return false;
+    }
+  }, [project.date, project.start_time]);
+
   const handleConfirmCancel = async () => {
     console.log('CancelSignupModal: Starting cancellation process');
     console.log('Project ID:', projectId);
     console.log('Schedule ID:', scheduleId);
     console.log('User ID:', userId);
-    
+
     setIsLoading(true);
-    
+
     try {
       const supabase = createClient();
-      
+
       // Find the signup record to cancel
       const { data: allSignups, error: queryError } = await supabase
         .from("project_signups")
@@ -61,24 +78,24 @@ export function CancelSignupModal({
         .eq("project_id", projectId)
         .eq("schedule_id", scheduleId)
         .eq("user_id", userId);
-      
+
       console.log('Found signups:', allSignups);
       console.log('Query error:', queryError);
-      
+
       if (queryError) {
         console.error("Error querying signups:", queryError);
         toast.error("Failed to find signup record");
         return;
       }
-      
+
       // Find any approved signup (most common case)
       let targetSignup = allSignups?.find(s => s.status === "approved");
-      
+
       // If no approved signup, try pending status
       if (!targetSignup) {
         targetSignup = allSignups?.find(s => s.status === "pending");
       }
-      
+
       // If still no signup, take any status
       if (!targetSignup && allSignups && allSignups.length > 0) {
         targetSignup = allSignups[0];
@@ -91,11 +108,11 @@ export function CancelSignupModal({
       }
 
       console.log('Attempting to cancel signup:', targetSignup);
-      
+
       // Call the server action to cancel the signup
       const result = await cancelSignup(targetSignup.id);
       console.log('Cancel result:', result);
-      
+
       if (result.error) {
         toast.error(result.error);
       } else {
@@ -143,7 +160,7 @@ export function CancelSignupModal({
             Are you sure you want to cancel your signup for this event? This action cannot be undone.
           </DialogDescription>
         </DialogHeader>
-        
+
         <div className="space-y-4">
           <div className="rounded-lg border p-4 space-y-3">
             <h4 className="font-semibold text-sm">
@@ -175,13 +192,16 @@ export function CancelSignupModal({
               </div>
             </div>
           </div>
-          
-          <div className="bg-chart-4/20 border border-chart-4 rounded-lg p-3">
-            <p className="text-sm text-chart-4">
-              <strong>Note:</strong> Cancelling your signup may affect the organization&apos;s planning. 
-              If you need to cancel close to the event date, consider contacting the organizers directly.
-            </p>
-          </div>
+
+          {isLateCancellation && (
+            <div className="bg-warning/20 border border-warning rounded-lg p-3">
+              <p className="text-sm text-warning">
+                <span className="font-bold">Warning:</span> You are cancelling within 24 hours of the event start time.
+                This may affect your reliability score and future signup opportunities.
+                , consider contacting the organizers directly.
+              </p>
+            </div>
+          )}
         </div>
 
         <DialogFooter>

@@ -136,7 +136,7 @@ export default async function UserProjects() {
       .from("profiles")
       .select("id, full_name, avatar_url, username")
       .in("id", projectCreatorIds);
-    
+
     if (profiles) {
       creatorProfiles = profiles.reduce<Record<string, CreatorProfile>>((acc, profile) => {
         acc[profile.id] = profile as CreatorProfile;
@@ -149,7 +149,7 @@ export default async function UserProjects() {
   const volunteeredProjects: ProjectWithCreator[] = signups?.filter(signup => signup.projects).map(signup => {
     const projectData = Array.isArray(signup.projects) ? signup.projects[0] : signup.projects;
     const creator = creatorProfiles[projectData.creator_id];
-    
+
     // Determine if hours are published for this specific signup's schedule_id
     const areHoursPublished = projectData.published_hours && projectData.published_hours[signup.schedule_id] === true;
 
@@ -176,28 +176,28 @@ export default async function UserProjects() {
   }));
 
   // Group volunteered projects by status
-  const upcomingVolunteered = processedVolunteeredProjects.filter(p => 
+  const upcomingVolunteered = processedVolunteeredProjects.filter(p =>
     p.status === "upcoming"
   );
-  
-  const inProgressVolunteered = processedVolunteeredProjects.filter(p => 
+
+  const inProgressVolunteered = processedVolunteeredProjects.filter(p =>
     p.status === "in-progress"
   );
-  
-  const pastVolunteered = processedVolunteeredProjects.filter(p => 
+
+  const pastVolunteered = processedVolunteeredProjects.filter(p =>
     p.status === "completed" || p.status === "cancelled"
   );
 
   // Group created projects by status
-  const upcomingCreated = processedCreatedProjects.filter(p => 
+  const upcomingCreated = processedCreatedProjects.filter(p =>
     p.status === "upcoming"
   );
-  
-  const inProgressCreated = processedCreatedProjects.filter(p => 
+
+  const inProgressCreated = processedCreatedProjects.filter(p =>
     p.status === "in-progress"
   );
-  
-  const pastCreated = processedCreatedProjects.filter(p => 
+
+  const pastCreated = processedCreatedProjects.filter(p =>
     p.status === "completed" || p.status === "cancelled"
   );
 
@@ -207,7 +207,7 @@ export default async function UserProjects() {
       <p className="text-muted-foreground mb-5">
         Projects you&apos;ve signed up for and projects you&apos;ve created.
       </p>
-      
+
       <Tabs defaultValue="volunteering" className="space-y-5">
         <TabsList className="grid w-full grid-cols-2 mb-6">
           <TabsTrigger value="volunteering">Volunteering For</TabsTrigger>
@@ -249,19 +249,19 @@ export default async function UserProjects() {
                           <MapPin className="h-3 w-3 shrink-0" />
                           <span className="truncate">{project.location}</span>
                         </div>
-                        
+
                         {/* {project.event_type === "oneTime" && (
                           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                             <Clock className="h-3 w-3" />
                             <span>{formatTime(project.schedule?.oneTime?.startTime || "")} - {formatTime(project.schedule?.oneTime?.endTime || "")}</span>
                           </div>
                         )} */}
-                        
+
                         <div className="flex items-center gap-2">
                           <Avatar className="h-6 w-6">
-                            <AvatarImage 
-                              src={project.organization?.logo_url || project.creator?.avatar_url || ""} 
-                              alt={project.organization?.name || project.creator?.full_name || ""} 
+                            <AvatarImage
+                              src={project.organization?.logo_url || project.creator?.avatar_url || ""}
+                              alt={project.organization?.name || project.creator?.full_name || ""}
                             />
                             <AvatarFallback>
                               <NoAvatar className="text-xs" fullName={project.organization?.name || project.creator?.full_name || ""} />
@@ -303,19 +303,19 @@ export default async function UserProjects() {
                             <MapPin className="h-3 w-3 shrink-0" />
                             <span className="truncate">{project.location}</span>
                           </div>
-                          
+
                           {/* {project.event_type === "oneTime" && (
                             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                               <Clock className="h-3 w-3" />
                               <span>{formatTime(project.schedule?.oneTime?.startTime || "")} - {formatTime(project.schedule?.oneTime?.endTime || "")}</span>
                             </div>
                           )} */}
-                          
+
                           <div className="flex items-center gap-2">
                             <Avatar className="h-6 w-6">
-                              <AvatarImage 
-                                src={project.organization?.logo_url || project.creator?.avatar_url || ""} 
-                                alt={project.organization?.name || project.creator?.full_name || ""} 
+                              <AvatarImage
+                                src={project.organization?.logo_url || project.creator?.avatar_url || ""}
+                                alt={project.organization?.name || project.creator?.full_name || ""}
                               />
                               <AvatarFallback>
                                 <NoAvatar className="text-xs" fullName={project.organization?.name || project.creator?.full_name || ""} />
@@ -351,7 +351,7 @@ export default async function UserProjects() {
                           <div className="flex justify-between items-start gap-2">
                             {/* Display status based on project.status or if hours are published */}
                             {project.areHoursPublished ? (
-                              <Badge variant="default" className="text-xs bg-chart-5 text-chart-5-foreground hover:bg-chart-5/90">
+                              <Badge variant="default" className="text-xs bg-success text-success-foreground hover:bg-success/90">
                                 <Award className="h-3 w-3 mr-1" />
                                 Hours Published
                               </Badge>
@@ -437,7 +437,7 @@ export default async function UserProjects() {
                           <MapPin className="h-3 w-3 shrink-0" />
                           <span className="truncate">{project.location}</span>
                         </div>
-                        
+
                         {/* {project.event_type === "oneTime" && (
                           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                             <Clock className="h-3 w-3" />
@@ -447,9 +447,9 @@ export default async function UserProjects() {
                       </CardContent>
                       <CardFooter className="p-4 pt-3">
                         <Button variant="default" size="sm" asChild className="w-full">
-                            <Link href={`/projects/${project.id}`}>
-                                View Project
-                            </Link>
+                          <Link href={`/projects/${project.id}`}>
+                            View Project
+                          </Link>
                         </Button>
                       </CardFooter>
                     </Card>
@@ -478,7 +478,7 @@ export default async function UserProjects() {
                             <MapPin className="h-3 w-3 shrink-0" />
                             <span className="truncate">{project.location}</span>
                           </div>
-                          
+
                           {/* {project.event_type === "oneTime" && (
                             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                               <Clock className="h-3 w-3" />
@@ -488,9 +488,9 @@ export default async function UserProjects() {
                         </CardContent>
                         <CardFooter className="p-4 pt-3">
                           <Button variant="default" size="sm" asChild className="w-full">
-                              <Link href={`/projects/${project.id}`}>
-                                  View Project
-                              </Link>
+                            <Link href={`/projects/${project.id}`}>
+                              View Project
+                            </Link>
                           </Button>
                         </CardFooter>
                       </Card>

@@ -43,7 +43,7 @@ export function MiniDashboard({
 }: MiniDashboardProps) {
   const months = monthlyData ?? MOCK_MONTHLY_DATA;
   const maxHours = Math.max(...months.map((m) => m.hours), 1);
-  const chartBarColor = "hsl(var(--chart-3))";
+  const chartBarColor = "hsl(var(--chart-1))";
 
   const defaultBreakdown: HoursBreakdown = breakdown ?? {
     selfReported: Math.round(totalHours * 0.35),
@@ -64,15 +64,29 @@ export function MiniDashboard({
   return (
     <div className="space-y-3 p-2 md:p-3">
       <div className="grid gap-3 md:grid-cols-3">
-        <Card className="bg-linear-to-br from-primary/10 to-primary/5 border border-primary/30">
+        <Card className="bg-linear-to-br from-chart-1/10 to-chart-1/5 border border-chart-1/30">
           <CardContent className="p-3">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-[10px] font-medium text-muted-foreground">Total Hours</p>
                 <p className="text-xl font-semibold">{totalHours}h</p>
               </div>
-              <div className="p-1.5 rounded-md bg-primary/20">
-                <Clock className="h-4 w-4 text-primary" />
+              <div className="p-1.5 rounded-md bg-chart-1/20">
+                <Clock className="h-4 w-4 text-chart-1" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-linear-to-br from-chart-2/10 to-chart-2/5 border border-chart-2/30">
+          <CardContent className="p-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-medium text-muted-foreground">Projects</p>
+                <p className="text-xl font-semibold">{totalProjects}</p>
+              </div>
+              <div className="p-1.5 rounded-md bg-chart-2/20">
+                <Award className="h-4 w-4 text-chart-2" />
               </div>
             </div>
           </CardContent>
@@ -80,27 +94,13 @@ export function MiniDashboard({
 
         <Card className="bg-linear-to-br from-chart-3/10 to-chart-3/5 border border-chart-3/30">
           <CardContent className="p-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-[10px] font-medium text-muted-foreground">Projects</p>
-                <p className="text-xl font-semibold">{totalProjects}</p>
-              </div>
-              <div className="p-1.5 rounded-md bg-chart-3/20">
-                <Award className="h-4 w-4 text-chart-3" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-linear-to-br from-chart-4/10 to-chart-4/5 border border-chart-4/30">
-          <CardContent className="p-3">
             <div className="flex items-center justify-between mb-2">
               <div>
                 <p className="text-[10px] font-medium text-muted-foreground">Progress</p>
                 <p className="text-lg font-semibold">{progressPercentage}%</p>
               </div>
-              <div className="p-1.5 rounded-md bg-chart-4/20">
-                <TrendingUp className="h-4 w-4 text-chart-4" />
+              <div className="p-1.5 rounded-md bg-chart-3/20">
+                <TrendingUp className="h-4 w-4 text-chart-3" />
               </div>
             </div>
             <div className="h-2 rounded-full bg-black">

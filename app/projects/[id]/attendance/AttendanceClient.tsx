@@ -629,7 +629,7 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
                           </TableCell>
                           <TableCell>
                               <Badge
-                              variant={checkInTime !== "N/A" ? "default" : "outline-solid"}
+                              variant={checkInTime !== "N/A" ? "default" : "outline"}
                               className="gap-1"
                               >
                               {checkInTime !== "N/A" ? (
@@ -642,7 +642,7 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
                           </TableCell>
                           <TableCell>
                               <Badge
-                              variant={checkOutTime !== "N/A" ? "default" : "outline-solid"}
+                              variant={checkOutTime !== "N/A" ? "default" : "outline"}
                               className="gap-1"
                               >
                               {checkOutTime !== "N/A" ? (

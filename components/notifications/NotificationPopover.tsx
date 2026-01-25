@@ -127,7 +127,7 @@ export function NotificationPopover() {
   const loadNotifications = useCallback(async () => {
     if (!user?.id) return;
     setLoading(true);
-    
+
     try {
       // Load initial 10 notifications with pagination
       const { data, error } = await supabase
@@ -136,12 +136,12 @@ export function NotificationPopover() {
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
         .range(0, 9); // First 10 items
-        
+
       if (error) {
         console.error("Error loading notifications:", error);
         throw error;
       }
-      
+
       console.log('Notifications loaded:', data?.length || 0);
       const normalized = (data || []).map((notification) => ({
         ...notification,
@@ -149,7 +149,7 @@ export function NotificationPopover() {
       })) as Notification[];
       setNotifications(normalized);
       setOffset(0);
-      
+
       // Check if there are more notifications
       if (data && data.length < 10) {
         setHasMore(false);
@@ -167,7 +167,7 @@ export function NotificationPopover() {
   const loadMoreNotifications = useCallback(async () => {
     if (!user?.id || loadingMore || !hasMore) return;
     setLoadingMore(true);
-    
+
     try {
       const newOffset = offset + 10;
       const { data, error } = await supabase
@@ -176,29 +176,29 @@ export function NotificationPopover() {
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
         .range(newOffset, newOffset + 9);
-        
+
       if (error) {
         console.error("Error loading more notifications:", error);
         throw error;
       }
-      
+
       console.log('Loaded more notifications:', data?.length || 0);
       const normalized = (data || []).map((notification) => ({
         ...notification,
         data: parseNotificationData((notification as { data?: unknown }).data),
       })) as Notification[];
-      
+
       // Store scroll position before state update
       const currentScrollPos = scrollPositionRef.current;
-      
+
       setNotifications(prev => [...prev, ...normalized]);
       setOffset(newOffset);
-      
+
       // Check if there are more
       if (!data || data.length < 10) {
         setHasMore(false);
       }
-      
+
       // Restore scroll position after DOM has rendered new content
       // Use multiple requestAnimationFrames to ensure rendering is complete
       requestAnimationFrame(() => {
@@ -229,9 +229,9 @@ export function NotificationPopover() {
         .eq("read", false)
         .eq("user_id", user.id)
         .limit(1);
-        
+
       if (error) throw error;
-      
+
       setUnreadCount(data?.length || 0);
     } catch (error) {
       console.error("Error updating unread count:", error);
@@ -244,43 +244,43 @@ export function NotificationPopover() {
 
   // Debounced unread count update
   const debouncedUpdateUnreadCount = useDebounce(updateUnreadCount, 300);
-  
+
   // Store refs to debounced functions to avoid circular effect dependency
   const debouncedLoadRef = useRef(debouncedLoadNotifications);
   const debouncedUnreadRef = useRef(debouncedUpdateUnreadCount);
-  
+
   useEffect(() => {
     debouncedLoadRef.current = debouncedLoadNotifications;
     debouncedUnreadRef.current = debouncedUpdateUnreadCount;
   }, [debouncedLoadNotifications, debouncedUpdateUnreadCount]);
-  
+
   useEffect(() => {
     if (!user?.id) return; // Wait for user to be available
-    
+
     // Only update unread count on initial mount, not on every user change
     // Realtime subscription will handle updates after that
     if (!initialFetchDone.current) {
       updateUnreadCount();
       initialFetchDone.current = true;
     }
-    
+
     // If channel already exists for this user, don't recreate
     if (channelRef.current) return;
-    
+
     // Setup realtime subscription using user from auth hook
     // Use stable channel name (no Date.now()) to avoid recreating subscriptions
     const channelName = `notification-popover-${user.id}`;
     console.log(`Setting up notification badge channel: ${channelName}`);
-    
+
     const channel = realtimeClient
       .channel(channelName)
-      .on('postgres_changes', 
+      .on('postgres_changes',
         {
           event: '*',
           schema: 'public',
           table: 'notifications',
           filter: `user_id=eq.${user.id}`
-        }, 
+        },
         (payload) => {
           console.log('Notification badge update event:', payload.eventType);
           // Debounce the reload to batch rapid events
@@ -296,9 +296,9 @@ export function NotificationPopover() {
       .subscribe(status => {
         console.log(`Badge notification channel status: ${status}`);
       });
-    
+
     channelRef.current = channel;
-    
+
     // Cleanup function
     return () => {
       console.log('Removing notification badge channel');
@@ -347,8 +347,8 @@ export function NotificationPopover() {
         .from("notifications")
         .update({ read: true })
         .eq("id", id);
-        
-      setNotifications(notifications.map(n => 
+
+      setNotifications(notifications.map(n =>
         n.id === id ? { ...n, read: true } : n
       ));
     } catch (error) {
@@ -364,9 +364,9 @@ export function NotificationPopover() {
         .update({ read: true })
         .eq("read", false)
         .eq("user_id", user.id);
-        
+
       if (error) throw error;
-      
+
       setNotifications(notifications.map(n => ({ ...n, read: true })));
       setUnreadCount(0);
     } catch (error) {
@@ -397,8 +397,8 @@ export function NotificationPopover() {
     switch (severity) {
       case 'warning':
         return (
-          <div className="h-8 w-8 rounded-full bg-chart-6/10 flex items-center justify-center shrink-0">
-            <AlertTriangle className="h-4 w-4 text-chart-6" />
+          <div className="h-8 w-8 rounded-full bg-warning/10 flex items-center justify-center shrink-0">
+            <AlertTriangle className="h-4 w-4 text-warning" />
           </div>
         );
       case 'success':
@@ -410,8 +410,8 @@ export function NotificationPopover() {
       case 'info':
       default:
         return (
-          <div className="h-8 w-8 rounded-full bg-chart-3/10 flex items-center justify-center shrink-0">
-            <AlertCircle className="h-4 w-4 text-chart-3" />
+          <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+            <AlertCircle className="h-4 w-4 text-primary" />
           </div>
         );
     }
@@ -421,7 +421,7 @@ export function NotificationPopover() {
     try {
       const date = new Date(dateString);
       const formatted = formatDistanceToNow(date, { addSuffix: true });
-      
+
       // Convert "about 1 hour ago" to "1h ago" and similar
       return formatted
         .replace(/about /g, '')
@@ -442,59 +442,59 @@ export function NotificationPopover() {
     const showLink = Boolean(notification.action_url);
 
     return (
-    <div
-      key={notification.id}
-      className="flex flex-col p-4 hover:bg-accent/50 transition-colors cursor-pointer border-b border-border/50"
-      onClick={() => handleNotificationClick(notification)}
-    >
-      <div className="flex items-start gap-4">
-        {getNotificationIcon(notification.severity)}
-        <div className="flex-1 min-w-0">
-          <div className="flex justify-between items-start gap-2 mb-0.5">
-            <h5 className={`text-sm line-clamp-1 ${!notification.read ? 'font-medium' : 'font-normal'}`}>
-              {notification.title}
-            </h5>
-            <div className="flex items-center gap-2">
-              {!notification.read && (
-                <div className="h-2 w-2 rounded-full bg-primary"></div>
-              )}
-              <span className="text-[10px] text-muted-foreground whitespace-nowrap bg-muted/50 px-1.5 py-0.5 rounded-full">
-                {formatTimeAgo(notification.created_at)}
-              </span>
-            </div>
-          </div>
-          <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
-            {notification.body}
-          </p>
-          
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-3">
-              {showDetails && (
-                <span className="text-xs text-primary font-medium hover:underline">
-                  View details
+      <div
+        key={notification.id}
+        className="flex flex-col p-4 hover:bg-accent/50 transition-colors cursor-pointer border-b border-border/50"
+        onClick={() => handleNotificationClick(notification)}
+      >
+        <div className="flex items-start gap-4">
+          {getNotificationIcon(notification.severity)}
+          <div className="flex-1 min-w-0">
+            <div className="flex justify-between items-start gap-2 mb-0.5">
+              <h5 className={`text-sm line-clamp-1 ${!notification.read ? 'font-medium' : 'font-normal'}`}>
+                {notification.title}
+              </h5>
+              <div className="flex items-center gap-2">
+                {!notification.read && (
+                  <div className="h-2 w-2 rounded-full bg-primary"></div>
+                )}
+                <span className="text-[10px] text-muted-foreground whitespace-nowrap bg-muted/50 px-1.5 py-0.5 rounded-full">
+                  {formatTimeAgo(notification.created_at)}
                 </span>
-              )}
-              {showLink && (
-                <button
-                  type="button"
-                  className="text-xs text-muted-foreground hover:text-foreground hover:underline"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    if (notification.action_url) {
-                      router.push(notification.action_url);
-                      setOpen(false);
-                    }
-                  }}
-                >
-                  Open link
-                </button>
-              )}
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
+              {notification.body}
+            </p>
+
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                {showDetails && (
+                  <span className="text-xs text-primary font-medium hover:underline">
+                    View details
+                  </span>
+                )}
+                {showLink && (
+                  <button
+                    type="button"
+                    className="text-xs text-muted-foreground hover:text-foreground hover:underline"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      if (notification.action_url) {
+                        router.push(notification.action_url);
+                        setOpen(false);
+                      }
+                    }}
+                  >
+                    Open link
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
-  );
+    );
   };
 
   const renderEmptyState = () => (
@@ -603,7 +603,7 @@ export function NotificationPopover() {
         <div className="space-y-3">
           {detailStatusLabel && (
             <Badge
-              variant={detailStatus === 'resolved' ? 'secondary' : detailStatus === 'dismissed' ? 'outline-solid' : 'default'}
+              variant={detailStatus === 'resolved' ? 'secondary' : detailStatus === 'dismissed' ? 'outline' : 'default'}
               className="w-fit uppercase"
             >
               {detailStatusLabel}
@@ -706,25 +706,25 @@ export function NotificationPopover() {
           {NotificationButton}
         </PopoverTrigger>
         <PopoverContent align="end" className="w-[360px] p-0">
-        <div>
-          {/* Simple Header */}
-          <div className="px-4 py-3 flex justify-between items-center">
-            <h3 className="text-sm font-medium">Notifications</h3>
-            <Button
-              variant="ghost"
-              className="text-muted-foreground hover:text-foreground p-2 h-7 w-7"
-              onClick={() => {
-                router.push("/account/notifications");
-                setOpen(false);
-              }}
-            >
-              <Settings className="h-4 w-4" />
-            </Button>
+          <div>
+            {/* Simple Header */}
+            <div className="px-4 py-3 flex justify-between items-center">
+              <h3 className="text-sm font-medium">Notifications</h3>
+              <Button
+                variant="ghost"
+                className="text-muted-foreground hover:text-foreground p-2 h-7 w-7"
+                onClick={() => {
+                  router.push("/account/notifications");
+                  setOpen(false);
+                }}
+              >
+                <Settings className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {/* Full-width separator */}
+            <div className="h-px w-full bg-border"></div>
           </div>
-          
-          {/* Full-width separator */}
-          <div className="h-px w-full bg-border"></div>
-        </div>
 
           <NotificationsContent />
         </PopoverContent>

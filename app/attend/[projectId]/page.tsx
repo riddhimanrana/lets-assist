@@ -9,13 +9,13 @@ import { cookies } from "next/headers";
 
 // Validate scan context (no cookies)
 function validateScanContext(userAgent: string) {
-  const isMobileDevice = /Mobile|Android|iPhone|iPad|iPod/i.test(userAgent);
-  return {
-    valid: true,
-    isMobileDevice,
-    scanId: Math.random().toString(36).substring(2,15),
-    timestamp: new Date().toISOString()
-  };
+    const isMobileDevice = /Mobile|Android|iPhone|iPad|iPod/i.test(userAgent);
+    return {
+        valid: true,
+        isMobileDevice,
+        scanId: Math.random().toString(36).substring(2, 15),
+        timestamp: new Date().toISOString()
+    };
 }
 
 type Props = {
@@ -80,7 +80,7 @@ export default async function AttendPage(props: Props): Promise<React.ReactEleme
                 <Card className="mx-auto max-w-[375px] sm:max-w-md w-full shadow-lg">
                     <CardHeader className="space-y-1">
                         <div className="flex items-center justify-center mb-4">
-                            <QrCode className="h-12 w-12 text-chart-4" />
+                            <QrCode className="h-12 w-12 text-warning" />
                         </div>
                         <CardTitle className="text-2xl text-center">Please Scan QR Code Again</CardTitle>
                         <CardDescription className="text-center mt-2">
@@ -122,34 +122,34 @@ export default async function AttendPage(props: Props): Promise<React.ReactEleme
         .eq("schedule_id", scheduleId)
         .eq("user_id", user?.id)
         .maybeSingle()) as {
-        data: { id: string; check_in_time: string | null; check_out_time: string | null; schedule_id: string | null } | null;
-    };
+            data: { id: string; check_in_time: string | null; check_out_time: string | null; schedule_id: string | null } | null;
+        };
     existingCheckIn = data;
 
     return (
         <Suspense fallback={<div className="container mx-auto py-12 px-4 text-center">Loading attendance page...</div>}>
-                        <AttendanceClient
-                            project={project}
-                            scheduleId={scheduleId}
-                            user={
-                                user
-                                    ? {
-                                            ...user,
-                                            user_metadata: {
-                                                ...(user.user_metadata ?? {}),
-                                                full_name:
-                                                    userProfile?.full_name ??
-                                                    (user.user_metadata as { full_name?: string | null } | null)
-                                                        ?.full_name ??
-                                                    null,
-                                            },
-                                        }
-                                    : null
-                            }
-                            existingCheckIn={existingCheckIn}
-                            scanInfo={scanValidation}
-                            projectAllowsAnonymous={!project.require_login}
-                        />
+            <AttendanceClient
+                project={project}
+                scheduleId={scheduleId}
+                user={
+                    user
+                        ? {
+                            ...user,
+                            user_metadata: {
+                                ...(user.user_metadata ?? {}),
+                                full_name:
+                                    userProfile?.full_name ??
+                                    (user.user_metadata as { full_name?: string | null } | null)
+                                        ?.full_name ??
+                                    null,
+                            },
+                        }
+                        : null
+                }
+                existingCheckIn={existingCheckIn}
+                scanInfo={scanValidation}
+                projectAllowsAnonymous={!project.require_login}
+            />
         </Suspense>
     );
 }

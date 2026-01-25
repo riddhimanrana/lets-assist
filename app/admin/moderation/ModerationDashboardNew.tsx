@@ -507,7 +507,7 @@ export default function ModerationDashboard({
     }
   };
 
-  const getPriorityVariant = (priority?: string | null): 'outline-solid' | 'secondary' | 'destructive' => {
+  const getPriorityVariant = (priority?: string | null): 'outline' | 'secondary' | 'destructive' => {
     switch ((priority || '').toLowerCase()) {
       case 'high':
       case 'critical':
@@ -515,16 +515,16 @@ export default function ModerationDashboard({
       case 'medium':
         return 'secondary';
       default:
-        return 'outline-solid';
+        return 'outline';
     }
   };
 
-  const getStatusVariant = (status?: string | null): 'default' | 'outline-solid' | 'secondary' => {
+  const getStatusVariant = (status?: string | null): 'default' | 'outline' | 'secondary' => {
     switch ((status || '').toLowerCase()) {
       case 'resolved':
         return 'default';
       case 'dismissed':
-        return 'outline-solid';
+        return 'outline';
       default:
         return 'secondary';
     }
@@ -1676,14 +1676,14 @@ function formatFlagStatus(status?: string | null) {
   }
 }
 
-function getFlagStatusVariant(status?: string | null): 'default' | 'secondary' | 'outline-solid' | 'destructive' {
+function getFlagStatusVariant(status?: string | null): 'default' | 'secondary' | 'outline' | 'destructive' {
   switch ((status || 'pending').toLowerCase()) {
     case 'blocked':
       return 'destructive';
     case 'confirmed':
       return 'default';
     case 'dismissed':
-      return 'outline-solid';
+      return 'outline';
     default:
       return 'secondary';
   }
