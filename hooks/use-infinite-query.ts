@@ -1,6 +1,6 @@
 'use client'
 
-import { createClient } from '@/utils/supabase/client'
+import { createClient } from '@/lib/supabase/client'
 import { PostgrestQueryBuilder, type PostgrestClientOptions } from '@supabase/postgrest-js'
 import { type SupabaseClient } from '@supabase/supabase-js'
 import { useEffect, useRef, useSyncExternalStore } from 'react'
@@ -87,6 +87,7 @@ interface StoreState<TData, T extends SupabaseTableName> {
   tableName: T
   columns: string
   pageSize: number
+  trailingQuery?: SupabaseQueryHandler<T>
 }
 
 type Listener = () => void
@@ -107,6 +108,7 @@ function createStore<TData extends SupabaseTableData<T>, T extends SupabaseTable
     tableName,
     columns,
     pageSize,
+    trailingQuery,
   }
 
   const listeners = new Set<Listener>()
@@ -135,8 +137,8 @@ function createStore<TData extends SupabaseTableData<T>, T extends SupabaseTable
     const { data: newData, count, error } = await query.range(skip, skip + pageSize - 1)
 
     if (error) {
-      console.error('An unexpected error occurred:', error)
-      setState({ error })
+      console.error('An unexpected error occurred in useInfiniteQuery:', error instanceof Error ? error : JSON.stringify(error))
+      setState({ error: error as unknown as Error })
     } else {
       setState({
         data: [...state.data, ...(newData as TData[])],
@@ -190,29 +192,40 @@ function useInfiniteQuery<
   TData extends SupabaseTableData<T>,
   T extends SupabaseTableName = SupabaseTableName,
 >(props: UseInfiniteQueryProps<T>) {
-  const storeRef = useRef(createStore<TData, T>(props))
+  const { tableName, columns = '*', pageSize = 20 } = props
+
+  // Cache the initial state for getServerSnapshot to avoid infinite loops
+  const initialState = useRef(getInitialState<TData, T>(tableName, columns, pageSize)).current
+
+  const storeRef = useRef<ReturnType<typeof createStore<TData, T>> | null>(null)
+
+  if (!storeRef.current) {
+    storeRef.current = createStore<TData, T>(props)
+  }
 
   const state = useSyncExternalStore(
     storeRef.current.subscribe,
-    () => storeRef.current.getState(),
-    () => getInitialState<TData, T>(props.tableName, props.columns ?? '*', props.pageSize ?? 20)
+    () => storeRef.current!.getState(),
+    () => initialState
   )
 
   useEffect(() => {
-    // Recreate store if props change
+    // Recreate store if props change significantly
     if (
+      storeRef.current &&
       storeRef.current.getState().hasInitialFetch &&
-      (props.tableName !== storeRef.current.getState().tableName || // Fixed comparison
+      (props.tableName !== storeRef.current.getState().tableName ||
         props.columns !== storeRef.current.getState().columns ||
-        props.pageSize !== storeRef.current.getState().pageSize)
+        props.pageSize !== storeRef.current.getState().pageSize ||
+        props.trailingQuery !== storeRef.current.getState().trailingQuery)
     ) {
       storeRef.current = createStore<TData, T>(props)
     }
 
     if (!state.hasInitialFetch && typeof window !== 'undefined') {
-      storeRef.current.initialize()
+      storeRef.current?.initialize()
     }
-  }, [props.tableName, props.columns, props.pageSize, state.hasInitialFetch])
+  }, [props.tableName, props.columns, props.pageSize, props.trailingQuery, state.hasInitialFetch])
 
   return {
     data: state.data,
@@ -222,8 +235,8 @@ function useInfiniteQuery<
     isFetching: state.isFetching,
     error: state.error,
     hasMore: state.count > state.data.length,
-    fetchNextPage: storeRef.current.fetchNextPage,
-    refresh: storeRef.current.initialize,
+    fetchNextPage: () => storeRef.current?.fetchNextPage(),
+    refresh: () => storeRef.current?.initialize(),
   }
 }
 

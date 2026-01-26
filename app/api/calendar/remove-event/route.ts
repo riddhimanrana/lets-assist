@@ -3,7 +3,7 @@
  * DELETE /api/calendar/remove-event
  */
 
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { deleteGoogleCalendarEvent } from "@/services/calendar";
 import { removeCalendarEventSchema } from "@/schemas/calendar-schema";

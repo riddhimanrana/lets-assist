@@ -1,6 +1,5 @@
-import { createClient } from "@/utils/supabase/client";
+import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
-import { requireUser } from "@/utils/auth/auth-context";
 
 export type NotificationType = 'email_notifications' | 'project_updates' | 'general'
 
@@ -19,13 +18,13 @@ export interface NotificationData {
 export const NotificationService = {
   async createNotification(notification: NotificationData, userId: string, _showToast = false) {
     const supabase = createClient();
-    
+
     // Set default severity to 'info' if not specified
-    const notificationWithSeverity = { 
+    const notificationWithSeverity = {
       ...notification,
-      severity: notification.severity || 'info' 
+      severity: notification.severity || 'info'
     };
-    
+
     try {
       if (notification.type === 'project_updates' || notification.type === 'email_notifications' || notification.type === 'general') {
         // Define NotificationPreferences type inline for query result
@@ -42,7 +41,7 @@ export const NotificationService = {
           .eq('user_id', userId)
           .single<NotificationPreferences>();
         console.log('Notification preferences:', preferences);
-          
+
         if (prefsError && prefsError.code !== 'PGRST116') { // PGRST116 means "no rows returned"
           console.error('Error fetching notification settings:', prefsError);
           return { error: prefsError };
@@ -61,7 +60,7 @@ export const NotificationService = {
       //   console.error('User ID mismatch or missing');
       //   return { error: new Error('Authentication error') };
       // }
-      
+
       // First check if this notification already exists
       const { data: existingNotifications } = await supabase
         .from('notifications')
@@ -69,15 +68,15 @@ export const NotificationService = {
         .eq('user_id', userId)
         .eq('type', notification.type)
         .limit(1);
-      
+
       // If notification already exists, don't create a duplicate
       if (existingNotifications?.length) {
         console.log('Notification already exists, not creating duplicate');
         return { success: true, existing: true };
       }
-      
+
       console.log('Creating new notification for user:', userId);
-      
+
       // Insert into notifications table without showing toast directly
       // The real-time listener will handle showing the toast
       const { data, error } = await supabase
@@ -92,66 +91,66 @@ export const NotificationService = {
           data: notificationWithSeverity.data,
           displayed: false // Start as not displayed, let the listener handle it
         })
-        
+
       if (error) {
         console.error('Notification insert error details:', error.message, error.code);
         throw error;
       }
-      
+
       console.log('Notification created successfully, ID:', userId);
-      
+
       // Don't manually show toast here - let the realtime listener handle it
-      
+
       return { success: true, data };
     } catch (error) {
       console.error('Error creating notification:', error);
       return { error };
     }
   },
-  
+
   async markAsDisplayed(userId: string, type: NotificationType) {
     const supabase = createClient();
-    
+
     try {
       await supabase
         .from('notifications')
         .update({ displayed: true })
         .eq('user_id', userId)
         .eq('type', type);
-        
+
       console.log(`Marked ${type} notification as displayed for user ${userId}`);
     } catch (error) {
       console.error('Error marking notification as displayed:', error);
     }
   },
-  
+
   async checkUsernameSetting(userId: string) {
     const supabase = createClient();
-    
+
     try {
-      // Resolve user from in-memory cache before hitting Supabase
-      const user = await requireUser(supabase);
-      if (user.id !== userId) {
+      // Verify user is still authenticated
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user || user.id !== userId) {
         console.error('User ID mismatch or missing');
         return;
       }
-      
+
       // Check if user has a custom username set
       const { data: profile, error } = await supabase
         .from('profiles')
         .select('username')
         .eq('id', userId)
         .single();
-        
+
       if (error) {
         console.error('Error fetching profile:', error);
         throw error;
       }
-      
+
       // Only proceed if username is default or not set
       if (!profile?.username || profile.username.startsWith('user_')) {
         console.log('Username needs customization, checking for existing notification');
-        
+
         // Check for existing notification
         const { data: existingNotifications, error: notifError } = await supabase
           .from('notifications')
@@ -159,12 +158,12 @@ export const NotificationService = {
           .eq('user_id', userId)
           .eq('type', 'general')
           .limit(1);
-          
+
         if (notifError) {
           console.error('Error checking existing notifications:', notifError);
           return;
         }
-        
+
         if (existingNotifications?.length) {
           // Notification exists - only show toast if not displayed before
           const notification = existingNotifications[0];
@@ -177,7 +176,7 @@ export const NotificationService = {
                 onClick: () => window.location.href = '/account/profile'
               }
             });
-            
+
             // Mark as displayed
             await this.markAsDisplayed(userId, 'general');
           }

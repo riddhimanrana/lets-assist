@@ -4,7 +4,7 @@
  */
 
 import { createServerClient } from '@supabase/ssr';
-import { getServiceRoleClient } from '@/utils/supabase/service-role';
+import { getAdminClient } from '@/lib/supabase/admin';
 import {
   analyzeProjectWithAi,
   analyzeReportWithAi,
@@ -15,7 +15,7 @@ import { cookies } from 'next/headers';
 
 // Helper to fetch auth user from Supabase
 async function fetchAuthUser(userId: string) {
-  const adminClient = getServiceRoleClient();
+  const adminClient = getAdminClient();
   const { data } = await adminClient.auth.admin.getUserById(userId);
   return data?.user;
 }
@@ -87,7 +87,7 @@ export async function GET(_request: NextRequest) {
   const stream = new ReadableStream({
     async start(controller) {
       try {
-        const supabase = getServiceRoleClient();
+        const supabase = getAdminClient();
 
         // Fetch pending reports
         const { data: pendingReports, error: reportsError } = await supabase

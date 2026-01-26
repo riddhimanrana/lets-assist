@@ -39,6 +39,7 @@ import { Separator } from "@/components/ui/separator";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -75,9 +76,9 @@ const features = [
 
 export default function Navbar() {
   // Use centralized auth hook instead of manual state management
-  const { user, isLoading: isAuthLoading } = useAuth();
+  const { user, loading: isAuthLoading } = useAuth();
   // Use cached profile data instead of making a separate query
-  const { profile, isLoading: isProfileLoading } = useUserProfile();
+  const { profile, loading: isProfileLoading } = useUserProfile();
 
   const [showDonateDialog, setShowDonateDialog] = useState(false);
   const [showFeedbackDialog, setShowFeedbackDialog] = useState(false);
@@ -329,35 +330,40 @@ export default function Navbar() {
                   {isProfileLoading ? (
                     <div className="w-9 h-9 rounded-full bg-muted animate-pulse" />
                   ) : (
-                    <DropdownMenuTrigger render={
-                      <div className="relative group w-9 h-9">
-                        <span
-                          aria-hidden="true"
-                          className="absolute inset-0 rounded-full bg-muted-foreground/10 scale-105 opacity-0 group-hover:opacity-100 group-hover:scale-125 transition-all duration-200 pointer-events-none"
-                        />
-                        <Avatar className="w-9 h-9 cursor-pointer relative z-10">
-                          <AvatarImage src={profile?.avatar_url ?? undefined} />
-                          <AvatarFallback>
-                            <NoAvatar fullName={profile?.full_name ?? undefined} />
-                          </AvatarFallback>
-                        </Avatar>
-                      </div>
-                    } />
+                    <DropdownMenuTrigger
+                      nativeButton={false}
+                      render={
+                        <div className="relative group w-9 h-9">
+                          <span
+                            aria-hidden="true"
+                            className="absolute inset-0 rounded-full bg-muted-foreground/10 scale-105 opacity-0 group-hover:opacity-100 group-hover:scale-125 transition-all duration-200 pointer-events-none"
+                          />
+                          <Avatar className="w-9 h-9 cursor-pointer relative z-10">
+                            <AvatarImage src={profile?.avatar_url ?? undefined} />
+                            <AvatarFallback>
+                              <NoAvatar fullName={profile?.full_name ?? undefined} />
+                            </AvatarFallback>
+                          </Avatar>
+                        </div>
+                      }
+                    />
                   )}
                   <DropdownMenuContent
                     className="w-64 pt-3 px-2 pb-2"
                     align="end"
                   >
-                    <DropdownMenuLabel className="font-normal mb-2">
-                      <div className="flex flex-col space-y-2">
-                        <p className="text-sm font-medium leading-tight">
-                          {profile?.full_name}
-                        </p>
-                        <p className="text-sm leading-none text-muted-foreground">
-                          {user.email}
-                        </p>
-                      </div>
-                    </DropdownMenuLabel>
+                    <DropdownMenuGroup>
+                      <DropdownMenuLabel className="font-normal mb-2">
+                        <div className="flex flex-col space-y-2">
+                          <p className="text-sm font-medium leading-tight">
+                            {profile?.full_name}
+                          </p>
+                          <p className="text-sm leading-none text-muted-foreground">
+                            {user.email}
+                          </p>
+                        </div>
+                      </DropdownMenuLabel>
+                    </DropdownMenuGroup>
                     {/* <DropdownMenuSeparator className="my-2" /> */}
                     <DropdownMenuItem
                       className="py-2.5 text-muted-foreground cursor-pointer"
@@ -460,12 +466,15 @@ export default function Navbar() {
               {/* Show theme toggle for non-logged in users only */}
               {!isAuthLoading && !user && <ModeToggle />}
             </div>
-            <SheetTrigger render={
-              <Button variant="ghost" size="icon" className="lg:hidden ml-2">
-                <Menu className="h-5 w-5" />
-                <span className="sr-only">Toggle menu</span>
-              </Button>
-            } />
+            <SheetTrigger
+              nativeButton={true}
+              render={
+                <Button variant="ghost" size="icon" className="lg:hidden ml-2">
+                  <Menu className="h-5 w-5" />
+                  <span className="sr-only">Toggle menu</span>
+                </Button>
+              }
+            />
             <SheetContent side="right" className="w-[85%] sm:w-[380px] pt-10 px-4 pb-4 overflow-y-auto">
               <div className="flex flex-col h-full">
                 {isAuthLoading ? (

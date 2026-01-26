@@ -31,15 +31,15 @@ import { toast } from "sonner";
 
 type ContentType = 'project' | 'profile' | 'comment' | 'image' | 'organization' | 'other';
 
-type ReportReason = 
-  | 'spam' 
-  | 'harassment' 
-  | 'inappropriate_content' 
-  | 'misinformation' 
-  | 'copyright' 
-  | 'privacy_violation' 
-  | 'violence' 
-  | 'hate_speech' 
+type ReportReason =
+  | 'spam'
+  | 'harassment'
+  | 'inappropriate_content'
+  | 'misinformation'
+  | 'copyright'
+  | 'privacy_violation'
+  | 'violence'
+  | 'hate_speech'
   | 'other';
 
 type TriggerElementProps = {
@@ -57,6 +57,12 @@ interface ReportContentButtonProps {
   /** Optional: additional context about the content (e.g., organization name) */
   contentContext?: string;
   triggerButton?: React.ReactNode;
+  /** Controlled open state */
+  open?: boolean;
+  /** Callback for when open state changes */
+  onOpenChange?: (open: boolean) => void;
+  /** Whether to show the default trigger button if triggerButton is not provided */
+  showTrigger?: boolean;
 }
 
 const REPORT_REASONS: { value: ReportReason; label: string }[] = [
@@ -71,15 +77,24 @@ const REPORT_REASONS: { value: ReportReason; label: string }[] = [
   { value: 'other', label: 'Other' },
 ];
 
-export function ReportContentButton({ 
-  contentType, 
-  contentId, 
+export function ReportContentButton({
+  contentType,
+  contentId,
   contentTitle,
   contentCreator,
   contentContext,
-  triggerButton 
+  triggerButton,
+  open: controlledOpen,
+  onOpenChange,
+  showTrigger = true
 }: ReportContentButtonProps) {
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
+  const setOpen = (newOpen: boolean) => {
+    setInternalOpen(newOpen);
+    onOpenChange?.(newOpen);
+  };
+
   const [reason, setReason] = useState<ReportReason | ''>('');
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -131,7 +146,7 @@ export function ReportContentButton({
       }
 
       toast.success('Report submitted successfully');
-      
+
       // Reset form and close dialog
       setReason('');
       setDescription('');
@@ -144,38 +159,40 @@ export function ReportContentButton({
     }
   };
 
-  const triggerElement = isValidElement(triggerButton)
-    ? (() => {
-      const element = triggerButton as ReactElement<TriggerElementProps>;
-      return cloneElement(element, {
-        onClick: (event: MouseEvent<HTMLElement>) => {
-          event.stopPropagation(); // Prevent dropdown from closing
-          const previousOnClick = element.props.onClick;
-          previousOnClick?.(event);
-          if (event.defaultPrevented) {
-            return;
-          }
-          setOpen(true);
-        },
-        onSelect: (event: Event) => {
-          event.preventDefault(); // Prevent dropdown menu from closing
-        },
-      });
-    })()
-    : (
-      <Button
-        variant="ghost"
-        size="sm"
-        className="text-destructive hover:text-destructive"
-        onClick={(event) => {
-          event.stopPropagation();
-          setOpen(true);
-        }}
-      >
-        <Flag className="h-4 w-4 mr-2" />
-        Report
-      </Button>
-    );
+  const triggerElement = triggerButton || !showTrigger ? (
+    isValidElement(triggerButton)
+      ? (() => {
+        const element = triggerButton as ReactElement<TriggerElementProps>;
+        return cloneElement(element, {
+          onClick: (event: MouseEvent<HTMLElement>) => {
+            event.stopPropagation(); // Prevent dropdown from closing
+            const previousOnClick = element.props.onClick;
+            previousOnClick?.(event);
+            if (event.defaultPrevented) {
+              return;
+            }
+            setOpen(true);
+          },
+          onSelect: (event: Event) => {
+            event.preventDefault(); // Prevent dropdown menu from closing
+          },
+        });
+      })()
+      : null
+  ) : (
+    <Button
+      variant="ghost"
+      size="sm"
+      className="text-destructive hover:text-destructive"
+      onClick={(event) => {
+        event.stopPropagation();
+        setOpen(true);
+      }}
+    >
+      <Flag className="h-4 w-4 mr-2" />
+      Report
+    </Button>
+  );
 
   const [mounted, setMounted] = useState(false);
 
@@ -198,7 +215,7 @@ export function ReportContentButton({
                 Help us keep our community safe by reporting inappropriate content. Your report will be reviewed by our moderation team.
               </DialogDescription>
             </DialogHeader>
-            
+
             <div className="space-y-4 py-4">
               <div className="space-y-2">
                 <Label htmlFor="reason">Reason for Report *</Label>

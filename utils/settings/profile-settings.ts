@@ -3,7 +3,7 @@
  * Simplified version without institution-based restrictions
  */
 
-import { createClient } from '@/utils/supabase/server';
+import { createClient } from '@/lib/supabase/server';
 import { ProfileVisibility } from '@/types';
 
 /**

@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { getProject } from "@/app/projects/[id]/actions";
 import { headers } from "next/headers";
 import AttendanceClient from "./AttendanceClient";

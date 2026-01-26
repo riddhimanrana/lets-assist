@@ -21,7 +21,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { createClient } from "@/utils/supabase/client";
+import { createClient } from "@/lib/supabase/client";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
@@ -513,7 +513,7 @@ export function NotificationPopover() {
   return (
     <>
       <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger render={NotificationButton} />
+        <PopoverTrigger nativeButton={true} render={NotificationButton} />
         <PopoverContent align="end" className="w-[360px] p-0">
           <div className="px-4 py-3 flex justify-between items-center">
             <h3 className="text-sm font-medium">Notifications</h3>

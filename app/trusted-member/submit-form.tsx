@@ -4,7 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { createClient } from "@/utils/supabase/client";
+import { createClient } from "@/lib/supabase/client";
 import { CheckCircle2, Clock, XCircle, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -64,7 +64,7 @@ export function SubmitTrustedMemberForm({
   defaultName?: string;
   defaultEmail?: string;
 }) {
-  const { user, isLoading: authLoading } = useAuth(); // Use centralized auth hook
+  const { user, loading: authLoading } = useAuth(); // Use centralized auth hook
   const [pending, startTransition] = useTransition();
   const [serverError, setServerError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);

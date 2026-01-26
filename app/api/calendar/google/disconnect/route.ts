@@ -3,7 +3,7 @@
  * POST /api/calendar/google/disconnect
  */
 
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { decrypt } from "@/lib/encryption";
 import { revokeGoogleCalendarAccess } from "@/services/calendar";

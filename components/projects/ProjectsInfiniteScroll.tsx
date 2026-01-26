@@ -115,7 +115,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
     fetchNextPage,
   } = useInfiniteQuery<ProjectWithSignups, "projects">({
     tableName: "projects",
-    columns: "*, profiles(id, avatar_url, full_name, username, created_at), organization:organizations(id, name, username, logo_url, verified, type), signups:project_signups(project_id, schedule_id, status)",
+    columns: "*, profiles!projects_creator_id_fkey1(id, avatar_url, full_name, username, created_at), organization:organizations(id, name, username, logo_url, verified, type), signups:project_signups(project_id, schedule_id, status)",
     pageSize: limit,
     trailingQuery: projectsQueryHandler,
   });
@@ -449,20 +449,23 @@ export const ProjectsInfiniteScroll: React.FC = () => {
               </div>
 
               <Popover open={isFilterOpen} onOpenChange={setIsFilterOpen}>
-                <PopoverTrigger render={
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="relative h-8 w-8 sm:h-9 sm:w-9"
-                  >
-                    <SlidersHorizontal className="h-4 w-4" />
-                    {activeFilterCount > 0 && (
-                      <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-medium text-primary-foreground">
-                        {activeFilterCount}
-                      </span>
-                    )}
-                  </Button>
-                } />
+                <PopoverTrigger
+                  nativeButton={true}
+                  render={
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="relative h-8 w-8 sm:h-9 sm:w-9"
+                    >
+                      <SlidersHorizontal className="h-4 w-4" />
+                      {activeFilterCount > 0 && (
+                        <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-medium text-primary-foreground">
+                          {activeFilterCount}
+                        </span>
+                      )}
+                    </Button>
+                  }
+                />
                 <PopoverContent className="w-80">
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
@@ -762,20 +765,23 @@ export const ProjectsInfiniteScroll: React.FC = () => {
 
             {/* Filters */}
             <Popover open={isFilterOpen} onOpenChange={setIsFilterOpen}>
-              <PopoverTrigger render={
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="relative h-8 w-8 sm:h-9 sm:w-9"
-                >
-                  <SlidersHorizontal className="h-4 w-4" />
-                  {activeFilterCount > 0 && (
-                    <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-medium text-primary-foreground">
-                      {activeFilterCount}
-                    </span>
-                  )}
-                </Button>
-              } />
+              <PopoverTrigger
+                nativeButton={true}
+                render={
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="relative h-8 w-8 sm:h-9 sm:w-9"
+                  >
+                    <SlidersHorizontal className="h-4 w-4" />
+                    {activeFilterCount > 0 && (
+                      <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-medium text-primary-foreground">
+                        {activeFilterCount}
+                      </span>
+                    )}
+                  </Button>
+                }
+              />
               <PopoverContent className="w-80">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">

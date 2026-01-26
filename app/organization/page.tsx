@@ -1,4 +1,4 @@
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { Metadata } from "next";
 import OrganizationsDisplay from "./OrganizationsDisplay";
 import type { Organization } from "@/types";

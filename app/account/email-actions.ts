@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import crypto from "crypto";
 import { sendEmail } from "@/services/email";
 import EmailVerificationCode from "@/emails/email-verification-code";

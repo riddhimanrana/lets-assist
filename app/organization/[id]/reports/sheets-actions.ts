@@ -1,7 +1,7 @@
 "use server";
 
-import { createClient } from "@/utils/supabase/server";
-import { getServiceRoleClient } from "@/utils/supabase/service-role";
+import { createClient } from "@/lib/supabase/server";
+import { getAdminClient } from "@/lib/supabase/admin";
 import {
   getCalendarConnection,
   getGoogleAccessTokenForSheets,
@@ -85,7 +85,7 @@ export async function getSheetSyncStatus(
 
   const connection = await getCalendarConnection(access.userId);
 
-  const serviceSupabase = getServiceRoleClient();
+  const serviceSupabase = getAdminClient();
   const { data: syncConfig, error: syncError } = await serviceSupabase
     .from("organization_sheet_syncs")
     .select(
@@ -209,7 +209,7 @@ export async function createSheetSync(
     };
   }
 
-  const serviceSupabase = getServiceRoleClient();
+  const serviceSupabase = getAdminClient();
   const { data: orgData } = await serviceSupabase
     .from("organizations")
     .select("name")
@@ -263,7 +263,7 @@ export async function syncSheetNow(
     return { success: false, error: access.error ?? undefined };
   }
 
-  const serviceSupabase = getServiceRoleClient();
+  const serviceSupabase = getAdminClient();
   const { data: syncConfig, error: syncError } = await serviceSupabase
     .from("organization_sheet_syncs")
     .select(
@@ -371,7 +371,7 @@ export async function updateSheetSyncSettings(
     return { success: false, error: "Admin access required" };
   }
 
-  const serviceSupabase = getServiceRoleClient();
+  const serviceSupabase = getAdminClient();
   const { error: updateError } = await serviceSupabase
     .from("organization_sheet_syncs")
     .update({
@@ -424,7 +424,7 @@ export async function updateSheetSyncConfig(
     }
   }
 
-  const serviceSupabase = getServiceRoleClient();
+  const serviceSupabase = getAdminClient();
   const { error: updateError } = await serviceSupabase
     .from("organization_sheet_syncs")
     .update({
@@ -562,7 +562,7 @@ export async function connectExistingSheet(
     return { success: false, error: "Unable to create or access the tab" };
   }
 
-  const serviceSupabase = getServiceRoleClient();
+  const serviceSupabase = getAdminClient();
   const { error: upsertError } = await serviceSupabase
     .from("organization_sheet_syncs")
     .upsert(
@@ -646,7 +646,7 @@ export async function unlinkSheetSync(
     return { success: false, error: "Admin access required" };
   }
 
-  const serviceSupabase = getServiceRoleClient();
+  const serviceSupabase = getAdminClient();
   const { error } = await serviceSupabase
     .from("organization_sheet_syncs")
     .delete()
@@ -685,7 +685,7 @@ export async function getAvailableSheetOwners(
     return { success: false, error: "Admin access required" };
   }
 
-  const serviceSupabase = getServiceRoleClient();
+  const serviceSupabase = getAdminClient();
   const { data: members, error } = await serviceSupabase
     .from("organization_members")
     .select("user_id, role, profiles(id, full_name, username, email)")
@@ -751,7 +751,7 @@ export async function updateSheetOwner(
     return { success: false, error: "Admin access required" };
   }
 
-  const serviceSupabase = getServiceRoleClient();
+  const serviceSupabase = getAdminClient();
   const { data: syncConfig } = await serviceSupabase
     .from("organization_sheet_syncs")
     .select("organization_id")

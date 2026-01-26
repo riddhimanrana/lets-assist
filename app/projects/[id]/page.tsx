@@ -1,4 +1,4 @@
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { getProject, getCreatorProfile } from "./actions";
 import { notFound } from "next/navigation";
 import { getSlotCapacities } from "@/utils/project";

@@ -289,6 +289,7 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
   onViewChangeAction,
 }) => {
   const [initialViewLoaded, setInitialViewLoaded] = useState(false);
+  const [reportingProject, setReportingProject] = useState<ProjectWithExtras | null>(null);
 
   // Update the effect to properly handle view persistence
   useEffect(() => {
@@ -419,19 +420,10 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                     </Button>
                   } />
                   <DropdownMenuContent align="end">
-                    <ReportContentButton
-                      contentType="project"
-                      contentId={project.id}
-                      contentTitle={project.title}
-                      contentCreator={project.profiles?.full_name || project.profiles?.username || undefined}
-                      contentContext={project.organization?.name || project.organizations?.name || undefined}
-                      triggerButton={
-                        <DropdownMenuItem>
-                          <Flag className="mr-2 h-4 w-4" />
-                          <span>Report Project</span>
-                        </DropdownMenuItem>
-                      }
-                    />
+                    <DropdownMenuItem onClick={() => setReportingProject(project)}>
+                      <Flag className="mr-2 h-4 w-4" />
+                      <span>Report Project</span>
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
@@ -521,13 +513,42 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                       </div>
                     </div>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="hidden md:flex opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger render={
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                          }}
+                        >
+                          <MoreVertical className="h-4 w-4" />
+                          <span className="sr-only">Open menu</span>
+                        </Button>
+                      } />
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setReportingProject(project);
+                        }}>
+                          <Flag className="mr-2 h-4 w-4" />
+                          <span>Report Project</span>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="hidden md:flex opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </div>
             </Link>
@@ -690,6 +711,20 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
         <div className="w-full h-[500px]">
           <ProjectsMapView initialProjects={filteredProjects} />
         </div>
+      )}
+
+      {/* Fixed Report Content Dialog - moved outside project mapping to avoid layout/mounting issues */}
+      {reportingProject && (
+        <ReportContentButton
+          contentType="project"
+          contentId={reportingProject.id}
+          contentTitle={reportingProject.title}
+          contentCreator={reportingProject.profiles?.full_name || reportingProject.profiles?.username || undefined}
+          contentContext={reportingProject.organization?.name || reportingProject.organizations?.name || undefined}
+          open={!!reportingProject}
+          onOpenChange={(open) => !open && setReportingProject(null)}
+          showTrigger={false}
+        />
       )}
     </div>
   );

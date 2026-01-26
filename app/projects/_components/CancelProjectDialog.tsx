@@ -14,7 +14,7 @@ import { toast } from "sonner";
 import { Project } from "@/types";
 import { cn } from "@/lib/utils";
 import { canCancelProject } from "@/utils/project";
-import { createClient } from "@/utils/supabase/client";
+import { createClient } from "@/lib/supabase/client";
 
 interface CancelProjectDialogProps {
   project: Project;

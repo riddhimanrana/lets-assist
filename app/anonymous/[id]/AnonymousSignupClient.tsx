@@ -14,7 +14,7 @@ import { useState, useMemo, useEffect } from "react"; // add useEffect
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/utils/supabase/client";
+import { createClient } from "@/lib/supabase/client";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 import { cancelSignup, getWaiverDownloadUrl } from "@/app/projects/[id]/actions";

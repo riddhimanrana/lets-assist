@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/utils/supabase/server";
-import { createAdminClient } from "@/utils/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
+import { getAdminClient } from "@/lib/supabase/admin";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -225,7 +225,7 @@ export async function GET(request: Request) {
  * Handle email domain affiliation - auto-add user to organization based on email domain
  */
 async function handleEmailDomainAffiliation(userId: string, email: string): Promise<void> {
-  const adminClient = createAdminClient();
+  const adminClient = getAdminClient();
   
   const domain = email.split("@")[1]?.toLowerCase();
   if (!domain) return;

@@ -1,8 +1,8 @@
 "use server";
 
 import { z } from "zod";
-import { createClient } from "@/utils/supabase/server";
-import { createAdminClient } from "@/utils/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
+import { getAdminClient } from "@/lib/supabase/admin";
 import { randomUUID } from "crypto";
 
 const signupSchema = z.object({
@@ -32,7 +32,7 @@ export async function checkEmailStatus(email: string): Promise<SignupStatus> {
   }
 
   try {
-    const adminClient = createAdminClient();
+    const adminClient = getAdminClient();
     const normalizedEmail = email.trim().toLowerCase();
     const perPage = 100;
     const maxPages = 100;
@@ -231,7 +231,7 @@ export async function signup(formData: FormData) {
  * Handle staff token signup - add user to organization as staff
  */
 async function handleStaffTokenSignup(userId: string, staffToken: string, orgUsername: string) {
-  const adminClient = createAdminClient();
+  const adminClient = getAdminClient();
   
   // Find the organization by username and verify the staff token
   const { data: org, error: orgError } = await adminClient
@@ -283,7 +283,7 @@ async function handleStaffTokenSignup(userId: string, staffToken: string, orgUse
  * Returns the organization ID if the user was auto-added, null otherwise
  */
 async function handleEmailDomainAffiliation(userId: string, email: string): Promise<string | null> {
-  const adminClient = createAdminClient();
+  const adminClient = getAdminClient();
   
   const domain = email.split("@")[1]?.toLowerCase();
   if (!domain) return null;

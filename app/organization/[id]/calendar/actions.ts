@@ -1,8 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/utils/supabase/server";
-import { getServiceRoleClient } from "@/utils/supabase/service-role";
+import { createClient } from "@/lib/supabase/server";
+import { getAdminClient } from "@/lib/supabase/admin";
 import {
   createGoogleCalendarEventForCalendar,
   deleteGoogleCalendarEventForCalendar,
@@ -104,7 +104,7 @@ export async function getOrganizationCalendarStatus(
     };
   }
 
-  const serviceSupabase = getServiceRoleClient();
+  const serviceSupabase = getAdminClient();
   const { data: syncConfig, error: syncError } = await serviceSupabase
     .from("organization_calendar_syncs")
     .select(
@@ -173,7 +173,7 @@ export async function updateOrganizationCalendarSettings(
     return { success: false, error: access.error };
   }
 
-  const serviceSupabase = getServiceRoleClient();
+  const serviceSupabase = getAdminClient();
   const { error } = await serviceSupabase
     .from("organization_calendar_syncs")
     .update({
@@ -199,7 +199,7 @@ export async function disconnectOrganizationCalendar(
     return { success: false, error: access.error };
   }
 
-  const serviceSupabase = getServiceRoleClient();
+  const serviceSupabase = getAdminClient();
   const { error: eventsError } = await serviceSupabase
     .from("organization_calendar_events")
     .delete()
@@ -238,7 +238,7 @@ export async function syncOrganizationCalendarNow(
     return { success: false, error: access.error };
   }
 
-  const serviceSupabase = getServiceRoleClient();
+  const serviceSupabase = getAdminClient();
   const { data: org } = await serviceSupabase
     .from("organizations")
     .select("name, username")

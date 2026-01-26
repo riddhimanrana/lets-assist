@@ -1,4 +1,4 @@
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import DraftsClient from "./DraftsClient";
 import type { ProjectSchedule, EventType } from "@/types";

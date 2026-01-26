@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getActiveProjects } from "../../home/actions";
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import type { ProjectStatus } from "@/types";
 
 // export const runtime = "edge"; // run on edge runtime - incompatible with cacheComponents

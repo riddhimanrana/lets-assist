@@ -23,7 +23,7 @@ import { initialOnboardingSchema, InitialOnboardingValues } from "@/schemas/onbo
 import { useState, useEffect } from "react";
 import { completeInitialOnboarding } from "./onboarding-actions";
 import { toast } from "sonner";
-import { createClient } from "@/utils/supabase/client";
+import { createClient } from "@/lib/supabase/client";
 import { CircleCheck, XCircle, Building2, ArrowRight, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";

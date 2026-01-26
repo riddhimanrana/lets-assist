@@ -1,5 +1,5 @@
 import React from "react";
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { EmailVerificationToast } from "@/components/auth/EmailVerificationToast";
 import { EmailConfirmationModal } from "@/components/auth/EmailConfirmationModal";
 import { Button } from "@/components/ui/button";

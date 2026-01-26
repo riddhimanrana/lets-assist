@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { Separator } from "@/components/ui/separator";
 import OrganizationCreator from "./OrganizationCreator";
 import { Metadata } from "next";

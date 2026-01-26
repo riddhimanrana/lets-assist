@@ -255,8 +255,8 @@ export default function ProfileClient() {
   const [pendingEmail, setPendingEmail] = useState("");
   const [verifying, setVerifying] = useState(false);
 
-  const { user, isLoading: isAuthLoading } = useAuth();
-  const { profile, isLoading: isProfileLoading } = useUserProfile();
+  const { user, loading: isAuthLoading } = useAuth();
+  const { profile, loading: isProfileLoading } = useUserProfile();
   const isDataLoading = isAuthLoading || isProfileLoading;
   const form = useForm<OnboardingValues>({
     resolver: zodResolver(onboardingSchema),

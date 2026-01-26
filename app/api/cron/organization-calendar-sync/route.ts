@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServiceRoleClient } from "@/utils/supabase/service-role";
+import { getAdminClient } from "@/lib/supabase/admin";
 import { syncOrganizationCalendarNow } from "@/app/organization/[id]/calendar/actions";
 
 const WORKER_ENABLED = process.env.ORG_CALENDAR_SYNC_WORKER_ENABLED !== "false";
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ message: "Calendar sync worker disabled" }, { status: 200 });
   }
 
-  const supabase = getServiceRoleClient();
+  const supabase = getAdminClient();
   const { data: syncRows, error } = await supabase
     .from("organization_calendar_syncs")
     .select(

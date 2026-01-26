@@ -1,8 +1,8 @@
 "use server";
 
 import { z } from "zod"; // Import Zod
-import { createClient } from "@/utils/supabase/server";
-import { createClient as createAdminClient } from "@supabase/supabase-js";
+import { createClient } from "@/lib/supabase/server";
+import { createClient as getAdminClient } from "@supabase/supabase-js";
 import { deleteUserWithCleanup } from "@/lib/supabase/delete-user-with-cleanup";
 
 // Zod schema for password update - add currentPassword field
@@ -147,7 +147,7 @@ export async function deleteAccount() {
     console.info("Admin host:", new URL(adminUrl).host);
     console.info("Service key prefix:", serviceKey.slice(0, 8));
 
-    const supabaseAdmin = createAdminClient(adminUrl, serviceKey);
+    const supabaseAdmin = getAdminClient(adminUrl, serviceKey);
 
     const report = await deleteUserWithCleanup(supabaseAdmin, user.id, {
       deleteProjects: true,

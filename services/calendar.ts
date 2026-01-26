@@ -3,8 +3,8 @@
  * Handles OAuth token management and calendar event operations
  */
 
-import { createClient } from "@/utils/supabase/server";
-import { getServiceRoleClient } from "@/utils/supabase/service-role";
+import { createClient } from "@/lib/supabase/server";
+import { getAdminClient } from "@/lib/supabase/admin";
 import { encrypt, decrypt } from "@/lib/encryption";
 import {
   Project,
@@ -894,7 +894,7 @@ export async function getGoogleAccessTokenForUser(
   useServiceRole: boolean,
   options?: { requiredScopes?: string[]; connectionType?: "calendar" | "sheets" | "both" }
 ): Promise<string | null> {
-  const supabase = useServiceRole ? getServiceRoleClient() : await createClient();
+  const supabase = useServiceRole ? getAdminClient() : await createClient();
 
   // Build query with optional connection type filter
   let query = supabase

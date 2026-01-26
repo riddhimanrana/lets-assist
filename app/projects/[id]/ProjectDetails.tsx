@@ -52,7 +52,7 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { signUpForProject, resendAnonymousConfirmationEmail, getActiveWaiverTemplate } from "./actions";
 import { formatTimeTo12Hour, formatBytes } from "@/lib/utils";
-import { createClient } from "@/utils/supabase/client";
+import { createClient } from "@/lib/supabase/client";
 import { isSlotAvailable, isMultiDaySlotPastByScheduleId, isSameDayMultiAreaSlotPast, isOneTimeSlotPast } from "@/utils/project";
 import { getProjectStatus } from "@/utils/project"; // Import the getProjectStatus utility and date utils
 import { useState, useEffect } from "react";
@@ -176,6 +176,7 @@ export default function ProjectDetails({
   // Add state for confirmation modals
   const [showSignupConfirmation, setShowSignupConfirmation] = useState(false);
   const [showCancelConfirmation, setShowCancelConfirmation] = useState(false);
+  const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
   const [pendingScheduleId, setPendingScheduleId] = useState<string>("");
   const [publicAttendees, setPublicAttendees] = useState<SlotAttendee[]>([]);
   const [waiverTemplate, setWaiverTemplate] = useState<WaiverTemplate | null>(null);
@@ -889,22 +890,24 @@ export default function ProjectDetails({
                       </Button>
                     } />
                     <DropdownMenuContent align="end">
-                      <ReportContentButton
-                        contentType="project"
-                        contentId={project.id}
-                        contentTitle={project.title}
-                        contentCreator={creator?.full_name || creator?.username || undefined}
-                        contentContext={organization?.name || undefined}
-                        triggerButton={
-                          <DropdownMenuItem>
-                            <Flag className="mr-2 h-4 w-4" />
-                            <span>Report Project</span>
-                          </DropdownMenuItem>
-                        }
-                      />
+                      <DropdownMenuItem onClick={() => setIsReportDialogOpen(true)}>
+                        <Flag className="mr-2 h-4 w-4" />
+                        <span>Report Project</span>
+                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 )}
+                {/* Fixed Report Content Dialog - moved outside DropdownMenuContent to avoid unmounting when menu closes */}
+                <ReportContentButton
+                  contentType="project"
+                  contentId={project.id}
+                  contentTitle={project.title}
+                  contentCreator={creator?.full_name || creator?.username || undefined}
+                  contentContext={organization?.name || undefined}
+                  open={isReportDialogOpen}
+                  onOpenChange={setIsReportDialogOpen}
+                  showTrigger={false}
+                />
               </div>
             </div>
           </div>

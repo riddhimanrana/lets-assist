@@ -1,6 +1,6 @@
 // app/layout.tsx
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Inter } from "next/font/google";
+import { Geist_Mono, Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "next-themes";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -14,7 +14,6 @@ import { QueryMessageToast } from "@/components/shared/QueryMessageToast";
 import GlobalNotificationProvider from "@/components/providers/GlobalNotificationProvider";
 import CalendarOAuthCallbackHandler from "@/components/calendar/CalendarOAuthCallbackHandler";
 import { AuthProvider } from "@/components/providers/AuthProvider";
-import { createClient } from "@/utils/supabase/server";
 
 export const metadata: Metadata = {
   title: {
@@ -75,12 +74,6 @@ export const metadata: Metadata = {
   },
 };
 
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-})
-
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
@@ -102,16 +95,12 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
 
   return (
     <html lang="en" className={inter.className} suppressHydrationWarning>
       <head />
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${overusedgrotesk.variable} antialiased`}
+        className={`${geistMono.variable} ${overusedgrotesk.variable} antialiased`}
       >
         <ThemeProvider
           attribute="class"
@@ -119,7 +108,7 @@ export default async function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <AuthProvider initialUser={user}>
+          <AuthProvider>
             <PostHogProvider>
               <GlobalNotificationProvider>
                 <div className="bg-background text-foreground min-h-screen flex flex-col w-full">
