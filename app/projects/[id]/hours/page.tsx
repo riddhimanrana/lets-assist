@@ -7,7 +7,7 @@ import { Project, ProjectSignup } from "@/types";
 import { HoursClient } from "./HoursClient";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { AlertCircle, ArrowLeft, CalendarClock } from "lucide-react";

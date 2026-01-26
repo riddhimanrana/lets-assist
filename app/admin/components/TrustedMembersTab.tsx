@@ -13,7 +13,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Check, X, Trash2, Plus, Search, Loader2, ShieldCheck } from "lucide-react";
+import { Check, X, Trash2, Search, Loader2, ShieldCheck } from "lucide-react";
 import {
   Dialog,
   DialogContent,
