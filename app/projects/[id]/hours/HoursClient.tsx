@@ -87,7 +87,6 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
   const [showPublishSuccessModal, setShowPublishSuccessModal] = useState(false);
   const [currentPublishedSessionName, setCurrentPublishedSessionName] = useState<string>("");
   const [emailErrors, setEmailErrors] = useState<string[]>([]);
-  const [emailsSentCount, setEmailsSentCount] = useState<number>(0);
 
   // State for certificates modal
   const [showCertificatesModal, setShowCertificatesModal] = useState(false);
@@ -458,7 +457,6 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
         setCurrentPublishedSessionName(formatSessionName(project, sessionId));
 
         // Store email sent information for the modal
-        setEmailsSentCount(emailsSent);
         setEmailErrors(emailErrors);
         setShowPublishSuccessModal(true);
 

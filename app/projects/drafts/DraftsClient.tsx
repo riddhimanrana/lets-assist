@@ -18,7 +18,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
   DropdownMenu,
@@ -68,12 +67,10 @@ interface DraftsClientProps {
 export default function DraftsClient({ drafts: initialDrafts }: DraftsClientProps) {
   const router = useRouter();
   const [drafts, setDrafts] = useState(initialDrafts);
-  const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [isPublishing, setIsPublishing] = useState<string | null>(null);
   const [draftToDelete, setDraftToDelete] = useState<string | null>(null);
 
   const handleDelete = async (draftId: string) => {
-    setIsDeleting(draftId);
     try {
       const result = await deleteDraft(draftId);
       if (result.error) {
@@ -84,8 +81,6 @@ export default function DraftsClient({ drafts: initialDrafts }: DraftsClientProp
       }
     } catch {
       toast.error("Failed to delete draft");
-    } finally {
-      setIsDeleting(null);
     }
   };
 

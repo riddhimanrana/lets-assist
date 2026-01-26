@@ -8,7 +8,7 @@ import { ChevronDownIcon, ChevronUpIcon } from "lucide-react"
 function Accordion({
   className,
   type,
-  collapsible,
+  collapsible: _collapsible,
   ...props
 }: AccordionPrimitive.Root.Props & {
   type?: "single" | "multiple";

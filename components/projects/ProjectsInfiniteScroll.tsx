@@ -1,9 +1,8 @@
 "use client";
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import axios from "axios";
-import useSWRInfinite from "swr/infinite";
 import { useInView } from "react-intersection-observer";
 import { ProjectViewToggle } from "./ProjectViewToggle";
+import { useInfiniteQuery, type SupabaseQueryHandler } from "@/hooks/use-infinite-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -18,7 +17,6 @@ import {
 import {
   Search,
   Filter,
-  AlertCircle,
   Loader2,
   Calendar,
   SlidersHorizontal,
@@ -36,10 +34,6 @@ import {
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import {
   Popover,
@@ -55,12 +49,13 @@ import Link from "next/link";
 import { ProjectsMapView } from "./ProjectsMapView";
 import type { Project } from "@/types";
 
-const fetcher = (url: string) => axios.get(url).then((res) => res.data);
+
 
 type ProjectWithSignups = Project & {
   signups?: Array<{ status?: string }>;
   slots_filled?: number;
   registrations?: unknown[];
+  [key: string]: unknown;
 };
 
 export const ProjectsInfiniteScroll: React.FC = () => {
@@ -74,7 +69,6 @@ export const ProjectsInfiniteScroll: React.FC = () => {
   const [isClientReady, setIsClientReady] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [view, setView] = useState<"card" | "list" | "table" | "map">("card");
-  const [reachedEnd, setReachedEnd] = useState(false);
 
   // Debug local storage issue with hydration
   useEffect(() => {
@@ -90,41 +84,53 @@ export const ProjectsInfiniteScroll: React.FC = () => {
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
-  const { data, error, size, setSize, isLoading, isValidating } = useSWRInfinite(
-    // Update the key function to include status parameter
-    (index) => `/api/projects?limit=${limit}&offset=${index * limit}&status=upcoming`,
-    fetcher,
-    {
-      revalidateFirstPage: false,
-      revalidateOnFocus: false, // Prevent reloading when window gets focus
-    }
+  const projectsQueryHandler = useCallback<SupabaseQueryHandler<"projects">>(
+    (query) => {
+      // Basic filters: status=upcoming and visibility=public
+      let q = query
+        .eq("status", "upcoming")
+        .eq("visibility", "public")
+        .order("created_at", { ascending: false });
+
+      // Search term filter if provided
+      if (debouncedSearchTerm) {
+        q = q.or(`title.ilike.%${debouncedSearchTerm}%,description.ilike.%${debouncedSearchTerm}%`);
+      }
+
+      // Event type filter if provided
+      if (eventTypeFilter && eventTypeFilter !== "all") {
+        q = q.eq("event_type", eventTypeFilter);
+      }
+
+      return q;
+    },
+    [debouncedSearchTerm, eventTypeFilter]
   );
 
-  const { ref, inView } = useInView({
-    threshold: 0.5, // Trigger when 50% of the element is visible
-    rootMargin: '100px', // Start loading a bit earlier
+  const {
+    data: projectsData,
+    isLoading,
+    isFetching: isValidating,
+    hasMore,
+    fetchNextPage,
+  } = useInfiniteQuery<ProjectWithSignups, "projects">({
+    tableName: "projects",
+    columns: "*, profiles(id, avatar_url, full_name, username, created_at), organization:organizations(id, name, username, logo_url, verified, type), signups:project_signups(project_id, schedule_id, status)",
+    pageSize: limit,
+    trailingQuery: projectsQueryHandler,
   });
 
-  // Compute if the last page has fewer projects than the limit.
-  const isLoadingMore = isValidating && size > 1;
+  const { ref, inView } = useInView({
+    threshold: 0.1,
+    rootMargin: '100px',
+  });
 
-  // Determine if we've reached the end of content
+  // Load more trigger
   useEffect(() => {
-    if (data) {
-      const lastPage = data[data.length - 1];
-      // If we got fewer items than the limit or an empty array, we've reached the end
-      if (!lastPage || lastPage.length < limit) {
-        setReachedEnd(true);
-      }
+    if (inView && hasMore && !isValidating && !isLoading) {
+      fetchNextPage();
     }
-  }, [data, limit]);
-
-  // Only request a new page if the marker is in view, we're not loading, and we haven't reached the end.
-  useEffect(() => {
-    if (inView && !isValidating && !reachedEnd && data) {
-      setSize(size + 1);
-    }
-  }, [inView, isValidating, reachedEnd, data, setSize, size]);
+  }, [inView, hasMore, isValidating, isLoading, fetchNextPage]);
 
   // Helper function to check if a project is within the date range
   const isProjectInDateRange = (project: ProjectWithSignups, dateRange: DateRange | undefined) => {
@@ -293,22 +299,12 @@ export const ProjectsInfiniteScroll: React.FC = () => {
     return Math.max(0, totalSpots - filledSpots);
   };
 
-  // Get all projects and apply client-side filtering
-  const allProjects = data ? (data as ProjectWithSignups[][]).flat() : [];
+  // Get all projects - useInfiniteQuery already provides the flattened data
+  const allProjects = projectsData || [];
 
   const filteredProjects = allProjects.filter((project) => {
-    // Search term filter
-    const matchesSearch = debouncedSearchTerm
-      ? project.title?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-      project.description?.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
-      : true;
-
-    // Event type filter
-    const matchesEventType = eventTypeFilter
-      ? eventTypeFilter === "all"
-        ? true
-        : project.event_type === eventTypeFilter
-      : true;
+    // Search and Event Type filtering are now handled by the hook/server where possible,
+    // but we can still apply client-side filters for things like date which are hard to query
 
     // Date filter
     const matchesDateRange = isProjectInDateRange(project, dateFilter);
@@ -316,7 +312,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
     // Only filter for remaining spots - server is already filtering for status
     const hasRemainingSpots = getRemainingSpots(project) > 0;
 
-    return matchesSearch && matchesEventType && matchesDateRange && hasRemainingSpots;
+    return matchesDateRange && hasRemainingSpots;
   });
 
   // Apply sorting if needed
@@ -353,7 +349,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
   };
 
   // Loading skeletons
-  if ((!data && !error) || isLoading) {
+  if (isLoading) {
     return (
       <div className="space-y-6">
         <div className="flex flex-col md:flex-row gap-4 mb-6">
@@ -387,37 +383,8 @@ export const ProjectsInfiniteScroll: React.FC = () => {
     );
   }
 
-  // Error state
-  if (error) {
-    return (
-      <Card className="border-destructive">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-destructive">
-            <AlertCircle className="h-5 w-5" />
-            Error Loading Projects
-          </CardTitle>
-          <CardDescription>
-            There was an error loading the projects. Please try again later.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground mb-4">
-            This could be due to a network issue or the server may be temporarily unavailable.
-          </p>
-        </CardContent>
-        <CardFooter>
-          <Button
-            onClick={() => window.location.reload()}
-            variant="outline"
-            className="gap-2"
-          >
-            <Loader2 className="h-4 w-4 font-bold animate-spin" />
-            Try Again
-          </Button>
-        </CardFooter>
-      </Card>
-    );
-  }
+  // Error state (handled by hook)
+  /* if (error) { ... } */
 
   // Empty state when no projects match filters
   if (sortedProjects.length === 0) {
@@ -1016,9 +983,9 @@ export const ProjectsInfiniteScroll: React.FC = () => {
       )}
 
       {/* Loading indicator at the bottom */}
-      {!reachedEnd && view !== "map" && (
+      {hasMore && view !== "map" && (
         <div className="py-6 flex justify-center" ref={ref}>
-          {isLoadingMore ? (
+          {isValidating ? (
             <div className="flex items-center gap-2">
               <Loader2 className="h-5 w-5 animate-spin text-primary" />
               <span className="text-sm text-muted-foreground">Loading more projects...</span>
@@ -1030,7 +997,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
       )}
 
       {/* Show end of results message when we've reached the end */}
-      {reachedEnd && sortedProjects.length > 0 && view !== "map" && (
+      {!hasMore && sortedProjects.length > 0 && view !== "map" && (
         <div className="py-8 text-center">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-muted/40">
             <CheckCircle2 className="h-5 w-5 text-primary" />

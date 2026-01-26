@@ -28,6 +28,7 @@ import { useRouter } from "next/navigation";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useAuth } from "@/hooks/useAuth";
 import type { RealtimeChannel } from "@supabase/realtime-js";
+import { useInfiniteQuery, type SupabaseQueryHandler } from "@/hooks/use-infinite-query";
 
 type NotificationSeverity = 'info' | 'warning' | 'success';
 
@@ -69,17 +70,12 @@ function useDebounce<T extends (...args: unknown[]) => void>(
 }
 
 export function NotificationPopover() {
-  const { user } = useAuth(); // Use centralized auth hook
+  const { user } = useAuth();
   const [mounted, setMounted] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [open, setOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [activeNotification, setActiveNotification] = useState<Notification | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [offset, setOffset] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
   const supabase = createClient();
   const realtimeClient = supabase as unknown as {
     channel: (name: string) => RealtimeChannel;
@@ -90,24 +86,38 @@ export function NotificationPopover() {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const scrollPositionRef = useRef<number>(0);
 
+  // Track if we've fetched unread count on initial mount
+  const initialFetchDone = React.useRef(false);
+  // Stable channel ref to avoid recreating subscriptions
+  const channelRef = React.useRef<RealtimeChannel | null>(null);
+
+  const notificationsQueryHandler = useCallback<SupabaseQueryHandler<"notifications">>(
+    (query) => {
+      if (!user?.id) return query;
+      return query.eq("user_id", user.id).order("created_at", { ascending: false });
+    },
+    [user?.id]
+  );
+
+  const {
+    data: notifications,
+    isLoading: initialLoading,
+    isFetching: fetching,
+    hasMore,
+    fetchNextPage,
+    refresh,
+  } = useInfiniteQuery<Notification, "notifications">({
+    tableName: "notifications",
+    columns: "*",
+    pageSize: 10,
+    trailingQuery: notificationsQueryHandler,
+  });
+
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  const parseNotificationData = (value: unknown): Record<string, unknown> | null => {
-    if (!value) return null;
-    if (typeof value === "string") {
-      try {
-        return JSON.parse(value);
-      } catch {
-        return null;
-      }
-    }
-    if (typeof value === "object") {
-      return value as Record<string, unknown>;
-    }
-    return null;
-  };
+
 
   const isReportFeedbackNotification = (notification: Notification) => {
     return notification.data?.modalType === 'report-feedback';
@@ -118,111 +128,23 @@ export function NotificationPopover() {
     return body.length > 160 || body.includes('\n');
   };
 
-  // Track if we've fetched unread count on initial mount
-  const initialFetchDone = React.useRef(false);
-  // Stable channel ref to avoid recreating subscriptions
-  const channelRef = React.useRef<RealtimeChannel | null>(null);
+  const handleLoadMore = useCallback(async () => {
+    const currentScrollPos = scrollPositionRef.current;
+    await fetchNextPage();
 
-  // Wrap loadNotifications in useCallback so it doesn't recreate on every render
-  const loadNotifications = useCallback(async () => {
-    if (!user?.id) return;
-    setLoading(true);
-
-    try {
-      // Load initial 10 notifications with pagination
-      const { data, error } = await supabase
-        .from("notifications")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .range(0, 9); // First 10 items
-
-      if (error) {
-        console.error("Error loading notifications:", error);
-        throw error;
-      }
-
-      console.log('Notifications loaded:', data?.length || 0);
-      const normalized = (data || []).map((notification) => ({
-        ...notification,
-        data: parseNotificationData((notification as { data?: unknown }).data),
-      })) as Notification[];
-      setNotifications(normalized);
-      setOffset(0);
-
-      // Check if there are more notifications
-      if (data && data.length < 10) {
-        setHasMore(false);
-      } else {
-        setHasMore(true);
-      }
-    } catch (error) {
-      console.error("Error loading notifications:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, [user?.id, supabase]);
-
-  // Load more notifications (for pagination/infinite scroll)
-  const loadMoreNotifications = useCallback(async () => {
-    if (!user?.id || loadingMore || !hasMore) return;
-    setLoadingMore(true);
-
-    try {
-      const newOffset = offset + 10;
-      const { data, error } = await supabase
-        .from("notifications")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .range(newOffset, newOffset + 9);
-
-      if (error) {
-        console.error("Error loading more notifications:", error);
-        throw error;
-      }
-
-      console.log('Loaded more notifications:', data?.length || 0);
-      const normalized = (data || []).map((notification) => ({
-        ...notification,
-        data: parseNotificationData((notification as { data?: unknown }).data),
-      })) as Notification[];
-
-      // Store scroll position before state update
-      const currentScrollPos = scrollPositionRef.current;
-
-      setNotifications(prev => [...prev, ...normalized]);
-      setOffset(newOffset);
-
-      // Check if there are more
-      if (!data || data.length < 10) {
-        setHasMore(false);
-      }
-
-      // Restore scroll position after DOM has rendered new content
-      // Use multiple requestAnimationFrames to ensure rendering is complete
+    requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          const scrollViewport = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement;
-          if (scrollViewport) {
-            console.log('Restoring scroll to:', currentScrollPos);
-            scrollViewport.scrollTop = currentScrollPos;
-          }
-        });
+        const scrollViewport = scrollAreaRef.current?.querySelector('[data-slot="scroll-area-viewport"]') as HTMLElement;
+        if (scrollViewport) {
+          scrollViewport.scrollTop = currentScrollPos;
+        }
       });
-    } catch (error) {
-      console.error("Error loading more notifications:", error);
-    } finally {
-      setLoadingMore(false);
-    }
-  }, [user?.id, supabase, offset, loadingMore, hasMore]);
+    });
+  }, [fetchNextPage]);
 
-  // Wrap updateUnreadCount in useCallback
   const updateUnreadCount = useCallback(async () => {
     if (!user?.id) return;
     try {
-      // Use regular select with limit 1 instead of HEAD request to reduce API calls
-      // HEAD requests still count as full queries, just without response body
       const { data, error } = await supabase
         .from("notifications")
         .select("id", { count: 'exact' })
@@ -231,47 +153,30 @@ export function NotificationPopover() {
         .limit(1);
 
       if (error) throw error;
-
       setUnreadCount(data?.length || 0);
     } catch (error) {
       console.error("Error updating unread count:", error);
     }
   }, [user?.id, supabase]);
 
-  // Debounced notification reload (batches multiple rapid events into single update)
-  // Example: 5 new notifications arrive in 300ms → triggers only 1 loadNotifications() call
-  const debouncedLoadNotifications = useDebounce(loadNotifications, 300);
-
-  // Debounced unread count update
   const debouncedUpdateUnreadCount = useDebounce(updateUnreadCount, 300);
-
-  // Store refs to debounced functions to avoid circular effect dependency
-  const debouncedLoadRef = useRef(debouncedLoadNotifications);
   const debouncedUnreadRef = useRef(debouncedUpdateUnreadCount);
 
   useEffect(() => {
-    debouncedLoadRef.current = debouncedLoadNotifications;
     debouncedUnreadRef.current = debouncedUpdateUnreadCount;
-  }, [debouncedLoadNotifications, debouncedUpdateUnreadCount]);
+  }, [debouncedUpdateUnreadCount]);
 
   useEffect(() => {
-    if (!user?.id) return; // Wait for user to be available
+    if (!user?.id) return;
 
-    // Only update unread count on initial mount, not on every user change
-    // Realtime subscription will handle updates after that
     if (!initialFetchDone.current) {
       updateUnreadCount();
       initialFetchDone.current = true;
     }
 
-    // If channel already exists for this user, don't recreate
     if (channelRef.current) return;
 
-    // Setup realtime subscription using user from auth hook
-    // Use stable channel name (no Date.now()) to avoid recreating subscriptions
     const channelName = `notification-popover-${user.id}`;
-    console.log(`Setting up notification badge channel: ${channelName}`);
-
     const channel = realtimeClient
       .channel(channelName)
       .on('postgres_changes',
@@ -281,44 +186,29 @@ export function NotificationPopover() {
           table: 'notifications',
           filter: `user_id=eq.${user.id}`
         },
-        (payload) => {
-          console.log('Notification badge update event:', payload.eventType);
-          // Debounce the reload to batch rapid events
-          // If user is viewing notifications, reload the list
-          // Otherwise, just update the unread count badge
-          if (open) {
-            debouncedLoadRef.current();
-          } else {
-            debouncedUnreadRef.current();
-          }
+        () => {
+          refresh();
+          debouncedUnreadRef.current();
         }
       )
-      .subscribe(status => {
-        console.log(`Badge notification channel status: ${status}`);
-      });
+      .subscribe();
 
     channelRef.current = channel;
 
-    // Cleanup function
     return () => {
-      console.log('Removing notification badge channel');
       if (channelRef.current) {
         realtimeClient.removeChannel(channelRef.current);
         channelRef.current = null;
       }
     };
-  }, [user?.id, open]);
+  }, [user?.id, refresh, updateUnreadCount]);
 
-  // Handle popover open state changes separately
   useEffect(() => {
     if (open && user?.id) {
-      setOffset(0);
-      setHasMore(true);
-      loadNotifications();
+      refresh();
     }
-  }, [open, user?.id, loadNotifications]);
+  }, [open, user?.id, refresh]);
 
-  // Auto mark all notifications as read when the popover closes and there are unread notifications
   useEffect(() => {
     if (!open && notifications.length > 0) {
       const unreadNotifications = notifications.filter(n => !n.read);
@@ -328,9 +218,8 @@ export function NotificationPopover() {
     }
   }, [open, notifications]);
 
-  // Track scroll position for restoring after loading more
   useEffect(() => {
-    const scrollViewport = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement;
+    const scrollViewport = scrollAreaRef.current?.querySelector('[data-slot="scroll-area-viewport"]') as HTMLElement;
     if (!scrollViewport) return;
 
     const handleScroll = () => {
@@ -347,10 +236,7 @@ export function NotificationPopover() {
         .from("notifications")
         .update({ read: true })
         .eq("id", id);
-
-      setNotifications(notifications.map(n =>
-        n.id === id ? { ...n, read: true } : n
-      ));
+      refresh();
     } catch (error) {
       console.error("Error marking notification as read:", error);
     }
@@ -366,8 +252,7 @@ export function NotificationPopover() {
         .eq("user_id", user.id);
 
       if (error) throw error;
-
-      setNotifications(notifications.map(n => ({ ...n, read: true })));
+      refresh();
       setUnreadCount(0);
     } catch (error) {
       console.error("Error marking all notifications as read:", error);
@@ -392,7 +277,6 @@ export function NotificationPopover() {
     }
   }
 
-  // Helper function to get icon based on severity
   const getNotificationIcon = (severity: NotificationSeverity = 'info') => {
     switch (severity) {
       case 'warning':
@@ -421,8 +305,6 @@ export function NotificationPopover() {
     try {
       const date = new Date(dateString);
       const formatted = formatDistanceToNow(date, { addSuffix: true });
-
-      // Convert "about 1 hour ago" to "1h ago" and similar
       return formatted
         .replace(/about /g, '')
         .replace(/less than a minute ago/g, 'just now')
@@ -455,9 +337,7 @@ export function NotificationPopover() {
                 {notification.title}
               </h5>
               <div className="flex items-center gap-2">
-                {!notification.read && (
-                  <div className="h-2 w-2 rounded-full bg-primary"></div>
-                )}
+                {!notification.read && <div className="h-2 w-2 rounded-full bg-primary"></div>}
                 <span className="text-[10px] text-muted-foreground whitespace-nowrap bg-muted/50 px-1.5 py-0.5 rounded-full">
                   {formatTimeAgo(notification.created_at)}
                 </span>
@@ -466,14 +346,9 @@ export function NotificationPopover() {
             <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
               {notification.body}
             </p>
-
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-3">
-                {showDetails && (
-                  <span className="text-xs text-primary font-medium hover:underline">
-                    View details
-                  </span>
-                )}
+                {showDetails && <span className="text-xs text-primary font-medium hover:underline">View details</span>}
                 {showLink && (
                   <button
                     type="button"
@@ -509,51 +384,40 @@ export function NotificationPopover() {
     </div>
   );
 
-  // Create a shared content component that works for both Popover and Drawer
   const NotificationsContent = () => (
-    <>
-      <ScrollArea ref={scrollAreaRef} className={cn("h-[400px]", isMobile && "h-[calc(60vh-80px)]")}>
-        <div className="px-1">
-          {loading ? (
-            <div className="flex flex-col justify-center items-center py-16">
-              <div className="relative">
-                <div className="absolute inset-0 rounded-full"></div>
-                <div className="relative rounded-full p-3">
-                  <Loader2 className="h-6 w-6 animate-spin font-bold text-primary" />
-                </div>
+    <ScrollArea ref={scrollAreaRef} className={cn("h-[400px]", isMobile && "h-[calc(60vh-80px)]")}>
+      <div className="px-1">
+        {initialLoading ? (
+          <div className="flex flex-col justify-center items-center py-16">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            <p className="text-xs text-muted-foreground mt-4">Loading notifications...</p>
+          </div>
+        ) : notifications.length > 0 ? (
+          <div className="space-y-1">
+            {notifications.map(renderNotificationItem)}
+            {hasMore && (
+              <div className="p-3 flex justify-center border-t mt-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleLoadMore}
+                  disabled={fetching}
+                  className="text-xs"
+                >
+                  {fetching ? (
+                    <><Loader2 className="h-3 w-3 animate-spin mr-2" />Loading...</>
+                  ) : (
+                    'Load more notifications'
+                  )}
+                </Button>
               </div>
-              <p className="text-xs text-muted-foreground mt-4">Loading notifications...</p>
-            </div>
-          ) : notifications.length > 0 ? (
-            <div className="space-y-1">
-              {notifications.map(renderNotificationItem)}
-              {hasMore && (
-                <div className="p-3 flex justify-center border-t mt-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={loadMoreNotifications}
-                    disabled={loadingMore}
-                    className="text-xs"
-                  >
-                    {loadingMore ? (
-                      <>
-                        <Loader2 className="h-3 w-3 animate-spin mr-2" />
-                        Loading...
-                      </>
-                    ) : (
-                      'Load more notifications'
-                    )}
-                  </Button>
-                </div>
-              )}
-            </div>
-          ) : (
-            renderEmptyState()
-          )}
-        </div>
-      </ScrollArea>
-    </>
+            )}
+          </div>
+        ) : (
+          renderEmptyState()
+        )}
+      </div>
+    </ScrollArea>
   );
 
   const NotificationButton = (
@@ -569,28 +433,12 @@ export function NotificationPopover() {
   );
 
   const detailMetadata = activeNotification?.data ?? null;
-  const detailStatus = typeof detailMetadata?.status === 'string' ? detailMetadata.status : null;
-  const detailStatusLabel = detailStatus ? detailStatus.replace(/_/g, ' ') : null;
-  const detailReportDescription =
-    typeof detailMetadata?.reportDescription === 'string'
-      ? detailMetadata.reportDescription
-      : null;
-  const detailReportReason =
-    typeof detailMetadata?.reportReason === 'string' ? detailMetadata.reportReason : null;
-  const detailReportId =
-    typeof detailMetadata?.reportId === 'string' ? detailMetadata.reportId : null;
-  const detailTimestamp = (typeof detailMetadata?.resolvedAt === 'string'
-    ? detailMetadata.resolvedAt
-    : undefined) ?? activeNotification?.created_at;
-  const detailSubtitle = detailTimestamp
-    ? `Updated ${formatTimeAgo(detailTimestamp)}`
-    : 'Notification details';
+  const detailStatusLabel = typeof detailMetadata?.status === 'string' ? detailMetadata.status.replace(/_/g, ' ') : null;
+  const detailSubtitle = activeNotification?.created_at ? `Updated ${formatTimeAgo(activeNotification.created_at)}` : 'Notification details';
 
   const handleDetailDialogChange = (nextOpen: boolean) => {
     setDetailOpen(nextOpen);
-    if (!nextOpen) {
-      setActiveNotification(null);
-    }
+    if (!nextOpen) setActiveNotification(null);
   };
 
   const detailDialog = (
@@ -602,37 +450,14 @@ export function NotificationPopover() {
         </DialogHeader>
         <div className="space-y-3">
           {detailStatusLabel && (
-            <Badge
-              variant={detailStatus === 'resolved' ? 'secondary' : detailStatus === 'dismissed' ? 'outline' : 'default'}
-              className="w-fit uppercase"
-            >
-              {detailStatusLabel}
-            </Badge>
+            <Badge variant="secondary" className="w-fit uppercase">{detailStatusLabel}</Badge>
           )}
-          <p className="text-sm text-foreground whitespace-pre-line">
-            {activeNotification?.body}
-          </p>
+          <p className="text-sm text-foreground whitespace-pre-line">{activeNotification?.body}</p>
           {activeNotification?.action_url && (
             <div className="rounded-lg border bg-muted/40 p-3">
               <p className="text-xs font-medium text-muted-foreground">Related link</p>
-              <p className="mt-1 text-xs text-foreground break-all">
-                {activeNotification.action_url}
-              </p>
+              <p className="mt-1 text-xs text-foreground break-all">{activeNotification.action_url}</p>
             </div>
-          )}
-          {detailReportDescription && (
-            <div className="rounded-lg border bg-muted/40 p-3">
-              <p className="text-xs font-medium text-muted-foreground">Your original report</p>
-              <p className="mt-1 text-sm text-foreground whitespace-pre-line">
-                {detailReportDescription}
-              </p>
-              {detailReportReason && (
-                <p className="mt-2 text-xs text-muted-foreground">Tagged as: {detailReportReason}</p>
-              )}
-            </div>
-          )}
-          {detailReportId && (
-            <p className="text-xs text-muted-foreground">Reference ID: {detailReportId}</p>
           )}
         </div>
         <DialogFooter>
@@ -648,9 +473,7 @@ export function NotificationPopover() {
               Open link
             </Button>
           )}
-          <Button variant="secondary" onClick={() => handleDetailDialogChange(false)}>
-            Close
-          </Button>
+          <Button variant="secondary" onClick={() => handleDetailDialogChange(false)}>Close</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -664,34 +487,22 @@ export function NotificationPopover() {
     );
   }
 
-  // Render either Popover or Drawer based on screen size
   if (isMobile) {
     return (
       <>
         <Drawer open={open} onOpenChange={setOpen}>
-          <DrawerTrigger asChild>
-            {NotificationButton}
-          </DrawerTrigger>
+          <DrawerTrigger render={NotificationButton} />
           <DrawerContent>
             <DrawerHeader className="px-0 pt-0">
               <div className="px-4 py-3 flex justify-between items-center">
                 <DrawerTitle className="font-medium">Notifications</DrawerTitle>
-                <Button
-                  variant="ghost"
-                  className="text-muted-foreground hover:text-foreground p-2 h-7 w-7"
-                  onClick={() => {
-                    router.push("/account/notifications");
-                    setOpen(false);
-                  }}
-                >
+                <Button variant="ghost" className="p-2 h-7 w-7" onClick={() => { router.push("/account/notifications"); setOpen(false); }}>
                   <Settings className="h-4 w-4" />
                 </Button>
               </div>
               <div className="h-px w-full bg-border"></div>
             </DrawerHeader>
-            <div className="pb-6">
-              <NotificationsContent />
-            </div>
+            <div className="pb-6"><NotificationsContent /></div>
           </DrawerContent>
         </Drawer>
         {detailDialog}
@@ -704,26 +515,13 @@ export function NotificationPopover() {
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger render={NotificationButton} />
         <PopoverContent align="end" className="w-[360px] p-0">
-          <div>
-            {/* Simple Header */}
-            <div className="px-4 py-3 flex justify-between items-center">
-              <h3 className="text-sm font-medium">Notifications</h3>
-              <Button
-                variant="ghost"
-                className="text-muted-foreground hover:text-foreground p-2 h-7 w-7"
-                onClick={() => {
-                  router.push("/account/notifications");
-                  setOpen(false);
-                }}
-              >
-                <Settings className="h-4 w-4" />
-              </Button>
-            </div>
-
-            {/* Full-width separator */}
-            <div className="h-px w-full bg-border"></div>
+          <div className="px-4 py-3 flex justify-between items-center">
+            <h3 className="text-sm font-medium">Notifications</h3>
+            <Button variant="ghost" className="p-2 h-7 w-7" onClick={() => { router.push("/account/notifications"); setOpen(false); }}>
+              <Settings className="h-4 w-4" />
+            </Button>
           </div>
-
+          <div className="h-px w-full bg-border"></div>
           <NotificationsContent />
         </PopoverContent>
       </Popover>

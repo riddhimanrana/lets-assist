@@ -52,7 +52,7 @@ import {
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { canDeleteProject } from "@/utils/project";
 import { CancelProjectDialog } from "@/app/projects/_components/CancelProjectDialog";
-import { differenceInHours, addHours, isBefore, isAfter, parseISO, format } from "date-fns";
+import { differenceInHours, isBefore, isAfter, parseISO, format } from "date-fns";
 import { getProjectStartDateTime, getProjectEndDateTime } from "@/utils/project";
 import ProjectTimeline from "./ProjectTimeline";
 import { ProjectQRCodeModal } from "./ProjectQRCodeModal";
@@ -228,48 +228,6 @@ export default function CreatorDashboard({ project }: Props) {
   const isCompleted = isAfter(now, endDateTime);
   const isCheckInOpen = hoursUntilStart <= 2 && isBefore(now, endDateTime); // Within 2 hours before start until end
 
-  // Check if attendance management is available (2 hours before event)
-  const isAttendanceAvailable = useMemo(() => {
-    // Handle different event types
-    if (project.event_type === "oneTime" && project.schedule.oneTime) {
-      const { date, startTime } = project.schedule.oneTime;
-      const [year, month, day] = date.split('-').map(Number);
-      const [hours, minutes] = startTime.split(':').map(Number);
-
-      const sessionStart = new Date(year, month - 1, day, hours, minutes);
-      const attendanceOpenTime = addHours(sessionStart, -2);
-
-      return !isBefore(now, attendanceOpenTime);
-    }
-    else if (project.event_type === "multiDay" && project.schedule.multiDay) {
-      // Check if any session is within 2 hours of starting
-      return project.schedule.multiDay.some(day => {
-        const [year, month, dayNum] = day.date.split('-').map(Number);
-
-        return day.slots.some(slot => {
-          const [hours, minutes] = slot.startTime.split(':').map(Number);
-          const sessionStart = new Date(year, month - 1, dayNum, hours, minutes);
-          const attendanceOpenTime = addHours(sessionStart, -2);
-
-          return !isBefore(now, attendanceOpenTime);
-        });
-      });
-    }
-    else if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
-      const { date, roles } = project.schedule.sameDayMultiArea;
-      const [year, month, day] = date.split('-').map(Number);
-
-      return roles.some(role => {
-        const [hours, minutes] = role.startTime.split(':').map(Number);
-        const sessionStart = new Date(year, month - 1, day, hours, minutes);
-        const attendanceOpenTime = addHours(sessionStart, -2);
-
-        return !isBefore(now, attendanceOpenTime);
-      });
-    }
-
-    return false;
-  }, [project]);
 
   // --- Helper function to get the key used in the 'published' object ---
   const getPublishStateKey = (sessionId: string): string => {

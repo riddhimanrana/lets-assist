@@ -11,10 +11,28 @@ function Drawer({
   return <DrawerPrimitive.Root data-slot="drawer" {...props} />
 }
 
+type DrawerTriggerProps = React.ComponentProps<typeof DrawerPrimitive.Trigger> & {
+  render?: React.ReactElement;
+};
+
 function DrawerTrigger({
+  render,
+  children,
   ...props
-}: React.ComponentProps<typeof DrawerPrimitive.Trigger>) {
-  return <DrawerPrimitive.Trigger data-slot="drawer-trigger" {...props} />
+}: DrawerTriggerProps) {
+  if (render && React.isValidElement(render)) {
+    return (
+      <DrawerPrimitive.Trigger data-slot="drawer-trigger" {...props} asChild>
+        {render}
+      </DrawerPrimitive.Trigger>
+    );
+  }
+
+  return (
+    <DrawerPrimitive.Trigger data-slot="drawer-trigger" {...props}>
+      {children}
+    </DrawerPrimitive.Trigger>
+  )
 }
 
 function DrawerPortal({
