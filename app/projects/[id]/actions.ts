@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { canCancelProject, isProjectVisible } from "@/utils/project";
 import { revalidatePath } from "next/cache";
 import { ProjectStatus } from "@/types";
@@ -19,7 +19,7 @@ import * as React from 'react';
 
 import { NotificationService } from "@/services/notifications";
 import { removeCalendarEventForSignup, removeCalendarEventForProject } from "@/utils/calendar-helpers";
-import { getServiceRoleClient } from "@/utils/supabase/service-role";
+import { getAdminClient } from "@/lib/supabase/admin";
 
 // Define your site URL (replace with environment variable ideally)
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
@@ -270,7 +270,7 @@ export async function getCreatorProfile(userId: string) {
 
 export async function getActiveWaiverTemplate() {
   try {
-    const serviceSupabase = getServiceRoleClient();
+    const serviceSupabase = getAdminClient();
     const { data, error } = await serviceSupabase
       .from("waiver_templates")
       .select("*")
@@ -294,7 +294,7 @@ export async function getActiveWaiverTemplate() {
 // Get project-specific waiver or fall back to global template
 export async function getProjectWaiver(projectId: string) {
   try {
-    const serviceSupabase = getServiceRoleClient();
+    const serviceSupabase = getAdminClient();
     
     // First get the project's waiver config
     const { data: project, error: projectError } = await serviceSupabase
@@ -360,7 +360,7 @@ export async function uploadProjectWaiverPdf(projectId: string, pdfDataUrl: stri
       return { error: "You don't have permission to modify this project" };
     }
 
-    const serviceSupabase = getServiceRoleClient();
+    const serviceSupabase = getAdminClient();
     
     // Parse and validate the PDF data URL
     const parsed = parseDataUrl(pdfDataUrl);
@@ -450,7 +450,7 @@ export async function removeProjectWaiverPdf(projectId: string) {
       return { error: "Project not found" };
     }
 
-    const serviceSupabase = getServiceRoleClient();
+    const serviceSupabase = getAdminClient();
 
     // Remove from storage if exists
     if (project.waiver_pdf_storage_path) {
@@ -503,7 +503,7 @@ async function uploadWaiverAsset(params: {
     return { error: "File is too large." };
   }
 
-  const serviceSupabase = getServiceRoleClient();
+  const serviceSupabase = getAdminClient();
   const { error: uploadError } = await serviceSupabase.storage
     .from(params.bucket)
     .upload(params.fileName, parsed.buffer, {
@@ -584,7 +584,7 @@ async function persistWaiverSignature(params: {
   signerEmail: string;
   waiverSignature: WaiverSignatureInput;
 }) {
-  const serviceSupabase = getServiceRoleClient();
+  const serviceSupabase = getAdminClient();
 
   // Check for project-specific waiver PDF first
   const { data: project } = await serviceSupabase
@@ -1237,7 +1237,7 @@ export async function signUpForProject(
       });
 
       if (persistResult?.error) {
-        const serviceSupabase = getServiceRoleClient();
+        const serviceSupabase = getAdminClient();
         await serviceSupabase.from("project_signups").delete().eq("id", createdSignupId);
         if (createdAnonymousSignupId) {
           await serviceSupabase.from("anonymous_signups").delete().eq("id", createdAnonymousSignupId);
@@ -1569,7 +1569,7 @@ export async function updateProjectStatus(
     cancellationNotifications = { enqueued: false, triggerAttempted: false };
     try {
       const cancelledAt = updateData.cancelled_at ?? new Date().toISOString();
-      const serviceSupabase = getServiceRoleClient();
+      const serviceSupabase = getAdminClient();
 
       const { error: enqueueError } = await serviceSupabase
         .from("project_cancellation_jobs")
@@ -1912,7 +1912,7 @@ export async function getWaiverDownloadUrl(signupId: string, anonymousSignupId?:
       return { error: "Unauthorized" };
     }
 
-    const serviceSupabase = getServiceRoleClient();
+    const serviceSupabase = getAdminClient();
     const { data: waiverSignature, error: waiverError } = await serviceSupabase
       .from("waiver_signatures")
       .select("signature_type, signature_storage_path, upload_storage_path, signature_text, signed_at, signer_name")

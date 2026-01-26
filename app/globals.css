@@ -4,213 +4,177 @@
 
 @custom-variant dark (&:is(.dark *));
 
-:root {
-  /* Light theme variables */
-  --success: hsl(142.1 76.2% 36.3%);
-  --success-foreground: hsl(355.7 100% 97.3%);
+@layer base {
+  :root {
+    /* Light theme variables */
+    --page-background: 0 0% 100%;
+    /* base */
+    --page-foreground: 240 10% 3.9%;
+    /* text */
+    --background: 0 0% 100%;
+    /* base */
+    --foreground: 240 10% 3.9%;
+    /* text */
+    --card: 0 0% 100%;
+    /* base */
+    --card-foreground: 240 10% 3.9%;
+    /* text */
+    --popover: 0 0% 100%;
+    /* base */
+    --popover-foreground: 240 10% 3.9%;
+    /* text */
+    --primary: 142.1 76.2% 36.3%;
+    /* accent - green */
+    --primary-foreground: 355.7 100% 97.3%;
+    /* base */
+    --secondary: 240 4.8% 95.9%;
+    /* surface0 */
+    --secondary-foreground: 240 5.9% 10%;
+    /* text */
+    --muted: 240 4.8% 95.9%;
+    /* surface0 */
+    --muted-foreground: 240 3.8% 46.1%;
+    /* subtext1 */
+    --accent: 240 4.8% 95.9%;
+    /* surface0 */
+    --accent-foreground: 240 5.9% 10%;
+    /* text */
+    --destructive: 0 84.2% 60.2%;
+    /* red */
+    --destructive-foreground: 0 0% 98%;
+    /* mantle */
+    --border: 240 5.9% 90%;
+    /* surface1 */
+    --input: 240 5.9% 90%;
+    /* surface1 */
+    --ring: 142.1 76.2% 36.3%;
+    /* text */
+    --radius: 1rem;
+    --chart-1: 12 76% 61%;
+    /* red */
+    --chart-2: 173 58% 39%;
+    /* teal/aqua */
+    --chart-3: 220 91% 54%;
+    /* blue */
+    --chart-4: 35 77% 49%;
+    /* yellow */
+    --chart-5: 109 58% 40%;
+    /* green */
+    --chart-6: 22 99% 52%;
+    /* orange */
+    --chart-7: 355 76% 59%;
+    /* maroon */
+    --chart-8: 231 97% 72%;
+    /* lavender */
+    --chart-9: 220 21% 89%;
+    /* base */
+  }
 
-  --warning: hsl(45 93% 47%);
-  --warning-foreground: hsl(0 0% 10%);
-
-  --info: hsl(221 83% 53%);
-  --info-foreground: hsl(0 0% 100%);
-  --page-background: hsl(0 0% 100%);
-  /* base */
-  --page-foreground: hsl(240 10% 3.9%);
-  /* text */
-  --background: hsl(0 0% 100%);
-  /* base */
-  --foreground: hsl(240 10% 3.9%);
-  /* text */
-  --card: hsl(0 0% 100%);
-  /* base */
-  --card-foreground: hsl(240 10% 3.9%);
-  /* text */
-  --popover: hsl(0 0% 100%);
-  /* base */
-  --popover-foreground: hsl(240 10% 3.9%);
-  /* text */
-  --primary: hsl(142.1 76.2% 36.3%);
-  /* accent - green */
-  --primary-foreground: hsl(355.7 100% 97.3%);
-  /* base */
-  --secondary: hsl(240 4.8% 95.9%);
-  /* surface0 */
-  --secondary-foreground: hsl(240 5.9% 10%);
-  /* text */
-  --muted: hsl(240 4.8% 95.9%);
-  /* surface0 */
-  --muted-foreground: hsl(240 3.8% 46.1%);
-  /* subtext1 */
-  --accent: hsl(240 4.8% 95.9%);
-  /* surface0 */
-  --accent-foreground: hsl(240 5.9% 10%);
-  /* text */
-  --destructive: hsl(0 84.2% 60.2%);
-  /* red */
-  --border: hsl(240 5.9% 90%);
-  /* surface1 */
-  --input: hsl(240 5.9% 90%);
-  /* surface1 */
-  --ring: hsl(142.1 76.2% 36.3%);
-  /* text */
-  --radius: 1rem;
-  --chart-1: hsl(12 76% 61%);
-  /* red */
-  --chart-2: hsl(173 58% 39%);
-  /* teal/aqua */
-  --chart-3: hsl(220 91% 54%);
-  /* blue */
-  --chart-4: hsl(35 77% 49%);
-  /* yellow */
-  --chart-5: hsl(109 58% 40%);
-  /* green */
-  --chart-6: hsl(22 99% 52%);
-  /* orange */
-  --chart-7: hsl(355 76% 59%);
-  /* maroon */
-  --chart-8: hsl(231 97% 72%);
-  /* lavender */
-  --chart-9: hsl(220 21% 89%);
-  /* base */
-  --sidebar-background: hsl(0 0% 98%);
-  --sidebar-foreground: hsl(240 5.3% 26.1%);
-  --sidebar-primary: hsl(240 5.9% 10%);
-  --sidebar-primary-foreground: hsl(0 0% 98%);
-  --sidebar-accent: hsl(240 4.8% 95.9%);
-  --sidebar-accent-foreground: hsl(240 5.9% 10%);
-  --sidebar-border: hsl(220 13% 91%);
-  --sidebar-ring: hsl(217.2 91.2% 59.8%);
-  --sidebar: hsl(0 0% 98%);
+  .dark {
+    /* Dark theme variables */
+    --page-background: 240 21% 12%;
+    /* mantle */
+    --page-foreground: 226 64% 88%;
+    /* text */
+    --background: 240 21% 12%;
+    /* base */
+    --foreground: 226 64% 88%;
+    /* text */
+    --muted: 237 16.239316761493683% 23%;
+    /* surface0 */
+    --muted-foreground: 227 35.29411852359772% 80%;
+    /* subtext1 */
+    --popover: 240 21% 15%;
+    /* base */
+    --popover-foreground: 226 64% 88%;
+    /* text */
+    --card: 240 21% 15%;
+    /* base */
+    --card-foreground: 226 64% 88%;
+    /* text */
+    --border: 234 13% 31%;
+    /* surface1 */
+    --input: 234 13% 31%;
+    /* surface1 */
+    --primary: 115 54% 76%;
+    /* accent - Green */
+    --primary-foreground: 240 21% 15%;
+    /* base */
+    --secondary: 237 16% 23%;
+    /* surface0 */
+    --secondary-foreground: 226 64% 88%;
+    /* text */
+    --accent: 237 16% 23%;
+    /* surface0 */
+    --accent-foreground: 226 64% 88%;
+    /* text */
+    --destructive: 343 81 75%;
+    /* red */
+    --destructive-foreground: 240 21% 12%;
+    /* mantle */
+    --ring: 226 64% 88%;
+    /* text */
+    --radius: 1rem;
+    --chart-1: 343 81% 75%;
+    /* red */
+    --chart-2: 170 57% 73%;
+    /* teal/aqua */
+    --chart-3: 217 92% 76%;
+    /* blue */
+    --chart-4: 41 86% 83%;
+    /* yellow */
+    --chart-5: 115 54% 76%;
+    /* green */
+    --chart-6: 23 92% 75%;
+    /* orange */
+    --chart-7: 350 65% 77%;
+    /* maroon */
+    --chart-8: 232 97% 85%;
+    /* lavender */
+    --chart-9: 240 23% 9%;
+    /* mantle */
+  }
 }
 
-.dark {
-  /* Dark theme variables */
-  --success: hsl(142.1 70.6% 45.3%);
-  --success-foreground: hsl(144 100% 97%);
-
-  --warning: hsl(48 96% 53%);
-  --warning-foreground: hsl(30 100% 9%);
-
-  --info: hsl(217 91% 60%);
-  --info-foreground: hsl(0 0% 100%);
-  --page-background: hsl(240 21% 12%);
-  /* mantle */
-  --page-foreground: hsl(226 64% 88%);
-  /* text */
-  --background: hsl(240 21% 12%);
-  /* base */
-  --foreground: hsl(226 64% 88%);
-  /* text */
-  --muted: hsl(237 16.239316761493683% 23%);
-  /* surface0 */
-  --muted-foreground: hsl(227 35.29411852359772% 80%);
-  /* subtext1 */
-  --popover: hsl(240 21% 15%);
-  /* base */
-  --popover-foreground: hsl(226 64% 88%);
-  /* text */
-  --card: hsl(240 21% 15%);
-  /* base */
-  --card-foreground: hsl(226 64% 88%);
-  /* text */
-  --border: hsl(234 13% 31%);
-  /* surface1 */
-  --input: hsl(234 13% 31%);
-  /* surface1 */
-  --primary: hsl(115 54% 76%);
-  /* accent - Green */
-  --primary-foreground: hsl(240 21% 15%);
-  /* base */
-  --secondary: hsl(237 16% 23%);
-  /* surface0 */
-  --secondary-foreground: hsl(226 64% 88%);
-  /* text */
-  --accent: hsl(237 16% 23%);
-  /* surface0 */
-  --accent-foreground: hsl(226 64% 88%);
-  /* text */
-  --destructive: hsl(343 81 75%);
-  /* red */
-  --ring: hsl(226 64% 88%);
-  /* text */
-  --radius: 1rem;
-  --chart-1: hsl(343 81% 75%);
-  /* red */
-  --chart-2: hsl(170 57% 73%);
-  /* teal/aqua */
-  --chart-3: hsl(217 92% 76%);
-  /* blue */
-  --chart-4: hsl(41 86% 83%);
-  /* yellow */
-  --chart-5: hsl(115 54% 76%);
-  /* green */
-  --chart-6: hsl(23 92% 75%);
-  /* orange */
-  --chart-7: hsl(350 65% 77%);
-  /* maroon */
-  --chart-8: hsl(232 97% 85%);
-  /* lavender */
-  --chart-9: hsl(240 23% 9%);
-  /* mantle */
-
-  --sidebar-background: hsl(240 5.9% 10%);
-  --sidebar-foreground: hsl(240 4.8% 95.9%);
-  --sidebar-primary: hsl(224.3 76.3% 48%);
-  --sidebar-primary-foreground: hsl(0 0% 100%);
-  --sidebar-accent: hsl(240 3.7% 15.9%);
-  --sidebar-accent-foreground: hsl(240 4.8% 95.9%);
-  --sidebar-border: hsl(240 3.7% 15.9%);
-  --sidebar-ring: hsl(217.2 91.2% 59.8%);
-  --sidebar: hsl(240 5.9% 10%);
-}
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
 
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
 
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
 
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
 
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
 
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
 
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
 
-  --color-destructive: var(--destructive);
+  --color-destructive: hsl(var(--destructive));
 
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
 
-  --color-success: var(--success);
-  --color-success-foreground: var(--success-foreground);
+  --color-chart-1: hsl(var(--chart-1));
+  --color-chart-2: hsl(var(--chart-2));
+  --color-chart-3: hsl(var(--chart-3));
+  --color-chart-4: hsl(var(--chart-4));
+  --color-chart-5: hsl(var(--chart-5));
+  --color-chart-6: hsl(var(--chart-6));
+  --color-chart-7: hsl(var(--chart-7));
+  --color-chart-8: hsl(var(--chart-8));
+  --color-chart-9: hsl(var(--chart-9));
 
-  --color-warning: var(--warning);
-  --color-warning-foreground: var(--warning-foreground);
-
-  --color-info: var(--info);
-  --color-info-foreground: var(--info-foreground);
-
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
-  --color-chart-6: var(--chart-6);
-  --color-chart-7: var(--chart-7);
-  --color-chart-8: var(--chart-8);
-  --color-chart-9: var(--chart-9);
 
   --color-sidebar: var(--sidebar-background);
   --color-sidebar-foreground: var(--sidebar-foreground);
@@ -278,10 +242,6 @@
 
   body {
     @apply bg-background text-foreground;
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-    font-family: var(--font-inter), sans-serif;
   }
 
   button:not(:disabled),

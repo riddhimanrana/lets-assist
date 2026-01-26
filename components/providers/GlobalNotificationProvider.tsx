@@ -6,8 +6,7 @@ import InitialOnboardingModal from "@/components/onboarding/InitialOnboardingMod
 import FirstLoginTour from "@/components/onboarding/FirstLoginTour";
 import { NotificationListener } from "@/components/notifications/NotificationListener";
 import { useAuth } from "@/hooks/useAuth";
-import { createClient } from "@/utils/supabase/client";
-import { updateCachedUser } from "@/utils/auth/auth-context";
+import { createClient } from "@/lib/supabase/client";
 
 export default function GlobalNotificationProvider({
   children,
@@ -16,7 +15,7 @@ export default function GlobalNotificationProvider({
 }) {
   const pathname = usePathname();
   const isHomeRoute = pathname === "/home";
-  const { user, isLoading } = useAuth();
+  const { user, loading: isLoading } = useAuth();
   const [showIntroTour, setShowIntroTour] = useState(false);
   const [homeRouteReady, setHomeRouteReady] = useState(false);
   const [introTourStarted, setIntroTourStarted] = useState(false);
@@ -92,8 +91,9 @@ export default function GlobalNotificationProvider({
         console.warn("Error fetching updated user after tour complete:", error);
       }
 
-      if (updatedUser) {
-        updateCachedUser(updatedUser);
+      // Auth state is managed by useAuth hook automatically via onAuthStateChange
+      if (updatedUser && process.env.NODE_ENV === 'development') {
+        console.log('[GlobalNotificationProvider] User updated after tour complete:', updatedUser.email);
       }
     } catch (error) {
       console.error("Unexpected error updating intro tour status:", error);

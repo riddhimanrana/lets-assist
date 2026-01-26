@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { ImageResponse } from "next/og";
-import { getServiceRoleClient } from "@/utils/supabase/service-role";
+import { getAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
 
@@ -87,7 +87,7 @@ async function getLogoDataUri(): Promise<string | null> {
 
 async function getProfileData(username: string) {
   try {
-    const supabase = getServiceRoleClient();
+    const supabase = getAdminClient();
     const { data, error } = await supabase
       .from("profiles")
       .select(

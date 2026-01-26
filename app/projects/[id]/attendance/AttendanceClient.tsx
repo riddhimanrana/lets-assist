@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Search, ArrowLeft, Clock, CheckCircle, Printer, RefreshCw, ArrowUpDown, ChevronUp, ChevronDown, Loader2, UserRoundCheck, CalendarClock, AlertCircle } from "lucide-react";
-import { createClient } from "@/utils/supabase/client";
+import { createClient } from "@/lib/supabase/client";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Project } from "@/types";
 import { format, parseISO, addHours } from "date-fns";

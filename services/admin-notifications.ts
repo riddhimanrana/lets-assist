@@ -1,4 +1,4 @@
-import { getServiceRoleClient } from "@/utils/supabase/service-role";
+import { getAdminClient } from "@/lib/supabase/admin";
 
 type NotificationSeverity = "info" | "warning" | "success";
 
@@ -62,7 +62,7 @@ async function getAdminUserIds() {
     return cachedAdminIds;
   }
 
-  const supabase = getServiceRoleClient();
+  const supabase = getAdminClient();
   const { data, error } = await supabase.auth.admin.listUsers({
     page: 1,
     perPage: 1000,
@@ -188,7 +188,7 @@ function getEventLabel(event: AdminBatchEvent) {
 }
 
 async function createOrUpdateBatchNotification(adminUserId: string, event: AdminBatchEvent) {
-  const supabase = getServiceRoleClient();
+  const supabase = getAdminClient();
   const latestLabel = getEventLabel(event);
   const { batchKey, windowMinutes, title, body, actionUrl, severity } = buildBatchDetails(
     event,

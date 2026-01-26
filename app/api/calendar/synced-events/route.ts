@@ -3,7 +3,7 @@
  * GET /api/calendar/synced-events
  */
 
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { SyncedEvent } from "@/types";
 import type { Project } from "@/types";

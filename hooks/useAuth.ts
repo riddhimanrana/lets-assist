@@ -1,283 +1,103 @@
 'use client';
 
 /**
- * useAuth Hook: React hook for accessing cached auth state
+ * useAuth Hook: React hook for accessing auth state
  * 
- * Key Features:
- * - Returns user from memory cache (no API call if cached)
- * - Subscribes to auth state changes automatically
- * - Provides loading and error states
- * - Automatic cleanup on unmount
- * - Type-safe user object
+ * Uses getSession() + getUser() for reliable auth verification.
+ * Subscribes to auth state changes automatically.
  * 
  * Usage:
- * const { user, isLoading, isError } = useAuth();
+ * const { user, loading } = useAuth();
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { createClient } from '@/utils/supabase/client';
-import {
-  getCachedUser,
-  updateCachedUser,
-  waitForAuthReady,
-  refreshUser,
-  subscribeToCacheChanges,
-  isCacheInitialized,
-} from '@/utils/auth/auth-context';
-import type { AuthState } from '@/utils/auth/types';
+import { useEffect, useState, useMemo } from 'react';
+import { createClient } from '@/lib/supabase/client';
+import type { User } from '@supabase/supabase-js';
 
-// User type re-exported for consumers
-export type { User } from '@/utils/auth/types';
+export type { User } from '@supabase/supabase-js';
+
+export interface AuthState {
+  user: User | null;
+  loading: boolean;
+  isAuthenticated: boolean;
+}
 
 /**
  * Custom React hook for managing auth state
  * 
- * Returns:
- * - user: The authenticated user or null
- * - isLoading: Whether auth is being fetched
- * - isError: Whether an error occurred
- * - error: The error object if one occurred
+ * Uses getSession() first to check for existing session,
+ * then getUser() to verify the user is still valid.
  * 
- * Example:
- * ```typescript
- * function UserProfile() {
- *   const { user, isLoading, isError } = useAuth();
- *
- *   if (isLoading) return <Skeleton />;
- *   if (isError) return <ErrorMessage />;
- *   if (!user) return <SignInPrompt />;
- *
- *   return <div>Welcome, {user.email}</div>;
- * }
- * ```
+ * @returns User, loading state, and authentication status
  */
 export function useAuth(): AuthState {
-  const shouldLogDebug = process.env.NODE_ENV === 'development';
-  const shouldLogError = process.env.NODE_ENV !== 'test';
-  // Initialize state from cache immediately (not null!)
-  // This is critical for preventing flash of logged-out state
-  const cacheSnapshot = useMemo(
-    () => ({
-      user: getCachedUser(),
-      initialized: isCacheInitialized(),
-    }),
-    [],
-  );
-  
-  const [state, setState] = useState<AuthState>({
-    user: cacheSnapshot.user ?? null,  // Use cached user if available
-    isLoading: cacheSnapshot.initialized ? false : true,  // Only loading if cache not primed yet
-    isError: false,
-  });
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Create client once and reuse it
+  // Create stable supabase client reference
   const supabase = useMemo(() => createClient(), []);
 
-  // Effect 1: Initialize auth state (fetch user if needed)
   useEffect(() => {
     let mounted = true;
 
-    const initializeAuth = async () => {
-      // If the cache is already primed (from AuthProvider), skip redundant calls
-      if (isCacheInitialized()) {
-        const cachedUser = getCachedUser();
-        if (mounted) {
-          setState({
-            user: cachedUser,
-            isLoading: false,
-            isError: false,
-          });
-        }
-        if (shouldLogDebug) {
-          console.log('[useAuth] Cache already initialized, skipping session fetch');
-        }
-        return;
-      }
-
+    // Get initial auth state
+    const initAuth = async () => {
       try {
-        if (shouldLogDebug) {
-          console.log('[useAuth] Initializing auth state...');
-        }
+        // First check session (reads from storage, fast)
+        const { data: { session } } = await supabase.auth.getSession();
 
-        // IMPORTANT: Check cache FIRST - it may have been updated by AuthProvider or login flow
-        const cachedUser = getCachedUser();
-        if (cachedUser) {
-          if (shouldLogDebug) {
-            console.log('[useAuth] Using cached user:', cachedUser.email);
-          }
-          if (mounted) {
-            setState({
-              user: cachedUser,
-              isLoading: false,
-              isError: false,
-            });
-          }
-          return;
-        }
+        if (!mounted) return;
 
-        // If no cached user, check the current session
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-
-        if (sessionError) {
-          if (shouldLogError) {
-            console.error('[useAuth] Error getting session:', sessionError);
-          }
-          if (mounted) {
-            setState({
-              user: null,
-              isLoading: false,
-              isError: true,
-              error: sessionError,
-            });
-          }
-          return;
-        }
-
-        // If we have an active session, use it and update cache
         if (session?.user) {
-          updateCachedUser(session.user);
-          if (mounted) {
-            setState({
-              user: session.user,
-              isLoading: false,
-              isError: false,
-            });
-          }
-          if (shouldLogDebug) {
-            console.log('[useAuth] Session found on mount:', session.user.email);
-          }
+          setUser(session.user);
         } else {
-          // No session and no cache - user is logged out
-          if (mounted) {
-            setState({
-              user: null,
-              isLoading: false,
-              isError: false,
-            });
-          }
-          if (shouldLogDebug) {
-            console.log('[useAuth] No session found');
-          }
+          setUser(null);
         }
       } catch (error) {
-        if (mounted) {
-          setState({
-            user: null,
-            isLoading: false,
-            isError: true,
-            error: error instanceof Error ? error : new Error(String(error)),
-          });
-        }
+        console.error('[useAuth] Error getting session:', error);
+        if (mounted) setUser(null);
+      } finally {
+        if (mounted) setLoading(false);
       }
     };
 
-    initializeAuth();
+    initAuth();
+
+    // Subscribe to auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        if (!mounted) return;
+        setUser(session?.user ?? null);
+        setLoading(false);
+      }
+    );
 
     return () => {
       mounted = false;
+      subscription.unsubscribe();
     };
-  }, [supabase]); // Only depend on supabase, run once
-
-  // Effect 2a: Subscribe to CACHE changes (fires when updateCachedUser is called)
-  // This is critical for detecting manual cache updates from LoginClient
-  useEffect(() => {
-    let mounted = true;
-
-    // Subscribe to cache changes - this will fire when updateCachedUser is called
-    const unsubscribe = subscribeToCacheChanges((cachedUser) => {
-      if (!mounted) return;
-
-      setState((prev) => ({
-        ...prev,
-        user: cachedUser,
-        isLoading: false,
-        isError: false,
-      }));
-    });
-
-    return () => {
-      mounted = false;
-      unsubscribe();
-    };
-  }, []);
-
-  // Create refresh function
-  const refreshAuthState = useCallback(async () => {
-    try {
-      await refreshUser(supabase);
-      const updatedUser = getCachedUser();
-      setState({
-        user: updatedUser,
-        isLoading: false,
-        isError: false,
-      });
-    } catch (error) {
-      setState((prev) => ({
-        ...prev,
-        isError: true,
-        error: error instanceof Error ? error : new Error(String(error)),
-      }));
-    }
   }, [supabase]);
 
-  // Add convenience methods to the returned state object
   return {
-    ...state,
-    isAuthenticated: state.user !== null,
-    getError: () => state.error,
-    refresh: refreshAuthState,
+    user,
+    loading,
+    isAuthenticated: user !== null,
   };
 }
 
 /**
- * Hook to force refresh the current user
- * Useful after user profile updates
- * 
- * @returns Function to trigger refresh
- * 
- * Example:
- * ```typescript
- * function UserProfile() {
- *   const refreshAuth = useAuthRefresh();
- *
- *   const handleProfileUpdate = async () => {
- *     await updateProfile(...);
- *     await refreshAuth(); // Refresh auth state
- *   };
- * }
- * ```
+ * Hook to refresh auth state
+ * Useful after profile updates or when you need fresh user data
  */
 export function useAuthRefresh() {
   const supabase = useMemo(() => createClient(), []);
 
-  return useCallback(async () => {
-    const { refreshUser } = await import('@/utils/auth/auth-context');
-    return refreshUser(supabase);
-  }, [supabase]);
-}
-
-/**
- * Hook to wait for auth to be ready
- * Useful before making decisions based on auth state
- * 
- * @returns Function to wait for auth ready
- * 
- * Example:
- * ```typescript
- * function ProtectedComponent() {
- *   const waitReady = useAuthReady();
- *
- *   useEffect(() => {
- *     waitReady().then(() => {
- *       // Now we know for sure if user is authenticated
- *       const user = getCachedUser();
- *     });
- *   }, [waitReady]);
- * }
- * ```
- */
-export function useAuthReady() {
-  return useCallback(async () => {
-    return waitForAuthReady();
-  }, []);
+  return async () => {
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error) {
+      console.error('[useAuthRefresh] Error:', error.message);
+      return null;
+    }
+    return user;
+  };
 }

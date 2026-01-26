@@ -14,7 +14,7 @@
  */
 
 import { streamText } from 'ai';
-import { createClient } from '@/utils/supabase/server';
+import { createClient } from '@/lib/supabase/server';
 import { notifyAdminUserBatched } from '@/services/admin-notifications';
 
 // Model configuration for Vercel AI Gateway

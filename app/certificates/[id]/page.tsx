@@ -1,5 +1,5 @@
 import { Metadata } from "next";
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import { differenceInMinutes, parseISO, isValid } from "date-fns";
 

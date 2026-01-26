@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
-import { createClient } from "@/utils/supabase/client";
+import { createClient } from "@/lib/supabase/client";
 import { Project } from "@/types";
 import { togglePauseSignups, unrejectSignup, getWaiverDownloadUrl } from "../actions";
 import {

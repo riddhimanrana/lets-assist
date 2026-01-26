@@ -18,7 +18,7 @@ interface ProjectUnauthorizedProps {
 
 export default function ProjectUnauthorized({ projectId: _projectId }: ProjectUnauthorizedProps) {
   const router = useRouter();
-  const { user, isLoading } = useAuth(); // Use centralized auth hook
+  const { user, loading: isLoading } = useAuth(); // Use centralized auth hook
   const [isRedirecting, setIsRedirecting] = useState(false);
   const isLoggedIn = !!user;
 

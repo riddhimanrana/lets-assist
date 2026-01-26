@@ -3,7 +3,7 @@
  * POST /api/calendar/add-signup
  */
 
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { createGoogleCalendarEvent } from "@/services/calendar";
 import { syncSignupSchema } from "@/schemas/calendar-schema";

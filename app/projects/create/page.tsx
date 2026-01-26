@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import ProjectCreator from "./ProjectCreator";
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import type { EventFormState } from "@/hooks/use-event-form";
 

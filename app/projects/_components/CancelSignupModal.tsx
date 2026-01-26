@@ -11,7 +11,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { AlertTriangle, Calendar, MapPin, Clock, Loader2 } from 'lucide-react';
-import { createClient } from '@/utils/supabase/client';
+import { createClient } from '@/lib/supabase/client';
 import { cancelSignup } from '@/app/projects/[id]/actions';
 import { toast } from 'sonner';
 

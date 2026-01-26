@@ -76,7 +76,7 @@ import { CancelProjectDialog } from "@/app/projects/_components/CancelProjectDia
 import { canDeleteProject } from "@/utils/project";
 import { getProjectStartDateTime, getProjectEndDateTime } from "@/utils/project";
 import { differenceInHours } from "date-fns";
-import { createClient } from "@/utils/supabase/client";
+import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import {
   Tooltip,

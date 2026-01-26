@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { checkOffensiveLanguage } from "@/utils/moderation-helpers";
 
 // Schema for initial onboarding (username + phone only)

@@ -1,4 +1,4 @@
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { notFound, redirect } from "next/navigation";
 import { Metadata } from "next";
 import { differenceInHours, isAfter, format, parseISO } from "date-fns";

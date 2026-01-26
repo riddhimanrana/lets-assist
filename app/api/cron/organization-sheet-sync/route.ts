@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServiceRoleClient } from "@/utils/supabase/service-role";
+import { getAdminClient } from "@/lib/supabase/admin";
 import {
   buildOrganizationReportRowsForSync,
   type ReportType,
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ message: "Sheet sync worker disabled" }, { status: 200 });
   }
 
-  const supabase = getServiceRoleClient();
+  const supabase = getAdminClient();
   const { data: syncRows, error } = await supabase
     .from("organization_sheet_syncs")
     .select(

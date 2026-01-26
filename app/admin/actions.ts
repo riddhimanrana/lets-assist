@@ -1,38 +1,12 @@
 "use server";
 
-import { createClient } from "@/utils/supabase/server";
-import { getServiceRoleClient } from "@/utils/supabase/service-role";
+import { createClient } from "@/lib/supabase/server";
+import { getAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
 
 type NotificationSeverity = "info" | "warning" | "success";
 
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-
-async function fetchAuthUser(userId: string) {
-  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-    throw new Error("Supabase service credentials are not configured.");
-  }
-
-  const response = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${userId}`, {
-    method: "GET",
-    headers: {
-      apikey: SUPABASE_SERVICE_ROLE_KEY,
-      Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-      "Content-Type": "application/json",
-    },
-    cache: "no-store",
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Failed to fetch auth user: ${response.status} ${errorText}`);
-  }
-
-  const json = await response.json();
-  return json?.user ?? json;
-}
 
 async function createServerNotification(
   userId: string,
@@ -41,7 +15,7 @@ async function createServerNotification(
   severity: NotificationSeverity = "info",
   actionUrl?: string,
 ) {
-  const supabase = getServiceRoleClient();
+  const supabase = getAdminClient();
 
   try {
     const { error } = await supabase
@@ -77,7 +51,14 @@ export async function checkSuperAdmin() {
   }
 
   try {
-    const adminUser = await fetchAuthUser(user.id);
+    const serviceClient = getAdminClient();
+    const { data: { user: adminUser }, error } = await serviceClient.auth.admin.getUserById(user.id);
+
+    if (error || !adminUser) {
+      console.error("Error fetching admin user:", error);
+      return { isAdmin: false };
+    }
+
     const isSuperAdmin =
       (adminUser as unknown as { is_super_admin?: boolean } | null)?.is_super_admin === true ||
       adminUser?.user_metadata?.is_super_admin === true ||
@@ -90,7 +71,7 @@ export async function checkSuperAdmin() {
 }
 
 export async function getAllFeedback() {
-  const supabase = getServiceRoleClient();
+  const supabase = getAdminClient();
 
   const { isAdmin } = await checkSuperAdmin();
   if (!isAdmin) {
@@ -144,7 +125,7 @@ export async function getAllFeedback() {
 }
 
 export async function getTrustedMemberApplications() {
-  const supabase = getServiceRoleClient();
+  const supabase = getAdminClient();
 
   const { isAdmin } = await checkSuperAdmin();
   if (!isAdmin) {
@@ -206,7 +187,7 @@ export async function updateTrustedMemberStatus(userId: string, status: boolean)
   if (!isAdmin) return { error: "Unauthorized" };
 
   // Perform the write with the service-role client to bypass RLS
-  const service = getServiceRoleClient();
+  const service = getAdminClient();
 
   // Try user_id match first
   const { error: userIdError } = await service
@@ -255,7 +236,7 @@ export async function updateTrustedMemberStatus(userId: string, status: boolean)
 }
 
 export async function deleteFeedback(feedbackId: string) {
-  const supabase = getServiceRoleClient();
+  const supabase = getAdminClient();
 
   const { isAdmin } = await checkSuperAdmin();
   if (!isAdmin) {
@@ -276,7 +257,7 @@ export async function deleteFeedback(feedbackId: string) {
 }
 
 export async function searchUsersByEmail(query: string) {
-  const supabase = getServiceRoleClient();
+  const supabase = getAdminClient();
   const { isAdmin } = await checkSuperAdmin();
   if (!isAdmin) return { error: "Unauthorized" };
 
@@ -320,7 +301,7 @@ export async function searchUsersByEmail(query: string) {
 }
 
 export async function addTrustedMember(userId: string, email: string, name: string) {
-  const supabase = getServiceRoleClient();
+  const supabase = getAdminClient();
   const { isAdmin } = await checkSuperAdmin();
   if (!isAdmin) return { error: "Unauthorized" };
 

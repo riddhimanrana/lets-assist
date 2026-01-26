@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServiceRoleClient } from "@/utils/supabase/service-role";
+import { getAdminClient } from "@/lib/supabase/admin";
 import { sendEmail } from "@/services/email";
 import ProjectCancellation from "@/emails/project-cancellation";
 import * as React from "react";
@@ -70,7 +70,7 @@ function isWorkerEnabled(): boolean {
 }
 
 async function processOneJob(job: CancellationJobRow) {
-  const supabase = getServiceRoleClient();
+  const supabase = getAdminClient();
   const nowIso = new Date().toISOString();
   const batchSize = Number(process.env.PROJECT_CANCELLATION_WORKER_BATCH_SIZE ?? "50");
 
@@ -303,7 +303,7 @@ async function processOneJob(job: CancellationJobRow) {
 }
 
 async function processPendingJobs() {
-  const supabase = getServiceRoleClient();
+  const supabase = getAdminClient();
   const maxJobs = Number(process.env.PROJECT_CANCELLATION_WORKER_MAX_JOBS ?? "3");
 
   const { data: jobs, error } = await supabase

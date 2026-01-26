@@ -1,5 +1,5 @@
 import { Resend } from 'resend';
-import { createClient } from '@/utils/supabase/server';
+import { createClient } from '@/lib/supabase/server';
 import { render } from '@react-email/components';
 import * as React from 'react';
 

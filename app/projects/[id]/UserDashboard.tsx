@@ -22,7 +22,7 @@ import {
 import { Clock, CheckCircle, AlertTriangle, Camera, Hourglass, CalendarCheck, Info, TicketCheck, FileText, Award } from "lucide-react";
 import Link from "next/link";
 import { QRCodeScannerModal } from "@/app/projects/_components/QRCodeScannerModal"; // Import the new component
-import { createClient } from "@/utils/supabase/client";          // 🆕 add supabase client
+import { createClient } from "@/lib/supabase/client";          // 🆕 add supabase client
 import {
   Carousel,
   CarouselContent,

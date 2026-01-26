@@ -1,7 +1,7 @@
 "use server";
 
-import { createClient } from "@/utils/supabase/server";
-import { getServiceRoleClient } from "@/utils/supabase/service-role";
+import { createClient } from "@/lib/supabase/server";
+import { getAdminClient } from "@/lib/supabase/admin";
 import { checkSuperAdmin } from "../actions";
 import { NotificationService } from "@/services/notifications";
 import { notifyAdminsBatched } from "@/services/admin-notifications";
@@ -17,7 +17,7 @@ import {
  * Get all flagged content for admin review
  */
 export async function getFlaggedContent(status?: 'pending' | 'blocked' | 'confirmed' | 'dismissed') {
-  const supabase = getServiceRoleClient();
+  const supabase = getAdminClient();
   
   // Check if user is super admin
   const { isAdmin } = await checkSuperAdmin();
@@ -170,7 +170,7 @@ export async function updateFlaggedContentStatus(
   reviewNotes?: string
 ) {
   const viewerSupabase = await createClient();
-  const supabase = getServiceRoleClient();
+  const supabase = getAdminClient();
   
   const { isAdmin } = await checkSuperAdmin();
   if (!isAdmin) {
@@ -253,7 +253,7 @@ export async function updateFlaggedContentStatus(
  * Get moderation statistics
  */
 export async function getModerationStats() {
-  const supabase = getServiceRoleClient();
+  const supabase = getAdminClient();
   
   const { isAdmin } = await checkSuperAdmin();
   if (!isAdmin) {
@@ -359,7 +359,7 @@ type ProfileSummary = {
  * Get all content reports for admin review
  */
 export async function getContentReports(status?: 'pending' | 'under_review' | 'resolved' | 'dismissed' | 'escalated') {
-  const supabase = getServiceRoleClient();
+  const supabase = getAdminClient();
   
   // Check if user is super admin
   const { isAdmin } = await checkSuperAdmin();
@@ -486,7 +486,7 @@ export async function updateContentReportStatus(
   resolutionNotes?: string
 ) {
   const viewerSupabase = await createClient();
-  const supabase = getServiceRoleClient(); // Use service role to bypass RLS
+  const supabase = getAdminClient(); // Use service role to bypass RLS
   
   const { isAdmin } = await checkSuperAdmin();
   if (!isAdmin) {
@@ -552,7 +552,7 @@ export async function sendReportFeedback(
   reportSummary?: ReportSummary
 ) {
   const viewerSupabase = await createClient();
-  const supabase = getServiceRoleClient();
+  const supabase = getAdminClient();
   
   const { isAdmin } = await checkSuperAdmin();
   if (!isAdmin) {
@@ -614,7 +614,7 @@ export async function sendReportFeedback(
  * Get content reports statistics
  */
 export async function getContentReportsStats() {
-  const supabase = getServiceRoleClient();
+  const supabase = getAdminClient();
   
   const { isAdmin } = await checkSuperAdmin();
   if (!isAdmin) {
@@ -666,7 +666,7 @@ export async function getContentReportsStats() {
  */
 export async function runAiReviewForReport(reportId: string) {
   const viewerSupabase = await createClient();
-  const supabase = getServiceRoleClient();
+  const supabase = getAdminClient();
 
   const { isAdmin } = await checkSuperAdmin();
   if (!isAdmin) {
@@ -757,7 +757,7 @@ export async function runAiReviewForReport(reportId: string) {
  */
 export async function runAiReviewForProject(projectId: string) {
   const viewerSupabase = await createClient();
-  const supabase = getServiceRoleClient();
+  const supabase = getAdminClient();
 
   const { isAdmin } = await checkSuperAdmin();
   if (!isAdmin) {
@@ -859,7 +859,7 @@ export async function runAiReviewForProject(projectId: string) {
  * Apply the AI recommendation for a report
  */
 export async function applyAiRecommendationForReport(reportId: string) {
-  const supabase = getServiceRoleClient();
+  const supabase = getAdminClient();
   const { isAdmin } = await checkSuperAdmin();
   if (!isAdmin) {
     return { error: "Unauthorized - Admin access required" };
@@ -910,7 +910,7 @@ export async function takeFlaggedContentAction(
   reason?: string
 ) {
   const viewerSupabase = await createClient();
-  const supabase = getServiceRoleClient();
+  const supabase = getAdminClient();
 
   const { isAdmin } = await checkSuperAdmin();
   if (!isAdmin) {
@@ -1028,7 +1028,7 @@ export async function runAiScan() {
  * Includes: report details, content details, creator/reporter profiles, etc.
  */
 export async function getDetailedReportWithContext(reportId: string) {
-  const supabase = getServiceRoleClient();
+  const supabase = getAdminClient();
   const { isAdmin } = await checkSuperAdmin();
   if (!isAdmin) {
     return { error: "Unauthorized - Admin access required", data: undefined };
@@ -1155,7 +1155,7 @@ export async function takeModeratorAction(
   reason?: string
 ) {
   const viewerSupabase = await createClient();
-  const supabase = getServiceRoleClient(); // Use service role to bypass RLS
+  const supabase = getAdminClient(); // Use service role to bypass RLS
   const { isAdmin } = await checkSuperAdmin();
   if (!isAdmin) {
     return { error: "Unauthorized - Admin access required" };
@@ -1274,7 +1274,7 @@ export async function takeModeratorAction(
 }
 
 async function softRemoveContent(
-  supabase: ReturnType<typeof getServiceRoleClient>,
+  supabase: ReturnType<typeof getAdminClient>,
   contentType: string,
   contentId: string,
   action: 'remove_content' | 'block_content',
@@ -1358,7 +1358,7 @@ function formatContentTypeLabel(contentType: string) {
   }
 }
 
-async function fetchAuthUserEmail(supabase: ReturnType<typeof getServiceRoleClient>, userId: string) {
+async function fetchAuthUserEmail(supabase: ReturnType<typeof getAdminClient>, userId: string) {
   const { data, error } = await supabase.auth.admin.getUserById(userId);
   if (error) {
     console.error('Error fetching auth user email:', error);
@@ -1368,7 +1368,7 @@ async function fetchAuthUserEmail(supabase: ReturnType<typeof getServiceRoleClie
 }
 
 async function resolveContentOwnerInfo(
-  supabase: ReturnType<typeof getServiceRoleClient>,
+  supabase: ReturnType<typeof getAdminClient>,
   contentType: string,
   contentId: string
 ): Promise<ContentOwnerInfo | null> {
@@ -1498,7 +1498,7 @@ function buildModerationCopy(
 }
 
 async function shouldSendGeneralNotification(
-  supabase: ReturnType<typeof getServiceRoleClient>,
+  supabase: ReturnType<typeof getAdminClient>,
   userId: string
 ) {
   const { data, error } = await supabase
@@ -1522,7 +1522,7 @@ async function notifyContentOwnerOfModeration({
   action,
   reason,
 }: {
-  supabase: ReturnType<typeof getServiceRoleClient>;
+  supabase: ReturnType<typeof getAdminClient>;
   contentType: string;
   contentId: string;
   action: ModerationAction;

@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { Project } from "@/types"; // Import Project type
 // Import React Email template and React
 import CertificatePublished from '@/emails/certificate-published';

@@ -9,12 +9,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { createClient } from "@/utils/supabase/client";
+import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 import { useSearchParams, useRouter } from "next/navigation";
-import { refreshUser } from "@/utils/auth/auth-context";
 
 function AuthenticationContent() {
   const { user } = useAuth(); // Use centralized auth hook
@@ -30,10 +29,10 @@ function AuthenticationContent() {
   // Unified function to check connection status using the most reliable source
   const checkGoogleConnection = async () => {
     if (!user) return;
-    
+
     try {
       const { data: identitiesData, error } = await supabase.auth.getUserIdentities();
-      
+
       if (error) {
         console.error("Error fetching identities:", error);
         return;
@@ -71,7 +70,7 @@ function AuthenticationContent() {
       router.replace("/account/authentication");
     }
   }, [searchParams, router]);
-  
+
   useEffect(() => {
     if (user) {
       checkGoogleConnection();
@@ -79,8 +78,8 @@ function AuthenticationContent() {
       setIsGoogleConnected(false);
       setLinkedGoogleEmail(null);
     }
-  }, [user]); 
-  
+  }, [user]);
+
   const handleGoogleLink = async () => {
     setIsConnecting(true);
     try {
@@ -136,7 +135,7 @@ function AuthenticationContent() {
 
       // Instead of just checking length, make sure they have at least one other login method
       const otherIdentities = identities.filter(id => id.id !== googleIdentity.id);
-      
+
       if (otherIdentities.length === 0) {
         toast.error("Cannot disconnect your only sign-in method. Please set a password or connect another account first.");
         setIsConnecting(false);
@@ -148,8 +147,8 @@ function AuthenticationContent() {
 
       if (unlinkError) throw unlinkError;
 
-      // Force refresh the user cache so the local UI reflects the disconnection
-      await refreshUser(supabase);
+      // Trigger re-check to update local UI after disconnect
+      await checkGoogleConnection();
 
       toast.success("Google account disconnected successfully.");
       setIsGoogleConnected(false);
@@ -163,7 +162,7 @@ function AuthenticationContent() {
       setIsConnecting(false);
     }
   };
-  
+
   const handleGoogleConnect = async () => {
     if (isGoogleConnected) {
       await handleGoogleDisconnect();
@@ -171,7 +170,7 @@ function AuthenticationContent() {
       await handleGoogleLink();
     }
   };
-  
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}

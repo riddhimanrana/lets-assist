@@ -1,7 +1,7 @@
 "use server";
 
-import { createClient } from "@/utils/supabase/server";
-import { getServiceRoleClient } from "@/utils/supabase/service-role";
+import { createClient } from "@/lib/supabase/server";
+import { getAdminClient } from "@/lib/supabase/admin";
 import { differenceInMinutes, format } from "date-fns";
 
 export type ReportDateRange = {
@@ -495,7 +495,7 @@ export async function getOrganizationReportDataForSync(
   organizationId: string,
   dateRange?: ReportDateRange
 ): Promise<{ data?: OrganizationReportData; error?: string }> {
-  const supabase = getServiceRoleClient();
+  const supabase = getAdminClient();
   return buildReportDataForOrg(supabase, organizationId, dateRange);
 }
 

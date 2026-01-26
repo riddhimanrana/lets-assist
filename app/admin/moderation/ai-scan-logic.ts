@@ -3,7 +3,7 @@
  * the cron job and admin actions without making HTTP requests
  */
 
-import { getServiceRoleClient } from '@/utils/supabase/service-role';
+import { getAdminClient } from '@/lib/supabase/admin';
 import { generateObject } from 'ai';
 import { z } from 'zod';
 
@@ -86,7 +86,7 @@ type RawContentReport = {
 
 export async function performAiModerationScan() {
   try {
-    const supabase = getServiceRoleClient();
+    const supabase = getAdminClient();
 
     const { data: projectsData, error: projectsError } = await supabase
       .from('projects')

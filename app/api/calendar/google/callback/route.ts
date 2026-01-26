@@ -3,11 +3,11 @@
  * GET /api/calendar/google/callback
  */
 
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { encrypt } from "@/lib/encryption";
 import { ensureOrganizationCalendar } from "@/services/calendar";
-import { getServiceRoleClient } from "@/utils/supabase/service-role";
+import { getAdminClient } from "@/lib/supabase/admin";
 
 export async function GET(request: Request) {
   try {
@@ -225,7 +225,7 @@ export async function GET(request: Request) {
     }
 
     if (stateData.orgId) {
-      const serviceSupabase = getServiceRoleClient();
+      const serviceSupabase = getAdminClient();
       const { data: membership } = await serviceSupabase
         .from("organization_members")
         .select("role")

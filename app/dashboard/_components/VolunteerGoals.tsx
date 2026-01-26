@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ProgressCircle } from "./ProgressCircle";
-import { createClient } from "@/utils/supabase/client";
+import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { PencilIcon, SaveIcon, CheckCircle, Target, Calendar } from "lucide-react";
 import { DateRange } from "react-day-picker";

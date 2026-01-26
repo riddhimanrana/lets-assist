@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServiceRoleClient } from "@/utils/supabase/service-role";
+import { getAdminClient } from "@/lib/supabase/admin";
 
 const BATCH_SIZE = 250;
 const SIGNATURE_BUCKET = "waiver-signatures";
@@ -24,7 +24,7 @@ function authorizeCronRequest(request: NextRequest) {
 }
 
 async function cleanupExpiredWaivers() {
-  const supabase = getServiceRoleClient();
+  const supabase = getAdminClient();
   const now = new Date().toISOString();
 
   const { data: signatures, error } = await supabase

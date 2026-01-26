@@ -7,8 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { login, signInWithGoogle } from "./actions";
 import Link from "next/link";
-import { createClient } from "@/utils/supabase/client";
-import { updateCachedUser, initializeUserProfileCache } from "@/utils/auth/auth-context";
+import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -121,32 +120,17 @@ export default function LoginClient({ redirectPath }: LoginClientProps) {
           }
 
           const persistedUser = sessionData?.user ?? result.session.user;
-
-          // Update cache IMMEDIATELY with the session from the server action
-          updateCachedUser(persistedUser);
-          console.log('[LoginClient] Cache updated immediately with user:', persistedUser.email);
+          console.log('[LoginClient] Session persisted:', persistedUser.email);
 
           // Wait a brief moment for cookies to be written before redirect
           // This ensures middleware can read the session cookies
           await new Promise(resolve => setTimeout(resolve, 100));
-
-          // Initialize profile and settings cache in background
-          // This fetches profile + settings in a batch query
-          // and subscribes to realtime updates
-          initializeUserProfileCache(persistedUser.id).catch((error) => {
-            console.error('[LoginClient] Failed to initialize profile cache:', error);
-          });
         } else {
-          // Fallback: update cache even if tokens are missing (shouldn't happen)
-          updateCachedUser(result.session.user);
-          console.log('[LoginClient] Cache updated immediately with user:', result.session.user.email);
+          // Fallback: even if tokens are missing (shouldn't happen)
+          console.log('[LoginClient] Session established:', result.session.user.email);
 
           // Wait a brief moment for state to synchronize
           await new Promise(resolve => setTimeout(resolve, 100));
-
-          initializeUserProfileCache(result.session.user.id).catch((error) => {
-            console.error('[LoginClient] Failed to initialize profile cache:', error);
-          });
         }
       }
 

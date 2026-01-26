@@ -3,7 +3,7 @@
  * Handles organization-based access restrictions for projects
  */
 
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 
 export interface AccessControlResult {
   canAccess: boolean;

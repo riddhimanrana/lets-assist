@@ -3,7 +3,7 @@
  * POST /api/calendar/sync-project
  */
 
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { createGoogleCalendarEvent } from "@/services/calendar";
 import { syncProjectSchema } from "@/schemas/calendar-schema";

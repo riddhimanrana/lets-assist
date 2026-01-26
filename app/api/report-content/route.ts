@@ -1,4 +1,4 @@
-import { createClient } from '@/utils/supabase/server';
+import { createClient } from '@/lib/supabase/server';
 import { notifyAdminsBatched } from '@/services/admin-notifications';
 import { NextResponse } from 'next/server';
 

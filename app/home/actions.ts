@@ -1,5 +1,5 @@
 "use server";
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import type { Project, ProjectStatus, Organization } from "@/types";
 import { getProjectStatus } from "@/utils/project";
 
