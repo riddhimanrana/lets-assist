@@ -11,28 +11,10 @@ function Drawer({
   return <DrawerPrimitive.Root data-slot="drawer" {...props} />
 }
 
-type DrawerTriggerProps = React.ComponentProps<typeof DrawerPrimitive.Trigger> & {
-  render?: React.ReactElement;
-};
-
 function DrawerTrigger({
-  render,
-  children,
   ...props
-}: DrawerTriggerProps) {
-  if (render && React.isValidElement(render)) {
-    return (
-      <DrawerPrimitive.Trigger data-slot="drawer-trigger" {...props} asChild>
-        {render}
-      </DrawerPrimitive.Trigger>
-    );
-  }
-
-  return (
-    <DrawerPrimitive.Trigger data-slot="drawer-trigger" {...props}>
-      {children}
-    </DrawerPrimitive.Trigger>
-  )
+}: React.ComponentProps<typeof DrawerPrimitive.Trigger>) {
+  return <DrawerPrimitive.Trigger data-slot="drawer-trigger" {...props} />
 }
 
 function DrawerPortal({
@@ -76,7 +58,7 @@ function DrawerContent({
         )}
         {...props}
       >
-        <div className="bg-muted mx-auto mt-4 hidden h-1 w-[100px] shrink-0 rounded-full group-data-[vaul-drawer-direction=bottom]/drawer-content:block bg-muted mx-auto hidden shrink-0 group-data-[vaul-drawer-direction=bottom]/drawer-content:block" />
+        <div className="bg-muted mx-auto mt-4 hidden h-1.5 w-[100px] shrink-0 rounded-full group-data-[vaul-drawer-direction=bottom]/drawer-content:block bg-muted mx-auto hidden shrink-0 group-data-[vaul-drawer-direction=bottom]/drawer-content:block" />
         {children}
       </DrawerPrimitive.Content>
     </DrawerPortal>
@@ -87,7 +69,7 @@ function DrawerHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="drawer-header"
-      className={cn("gap-0.5 p-4 group-data-[vaul-drawer-direction=bottom]/drawer-content:text-center group-data-[vaul-drawer-direction=top]/drawer-content:text-center md:gap-0.5 md:text-left flex flex-col", className)}
+      className={cn("gap-0.5 p-4 group-data-[vaul-drawer-direction=bottom]/drawer-content:text-center group-data-[vaul-drawer-direction=top]/drawer-content:text-center md:gap-1.5 md:text-left flex flex-col", className)}
       {...props}
     />
   )
@@ -110,7 +92,7 @@ function DrawerTitle({
   return (
     <DrawerPrimitive.Title
       data-slot="drawer-title"
-      className={cn("text-foreground text-base font-medium", className)}
+      className={cn("text-foreground font-medium", className)}
       {...props}
     />
   )
