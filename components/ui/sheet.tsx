@@ -54,8 +54,20 @@ function SheetContent({
       >
         {children}
         {showCloseButton && (
-          <SheetPrimitive.Close data-slot="sheet-close" render={<Button variant="ghost" className="absolute top-3 right-3" size="icon-sm"><XIcon
-          /><span className="sr-only">Close</span></Button>} />
+          <SheetPrimitive.Close
+            data-slot="sheet-close"
+            render={
+              <Button
+                variant="ghost"
+                className="absolute top-4 right-4"
+                size="icon-sm"
+              />
+            }
+          >
+            <XIcon
+            />
+            <span className="sr-only">Close</span>
+          </SheetPrimitive.Close>
         )}
       </SheetPrimitive.Popup>
     </SheetPortal>
@@ -66,7 +78,7 @@ function SheetHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="sheet-header"
-      className={cn("gap-0.5 p-4 flex flex-col", className)}
+      className={cn("gap-1.5 p-4 flex flex-col", className)}
       {...props}
     />
   )
@@ -86,7 +98,7 @@ function SheetTitle({ className, ...props }: SheetPrimitive.Title.Props) {
   return (
     <SheetPrimitive.Title
       data-slot="sheet-title"
-      className={cn("text-foreground text-base font-medium", className)}
+      className={cn("text-foreground font-medium", className)}
       {...props}
     />
   )
