@@ -276,7 +276,7 @@ export default function Navbar() {
                       <NavigationMenuTrigger
                         className={cn(
                           pathname === "/#features" &&
-                            "bg-accent text-accent-foreground",
+                          "bg-accent text-accent-foreground",
                         )}
                       >
                         Features
@@ -365,7 +365,7 @@ export default function Navbar() {
             ) : user ? (
               <div className="flex items-center space-x-5 mr-2">
                 <NotificationPopover />
-                <DropdownMenu>
+                <DropdownMenu modal={false}>
                   {isProfileLoading ? (
                     <div className="w-9 h-9 rounded-full bg-muted animate-pulse" />
                   ) : (

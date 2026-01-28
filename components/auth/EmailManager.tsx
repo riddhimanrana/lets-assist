@@ -203,7 +203,7 @@ export function EmailManager() {
                                         )}
                                     </div>
                                 </div>
-                                <DropdownMenu>
+                                <DropdownMenu modal={false}>
                                     <DropdownMenuTrigger render={
                                         <Button variant="ghost" size="sm" className="p-1">
                                             <MoreHorizontal className="h-4 w-4" />

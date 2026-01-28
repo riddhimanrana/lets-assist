@@ -336,7 +336,11 @@ export function VolunteerGoals({ userId, totalHours, totalEvents }: GoalsProps) 
         <div className="space-y-3">
           <Select value={selectedPeriod} onValueChange={handlePeriodChange}>
             <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select time period" />
+              <SelectValue placeholder="Select time period">
+                {selectedPeriod === 'custom'
+                  ? "Custom Date Range"
+                  : getSemesterPeriods()[selectedPeriod as keyof ReturnType<typeof getSemesterPeriods>]?.label || "Select time period"}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {Object.entries(getSemesterPeriods()).map(([key, period]) => (

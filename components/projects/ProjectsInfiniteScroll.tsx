@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import {
   Search,
   Filter,
@@ -39,6 +40,9 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
+  PopoverHeader,
+  PopoverTitle,
+  PopoverDescription,
 } from "@/components/ui/popover";
 import { DateRange } from "react-day-picker";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
@@ -467,30 +471,41 @@ export const ProjectsInfiniteScroll: React.FC = () => {
                   }
                 />
                 <PopoverContent className="w-80">
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h4 className="font-medium">Filters</h4>
+                  <div className="grid gap-4">
+                    <PopoverHeader className="flex flex-row items-center justify-between pb-2">
+                      <div className="space-y-1">
+                        <PopoverTitle>Filters</PopoverTitle>
+                        <PopoverDescription>
+                          Refine project results
+                        </PopoverDescription>
+                      </div>
                       {activeFilterCount > 0 && (
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={clearAllFilters}
+                          className="h-auto px-2 py-0 text-xs font-normal"
                         >
                           Clear all
                         </Button>
                       )}
-                    </div>
+                    </PopoverHeader>
 
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Event Type</label>
+                    <div className="grid gap-2">
+                      <Label htmlFor="event-type">Event Type</Label>
                       <Select
                         value={eventTypeFilter ?? "all"}
                         onValueChange={(value) => setEventTypeFilter((value === "all" || !value) ? undefined : value)}
                       >
-                        <SelectTrigger>
-                          <SelectValue placeholder="All Types" />
+                        <SelectTrigger id="event-type" className="w-full">
+                          <SelectValue placeholder="All Types">
+                            {eventTypeFilter === "oneTime" ? "Single Event" :
+                              eventTypeFilter === "multiDay" ? "Multi-day Event" :
+                                eventTypeFilter === "sameDayMultiArea" ? "Multi-role Event" :
+                                  "All Types"}
+                          </SelectValue>
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent alignItemWithTrigger={false}>
                           <SelectItem value="all">All Types</SelectItem>
                           <SelectItem value="oneTime">Single Event</SelectItem>
                           <SelectItem value="multiDay">Multi-day Event</SelectItem>
@@ -499,31 +514,25 @@ export const ProjectsInfiniteScroll: React.FC = () => {
                       </Select>
                     </div>
 
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Date Range</label>
-                      <DateRangePicker
-                        value={dateFilter}
-                        onChange={setDateFilter}
-                        placeholder="Select date range"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Sort by Date</label>
+                    <div className="grid gap-2">
+                      <Label htmlFor="sort-date">Sort by Date</Label>
                       <Select
                         value={dateSort ?? "no-sort"}
                         onValueChange={(value) => {
                           setDateSort((value === "no-sort" || !value) ? undefined : value as "asc" | "desc");
-                          // Clear volunteer sort when date sort is selected
                           if (value !== "no-sort") {
                             setVolunteersSort(undefined);
                           }
                         }}
                       >
-                        <SelectTrigger>
-                          <SelectValue placeholder="No sorting" />
+                        <SelectTrigger id="sort-date" className="w-full">
+                          <SelectValue placeholder="No sorting">
+                            {dateSort === "desc" ? "Most recent first" :
+                              dateSort === "asc" ? "Future dates first" :
+                                "No sorting"}
+                          </SelectValue>
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent alignItemWithTrigger={false}>
                           <SelectItem value="no-sort">No sorting</SelectItem>
                           <SelectItem value="desc">Most recent first</SelectItem>
                           <SelectItem value="asc">Future dates first</SelectItem>
@@ -531,24 +540,25 @@ export const ProjectsInfiniteScroll: React.FC = () => {
                       </Select>
                     </div>
 
-                    <Separator />
-
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Sort by Volunteers</label>
+                    <div className="grid gap-2">
+                      <Label htmlFor="sort-volunteers">Sort by Volunteers</Label>
                       <Select
                         value={volunteersSort ?? "no-sort"}
                         onValueChange={(value) => {
                           setVolunteersSort((value === "no-sort" || !value) ? undefined : value as "asc" | "desc");
-                          // Clear date sort when volunteer sort is selected
                           if (value !== "no-sort") {
                             setDateSort(undefined);
                           }
                         }}
                       >
-                        <SelectTrigger>
-                          <SelectValue placeholder="No sorting" />
+                        <SelectTrigger id="sort-volunteers" className="w-full">
+                          <SelectValue placeholder="No sorting">
+                            {volunteersSort === "desc" ? "Most needed first" :
+                              volunteersSort === "asc" ? "Least needed first" :
+                                "No sorting"}
+                          </SelectValue>
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent alignItemWithTrigger={false}>
                           <SelectItem value="no-sort">No sorting</SelectItem>
                           <SelectItem value="desc">Most needed first</SelectItem>
                           <SelectItem value="asc">Least needed first</SelectItem>
@@ -783,30 +793,41 @@ export const ProjectsInfiniteScroll: React.FC = () => {
                 }
               />
               <PopoverContent className="w-80">
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-medium">Filters</h4>
+                <div className="grid gap-4">
+                  <PopoverHeader className="flex flex-row items-center justify-between pb-2">
+                    <div className="space-y-1">
+                      <PopoverTitle>Filters</PopoverTitle>
+                      <PopoverDescription>
+                        Refine project results
+                      </PopoverDescription>
+                    </div>
                     {activeFilterCount > 0 && (
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={clearAllFilters}
+                        className="h-auto px-2 py-0 text-xs font-normal"
                       >
                         Clear all
                       </Button>
                     )}
-                  </div>
+                  </PopoverHeader>
 
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Event Type</label>
+                  <div className="grid gap-2">
+                    <Label htmlFor="event-type-2">Event Type</Label>
                     <Select
                       value={eventTypeFilter ?? "all"}
                       onValueChange={(value) => setEventTypeFilter((value === "all" || !value) ? undefined : value)}
                     >
-                      <SelectTrigger>
-                        <SelectValue placeholder="All Types" />
+                      <SelectTrigger id="event-type-2" className="w-full">
+                        <SelectValue placeholder="All Types">
+                          {eventTypeFilter === "oneTime" ? "Single Event" :
+                            eventTypeFilter === "multiDay" ? "Multi-day Event" :
+                              eventTypeFilter === "sameDayMultiArea" ? "Multi-role Event" :
+                                "All Types"}
+                        </SelectValue>
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent alignItemWithTrigger={false}>
                         <SelectItem value="all">All Types</SelectItem>
                         <SelectItem value="oneTime">Single Event</SelectItem>
                         <SelectItem value="multiDay">Multi-day Event</SelectItem>
@@ -815,22 +836,25 @@ export const ProjectsInfiniteScroll: React.FC = () => {
                     </Select>
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Sort by Date</label>
+                  <div className="grid gap-2">
+                    <Label htmlFor="sort-date-2">Sort by Date</Label>
                     <Select
                       value={dateSort ?? "no-sort"}
                       onValueChange={(value) => {
                         setDateSort((value === "no-sort" || !value) ? undefined : value as "asc" | "desc");
-                        // Clear volunteer sort when date sort is selected
                         if (value !== "no-sort") {
                           setVolunteersSort(undefined);
                         }
                       }}
                     >
-                      <SelectTrigger>
-                        <SelectValue placeholder="No sorting" />
+                      <SelectTrigger id="sort-date-2" className="w-full">
+                        <SelectValue placeholder="No sorting">
+                          {dateSort === "desc" ? "Most recent first" :
+                            dateSort === "asc" ? "Future dates first" :
+                              "No sorting"}
+                        </SelectValue>
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent alignItemWithTrigger={false}>
                         <SelectItem value="no-sort">No sorting</SelectItem>
                         <SelectItem value="desc">Most recent first</SelectItem>
                         <SelectItem value="asc">Future dates first</SelectItem>
@@ -838,22 +862,25 @@ export const ProjectsInfiniteScroll: React.FC = () => {
                     </Select>
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Sort by Volunteers</label>
+                  <div className="grid gap-2">
+                    <Label htmlFor="sort-volunteers-2">Sort by Volunteers</Label>
                     <Select
                       value={volunteersSort ?? "no-sort"}
                       onValueChange={(value) => {
                         setVolunteersSort((value === "no-sort" || !value) ? undefined : value as "asc" | "desc");
-                        // Clear date sort when volunteer sort is selected
                         if (value !== "no-sort") {
                           setDateSort(undefined);
                         }
                       }}
                     >
-                      <SelectTrigger>
-                        <SelectValue placeholder="No sorting" />
+                      <SelectTrigger id="sort-volunteers-2" className="w-full">
+                        <SelectValue placeholder="No sorting">
+                          {volunteersSort === "desc" ? "Most needed first" :
+                            volunteersSort === "asc" ? "Least needed first" :
+                              "No sorting"}
+                        </SelectValue>
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent alignItemWithTrigger={false}>
                         <SelectItem value="no-sort">No sorting</SelectItem>
                         <SelectItem value="desc">Most needed first</SelectItem>
                         <SelectItem value="asc">Least needed first</SelectItem>
