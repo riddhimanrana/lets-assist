@@ -1,60 +1,16 @@
+
 import { createClient } from "@/lib/supabase/server";
 import { getProjectStatus } from "@/utils/project";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { Badge } from "@/components/ui/badge";
-import { format, parseISO } from "date-fns";
-import { Calendar, MapPin, Users, Award } from "lucide-react";
-import { NoAvatar } from "@/components/shared/NoAvatar";
+import { Calendar, Users, Award } from "lucide-react";
 import Link from "next/link";
 import { ProjectStatusBadge } from "@/components/ui/status-badge";
 import { redirect } from "next/navigation";
 import type { Project } from "@/types";
 import { cn } from "@/lib/utils";
-
-// Formats the date display for different project types
-function formatDateDisplay(project: Project) {
-  if (!project.event_type || !project.schedule) return "";
-
-  switch (project.event_type) {
-    case "oneTime": {
-      const dateStr = project.schedule.oneTime?.date;
-      if (!dateStr) return "Date not specified";
-      try {
-        return format(parseISO(dateStr), "MMM d, yyyy");
-      } catch {
-        return "Date not specified";
-      }
-    }
-    case "multiDay": {
-      if (!project.schedule.multiDay || project.schedule.multiDay.length === 0) {
-        return "Date not specified";
-      }
-      try {
-        const dates = project.schedule.multiDay
-          .map((day) => parseISO(day.date))
-          .sort((a: Date, b: Date) => a.getTime() - b.getTime());
-
-        return `${format(dates[0], "MMM d")} - ${format(dates[dates.length - 1], "MMM d, yyyy")}`;
-      } catch {
-        return "Date not specified";
-      }
-    }
-    case "sameDayMultiArea": {
-      const dateStr = project.schedule.sameDayMultiArea?.date;
-      if (!dateStr) return "Date not specified";
-      try {
-        return format(parseISO(dateStr), "MMM d, yyyy");
-      } catch {
-        return "Date not specified";
-      }
-    }
-    default:
-      return "Date not specified";
-  }
-}
+import { ProjectCard } from "./ProjectCard";
 
 // Add interface for the project with creator
 interface ProjectWithCreator extends Project {
@@ -84,6 +40,13 @@ export default async function UserProjects() {
   if (!user) {
     redirect("/login");
   }
+
+  // Get user profile
+  const { data: userProfile } = await supabase
+    .from("profiles")
+    .select("id, full_name, avatar_url, username")
+    .eq("id", user.id)
+    .single();
 
   // Get projects user has created
   const { data: createdProjects, error: createdError } = await supabase
@@ -164,10 +127,16 @@ export default async function UserProjects() {
     };
   }) || [];
 
-  // Process projects to add status
+  // Process projects to add status and creator info
   const processedCreatedProjects: ProjectWithSignups[] =
     (createdProjects as ProjectWithSignups[] | null)?.map((project) => ({
       ...project,
+      creator: userProfile ? {
+        id: userProfile.id,
+        full_name: userProfile.full_name,
+        avatar_url: userProfile.avatar_url,
+        username: userProfile.username
+      } : undefined,
       status: getProjectStatus(project),
     })) || [];
 
@@ -235,48 +204,12 @@ export default async function UserProjects() {
                 <h2 className="text-lg font-semibold mb-3">Upcoming ({upcomingVolunteered.length})</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {upcomingVolunteered.map((project) => (
-                    <Card key={`volunteer-${project.id}`} className="overflow-hidden">
-                      <CardHeader className="p-4 pb-0 space-y-1.5">
-                        <div className="flex justify-between items-start gap-2">
-                          <ProjectStatusBadge size="sm" status={project.status} />
-                          <Badge variant="outline" className="text-xs">{formatDateDisplay(project)}</Badge>
-                        </div>
-                        <h3 className="font-medium line-clamp-1">{project.title}</h3>
-                      </CardHeader>
-                      <CardContent className="p-4 pt-2 pb-0 space-y-2">
-                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <MapPin className="h-3 w-3 shrink-0" />
-                          <span className="truncate">{project.location}</span>
-                        </div>
-
-                        {/* {project.event_type === "oneTime" && (
-                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <Clock className="h-3 w-3" />
-                            <span>{formatTime(project.schedule?.oneTime?.startTime || "")} - {formatTime(project.schedule?.oneTime?.endTime || "")}</span>
-                          </div>
-                        )} */}
-
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-6 w-6">
-                            <AvatarImage
-                              src={project.organization?.logo_url || project.creator?.avatar_url || ""}
-                              alt={project.organization?.name || project.creator?.full_name || ""}
-                            />
-                            <AvatarFallback>
-                              <NoAvatar className="text-xs" fullName={project.organization?.name || project.creator?.full_name || ""} />
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="text-xs font-medium truncate">
-                            {project.organization?.name || project.creator?.full_name || "Anonymous"}
-                          </span>
-                        </div>
-                      </CardContent>
-                      <CardFooter className="p-4 pt-3">
-                        <Link href={`/projects/${project.id}`} className={cn(buttonVariants({ variant: "default", size: "sm" }), "w-full")}>
-                          View Project
-                        </Link>
-                      </CardFooter>
-                    </Card>
+                    <ProjectCard
+                      key={`volunteer-${project.id}`}
+                      project={project}
+                      href={`/projects/${project.id}`}
+                      topLeftBadge={<ProjectStatusBadge size="sm" status={project.status} />}
+                    />
                   ))}
                 </div>
               </section>
@@ -287,48 +220,13 @@ export default async function UserProjects() {
                   <h2 className="text-lg font-semibold mb-3">In Progress ({inProgressVolunteered.length})</h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {inProgressVolunteered.map((project) => (
-                      <Card key={`volunteer-progress-${project.id}`} className="border-primary/30">
-                        <CardHeader className="p-4 pb-0 space-y-1.5">
-                          <div className="flex justify-between items-start gap-2">
-                            <ProjectStatusBadge size="sm" status={project.status} />
-                            <Badge variant="outline" className="text-xs">{formatDateDisplay(project)}</Badge>
-                          </div>
-                          <h3 className="font-medium line-clamp-1">{project.title}</h3>
-                        </CardHeader>
-                        <CardContent className="p-4 pt-2 pb-0 space-y-2">
-                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <MapPin className="h-3 w-3 shrink-0" />
-                            <span className="truncate">{project.location}</span>
-                          </div>
-
-                          {/* {project.event_type === "oneTime" && (
-                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                              <Clock className="h-3 w-3" />
-                              <span>{formatTime(project.schedule?.oneTime?.startTime || "")} - {formatTime(project.schedule?.oneTime?.endTime || "")}</span>
-                            </div>
-                          )} */}
-
-                          <div className="flex items-center gap-2">
-                            <Avatar className="h-6 w-6">
-                              <AvatarImage
-                                src={project.organization?.logo_url || project.creator?.avatar_url || ""}
-                                alt={project.organization?.name || project.creator?.full_name || ""}
-                              />
-                              <AvatarFallback>
-                                <NoAvatar className="text-xs" fullName={project.organization?.name || project.creator?.full_name || ""} />
-                              </AvatarFallback>
-                            </Avatar>
-                            <span className="text-xs font-medium truncate">
-                              {project.organization?.name || project.creator?.full_name || "Anonymous"}
-                            </span>
-                          </div>
-                        </CardContent>
-                        <CardFooter className="p-4 pt-3">
-                          <Link href={`/projects/${project.id}`} className={cn(buttonVariants({ variant: "default", size: "sm" }), "w-full")}>
-                            View Project
-                          </Link>
-                        </CardFooter>
-                      </Card>
+                      <ProjectCard
+                        key={`volunteer-progress-${project.id}`}
+                        project={project}
+                        href={`/projects/${project.id}`}
+                        topLeftBadge={<ProjectStatusBadge size="sm" status={project.status} />}
+                        className="border-primary/30"
+                      />
                     ))}
                   </div>
                 </section>
@@ -340,51 +238,25 @@ export default async function UserProjects() {
                   <h2 className="text-lg font-semibold mb-3">Past ({pastVolunteered.length})</h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {pastVolunteered.map((project) => (
-                      // This key needs to be unique. Using project.signup_id ensures uniqueness per signup.
-                      <Card key={`volunteer-past-${project.id}-${project.signup_id}`} className="bg-muted/30">
-                        <CardHeader className="p-4 pb-0 space-y-1.5">
-                          <div className="flex justify-between items-start gap-2">
-                            {/* Display status based on project.status or if hours are published */}
-                            {project.areHoursPublished ? (
-                              <Badge variant="default" className="text-xs bg-success text-success-foreground hover:bg-success/90">
-                                <Award className="h-3 w-3 mr-1" />
-                                Hours Published
-                              </Badge>
-                            ) : (
-                              <Badge variant="outline" className="bg-muted text-xs">
-                                {project.status === 'cancelled' ? 'Cancelled' : 'Past Event'}
-                              </Badge>
-                            )}
-                            <Badge variant="outline" className="text-xs">{formatDateDisplay(project)}</Badge>
-                          </div>
-                          <h3 className="font-medium line-clamp-1">{project.title}</h3>
-                        </CardHeader>
-                        <CardContent className="p-4 pt-2 pb-0 space-y-2">
-                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <MapPin className="h-3 w-3 shrink-0" />
-                            <span className="truncate">{project.location}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Avatar className="h-6 w-6">
-                              <AvatarImage
-                                src={project.organization?.logo_url || project.creator?.avatar_url || ""}
-                                alt={project.organization?.name || project.creator?.full_name || ""}
-                              />
-                              <AvatarFallback>
-                                <NoAvatar className="text-xs" fullName={project.organization?.name || project.creator?.full_name || ""} />
-                              </AvatarFallback>
-                            </Avatar>
-                            <span className="text-xs font-medium truncate">
-                              {project.organization?.name || project.creator?.full_name || "Anonymous"}
-                            </span>
-                          </div>
-                        </CardContent>
-                        <CardFooter className="p-4 pt-3">
-                          <Link href={`/projects/${project.id}`} className={cn(buttonVariants({ variant: "outline", size: "sm" }), "w-full")}>
-                            View Project
-                          </Link>
-                        </CardFooter>
-                      </Card>
+                      <ProjectCard
+                        key={`volunteer-past-${project.id}-${project.signup_id}`}
+                        project={project}
+                        href={`/projects/${project.id}`}
+                        topLeftBadge={
+                          project.areHoursPublished ? (
+                            <Badge variant="default" className="text-xs bg-success text-success-foreground hover:bg-success/90">
+                              <Award className="h-3 w-3 mr-1" />
+                              Hours Published
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-muted text-xs">
+                              {project.status === 'cancelled' ? 'Cancelled' : 'Past Event'}
+                            </Badge>
+                          )
+                        }
+                        className="bg-muted/30"
+                        actionVariant="outline"
+                      />
                     ))}
                   </div>
                 </section>
@@ -413,35 +285,16 @@ export default async function UserProjects() {
                 <h2 className="text-lg font-semibold mb-3">Upcoming ({upcomingCreated.length})</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {upcomingCreated.map((project) => (
-                    <Card key={`created-${project.id}`}>
-                      <CardHeader className="p-4 pb-0 space-y-1.5">
-                        <div className="flex justify-between items-start gap-2">
-                          <Badge variant="outline" className="text-xs">
-                            {(project.project_signups || []).filter((s) => s.status === "approved").length} volunteers
-                          </Badge>
-                          <Badge variant="outline" className="text-xs">{formatDateDisplay(project)}</Badge>
-                        </div>
-                        <h3 className="font-medium line-clamp-1">{project.title}</h3>
-                      </CardHeader>
-                      <CardContent className="p-4 pt-2 pb-0 space-y-2">
-                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <MapPin className="h-3 w-3 shrink-0" />
-                          <span className="truncate">{project.location}</span>
-                        </div>
-
-                        {/* {project.event_type === "oneTime" && (
-                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <Clock className="h-3 w-3" />
-                            <span>{formatTime(project.schedule?.oneTime?.startTime)} - {formatTime(project.schedule?.oneTime?.endTime)}</span>
-                          </div>
-                        )} */}
-                      </CardContent>
-                      <CardFooter className="p-4 pt-3">
-                        <Link href={`/projects/${project.id}`} className={cn(buttonVariants({ variant: "default", size: "sm" }), "w-full")}>
-                          View Project
-                        </Link>
-                      </CardFooter>
-                    </Card>
+                    <ProjectCard
+                      key={`created-${project.id}`}
+                      project={project}
+                      href={`/projects/${project.id}`}
+                      topLeftBadge={
+                        <Badge variant="outline" className="text-xs">
+                          {(project.project_signups || []).filter((s) => s.status === "approved" || s.status === "attended").length} volunteers
+                        </Badge>
+                      }
+                    />
                   ))}
                 </div>
               </section>
@@ -452,35 +305,17 @@ export default async function UserProjects() {
                   <h2 className="text-lg font-semibold mb-3">In Progress ({inProgressCreated.length})</h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {inProgressCreated.map((project) => (
-                      <Card key={`created-progress-${project.id}`} className="border-primary/30">
-                        <CardHeader className="p-4 pb-0 space-y-1.5">
-                          <div className="flex justify-between items-start gap-2">
-                            <Badge variant="outline" className="text-xs">
-                              {(project.project_signups || []).filter((s) => s.status === "approved").length} volunteers
-                            </Badge>
-                            <Badge variant="outline" className="text-xs">{formatDateDisplay(project)}</Badge>
-                          </div>
-                          <h3 className="font-medium line-clamp-1">{project.title}</h3>
-                        </CardHeader>
-                        <CardContent className="p-4 pt-2 pb-0 space-y-2">
-                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <MapPin className="h-3 w-3 shrink-0" />
-                            <span className="truncate">{project.location}</span>
-                          </div>
-
-                          {/* {project.event_type === "oneTime" && (
-                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                              <Clock className="h-3 w-3" />
-                              <span>{formatTime(project.schedule?.oneTime?.startTime)} - {formatTime(project.schedule?.oneTime?.endTime)}</span>
-                            </div>
-                          )} */}
-                        </CardContent>
-                        <CardFooter className="p-4 pt-3">
-                          <Link href={`/projects/${project.id}`} className={cn(buttonVariants({ variant: "default", size: "sm" }), "w-full")}>
-                            View Project
-                          </Link>
-                        </CardFooter>
-                      </Card>
+                      <ProjectCard
+                        key={`created-progress-${project.id}`}
+                        project={project}
+                        href={`/projects/${project.id}`}
+                        topLeftBadge={
+                          <Badge variant="outline" className="text-xs">
+                            {(project.project_signups || []).filter((s) => s.status === "approved" || s.status === "attended").length} volunteers
+                          </Badge>
+                        }
+                        className="border-primary/30"
+                      />
                     ))}
                   </div>
                 </section>
@@ -492,30 +327,20 @@ export default async function UserProjects() {
                   <h2 className="text-lg font-semibold mb-3">Past ({pastCreated.length})</h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {pastCreated.map((project) => (
-                      <Card key={`created-past-${project.id}`} className="bg-muted/30">
-                        <CardHeader className="p-4 pb-0 space-y-1.5">
-                          <div className="flex justify-between items-start gap-2">
-                            <Badge variant="outline" className="bg-muted text-xs">Past Event</Badge>
-                            <Badge variant="outline" className="text-xs">{formatDateDisplay(project)}</Badge>
-                          </div>
-                          <h3 className="font-medium line-clamp-1">{project.title}</h3>
-                        </CardHeader>
-                        <CardContent className="p-4 pt-2 pb-0 space-y-2">
-                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <MapPin className="h-3 w-3 shrink-0" />
-                            <span className="truncate">{project.location}</span>
-                          </div>
+                      <ProjectCard
+                        key={`created-past-${project.id}`}
+                        project={project}
+                        href={`/projects/${project.id}`}
+                        topLeftBadge={<Badge variant="outline" className="bg-muted text-xs">Past Event</Badge>}
+                        className="bg-muted/30"
+                        actionVariant="outline"
+                        footerContent={
                           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                             <Users className="h-3 w-3" />
-                            <span>{(project.project_signups || []).filter((s) => s.status === "approved").length} volunteers participated</span>
+                            <span>{(project.project_signups || []).filter((s) => s.status === "approved" || s.status === "attended").length} volunteers participated</span>
                           </div>
-                        </CardContent>
-                        <CardFooter className="p-4 pt-3">
-                          <Link href={`/projects/${project.id}`} className={cn(buttonVariants({ variant: "outline", size: "sm" }), "w-full")}>
-                            View Project
-                          </Link>
-                        </CardFooter>
-                      </Card>
+                        }
+                      />
                     ))}
                   </div>
                 </section>

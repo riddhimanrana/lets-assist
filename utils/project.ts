@@ -1,5 +1,5 @@
 import { Project, ProjectStatus } from "@/types";
-import { parseISO, isAfter, isBefore, isEqual } from "date-fns";
+import { format, parseISO, isAfter, isBefore, isEqual } from "date-fns";
 
 const shouldLogProjectDebug = process.env.NODE_ENV === "development";
 
@@ -45,7 +45,7 @@ export const getProjectEndDate = (project: Project): Date => {
 
 // Get the earliest start time for any project type
 export const getProjectStartDateTime = (project: Project): Date => {
-  
+
   switch (project.event_type) {
     case "oneTime": {
       const date = parseISO(project.schedule.oneTime!.date);
@@ -55,21 +55,21 @@ export const getProjectStartDateTime = (project: Project): Date => {
     case "multiDay": {
       // Find the earliest start time across all days and slots
       let earliestDateTime: Date | null = null;
-      
+
       project.schedule.multiDay!.forEach(day => {
         const dayDate = parseISO(day.date);
-        
+
         day.slots.forEach(slot => {
           const [hours, minutes] = slot.startTime.split(':').map(Number);
           const slotStartTime = new Date(dayDate);
           slotStartTime.setHours(hours, minutes, 0, 0);
-          
+
           if (!earliestDateTime || slotStartTime < earliestDateTime) {
             earliestDateTime = slotStartTime;
           }
         });
       });
-      
+
       return earliestDateTime!;
     }
     case "sameDayMultiArea": {
@@ -93,21 +93,21 @@ export const getProjectEndDateTime = (project: Project): Date => {
     case "multiDay": {
       // Find the latest end time across all days and slots
       let latestDateTime: Date | null = null;
-      
+
       project.schedule.multiDay!.forEach(day => {
         const dayDate = parseISO(day.date);
-        
+
         day.slots.forEach(slot => {
           const [hours, minutes] = slot.endTime.split(':').map(Number);
           const slotEndTime = new Date(dayDate);
           slotEndTime.setHours(hours, minutes, 0, 0);
-          
+
           if (!latestDateTime || slotEndTime > latestDateTime) {
             latestDateTime = slotEndTime;
           }
         });
       });
-      
+
       return latestDateTime!;
     }
     case "sameDayMultiArea": {
@@ -149,40 +149,40 @@ export const getProjectStatus = (project: Project): ProjectStatus => {
   }
 
   const now = new Date();
-  
+
   // For multiDay events, check if ANY day is still available
   if (project.event_type === "multiDay") {
     const hasAvailable = hasAvailableMultiDaySlots(project);
-    
+
     if (!hasAvailable) {
       return "completed";
     }
-    
+
     // Check if any day is currently in progress
     const multiDaySchedule = project.schedule.multiDay!;
     for (const day of multiDaySchedule) {
       const dayDate = parseISO(day.date);
-      
+
       for (const slot of day.slots) {
         const [startHours, startMinutes] = slot.startTime.split(':').map(Number);
         const [endHours, endMinutes] = slot.endTime.split(':').map(Number);
-        
+
         const slotStart = new Date(dayDate);
         slotStart.setHours(startHours, startMinutes, 0, 0);
-        
+
         const slotEnd = new Date(dayDate);
         slotEnd.setHours(endHours, endMinutes, 0, 0);
-        
+
         if ((isAfter(now, slotStart) && isBefore(now, slotEnd)) || isEqual(now, slotStart)) {
           return "in-progress";
         }
       }
     }
-    
+
     // If we have available days but none are in progress, it's upcoming
     return "upcoming";
   }
-  
+
   // For other event types, use existing logic
   const startDateTime = getProjectStartDateTime(project);
   const endDateTime = getProjectEndDateTime(project);
@@ -211,14 +211,14 @@ export const canCancelProject = (project: Project): boolean => {
   if (project.status === "cancelled" || project.status === "completed") {
     return false;
   }
-  
+
   // Can cancel up until the event starts
   return true; // temporarily allow...basically cancellation is always allowed
 };
 
 export const isProjectVisible = (
-  project: Project, 
-  userId?: string, 
+  project: Project,
+  userId?: string,
   userOrganizations?: { organization_id: string; role: string }[]
 ): boolean => {
   // Public projects are always visible
@@ -239,7 +239,7 @@ export const isProjectVisible = (
     }
 
     // Check if user is part of the organization
-    return userOrganizations.some(org => 
+    return userOrganizations.some(org =>
       org.organization_id === project.organization_id
     );
   }
@@ -267,7 +267,7 @@ export const canManageProject = (
     const orgMembership = userOrganizations.find(
       org => org.organization_id === project.organization_id
     );
-    
+
     if (orgMembership && (orgMembership.role === "admin" || orgMembership.role === "staff")) {
       return true;
     }
@@ -324,9 +324,9 @@ export async function getSlotCapacities(
     .in("schedule_id", scheduleIds)
     // Use .in() or .or() to filter for multiple statuses
     .in("status", ["approved", "attended"])) as {
-    data: { schedule_id: string; status: string }[] | null;
-    error: { message: string } | null;
-  }; // <-- Updated filter
+      data: { schedule_id: string; status: string }[] | null;
+      error: { message: string } | null;
+    }; // <-- Updated filter
 
   if (error) {
     console.error("Error fetching signup counts:", error);
@@ -374,11 +374,11 @@ export function getSlotDetails(project: Project, scheduleId: string) {
     if (parts.length >= 2) {
       const slotIndexStr = parts.pop(); // Get last element (slot index)
       const date = parts.join("-"); // Rejoin the rest as the date
-      
+
       if (shouldLogProjectDebug) {
         console.log("Parsing multiDay scheduleId:", { date, slotIndexStr, parts });
       }
-      
+
       const day = project.schedule.multiDay.find(d => d.date === date);
       if (day) {
         const slotIdx = parseInt(slotIndexStr!, 10);
@@ -405,7 +405,7 @@ export function getSlotDetails(project: Project, scheduleId: string) {
       return role;
     }
   }
-  
+
   if (shouldLogProjectDebug) {
     console.log("No slot found for scheduleId:", scheduleId);
   }
@@ -413,8 +413,8 @@ export function getSlotDetails(project: Project, scheduleId: string) {
 }
 
 export function isSlotAvailable(
-  project: Project, 
-  scheduleId: string, 
+  project: Project,
+  scheduleId: string,
   remainingSlots: Record<string, number>,
   clientStatus?: ProjectStatus // Add optional parameter to override project.status
 ): boolean {
@@ -431,7 +431,7 @@ export function isSlotAvailable(
 
   // Use client-provided status if available, otherwise use project.status
   const effectiveStatus = clientStatus || project.status;
-  
+
   // Check if the project is cancelled or completed
   if (effectiveStatus === "cancelled" || effectiveStatus === "completed") {
     if (shouldLogProjectDebug) {
@@ -439,7 +439,7 @@ export function isSlotAvailable(
     }
     return false;
   }
-  
+
   // Check if the schedule ID is valid for this project
   const slotDetails = getSlotDetails(project, scheduleId);
   if (!slotDetails) {
@@ -448,27 +448,27 @@ export function isSlotAvailable(
     }
     return false;
   }
-  
+
   // Check if there are remaining slots
   const slotsRemaining = remainingSlots[scheduleId];
-  
+
   if (shouldLogProjectDebug) {
     console.log("Slots remaining:", slotsRemaining, "for scheduleId:", scheduleId);
   }
-  
+
   return slotsRemaining !== undefined && slotsRemaining > 0;
 }
 
 // Check if a specific multi-day slot has passed
-export function isMultiDaySlotPast(day: { date: string; slots: Array<{endTime: string}> }): boolean {
+export function isMultiDaySlotPast(day: { date: string; slots: Array<{ endTime: string }> }): boolean {
   if (!day.slots || day.slots.length === 0) return true;
-  
+
   const latestSlot = day.slots[day.slots.length - 1];
   const dayDate = parseISO(day.date);
   const [hours, minutes] = latestSlot.endTime.split(':').map(Number);
   const dayEndDateTime = new Date(dayDate);
   dayEndDateTime.setHours(hours, minutes, 0, 0);
-  
+
   const now = new Date();
   return isAfter(now, dayEndDateTime);
 }
@@ -478,7 +478,7 @@ export function getAvailableMultiDaySlots(project: Project): number[] {
   if (project.event_type !== 'multiDay' || !project.schedule.multiDay) {
     return [];
   }
-  
+
   return project.schedule.multiDay
     .map((day, index) => ({ day, index }))
     .filter(({ day }) => !isMultiDaySlotPast(day))
@@ -498,22 +498,22 @@ export function isMultiDaySlotPastByScheduleId(_project: Project, scheduleId: st
 
   const parts = scheduleId.split("-");
   if (parts.length < 2) return false;
-  
+
   const slotIndexStr = parts.pop();
   const date = parts.join("-");
-  
+
   const day = _project.schedule.multiDay.find((d) => d.date === date);
   if (!day || !slotIndexStr) return false;
-  
+
   const slotIdx = parseInt(slotIndexStr, 10);
   if (isNaN(slotIdx) || slotIdx < 0 || slotIdx >= day.slots.length) return false;
-  
+
   const slot = day.slots[slotIdx];
   const dayDate = parseISO(day.date);
   const [hours, minutes] = slot.endTime.split(':').map(Number);
   const slotEndDateTime = new Date(dayDate);
   slotEndDateTime.setHours(hours, minutes, 0, 0);
-  
+
   const now = new Date();
   return isAfter(now, slotEndDateTime);
 }
@@ -526,12 +526,12 @@ export function isSameDayMultiAreaSlotPast(project: Project, scheduleId: string)
 
   const role = project.schedule.sameDayMultiArea.roles.find((r) => r.name === scheduleId);
   if (!role) return false;
-  
+
   const eventDate = parseISO(project.schedule.sameDayMultiArea.date);
   const [hours, minutes] = role.endTime.split(':').map(Number);
   const slotEndDateTime = new Date(eventDate);
   slotEndDateTime.setHours(hours, minutes, 0, 0);
-  
+
   const now = new Date();
   return isAfter(now, slotEndDateTime);
 }
@@ -546,7 +546,49 @@ export function isOneTimeSlotPast(project: Project): boolean {
   const [hours, minutes] = project.schedule.oneTime.endTime.split(':').map(Number);
   const slotEndDateTime = new Date(eventDate);
   slotEndDateTime.setHours(hours, minutes, 0, 0);
-  
+
   const now = new Date();
   return isAfter(now, slotEndDateTime);
+}
+
+// Formats the date display for different project types
+export function formatDateDisplay(project: Project) {
+  if (!project.event_type || !project.schedule) return "";
+
+  switch (project.event_type) {
+    case "oneTime": {
+      const dateStr = project.schedule.oneTime?.date;
+      if (!dateStr) return "Date not specified";
+      try {
+        return format(parseISO(dateStr), "MMM d, yyyy");
+      } catch {
+        return "Date not specified";
+      }
+    }
+    case "multiDay": {
+      if (!project.schedule.multiDay || project.schedule.multiDay.length === 0) {
+        return "Date not specified";
+      }
+      try {
+        const dates = project.schedule.multiDay
+          .map((day) => parseISO(day.date))
+          .sort((a: Date, b: Date) => a.getTime() - b.getTime());
+
+        return `${format(dates[0], "MMM d")} - ${format(dates[dates.length - 1], "MMM d, yyyy")}`;
+      } catch {
+        return "Date not specified";
+      }
+    }
+    case "sameDayMultiArea": {
+      const dateStr = project.schedule.sameDayMultiArea?.date;
+      if (!dateStr) return "Date not specified";
+      try {
+        return format(parseISO(dateStr), "MMM d, yyyy");
+      } catch {
+        return "Date not specified";
+      }
+    }
+    default:
+      return "Date not specified";
+  }
 }
