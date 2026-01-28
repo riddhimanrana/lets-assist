@@ -13,13 +13,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+
 
 interface DateRangePickerProps {
   value?: DateRange | undefined;
@@ -29,6 +23,14 @@ interface DateRangePickerProps {
   align?: "start" | "center" | "end";
   showQuickSelect?: boolean;
 }
+
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export function DateRangePicker({
   value,
@@ -119,14 +121,91 @@ export function DateRangePicker({
     to: new Date(new Date(value.to).setDate(value.to.getDate() - 1))
   } : value;
 
+  // Helper to determine which preset matches the current range
+  const getSelectedPreset = (): string => {
+    if (!value?.from || !value?.to) return "";
+
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+
+    // Check Academic Year
+    const academicStartYear = currentMonth >= 7 ? currentYear : currentYear - 1;
+    const academicStart = new Date(academicStartYear, 7, 1);
+    const academicEnd = new Date(academicStartYear + 1, 6, 31);
+    // Adjust end date logic - the value.to is usually exclusive/next day in some logic, but here we compare start dates and approximate durations or exact end dates
+    // Actually exact comparison is best.
+
+    // Normalize dates for comparison (ignoring time)
+    const encodeDate = (d: Date) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+
+    const vFrom = encodeDate(value.from);
+    // The handleQuickSelect adds 1 day to end date. So if we selected July 31st, it stored Aug 1st?
+    // Let's check handleQuickSelect logic:
+    // const adjustedEndDate = new Date(endDate)
+    // adjustedEndDate.setDate(adjustedEndDate.getDate() + 1)
+
+    // So value.to is 1 day after the logical end date.
+    // We should compare value.to to (expectedEnd + 1 day)
+
+    const vTo = encodeDate(value.to);
+
+    const checkPreset = (start: Date, end: Date): boolean => {
+      const targetEnd = new Date(end);
+      targetEnd.setDate(targetEnd.getDate() + 1);
+      return vFrom === encodeDate(start) && vTo === encodeDate(targetEnd);
+    };
+
+    // Academic Year
+    if (checkPreset(new Date(academicStartYear, 7, 1), new Date(academicStartYear + 1, 6, 31))) return "academic-year";
+
+    // Semester
+    if (currentMonth >= 7) { // Fall
+      if (checkPreset(new Date(currentYear, 7, 1), new Date(currentYear, 11, 31))) return "academic-semester";
+    } else { // Spring
+      if (checkPreset(new Date(currentYear, 0, 1), new Date(currentYear, 4, 31))) return "academic-semester";
+    }
+
+    // Summer
+    if (checkPreset(new Date(currentYear, 5, 1), new Date(currentYear, 7, 31))) return "summer";
+
+    // Lifetime
+    if (checkPreset(new Date(2020, 0, 1), new Date(now.getFullYear(), now.getMonth(), now.getDate()))) {
+      // Actually lifetime end date is today (roughly). 
+      // handleQuickSelect uses: adjustedEndDate = new Date(now) + 1 day.
+      // And start date: Jan 1 2020.
+      return "lifetime";
+    }
+
+    // Last Month
+    if (checkPreset(new Date(currentYear, currentMonth - 1, now.getDate()), now)) {
+      return "last-month";
+    }
+
+    // Last 6 Months
+    if (checkPreset(new Date(currentYear, currentMonth - 6, now.getDate()), now)) {
+      return "last-6-months";
+    }
+
+    return "";
+  };
+
+  const selectedPreset = getSelectedPreset();
+
   return (
-    <div className={cn("flex flex-col sm:flex-row gap-2", className)}>
+    <div className={cn("flex flex-col sm:flex-row gap-2 w-full", className)}>
       {showQuickSelect && (
-        <Select onValueChange={(val: string | null) => {
-          if (typeof val === 'string' && val) handleQuickSelect(val);
-        }}>
-          <SelectTrigger className="w-full sm:w-[140px] h-9">
-            <SelectValue placeholder="Quick select" />
+        <Select value={selectedPreset} onValueChange={(val: string) => handleQuickSelect(val)}>
+          <SelectTrigger className="w-full sm:w-[200px] h-9">
+            <SelectValue placeholder="Quick select">
+              {selectedPreset === "academic-year" ? "This Academic Year" :
+                selectedPreset === "academic-semester" ? "This Academic Semester" :
+                  selectedPreset === "summer" ? "Summer" :
+                    selectedPreset === "last-month" ? "Last Month" :
+                      selectedPreset === "last-6-months" ? "Last 6 Months" :
+                        selectedPreset === "lifetime" ? "Lifetime" :
+                          "Quick select"}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="academic-year">This Academic Year</SelectItem>
@@ -139,31 +218,31 @@ export function DateRangePicker({
         </Select>
       )}
       <Popover>
-        <PopoverTrigger render={
+        <PopoverTrigger asChild>
           <Button
             id="date"
             variant={"outline"}
             size="sm"
-            data-empty={!value}
             className={cn(
-              "justify-start text-left h-9",
-              "data-[empty=true]:text-muted-foreground"
+              "justify-start text-left font-normal flex-1 h-9",
+              !value && "text-muted-foreground"
             )}
           >
             <CalendarIcon className="mr-2 h-4 w-4" />
             {displayRange?.from ? (
               displayRange.to ? (
                 <>
-                  {format(displayRange.from, "MMM d")} - {format(displayRange.to, "MMM d")}
+                  {format(displayRange.from, "MMM d, yyyy")} -{" "}
+                  {format(displayRange.to, "MMM d, yyyy")}
                 </>
               ) : (
-                format(displayRange.from, "MMM d")
+                format(displayRange.from, "MMM d, yyyy")
               )
             ) : (
               <span>{placeholder}</span>
             )}
           </Button>
-        } />
+        </PopoverTrigger>
         <PopoverContent className="w-auto p-0" align={align}>
           <Calendar
             initialFocus
@@ -171,7 +250,7 @@ export function DateRangePicker({
             defaultMonth={displayRange?.from}
             selected={displayRange}
             onSelect={handleSelect}
-            numberOfMonths={1}
+            numberOfMonths={2}
           />
         </PopoverContent>
       </Popover>

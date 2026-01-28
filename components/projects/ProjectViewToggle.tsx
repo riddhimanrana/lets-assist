@@ -38,11 +38,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import type { Project as BaseProject, Organization } from "@/types";
+import type { Project as BaseProject, Organization, Signup } from "@/types";
 
 type ProjectWithExtras = BaseProject & {
   organizations?: Organization;
   total_confirmed?: number;
+  signups?: Signup[];
 };
 
 const STORAGE_KEY = "preferred-project-view";
@@ -522,7 +523,7 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                     </div>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
-                    <DropdownMenu>
+                    <DropdownMenu modal={false}>
                       <DropdownMenuTrigger render={
                         <Button
                           variant="ghost"

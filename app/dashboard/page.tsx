@@ -8,7 +8,7 @@ import { format, subMonths, parseISO, differenceInMinutes, isBefore, isAfter } f
 import { TZDate, tz } from "@date-fns/tz";
 import { Award, Calendar, Users, Target, ChevronRight, Download, CalendarDays, BarChart3, CircleCheck, UserCheck } from "lucide-react";
 import Link from "next/link";
-import { buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -472,7 +472,7 @@ export default async function VolunteerDashboard() {
       {/* Mobile-First Responsive Tabs Layout */}
       <Tabs defaultValue="overview" className="space-y-6">
         {/* Mobile Tab Navigation with Icons */}
-        <TabsList className="grid w-full grid-cols-3 h-auto p-1">
+        <TabsList className="w-full sm:w-auto flex-row h-auto p-1">
           <TabsTrigger value="overview" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2 px-2 sm:px-4">
             <BarChart3 className="h-4 w-4" />
             <span className="text-xs sm:text-sm">Overview</span>
@@ -642,7 +642,7 @@ export default async function VolunteerDashboard() {
                 </CardHeader>
                 <CardContent>
                   {upcomingSessions.length > 0 ? (
-                    <TooltipProvider delayDuration={0}>
+                    <TooltipProvider>
                       <div className="space-y-3 sm:space-y-4">
                         <div className="max-h-[300px] sm:max-h-[350px] overflow-y-auto pr-2 custom-scrollbar">
                           <div className="space-y-3 sm:space-y-4">

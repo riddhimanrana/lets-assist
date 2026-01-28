@@ -346,7 +346,7 @@ export function ExportSection({
 
       {/* Export Button */}
       <Card>
-        <CardContent className="pt-6">
+        <CardContent className="p-4">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div>
               <p className="font-medium">Ready to Export</p>
