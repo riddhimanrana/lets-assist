@@ -53,7 +53,9 @@ export function DateRangePicker({
     }
   };
 
-  const handleQuickSelect = (value: string) => {
+  const handleQuickSelect = (value: string | null) => {
+    if (!value) return;
+
     const now = new Date()
     let startDate: Date
 
@@ -195,7 +197,7 @@ export function DateRangePicker({
   return (
     <div className={cn("flex flex-col sm:flex-row gap-2 w-full", className)}>
       {showQuickSelect && (
-        <Select value={selectedPreset} onValueChange={(val: string) => handleQuickSelect(val)}>
+        <Select value={selectedPreset} onValueChange={handleQuickSelect}>
           <SelectTrigger className="w-full sm:w-[200px] h-9">
             <SelectValue placeholder="Quick select">
               {selectedPreset === "academic-year" ? "This Academic Year" :
@@ -218,31 +220,33 @@ export function DateRangePicker({
         </Select>
       )}
       <Popover>
-        <PopoverTrigger asChild>
-          <Button
-            id="date"
-            variant={"outline"}
-            size="sm"
-            className={cn(
-              "justify-start text-left font-normal flex-1 h-9",
-              !value && "text-muted-foreground"
-            )}
-          >
-            <CalendarIcon className="mr-2 h-4 w-4" />
-            {displayRange?.from ? (
-              displayRange.to ? (
-                <>
-                  {format(displayRange.from, "MMM d, yyyy")} -{" "}
-                  {format(displayRange.to, "MMM d, yyyy")}
-                </>
+        <PopoverTrigger
+          render={
+            <Button
+              id="date"
+              variant={"outline"}
+              size="sm"
+              className={cn(
+                "justify-start text-left font-normal flex-1 h-9",
+                !value && "text-muted-foreground"
+              )}
+            >
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              {displayRange?.from ? (
+                displayRange.to ? (
+                  <>
+                    {format(displayRange.from, "MMM d, yyyy")} -{" "}
+                    {format(displayRange.to, "MMM d, yyyy")}
+                  </>
+                ) : (
+                  format(displayRange.from, "MMM d, yyyy")
+                )
               ) : (
-                format(displayRange.from, "MMM d, yyyy")
-              )
-            ) : (
-              <span>{placeholder}</span>
-            )}
-          </Button>
-        </PopoverTrigger>
+                <span>{placeholder}</span>
+              )}
+            </Button>
+          }
+        />
         <PopoverContent className="w-auto p-0" align={align}>
           <Calendar
             initialFocus
