@@ -39,8 +39,9 @@ export default function BayAreaExamples() {
             Currently connecting with
           </h3>
           <p className="max-w-xl text-sm text-muted-foreground">
-            These schools and organizations are exploring proof-backed attendance, certificate automation, and
-            volunteer ops built for districts, clubs, and nonprofits.
+            These schools and organizations are exploring proof-backed
+            attendance, certificate automation, and volunteer ops built for
+            districts, clubs, and nonprofits.
           </p>
         </div>
         <TooltipProvider>
@@ -76,8 +77,8 @@ export default function BayAreaExamples() {
                   </motion.div>
                 </TooltipTrigger>
                 <TooltipContent className="text-xs" side="top" align="center">
-                  <p className="font-semibold text-foreground">{partner.name}</p>
-                  <p className="text-muted-foreground">{partner.note}</p>
+                  <p className="font-semibold">{partner.name}</p>
+                  <p className="opacity-80">{partner.note}</p>
                 </TooltipContent>
               </Tooltip>
             ))}

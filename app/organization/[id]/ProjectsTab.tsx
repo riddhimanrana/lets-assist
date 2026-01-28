@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardAction, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
-import { CalendarIcon, Clock, MapPin, Plus, Search, Calendar, CheckCircle2, AlertCircle, Clock3, LayoutGrid } from "lucide-react";
+import { CalendarIcon, MapPin, Plus, Search, Calendar, CheckCircle2, AlertCircle, Clock3, LayoutGrid } from "lucide-react";
 import Link from "next/link";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ProjectStatus, Project } from "@/types";
@@ -32,26 +32,28 @@ export default function ProjectsTab({
 
   // Filter projects when search term or active tab changes
   useEffect(() => {
-    let result = projects.map(project => ({
+    let result = projects.map((project) => ({
       ...project,
-      status: getProjectStatus(project)
+      status: getProjectStatus(project),
     }));
 
     // Filter by status
     if (activeTab !== "all") {
-      result = result.filter(project => project.status === activeTab);
+      result = result.filter((project) => project.status === activeTab);
     }
 
     // Filter by search term
     if (searchTerm.trim() !== "") {
       const lowercasedFilter = searchTerm.toLowerCase();
-      result = result.filter(project => {
+      result = result.filter((project) => {
         const title = project.title.toLowerCase();
         const description = (project.description || "").toLowerCase();
         const location = (project.location || "").toLowerCase();
-        return title.includes(lowercasedFilter) ||
+        return (
+          title.includes(lowercasedFilter) ||
           description.includes(lowercasedFilter) ||
-          location.includes(lowercasedFilter);
+          location.includes(lowercasedFilter)
+        );
       });
     }
 
@@ -68,7 +70,7 @@ export default function ProjectsTab({
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row justify-between gap-3">
-        <h2 className="text-xl font-semibold">Organization Projects</h2>
+        <h2 className="text-xl font-bold tracking-tight">Organization Projects</h2>
 
         <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
           <div className="relative w-full sm:w-64">
@@ -96,26 +98,26 @@ export default function ProjectsTab({
         onValueChange={(value) => setActiveTab(value as ProjectStatus | "all")}
         className="w-full"
       >
-        <TabsList className="mb-4 w-full flex flex-wrap items-center gap-1 rounded-md border bg-card p-1 text-muted-foreground sm:inline-flex sm:w-auto sm:flex-nowrap sm:px-1">
-          <TabsTrigger value="all" className="flex w-full min-w-0 items-center justify-center space-x-1 px-1 py-1.5 data-[state=active]:text-foreground sm:w-auto sm:justify-start sm:space-x-1.5 sm:px-3">
-            <LayoutGrid className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
-            <span className="truncate text-[10px] sm:text-sm">All</span>
+        <TabsList className="mb-4 flex h-auto w-fit self-start max-w-full items-center justify-start overflow-x-auto bg-muted p-1 text-muted-foreground [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          <TabsTrigger value="all" className="gap-2 px-3">
+            <LayoutGrid className="h-4 w-4 shrink-0" />
+            <span className="hidden sm:inline truncate">All</span>
           </TabsTrigger>
-          <TabsTrigger value="upcoming" className="flex w-full min-w-0 items-center justify-center space-x-1 px-1 py-1.5 data-[state=active]:text-foreground sm:w-auto sm:justify-start sm:space-x-1.5 sm:px-3">
-            <Calendar className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
-            <span className="truncate text-[10px] sm:text-sm">Upcoming</span>
+          <TabsTrigger value="upcoming" className="gap-2 px-3">
+            <Calendar className="h-4 w-4 shrink-0" />
+            <span className="hidden sm:inline truncate">Upcoming</span>
           </TabsTrigger>
-          <TabsTrigger value="in-progress" className="flex w-full min-w-0 items-center justify-center space-x-1 px-1 py-1.5 data-[state=active]:text-foreground sm:w-auto sm:justify-start sm:space-x-1.5 sm:px-3">
-            <Clock3 className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
-            <span className="truncate text-[10px] sm:text-sm">Progress</span>
+          <TabsTrigger value="in-progress" className="gap-2 px-3">
+            <Clock3 className="h-4 w-4 shrink-0" />
+            <span className="hidden sm:inline truncate">Progress</span>
           </TabsTrigger>
-          <TabsTrigger value="completed" className="flex w-full min-w-0 items-center justify-center space-x-1 px-1 py-1.5 data-[state=active]:text-foreground sm:w-auto sm:justify-start sm:space-x-1.5 sm:px-3">
-            <CheckCircle2 className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
-            <span className="truncate text-[10px] sm:text-sm">Done</span>
+          <TabsTrigger value="completed" className="gap-2 px-3">
+            <CheckCircle2 className="h-4 w-4 shrink-0" />
+            <span className="hidden sm:inline truncate">Done</span>
           </TabsTrigger>
-          <TabsTrigger value="cancelled" className="flex w-full min-w-0 items-center justify-center space-x-1 px-1 py-1.5 data-[state=active]:text-foreground sm:w-auto sm:justify-start sm:space-x-1.5 sm:px-3">
-            <AlertCircle className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
-            <span className="truncate text-[10px] sm:text-sm">Cancelled</span>
+          <TabsTrigger value="cancelled" className="gap-2 px-3">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            <span className="hidden sm:inline truncate">Cancelled</span>
           </TabsTrigger>
         </TabsList>
         <TabsContent value={activeTab} className="mt-0">
@@ -132,11 +134,13 @@ export default function ProjectsTab({
                   ? `No projects found matching "${searchTerm}"`
                   : activeTab === "all"
                     ? "No projects found in this organization"
-                    : `No ${activeTab} projects found`
-                }
+                    : `No ${activeTab} projects found`}
               </p>
               {canCreateProjects && activeTab !== "cancelled" && (
-                <Link href={`/projects/create?org=${organizationId}`} className={cn(buttonVariants({ variant: "outline" }), "mt-4")}>
+                <Link
+                  href={`/projects/create?org=${organizationId}`}
+                  className={cn(buttonVariants({ variant: "outline" }), "mt-4")}
+                >
                   <Plus className="h-4 w-4 mr-1.5" />
                   Create Project
                 </Link>
@@ -151,67 +155,47 @@ export default function ProjectsTab({
 
 function ProjectCard({ project }: { project: Project }) {
   const currentStatus = getProjectStatus(project);
-  let startDateTime: Date | null = null;
-
-  try {
-    startDateTime = getProjectStartDateTime(project);
-  } catch {
-    startDateTime = null;
-  }
 
   return (
-    <Link href={`/projects/${project.id}`}>
-      <Card className="h-full hover:shadow-md transition-shadow overflow-hidden">
-        {/* {project.cover_image_url && (
-          <div className="h-32 w-full relative">
-            <Image
-              src={project.cover_image_url}
-              alt={project.title}
-              fill
-              className="object-cover"
-            />
-          </div>
-        )} */}
-        <CardContent className={`p-4 ${!project.cover_image_url ? 'pt-4' : 'pt-4'}`}>
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="font-medium text-lg line-clamp-1">{project.title}</h3>
-            <ProjectStatusBadge status={currentStatus} />
-          </div>
+    <Link href={`/projects/${project.id}`} className="group block h-full">
+      <Card className="h-full hover:shadow-xl dark:hover:shadow-primary/10 transition-all duration-200 overflow-hidden border-border/50 bg-card">
+        <div className="px-6 py-4 flex flex-col h-full">
+          <CardHeader className="p-0 mb-2">
+            <CardTitle className="text-xl font-bold line-clamp-1 pr-2 leading-tight">{project.title}</CardTitle>
+            <CardAction>
+              <ProjectStatusBadge status={currentStatus} className="shrink-0" />
+            </CardAction>
+          </CardHeader>
+          
+          <CardContent className="p-0 mb-4">
+            <CardDescription className="line-clamp-2 mb-3 text-sm text-muted-foreground/90">
+              {project.description ? stripHtml(project.description) : "No description provided."}
+            </CardDescription>
 
-          <p className="text-muted-foreground text-sm line-clamp-2 mb-3">
-            {project.description ? stripHtml(project.description) : "No description provided."}
-          </p>
+             <div className="space-y-1.5 text-sm font-medium text-muted-foreground/80">
+              {project.location && (
+                <div className="flex items-center">
+                  <MapPin className="h-4 w-4 mr-2 shrink-0" />
+                  <span className="truncate">{project.location}</span>
+                </div>
+              )}
 
-          <div className="flex flex-col gap-1.5">
-            {project.location && (
-              <div className="flex items-center text-xs text-muted-foreground">
-                <MapPin className="h-3 w-3 mr-1.5 shrink-0" />
-                <span className="truncate">{project.location}</span>
+              <div className="flex items-center">
+                <CalendarIcon className="h-4 w-4 mr-2 shrink-0" />
+                <span>Created {format(new Date(project.created_at), "MMM d, yyyy")}</span>
               </div>
-            )}
-
-            <div className="flex items-center text-xs text-muted-foreground">
-              <CalendarIcon className="h-3 w-3 mr-1.5 shrink-0" />
-              <span>Created {format(new Date(project.created_at), "MMM d, yyyy")}</span>
             </div>
-
-            {startDateTime && (
-              <div className="flex items-center text-xs text-muted-foreground">
-                <Clock className="h-3 w-3 mr-1.5 shrink-0" />
-                <span>{format(startDateTime, "MMM d, yyyy h:mm a")}</span>
-              </div>
-            )}
-          </div>
+          </CardContent>
 
           {project.organization && (
-            <div className="mt-3 pt-3 border-t flex items-center gap-2 text-xs text-muted-foreground">
-              <span>Posted by</span>
-              <span className="font-medium">
-                {project.profiles?.full_name || "Anonymous"}
-              </span>
-            </div>
+             <div className="mt-auto flex items-center gap-2">
+                <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground/60">Organized by</div>
+                <span className="text-sm font-semibold text-foreground/80 truncate">
+                  {project.profiles?.full_name || "Anonymous"}
+                </span>
+             </div>
           )}
-        </CardContent>
+        </div>
       </Card>
     </Link>
   );

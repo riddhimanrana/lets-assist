@@ -5,10 +5,8 @@ import {
   isValidElement,
   MouseEvent,
   ReactElement,
-  useEffect,
   useState,
 } from "react";
-import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -20,12 +18,13 @@ import {
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { Flag, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 
@@ -194,93 +193,88 @@ export function ReportContentButton({
     </Button>
   );
 
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
   return (
     <>
       {triggerElement}
-      {mounted && createPortal(
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-destructive" />
-                <DialogTitle>Report Content</DialogTitle>
-              </div>
-              <DialogDescription>
-                Help us keep our community safe by reporting inappropriate content. Your report will be reviewed by our moderation team.
-              </DialogDescription>
-            </DialogHeader>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              <DialogTitle>Report Content</DialogTitle>
+            </div>
+            <DialogDescription>
+              Help us keep our community safe by reporting inappropriate content. Your report will be reviewed by our moderation team.
+            </DialogDescription>
+          </DialogHeader>
 
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="reason">Reason for Report *</Label>
-                <Select value={reason} onValueChange={(value) => setReason(value as ReportReason)}>
-                  <SelectTrigger id="reason">
-                    <SelectValue placeholder="Select a reason" />
-                  </SelectTrigger>
-                  <SelectContent>
+          <div className="space-y-4 py-4">
+            <Field>
+              <FieldLabel htmlFor="reason">Reason for Report *</FieldLabel>
+              <Select value={reason} onValueChange={(value) => setReason(value as ReportReason)}>
+                <SelectTrigger id="reason" className="w-full">
+                  <SelectValue placeholder="Select a reason">
+                    {reason ? REPORT_REASONS.find(r => r.value === reason)?.label : "Select a reason"}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
                     {REPORT_REASONS.map((r) => (
                       <SelectItem key={r.value} value={r.value}>
                         {r.label}
                       </SelectItem>
                     ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </Field>
 
-              <div className="space-y-2">
-                <Label htmlFor="description">
-                  Description * <span className="text-muted-foreground text-xs">(minimum 10 characters)</span>
-                </Label>
-                <Textarea
-                  id="description"
-                  placeholder="Please provide specific details about why you're reporting this content..."
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  rows={5}
-                  maxLength={1000}
-                  className="resize-none"
-                />
-                <p className="text-xs text-muted-foreground text-right">
-                  {description.length}/1000
-                </p>
-              </div>
+            <Field>
+              <FieldLabel htmlFor="description">
+                Description * <span className="text-muted-foreground text-xs">(minimum 10 characters)</span>
+              </FieldLabel>
+              <Textarea
+                id="description"
+                placeholder="Please provide specific details about why you're reporting this content..."
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={5}
+                maxLength={1000}
+                className="resize-none"
+              />
+              <p className="text-xs text-muted-foreground text-right">
+                {description.length}/1000
+              </p>
+            </Field>
 
-              <div className="rounded-md bg-muted p-3 text-sm text-muted-foreground">
-                <p className="font-medium mb-1">What happens next?</p>
-                <ul className="list-disc list-inside space-y-1 text-xs">
-                  <li>Our moderation team will review within 24-48 hours</li>
-                  <li>Appropriate action will be taken if violations are found</li>
-                  <li>You may receive a notification about the outcome</li>
+            <div className="rounded-md bg-muted p-3 text-sm text-muted-foreground">
+              <p className="font-medium mb-1">What happens next?</p>
+              <ul className="list-disc list-inside space-y-1 text-xs">
+                <li>Our moderation team will review in 1-2 weeks</li>
+                <li>Appropriate action will be taken if violations are found</li>
+                <li>You may receive a notification about the outcome</li>
 
-                </ul>
-              </div>
+              </ul>
             </div>
+          </div>
 
-            <div className="flex justify-end gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setOpen(false)}
-                disabled={isSubmitting}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleSubmit}
-                disabled={isSubmitting || !reason || !description.trim()}
-              >
-                {isSubmitting ? 'Submitting...' : 'Submit Report'}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>,
-        document.body
-      )}
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setOpen(false)}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSubmit}
+              disabled={isSubmitting || !reason || !description.trim()}
+            >
+              {isSubmitting ? 'Submitting...' : 'Submit Report'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

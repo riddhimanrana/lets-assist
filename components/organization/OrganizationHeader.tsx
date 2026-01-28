@@ -68,22 +68,20 @@ export default function OrganizationHeader({
   const canCreateProjects = userRole === "admin" || userRole === "staff";
 
   return (
-    <div className="flex w-full flex-col gap-4">
-      {/* Main container - stacking on mobile, row on desktop */}
-      <div className="flex w-full flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex flex-col items-center sm:flex-1 sm:min-w-0 sm:flex-row sm:items-start gap-4 sm:gap-6 w-full">
-          {/* Avatar - smaller on mobile */}
-          <Avatar className="h-16 w-16 sm:h-24 sm:w-24 rounded-full border-4 border-background shadow-xs shrink-0">
+    <div className="flex w-full flex-col gap-6">
+      <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
+        <div className="flex flex-col items-center gap-4 md:flex-row md:items-start">
+          <Avatar className="h-20 w-20 shrink-0 rounded-full border-4 border-background shadow-sm md:h-24 md:w-24">
             <AvatarImage src={organization.logo_url || undefined} alt={organization.name} />
-            <AvatarFallback className="text-base sm:text-xl bg-primary/10 rounded-2xl">
+            <AvatarFallback className="bg-primary/10 text-xl rounded-2xl">
               {(() => {
                 switch (organization.type) {
                   case 'company':
-                    return <Building2 className="h-8 w-8 text-primary/60" />;
+                    return <Building2 className="h-10 w-10 text-primary/60" />;
                   case 'school':
-                    return <GraduationCap className="h-8 w-8 text-primary/60" />;
+                    return <GraduationCap className="h-10 w-10 text-primary/60" />;
                   case 'government':
-                    return <Building className="h-8 w-8 text-primary/60" />;
+                    return <Building className="h-10 w-10 text-primary/60" />;
                   case 'nonprofit':
                   case 'other':
                   default:
@@ -93,52 +91,49 @@ export default function OrganizationHeader({
             </AvatarFallback>
           </Avatar>
 
-          {/* Organization details - centered on mobile */}
-          <div className="flex-1 min-w-0 text-center sm:text-left">
-            {/* Organization name and badges */}
-            <div className="flex flex-col items-center sm:items-start">
-              <h1 className="flex flex-wrap wrap-break-word text-xl sm:text-3xl font-bold tracking-tight">
+          <div className="flex flex-col items-center text-center md:items-start md:text-left space-y-2">
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
                 {organization.name}
-                {organization.verified && (
-                  <BadgeCheck
-                    className="sm:h-7 sm:w-7 h-6 w-6 self-center sm:ml-2 ml-1"
-                    fill="hsl(var(--primary))"
-                    stroke="hsl(var(--popover))"
-                    strokeWidth={2.5}
-                  />
-                )}
               </h1>
-
-              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mt-2">
-                <Badge variant="outline" className="capitalize">
-                  {(() => {
-                    switch (organization.type) {
-                      case 'nonprofit':
-                        return 'Nonprofit';
-                      case 'school':
-                        return 'Educational';
-                      case 'company':
-                        return 'Company';
-                      case 'government':
-                        return 'Government';
-                      case 'other':
-                        return 'Other';
-                      default:
-                        return organization.type;
-                    }
-                  })()}
-                </Badge>
-
-                {organization.username && (
-                  <Badge variant="secondary" className="font-mono max-w-[220px] truncate">
-                    @{organization.username}
-                  </Badge>
-                )}
-              </div>
+              {organization.verified && (
+                <BadgeCheck
+                  className="h-6 w-6 text-primary"
+                  fill="currentColor"
+                  stroke="hsl(var(--background))"
+                  strokeWidth={2.5}
+                />
+              )}
             </div>
 
-            {/* Website and member count - wrap properly on mobile */}
-            <div className="flex flex-wrap justify-center sm:justify-start gap-3 mt-3 items-center text-sm text-muted-foreground">
+            <div className="flex flex-wrap items-center justify-center gap-2 md:justify-start">
+              <Badge variant="secondary" className="capitalize">
+                {(() => {
+                  switch (organization.type) {
+                    case 'nonprofit':
+                      return 'Nonprofit';
+                    case 'school':
+                      return 'Educational';
+                    case 'company':
+                      return 'Company';
+                    case 'government':
+                      return 'Government';
+                    case 'other':
+                      return 'Other';
+                    default:
+                      return organization.type;
+                  }
+                })()}
+              </Badge>
+
+              {organization.username && (
+                <span className="text-sm text-muted-foreground font-mono">
+                  @{organization.username}
+                </span>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-muted-foreground md:justify-start">
               {organization.website && (
                 <a
                   href={organization.website.startsWith('http') ? organization.website : `https://${organization.website}`}
@@ -147,7 +142,7 @@ export default function OrganizationHeader({
                   className="flex items-center gap-1 hover:text-foreground transition-colors"
                 >
                   <GlobeIcon className="h-3.5 w-3.5" />
-                  <span className="truncate max-w-[150px] sm:max-w-[220px]">
+                  <span>
                     {organization.website.replace(/^https?:\/\/(www\.)?/, '')}
                   </span>
                 </a>
@@ -158,25 +153,17 @@ export default function OrganizationHeader({
                 <span>{memberCount} {memberCount === 1 ? 'Member' : 'Members'}</span>
               </div>
             </div>
-
-            {/* Description - more height on mobile with fade out */}
-            {/* {organization.description && (
-            <p className="mt-3 text-sm text-muted-foreground line-clamp-1 max-w-[400px]">
-              {organization.description}
-            </p>
-            )} */}
           </div>
         </div>
 
-        {/* Action buttons - stacked on mobile */}
-        <div className="flex w-full flex-col sm:flex-row sm:items-center sm:justify-end gap-2 sm:w-auto">
+        <div className="flex w-full flex-col gap-2 sm:flex-row md:w-auto md:items-center">
           <Button
             variant="outline"
             size="sm"
-            className="w-full sm:w-auto justify-center"
+            className="w-full sm:w-auto"
             onClick={handleShare}
           >
-            <Share2 className="h-4 w-4" />
+            <Share2 className="mr-2 h-4 w-4" />
             Share
           </Button>
 
@@ -184,11 +171,11 @@ export default function OrganizationHeader({
             <Button
               variant="default"
               size="sm"
-              className="w-full sm:w-auto justify-center"
+              className="w-full sm:w-auto"
               onClick={() => setShowJoinCode(true)}
             >
-              <UsersIcon className="h-4 w-4" />
-              Invite Members
+              <UsersIcon className="mr-2 h-4 w-4" />
+              Invite
             </Button>
           )}
 
@@ -196,7 +183,7 @@ export default function OrganizationHeader({
             <Button
               variant="default"
               size="sm"
-              className="w-full sm:w-auto justify-center"
+              className="w-full sm:w-auto"
               onClick={() => toast.info("Get the join code from an admin and join from the organizations page", {
                 action: {
                   label: "Go to Organizations",
@@ -204,8 +191,8 @@ export default function OrganizationHeader({
                 }
               })}
             >
-              <Plus className="h-4 w-4" />
-              Join Organization
+              <Plus className="mr-2 h-4 w-4" />
+              Join
             </Button>
           )}
 
@@ -213,10 +200,10 @@ export default function OrganizationHeader({
             <Button
               onClick={handleCreateProject}
               size="sm"
-              className="w-full sm:w-auto justify-center gap-1"
+              className="w-full sm:w-auto"
             >
-              <Plus className="h-4 w-4" />
-              Create Project
+              <Plus className="mr-2 h-4 w-4" />
+              Project
             </Button>
           )}
         </div>

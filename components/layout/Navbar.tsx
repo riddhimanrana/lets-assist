@@ -60,17 +60,20 @@ const features = [
   {
     title: "Volunteer Journey",
     href: "/#journey",
-    description: "Browse opportunities, confirm attendance, and earn certificates.",
+    description:
+      "Browse opportunities, confirm attendance, and earn certificates.",
   },
   {
     title: "Platform Features",
     href: "/#features",
-    description: "Calendar sync, dashboards, QR check-ins, and trusted event types.",
+    description:
+      "Calendar sync, dashboards, QR check-ins, and trusted event types.",
   },
   {
     title: "Organization Tooling",
     href: "/#org-tooling",
-    description: "Role-based member management, certified reports, and QR verification.",
+    description:
+      "Role-based member management, certified reports, and QR verification.",
   },
 ];
 
@@ -100,7 +103,7 @@ export default function Navbar() {
         size="icon"
         className={cn(
           "relative z-10 h-6 w-6 flex items-center justify-center rounded-md",
-          theme === "light" && "text-primary bg-accent"
+          theme === "light" && "text-primary bg-accent",
         )}
         onClick={() => setTheme("light")}
       >
@@ -111,7 +114,7 @@ export default function Navbar() {
         size="icon"
         className={cn(
           "relative z-10 h-6 w-6 flex items-center justify-center rounded-md",
-          theme === "dark" && "text-primary bg-accent"
+          theme === "dark" && "text-primary bg-accent",
         )}
         onClick={() => setTheme("dark")}
       >
@@ -122,7 +125,7 @@ export default function Navbar() {
         size="icon"
         className={cn(
           "relative z-10 h-6 w-6 flex items-center justify-center rounded-md",
-          theme === "system" && "text-primary bg-accent"
+          theme === "system" && "text-primary bg-accent",
         )}
         onClick={() => setTheme("system")}
       >
@@ -140,7 +143,7 @@ export default function Navbar() {
           size="icon"
           className={cn(
             "relative z-10 h-8 w-8 flex items-center justify-center rounded-md",
-            theme === "light" && "text-primary bg-accent"
+            theme === "light" && "text-primary bg-accent",
           )}
           onClick={() => setTheme("light")}
         >
@@ -151,7 +154,7 @@ export default function Navbar() {
           size="icon"
           className={cn(
             "relative z-10 h-8 w-8 flex items-center justify-center rounded-md",
-            theme === "dark" && "text-primary bg-accent"
+            theme === "dark" && "text-primary bg-accent",
           )}
           onClick={() => setTheme("dark")}
         >
@@ -162,7 +165,7 @@ export default function Navbar() {
           size="icon"
           className={cn(
             "relative z-10 h-8 w-8 flex items-center justify-center rounded-md",
-            theme === "system" && "text-primary bg-accent"
+            theme === "system" && "text-primary bg-accent",
           )}
           onClick={() => setTheme("system")}
         >
@@ -187,11 +190,11 @@ export default function Navbar() {
           window.location.href = "/";
         }, 100);
       } else {
-        console.error('Logout failed:', result.error);
+        console.error("Logout failed:", result.error);
         setIsLoggingOut(false);
       }
     } catch (error) {
-      console.error('Logout failed:', error);
+      console.error("Logout failed:", error);
       setIsLoggingOut(false);
     }
   };
@@ -208,7 +211,9 @@ export default function Navbar() {
                 width={30}
                 height={30}
               />
-              <span className="text-lg font-bold font-overusedgrotesk">Let's Assist</span>
+              <span className="text-lg font-overusedgrotesk font-[750]">
+                Let's Assist
+              </span>
             </div>
           </Link>
 
@@ -221,7 +226,9 @@ export default function Navbar() {
                 <Link
                   className={cn(
                     buttonVariants({ variant: "ghost" }),
-                    pathname === "/home" ? "text-primary font-semibold" : "text-muted-foreground"
+                    pathname === "/home"
+                      ? "text-primary font-semibold"
+                      : "text-muted-foreground",
                   )}
                   href="/home"
                 >
@@ -230,7 +237,9 @@ export default function Navbar() {
                 <Link
                   className={cn(
                     buttonVariants({ variant: "ghost" }),
-                    pathname === "/dashboard" ? "text-primary font-semibold" : "text-muted-foreground"
+                    pathname === "/dashboard"
+                      ? "text-primary font-semibold"
+                      : "text-muted-foreground",
                   )}
                   href="/dashboard"
                 >
@@ -239,7 +248,9 @@ export default function Navbar() {
                 <Link
                   className={cn(
                     buttonVariants({ variant: "ghost" }),
-                    pathname === "/projects" ? "text-primary font-semibold" : "text-muted-foreground"
+                    pathname === "/projects"
+                      ? "text-primary font-semibold"
+                      : "text-muted-foreground",
                   )}
                   href="/projects"
                 >
@@ -248,43 +259,52 @@ export default function Navbar() {
                 <Link
                   className={cn(
                     buttonVariants({ variant: "ghost" }),
-                    pathname === "/organization" ? "text-primary font-semibold" : "text-muted-foreground"
+                    pathname === "/organization"
+                      ? "text-primary font-semibold"
+                      : "text-muted-foreground",
                   )}
                   href="/organization"
                 >
                   Organizations
                 </Link>
-
-
               </>
             ) : (
               <>
                 <NavigationMenu>
                   <NavigationMenuList>
                     <NavigationMenuItem>
-                      <NavigationMenuTrigger className={cn(pathname === "/#features" && "bg-accent text-accent-foreground")}>Features</NavigationMenuTrigger>
+                      <NavigationMenuTrigger
+                        className={cn(
+                          pathname === "/#features" &&
+                            "bg-accent text-accent-foreground",
+                        )}
+                      >
+                        Features
+                      </NavigationMenuTrigger>
                       <NavigationMenuContent>
                         <ul className="grid gap-3 p-4 w-[320px] lg:w-[500px] lg:p-6 lg:grid-cols-[.75fr_1fr]">
                           <li className="row-span-3">
-                            <NavigationMenuLink render={
-                              <Link
-                                className="flex h-full w-full select-none flex-col justify-end rounded-md bg-linear-to-b from-muted/50 to-muted p-6 no-underline outline-hidden focus:shadow-md"
-                                href="/"
-                              >
-                                <Image
-                                  src="/logo.png"
-                                  alt="letsassist logo"
-                                  width={30}
-                                  height={30}
-                                />
-                                <div className="mb-2 mt-4 text-lg font-medium font-overusedgrotesk">
-                                  Let's Assist
-                                </div>
-                                <p className="text-sm leading-tight text-muted-foreground">
-                                  Helping communities and volunteers connect
-                                </p>
-                              </Link>
-                            } />
+                            <NavigationMenuLink
+                              render={
+                                <Link
+                                  className="flex h-full w-full select-none flex-col justify-end rounded-md bg-linear-to-b from-muted/50 to-muted p-6 no-underline outline-hidden focus:shadow-md"
+                                  href="/"
+                                >
+                                  <Image
+                                    src="/logo.png"
+                                    alt="letsassist logo"
+                                    width={30}
+                                    height={30}
+                                  />
+                                  <div className="mb-2 mt-4 text-lg font-bold font-overusedgrotesk">
+                                    Let's Assist
+                                  </div>
+                                  <p className="text-sm leading-tight text-muted-foreground">
+                                    Helping communities and volunteers connect
+                                  </p>
+                                </Link>
+                              }
+                            />
                           </li>
                           {features.map((feature) => (
                             <ListItem
@@ -300,18 +320,37 @@ export default function Navbar() {
                     </NavigationMenuItem>
                   </NavigationMenuList>
                 </NavigationMenu>
-                <Link href="/projects" className={cn(
-                  buttonVariants({ variant: "ghost" }),
-                  pathname === "/projects" ? "text-primary font-semibold" : "text-muted-foreground"
-                )}>Volunteering Near Me</Link>
-                <Link href="/organization" className={cn(
-                  buttonVariants({ variant: "ghost" }),
-                  pathname === "/organization" ? "text-primary font-semibold" : "text-muted-foreground"
-                )}>Connected Organizations</Link>
-                <Link href="/faq" className={cn(
-                  buttonVariants({ variant: "ghost" }),
-                  pathname === "/faq" ? "text-primary font-semibold" : "text-muted-foreground"
-                )}>
+                <Link
+                  href="/projects"
+                  className={cn(
+                    buttonVariants({ variant: "ghost" }),
+                    pathname === "/projects"
+                      ? "text-primary font-semibold"
+                      : "text-muted-foreground",
+                  )}
+                >
+                  Volunteering Near Me
+                </Link>
+                <Link
+                  href="/organization"
+                  className={cn(
+                    buttonVariants({ variant: "ghost" }),
+                    pathname === "/organization"
+                      ? "text-primary font-semibold"
+                      : "text-muted-foreground",
+                  )}
+                >
+                  Connected Organizations
+                </Link>
+                <Link
+                  href="/faq"
+                  className={cn(
+                    buttonVariants({ variant: "ghost" }),
+                    pathname === "/faq"
+                      ? "text-primary font-semibold"
+                      : "text-muted-foreground",
+                  )}
+                >
                   FAQ
                 </Link>
               </>
@@ -339,9 +378,13 @@ export default function Navbar() {
                             className="absolute inset-0 rounded-full bg-muted-foreground/10 scale-105 opacity-0 group-hover:opacity-100 group-hover:scale-125 transition-all duration-200 pointer-events-none"
                           />
                           <Avatar className="w-9 h-9 cursor-pointer relative z-10">
-                            <AvatarImage src={profile?.avatar_url ?? undefined} />
+                            <AvatarImage
+                              src={profile?.avatar_url ?? undefined}
+                            />
                             <AvatarFallback>
-                              <NoAvatar fullName={profile?.full_name ?? undefined} />
+                              <NoAvatar
+                                fullName={profile?.full_name ?? undefined}
+                              />
                             </AvatarFallback>
                           </Avatar>
                         </div>
@@ -374,7 +417,6 @@ export default function Navbar() {
                       }
                     />
 
-
                     <DropdownMenuItem
                       className="py-2.5 text-muted-foreground cursor-pointer"
                       render={
@@ -404,7 +446,7 @@ export default function Navbar() {
                     <DropdownMenuSeparator className="my-2" />
 
                     <DropdownMenuItem
-                      className="text-primary focus:text-primary py-2.5 cursor-pointer flex justify-between"
+                      className="text-chart-3 focus:text-primary py-2.5 cursor-pointer flex justify-between"
                       onSelect={(e) => {
                         e.preventDefault();
                         setShowFeedbackDialog(true);
@@ -475,7 +517,10 @@ export default function Navbar() {
                 </Button>
               }
             />
-            <SheetContent side="right" className="w-[85%] sm:w-[380px] pt-10 px-4 pb-4 overflow-y-auto">
+            <SheetContent
+              side="right"
+              className="w-[85%] sm:w-[380px] pt-10 px-4 pb-4 overflow-y-auto"
+            >
               <div className="flex flex-col h-full">
                 {isAuthLoading ? (
                   <div className="grid gap-2 mb-6">
@@ -491,7 +536,9 @@ export default function Navbar() {
                         <Avatar className="w-12 h-12">
                           <AvatarImage src={profile?.avatar_url ?? undefined} />
                           <AvatarFallback>
-                            <NoAvatar fullName={profile?.full_name ?? undefined} />
+                            <NoAvatar
+                              fullName={profile?.full_name ?? undefined}
+                            />
                           </AvatarFallback>
                         </Avatar>
                       )}
@@ -520,12 +567,20 @@ export default function Navbar() {
                   </>
                 ) : (
                   <div className="grid gap-2 mb-6">
-                    <Link href="/login" className="w-full" onClick={handleNavigation}>
+                    <Link
+                      href="/login"
+                      className="w-full"
+                      onClick={handleNavigation}
+                    >
                       <Button variant="outline" className="w-full">
                         Login
                       </Button>
                     </Link>
-                    <Link href="/signup" className="w-full" onClick={handleNavigation}>
+                    <Link
+                      href="/signup"
+                      className="w-full"
+                      onClick={handleNavigation}
+                    >
                       <Button className="w-full">Sign Up</Button>
                     </Link>
                   </div>
@@ -538,21 +593,30 @@ export default function Navbar() {
                     <>
                       <Link
                         href="/home"
-                        className={cn(buttonVariants({ variant: "ghost" }), "w-full justify-start text-muted-foreground")}
+                        className={cn(
+                          buttonVariants({ variant: "ghost" }),
+                          "w-full justify-start text-muted-foreground",
+                        )}
                         onClick={handleNavigation}
                       >
                         Home
                       </Link>
                       <Link
                         href="/dashboard"
-                        className={cn(buttonVariants({ variant: "ghost" }), "w-full justify-start text-muted-foreground")}
+                        className={cn(
+                          buttonVariants({ variant: "ghost" }),
+                          "w-full justify-start text-muted-foreground",
+                        )}
                         onClick={handleNavigation}
                       >
                         Volunteer Dashboard
                       </Link>
                       <Link
                         href="/projects"
-                        className={cn(buttonVariants({ variant: "ghost" }), "w-full justify-start text-muted-foreground")}
+                        className={cn(
+                          buttonVariants({ variant: "ghost" }),
+                          "w-full justify-start text-muted-foreground",
+                        )}
                         onClick={handleNavigation}
                       >
                         My Projects
@@ -560,7 +624,10 @@ export default function Navbar() {
 
                       <Link
                         href="/organization"
-                        className={cn(buttonVariants({ variant: "ghost" }), "w-full justify-start text-muted-foreground")}
+                        className={cn(
+                          buttonVariants({ variant: "ghost" }),
+                          "w-full justify-start text-muted-foreground",
+                        )}
                         onClick={handleNavigation}
                       >
                         Organizations
@@ -568,14 +635,22 @@ export default function Navbar() {
                     </>
                   ) : (
                     <>
-                      <Link href="/projects"
-                        className={cn(buttonVariants({ variant: "ghost" }), "w-full justify-start text-muted-foreground")}
+                      <Link
+                        href="/projects"
+                        className={cn(
+                          buttonVariants({ variant: "ghost" }),
+                          "w-full justify-start text-muted-foreground",
+                        )}
                         onClick={handleNavigation}
                       >
                         Volunteering Near Me
                       </Link>
-                      <Link href="/organization"
-                        className={cn(buttonVariants({ variant: "ghost" }), "w-full justify-start text-muted-foreground")}
+                      <Link
+                        href="/organization"
+                        className={cn(
+                          buttonVariants({ variant: "ghost" }),
+                          "w-full justify-start text-muted-foreground",
+                        )}
                         onClick={handleNavigation}
                       >
                         Connected Organizations
@@ -589,7 +664,10 @@ export default function Navbar() {
                     <Separator className="my-4" />
                     <Link
                       href="/account/profile"
-                      className={cn(buttonVariants({ variant: "ghost" }), "w-full justify-between text-muted-foreground")}
+                      className={cn(
+                        buttonVariants({ variant: "ghost" }),
+                        "w-full justify-between text-muted-foreground",
+                      )}
                       onClick={handleNavigation}
                     >
                       Account Settings
@@ -599,7 +677,10 @@ export default function Navbar() {
                     {/* <MobileNotificationButton /> */}
                     <Link
                       href={`/profile/${profile?.username}`}
-                      className={cn(buttonVariants({ variant: "ghost" }), "w-full justify-between text-muted-foreground")}
+                      className={cn(
+                        buttonVariants({ variant: "ghost" }),
+                        "w-full justify-between text-muted-foreground",
+                      )}
                       onClick={handleNavigation}
                     >
                       My Profile
@@ -619,7 +700,7 @@ export default function Navbar() {
                 <div className="space-y-1">
                   <Button
                     variant="ghost"
-                    className="w-full justify-between text-primary hover:text-primary hover:bg-primary/10"
+                    className="w-full justify-between text-chart-3 hover:text-chart-3 hover:bg-chart-3/10"
                     onClick={() => {
                       setShowFeedbackDialog(true);
                       handleNavigation();
@@ -630,7 +711,7 @@ export default function Navbar() {
                   </Button>
                   <Button
                     variant="ghost"
-                    className="w-full justify-between text-destructive hover:text-destructive hover:bg-destructive/10"
+                    className="w-full justify-between text-chart-4 hover:text-chart-4 hover:bg-chart-4/10"
                     onClick={() => {
                       setShowDonateDialog(true);
                       handleNavigation();
@@ -643,15 +724,16 @@ export default function Navbar() {
               </div>
             </SheetContent>
           </Sheet>
-        </nav >
-      </div >
+        </nav>
+      </div>
       <Separator />
-      <DonateDialog open={showDonateDialog} onOpenChange={setShowDonateDialog} />
-      {
-        showFeedbackDialog && (
-          <FeedbackDialog onOpenChangeAction={setShowFeedbackDialog} />
-        )
-      }
+      <DonateDialog
+        open={showDonateDialog}
+        onOpenChange={setShowDonateDialog}
+      />
+      {showFeedbackDialog && (
+        <FeedbackDialog onOpenChangeAction={setShowFeedbackDialog} />
+      )}
     </>
   );
 }
@@ -662,21 +744,23 @@ const ListItem = React.forwardRef<
 >(({ className, title, children, ...props }, ref) => {
   return (
     <li>
-      <NavigationMenuLink render={
-        <a
-          ref={ref}
-          className={cn(
-            "block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-hidden transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
-            className,
-          )}
-          {...props}
-        >
-          <div className="text-sm font-medium leading-none">{title}</div>
-          <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-            {children}
-          </p>
-        </a>
-      } />
+      <NavigationMenuLink
+        render={
+          <a
+            ref={ref}
+            className={cn(
+              "block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-hidden transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
+              className,
+            )}
+            {...props}
+          >
+            <div className="text-sm font-medium leading-none">{title}</div>
+            <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+              {children}
+            </p>
+          </a>
+        }
+      />
     </li>
   );
 });

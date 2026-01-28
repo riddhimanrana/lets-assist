@@ -6,8 +6,15 @@ export async function POST(request: Request) {
   try {
     const supabase = await createClient();
     
-    // Get authenticated user (optional - can allow anonymous reports)
+    // Get authenticated user
     const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json(
+        { error: 'You must be signed in to report content.' },
+        { status: 401 }
+      );
+    }
     
     // Parse request body
     const body = await request.json();

@@ -1,28 +1,19 @@
 import React from "react";
 import { createClient } from "@/lib/supabase/server";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
-import { format, parseISO, differenceInMinutes, isBefore } from "date-fns"; // Added parseISO, differenceInMinutes, isBefore
+import { format, parseISO, differenceInMinutes, isBefore } from "date-fns";
 import { notFound } from "next/navigation";
 import { NoAvatar } from "@/components/shared/NoAvatar";
-import { CalendarIcon, Calendar, MapPin, BadgeCheck, Users, Clock, MoreVertical, Flag } from "lucide-react";
+import { CalendarIcon, MapPin, BadgeCheck, Users, Briefcase, PenTool, Hash, Clock } from "lucide-react";
 import Link from "next/link";
-import { Shield, UserRoundCog, UserRound } from "lucide-react";
 import { ProjectStatusBadge } from "@/components/ui/status-badge";
 import type { Metadata } from "next";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { isTrustedForDisplay } from "@/utils/trust";
 import { stripHtml } from "@/lib/utils";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
-import { ReportContentButton } from "@/components/feedback/ReportContentButton";
+import OrganizationCard from "@/app/organization/OrganizationCard";
+import { ProfileActions } from "./ProfileActions";
 
 interface Profile {
   id: string;
@@ -176,14 +167,11 @@ export default async function ProfilePage(
 
   // Check profile visibility unless it's the owner viewing their own profile
   if (!isOwner && profile.profile_visibility !== 'public') {
-    // Check if viewer has permission (e.g., is org admin/staff for school accounts)
-    // For now, just block access to private profiles
     if (profile.profile_visibility === 'private' || !profile.profile_visibility) {
       return (
         <div className="container mx-auto px-4 py-8">
           <Card className="max-w-md mx-auto">
             <CardContent className="pt-6 text-center">
-              <Shield className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
               <h2 className="text-xl font-semibold mb-2">Private Profile</h2>
               <p className="text-muted-foreground">
                 This profile is set to private and cannot be viewed.
@@ -194,15 +182,12 @@ export default async function ProfilePage(
       );
     }
 
-    // Organization-only profile - check if viewer is in same org
     if (profile.profile_visibility === 'organization_only') {
-      // Get viewer's organizations
       const { data: viewerOrgs } = await supabase
         .from("organization_members")
         .select("organization_id")
         .eq("user_id", user?.id || '');
 
-      // Get profile owner's organizations
       const { data: ownerOrgs } = await supabase
         .from("organization_members")
         .select("organization_id")
@@ -211,7 +196,6 @@ export default async function ProfilePage(
       const viewerOrgIds = viewerOrgs?.map(o => o.organization_id) || [];
       const ownerOrgIds = ownerOrgs?.map(o => o.organization_id) || [];
 
-      // Check for any overlap
       const hasSharedOrg = viewerOrgIds.some(id => ownerOrgIds.includes(id));
 
       if (!hasSharedOrg) {
@@ -232,10 +216,8 @@ export default async function ProfilePage(
     }
   }
 
-  // Determine robust trusted flag for display (owner sees trusted immediately)
   const isTrusted = await isTrustedForDisplay(profile.id);
 
-  // Fetch projects created by this user
   const { data: createdProjects } = await supabase
     .from("projects")
     .select("*")
@@ -243,7 +225,6 @@ export default async function ProfilePage(
     .eq("workflow_status", "published")
     .order("created_at", { ascending: false });
 
-  // Fetch projects this user has attended/signed up for
   const { data: attendedProjectIds } = await supabase
     .from('project_signups')
     .select('project_id')
@@ -261,7 +242,6 @@ export default async function ProfilePage(
     attendedProjects = fetchedProjects || [];
   }
 
-  // Updated organizations fetch with correct typing
   const { data: userOrganizations } = (await supabase
     .from('organization_members')
     .select(`
@@ -282,24 +262,19 @@ export default async function ProfilePage(
       error: { message: string } | null;
     };
 
-  // Fetch certificates for this user
-  // This query should select event_start and event_end if they exist in the table
   const { data: certificates, error: certificatesError } = await supabase
     .from("certificates")
-    .select("*") // Ensure event_start and event_end are selected
+    .select("*")
     .eq("user_id", profile.id)
-    .order("created_at", { ascending: false }); // Assuming 'issue_date' is the correct field for ordering
+    .order("created_at", { ascending: false });
 
   if (certificatesError) {
     console.error("Error fetching certificates for profile page:", certificatesError);
-    // Handle error appropriately
   }
 
-  // Calculate total hours from certificates
   let totalHours = 0;
   if (certificates) {
     totalHours = certificates.reduce((sum, cert) => {
-      // Ensure event_start and event_end are present on the cert object
       if (cert.event_start && cert.event_end) {
         return sum + calculateHours(cert.event_start, cert.event_end);
       }
@@ -307,7 +282,6 @@ export default async function ProfilePage(
     }, 0);
   }
 
-  // Utility: Format hours as "Xh Ym"
   function formatHours(hours: number): string {
     const h = Math.floor(hours);
     const m = Math.round((hours - h) * 60);
@@ -316,369 +290,252 @@ export default async function ProfilePage(
     return `${m}m`;
   }
 
-  // Transform the data to match the expected structure
   const formattedOrganizations: OrganizationMembership[] =
     (userOrganizations || []).map((item) => ({
       role: item.role,
       organizations: item.organizations,
     }));
 
-  // Stats calculation
-  const completedCreatedProjects = createdProjects?.filter(p => p.status === "completed").length || 0;
   const totalCreatedProjects = createdProjects?.length || 0;
-
   const totalAttendedProjects = attendedProjects?.length || 0;
   const totalProjects = totalCreatedProjects + totalAttendedProjects;
 
-  return (
-    <div className="flex justify-center w-full">
-      <div className="container max-w-5xl py-4 sm:py-8 px-4 sm:px-6">
-        {/* Profile Header Card */}
-        <Card className="mb-6 sm:mb-8 overflow-hidden relative">
-          {/* Three-dot menu in top-right corner */}
-          <div className="absolute top-4 right-4 z-10">
-            <DropdownMenu>
-              <DropdownMenuTrigger render={
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 w-8 p-0"
-                >
-                  <MoreVertical className="h-4 w-4" />
-                  <span className="sr-only">Open menu</span>
-                </Button>
-              } />
-              <DropdownMenuContent align="end">
-                <ReportContentButton
-                  contentType="profile"
-                  contentId={profile.id}
-                  contentTitle={profile.full_name || profile.username}
-                  contentCreator={profile.full_name || profile.username}
-                  triggerButton={
-                    <DropdownMenuItem>
-                      <Flag className="mr-2 h-4 w-4" />
-                      <span>Report Profile</span>
-                    </DropdownMenuItem>
-                  }
-                />
-              </DropdownMenuContent>
-            </DropdownMenu>
+  const ProfileProjectCard = ({ project, type }: { project: Project, type: 'created' | 'attended' }) => (
+    <Link href={`/projects/${project.id}`} className="block h-full group">
+      <Card className="h-full hover:shadow-lg transition-all duration-300 flex flex-col group/project-card border-muted/60 py-0 hover:border-primary/20">
+        <CardHeader className="p-4 pb-2">
+          <div className="flex items-center justify-between gap-3 min-w-0">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <CardTitle className="text-base font-bold line-clamp-1 group-hover/project-card:text-primary transition-colors truncate">
+                {project.title}
+              </CardTitle>
+              {type === 'created' && isTrusted && (
+                <Tooltip delayDuration={150}>
+                  <TooltipTrigger>
+                    <BadgeCheck className="h-4 w-4 text-primary shrink-0" />
+                  </TooltipTrigger>
+                  <TooltipContent side="top">
+                    <p>Verified Project</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
+            </div>
+            <ProjectStatusBadge
+              status={project.status}
+              size="sm"
+              className="shrink-0"
+            />
           </div>
+        </CardHeader>
+        <CardContent className="p-4 pt-0 flex-1 flex flex-col">
+          <CardDescription className="line-clamp-2 mb-3 text-xs break-all">
+            {stripHtml(project.description)}
+          </CardDescription>
+          <div className="flex flex-col gap-1.5 text-xs text-muted-foreground mt-auto">
+            <div className="flex items-center gap-1.5">
+              <MapPin className="h-3 w-3 shrink-0" />
+              <span className="truncate">{project.location}</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              {type === 'created' ? (
+                <>
+                  <CalendarIcon className="h-3 w-3 shrink-0" />
+                  <span>Created {format(new Date(project.created_at), "MMM d, yyyy")}</span>
+                </>
+              ) : (
+                <>
+                  <Users className="h-3 w-3 shrink-0" />
+                  <span>Attended</span>
+                </>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </Link>
+  );
 
-          <div className="h-24 sm:h-32 bg-linear-to-r from-primary/40 via-primary/20 to-primary/10"></div>
-          <CardHeader className="pt-0 px-4 sm:px-6 pb-2">
-            <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 -mt-6 sm:-mt-16">
-              <Avatar className="h-20 w-20 sm:h-32 sm:w-32 border-4 border-background">
-                <AvatarImage
-                  src={profile.avatar_url || undefined}
-                  alt={profile.full_name}
-                />
-                <AvatarFallback className="sm:text-2xl">
-                  <NoAvatar fullName={profile?.full_name} className="text-2xl sm:text-3xl" />
-                </AvatarFallback>
-              </Avatar>
-              <div className="sm:pt-16 flex flex-col justify-center">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h1 className="text-xl sm:text-2xl font-bold">{profile.full_name}</h1>
-                  {isTrusted && (
-                    <TooltipProvider delayDuration={150}>
-                      <Tooltip>
-                        <TooltipTrigger render={
-                          <Badge variant="default" className="h-6 px-2 py-0 text-xs flex items-center gap-1">
-                            <BadgeCheck className="h-4 w-4" aria-hidden="true" />
-                            Trusted
-                          </Badge>
-                        } />
-                        <TooltipContent side="bottom" align="start">
-                          <p className="max-w-xs text-sm">Trusted Member: verified by Let’s Assist. Projects they create are marked as Verified.</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  )}
+  return (
+    <div className="min-h-screen bg-background py-4 sm:py-12 flex flex-col items-center">
+      <div className="w-full max-w-6xl px-4 space-y-8 sm:space-y-12">
+        
+        {/* Main Profile Card */}
+        <Card className="w-full overflow-hidden border shadow-sm">
+          <CardContent className="px-4 sm:px-8 py-6 sm:py-8 relative">
+            {/* Header Section */}
+            <div className="flex flex-col sm:flex-row items-center sm:items-center mb-6 sm:mb-10 gap-4 sm:gap-8">
+              
+              {/* Avatar */}
+              <div className="relative shrink-0">
+                <Avatar className="h-20 w-20 sm:h-32 sm:w-32 border shadow-sm">
+                  <AvatarImage
+                    src={profile.avatar_url || undefined}
+                    alt={profile.full_name}
+                    className="object-cover"
+                  />
+                  <AvatarFallback className="text-2xl sm:text-4xl bg-muted text-muted-foreground">
+                    <NoAvatar fullName={profile?.full_name} className="text-2xl sm:text-4xl" />
+                  </AvatarFallback>
+                </Avatar>
+                {isTrusted && (
+                  <div className="absolute -bottom-0.5 -right-0.5 sm:-bottom-1 sm:-right-1 bg-background rounded-full shadow-sm border flex items-center justify-center p-0.5">
+                    <Tooltip delayDuration={150}>
+                      <TooltipTrigger className="p-1 hover:bg-transparent focus:ring-0">
+                        <BadgeCheck className="h-5 w-5 sm:h-7 sm:w-7 text-primary fill-background" />
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom">
+                        <p>Trusted Member</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                )}
+              </div>
+
+              {/* User Info */}
+              <div className="flex-1 text-center sm:text-left space-y-1 min-w-0">
+                <h1 className="text-xl sm:text-4xl font-bold tracking-tight truncate">{profile.full_name}</h1>
+                <p className="text-muted-foreground font-medium text-sm sm:text-lg">@{profile.username}</p>
+                <div className="flex items-center justify-center sm:justify-start gap-1.5 text-xs sm:text-sm text-muted-foreground pt-0.5">
+                  <CalendarIcon className="h-3.5 w-3.5" />
+                  <span>Joined {format(new Date(profile.created_at), "MMMM yyyy")}</span>
                 </div>
-                <p className="text-muted-foreground text-xs">@{profile.username}</p>
+              </div>
+
+              {/* Actions Button */}
+              <div className="absolute top-4 right-4 sm:static sm:ml-auto">
+                <ProfileActions 
+                  profileId={profile.id}
+                  profileName={profile.full_name}
+                  profileUsername={profile.username}
+                />
               </div>
             </div>
-          </CardHeader>
-          <CardContent className="px-4 sm:px-6 pt-2 pb-4">
-            <div className="flex flex-col sm:flex-row justify-between gap-4 sm:gap-3">
-              <div className="flex gap-2 flex-wrap">                <Badge variant="secondary">{totalAttendedProjects} Projects Attended</Badge>
-                <Badge variant="outline">{completedCreatedProjects} Projects Created</Badge>
-                <Badge variant="outline">{totalProjects} Total</Badge>
-                <Badge variant="default">{totalHours} Volunteer Hours</Badge>
+
+            {/* Stats Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6">
+              {/* Hours */}
+              <div className="flex flex-col items-center justify-center p-3 sm:p-6 rounded-xl bg-primary/5 border hover:bg-primary/10 transition-colors group">
+                <div className="flex items-center gap-2 sm:gap-3 mb-0.5 sm:mb-2 text-primary">
+                  <Clock className="h-4 w-4 sm:h-5 sm:w-5" />
+                  <span className="text-lg sm:text-2xl font-bold text-foreground">{formatHours(totalHours)}</span>
+                </div>
+                <span className="text-[10px] sm:text-xs font-semibold text-muted-foreground uppercase tracking-wider group-hover:text-primary/80 transition-colors">Hours</span>
               </div>
-              <div className="flex items-center text-xs text-muted-foreground">
-                <CalendarIcon className="h-3 w-3 mr-1.5" />
-                <span>Joined {format(new Date(profile.created_at), "MMMM yyyy")}</span>
+
+              {/* Total Projects */}
+              <div className="flex flex-col items-center justify-center p-3 sm:p-6 rounded-xl bg-chart-3/10 border hover:bg-chart-3/20 transition-colors group">
+                <div className="flex items-center gap-2 sm:gap-3 mb-0.5 sm:mb-2 text-chart-3">
+                  <Briefcase className="h-4 w-4 sm:h-5 sm:w-5" />
+                  <span className="text-lg sm:text-2xl font-bold text-foreground">{totalProjects}</span>
+                </div>
+                <span className="text-[10px] sm:text-xs font-semibold text-muted-foreground uppercase tracking-wider group-hover:text-chart-3/80 transition-colors">Total</span>
+              </div>
+
+              {/* Created */}
+              <div className="flex flex-col items-center justify-center p-3 sm:p-6 rounded-xl bg-chart-5/10 border hover:bg-chart-5/20 transition-colors group">
+                <div className="flex items-center gap-2 sm:gap-3 mb-0.5 sm:mb-2 text-chart-5">
+                  <PenTool className="h-4 w-4 sm:h-5 sm:w-5" />
+                  <span className="text-lg sm:text-2xl font-bold text-foreground">{totalCreatedProjects}</span>
+                </div>
+                <span className="text-[10px] sm:text-xs font-semibold text-muted-foreground uppercase tracking-wider group-hover:text-chart-5/80 transition-colors">Created</span>
+              </div>
+
+              {/* Attended */}
+              <div className="flex flex-col items-center justify-center p-3 sm:p-6 rounded-xl bg-chart-4/10 border hover:bg-chart-4/20 transition-colors group">
+                <div className="flex items-center gap-2 sm:gap-3 mb-0.5 sm:mb-2 text-chart-4">
+                  <Hash className="h-4 w-4 sm:h-5 sm:w-5" />
+                  <span className="text-lg sm:text-2xl font-bold text-foreground">{totalAttendedProjects}</span>
+                </div>
+                <span className="text-[10px] sm:text-xs font-semibold text-muted-foreground uppercase tracking-wider group-hover:text-chart-4/80 transition-colors">Attended</span>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Volunteer Hours Section */}
-        <div className="mb-6 sm:mb-8">
-          <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4 flex items-center">
-            <Clock className="h-5 w-5 mr-2 text-primary" aria-hidden="true" />
-            Volunteer Hours
-          </h2>
-          <Separator className="mb-4" />
-
-          <Card className="overflow-hidden">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="bg-primary/10 rounded-full p-2.5">
-                  <Clock className="h-6 w-6 text-primary" aria-hidden="true" />
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-3xl font-bold text-primary" aria-label={`Total volunteer hours: ${formatHours(totalHours)}`}>
-                    {formatHours(totalHours)}
-                  </span>
-                  <span className="text-sm text-muted-foreground">from {totalProjects} projects</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Certificates Section
-        <div className="mb-6 sm:mb-8">
-          <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4 flex items-center">
-            <Award className="h-6 w-6 mr-2 text-primary" />
-            Certificates & Achievements
-          </h2>
-          <Separator className="mb-4 sm:mb-6" />
+        {/* Content Sections */}
+        <div className="space-y-12 sm:space-y-16 w-full">
           
-          {certificates && certificates.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-              {certificates.map((certificate) => (
-                <Card key={certificate.id} className="hover:shadow-md transition-shadow overflow-hidden">
-                  {certificate.image_url && (
-                    <div className="h-32 w-full overflow-hidden bg-muted" style={{ position: "relative" }}>
-                      <Image
-                        src={certificate.image_url}
-                        alt={certificate.title}
-                        fill
-                        className="object-cover"
-                        sizes="(max-width: 640px) 100vw, 33vw"
-                        priority={false}
-                      />
-                    </div>
-                  )}
-                  <CardContent className="p-4">
-                    <div className="flex justify-between items-start gap-2 mb-2">
-                      <h3 className="font-semibold text-base sm:text-lg line-clamp-1">{certificate.title}</h3>
-                      {certificate.verification_url && (
-                        <Link href={certificate.verification_url} target="_blank" rel="noopener noreferrer">
-                          <ExternalLink className="h-4 w-4 text-muted-foreground hover:text-primary" />
-                        </Link>
-                      )}
-                    </div>
-                    <p className="text-sm text-muted-foreground mb-3">
-                      Issued by {certificate.issuer}
-                    </p>
-                    {certificate.description && (
-                      <p className="text-xs text-muted-foreground mb-2 line-clamp-2">
-                        {certificate.description}
-                      </p>
-                    )}
-                    <div className="flex items-center text-xs text-muted-foreground mt-2">
-                      <CalendarIcon className="h-3 w-3 mr-1.5" />
-                      <span>Issued on {format(new Date(certificate.created_at), "MMM d, yyyy")}</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center p-8 bg-muted/20 rounded-lg">
-              <Award className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="text-lg font-medium mb-1">No Certificates Yet</h3>
-              <p className="text-muted-foreground">This user hasn&apos;t earned any certificates yet.</p>
+          {/* Organizations */}
+          {formattedOrganizations && formattedOrganizations.length > 0 && (
+            <div className="space-y-4 sm:space-y-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2 sm:p-2.5 bg-chart-3/10 rounded-lg sm:rounded-xl text-chart-3">
+                  <Users className="h-5 w-5 sm:h-6 sm:w-6" />
+                </div>
+                <h2 className="text-xl sm:text-3xl font-bold tracking-tight">Organizations</h2>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                {formattedOrganizations.map((membership: OrganizationMembership) => {
+                  const org = Array.isArray(membership.organizations)
+                    ? membership.organizations[0]
+                    : membership.organizations;
+                  if (!org) return null;
+                  return (
+                    <OrganizationCard
+                      key={org.id}
+                      org={{...org, verified: org.verified || false}}
+                      memberCount={0}
+                      isUserMember={true}
+                      userRole={membership.role}
+                    />
+                  );
+                })}
+              </div>
             </div>
           )}
-        </div> */}
 
-        {/* Organizations Section */}
-        {formattedOrganizations && formattedOrganizations.length > 0 && (
-          <div className="mb-6 sm:mb-8">
-            <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">Organizations</h2>
-            <Separator className="mb-4 sm:mb-6" />
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-              {formattedOrganizations.map((membership: OrganizationMembership) => {
-                const org = Array.isArray(membership.organizations)
-                  ? membership.organizations[0]
-                  : membership.organizations;
-                if (!org) return null;
-                return (
-                  <Link href={`/organization/${org.username}`} key={org.id} className="relative block">
-                    {/* Gradient background behind the card */}
-                    <div className="absolute inset-0 h-full w-full bg-linear-to-r from-primary/40 via-primary/20 to-primary/10 rounded-lg"></div>
-
-                    <Card className="relative h-full hover:shadow-md transition-shadow overflow-hidden">
-                      <CardContent className="p-4">
-                        <div className="flex flex-col">
-                          {/* Header with Avatar and Name */}
-                          <div className="flex items-center gap-3 mb-3">
-                            <Avatar className="h-14 w-14 border-2 border-background shrink-0">
-                              {org.logo_url ? (
-                                <AvatarImage src={org.logo_url} alt={org.name} />
-                              ) : (
-                                <AvatarFallback>
-                                  <NoAvatar fullName={org.name} className="text-base" />
-                                </AvatarFallback>
-                              )}
-                            </Avatar>
-
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <h3 className="font-semibold text-base sm:text-lg line-clamp-1">{org.name}</h3>
-                                {org.verified && (
-                                  <BadgeCheck className="h-5 w-5" fill="hsl(var(--primary))" stroke="hsl(var(--popover))" strokeWidth={2.5} />
-                                )}
-                              </div>
-                              <p className="text-xs sm:text-sm text-muted-foreground">@{org.username}</p>
-                            </div>
-                          </div>
-
-                          {/* Badges */}
-                          <div className="flex gap-2 mb-2">
-                            <Badge variant="outline" className="text-xs capitalize">
-                              {org.type}
-                            </Badge>
-                            <Badge
-                              variant={
-                                membership.role === "admin" ? "default" :
-                                  membership.role === "staff" ? "secondary" : "outline"
-                              }
-                              className="text-xs flex items-center gap-1"
-                            >
-                              {membership.role === "admin" && <Shield className="h-3 w-3" />}
-                              {membership.role === "staff" && <UserRoundCog className="h-3 w-3" />}
-                              {membership.role === "member" && <UserRound className="h-3 w-3" />}
-                              {membership.role.charAt(0).toUpperCase() + membership.role.slice(1)}
-                            </Badge>
-                          </div>
-
-                          {/* Description */}
-                          <p className="text-xs sm:text-sm line-clamp-2 text-muted-foreground">
-                            {org.description || "No description provided."}
-                          </p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </Link>
-                );
-              })}
+          {/* Created Projects */}
+          <div className="space-y-4 sm:space-y-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 sm:p-2.5 bg-chart-5/10 rounded-lg sm:rounded-xl text-chart-5">
+                <PenTool className="h-5 w-5 sm:h-6 sm:w-6" />
+              </div>
+              <h2 className="text-xl sm:text-3xl font-bold tracking-tight">Created Projects</h2>
             </div>
+            {createdProjects && createdProjects.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                {createdProjects.map((project) => (
+                  <ProfileProjectCard key={project.id} project={project} type="created" />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-10 sm:py-16 border border-dashed rounded-xl bg-muted/10 w-full">
+                <div className="bg-muted/30 p-3 sm:p-4 rounded-full w-fit mx-auto mb-3 sm:mb-4">
+                  <CalendarIcon className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground/50" />
+                </div>
+                <h3 className="font-medium text-base sm:text-lg">No Created Projects</h3>
+                <p className="text-xs text-muted-foreground mt-1.5 sm:mt-2">Hasn&apos;t created any projects yet.</p>
+              </div>
+            )}
           </div>
-        )}
 
-        {/* Created Projects Section */}
-        <div className="mb-6 sm:mb-8">
-          <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">Created Projects</h2>
-          <Separator className="mb-4 sm:mb-6" />
+          {/* Attended Projects */}
+          <div className="space-y-4 sm:space-y-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 sm:p-2.5 bg-chart-4/10 rounded-lg sm:rounded-xl text-chart-4">
+                <Hash className="h-5 w-5 sm:h-6 sm:w-6" />
+              </div>
+              <h2 className="text-xl sm:text-3xl font-bold tracking-tight">Attended Projects</h2>
+            </div>
+            {attendedProjects && attendedProjects.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                {attendedProjects.map((project) => (
+                  <ProfileProjectCard key={project.id} project={project} type="attended" />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-10 sm:py-16 border border-dashed rounded-xl bg-muted/10 w-full">
+                <div className="bg-muted/30 p-3 sm:p-4 rounded-full w-fit mx-auto mb-3 sm:mb-4">
+                  <Users className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground/50" />
+                </div>
+                <h3 className="font-medium text-base sm:text-lg">No Attended Projects</h3>
+                <p className="text-xs text-muted-foreground mt-1.5 sm:mt-2">Hasn&apos;t attended any projects yet.</p>
+              </div>
+            )}
+          </div>
 
-          {createdProjects && createdProjects.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-              {createdProjects.map((project) => (
-                <Link key={project.id} href={`/projects/${project.id}`}>
-                  <Card className="h-full hover:shadow-md transition-shadow cursor-pointer">
-                    <CardContent className="p-3 sm:p-4">
-                      <div className="flex justify-between items-start gap-2 mb-2">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <h3 className="font-semibold text-base sm:text-lg line-clamp-1 truncate">{project.title}</h3>
-                          {isTrusted && (
-                            <TooltipProvider delayDuration={150}>
-                              <Tooltip>
-                                <TooltipTrigger render={
-                                  <Badge variant="secondary" className="h-5 px-1.5 py-0 text-[10px] flex items-center gap-1">
-                                    <BadgeCheck className="h-3 w-3" aria-hidden="true" />
-                                    Verified
-                                  </Badge>
-                                } />
-                                <TooltipContent side="bottom" align="start">
-                                  <p className="max-w-xs text-xs">Created by a Trusted Member. This project is Let’s Assist verified.</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          )}
-                        </div>
-                        <ProjectStatusBadge
-                          status={project.status}
-                          size="sm"
-                          className="ml-auto shrink-0"
-                        />
-                      </div>
-                      <p className="text-muted-foreground text-xs sm:text-sm mb-2 sm:mb-3 line-clamp-2">
-                        {stripHtml(project.description)}
-                      </p>
-                      <div className="flex items-center text-xs text-muted-foreground">
-                        <MapPin className="h-3 w-3 mr-1 shrink-0" />
-                        <span className="truncate">{project.location}</span>
-                      </div>
-                      <div className="flex items-center mt-1.5 sm:mt-2 text-xs text-muted-foreground">
-                        <CalendarIcon className="h-3 w-3 mr-1" />
-                        <span>Created {format(new Date(project.created_at), "MMM d, yyyy")}</span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center p-8 bg-muted/20 rounded-lg">
-              <Calendar className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="text-lg font-medium mb-1">No Created Projects</h3>
-              <p className="text-muted-foreground">This user hasn&apos;t created any projects yet.</p>
-            </div>
-          )}
-        </div>
-
-        {/* Attended Projects Section */}
-        <div className="mb-6 sm:mb-8">
-          <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">Attended Projects</h2>
-          <Separator className="mb-4 sm:mb-6" />
-
-          {attendedProjects && attendedProjects.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-              {attendedProjects.map((project) => (
-                <Link key={project.id} href={`/projects/${project.id}`}>
-                  <Card className="h-full hover:shadow-md transition-shadow cursor-pointer">
-                    <CardContent className="p-3 sm:p-4">
-                      <div className="flex justify-between items-start gap-2 mb-2">
-                        <h3 className="font-semibold text-base sm:text-lg line-clamp-1">{project.title}</h3>
-                        <ProjectStatusBadge
-                          status={project.status}
-                          size="sm"
-                          className="ml-auto shrink-0"
-                        />
-                      </div>
-                      <p className="text-muted-foreground text-xs sm:text-sm mb-2 sm:mb-3 line-clamp-2">
-                        {stripHtml(project.description)}
-                      </p>
-                      <div className="flex items-center text-xs text-muted-foreground">
-                        <MapPin className="h-3 w-3 mr-1 shrink-0" />
-                        <span className="truncate">{project.location}</span>
-                      </div>
-                      <div className="flex items-center mt-1.5 sm:mt-2 text-xs text-muted-foreground">
-                        <Users className="h-3 w-3 mr-1" />
-                        <span>Attended</span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center p-8 bg-muted/20 rounded-lg">
-              <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="text-lg font-medium mb-1">No Attended Projects</h3>
-              <p className="text-muted-foreground">This user hasn&apos;t attended any projects yet.</p>
-            </div>
-          )}
         </div>
       </div>
-    </div >
+    </div>
   );
 }

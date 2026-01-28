@@ -237,10 +237,16 @@ const getVolunteerCount = (project: ProjectWithExtras) => {
 const getRemainingSpots = (project: ProjectWithExtras) => {
   const totalSpots = getVolunteerCount(project);
 
-  // Use confirmed_signups from server
-  const confirmedCount = project.total_confirmed || 0;
+  // Use confirmed_signups from server or count manually if signups array exists
+  let filledSpots = 0;
+  if (project.signups && Array.isArray(project.signups)) {
+    // Include both approved and pending to avoid overestimating availability
+    filledSpots = project.signups.filter(s => s.status === 'approved' || s.status === 'pending').length;
+  } else {
+    filledSpots = project.total_confirmed || 0;
+  }
 
-  return Math.max(0, totalSpots - confirmedCount);
+  return Math.max(0, totalSpots - filledSpots);
 };
 
 // Function to check if project has upcoming status
@@ -330,74 +336,76 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
           {filteredProjects.map((project) => (
             <div key={project.id} className="relative group">
               <Link href={`/projects/${project.id}`}>
-                <Card className="p-6 hover:shadow-lg transition-all cursor-pointer h-full flex flex-col">
-                  <h3 className="text-xl font-semibold mb-2 line-clamp-2 pr-8">
-                    {project.title}
-                  </h3>
-                  <div className="flex items-center gap-2 mb-4">
-                    <MapPin className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <span className="text-sm text-muted-foreground truncate">
-                      {project.location}
-                    </span>
-                  </div>
+                <Card className="hover:shadow-xl dark:hover:shadow-primary/10 transition-all cursor-pointer h-full flex flex-col group/project-card border-muted/40">
+                  <div className="px-6 py-4 flex flex-col h-full">
+                    <h3 className="text-xl font-bold mb-1 line-clamp-2 pr-8 leading-tight">
+                      {project.title}
+                    </h3>
+                    <div className="flex items-center gap-2 mb-3">
+                      <MapPin className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <span className="text-sm text-muted-foreground truncate">
+                        {project.location}
+                      </span>
+                    </div>
 
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    <Badge variant="outline" className="gap-1">
-                      <Calendar className="h-3 w-3" />
-                      {formatDateDisplay(project)}
-                    </Badge>
-                    <Badge variant="outline" className="gap-1">
-                      <Users className="h-3 w-3" />
-                      {formatSpots(getRemainingSpots(project))}
-                    </Badge>
-                  </div>
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      <Badge variant="outline" className="gap-1.5 py-1 px-2.5 font-medium border-muted-foreground/20 text-xs">
+                        <Calendar className="h-3.5 w-3.5" />
+                        {formatDateDisplay(project)}
+                      </Badge>
+                      <Badge variant="outline" className="gap-1.5 py-1 px-2.5 font-medium border-muted-foreground/20 text-xs">
+                        <Users className="h-3.5 w-3.5" />
+                        {formatSpots(getRemainingSpots(project))}
+                      </Badge>
+                    </div>
 
-                  {/* User info with hover card - updated to show organization if available */}
-                  <div className="mt-auto pt-3">
-                    <div className="flex items-center gap-2">
-                      <Avatar className="h-7 w-7">
-                        <AvatarImage
-                          src={getCreatorAvatarUrl(project) || undefined}
-                          alt={getProjectCreator(project)}
-                        />
-                        <AvatarFallback>
-                          <NoAvatar
-                            fullName={getProjectCreator(project)}
-                            className="text-sm"
+                    {/* User info with hover card - updated to show organization if available */}
+                    <div className="mt-auto">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage
+                            src={getCreatorAvatarUrl(project) || undefined}
+                            alt={getProjectCreator(project)}
                           />
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1">
-                          {project.organization_id ? (
-                            <OrganizationHoverCard
-                              organization={{
-                                username: project.organization?.username || project.organizations?.username || "",
-                                name: getProjectCreator(project),
-                                logo_url: getCreatorAvatarUrl(project),
-                                verified: isOrganizationVerified(project),
-                                type: project.organization?.type || project.organizations?.type,
-                              }}
-                            >
-                              <span className="text-sm font-medium truncate cursor-pointer">
-                                {getProjectCreator(project)}
-                              </span>
-                            </OrganizationHoverCard>
-                          ) : (
-                            <ProfileHoverCard
-                              username={project.profiles?.username || ""}
+                          <AvatarFallback>
+                            <NoAvatar
                               fullName={getProjectCreator(project)}
-                              avatarUrl={getCreatorAvatarUrl(project) || undefined}
-                              createdAt={project.profiles?.created_at || undefined}
-                            >
-                              <span className="text-sm font-medium truncate cursor-pointer">
-                                {getProjectCreator(project)}
-                              </span>
-                            </ProfileHoverCard>
-                          )}
-                          {project.organization_id && isOrganizationVerified(project) && (
-                            <BadgeCheck className="h-4 w-4 shrink-0" fill="hsl(var(--primary))" stroke="hsl(var(--popover))" strokeWidth={2.5} />
-                          )}
+                              className="text-xs"
+                            />
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            {project.organization_id ? (
+                              <OrganizationHoverCard
+                                organization={{
+                                  username: project.organization?.username || project.organizations?.username || "",
+                                  name: getProjectCreator(project),
+                                  logo_url: getCreatorAvatarUrl(project),
+                                  verified: isOrganizationVerified(project),
+                                  type: project.organization?.type || project.organizations?.type,
+                                }}
+                              >
+                                <span className="text-sm font-semibold truncate cursor-pointer">
+                                  {getProjectCreator(project)}
+                                </span>
+                              </OrganizationHoverCard>
+                            ) : (
+                              <ProfileHoverCard
+                                username={project.profiles?.username || ""}
+                                fullName={getProjectCreator(project)}
+                                avatarUrl={getCreatorAvatarUrl(project) || undefined}
+                                createdAt={project.profiles?.created_at || undefined}
+                              >
+                                <span className="text-sm font-semibold truncate cursor-pointer">
+                                  {getProjectCreator(project)}
+                                </span>
+                              </ProfileHoverCard>
+                            )}
+                            {project.organization_id && isOrganizationVerified(project) && (
+                              <BadgeCheck className="h-4 w-4 shrink-0" fill="hsl(var(--primary))" stroke="hsl(var(--popover))" strokeWidth={2.5} />
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>

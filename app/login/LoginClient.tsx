@@ -183,22 +183,22 @@ export default function LoginClient({ redirectPath }: LoginClientProps) {
 
   return (
     <div className="flex items-center justify-center min-h-screen">
-      <Card className="mx-auto w-[370px] max-w-full mb-12">
-        <CardHeader>
-          <CardTitle className="text-2xl">Login</CardTitle>
-          <CardDescription className="w-full">
+      <Card className="mx-auto w-[380px] max-w-full mb-12 py-0">
+        <CardHeader className="px-6 pt-6 pb-0">
+          <CardTitle className="text-2xl font-bold">Login</CardTitle>
+          <CardDescription>
             {redirectPath
               ? "Login to continue to the requested page"
               : "Enter your email below to login to your account"
             }
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="p-6 space-y-4">
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <Button
               type="button"
               variant="outline"
-              className="w-full mb-2"
+              className="w-full"
               onClick={handleGoogleSignIn}
               disabled={isGoogleLoading}
             >
@@ -225,12 +225,12 @@ export default function LoginClient({ redirectPath }: LoginClientProps) {
                 </>
               )}
             </Button>
-            <div className="relative">
+            <div className="relative py-1">
               <div className="absolute inset-0 flex items-center">
                 <span className="w-full border-t" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">
+                <span className="bg-card px-2 text-muted-foreground font-medium">
                   Or continue with
                 </span>
               </div>
@@ -252,11 +252,11 @@ export default function LoginClient({ redirectPath }: LoginClientProps) {
                 name="password"
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid}>
-                    <div className="flex items-center">
+                    <div className="flex items-center justify-between">
                       <FieldLabel htmlFor={field.name}>Password</FieldLabel>
                       <Link
                         href="/reset-password"
-                        className="ml-auto inline-block text-sm underline"
+                        className="text-xs text-muted-foreground font-medium hover:text-primary transition-colors"
                       >
                         Forgot your password?
                       </Link>
@@ -296,11 +296,11 @@ export default function LoginClient({ redirectPath }: LoginClientProps) {
                 {isLoading ? "Logging in..." : "Login"}
               </Button>
             </div>
-            <div className="mt-4 text-center text-sm">
+            <div className="mt-2 text-center text-sm text-muted-foreground">
               Don&apos;t have an account?{" "}
               <Link
                 href={redirectPath ? `/signup?redirect=${redirectPath}` : "/signup"}
-                className="underline"
+                className="underline text-primary hover:text-primary/80"
               >
                 Sign up
               </Link>

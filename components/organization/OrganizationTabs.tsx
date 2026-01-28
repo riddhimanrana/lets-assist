@@ -17,7 +17,7 @@ import {
   BarChart3
 } from "lucide-react";
 import { format } from "date-fns";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -103,7 +103,7 @@ function LeaveOrganizationDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger render={
+      <DialogTrigger asChild>
         <Button
           variant="outline"
           className="w-full sm:w-auto text-destructive hover:bg-destructive/10"
@@ -111,7 +111,7 @@ function LeaveOrganizationDialog({
           <LogOut className="h-4 w-4 mr-2" />
           Leave Organization
         </Button>
-      } />
+      </DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Leave Organization</DialogTitle>
@@ -218,54 +218,38 @@ export default function OrganizationTabs({
       onValueChange={setActiveTab}
       className="w-full"
     >
-      <TabsList
-        className={cn(
-          "mb-6 w-full max-w-full grid grid-cols-4 gap-1 rounded-md border bg-card p-1 text-muted-foreground shadow-xs sm:inline-flex sm:w-auto sm:flex-nowrap sm:gap-1.5"
-        )}
-      >
-        <TabsTrigger
-          value="overview"
-          className="flex w-full items-center justify-center gap-1.5 px-2 py-1.5 data-[state=active]:text-foreground sm:w-auto sm:justify-start sm:px-3"
-        >
-          <LayoutDashboard className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
-          <span className="sr-only sm:not-sr-only sm:text-sm">Overview</span>
+      <TabsList className="mb-6 flex h-auto w-full sm:w-fit self-start max-w-full items-center justify-start overflow-x-auto bg-muted p-1 text-muted-foreground [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        <TabsTrigger value="overview" className="flex-1 sm:flex-none min-w-0 gap-2 px-3">
+          <LayoutDashboard className="h-4 w-4 shrink-0" />
+          <span className="truncate">Overview</span>
         </TabsTrigger>
-        <TabsTrigger
-          value="members"
-          className="flex w-full items-center justify-center gap-1.5 px-2 py-1.5 data-[state=active]:text-foreground sm:w-auto sm:justify-start sm:px-3"
-        >
-          <Users className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
-          <span className="sr-only sm:not-sr-only sm:text-sm">Members</span>
+        <TabsTrigger value="members" className="flex-1 sm:flex-none min-w-0 gap-2 px-3">
+          <Users className="h-4 w-4 shrink-0" />
+          <span className="truncate">Members</span>
         </TabsTrigger>
-        <TabsTrigger
-          value="projects"
-          className="flex w-full items-center justify-center gap-1.5 px-2 py-1.5 data-[state=active]:text-foreground sm:w-auto sm:justify-start sm:px-3"
-        >
-          <Folders className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
-          <span className="sr-only sm:not-sr-only sm:text-sm">Projects</span>
+        <TabsTrigger value="projects" className="flex-1 sm:flex-none min-w-0 gap-2 px-3">
+          <Folders className="h-4 w-4 shrink-0" />
+          <span className="truncate">Projects</span>
         </TabsTrigger>
         {canViewReports && (
-          <TabsTrigger
-            value="reports"
-            className="flex w-full items-center justify-center gap-1.5 px-2 py-1.5 data-[state=active]:text-foreground sm:w-auto sm:justify-start sm:px-3"
-          >
-            <BarChart3 className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
-            <span className="sr-only sm:not-sr-only sm:text-sm">Reports</span>
+          <TabsTrigger value="reports" className="flex-1 sm:flex-none min-w-0 gap-2 px-3">
+            <BarChart3 className="h-4 w-4 shrink-0" />
+            <span className="truncate">Reports</span>
           </TabsTrigger>
         )}
       </TabsList>
 
       <TabsContent value="overview" className="space-y-6">
         <div className="grid gap-4 sm:gap-6 lg:grid-cols-2 items-stretch justify-items-center sm:justify-items-stretch">
-          {/* About Card */}
           <Card className="flex flex-col overflow-hidden w-full max-w-[560px] sm:max-w-none">
-            <CardContent className="p-4 sm:p-6 flex flex-col flex-1">
-              <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">About</h3>
-              <div className="space-y-4 flex-1">
+            <CardHeader>
+              <CardTitle className="text-xl! font-bold tracking-tight">About</CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm">
                 <div className="min-w-0">
-                  <h4 className="text-xs sm:text-sm font-medium text-muted-foreground mb-1">Description</h4>
+                  <h4 className="text-xs font-medium text-muted-foreground mb-1">Description</h4>
                   <div className="relative">
-                    <p className="text-xs sm:text-sm wrap-break-word leading-relaxed">
+                    <p className="leading-relaxed wrap-break-word">
                       {organization.description || "No description provided."}
                     </p>
                   </div>
@@ -274,8 +258,8 @@ export default function OrganizationTabs({
                   <div className="flex gap-2 min-w-0">
                     <Building2 className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
                     <div className="min-w-0 flex-1">
-                      <h4 className="text-xs sm:text-sm font-medium">Organization Type</h4>
-                      <p className="text-xs sm:text-sm text-muted-foreground capitalize truncate">
+                      <h4 className="text-xs font-medium">Organization Type</h4>
+                      <p className="text-muted-foreground capitalize truncate">
                         {organization.type}
                       </p>
                     </div>
@@ -284,12 +268,12 @@ export default function OrganizationTabs({
                     <div className="flex gap-2 min-w-0">
                       <Globe className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
                       <div className="min-w-0 flex-1">
-                        <h4 className="text-xs sm:text-sm font-medium">Website</h4>
+                        <h4 className="text-xs font-medium">Website</h4>
                         <Link
                           href={organization.website.startsWith('http') ? organization.website : `https://${organization.website}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-xs sm:text-sm text-primary hover:underline truncate block"
+                          className="text-primary hover:underline truncate block"
                         >
                           {organization.website}
                         </Link>
@@ -299,8 +283,8 @@ export default function OrganizationTabs({
                   <div className="flex gap-2 min-w-0">
                     <Calendar className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
                     <div className="min-w-0 flex-1">
-                      <h4 className="text-xs sm:text-sm font-medium">Created</h4>
-                      <p className="text-xs sm:text-sm text-muted-foreground truncate">
+                      <h4 className="text-xs font-medium">Created</h4>
+                      <p className="text-muted-foreground truncate">
                         {organization.created_at
                           ? format(new Date(organization.created_at), "MMMM d, yyyy")
                           : "N/A"}
@@ -309,13 +293,14 @@ export default function OrganizationTabs({
                   </div>
                 </div>
                 <div className="sm:mt-auto sm:pt-2" />
-              </div>
             </CardContent>
           </Card>
           {/* Quick Stats Card */}
           <Card className="flex flex-col overflow-hidden w-full max-w-[560px] sm:max-w-none">
-            <CardContent className="p-4 sm:p-6 flex flex-col flex-1">
-              <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">Quick Stats</h3>
+            <CardHeader>
+              <CardTitle className="text-xl! font-bold tracking-tight">Quick Stats</CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm">
               <div className="grid grid-cols-2 gap-2 sm:gap-3 mb-4">
                 <div className="rounded-md border bg-muted/30 p-2.5 sm:p-3 flex flex-col items-center justify-center min-w-0">
                   <p className="text-base sm:text-lg font-semibold leading-none truncate w-full text-center">{members.length}</p>
@@ -374,163 +359,177 @@ export default function OrganizationTabs({
 
         {userRole && (
           <Card className="overflow-hidden w-full max-w-[560px] sm:max-w-none">
-            <CardContent className="p-4 sm:p-6">
-              <div className="flex flex-col sm:flex-row items-start gap-4">
+            {userRole === "admin" ? (
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="bg-primary/10 p-2 rounded-full h-10 w-10 flex items-center justify-center shrink-0">
+                    <ShieldCheck className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-xl! font-bold tracking-tight">Admin Tools</CardTitle>
+                    <CardDescription className="text-xs">
+                      You have admin privileges for this organization.
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+            ) : userRole === "staff" ? (
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="bg-primary/10 p-2 rounded-full h-10 w-10 flex items-center justify-center shrink-0">
+                    <Folders className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-xl! font-bold tracking-tight">Staff Actions</CardTitle>
+                    <CardDescription className="text-xs">
+                      You can manage projects for this organization.
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+            ) : (
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="bg-primary/10 p-2 rounded-full h-10 w-10 flex items-center justify-center shrink-0">
+                    <Users className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-xl! font-bold tracking-tight">Member Actions</CardTitle>
+                    <CardDescription className="text-xs">
+                      Manage your membership in this organization.
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+            )}
+            <CardContent className="text-sm">
+              <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2">
                 {userRole === "admin" ? (
                   <>
-                    <div className="bg-primary/10 p-3 rounded-full h-12 w-12 flex items-center justify-center shrink-0">
-                      <ShieldCheck className="h-6 w-6 text-primary" />
-                    </div>
-                    <div className="w-full">
-                      <h3 className="font-semibold mb-1">Admin Tools</h3>
-                      <p className="text-sm text-muted-foreground mb-3">
-                        You have admin privileges for this organization.
-                      </p>
-                      <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2">
-                        <Link href={`/organization/${organization.username}/settings`}>
-                          <Button variant="outline" className="w-full sm:w-auto cursor-pointer hover:bg-muted">
-                            Organization Settings
-                          </Button>
-                        </Link>
-                        <Dialog>
-                          <DialogTrigger render={
-                            <Button variant="outline" className="w-full sm:w-auto cursor-pointer hover:bg-muted">
-                              Apply for Verification
-                            </Button>
-                          } />
-                          <DialogContent className="sm:max-w-2xl">
-                            <DialogHeader>
-                              <DialogTitle className="text-2xl font-bold text-center pb-2">
-                                Organization Verification
-                              </DialogTitle>
-                              <DialogDescription className="text-center text-base">
-                                Get your organization verified to build trust with volunteers and partners
-                              </DialogDescription>
-                            </DialogHeader>
+                    <Link href={`/organization/${organization.username}/settings`}>
+                      <Button variant="outline" className="w-full sm:w-auto cursor-pointer hover:bg-muted">
+                        Organization Settings
+                      </Button>
+                    </Link>
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button variant="outline" className="w-full sm:w-auto cursor-pointer hover:bg-muted">
+                          Apply for Verification
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="sm:max-w-2xl">
+                        <DialogHeader>
+                          <DialogTitle className="text-2xl font-bold text-center pb-2">
+                            Organization Verification
+                          </DialogTitle>
+                          <DialogDescription className="text-center text-base">
+                            Get your organization verified to build trust with volunteers and partners
+                          </DialogDescription>
+                        </DialogHeader>
 
-                            <div className="mt-4 space-y-4">
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                <div className="flex items-center gap-3 p-3 border rounded-lg hover:bg-muted/50 cursor-pointer">
-                                  <div className="bg-primary/10 p-2 rounded-full">
-                                    <Globe className="h-4 w-4 text-primary" />
-                                  </div>
-                                  <div>
-                                    <h3 className="font-medium text-sm">Official Email Verification</h3>
-                                    <p className="text-xs text-muted-foreground">Send email from your domain to <span className="text-primary">support@lets-assist.com</span></p>
-                                  </div>
-                                </div>
-
-                                <div className="flex items-center gap-3 p-3 border rounded-lg hover:bg-muted/50 cursor-pointer">
-                                  <div className="bg-primary/10 p-2 rounded-full">
-                                    <Folders className="h-4 w-4 text-primary" />
-                                  </div>
-                                  <div>
-                                    <h3 className="font-medium text-sm">Portfolio Evidence</h3>
-                                    <p className="text-xs text-muted-foreground">Submit documentation of previous projects</p>
-                                  </div>
-                                </div>
-
-                                <div className="flex items-center gap-3 p-3 border rounded-lg hover:bg-muted/50 cursor-pointer">
-                                  <div className="bg-primary/10 p-2 rounded-full">
-                                    <Calendar className="h-4 w-4 text-primary" />
-                                  </div>
-                                  <div>
-                                    <h3 className="font-medium text-sm">Activity Records</h3>
-                                    <p className="text-xs text-muted-foreground">Provide proof of volunteer hours and initiatives</p>
-                                  </div>
-                                </div>
-
-                                <div className="flex items-center gap-3 p-3 border rounded-lg hover:bg-muted/50 cursor-pointer">
-                                  <div className="bg-primary/10 p-2 rounded-full">
-                                    <ShieldCheck className="h-4 w-4 text-primary" />
-                                  </div>
-                                  <div>
-                                    <h3 className="font-medium text-sm">Legal Documentation</h3>
-                                    <p className="text-xs text-muted-foreground">Submit registration certificates or credentials</p>
-                                  </div>
-                                </div>
+                        <div className="mt-4 space-y-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div className="flex items-center gap-3 p-3 border rounded-lg hover:bg-muted/50 cursor-pointer">
+                              <div className="bg-primary/10 p-2 rounded-full">
+                                <Globe className="h-4 w-4 text-primary" />
                               </div>
-
-                              <div className="mt-10 flex justify-center">
-                                <div className="space-y-6 max-w-sm mt-6">
-                                  <div className="flex items-center gap-4">
-                                    <div className="bg-primary/10 p-3 rounded-full h-10 w-10 flex items-center justify-center shrink-0">
-                                      <span className="text-primary font-semibold">1</span>
-                                    </div>
-                                    <div className="text-left">
-                                      <p className="text-sm font-medium">Send Email</p>
-                                      <p className="text-xs text-muted-foreground">Submit verification materials to <Link href="mailto:support@lets-assist.com" className="text-primary hover:underline">support@lets-assist.com</Link></p>
-                                    </div>
-                                  </div>
-
-                                  <div className="flex items-center gap-4">
-                                    <div className="bg-primary/10 p-3 rounded-full h-10 w-10 flex items-center justify-center shrink-0">
-                                      <span className="text-primary font-semibold">2</span>
-                                    </div>
-                                    <div className="text-left">
-                                      <p className="text-sm font-medium">Review Process</p>
-                                      <p className="text-xs text-muted-foreground">We&apos;ll contact you shortly</p>
-                                    </div>
-                                  </div>
-
-                                  <div className="flex items-center gap-4">
-                                    <div className="bg-primary/10 p-3 rounded-full h-10 w-10 flex items-center justify-center shrink-0">
-                                      <span className="text-primary font-semibold">3</span>
-                                    </div>
-                                    <div className="text-left">
-                                      <p className="text-sm font-medium">Get Verified</p>
-                                      <p className="text-xs text-muted-foreground">Receive verified badge</p>
-                                    </div>
-                                  </div>
-                                </div>
+                              <div>
+                                <h3 className="font-medium text-sm">Official Email Verification</h3>
+                                <p className="text-xs text-muted-foreground">Send email from your domain to <span className="text-primary">support@lets-assist.com</span></p>
                               </div>
                             </div>
 
-                            <DialogClose render={<Button className="ml-auto">Close</Button>} />
-                          </DialogContent>
-                        </Dialog>
-                      </div>
-                    </div>
+                            <div className="flex items-center gap-3 p-3 border rounded-lg hover:bg-muted/50 cursor-pointer">
+                              <div className="bg-primary/10 p-2 rounded-full">
+                                <Folders className="h-4 w-4 text-primary" />
+                              </div>
+                              <div>
+                                <h3 className="font-medium text-sm">Portfolio Evidence</h3>
+                                <p className="text-xs text-muted-foreground">Submit documentation of previous projects</p>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-3 p-3 border rounded-lg hover:bg-muted/50 cursor-pointer">
+                              <div className="bg-primary/10 p-2 rounded-full">
+                                <Calendar className="h-4 w-4 text-primary" />
+                              </div>
+                              <div>
+                                <h3 className="font-medium text-sm">Activity Records</h3>
+                                <p className="text-xs text-muted-foreground">Provide proof of volunteer hours and initiatives</p>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-3 p-3 border rounded-lg hover:bg-muted/50 cursor-pointer">
+                              <div className="bg-primary/10 p-2 rounded-full">
+                                <ShieldCheck className="h-4 w-4 text-primary" />
+                              </div>
+                              <div>
+                                <h3 className="font-medium text-sm">Legal Documentation</h3>
+                                <p className="text-xs text-muted-foreground">Submit registration certificates or credentials</p>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="mt-10 flex justify-center">
+                            <div className="space-y-6 max-w-sm mt-6">
+                              <div className="flex items-center gap-4">
+                                <div className="bg-primary/10 p-3 rounded-full h-10 w-10 flex items-center justify-center shrink-0">
+                                  <span className="text-primary font-semibold">1</span>
+                                </div>
+                                <div className="text-left">
+                                  <p className="text-sm font-medium">Send Email</p>
+                                  <p className="text-xs text-muted-foreground">Submit verification materials to <Link href="mailto:support@lets-assist.com" className="text-primary hover:underline">support@lets-assist.com</Link></p>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-4">
+                                <div className="bg-primary/10 p-3 rounded-full h-10 w-10 flex items-center justify-center shrink-0">
+                                  <span className="text-primary font-semibold">2</span>
+                                </div>
+                                <div className="text-left">
+                                  <p className="text-sm font-medium">Review Process</p>
+                                  <p className="text-xs text-muted-foreground">We&apos;ll contact you shortly</p>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-4">
+                                <div className="bg-primary/10 p-3 rounded-full h-10 w-10 flex items-center justify-center shrink-0">
+                                  <span className="text-primary font-semibold">3</span>
+                                </div>
+                                <div className="text-left">
+                                  <p className="text-sm font-medium">Get Verified</p>
+                                  <p className="text-xs text-muted-foreground">Receive verified badge</p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <DialogClose asChild>
+                          <Button className="ml-auto">Close</Button>
+                        </DialogClose>
+                      </DialogContent>
+                    </Dialog>
                   </>
                 ) : userRole === "staff" ? (
                   <>
-                    <div className="bg-primary/10 p-3 rounded-full h-12 w-12 flex items-center justify-center shrink-0">
-                      <Folders className="h-6 w-6 text-primary" />
-                    </div>
-                    <div className="w-full">
-                      <h3 className="font-semibold mb-1">Staff Actions</h3>
-                      <p className="text-sm text-muted-foreground mb-3">
-                        You can manage projects for this organization
-                      </p>
-                      <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2">
-                        <Link href={`/projects/create?org=${organization.id}`}>
-                          <Button variant="outline" className="w-full sm:w-auto cursor-pointer hover:bg-muted">
-                            <Folders className="h-4 w-4 mr-2" />
-                            Create Project
-                          </Button>
-                        </Link>
-                        <LeaveOrganizationDialog
-                          organization={organization}
-                          userRole={userRole}
-                        />
-                      </div>
-                    </div>
+                    <Link href={`/projects/create?org=${organization.id}`}>
+                      <Button variant="outline" className="w-full sm:w-auto cursor-pointer hover:bg-muted">
+                        <Folders className="h-4 w-4 mr-2" />
+                        Create Project
+                      </Button>
+                    </Link>
+                    <LeaveOrganizationDialog
+                      organization={organization}
+                      userRole={userRole}
+                    />
                   </>
                 ) : (
                   <>
-                    <div className="bg-primary/10 p-3 rounded-full h-12 w-12 flex items-center justify-center shrink-0">
-                      <Users className="h-6 w-6 text-primary" />
-                    </div>
-                    <div className="w-full">
-                      <h3 className="font-semibold mb-1">Member Actions</h3>
-                      <p className="text-sm text-muted-foreground mb-3">
-                        Manage your membership in this organization
-                      </p>
-                      <LeaveOrganizationDialog
-                        organization={organization}
-                        userRole={userRole}
-                      />
-                    </div>
+                    <LeaveOrganizationDialog
+                      organization={organization}
+                      userRole={userRole}
+                    />
                   </>
                 )}
               </div>
