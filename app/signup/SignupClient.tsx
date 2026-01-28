@@ -221,9 +221,9 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
 
   return (
     <div className="flex items-center justify-center min-h-screen p-4">
-      <Card className="w-full max-w-sm mx-auto mb-12">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl text-left">
+      <Card className="w-full max-w-[400px] mx-auto mb-12 py-0">
+        <CardHeader className="space-y-1 px-6 pt-6 pb-0">
+          <CardTitle className="text-2xl font-bold text-left">
             {isStaffInvite ? "Staff Invite" : "Create an account"}
           </CardTitle>
           <CardDescription className="text-left">
@@ -234,7 +234,7 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
                 : "Enter your details below to create your account"}
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-6 space-y-4">
 
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <Button
@@ -267,12 +267,12 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
                 </>
               )}
             </Button>
-            <div className="relative">
+            <div className="relative py-1">
               <div className="absolute inset-0 flex items-center">
                 <span className="w-full border-t" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">
+                <span className="bg-card px-2 text-muted-foreground font-medium">
                   Or continue with
                 </span>
               </div>
@@ -308,12 +308,12 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
                   <Input id={field.name} type="password" {...field} aria-invalid={fieldState.invalid} />
                   {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
                   <div className="mt-3 space-y-2">
-                    <div className="rounded-lg bg-[hsl(var(--warning)/0.15)] border border-[hsl(var(--warning)/0.4)] p-3 shadow-xs">
-                      <p className="text-xs font-semibold text-[hsl(var(--warning))] dark:text-[hsl(var(--warning))] mb-2 flex items-center gap-2">
-                        <AlertCircle className="h-3.5 w-3.5" />
+                    <div className="rounded-lg bg-warning/10 border border-warning/20 p-4 shadow-xs">
+                      <p className="text-xs font-semibold text-warning mb-2.5 flex items-center gap-2">
+                        <AlertCircle className="h-4 w-4" />
                         Password Requirements
                       </p>
-                      <ul className="space-y-1.5 text-xs text-[hsl(var(--warning))] dark:text-[hsl(var(--warning))] opacity-90">
+                      <ul className="space-y-2 text-xs text-warning/90">
                         <li className="flex items-start gap-2">
                           <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                           <span>At least 8 characters long</span>
@@ -328,16 +328,6 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
                 </Field>
               )}
             />
-            <p className="text-sm text-muted-foreground text-center">
-              By joining, you agree to our{" "}
-              <Link href="/terms" className="text-primary hover:underline">
-                Terms of Service
-              </Link>{" "}
-              and{" "}
-              <Link href="/privacy" className="text-primary hover:underline">
-                Privacy Policy
-              </Link>
-            </p>
             <div className="flex justify-center">
               <div className="relative w-[300px] h-[65px] overflow-hidden bg-muted/30 rounded-lg flex items-center justify-center border border-border/50">
                 {!turnstileReady && (
@@ -364,7 +354,7 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? "Creating Account..." : "Create Account"}
             </Button>
-            <div className="mt-4 text-center text-sm">
+            <div className="mt-2 text-center text-sm">
               Already have an account?{" "}
               <Link
                 href={redirectPath ? `/login?redirect=${encodeURIComponent(redirectPath)}` : "/login"}

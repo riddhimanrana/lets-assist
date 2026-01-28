@@ -284,9 +284,9 @@ export const ProjectsInfiniteScroll: React.FC = () => {
     let filledSpots = 0;
 
     if (project.signups && Array.isArray(project.signups)) {
-      // Count confirmed signups only
+      // Count confirmed and pending signups to avoid overestimating availability
       filledSpots = project.signups.filter((signup) =>
-        signup.status === "approved"
+        signup.status === "approved" || signup.status === "pending"
       ).length;
     } else if (project.slots_filled) {
       // If project has a direct slots_filled count

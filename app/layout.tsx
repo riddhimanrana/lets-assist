@@ -77,7 +77,7 @@ export const metadata: Metadata = {
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
-})
+});
 
 const overusedgrotesk = localFont({
   src: "../public/fonts/OverusedGrotesk-VF.woff2",
@@ -95,7 +95,6 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-
   return (
     <html lang="en" className={inter.className} suppressHydrationWarning>
       <head />
@@ -113,7 +112,7 @@ export default async function RootLayout({
               <GlobalNotificationProvider>
                 <div className="bg-background text-foreground min-h-screen flex flex-col w-full">
                   <Navbar />
-                  <Toaster />
+                  <Toaster richColors />
                   <main className="flex-1 w-full">{children}</main>
                   <QueryMessageToast />
                   <Footer />
