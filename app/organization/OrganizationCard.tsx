@@ -9,7 +9,7 @@ import { NoAvatar } from "@/components/shared/NoAvatar";
 import type { Organization } from "@/types";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-type OrganizationCardOrg = Organization & {
+type OrganizationCardOrg = Omit<Organization, "description" | "website" | "logo_url" | "type"> & {
   description?: string | null;
   website?: string | null;
   logo_url?: string | null;
@@ -41,7 +41,7 @@ export default function OrganizationCard({ org, memberCount, isUserMember = fals
                 {org.name}
               </CardTitle>
               {org.verified && (
-                <Tooltip delayDuration={150}>
+                <Tooltip>
                   <TooltipTrigger>
                     <BadgeCheck className="h-4 w-4 shrink-0 text-primary" />
                   </TooltipTrigger>

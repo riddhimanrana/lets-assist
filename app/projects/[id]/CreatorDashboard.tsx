@@ -374,7 +374,7 @@ export default function CreatorDashboard({ project }: Props) {
 
             <TooltipProvider>
               <Tooltip>
-                <TooltipTrigger>
+                <TooltipTrigger render={
                   <span className="w-full sm:w-auto">
                     <Button
                       variant="outline"
@@ -386,7 +386,7 @@ export default function CreatorDashboard({ project }: Props) {
                       Contact All Signups
                     </Button>
                   </span>
-                </TooltipTrigger>
+                } />
                 <TooltipContent className="max-w-[300px] p-2">
                   <p>Open your email client with all volunteer emails pre-populated in BCC field</p>
                 </TooltipContent>
@@ -399,7 +399,7 @@ export default function CreatorDashboard({ project }: Props) {
             {/* Calendar Sync Button */}
             <TooltipProvider>
               <Tooltip>
-                <TooltipTrigger>
+                <TooltipTrigger render={
                   <span className="w-full sm:w-auto">
                     <Button
                       variant="outline"
@@ -422,7 +422,7 @@ export default function CreatorDashboard({ project }: Props) {
                       )}
                     </Button>
                   </span>
-                </TooltipTrigger>
+                } />
                 <TooltipContent className="max-w-[280px] p-2">
                   <p>
                     {isCalendarSynced
@@ -441,7 +441,7 @@ export default function CreatorDashboard({ project }: Props) {
               <div className="w-full sm:w-auto">
                 <TooltipProvider>
                   <Tooltip>
-                    <TooltipTrigger>
+                    <TooltipTrigger render={
                       <span className="w-full sm:w-auto">
                         <Button
                           variant="outline"
@@ -452,7 +452,7 @@ export default function CreatorDashboard({ project }: Props) {
                           Manage Hours
                         </Button>
                       </span>
-                    </TooltipTrigger>
+                    } />
                     {/* --- Update tooltip content to use activeUnpublishedSessionsInEditingWindow --- */}
                     <TooltipContent className="max-w-[280px] p-2">
                       <p>
@@ -588,8 +588,8 @@ export default function CreatorDashboard({ project }: Props) {
                     <div className="mt-3">
                       <TooltipProvider>
                         <Tooltip>
-                          <TooltipTrigger>
-                            {/* Span needed for tooltip on disabled button */}
+                          <TooltipTrigger render={
+                            /* Span needed for tooltip on disabled button */
                             <span className="inline-block" tabIndex={hasActiveUnpublishedSessions ? -1 : 0}>
                               {hasActiveUnpublishedSessions ? (
                                 <Link
@@ -609,7 +609,7 @@ export default function CreatorDashboard({ project }: Props) {
                                 </Button>
                               )}
                             </span>
-                          </TooltipTrigger>
+                          } />
                           {/* Tooltip for disabled button */}
                           {!hasActiveUnpublishedSessions && (
                             <TooltipContent>
@@ -708,7 +708,7 @@ export default function CreatorDashboard({ project }: Props) {
                       </Link>
                       <TooltipProvider>
                         <Tooltip>
-                          <TooltipTrigger>
+                          <TooltipTrigger render={
                             <span className="inline-block" tabIndex={hasActiveUnpublishedSessions ? -1 : 0}>
                               {hasActiveUnpublishedSessions ? (
                                 <Link
@@ -728,7 +728,7 @@ export default function CreatorDashboard({ project }: Props) {
                                 </Button>
                               )}
                             </span>
-                          </TooltipTrigger>
+                          } />
                           {/* Tooltip for disabled button */}
                           {!hasActiveUnpublishedSessions && (
                             <TooltipContent>

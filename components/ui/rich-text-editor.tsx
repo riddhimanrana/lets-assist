@@ -25,6 +25,19 @@ export function RichTextEditor({
     // Removed manual character count state
     const [mounted, setMounted] = useState(false);
 
+    // Function to sanitize HTML content - preserves internal spacing but trims trailing empty paragraphs
+    const sanitizeContent = (html: string): string => {
+        // Remove only trailing empty paragraphs (empty or containing only br/whitespace)
+        // This preserves intentional blank lines within the content
+        let sanitized = html;
+
+        // Pattern to match trailing empty paragraphs at the very end
+        const trailingEmptyPattern = /(<p>\s*(<br\s*\/?>)?\s*<\/p>\s*)+$/gi;
+        sanitized = sanitized.replace(trailingEmptyPattern, '');
+
+        return sanitized;
+    };
+
     const extensions = [
         StarterKit.configure({
             bulletList: {
@@ -65,8 +78,9 @@ export function RichTextEditor({
         content: content,
         onUpdate: ({ editor }) => {
             const html = editor.getHTML();
-            // Removed manual character count update
-            onChange(html);
+            // Sanitize to remove trailing empty paragraphs while preserving internal spacing
+            const sanitizedHtml = sanitizeContent(html);
+            onChange(sanitizedHtml);
         },
         immediatelyRender: false,
         editorProps: {

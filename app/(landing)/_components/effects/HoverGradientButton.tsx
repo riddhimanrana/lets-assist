@@ -1,8 +1,11 @@
 "use client";
 
 import * as React from "react";
-import { Button, type ButtonProps } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { VariantProps } from "class-variance-authority";
+
+type ButtonProps = React.ComponentProps<typeof Button> & VariantProps<typeof buttonVariants>;
 
 export const HoverGradientButton = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, children, ...props }, ref) => {

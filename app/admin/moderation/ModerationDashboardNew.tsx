@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -26,6 +26,8 @@ import {
   Sparkles,
   Loader2,
   Wrench,
+  MoreHorizontal,
+  Filter,
 } from 'lucide-react';
 import {
   Dialog,
@@ -34,13 +36,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from '@/components/ui/sheet';
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  DropdownMenuGroup,
+} from "@/components/ui/dropdown-menu";
 import {
   Collapsible,
   CollapsibleContent,
@@ -61,6 +66,8 @@ import {
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import Link from 'next/link';
+import { DataTable } from './data-table';
+import { getReportColumns, getFlaggedColumns } from './columns';
 
 // Types
 type AiReasoningStep = {
@@ -496,6 +503,22 @@ export default function ModerationDashboard({
     await handleReportStatusChange(report.id, action, 'Approved AI recommendation');
   };
 
+  const reportColumns = useMemo(() => getReportColumns(
+    setSelectedReport,
+    (id) => handleReportStatusChange(id, 'resolved', 'Resolved via dashboard'),
+    (id) => handleReportStatusChange(id, 'dismissed', 'Dismissed via dashboard'),
+    (id) => handleManualReportAction(id, 'block_content', 'Blocked via quick action'),
+    handleReportAiApproval
+  ), [handleReportStatusChange, handleManualReportAction, handleReportAiApproval]);
+
+  const flaggedColumns = useMemo(() => getFlaggedColumns(
+    setSelectedFlag,
+    handleRunAiReviewForFlag,
+    (id) => handleFlagStatusUpdate(id, 'confirmed', 'Confirmed violation'),
+    (id) => handleFlagStatusUpdate(id, 'dismissed', 'False positive'),
+    (id) => handleFlagStatusUpdate(id, 'blocked', 'Blocked for policy violation')
+  ), [handleRunAiReviewForFlag, handleFlagStatusUpdate]);
+
   const getSeverityColor = (severity?: string): 'secondary' | 'destructive' | 'default' => {
     switch ((severity || '').toLowerCase()) {
       case 'critical':
@@ -564,56 +587,76 @@ export default function ModerationDashboard({
     <TooltipProvider>
       <div className="container mx-auto max-w-7xl space-y-6 p-4 md:p-6">
         {/* Unified Header Row */}
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex-1">
-            <h1 className="text-2xl font-bold tracking-tight">Content Moderation</h1>
-            <p className="text-sm text-muted-foreground">
-              Review flagged content and user reports with AI-powered analysis.
-            </p>
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight">Content Moderation</h1>
+              <p className="text-muted-foreground mt-1">
+                Unified control center for AI insights, user reports, and content safety.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" className="hidden sm:flex" disabled>
+                <Filter className="mr-2 h-4 w-4" />
+                Waitlist
+              </Button>
+              <Button
+                onClick={handleRunAiScan}
+                disabled={isScanActive}
+                className={cn(isScanActive && "animate-pulse")}
+              >
+                {isScanActive ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="mr-2 h-4 w-4" />
+                )}
+                {isScanActive ? 'Scanning...' : 'Run Operations Scan'}
+              </Button>
+            </div>
           </div>
 
-          {/* Stats in header */}
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2">
-              <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-              <div className="text-sm">
-                <span className="font-semibold">{stats.total}</span>
-                <span className="text-muted-foreground ml-1">flagged</span>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2">
-              <Clock className="h-4 w-4 text-amber-500" />
-              <div className="text-sm">
-                <span className="font-semibold">{stats.pending}</span>
-                <span className="text-muted-foreground ml-1">pending</span>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2">
-              <ShieldAlert className="h-4 w-4 text-destructive" />
-              <div className="text-sm">
-                <span className="font-semibold">{stats.critical}</span>
-                <span className="text-muted-foreground ml-1">critical</span>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2">
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-              <div className="text-sm">
-                <span className="font-semibold">{stats.recentWeek}</span>
-                <span className="text-muted-foreground ml-1">this week</span>
-              </div>
-            </div>
-            <Button
-              onClick={handleRunAiScan}
-              disabled={isScanActive}
-              className="ml-2"
-            >
-              {isScanActive ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Sparkles className="mr-2 h-4 w-4" />
-              )}
-              Run AI Scan
-            </Button>
+          {/* Stats Overview Grid */}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card className="shadow-sm">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Flagged Items</CardTitle>
+                <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.total}</div>
+                <p className="text-xs text-muted-foreground">Total flags requiring review</p>
+              </CardContent>
+            </Card>
+            <Card className="shadow-sm">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Pending Review</CardTitle>
+                <Clock className="h-4 w-4 text-amber-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.pending}</div>
+                <p className="text-xs text-muted-foreground">Awaiting moderator action</p>
+              </CardContent>
+            </Card>
+            <Card className="shadow-sm border-l-4 border-l-destructive">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Critical Issues</CardTitle>
+                <ShieldAlert className="h-4 w-4 text-destructive" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.critical}</div>
+                <p className="text-xs text-muted-foreground">High priority violations</p>
+              </CardContent>
+            </Card>
+            <Card className="shadow-sm">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Recent Activity</CardTitle>
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.recentWeek}</div>
+                <p className="text-xs text-muted-foreground">New items this week</p>
+              </CardContent>
+            </Card>
           </div>
         </div>
 
@@ -751,142 +794,21 @@ export default function ModerationDashboard({
                         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                       </div>
                     ) : contentReports.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center py-12 text-center">
-                        <CheckCircle className="mb-4 h-12 w-12 text-muted-foreground" />
-                        <h3 className="text-lg font-semibold">No reports found</h3>
-                        <p className="text-sm text-muted-foreground">There are no reports in this state.</p>
+                      <div className="flex flex-col items-center justify-center py-16 text-center border-2 border-dashed rounded-lg bg-muted/20">
+                        <CheckCircle className="mb-4 h-12 w-12 text-muted-foreground/50" />
+                        <h3 className="text-xl font-semibold">All caught up!</h3>
+                        <p className="text-muted-foreground mt-2 max-w-sm mx-auto">
+                          There are no reports in the <span className="font-medium text-foreground">{reportFilter}</span> queue right now.
+                        </p>
                       </div>
                     ) : (
-                      <div className="overflow-hidden rounded-md border">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Case</TableHead>
-                              <TableHead>AI Analysis</TableHead>
-                              <TableHead className="hidden md:table-cell w-[120px]">Status</TableHead>
-                              <TableHead className="text-right w-[120px]">Actions</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {contentReports.map((report) => {
-                              const ai = report.ai_metadata;
-                              const canQuickResolve = ['pending', 'under_review', null].includes(report.status ?? null);
-
-                              const reporteeName = report.content_type === 'project'
-                                ? (report.content_details?.title || report.creator_details?.full_name || 'Unknown project')
-                                : (report.creator_details?.full_name || report.creator_details?.username || 'Unknown user');
-
-                              return (
-                                <TableRow
-                                  key={report.id}
-                                  className="cursor-pointer hover:bg-muted/50"
-                                  onClick={() => setSelectedReport(report)}
-                                >
-                                  <TableCell>
-                                    <div className="flex flex-col gap-1.5">
-                                      <Badge
-                                        variant={report.content_type === 'project' ? 'default' : 'secondary'}
-                                        className="w-fit text-[11px]"
-                                      >
-                                        {report.content_type === 'project' ? '📋 Project' : '👤 Profile'}
-                                      </Badge>
-                                      <span className="font-medium text-sm">{reporteeName}</span>
-                                      <p className="text-xs text-muted-foreground">
-                                        {formatSafeDate(report.created_at)}
-                                      </p>
-                                    </div>
-                                  </TableCell>
-                                  <TableCell>
-                                    {ai?.triagedAt ? (
-                                      <div className="space-y-1">
-                                        <div className="flex items-center gap-2">
-                                          <Bot className="h-4 w-4 text-primary shrink-0" />
-                                          <span className="font-medium text-sm line-clamp-1">
-                                            {ai.verdict || 'Analyzed'}
-                                          </span>
-                                        </div>
-                                        {ai.shortSummary && (
-                                          <p className="text-xs text-muted-foreground line-clamp-2">
-                                            {ai.shortSummary}
-                                          </p>
-                                        )}
-                                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                          <Badge variant="outline" className="text-[10px] capitalize">
-                                            {formatAiRecommendation(ai.recommendedAction, ai.suggestedStatus)}
-                                          </Badge>
-                                          <span>•</span>
-                                          <span>{formatConfidencePercent(ai.confidence)} confident</span>
-                                        </div>
-                                      </div>
-                                    ) : (
-                                      <div className="flex items-center gap-2 text-muted-foreground">
-                                        <Clock className="h-4 w-4" />
-                                        <span className="text-xs">Awaiting AI scan</span>
-                                      </div>
-                                    )}
-                                  </TableCell>
-                                  <TableCell className="hidden md:table-cell">
-                                    <div className="flex flex-col gap-1.5">
-                                      <div className="flex items-center gap-1.5">
-                                        {getStatusIcon(report.status)}
-                                        <span className="text-sm font-medium capitalize">
-                                          {(report.status || 'pending').replace(/_/g, ' ')}
-                                        </span>
-                                      </div>
-                                      <Badge variant={getPriorityVariant(report.priority)} className="w-fit text-[10px]">
-                                        {report.priority || 'normal'}
-                                      </Badge>
-                                    </div>
-                                  </TableCell>
-                                  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                                    <div className="flex items-center justify-end gap-1">
-                                      {ai?.suggestedStatus && canQuickResolve && (
-                                        <Tooltip>
-                                          <TooltipTrigger render={
-                                            <Button
-                                              variant="ghost"
-                                              size="icon"
-                                              className="text-primary hover:text-primary/90 hover:bg-primary/10"
-                                              onClick={() => handleReportAiApproval(report)}
-                                              disabled={isActionLoading}
-                                            >
-                                              <Sparkles className="h-4 w-4" />
-                                            </Button>
-                                          } />
-                                          <TooltipContent side="top">Approve AI</TooltipContent>
-                                        </Tooltip>
-                                      )}
-                                      <Tooltip>
-                                        <TooltipTrigger render={
-                                          <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            onClick={() => setSelectedReport(report)}
-                                          >
-                                            <Eye className="h-4 w-4" />
-                                          </Button>
-                                        } />
-                                        <TooltipContent side="top">View Details</TooltipContent>
-                                      </Tooltip>
-                                      {canQuickResolve && (
-                                        <Tooltip>
-                                          <TooltipTrigger
-                                            className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "text-muted-foreground hover:text-destructive")}
-                                            onClick={() => handleReportStatusChange(report.id, 'dismissed', REPORT_DISMISS_NOTE)}
-                                            disabled={isActionLoading}
-                                          >
-                                            <XCircle className="h-4 w-4" />
-                                          </TooltipTrigger>
-                                          <TooltipContent side="top">Dismiss</TooltipContent>
-                                        </Tooltip>
-                                      )}
-                                    </div>
-                                  </TableCell>
-                                </TableRow>
-                              );
-                            })}
-                          </TableBody>
-                        </Table>
+                      <div className="rounded-lg bg-card shadow-sm overflow-hidden">
+                        {/* @ts-ignore - structural typing match mostly fine, ignoring distinct type definition mismatch for now */}
+                        <DataTable
+                          columns={reportColumns}
+                          data={contentReports}
+                          searchKey="reason"
+                        />
                       </div>
                     )}
                   </TabsContent>
@@ -924,124 +846,21 @@ export default function ModerationDashboard({
                         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                       </div>
                     ) : flaggedContent.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center py-12 text-center">
-                        <CheckCircle className="mb-4 h-12 w-12 text-muted-foreground" />
-                        <h3 className="text-lg font-semibold">No items found</h3>
-                        <p className="text-sm text-muted-foreground">There are no flagged items in this state.</p>
+                      <div className="flex flex-col items-center justify-center py-16 text-center border-2 border-dashed rounded-lg bg-muted/20">
+                        <CheckCircle className="mb-4 h-12 w-12 text-muted-foreground/50" />
+                        <h3 className="text-xl font-semibold">Clean Slate!</h3>
+                        <p className="text-muted-foreground mt-2 max-w-sm mx-auto">
+                          No flagged content found in the <span className="font-medium text-foreground">{flaggedFilter}</span> queue.
+                        </p>
                       </div>
                     ) : (
-                      <div className="overflow-hidden rounded-md border">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Flag</TableHead>
-                              <TableHead className="hidden md:table-cell w-[120px]">Status</TableHead>
-                              <TableHead className="hidden sm:table-cell w-[130px]">Severity</TableHead>
-                              <TableHead className="text-right w-[160px]">Actions</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {flaggedContent.map((item) => (
-                              <TableRow key={item.id}>
-                                <TableCell>
-                                  <div className="flex flex-col gap-1">
-                                    <div className="flex flex-wrap items-center gap-2">
-                                      <Badge variant="outline" className="capitalize">
-                                        {item.content_type || 'Content'}
-                                      </Badge>
-                                      {item.flag_type && (
-                                        <Badge variant="secondary" className="text-[10px] uppercase">
-                                          {item.flag_type.replace(/_/g, ' ')}
-                                        </Badge>
-                                      )}
-                                      <span className="text-xs text-muted-foreground">
-                                        {formatSafeDate(item.created_at)}
-                                      </span>
-                                    </div>
-                                    <div className="text-sm font-medium">{getFlagContentTitle(item)}</div>
-                                    {item.creator_details && (
-                                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                        <User className="h-3.5 w-3.5" />
-                                        <span>
-                                          {item.creator_details.full_name || item.creator_details.username || 'Unknown'}
-                                        </span>
-                                      </div>
-                                    )}
-                                  </div>
-                                </TableCell>
-                                <TableCell className="hidden md:table-cell">
-                                  <Badge variant={getFlagStatusVariant(item.status)} className="text-[10px] capitalize">
-                                    {formatFlagStatus(item.status)}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell className="hidden sm:table-cell">
-                                  <Badge variant={getSeverityColor(item.severity)} className="text-[11px]">
-                                    {item.severity?.toUpperCase() || 'UNKNOWN'}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  <div className="flex items-center justify-end gap-1.5">
-                                    <Tooltip>
-                                      <TooltipTrigger
-                                        className={cn(buttonVariants({ variant: "ghost", size: "icon" }))}
-                                        onClick={() => setSelectedFlag(item)}
-                                      >
-                                        <Eye className="h-4 w-4" />
-                                      </TooltipTrigger>
-                                      <TooltipContent>View</TooltipContent>
-                                    </Tooltip>
-                                    {item.content_type === 'project' && item.content_id && (
-                                      <Tooltip>
-                                        <TooltipTrigger
-                                          className={cn(buttonVariants({ variant: "ghost", size: "icon" }))}
-                                          onClick={() => handleRunAiReviewForFlag(item)}
-                                          disabled={isActionLoading}
-                                        >
-                                          <Sparkles className="h-4 w-4" />
-                                        </TooltipTrigger>
-                                        <TooltipContent>Run AI review</TooltipContent>
-                                      </Tooltip>
-                                    )}
-                                    {flaggedFilter === 'pending' && (
-                                      <>
-                                        <Tooltip>
-                                          <TooltipTrigger
-                                            className={cn(buttonVariants({ variant: "ghost", size: "icon" }))}
-                                            onClick={() => handleFlagStatusUpdate(item.id, 'blocked', 'Blocked for policy violation')}
-                                            disabled={isActionLoading}
-                                          >
-                                            <ShieldX className="h-4 w-4" />
-                                          </TooltipTrigger>
-                                          <TooltipContent>Block</TooltipContent>
-                                        </Tooltip>
-                                        <Tooltip>
-                                          <TooltipTrigger
-                                            className={cn(buttonVariants({ variant: "ghost", size: "icon" }))}
-                                            onClick={() => handleFlagStatusUpdate(item.id, 'confirmed', 'Confirmed violation')}
-                                            disabled={isActionLoading}
-                                          >
-                                            <CheckCircle className="h-4 w-4" />
-                                          </TooltipTrigger>
-                                          <TooltipContent>Confirm</TooltipContent>
-                                        </Tooltip>
-                                        <Tooltip>
-                                          <TooltipTrigger
-                                            className={cn(buttonVariants({ variant: "ghost", size: "icon" }))}
-                                            onClick={() => handleFlagStatusUpdate(item.id, 'dismissed', 'False positive')}
-                                            disabled={isActionLoading}
-                                          >
-                                            <XCircle className="h-4 w-4" />
-                                          </TooltipTrigger>
-                                          <TooltipContent>Dismiss</TooltipContent>
-                                        </Tooltip>
-                                      </>
-                                    )}
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
+                      <div className="rounded-lg bg-card shadow-sm overflow-hidden">
+                        {/* @ts-ignore */}
+                        <DataTable
+                          columns={flaggedColumns}
+                          data={flaggedContent}
+                          searchKey="content_details"
+                        />
                       </div>
                     )}
                   </TabsContent>
@@ -1061,7 +880,7 @@ export default function ModerationDashboard({
               </DialogDescription>
             </DialogHeader>
             {selectedFlag && (
-              <div className="space-y-4">
+              <div className="space-y-6">
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge variant={getFlagStatusVariant(selectedFlag.status)}>
                     {formatFlagStatus(selectedFlag.status)}
@@ -1079,24 +898,29 @@ export default function ModerationDashboard({
                       {formatConfidencePercent(Number(selectedFlag.confidence_score))} confidence
                     </Badge>
                   )}
-                  <span className="text-sm text-muted-foreground">
+                  <span className="text-sm text-muted-foreground ml-auto">
                     {formatSafeDate(selectedFlag.created_at, 'PPP p')}
                   </span>
                 </div>
-                <div className="rounded-md border bg-muted/30 p-4">
-                  <p className="text-sm font-semibold">Why it was flagged</p>
-                  <p className="text-sm text-muted-foreground">
-                    {selectedFlag.flag_details?.shortSummary || selectedFlag.reason || 'No reason provided'}
-                  </p>
-                </div>
-                {selectedFlag.flag_details?.reasoning && (
-                  <div className="rounded-md border bg-background p-4">
-                    <p className="text-xs uppercase text-muted-foreground">AI verdict</p>
-                    <p className="text-sm font-medium text-foreground mt-1">
-                      {selectedFlag.flag_details.verdict || selectedFlag.flag_details.reasoning}
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="rounded-md border bg-muted/30 p-4">
+                    <p className="text-sm font-semibold mb-1">Reason for Flag</p>
+                    <p className="text-sm text-muted-foreground">
+                      {selectedFlag.flag_details?.shortSummary || selectedFlag.reason || 'No reason provided'}
                     </p>
                   </div>
-                )}
+
+                  {selectedFlag.flag_details?.reasoning && (
+                    <div className="rounded-md border bg-background p-4">
+                      <p className="text-xs uppercase text-muted-foreground mb-1">AI Verdict</p>
+                      <p className="text-sm font-medium text-foreground">
+                        {selectedFlag.flag_details.verdict || selectedFlag.flag_details.reasoning}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
                 {selectedFlag.flag_details?.reasoningSteps &&
                   selectedFlag.flag_details.reasoningSteps.length > 0 && (
                     <Collapsible>
@@ -1108,31 +932,31 @@ export default function ModerationDashboard({
                       </CollapsibleTrigger>
                       <CollapsibleContent className="pt-2 space-y-2">
                         {selectedFlag.flag_details.reasoningSteps.map((step, idx) => (
-                          <div key={idx} className="rounded-md bg-background p-3 border-l-2 border-primary/30">
+                          <div key={idx} className="rounded-lg bg-muted/20 p-3 border-l-2 border-primary/30 text-sm">
                             <div className="flex items-center gap-2 mb-1">
-                              <Badge variant="outline" className="text-[10px]">Step {step.step}</Badge>
-                              <span className="font-medium text-sm">{step.title}</span>
+                              <Badge variant="outline" className="text-[10px] h-5">Step {step.step}</Badge>
+                              <span className="font-medium">{step.title}</span>
                             </div>
-                            <p className="text-xs text-muted-foreground mb-1">{step.analysis}</p>
-                            <p className="text-xs font-medium text-primary">→ {step.conclusion}</p>
+                            <p className="text-muted-foreground mb-1.5">{step.analysis}</p>
+                            <p className="font-medium text-primary text-xs">→ {step.conclusion}</p>
                           </div>
                         ))}
                       </CollapsibleContent>
                     </Collapsible>
                   )}
-                {selectedFlag.categories && Object.keys(selectedFlag.categories).length > 0 && (
-                  <div className="flex flex-wrap gap-1">
-                    {Object.entries(selectedFlag.categories).map(([key, value]) => {
-                      if (!value) return null;
-                      return (
-                        <Badge key={key} variant="outline" className="text-[11px] uppercase">
-                          {key.replace(/_/g, ' ')}
-                        </Badge>
-                      );
-                    })}
-                  </div>
-                )}
-                <div className="flex flex-wrap gap-2 border-t pt-4">
+
+                <div className="flex flex-wrap gap-2 border-t pt-4 justify-end">
+                  {getFlagContentUrl(selectedFlag) && (
+                    <Link
+                      href={getFlagContentUrl(selectedFlag)!}
+                      target="_blank"
+                      className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+                    >
+                      <ExternalLink className="mr-2 h-4 w-4" />
+                      View Content
+                    </Link>
+                  )}
+
                   {selectedFlag.content_type === 'project' && selectedFlag.content_id && (
                     <Button
                       size="sm"
@@ -1141,31 +965,19 @@ export default function ModerationDashboard({
                       disabled={isActionLoading}
                     >
                       <Sparkles className="mr-2 h-4 w-4" />
-                      Re-run AI review
+                      Re-run AI
                     </Button>
                   )}
-                  {getFlagContentUrl(selectedFlag) && (
-                    <Link
-                      href={getFlagContentUrl(selectedFlag)!}
-                      className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
-                    >
-                      View content
-                    </Link>
-                  )}
+
                   <Button
                     size="sm"
-                    variant="secondary"
-                    onClick={() =>
-                      takeFlaggedContentAction(
-                        selectedFlag.id,
-                        'warn_user',
-                        'Please update this content to meet our community guidelines.'
-                      )
-                    }
+                    variant="ghost"
+                    onClick={() => handleFlagStatusUpdate(selectedFlag.id, 'dismissed', 'Dismissed as false positive')}
                     disabled={isActionLoading}
                   >
-                    Warn owner
+                    Dismiss
                   </Button>
+
                   <Button
                     size="sm"
                     variant="destructive"
@@ -1178,37 +990,7 @@ export default function ModerationDashboard({
                     }
                     disabled={isActionLoading}
                   >
-                    Block & notify owner
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    onClick={() =>
-                      takeFlaggedContentAction(
-                        selectedFlag.id,
-                        'remove_content',
-                        'Removed via moderation review'
-                      )
-                    }
-                    disabled={isActionLoading}
-                  >
-                    Remove content
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleFlagStatusUpdate(selectedFlag.id, 'confirmed', 'Confirmed via modal')}
-                    disabled={isActionLoading}
-                  >
-                    Confirm violation
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => handleFlagStatusUpdate(selectedFlag.id, 'dismissed', 'Dismissed as false positive')}
-                    disabled={isActionLoading}
-                  >
-                    Dismiss
+                    Block Content
                   </Button>
                 </div>
               </div>
@@ -1217,34 +999,34 @@ export default function ModerationDashboard({
         </Dialog>
 
         {/* Report Detail Sheet */}
-        <Sheet open={Boolean(selectedReport)} onOpenChange={(open) => !open && setSelectedReport(null)}>
-          <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
-            <SheetHeader className="mb-6">
-              <SheetTitle className="flex items-center gap-2">
+        <Dialog open={Boolean(selectedReport)} onOpenChange={(open) => !open && setSelectedReport(null)}>
+          <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+            <DialogHeader className="mb-6">
+              <DialogTitle className="flex items-center gap-2">
                 Report Details
                 {selectedReport?.ai_metadata?.triagedAt && (
-                  <Badge variant="outline" className="ml-2 text-xs">
+                  <Badge variant="outline" className="ml-2 text-xs font-normal">
                     <Bot className="h-3 w-3 mr-1" />
                     AI Analyzed
                   </Badge>
                 )}
-              </SheetTitle>
-              <SheetDescription>
+              </DialogTitle>
+              <DialogDescription>
                 {selectedReport?.reason || 'Review report and take action'}
-              </SheetDescription>
-            </SheetHeader>
+              </DialogDescription>
+            </DialogHeader>
 
             {selectedReport && (
               <div className="space-y-6">
                 {/* Status & Priority */}
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge variant={getStatusVariant(selectedReport.status)}>
-                    {selectedReport.status || 'pending'}
+                    {selectedReport.status?.replace('_', ' ') || 'pending'}
                   </Badge>
                   <Badge variant={getPriorityVariant(selectedReport.priority)}>
                     {selectedReport.priority || 'normal'} priority
                   </Badge>
-                  <span className="text-sm text-muted-foreground">
+                  <span className="text-sm text-muted-foreground ml-auto">
                     {formatSafeDate(selectedReport.created_at, 'PPP p')}
                   </span>
                 </div>
@@ -1252,7 +1034,7 @@ export default function ModerationDashboard({
                 {/* Reporter Info - Clickable */}
                 {selectedReport.reporter && (
                   <div className="rounded-lg border bg-card p-4">
-                    <p className="text-xs uppercase text-muted-foreground mb-2">Reported By</p>
+                    <p className="text-xs uppercase text-muted-foreground mb-2 font-semibold tracking-wider">Reported By</p>
                     <Link
                       href={`/profile/${selectedReport.reporter.username || selectedReport.reporter.id}`}
                       className="flex items-center gap-3 hover:opacity-80 transition-opacity"
@@ -1278,7 +1060,7 @@ export default function ModerationDashboard({
 
                 {/* Reported Content - Clickable */}
                 <div className="rounded-lg border bg-card p-4">
-                  <p className="text-xs uppercase text-muted-foreground mb-2">Reported Content</p>
+                  <p className="text-xs uppercase text-muted-foreground mb-2 font-semibold tracking-wider">Reported Content</p>
                   <div className="space-y-3">
                     <div className="flex items-start gap-3">
                       <Badge variant={selectedReport.content_type === 'project' ? 'default' : 'secondary'}>
@@ -1298,26 +1080,6 @@ export default function ModerationDashboard({
                         </Link>
                       </div>
                     </div>
-
-                    {/* Content Creator - Clickable */}
-                    {selectedReport.creator_details && (
-                      <Link
-                        href={`/profile/${selectedReport.creator_details.username || selectedReport.creator_details.id}`}
-                        className="flex items-center gap-2 p-2 rounded-md bg-muted/50 hover:bg-muted transition-colors"
-                      >
-                        <Avatar className="h-6 w-6">
-                          <AvatarImage src={selectedReport.creator_details.avatar_url || undefined} />
-                          <AvatarFallback className="text-xs">
-                            {(selectedReport.creator_details.full_name?.[0] || 'U').toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="text-xs text-muted-foreground">Created by</span>
-                        <span className="text-xs font-medium">
-                          {selectedReport.creator_details.full_name || selectedReport.creator_details.username}
-                        </span>
-                        <ExternalLink className="h-3 w-3 text-muted-foreground ml-auto" />
-                      </Link>
-                    )}
                   </div>
                 </div>
 
@@ -1360,7 +1122,7 @@ export default function ModerationDashboard({
                       </div>
                     )}
 
-                    {/* Recommendations */}
+                    {/* Actions */}
                     <div className="grid grid-cols-2 gap-2">
                       <div className="rounded-md bg-background p-3">
                         <p className="text-xs uppercase text-muted-foreground mb-1">Recommended Action</p>
@@ -1379,99 +1141,22 @@ export default function ModerationDashboard({
                       </div>
                     </div>
 
-                    {/* Action Justification */}
-                    {selectedReport.ai_metadata.actionJustification && (
-                      <div className="rounded-md bg-background p-3">
-                        <p className="text-xs uppercase text-muted-foreground mb-1">Action Justification</p>
-                        <p className="text-sm">{selectedReport.ai_metadata.actionJustification}</p>
-                      </div>
-                    )}
-
-                    {/* Tags */}
-                    {selectedReport.ai_metadata.tags && selectedReport.ai_metadata.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
-                        {selectedReport.ai_metadata.tags.map((tag) => (
-                          <Badge key={tag} variant="outline" className="text-[10px] capitalize">
-                            {tag.replace(/_/g, ' ')}
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Confidence Breakdown */}
-                    {selectedReport.ai_metadata.confidenceBreakdown && (
-                      <Collapsible>
-                        <CollapsibleTrigger className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "w-full justify-between")}>
-                          Confidence Breakdown
-                          <ChevronDown className="h-4 w-4" />
-                        </CollapsibleTrigger>
-                        <CollapsibleContent className="pt-2 space-y-2">
-                          <div className="grid grid-cols-3 gap-2 text-center">
-                            <div className="rounded-md bg-background p-2">
-                              <p className="text-xs text-muted-foreground">Evidence</p>
-                              <p className="font-semibold">
-                                {Math.round(selectedReport.ai_metadata.confidenceBreakdown.evidenceStrength * 100)}%
-                              </p>
-                            </div>
-                            <div className="rounded-md bg-background p-2">
-                              <p className="text-xs text-muted-foreground">Severity</p>
-                              <p className="font-semibold">
-                                {Math.round(selectedReport.ai_metadata.confidenceBreakdown.severityAssessment * 100)}%
-                              </p>
-                            </div>
-                            <div className="rounded-md bg-background p-2">
-                              <p className="text-xs text-muted-foreground">Clarity</p>
-                              <p className="font-semibold">
-                                {Math.round(selectedReport.ai_metadata.confidenceBreakdown.contextClarity * 100)}%
-                              </p>
-                            </div>
-                          </div>
-                        </CollapsibleContent>
-                      </Collapsible>
-                    )}
-
                     {/* Reasoning Steps - Expandable */}
                     {selectedReport.ai_metadata.reasoningSteps && selectedReport.ai_metadata.reasoningSteps.length > 0 && (
                       <Collapsible>
                         <CollapsibleTrigger className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "w-full justify-between")}>
                           <span className="flex items-center gap-2">
                             <ChevronRight className="h-4 w-4 transition-transform in-data-[state=open]:rotate-90" />
-                            Reasoning Steps ({selectedReport.ai_metadata.reasoningSteps.length})
+                            Reasoning Steps
                           </span>
                         </CollapsibleTrigger>
                         <CollapsibleContent className="pt-2 space-y-2">
                           {selectedReport.ai_metadata.reasoningSteps.map((step, idx) => (
-                            <div key={idx} className="rounded-md bg-background p-3 border-l-2 border-primary/30">
-                              <div className="flex items-center gap-2 mb-1">
-                                <Badge variant="outline" className="text-[10px]">Step {step.step}</Badge>
-                                <span className="font-medium text-sm">{step.title}</span>
-                              </div>
-                              <p className="text-xs text-muted-foreground mb-1">{step.analysis}</p>
-                              <p className="text-xs font-medium text-primary">→ {step.conclusion}</p>
+                            <div key={idx} className="rounded-md bg-background p-3 border-l-2 border-primary/30 text-sm">
+                              <p className="font-medium text-xs mb-1">{step.title}</p>
+                              <p className="text-muted-foreground">{step.analysis}</p>
                             </div>
                           ))}
-                        </CollapsibleContent>
-                      </Collapsible>
-                    )}
-
-                    {/* Tools Used */}
-                    {selectedReport.ai_metadata.toolsUsed && selectedReport.ai_metadata.toolsUsed.length > 0 && (
-                      <Collapsible>
-                        <CollapsibleTrigger className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "w-full justify-between")}>
-                          <span className="flex items-center gap-2">
-                            <Wrench className="h-4 w-4" />
-                            Tools Used ({selectedReport.ai_metadata.toolsUsed.length})
-                          </span>
-                          <ChevronDown className="h-4 w-4" />
-                        </CollapsibleTrigger>
-                        <CollapsibleContent className="pt-2">
-                          <div className="flex flex-wrap gap-1">
-                            {selectedReport.ai_metadata.toolsUsed.map((tool, idx) => (
-                              <Badge key={idx} variant="secondary" className="text-[10px]">
-                                {tool.replace(/_/g, ' ')}
-                              </Badge>
-                            ))}
-                          </div>
                         </CollapsibleContent>
                       </Collapsible>
                     )}
@@ -1479,7 +1164,7 @@ export default function ModerationDashboard({
                 )}
 
                 {/* Actions */}
-                <div className="flex flex-wrap gap-2 border-t pt-4">
+                <div className="flex flex-wrap gap-2 border-t pt-4 justify-end">
                   {selectedReport.ai_metadata?.suggestedStatus && (
                     <Button
                       size="sm"
@@ -1491,41 +1176,16 @@ export default function ModerationDashboard({
                       Approve AI Suggestion
                     </Button>
                   )}
-                  {selectedReport.ai_metadata?.recommendedAction &&
-                    selectedReport.ai_metadata.recommendedAction !== 'none' && (
-                      <Button
-                        size="sm"
-                        variant={
-                          ['remove_content', 'block_content'].includes(
-                            selectedReport.ai_metadata.recommendedAction
-                          )
-                            ? 'destructive'
-                            : 'secondary'
-                        }
-                        onClick={() => handleApplyAiRecommendation(selectedReport.id)}
-                        disabled={isActionLoading}
-                      >
-                        <ShieldX className="mr-2 h-4 w-4" />
-                        {formatAiRecommendation(
-                          selectedReport.ai_metadata.recommendedAction,
-                          selectedReport.ai_metadata.suggestedStatus
-                        )}
-                      </Button>
-                    )}
+
                   <Button
                     size="sm"
-                    variant="outline"
-                    onClick={() =>
-                      handleManualReportAction(
-                        selectedReport.id,
-                        'warn_user',
-                        'Please update this content to meet our community guidelines.'
-                      )
-                    }
+                    variant="ghost"
+                    onClick={() => handleReportStatusChange(selectedReport.id, 'dismissed', REPORT_DISMISS_NOTE)}
                     disabled={isActionLoading}
                   >
-                    Warn owner
+                    Dismiss
                   </Button>
+
                   <Button
                     size="sm"
                     variant="destructive"
@@ -1538,61 +1198,22 @@ export default function ModerationDashboard({
                     }
                     disabled={isActionLoading}
                   >
-                    Block content
+                    Block Content
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    onClick={() =>
-                      handleManualReportAction(
-                        selectedReport.id,
-                        'remove_content',
-                        'Removed via moderation review'
-                      )
-                    }
-                    disabled={isActionLoading}
-                  >
-                    Remove content
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleRunAiReviewForReport(selectedReport.id)}
-                    disabled={isActionLoading}
-                  >
-                    <Bot className="mr-2 h-4 w-4" />
-                    Run AI review
-                  </Button>
+
                   <Button
                     size="sm"
                     onClick={() => handleReportStatusChange(selectedReport.id, 'resolved', REPORT_RESOLVE_NOTE)}
                     disabled={isActionLoading}
                   >
                     <CheckCircle className="mr-2 h-4 w-4" />
-                    Resolve
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleReportStatusChange(selectedReport.id, 'under_review')}
-                    disabled={isActionLoading}
-                  >
-                    Keep Reviewing
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => handleReportStatusChange(selectedReport.id, 'dismissed', REPORT_DISMISS_NOTE)}
-                    disabled={isActionLoading}
-                  >
-                    <XCircle className="mr-2 h-4 w-4" />
-                    Dismiss
+                    Resolve Case
                   </Button>
                 </div>
               </div>
             )}
-          </SheetContent>
-        </Sheet>
+          </DialogContent>
+        </Dialog>
       </div>
     </TooltipProvider>
   );
@@ -1674,4 +1295,20 @@ function getStatusIcon(status?: string | null) {
     default:
       return <Clock className="h-4 w-4 text-amber-500" />;
   }
+}
+
+function getPriorityIcon(priority?: string | null) {
+  switch ((priority || '').toLowerCase()) {
+    case 'critical':
+    case 'high':
+      return <ShieldAlert className="h-4 w-4 text-destructive" />;
+    case 'medium':
+      return <AlertTriangle className="h-4 w-4 text-amber-500" />;
+    default:
+      return <div className="w-4" />;
+  }
+}
+
+function getAiReasonSnippet(reasoning: string) {
+  return reasoning.length > 80 ? reasoning.slice(0, 80) + '...' : reasoning;
 }

@@ -618,7 +618,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
                 <Badge variant="outline" className="gap-1">
                   <Calendar className="h-3 w-3" />
                   {dateFilter.to
-                    ? `${format(dateFilter.from, "MMM d")} - ${format(new Date(dateFilter.to.getTime() - 24 * 60 * 60 * 1000), "MMM d")}`
+                    ? `${format(dateFilter.from, "MMM d")} - ${format(dateFilter.to, "MMM d")}`
                     : `From ${format(dateFilter.from, "MMM d")}`
                   }
                   <Button

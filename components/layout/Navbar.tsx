@@ -14,6 +14,8 @@ import {
   Moon,
   MonitorSmartphone,
   Loader2,
+  LayoutDashboard,
+  Palette,
 } from "lucide-react";
 import { NoAvatar } from "@/components/shared/NoAvatar";
 import { logout } from "@/app/logout/actions";
@@ -363,7 +365,7 @@ export default function Navbar() {
                 <Skeleton className="w-20 h-3" />
               </div>
             ) : user ? (
-              <div className="flex items-center space-x-5 mr-2">
+              <div className="flex items-center gap-5">
                 <NotificationPopover />
                 <DropdownMenu modal={false}>
                   {isProfileLoading ? (
@@ -372,28 +374,22 @@ export default function Navbar() {
                     <DropdownMenuTrigger
                       nativeButton={false}
                       render={
-                        <div className="relative group w-9 h-9">
-                          <span
-                            aria-hidden="true"
-                            className="absolute inset-0 rounded-full bg-muted-foreground/10 scale-105 opacity-0 group-hover:opacity-100 group-hover:scale-125 transition-all duration-200 pointer-events-none"
+                        <Avatar className="w-9 h-9 cursor-pointer">
+                          <AvatarImage
+                            src={profile?.avatar_url ?? undefined}
+                            alt={profile?.full_name ?? "User avatar"}
                           />
-                          <Avatar className="w-9 h-9 cursor-pointer relative z-10">
-                            <AvatarImage
-                              src={profile?.avatar_url ?? undefined}
+                          <AvatarFallback>
+                            <NoAvatar
+                              fullName={profile?.full_name ?? undefined}
                             />
-                            <AvatarFallback>
-                              <NoAvatar
-                                fullName={profile?.full_name ?? undefined}
-                              />
-                            </AvatarFallback>
-                          </Avatar>
-                        </div>
+                          </AvatarFallback>
+                        </Avatar>
                       }
                     />
                   )}
                   <DropdownMenuContent
                     className="w-64 pt-3 px-2 pb-2"
-                    align="end"
                   >
                     <DropdownMenuGroup>
                       <DropdownMenuLabel className="font-normal mb-2">
@@ -407,11 +403,12 @@ export default function Navbar() {
                         </div>
                       </DropdownMenuLabel>
                     </DropdownMenuGroup>
-                    {/* <DropdownMenuSeparator className="my-2" /> */}
+
                     <DropdownMenuItem
                       className="py-2.5 text-muted-foreground cursor-pointer"
                       render={
-                        <Link href="/home">
+                        <Link href="/home" className="flex items-center w-full">
+                          <LayoutDashboard className="mr-2 h-4 w-4" />
                           <span>Volunteer Dashboard</span>
                         </Link>
                       }
@@ -420,7 +417,8 @@ export default function Navbar() {
                     <DropdownMenuItem
                       className="py-2.5 text-muted-foreground cursor-pointer"
                       render={
-                        <Link href={`/profile/${profile?.username}`}>
+                        <Link href={`/profile/${profile?.username}`} className="flex items-center w-full">
+                          <UserRound className="mr-2 h-4 w-4" />
                           <span>My Profile</span>
                         </Link>
                       }
@@ -428,16 +426,18 @@ export default function Navbar() {
                     <DropdownMenuItem
                       className="py-2.5 text-muted-foreground cursor-pointer"
                       render={
-                        <Link href="/account/profile">
+                        <Link href="/account/profile" className="flex items-center w-full">
+                          <Settings className="mr-2 h-4 w-4" />
                           <span>Account Settings</span>
                         </Link>
                       }
                     />
                     <DropdownMenuSeparator className="my-2" />
 
-                    {/* Replace custom theme selector with new Vercel-style ThemeSelector */}
+                    {/* Appearance */}
                     <div className="px-2 py-0.5 flex justify-between">
-                      <span className="text-sm self-center text-muted-foreground block">
+                      <span className="text-sm self-center text-muted-foreground flex items-center">
+                        <Palette className="mr-2 h-4 w-4" />
                         Appearance
                       </span>
                       <ThemeSelector />
@@ -447,36 +447,36 @@ export default function Navbar() {
 
                     <DropdownMenuItem
                       className="text-chart-3 focus:text-primary py-2.5 cursor-pointer flex justify-between"
-                      onSelect={(e) => {
-                        e.preventDefault();
-                        setShowFeedbackDialog(true);
-                      }}
+                      onClick={() => setShowFeedbackDialog(true)}
                     >
-                      Send Feedback
-                      <MessageSquare className="h-4 w-4" />
+                      <span className="flex items-center">
+                        <MessageSquare className="mr-2 h-4 w-4" />
+                        Send Feedback
+                      </span>
                     </DropdownMenuItem>
                     <DropdownMenuItem
-                      className="text-destructive focus:text-destructive py-2.5 cursor-pointer flex justify-between"
-                      onSelect={(e) => {
-                        e.preventDefault();
-                        setShowDonateDialog(true);
-                      }}
+                      className="text-warning focus:text-destructive py-2.5 cursor-pointer flex justify-between"
+                      onClick={() => setShowDonateDialog(true)}
                     >
-                      <span>Donate</span>
-                      <Heart className="h-4 w-4" />
+                      <span className="flex items-center">
+                        <Heart className="mr-2 h-4 w-4" />
+                        Donate
+                      </span>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator className="my-2" />
                     <DropdownMenuItem
-                      className="text-destructive focus:text-destructive py-2.5 cursor-pointer flex justify-between"
+                      className="text-destructive focus:text-destructive py-2.5 cursor-pointer w-full"
                       onClick={handleLogout}
                       disabled={isLoggingOut}
                     >
-                      <span>{isLoggingOut ? "Logging out..." : "Log Out"}</span>
-                      {isLoggingOut ? (
-                        <Loader2 className="h-4 w-4" />
-                      ) : (
-                        <LogOut className="h-4 w-4" />
-                      )}
+                      <div className="flex items-center w-full">
+                        {isLoggingOut ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <LogOut className="mr-2 h-4 w-4" />
+                        )}
+                        <span>{isLoggingOut ? "Logging out..." : "Log Out"}</span>
+                      </div>
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>

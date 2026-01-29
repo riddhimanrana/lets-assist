@@ -236,91 +236,53 @@ function ModernDashboardMockup() {
   const cursorVariants = {
     BROWSING: {
       opacity: 1,
-
       left: ["90%", "50%", "50%"],
-
       top: ["90%", "45%", "45%"],
-
       scale: [1, 1, 0.9],
-
       transition: {
         duration: 2,
-
         times: [0, 0.8, 1],
-
         delay: 0.5,
-
-        ease: "easeInOut",
+        ease: "easeInOut" as const,
       },
     },
-
     DETAILS: {
       opacity: 1,
-
-      // Start from BROWSING end (50%, 45%)
-
-      // Move to Calendar (25%, 80%) -> Click
-
-      // Move to Sign Up (75%, 80%) -> Click
-
       left: ["50%", "25%", "25%", "75%", "75%"],
-
       top: ["45%", "80%", "80%", "80%", "80%"],
-
       scale: [1, 1, 0.9, 1, 0.9],
-
       transition: {
         duration: 2.5,
-
         times: [0, 0.3, 0.4, 0.8, 1],
-
-        ease: "easeInOut",
+        ease: "easeInOut" as const,
       },
     },
-
     QR: {
       opacity: 0,
-
       left: "50%",
-
       top: "50%",
-
       transition: { duration: 0.2 },
     },
-
     NOTIFICATION: {
       opacity: 1,
-
       left: ["90%", "50%", "50%"],
-
-      top: ["90%", "15%", "15%"], // Top center for notification
-
+      top: ["90%", "15%", "15%"],
       scale: [1, 1, 0.9],
-
       transition: {
         duration: 1.5,
-
         times: [0, 0.8, 1],
-
         delay: 0.5,
-
-        ease: "easeInOut",
+        ease: "easeInOut" as const,
       },
     },
-
     CERTIFICATE: {
       opacity: 1,
-
       left: ["50%", "90%"],
-
-      top: ["15%", "90%"], // Move away
-
-      transition: { duration: 1, ease: "easeInOut" },
+      top: ["15%", "90%"],
+      transition: { duration: 1, ease: "easeInOut" as const },
     },
-
     DASHBOARD: {
       opacity: 0,
-
       transition: { duration: 0.5 },
     },
   };

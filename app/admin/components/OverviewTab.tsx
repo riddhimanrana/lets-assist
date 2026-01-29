@@ -59,7 +59,7 @@ type ReportsStats = {
 const chartConfig = {
   total: {
     label: "Total",
-    color: "hsl(var(--primary))",
+    color: "hsl(var(--chart-3))",
   },
 } satisfies ChartConfig;
 

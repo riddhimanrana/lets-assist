@@ -310,7 +310,7 @@ export default async function ProfilePage(
                 {project.title}
               </CardTitle>
               {type === 'created' && isTrusted && (
-                <Tooltip delayDuration={150}>
+                <Tooltip>
                   <TooltipTrigger>
                     <BadgeCheck className="h-4 w-4 text-primary shrink-0" />
                   </TooltipTrigger>
@@ -379,7 +379,7 @@ export default async function ProfilePage(
                 </Avatar>
                 {isTrusted && (
                   <div className="absolute -bottom-0.5 -right-0.5 sm:-bottom-1 sm:-right-1 bg-background rounded-full shadow-sm border flex items-center justify-center p-0.5">
-                    <Tooltip delayDuration={150}>
+                    <Tooltip>
                       <TooltipTrigger className="p-1 hover:bg-transparent focus:ring-0">
                         <BadgeCheck className="h-5 w-5 sm:h-7 sm:w-7 text-primary fill-background" />
                       </TooltipTrigger>

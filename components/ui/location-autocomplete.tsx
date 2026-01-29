@@ -41,7 +41,7 @@ function LocationAutocompleteContent({
   const [predictions, setPredictions] = useState<google.maps.places.AutocompletePrediction[]>([])
   const [focusedIndex, setFocusedIndex] = useState(-1)
   const [placesApiReady, setPlacesApiReady] = useState(false)
-  
+
   const autocompleteService = useRef<google.maps.places.AutocompleteService | null>(null)
   const placesService = useRef<google.maps.places.PlacesService | null>(null)
   const searchDebounceRef = useRef<NodeJS.Timeout | undefined>(undefined)
@@ -71,7 +71,7 @@ function LocationAutocompleteContent({
   useEffect(() => {
     // Don't proceed if API isn't loaded at all
     if (!isLoaded) return;
-    
+
     // If services are already initialized, nothing to do
     if (autocompleteService.current && placesService.current) {
       setPlacesApiReady(true);
@@ -84,12 +84,12 @@ function LocationAutocompleteContent({
         try {
           // Initialize services
           autocompleteService.current = new google.maps.places.AutocompleteService();
-          
+
           const attributionNode = document.createElement('div');
           attributionNode.style.display = 'none';
           document.body.appendChild(attributionNode);
           placesService.current = new google.maps.places.PlacesService(attributionNode);
-          
+
           setPlacesApiReady(true);
           console.log('Places API initialized successfully');
         } catch (error) {
@@ -112,9 +112,9 @@ function LocationAutocompleteContent({
       if (placesInitAttempts.current < 5) {
         placesInitAttempts.current += 1;
         const delay = Math.pow(2, placesInitAttempts.current) * 100;
-        
+
         console.log(`Places API not available yet. Retrying in ${delay}ms (attempt ${placesInitAttempts.current})`);
-        
+
         retryTimeoutRef.current = setTimeout(() => {
           initializePlacesAPI();
         }, delay);
@@ -138,7 +138,7 @@ function LocationAutocompleteContent({
   // Search for predictions or show current selection when input is focused
   useEffect(() => {
     if (!isLoaded || !placesApiReady || !autocompleteService.current) return;
-    
+
     if (!query.trim()) {
       // If no query but we have a selected value, create a single prediction for it
       if (value?.text) {
@@ -203,7 +203,7 @@ function LocationAutocompleteContent({
     }
 
     if (!placesService.current) return
-    
+
     setIsLoading(true)
     placesService.current.getDetails(
       {
@@ -221,7 +221,7 @@ function LocationAutocompleteContent({
               longitude: place.geometry.location.lng()
             }
           }
-          
+
           setInputValue(locationData.text)
           onChangeAction(locationData)
           setQuery("")
@@ -236,7 +236,7 @@ function LocationAutocompleteContent({
     setInputValue(newValue)
     setQuery(newValue)
     setShowResults(true)
-    
+
     // Only call onChangeAction if the value actually changed
     if (newValue !== value?.text) {
       onChangeAction(newValue ? { text: newValue, display_name: newValue } : undefined)
@@ -249,13 +249,13 @@ function LocationAutocompleteContent({
     switch (e.key) {
       case 'ArrowDown':
         e.preventDefault()
-        setFocusedIndex(prev => 
+        setFocusedIndex(prev =>
           prev < predictions.length - 1 ? prev + 1 : 0
         )
         break
       case 'ArrowUp':
         e.preventDefault()
-        setFocusedIndex(prev => 
+        setFocusedIndex(prev =>
           prev > 0 ? prev - 1 : predictions.length - 1
         )
         break
@@ -337,37 +337,37 @@ function LocationAutocompleteContent({
           <Search className="h-4 w-4 text-muted-foreground" />
         </div>
       </div>
-      
+
       {showResults && (
         <div className="absolute left-0 right-0 mt-1 rounded-lg border bg-popover shadow-lg z-50">
           <Command>
             <CommandList>
               <CommandEmpty className="p-3 text-center text-sm">
-                  {query.length < 3 && query.length > 0 ? (
-                    <div className="py-6 text-center flex flex-row justify-center items-center gap-4 px-4">
-                      <Search className="h-7 w-7 text-muted-foreground opacity-80 shrink-0" />
-                      <div className="text-left">
+                {query.length < 3 && query.length > 0 ? (
+                  <div className="py-6 text-center flex flex-row justify-center items-center gap-4 px-4">
+                    <Search className="h-7 w-7 text-muted-foreground opacity-80 shrink-0" />
+                    <div className="text-left">
                       <p className="font-medium">Keep typing to search</p>
                       <p className="text-xs text-muted-foreground">Enter at least 3 characters to search for locations</p>
-                      </div>
                     </div>
-                    ) : isLoading ? (
-                    <div className="py-6 text-center flex flex-row justify-center items-center gap-4 px-4">
-                      <Loader2 className="h-7 w-7 animate-spin opacity-80 shrink-0" />
-                      <div className="text-left">
+                  </div>
+                ) : isLoading ? (
+                  <div className="py-6 text-center flex flex-row justify-center items-center gap-4 px-4">
+                    <Loader2 className="h-7 w-7 animate-spin opacity-80 shrink-0" />
+                    <div className="text-left">
                       <p className="font-medium">Searching locations</p>
                       <p className="text-xs text-muted-foreground">Please wait while we find matching locations...</p>
-                      </div>
                     </div>
-                    ) : (
-                    <div className="py-6 text-center flex flex-row justify-center items-center gap-4 px-4">
-                      <MapPin className="h-7 w-7 text-muted-foreground opacity-80 shrink-0" />
-                      <div className="text-left">
+                  </div>
+                ) : (
+                  <div className="py-6 text-center flex flex-row justify-center items-center gap-4 px-4">
+                    <MapPin className="h-7 w-7 text-muted-foreground opacity-80 shrink-0" />
+                    <div className="text-left">
                       <p className="font-medium">No locations found</p>
                       <p className="text-xs text-muted-foreground">Try adjusting your search terms</p>
-                      </div>
                     </div>
-                    )}
+                  </div>
+                )}
               </CommandEmpty>
               <CommandGroup>
                 {predictions.map((prediction, index) => {
@@ -378,23 +378,23 @@ function LocationAutocompleteContent({
                       value={prediction.place_id}
                       onSelect={() => handleSelect(prediction)}
                       className={cn(
-                        "cursor-pointer",
+                        "cursor-pointer py-1.5 px-2",
                         focusedIndex === index && "bg-accent",
                         isCurrentSelection && "bg-primary/5"
                       )}
                     >
                       <div className="flex items-center w-full">
-                          <MapPin className="mr-2 h-4 w-4 text-muted-foreground shrink-0" />
-                          <div className="flex-1 truncate">
-                            <p className="truncate">{prediction.structured_formatting.main_text}</p>
-                            <p className="text-xs text-muted-foreground truncate">
-                              {prediction.structured_formatting.secondary_text}
-                            </p>
-                          </div>
-                          {isCurrentSelection && (
-                            <Check className="ml-2 h-4 w-4 text-primary shrink-0" />
-                          )}
+                        <MapPin className="mr-2 h-4 w-4 text-muted-foreground shrink-0" />
+                        <div className="flex-1 truncate">
+                          <p className="truncate">{prediction.structured_formatting.main_text}</p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {prediction.structured_formatting.secondary_text}
+                          </p>
                         </div>
+                        {isCurrentSelection && (
+                          <Check className="ml-2 h-4 w-4 text-primary shrink-0" />
+                        )}
+                      </div>
                     </CommandItem>
                   );
                 })}
@@ -403,12 +403,12 @@ function LocationAutocompleteContent({
           </Command>
         </div>
       )}
-    {value?.coordinates && (
-          <div className="flex items-center gap-1.5 text-sm text-primary pl-1">
-            <Check className="h-4 w-4 shrink-0" />
-            <span className="truncate">Address set: {value.display_name}</span>
-          </div>
-        )}
+      {value?.coordinates && (
+        <div className="flex items-center gap-1.5 text-sm text-primary pl-1">
+          <Check className="h-4 w-4 shrink-0" />
+          <span className="truncate">Address set: {value.display_name}</span>
+        </div>
+      )}
       {error && errorMessage && (
         <div id={ariaErrorMessage} className="text-destructive text-sm flex items-center gap-1.5 mt-1">
           <AlertCircle className="h-4 w-4 shrink-0" />
@@ -448,8 +448,8 @@ export default function LocationAutocomplete(props: LocationAutocompleteProps) {
   }
 
   return (
-    <APIProvider 
-      apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ""} 
+    <APIProvider
+      apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ""}
       libraries={['places']}
     >
       <LocationAutocompleteContent {...props} />

@@ -256,46 +256,33 @@ export async function deleteFeedback(feedbackId: string) {
   return { success: true };
 }
 
-export async function searchUsersByEmail(query: string) {
+export async function searchUsers(query: string) {
   const supabase = getAdminClient();
   const { isAdmin } = await checkSuperAdmin();
   if (!isAdmin) return { error: "Unauthorized" };
 
-  // Use listUsers to search by email (this is not efficient for large user bases but works for now)
-  // Ideally we'd have a materialized view or a secure function to search users
-  const { data: { users }, error } = await supabase.auth.admin.listUsers({
-    page: 1,
-    perPage: 100 // Limit search scope
-  });
+  // Search in profiles table directly which is much more efficient than listUsers
+  // and allows searching by name
+  const { data: profiles, error } = await supabase
+    .from('profiles')
+    .select('id, full_name, username, email, avatar_url')
+    .or(`full_name.ilike.%${query}%,email.ilike.%${query}%,username.ilike.%${query}%`)
+    .limit(5);
 
   if (error) {
     console.error("Error searching users:", error);
     return { error: "Failed to search users" };
   }
 
-  const lowerQuery = query.toLowerCase();
-  const matchedUsers = users
-    .filter(u => u.email?.toLowerCase().includes(lowerQuery))
-    .slice(0, 5);
+  if (!profiles || profiles.length === 0) return { data: [] };
 
-  if (matchedUsers.length === 0) return { data: [] };
-
-  const userIds = matchedUsers.map(u => u.id);
-  const { data: profiles } = await supabase
-    .from('profiles')
-    .select('id, full_name, username, avatar_url')
-    .in('id', userIds);
-
-  const results = matchedUsers.map(u => {
-    const profile = profiles?.find(p => p.id === u.id);
-    return {
-      id: u.id,
-      email: u.email!,
-      full_name: profile?.full_name,
-      avatar_url: profile?.avatar_url,
-      username: profile?.username
-    };
-  });
+  const results = profiles.map(p => ({
+    id: p.id,
+    email: p.email || "", // profiles should have email, fallback to empty if null
+    full_name: p.full_name,
+    avatar_url: p.avatar_url,
+    username: p.username
+  }));
 
   return { data: results };
 }
@@ -317,6 +304,7 @@ export async function addTrustedMember(userId: string, email: string, name: stri
   }
 
   const now = new Date().toISOString();
+  // removed updated_at as it doesn't exist in the table
   const { error } = await supabase
     .from('trusted_member')
     .upsert({
@@ -327,7 +315,6 @@ export async function addTrustedMember(userId: string, email: string, name: stri
       reason: 'Added manually by Admin',
       status: true,
       created_at: now,
-      updated_at: now,
     }, {
       onConflict: 'user_id'
     });

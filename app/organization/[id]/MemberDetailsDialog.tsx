@@ -2,11 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle
 } from "@/components/ui/dialog";
 import {
   Table,
@@ -89,16 +89,16 @@ export default function MemberDetailsDialog({
 
   const fetchMemberDetails = async () => {
     if (!member) return;
-    
+
     setLoading(true);
     setError(null);
-    
+
     try {
-      const dateRangeParam = dateRange?.from && dateRange?.to 
+      const dateRangeParam = dateRange?.from && dateRange?.to
         ? { from: dateRange.from, to: dateRange.to }
         : undefined;
       const result = await getMemberEventDetails(organizationId, member.user_id, dateRangeParam);
-      
+
       if (result.error) {
         setError(result.error);
       } else {
@@ -120,20 +120,20 @@ export default function MemberDetailsDialog({
     }
 
     setIsExporting(true);
-    
+
     try {
       const profile = Array.isArray(member?.profiles) ? member.profiles[0] : member?.profiles;
       const memberName = profile?.full_name || "Unknown User";
       const username = profile?.username || "";
-      
+
       // Prepare comprehensive CSV data
       const headers = [
         "Member Name", "Username", "Role", "Joined Date",
-        "Event Title", "Event Date", "Hours", "Status", 
+        "Event Title", "Event Date", "Hours", "Status",
         "Certificate ID", "Certificate Link"
       ];
       const csvRows = [headers.join(",")];
-      
+
       events.forEach(event => {
         const row = [
           `"${memberName}"`,
@@ -149,21 +149,21 @@ export default function MemberDetailsDialog({
         ].join(",");
         csvRows.push(row);
       });
-      
+
       // Add summary section
-    //   csvRows.push("");
-    //   csvRows.push("=== SUMMARY ===");
+      //   csvRows.push("");
+      //   csvRows.push("=== SUMMARY ===");
       csvRows.push(`"Total Hours","${formatHours(totalHours)}"`);
       csvRows.push(`"Total Events","${events.length}"`);
       csvRows.push(`"Certified Events","${events.filter(e => e.isCertified).length}"`);
       csvRows.push(`"Member Since","${format(new Date(member.joined_at), "MMM d, yyyy")}"`);
-      
+
       const csvData = csvRows.join("\n");
       const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      
+
       // Create filename with date range if applicable
       const today = new Date().toISOString().split('T')[0];
       const cleanName = memberName.replace(/\s+/g, '-').toLowerCase();
@@ -176,12 +176,12 @@ export default function MemberDetailsDialog({
         filename = `${cleanName}-volunteer-data-lifetime-${today}`;
       }
       a.download = `${filename}.csv`;
-      
+
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-      
+
       toast.success(`${memberName}'s volunteer data exported successfully`);
     } catch (error) {
       console.error("Error exporting member data:", error);
@@ -310,7 +310,7 @@ export default function MemberDetailsDialog({
           {/* Events Table */}
           <div className="space-y-2 sm:space-y-3">
             <h3 className="text-xs sm:text-lg font-semibold">Event Participation</h3>
-            
+
             {error && (
               <div className="text-center p-2.5 sm:p-4 text-red-500 bg-red-50 rounded-lg text-xs sm:text-sm">
                 {error}
@@ -370,24 +370,24 @@ export default function MemberDetailsDialog({
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
-                              {event? (
+                              {event ? (
                                 <Button
-                                  asChild
+                                  render={
+                                    <a
+                                      href={`/certificates/${event.id}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="flex items-center gap-1"
+                                    >
+                                      <FileText className="h-3 w-3" />
+                                      View
+                                      <ExternalLink className="h-2 w-2" />
+                                    </a>
+                                  }
                                   variant="ghost"
                                   size="sm"
                                   className="gap-1 h-7 px-2"
-                                >
-                                  <a 
-                                    href={`/certificates/${event.id}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="flex items-center gap-1"
-                                  >
-                                    <FileText className="h-3 w-3" />
-                                    View
-                                    <ExternalLink className="h-2 w-2" />
-                                  </a>
-                                </Button>
+                                />
                               ) : (
                                 <span className="text-xs text-muted-foreground">No certificate</span>
                               )}
@@ -420,7 +420,7 @@ export default function MemberDetailsDialog({
                             </Badge>
                           )}
                         </div>
-                        
+
                         <div className="flex justify-between items-center text-xs sm:text-sm">
                           <div className="flex items-center gap-2 sm:gap-4">
                             <div className="text-muted-foreground text-[10px] sm:text-sm">
@@ -430,26 +430,26 @@ export default function MemberDetailsDialog({
                               {formatHours(event.hours)}
                             </div>
                           </div>
-                          
+
                           {event.isCertified && (
                             <Button
-                              asChild
+                              render={
+                                <a
+                                  href={`/certificates/${event.id}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-1"
+                                >
+                                  <FileText className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+                                  <span className="hidden sm:inline">Certificate</span>
+                                  <span className="sm:hidden">Cert</span>
+                                  <ExternalLink className="h-2 w-2" />
+                                </a>
+                              }
                               variant="ghost"
                               size="sm"
                               className="gap-1 h-6 sm:h-7 px-1.5 sm:px-2 text-[10px] sm:text-xs"
-                            >
-                              <a 
-                                href={`/certificates/${event.id}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center gap-1"
-                              >
-                                <FileText className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                                <span className="hidden sm:inline">Certificate</span>
-                                <span className="sm:hidden">Cert</span>
-                                <ExternalLink className="h-2 w-2" />
-                              </a>
-                            </Button>
+                            />
                           )}
                         </div>
                       </div>

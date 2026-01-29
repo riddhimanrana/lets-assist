@@ -1018,11 +1018,19 @@ export default function ReportsTab({ organizationId, organizationName, userRole 
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     {sheetStatus.syncConfig?.sheetUrl && (
-                      <Button variant="outline" size="sm" asChild>
-                        <a href={sheetStatus.syncConfig.sheetUrl} target="_blank" rel="noreferrer">
-                          Open sheet
-                        </a>
-                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        render={
+                          <a
+                            href={sheetStatus.syncConfig.sheetUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            Open sheet
+                          </a>
+                        }
+                      />
                     )}
                     {sheetStatus.syncConfig && (
                       <Button
