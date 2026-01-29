@@ -198,7 +198,7 @@ export function OrganizationsSection() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Accordion type="single" collapsible>
+          <Accordion>
             <AccordionItem value="export-member-data">
               <AccordionTrigger>Exporting Member Data (Admin/Staff Only)</AccordionTrigger>
               <AccordionContent className="space-y-3 text-sm">

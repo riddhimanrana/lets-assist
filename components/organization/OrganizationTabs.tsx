@@ -103,15 +103,17 @@ function LeaveOrganizationDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        <Button
-          variant="outline"
-          className="w-full sm:w-auto text-destructive hover:bg-destructive/10"
-        >
-          <LogOut className="h-4 w-4 mr-2" />
-          Leave Organization
-        </Button>
-      </DialogTrigger>
+      <DialogTrigger
+        render={
+          <Button
+            variant="outline"
+            className="w-full sm:w-auto text-destructive hover:bg-destructive/10"
+          >
+            <LogOut className="h-4 w-4 mr-2" />
+            Leave Organization
+          </Button>
+        }
+      />
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Leave Organization</DialogTitle>
@@ -246,53 +248,53 @@ export default function OrganizationTabs({
               <CardTitle className="text-xl! font-bold tracking-tight">About</CardTitle>
             </CardHeader>
             <CardContent className="text-sm">
-                <div className="min-w-0">
-                  <h4 className="text-xs font-medium text-muted-foreground mb-1">Description</h4>
-                  <div className="relative">
-                    <p className="leading-relaxed wrap-break-word">
-                      {organization.description || "No description provided."}
+              <div className="min-w-0">
+                <h4 className="text-xs font-medium text-muted-foreground mb-1">Description</h4>
+                <div className="relative">
+                  <p className="leading-relaxed wrap-break-word">
+                    {organization.description || "No description provided."}
+                  </p>
+                </div>
+              </div>
+              <div className="space-y-3">
+                <div className="flex gap-2 min-w-0">
+                  <Building2 className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <h4 className="text-xs font-medium">Organization Type</h4>
+                    <p className="text-muted-foreground capitalize truncate">
+                      {organization.type}
                     </p>
                   </div>
                 </div>
-                <div className="space-y-3">
+                {organization.website && (
                   <div className="flex gap-2 min-w-0">
-                    <Building2 className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                    <Globe className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
                     <div className="min-w-0 flex-1">
-                      <h4 className="text-xs font-medium">Organization Type</h4>
-                      <p className="text-muted-foreground capitalize truncate">
-                        {organization.type}
-                      </p>
+                      <h4 className="text-xs font-medium">Website</h4>
+                      <Link
+                        href={organization.website.startsWith('http') ? organization.website : `https://${organization.website}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline truncate block"
+                      >
+                        {organization.website}
+                      </Link>
                     </div>
                   </div>
-                  {organization.website && (
-                    <div className="flex gap-2 min-w-0">
-                      <Globe className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
-                      <div className="min-w-0 flex-1">
-                        <h4 className="text-xs font-medium">Website</h4>
-                        <Link
-                          href={organization.website.startsWith('http') ? organization.website : `https://${organization.website}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-primary hover:underline truncate block"
-                        >
-                          {organization.website}
-                        </Link>
-                      </div>
-                    </div>
-                  )}
-                  <div className="flex gap-2 min-w-0">
-                    <Calendar className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
-                    <div className="min-w-0 flex-1">
-                      <h4 className="text-xs font-medium">Created</h4>
-                      <p className="text-muted-foreground truncate">
-                        {organization.created_at
-                          ? format(new Date(organization.created_at), "MMMM d, yyyy")
-                          : "N/A"}
-                      </p>
-                    </div>
+                )}
+                <div className="flex gap-2 min-w-0">
+                  <Calendar className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <h4 className="text-xs font-medium">Created</h4>
+                    <p className="text-muted-foreground truncate">
+                      {organization.created_at
+                        ? format(new Date(organization.created_at), "MMMM d, yyyy")
+                        : "N/A"}
+                    </p>
                   </div>
                 </div>
-                <div className="sm:mt-auto sm:pt-2" />
+              </div>
+              <div className="sm:mt-auto sm:pt-2" />
             </CardContent>
           </Card>
           {/* Quick Stats Card */}
@@ -412,11 +414,16 @@ export default function OrganizationTabs({
                       </Button>
                     </Link>
                     <Dialog>
-                      <DialogTrigger asChild>
-                        <Button variant="outline" className="w-full sm:w-auto cursor-pointer hover:bg-muted">
-                          Apply for Verification
-                        </Button>
-                      </DialogTrigger>
+                      <DialogTrigger
+                        render={
+                          <Button
+                            variant="outline"
+                            className="w-full sm:w-auto cursor-pointer hover:bg-muted"
+                          >
+                            Apply for Verification
+                          </Button>
+                        }
+                      />
                       <DialogContent className="sm:max-w-2xl">
                         <DialogHeader>
                           <DialogTitle className="text-2xl font-bold text-center pb-2">
@@ -505,9 +512,9 @@ export default function OrganizationTabs({
                           </div>
                         </div>
 
-                        <DialogClose asChild>
-                          <Button className="ml-auto">Close</Button>
-                        </DialogClose>
+                        <DialogClose
+                          render={<Button className="ml-auto">Close</Button>}
+                        />
                       </DialogContent>
                     </Dialog>
                   </>

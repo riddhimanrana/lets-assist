@@ -161,8 +161,8 @@ export default function BasicInfo({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Basic Information</CardTitle>
-        <p className="text-sm text-muted-foreground">
+        <CardTitle className="text-xl sm:text-2xl">Basic Information</CardTitle>
+        <p className="text-xs sm:text-sm text-muted-foreground">
           Let&apos;s start with some basic details about your project.
         </p>
       </CardHeader>
@@ -299,8 +299,12 @@ export default function BasicInfo({
               updateBasicInfoAction('projectTimezone', value)
             }
           >
-            <SelectTrigger id="timezone">
-              <SelectValue placeholder="Select project timezone" />
+            <SelectTrigger id="timezone" className="w-full">
+              <SelectValue placeholder="Select project timezone">
+                {state.basicInfo.projectTimezone
+                  ? COMMON_TIMEZONES.find(tz => tz.value === state.basicInfo.projectTimezone)?.label || state.basicInfo.projectTimezone
+                  : undefined}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {COMMON_TIMEZONES.map((timezone) => (

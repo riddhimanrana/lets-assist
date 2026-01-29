@@ -86,9 +86,9 @@ export function NotificationPopover() {
   const scrollPositionRef = useRef<number>(0);
 
   // Track if we've fetched unread count on initial mount
-  const initialFetchDone = React.useRef(false);
+  const initialFetchDone = useRef(false);
   // Stable channel ref to avoid recreating subscriptions
-  const channelRef = React.useRef<RealtimeChannel | null>(null);
+  const channelRef = useRef<RealtimeChannel | null>(null);
 
   const notificationsQueryHandler = useCallback<SupabaseQueryHandler<"notifications">>(
     (query) => {
@@ -133,6 +133,95 @@ export function NotificationPopover() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Fetch initial unread count on mount
+  useEffect(() => {
+    if (!user?.id || initialFetchDone.current) return;
+    initialFetchDone.current = true;
+
+    const fetchUnreadCount = async () => {
+      try {
+        const { count, error } = await supabase
+          .from("notifications")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .eq("read", false);
+
+        if (error) {
+          console.error("Error fetching unread count:", error);
+          return;
+        }
+
+        setUnreadCount(count ?? 0);
+      } catch (error) {
+        console.error("Error fetching unread count:", error);
+      }
+    };
+
+    fetchUnreadCount();
+  }, [user?.id, supabase]);
+
+  // Subscribe to realtime notifications for unread count updates
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const channelName = `notification-count:${user.id}`;
+
+    // Clean up existing channel
+    if (channelRef.current) {
+      realtimeClient.removeChannel(channelRef.current);
+      channelRef.current = null;
+    }
+
+    const channel = realtimeClient
+      .channel(channelName)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          // New notification arrived - increment count if popover is closed
+          if (!open) {
+            setUnreadCount((prev) => prev + 1);
+          }
+          // Refresh the notifications list
+          refresh();
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          // Notification was updated (e.g., marked as read) - refresh
+          refresh();
+        }
+      )
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          console.log("Subscribed to notification count updates");
+        } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          console.error("Notification subscription error:", status);
+        }
+      });
+
+    channelRef.current = channel;
+
+    return () => {
+      if (channelRef.current) {
+        realtimeClient.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
+    };
+  }, [user?.id, realtimeClient, refresh, open]);
 
   // Auto-read all notifications when popover opens
   useEffect(() => {
@@ -338,7 +427,7 @@ export function NotificationPopover() {
 
   const notificationTriggerContent = (
     <>
-      <Bell className="h-5 w-5 text-muted-foreground group-hover:text-foreground" />
+      <Bell className="h-4 w-4 text-muted-foreground group-hover:text-foreground" />
       {unreadCount > 0 && (
         <Badge
           className="absolute -top-0.5 -right-0.5 h-4 w-4 p-0 flex items-center justify-center bg-destructive text-[10px] border-2 border-background"
@@ -413,9 +502,9 @@ export function NotificationPopover() {
   }
 
   const NotificationTrigger = (
-    <button className={triggerClasses}>
+    <Button className={triggerClasses} variant="ghost">
       {notificationTriggerContent}
-    </button>
+    </Button>
   );
 
   if (isMobile) {

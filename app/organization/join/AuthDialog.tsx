@@ -33,17 +33,17 @@ export default function AuthDialog({ organization, joinCode }: AuthDialogProps) 
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <Button 
-          asChild
+        <Button
           className="w-full"
           variant="default"
-        >
-          <Link href={`/login?redirect=/organization/join?code=${joinCode}`}>
-            <LogIn className="h-4 w-4 mr-2" />
-            Sign In to Join
-          </Link>
-        </Button>
-        
+          render={
+            <Link href={`/login?redirect=/organization/join?code=${joinCode}`}>
+              <LogIn className="h-4 w-4 mr-2" />
+              Sign In to Join
+            </Link>
+          }
+        />
+
         <div className="relative">
           <div className="absolute inset-0 flex items-center">
             <span className="w-full border-t" />
@@ -55,16 +55,16 @@ export default function AuthDialog({ organization, joinCode }: AuthDialogProps) 
           </div>
         </div>
 
-        <Button 
-          asChild
+        <Button
           variant="outline"
           className="w-full"
-        >
-          <Link href={`/signup?redirect=/organization/join?code=${joinCode}`}>
-            <UserPlus className="h-4 w-4 mr-2" />
-            Create New Account
-          </Link>
-        </Button>
+          render={
+            <Link href={`/signup?redirect=/organization/join?code=${joinCode}`}>
+              <UserPlus className="h-4 w-4 mr-2" />
+              Create New Account
+            </Link>
+          }
+        />
       </CardContent>
     </Card>
   );

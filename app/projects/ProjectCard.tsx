@@ -50,7 +50,7 @@ export function ProjectCard({
     const dateDisplay = formatDateDisplay(project as unknown as Project);
 
     return (
-        <Card className={cn("overflow-hidden flex flex-col h-full py-0 gap-0", className)}>
+        <Card className={cn("overflow-hidden flex flex-col h-full py-0 gap-0 dark:ring-0 dark:shadow-md", className)}>
             <CardHeader className="p-4 pb-2 space-y-3">
                 <div className="flex justify-between items-start gap-2">
                     <div className="flex-shrink-0">

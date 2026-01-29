@@ -11,9 +11,12 @@ function DropdownMenu({ modal = false, ...props }: MenuPrimitive.Root.Props) {
 }
 
 
-
 function DropdownMenuTrigger({ ...props }: MenuPrimitive.Trigger.Props) {
   return <MenuPrimitive.Trigger data-slot="dropdown-menu-trigger" {...props} />
+}
+
+function DropdownMenuPortal({ ...props }: MenuPrimitive.Portal.Props) {
+  return <MenuPrimitive.Portal data-slot="dropdown-menu-portal" {...props} />
 }
 
 function DropdownMenuContent({
@@ -28,6 +31,19 @@ function DropdownMenuContent({
     MenuPrimitive.Positioner.Props,
     "align" | "alignOffset" | "side" | "sideOffset"
   >) {
+  // Force unlock scroll to prevent layout shift
+  React.useLayoutEffect(() => {
+    const unlock = () => {
+      document.body.style.setProperty("overflow", "visible", "important")
+      document.body.style.setProperty("padding-right", "0px", "important")
+      document.body.style.setProperty("margin-right", "0px", "important")
+    }
+    // Run immediately and on next frame to fight library overrides
+    unlock()
+    const timer = requestAnimationFrame(unlock)
+    return () => cancelAnimationFrame(timer)
+  }, [])
+
   return (
     <MenuPrimitive.Portal>
       <MenuPrimitive.Positioner
@@ -235,6 +251,7 @@ function DropdownMenuShortcut({
 
 export {
   DropdownMenu,
+  DropdownMenuPortal,
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuGroup,

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { format } from "date-fns";
+import { format, startOfDay, endOfDay, subDays, subMonths, startOfMonth, endOfMonth, startOfYear, endOfYear, addYears } from "date-fns";
 import { Calendar as CalendarIcon } from "lucide-react";
 import { DateRange } from "react-day-picker";
 
@@ -13,7 +13,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface DateRangePickerProps {
   value?: DateRange | undefined;
@@ -40,154 +40,94 @@ export function DateRangePicker({
   align = "start",
   showQuickSelect = false
 }: DateRangePickerProps) {
-  // Handle the date range selection by adding a day to the end date
+  const isMobile = useIsMobile();
+
+  // Handle the date range selection
   const handleSelect = (range: DateRange | undefined) => {
-    if (range?.to) {
-      // Create a new end date and add one day
-      const adjustedEndDate = new Date(range.to);
-      adjustedEndDate.setDate(adjustedEndDate.getDate() + 1);
-      // Create new range with adjusted end date
-      onChange?.({ from: range.from, to: adjustedEndDate });
-    } else {
-      onChange?.(range);
-    }
+    onChange?.(range);
   };
 
-  const handleQuickSelect = (value: string | null) => {
-    if (!value) return;
+  const handleQuickSelect = (val: string | null) => {
+    if (!val) return;
 
-    const now = new Date()
-    let startDate: Date
+    const now = new Date();
+    let from: Date | undefined;
+    let to: Date | undefined;
 
-    switch (value) {
+    switch (val) {
       case "academic-year":
-        // Academic year: August 1st of current year to July 31st of next year
-        // If we're past August, current academic year started this August
-        // If we're before August, current academic year started last August
-        const currentYear = now.getFullYear()
-        const academicStartYear = now.getMonth() >= 7 ? currentYear : currentYear - 1 // August is month 7 (0-indexed)
-        startDate = new Date(academicStartYear, 7, 1) // August 1st
-        const endDate = new Date(academicStartYear + 1, 6, 31) // July 31st next year
-        const adjustedEndDate = new Date(endDate)
-        adjustedEndDate.setDate(adjustedEndDate.getDate() + 1)
-        onChange?.({ from: startDate, to: adjustedEndDate })
-        return
+        // Academic year: August 1st to July 31st
+        const currentYear = now.getFullYear();
+        const academicStartYear = now.getMonth() >= 7 ? currentYear : currentYear - 1;
+        from = new Date(academicStartYear, 7, 1); // Aug 1
+        to = new Date(academicStartYear + 1, 6, 31); // July 31
+        break;
       case "academic-semester":
-        // Fall semester: August - December, Spring semester: January - May
-        const currentMonth = now.getMonth()
-        if (currentMonth >= 7) { // August-December (Fall)
-          startDate = new Date(now.getFullYear(), 7, 1) // August 1st
-          const semesterEnd = new Date(now.getFullYear(), 11, 31) // December 31st
-          const adjustedSemesterEnd = new Date(semesterEnd)
-          adjustedSemesterEnd.setDate(adjustedSemesterEnd.getDate() + 1)
-          onChange?.({ from: startDate, to: adjustedSemesterEnd })
-        } else { // January-July (Spring)
-          startDate = new Date(now.getFullYear(), 0, 1) // January 1st
-          const semesterEnd = new Date(now.getFullYear(), 4, 31) // May 31st
-          const adjustedSemesterEnd = new Date(semesterEnd)
-          adjustedSemesterEnd.setDate(adjustedSemesterEnd.getDate() + 1)
-          onChange?.({ from: startDate, to: adjustedSemesterEnd })
+        const currentMonth = now.getMonth();
+        if (currentMonth >= 7) { // Fall: Aug - Dec
+          from = new Date(now.getFullYear(), 7, 1);
+          to = new Date(now.getFullYear(), 11, 31);
+        } else { // Spring: Jan - May
+          from = new Date(now.getFullYear(), 0, 1);
+          to = new Date(now.getFullYear(), 4, 31);
         }
-        return
+        break;
       case "summer":
         // Summer: June 1st - August 31st
-        startDate = new Date(now.getFullYear(), 5, 1) // June 1st
-        const summerEnd = new Date(now.getFullYear(), 7, 31) // August 31st
-        const adjustedSummerEnd = new Date(summerEnd)
-        adjustedSummerEnd.setDate(adjustedSummerEnd.getDate() + 1)
-        onChange?.({ from: startDate, to: adjustedSummerEnd })
-        return
+        from = new Date(now.getFullYear(), 5, 1);
+        to = new Date(now.getFullYear(), 7, 31);
+        break;
       case "last-month":
-        startDate = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate())
-        break
+        const startLastMonth = startOfMonth(subMonths(now, 1));
+        from = startLastMonth;
+        to = endOfMonth(subMonths(now, 1));
+        break;
       case "last-6-months":
-        startDate = new Date(now.getFullYear(), now.getMonth() - 6, now.getDate())
-        break
+        from = subMonths(now, 6);
+        to = now;
+        break;
       case "lifetime":
-        // Set a very early date instead of undefined
-        startDate = new Date(2020, 0, 1) // January 1, 2020
-        break
+        from = new Date(2020, 0, 1);
+        to = now;
+        break;
       default:
-        startDate = new Date(now.getFullYear(), now.getMonth() - 6, now.getDate())
-        break
+        break;
     }
 
-    const adjustedEndDate = new Date(now);
-    adjustedEndDate.setDate(adjustedEndDate.getDate() + 1);
-    onChange?.({ from: startDate, to: adjustedEndDate })
+    if (from && to) {
+      onChange?.({ from, to });
+    }
   };
-
-  // For display purposes, if we have an end date, subtract one day to show the actual selected date
-  const displayRange = value && value.to ? {
-    from: value.from,
-    to: new Date(new Date(value.to).setDate(value.to.getDate() - 1))
-  } : value;
 
   // Helper to determine which preset matches the current range
   const getSelectedPreset = (): string => {
     if (!value?.from || !value?.to) return "";
 
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth();
-
-    // Check Academic Year
-    const academicStartYear = currentMonth >= 7 ? currentYear : currentYear - 1;
-    const academicStart = new Date(academicStartYear, 7, 1);
-    const academicEnd = new Date(academicStartYear + 1, 6, 31);
-    // Adjust end date logic - the value.to is usually exclusive/next day in some logic, but here we compare start dates and approximate durations or exact end dates
-    // Actually exact comparison is best.
-
-    // Normalize dates for comparison (ignoring time)
-    const encodeDate = (d: Date) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-
+    const encodeDate = (d: Date) => format(d, 'yyyy-MM-dd');
     const vFrom = encodeDate(value.from);
-    // The handleQuickSelect adds 1 day to end date. So if we selected July 31st, it stored Aug 1st?
-    // Let's check handleQuickSelect logic:
-    // const adjustedEndDate = new Date(endDate)
-    // adjustedEndDate.setDate(adjustedEndDate.getDate() + 1)
-
-    // So value.to is 1 day after the logical end date.
-    // We should compare value.to to (expectedEnd + 1 day)
-
     const vTo = encodeDate(value.to);
 
-    const checkPreset = (start: Date, end: Date): boolean => {
-      const targetEnd = new Date(end);
-      targetEnd.setDate(targetEnd.getDate() + 1);
-      return vFrom === encodeDate(start) && vTo === encodeDate(targetEnd);
-    };
+    const check = (f: Date, t: Date) => vFrom === encodeDate(f) && vTo === encodeDate(t);
 
-    // Academic Year
-    if (checkPreset(new Date(academicStartYear, 7, 1), new Date(academicStartYear + 1, 6, 31))) return "academic-year";
+    const now = new Date();
+    const currentYear = now.getFullYear();
+
+    // Check Academic Year
+    const academicStartYear = now.getMonth() >= 7 ? currentYear : currentYear - 1;
+    if (check(new Date(academicStartYear, 7, 1), new Date(academicStartYear + 1, 6, 31))) return "academic-year";
 
     // Semester
-    if (currentMonth >= 7) { // Fall
-      if (checkPreset(new Date(currentYear, 7, 1), new Date(currentYear, 11, 31))) return "academic-semester";
-    } else { // Spring
-      if (checkPreset(new Date(currentYear, 0, 1), new Date(currentYear, 4, 31))) return "academic-semester";
+    if (now.getMonth() >= 7) {
+      if (check(new Date(currentYear, 7, 1), new Date(currentYear, 11, 31))) return "academic-semester";
+    } else {
+      if (check(new Date(currentYear, 0, 1), new Date(currentYear, 4, 31))) return "academic-semester";
     }
 
     // Summer
-    if (checkPreset(new Date(currentYear, 5, 1), new Date(currentYear, 7, 31))) return "summer";
-
-    // Lifetime
-    if (checkPreset(new Date(2020, 0, 1), new Date(now.getFullYear(), now.getMonth(), now.getDate()))) {
-      // Actually lifetime end date is today (roughly). 
-      // handleQuickSelect uses: adjustedEndDate = new Date(now) + 1 day.
-      // And start date: Jan 1 2020.
-      return "lifetime";
-    }
+    if (check(new Date(currentYear, 5, 1), new Date(currentYear, 7, 31))) return "summer";
 
     // Last Month
-    if (checkPreset(new Date(currentYear, currentMonth - 1, now.getDate()), now)) {
-      return "last-month";
-    }
-
-    // Last 6 Months
-    if (checkPreset(new Date(currentYear, currentMonth - 6, now.getDate()), now)) {
-      return "last-6-months";
-    }
+    if (check(startOfMonth(subMonths(now, 1)), endOfMonth(subMonths(now, 1)))) return "last-month";
 
     return "";
   };
@@ -225,21 +165,20 @@ export function DateRangePicker({
             <Button
               id="date"
               variant={"outline"}
-              size="sm"
               className={cn(
                 "justify-start text-left font-normal flex-1 h-9",
                 !value && "text-muted-foreground"
               )}
             >
               <CalendarIcon className="mr-2 h-4 w-4" />
-              {displayRange?.from ? (
-                displayRange.to ? (
+              {value?.from ? (
+                value.to && value.to.getTime() !== value.from.getTime() ? (
                   <>
-                    {format(displayRange.from, "MMM d, yyyy")} -{" "}
-                    {format(displayRange.to, "MMM d, yyyy")}
+                    {format(value.from, "MMM d")} -{" "}
+                    {format(value.to, "MMM d")}
                   </>
                 ) : (
-                  format(displayRange.from, "MMM d, yyyy")
+                  format(value.from, "MMM d")
                 )
               ) : (
                 <span>{placeholder}</span>
@@ -251,10 +190,10 @@ export function DateRangePicker({
           <Calendar
             initialFocus
             mode="range"
-            defaultMonth={displayRange?.from}
-            selected={displayRange}
+            defaultMonth={value?.from}
+            selected={value}
             onSelect={handleSelect}
-            numberOfMonths={2}
+            numberOfMonths={isMobile ? 1 : 2}
           />
         </PopoverContent>
       </Popover>

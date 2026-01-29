@@ -43,7 +43,7 @@ import type { Project as BaseProject, Organization, Signup } from "@/types";
 type ProjectWithExtras = BaseProject & {
   organizations?: Organization;
   total_confirmed?: number;
-  signups?: Signup[];
+  signups?: { status?: string }[] | Signup[];
 };
 
 const STORAGE_KEY = "preferred-project-view";

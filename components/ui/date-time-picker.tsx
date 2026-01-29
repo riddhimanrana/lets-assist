@@ -141,7 +141,7 @@ export function DateTimePicker({
             initialFocus
           />
           <div className="flex flex-col sm:flex-row sm:h-[300px] divide-y sm:divide-y-0 sm:divide-x">
-            <ScrollArea className="w-64 sm:w-auto">
+            <ScrollArea className="w-full sm:w-auto">
               <div className="flex sm:flex-col p-2">
                 {hours.map((hour) => (
                   <Button
@@ -161,7 +161,7 @@ export function DateTimePicker({
               </div>
               <ScrollBar orientation="horizontal" className="sm:hidden" />
             </ScrollArea>
-            <ScrollArea className="w-64 sm:w-auto">
+            <ScrollArea className="w-full sm:w-auto">
               <div className="flex sm:flex-col p-2">
                 {minutes.map((minute) => (
                   <Button

@@ -1,5 +1,6 @@
 import React from "react";
-import { Badge, BadgeProps } from "./badge";
+import { Badge, badgeVariants } from "./badge";
+import { VariantProps } from "class-variance-authority";
 import {
   Clock,
   ClockIcon,
@@ -10,6 +11,8 @@ import {
 import { cn } from "@/lib/utils";
 import { ProjectStatus } from "@/types";
 import { formatStatusText } from "@/utils/project";
+
+type BadgeProps = React.ComponentProps<typeof Badge> & VariantProps<typeof badgeVariants>;
 
 interface StatusBadgeProps extends Omit<BadgeProps, "variant"> {
   status: ProjectStatus;

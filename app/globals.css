@@ -78,11 +78,9 @@
 
     --toast-success-bg: color-mix(in srgb, var(--primary) 10%, var(--chart-9));
     --toast-success-fg: color-mix(in srgb, var(--success) 10%, transparent);
-    --toast-error-bg: color-mix(
-      in srgb,
-      var(--destructive) 10%,
-      var(--chart-9)
-    );
+    --toast-error-bg: color-mix(in srgb,
+        var(--destructive) 10%,
+        var(--chart-9));
     --toast-error-fg: color-mix(in srgb, var(--destructive) 10%, transparent);
     --toast-warning-bg: color-mix(in srgb, var(--chart-4) 10%, var(--chart-9));
     --toast-warning-fg: color-mix(in srgb, var(--warning) 10%, transparent);
@@ -162,11 +160,9 @@
 
     --toast-success-bg: color-mix(in srgb, var(--primary) 10%, var(--chart-9));
     --toast-success-fg: color-mix(in srgb, var(--success) 10%, transparent);
-    --toast-error-bg: color-mix(
-      in srgb,
-      var(--destructive) 10%,
-      var(--chart-9)
-    );
+    --toast-error-bg: color-mix(in srgb,
+        var(--destructive) 10%,
+        var(--chart-9));
     --toast-error-fg: color-mix(in srgb, var(--destructive) 10%, transparent);
     --toast-warning-bg: color-mix(in srgb, var(--chart-4) 10%, var(--chart-9));
     --toast-warning-fg: color-mix(in srgb, var(--warning) 10%, transparent);
@@ -269,6 +265,7 @@
   }
 
   @keyframes gradient {
+
     0%,
     100% {
       background-position: 0% 50%;
@@ -297,6 +294,7 @@
 }
 
 @layer utilities {
+
   /* Add Tippy.js animations */
   @keyframes shift-away {
     0% {

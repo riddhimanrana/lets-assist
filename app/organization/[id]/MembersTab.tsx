@@ -197,7 +197,7 @@ export default function MembersTab({
         // For now, we rely on the parent or a refresh, or optimist UI updates if we controlled the data state fully.
         // Since 'members' is a prop, we can't mutate it directly without a refresh or parent update.
         // Assuming the parent page refreshes on action or we trigger a router refresh.
-        window.location.reload(); 
+        window.location.reload();
       }
     } catch (error) {
       console.error("Error updating member role:", error);
@@ -227,8 +227,8 @@ export default function MembersTab({
       setRemovingMember(null);
     }
   };
-  
-    const handleExportCSV = async () => {
+
+  const handleExportCSV = async () => {
     setIsExporting(true);
     try {
       // Create simple hours export data
@@ -363,10 +363,10 @@ export default function MembersTab({
         },
         cell: ({ row }) => <RoleBadge role={row.original.role} />,
         sortingFn: (rowA, rowB, columnId) => {
-           const roleOrder = { admin: 3, staff: 2, member: 1 };
-           const roleA = rowA.getValue(columnId) as keyof typeof roleOrder;
-           const roleB = rowB.getValue(columnId) as keyof typeof roleOrder;
-           return roleOrder[roleA] - roleOrder[roleB];
+          const roleOrder = { admin: 3, staff: 2, member: 1 };
+          const roleA = rowA.getValue(columnId) as keyof typeof roleOrder;
+          const roleB = rowB.getValue(columnId) as keyof typeof roleOrder;
+          return roleOrder[roleA] - roleOrder[roleB];
         }
       },
       {
@@ -395,60 +395,60 @@ export default function MembersTab({
       cols.splice(2, 0, {
         id: "hours",
         header: ({ column }) => (
-            <Button
-              variant="ghost"
-              className="-ml-4 h-8 data-[state=open]:bg-accent"
-              onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-            >
-              Hours
-              <ArrowUpDown className="ml-2 h-4 w-4" />
-            </Button>
+          <Button
+            variant="ghost"
+            className="-ml-4 h-8 data-[state=open]:bg-accent"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          >
+            Hours
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          </Button>
         ),
         accessorFn: (row) => memberHours[row.user_id]?.totalHours || 0,
         cell: ({ row }) => (
-            loadingHours ? (
-              <Skeleton className="h-4 w-12 rounded-full" />
-            ) : (
-              <div className="flex items-center gap-2">
-                <span className="font-medium text-primary tabular-nums text-sm">
-                  {formatHours(memberHours[row.original.user_id]?.totalHours || 0)}
-                </span>
-                {(isAdmin || userRole === "staff" || row.original.user_id === currentUserId) && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6 rounded-full hover:bg-primary/10 hover:text-primary transition-colors"
-                    onClick={() => handleViewDetails(row.original)}
-                  >
-                    <Eye className="h-3 w-3" />
-                  </Button>
-                )}
-              </div>
-            )
+          loadingHours ? (
+            <Skeleton className="h-4 w-12 rounded-full" />
+          ) : (
+            <div className="flex items-center gap-2">
+              <span className="font-medium text-primary tabular-nums text-sm">
+                {formatHours(memberHours[row.original.user_id]?.totalHours || 0)}
+              </span>
+              {(isAdmin || userRole === "staff" || row.original.user_id === currentUserId) && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 rounded-full hover:bg-primary/10 hover:text-primary transition-colors"
+                  onClick={() => handleViewDetails(row.original)}
+                >
+                  <Eye className="h-3 w-3" />
+                </Button>
+              )}
+            </div>
+          )
         ),
       });
 
       cols.splice(3, 0, {
         id: "events",
-         header: ({ column }) => (
-            <Button
-              variant="ghost"
-              className="-ml-4 h-8 data-[state=open]:bg-accent"
-              onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-            >
-              Events
-              <ArrowUpDown className="ml-2 h-4 w-4" />
-            </Button>
+        header: ({ column }) => (
+          <Button
+            variant="ghost"
+            className="-ml-4 h-8 data-[state=open]:bg-accent"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          >
+            Events
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          </Button>
         ),
         accessorFn: (row) => memberHours[row.user_id]?.eventCount || 0,
         cell: ({ row }) => (
-           loadingHours ? (
-              <Skeleton className="h-4 w-8 rounded-full" />
-            ) : (
-              <span className="font-medium tabular-nums text-sm">
-                {memberHours[row.original.user_id]?.eventCount || 0}
-              </span>
-            )
+          loadingHours ? (
+            <Skeleton className="h-4 w-8 rounded-full" />
+          ) : (
+            <span className="font-medium tabular-nums text-sm">
+              {memberHours[row.original.user_id]?.eventCount || 0}
+            </span>
+          )
         ),
       });
     }
@@ -460,73 +460,50 @@ export default function MembersTab({
         cell: ({ row }) => {
           const member = row.original;
           const profile = getMemberProfile(member);
-          
+
           if (!((isAdmin || (userRole === "staff" && member.role === "member")) && member.user_id !== currentUserId)) {
-             return <div className="w-8 h-8" />;
+            return <div className="w-8 h-8" />;
           }
 
           return (
             <div className="flex justify-end">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" disabled={processingMember === member.id}>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 rounded-full"
+                      disabled={processingMember === member.id}
+                    >
                       {processingMember === member.id ? (
                         <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                       ) : (
                         <MoreHorizontal className="h-4 w-4" />
                       )}
                     </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56 rounded-xl shadow-lg border-muted/40">
-                    <div className="px-2 py-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                      Modify Member Permissions
-                    </div>
+                  }
+                />
+                <DropdownMenuContent align="end" className="w-56 rounded-xl shadow-lg border-muted/40">
+                  <div className="px-2 py-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    Modify Member Permissions
+                  </div>
 
-                    {isAdmin && (
-                      <>
-                        <DropdownMenuItem
-                          className="gap-2 py-2"
-                          onClick={() => handleUpdateRole(
-                            member.id,
-                            member.user_id,
-                            profile?.full_name || "Member",
-                            "admin"
-                          )}
-                          disabled={member.role === "admin"}
-                        >
-                          <Shield className="h-4 w-4 text-primary" />
-                          <span className="font-medium">Make Admin</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="gap-2 py-2"
-                          onClick={() => handleUpdateRole(
-                            member.id,
-                            member.user_id,
-                            profile?.full_name || "Member",
-                            "staff"
-                          )}
-                          disabled={member.role === "staff"}
-                        >
-                          <UserRoundCog className="h-4 w-4 text-blue-500" />
-                          <span className="font-medium">Make Staff</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="gap-2 py-2"
-                          onClick={() => handleUpdateRole(
-                            member.id,
-                            member.user_id,
-                            profile?.full_name || "Member",
-                            "member"
-                          )}
-                          disabled={member.role === "member"}
-                        >
-                          <UserRound className="h-4 w-4 text-muted-foreground" />
-                          <span className="font-medium">Make Member</span>
-                        </DropdownMenuItem>
-                      </>
-                    )}
-
-                    {userRole === "staff" && member.role === "member" && (
+                  {isAdmin && (
+                    <>
+                      <DropdownMenuItem
+                        className="gap-2 py-2"
+                        onClick={() => handleUpdateRole(
+                          member.id,
+                          member.user_id,
+                          profile?.full_name || "Member",
+                          "admin"
+                        )}
+                        disabled={member.role === "admin"}
+                      >
+                        <Shield className="h-4 w-4 text-primary" />
+                        <span className="font-medium">Make Admin</span>
+                      </DropdownMenuItem>
                       <DropdownMenuItem
                         className="gap-2 py-2"
                         onClick={() => handleUpdateRole(
@@ -535,29 +512,59 @@ export default function MembersTab({
                           profile?.full_name || "Member",
                           "staff"
                         )}
+                        disabled={member.role === "staff"}
                       >
                         <UserRoundCog className="h-4 w-4 text-blue-500" />
                         <span className="font-medium">Make Staff</span>
                       </DropdownMenuItem>
-                    )}
+                      <DropdownMenuItem
+                        className="gap-2 py-2"
+                        onClick={() => handleUpdateRole(
+                          member.id,
+                          member.user_id,
+                          profile?.full_name || "Member",
+                          "member"
+                        )}
+                        disabled={member.role === "member"}
+                      >
+                        <UserRound className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-medium">Make Member</span>
+                      </DropdownMenuItem>
+                    </>
+                  )}
 
-                    <div className="h-px bg-muted my-1" />
-                    <div className="px-2 py-2 text-[10px] font-bold uppercase tracking-wider text-destructive">
-                      Danger Zone
-                    </div>
-
+                  {userRole === "staff" && member.role === "member" && (
                     <DropdownMenuItem
-                      className="text-destructive focus:text-destructive focus:bg-destructive/10 gap-2 py-2"
-                      onClick={() => setRemovingMember({
-                        id: member.id,
-                        name: profile?.full_name || "Member"
-                      })}
+                      className="gap-2 py-2"
+                      onClick={() => handleUpdateRole(
+                        member.id,
+                        member.user_id,
+                        profile?.full_name || "Member",
+                        "staff"
+                      )}
                     >
-                      <X className="h-4 w-4" />
-                      <span className="font-medium">Remove Member</span>
+                      <UserRoundCog className="h-4 w-4 text-blue-500" />
+                      <span className="font-medium">Make Staff</span>
                     </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                  )}
+
+                  <div className="h-px bg-muted my-1" />
+                  <div className="px-2 py-2 text-[10px] font-bold uppercase tracking-wider text-destructive">
+                    Danger Zone
+                  </div>
+
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive focus:bg-destructive/10 gap-2 py-2"
+                    onClick={() => setRemovingMember({
+                      id: member.id,
+                      name: profile?.full_name || "Member"
+                    })}
+                  >
+                    <X className="h-4 w-4" />
+                    <span className="font-medium">Remove Member</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           );
         },
@@ -650,9 +657,9 @@ export default function MembersTab({
                         {header.isPlaceholder
                           ? null
                           : flexRender(
-                              header.column.columnDef.header,
-                              header.getContext()
-                            )}
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
                       </TableHead>
                     )
                   })}
@@ -677,7 +684,7 @@ export default function MembersTab({
               ) : (
                 <TableRow>
                   <TableCell colSpan={columns.length} className="h-32 text-center">
-                     {globalFilter ? (
+                    {globalFilter ? (
                       <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground">
                         <Search className="h-8 w-8 opacity-20" />
                         <p>No results found for &quot;{globalFilter}&quot;</p>
@@ -701,33 +708,33 @@ export default function MembersTab({
             </TableBody>
           </Table>
         </div>
-        
+
         <div className="flex items-center justify-between px-4 py-3 border-t bg-muted/20">
-            <div className="text-xs font-medium text-muted-foreground">
-                Showing {table.getRowModel().rows.length} members
-            </div>
-            <div className="flex items-center gap-2">
-                <Button
-                variant="outline"
-                size="sm"
-                className="h-8 px-2"
-                onClick={() => table.previousPage()}
-                disabled={!table.getCanPreviousPage()}
-                >
-                <ChevronLeft className="h-4 w-4 mr-1" />
-                Previous
-                </Button>
-                <Button
-                variant="outline"
-                size="sm"
-                className="h-8 px-2"
-                onClick={() => table.nextPage()}
-                disabled={!table.getCanNextPage()}
-                >
-                Next
-                <ChevronRight className="h-4 w-4 ml-1" />
-                </Button>
-            </div>
+          <div className="text-xs font-medium text-muted-foreground">
+            Showing {table.getRowModel().rows.length} members
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 px-2"
+              onClick={() => table.previousPage()}
+              disabled={!table.getCanPreviousPage()}
+            >
+              <ChevronLeft className="h-4 w-4 mr-1" />
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 px-2"
+              onClick={() => table.nextPage()}
+              disabled={!table.getCanNextPage()}
+            >
+              Next
+              <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+          </div>
         </div>
       </div>
 

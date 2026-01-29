@@ -1150,7 +1150,7 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                               {/* Status Indicator Column */}
                               <TableCell className="text-center">
                                 {!row.valid ? (
-                                  <TooltipProvider delayDuration={100}>
+                                  <TooltipProvider delay={100}>
                                     <Tooltip>
                                       <TooltipTrigger render={
                                         <XCircle className="w-4 h-4 text-destructive cursor-help" />
@@ -1168,7 +1168,7 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                                 ) : row.verificationStatus === 'pending' ? (
                                   <div className="w-4 h-4 animate-spin rounded-full border-2 border-current border-t-transparent opacity-60" />
                                 ) : row.isVerified ? (
-                                  <TooltipProvider delayDuration={100}>
+                                  <TooltipProvider delay={100}>
                                     <Tooltip>
                                       <TooltipTrigger render={
                                         <CheckCircle className="w-4 h-4 text-success cursor-help" />
@@ -1183,7 +1183,7 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                                   </TooltipProvider>
 
                                 ) : row.verificationStatus === 'verified' ? (
-                                  <TooltipProvider delayDuration={100}>
+                                  <TooltipProvider delay={100}>
                                     <Tooltip>
                                       <TooltipTrigger render={
                                         <AlertCircle className="w-4 h-4 text-destructive cursor-help" />
@@ -1197,7 +1197,7 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                                     </Tooltip>
                                   </TooltipProvider>
                                 ) : row.verificationStatus === 'failed' ? (
-                                  <TooltipProvider delayDuration={100}>
+                                  <TooltipProvider delay={100}>
                                     <Tooltip>
                                       <TooltipTrigger render={
                                         <XCircle className="w-4 h-4 text-destructive cursor-help" />
@@ -1221,7 +1221,7 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
 
                               {/* Project Title Column */}
                               <TableCell>
-                                <TooltipProvider delayDuration={100}>
+                                <TooltipProvider delay={100}>
                                   <Tooltip>
                                     <TooltipTrigger render={
                                       <div className="truncate cursor-default text-xs sm:text-sm" title={row.projectTitle}>
@@ -1262,7 +1262,7 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                                     View
                                   </Button>
                                 ) : row.certificateId ? (
-                                  <TooltipProvider delayDuration={100}>
+                                  <TooltipProvider delay={100}>
                                     <Tooltip>
                                       <TooltipTrigger render={
                                         <Button
