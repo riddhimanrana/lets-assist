@@ -1600,19 +1600,19 @@ export default function EditProjectClient({ project }: Props) {
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger>
-                      <div>
-                        <Button
-                          variant="destructive"
-                          onClick={() => setShowDeleteDialog(true)}
-
-                          className="w-full"
-                        >
+                      <Button
+                        variant="destructive"
+                        onClick={() => setShowDeleteDialog(true)}
+                        className="w-full"
+                        asChild
+                      >
+                        <span className="cursor-pointer">
                           {isDeleting ? (
                             <Loader2 className="h-4 w-4 animate-spin mr-2" />
                           ) : null}
                           Delete Project
-                        </Button>
-                      </div>
+                        </span>
+                      </Button>
                     </TooltipTrigger>
                     {isInDeletionRestrictionPeriod && (
                       <TooltipContent className="max-w-[250px] text-center p-2">

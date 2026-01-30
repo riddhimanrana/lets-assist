@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { AlertCircle, CheckCircle2 } from "lucide-react";
+import { AlertCircle, CheckCircle2, Trash2Icon } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -23,14 +23,17 @@ import {
 } from "@/components/ui/field";
 import { Controller } from "react-hook-form";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter,
-} from "@/components/ui/dialog";
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { deleteAccount, updatePasswordAction, updateEmailAction } from "./actions";
@@ -230,11 +233,11 @@ export default function SecurityClient() {
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
           <Card className="flex flex-col h-full">
-            <CardHeader className="p-5">
+            <CardHeader className="p-6">
               <CardTitle className="text-xl">Email Address</CardTitle>
               <CardDescription>Change your email address</CardDescription>
             </CardHeader>
-            <CardContent className="flex-1 p-5">
+            <CardContent className="flex-1 p-6">
               <form onSubmit={emailForm.handleSubmit(handleEmailChange)} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="current-email">Current Email</Label>
@@ -291,12 +294,12 @@ export default function SecurityClient() {
             </CardContent>
           </Card>
           <Card className="flex flex-col h-full">
-            <CardHeader className="p-5">
+            <CardHeader className="p-6">
               <CardTitle className="text-xl">Password</CardTitle>
               <CardDescription>Change your password</CardDescription>
             </CardHeader>
-            <CardContent className="flex-1 p-5">
-              <CardContent className="flex-1 p-5">
+            <CardContent className="flex-1 p-6">
+              <CardContent className="flex-1 p-0">
                 <form onSubmit={passwordForm.handleSubmit(handlePasswordChange)} className="space-y-4">
                   <div className="space-y-2">
                     <Controller
@@ -389,19 +392,20 @@ export default function SecurityClient() {
             </CardDescription>
           </CardHeader>
           <CardContent className="p-6">
-            <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-              <DialogTrigger className={cn(buttonVariants({ variant: "destructive" }), "w-full sm:w-auto")}>
-                Delete Account
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-lg max-w-[95vw]">
-                <DialogHeader>
-                  <DialogTitle>Are you absolutely sure?</DialogTitle>
-                  <DialogDescription>
+            <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+              <AlertDialogTrigger render={<Button variant="destructive" className="w-full sm:w-auto">Delete Account</Button>} />
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogMedia className="bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive">
+                    <Trash2Icon className="size-5" />
+                  </AlertDialogMedia>
+                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                  <AlertDialogDescription>
                     This action cannot be undone. This will permanently delete
                     your account and remove all associated data.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <div className="space-y-4 py-2">
                   <div className="space-y-2">
                     <Label htmlFor="confirm">
                       Type &quot;delete my account&quot; to confirm
@@ -414,31 +418,25 @@ export default function SecurityClient() {
                     />
                   </div>
                 </div>
-                <DialogFooter className="flex-col sm:flex-row gap-2">
-                  <Button
+                <AlertDialogFooter>
+                  <AlertDialogCancel onClick={handleCancelDelete}>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
                     variant="destructive"
-                    onClick={handleDeleteAccount}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleDeleteAccount();
+                    }}
                     disabled={
                       deleteConfirmation !== "delete my account" || isDeleting
                     }
-                    className="w-full sm:w-auto order-2 sm:order-1"
                   >
                     {isDeleting
                       ? `Deleting in ${countdown}s...`
                       : "Delete Account"}
-                  </Button>
-                  {isDeleting && (
-                    <Button
-                      variant="secondary"
-                      onClick={handleCancelDelete}
-                      className="w-full sm:w-auto order-1 sm:order-2"
-                    >
-                      Cancel
-                    </Button>
-                  )}
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </CardContent>
         </Card>
       </div>

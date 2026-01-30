@@ -42,8 +42,7 @@ export function DonateDialog({ open, onOpenChange }: DonateDialogProps) {
       <DialogContent className="p-0 border-0 bg-transparent shadow-none sm:max-w-md">
         <DialogTitle className="sr-only">Support Let's Assist</DialogTitle>
         <Card className="w-full border-border shadow-2xl relative overflow-hidden gap-0">
-          {/* Decorative background element */}
-          <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-bl-[100px] pointer-events-none" />
+
 
           <CardHeader className="relative z-10 pb-4">
             <div className="flex items-center gap-3 mb-2">
@@ -52,17 +51,17 @@ export function DonateDialog({ open, onOpenChange }: DonateDialogProps) {
               </div>
               <CardTitle className="text-xl">Support Let's Assist</CardTitle>
             </div>
-            <CardDescription className="text-base text-foreground/80">
-              Your support keeps our community servers running and helps us connect more volunteers with organizations.
+            <CardDescription className="text-base text-foreground/80 leading-relaxed">
+              We&apos;re on a mission to connect volunteers with impactful organizations. Your support helps keep our platform free and our community servers running.
             </CardDescription>
           </CardHeader>
 
-          <CardContent className="relative z-10 space-y-4">
+          <CardContent className="relative z-10 space-y-4 pb-0">
             <div className="rounded-lg bg-muted/50 p-4 text-sm text-muted-foreground leading-relaxed border border-border/50">
               <p className="flex gap-2">
                 <Info className="h-4 w-4 shrink-0 translate-y-0.5 text-primary" />
                 <span>
-                  Running a platform for thousands of users costs hundreds of dollars monthly. Every donation, no matter the size, makes a difference.
+                  Scaling a platform for thousands of users comes with significant monthly costs. Your contribution, regardless of size, directly supports our infrastructure.
                 </span>
               </p>
             </div>
@@ -71,14 +70,14 @@ export function DonateDialog({ open, onOpenChange }: DonateDialogProps) {
               <p className="text-sm font-medium text-foreground">
                 Contact for donations:
               </p>
-              <div className="flex items-center gap-2 p-1.5 pl-3 pr-1.5 rounded-lg border bg-background shadow-sm ring-offset-background transition-all focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
+              <div className="flex items-center gap-3 p-2.5 pl-4 pr-2 rounded-xl border bg-background/50 shadow-sm ring-offset-background transition-all focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
                 <Mail className="h-4 w-4 text-muted-foreground" />
                 <span className="flex-1 text-sm font-mono truncate">{email}</span>
                 <Button
                   size="sm"
                   variant="secondary"
                   onClick={copyEmail}
-                  className="h-8 shadow-none"
+                  className="h-9 px-4 shadow-none rounded-lg"
                 >
                   {copied ? (
                     <>
@@ -96,8 +95,13 @@ export function DonateDialog({ open, onOpenChange }: DonateDialogProps) {
             </div>
           </CardContent>
 
-          <CardFooter className="bg-muted/30 pt-4 relative z-10">
-            <Button className="w-full" variant="outline" onClick={() => onOpenChange(false)}>
+          <CardFooter className="p-2 relative z-10">
+            <Button
+              className="w-full text-muted-foreground hover:text-foreground"
+              variant="ghost"
+              size="sm"
+              onClick={() => onOpenChange(false)}
+            >
               Maybe Later
             </Button>
           </CardFooter>

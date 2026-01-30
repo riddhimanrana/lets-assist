@@ -28,6 +28,7 @@ import { useAuth } from "@/hooks/useAuth";
 import type { RealtimeChannel } from "@supabase/realtime-js";
 import { useInfiniteQuery, type SupabaseQueryHandler } from "@/hooks/use-infinite-query";
 import { useInView } from "react-intersection-observer";
+import { useNotification } from "@/contexts/NotificationContext";
 
 type NotificationSeverity = 'info' | 'warning' | 'success';
 
@@ -73,22 +74,14 @@ export function NotificationPopover() {
   const [open, setOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [activeNotification, setActiveNotification] = useState<Notification | null>(null);
-  const [unreadCount, setUnreadCount] = useState(0);
-  // Use useState to keep supabase client stable across renders
+
+  const { unreadCount, setUnreadCount, refreshTrigger } = useNotification();
+
+  // Use useState to keep supabase client stable across renders for data manipulation
   const [supabase] = useState(() => createClient());
-  const realtimeClient = supabase as unknown as {
-    channel: (name: string) => RealtimeChannel;
-    removeChannel: (channel: RealtimeChannel) => Promise<unknown>;
-  };
   const router = useRouter();
   const isMobile = useMediaQuery("(max-width: 768px)");
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const scrollPositionRef = useRef<number>(0);
-
-  // Track if we've fetched unread count on initial mount
-  const initialFetchDone = useRef(false);
-  // Stable channel ref to avoid recreating subscriptions
-  const channelRef = useRef<RealtimeChannel | null>(null);
 
   const notificationsQueryHandler = useCallback<SupabaseQueryHandler<"notifications">>(
     (query) => {
@@ -130,105 +123,33 @@ export function NotificationPopover() {
     }
   }, [inView, hasMore, fetching, fetchNextPage]);
 
+  // Deduplicate notifications
+  const uniqueNotifications = React.useMemo(() => {
+    const seen = new Set();
+    return notifications.filter((n) => {
+      const duplicate = seen.has(n.id);
+      seen.add(n.id);
+      return !duplicate;
+    });
+  }, [notifications]);
+
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Fetch initial unread count on mount
+  // Sync infinite query with context refresh trigger
   useEffect(() => {
-    if (!user?.id || initialFetchDone.current) return;
-    initialFetchDone.current = true;
-
-    const fetchUnreadCount = async () => {
-      try {
-        const { count, error } = await supabase
-          .from("notifications")
-          .select("*", { count: "exact", head: true })
-          .eq("user_id", user.id)
-          .eq("read", false);
-
-        if (error) {
-          console.error("Error fetching unread count:", error);
-          return;
-        }
-
-        setUnreadCount(count ?? 0);
-      } catch (error) {
-        console.error("Error fetching unread count:", error);
-      }
-    };
-
-    fetchUnreadCount();
-  }, [user?.id, supabase]);
-
-  // Subscribe to realtime notifications for unread count updates
-  useEffect(() => {
-    if (!user?.id) return;
-
-    const channelName = `notification-count:${user.id}`;
-
-    // Clean up existing channel
-    if (channelRef.current) {
-      realtimeClient.removeChannel(channelRef.current);
-      channelRef.current = null;
+    if (refreshTrigger > 0) {
+      refresh();
     }
-
-    const channel = realtimeClient
-      .channel(channelName)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "notifications",
-          filter: `user_id=eq.${user.id}`,
-        },
-        () => {
-          // New notification arrived - increment count if popover is closed
-          if (!open) {
-            setUnreadCount((prev) => prev + 1);
-          }
-          // Refresh the notifications list
-          refresh();
-        }
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "notifications",
-          filter: `user_id=eq.${user.id}`,
-        },
-        () => {
-          // Notification was updated (e.g., marked as read) - refresh
-          refresh();
-        }
-      )
-      .subscribe((status) => {
-        if (status === "SUBSCRIBED") {
-          console.log("Subscribed to notification count updates");
-        } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
-          console.error("Notification subscription error:", status);
-        }
-      });
-
-    channelRef.current = channel;
-
-    return () => {
-      if (channelRef.current) {
-        realtimeClient.removeChannel(channelRef.current);
-        channelRef.current = null;
-      }
-    };
-  }, [user?.id, realtimeClient, refresh, open]);
+  }, [refreshTrigger, refresh]);
 
   // Auto-read all notifications when popover opens
   useEffect(() => {
     if (open && unreadCount > 0 && user?.id) {
       const markAllAsRead = async () => {
         try {
-          // Optimistic update for UI
+          // Optimistic update for UI via Context
           setUnreadCount(0);
 
           await supabase
@@ -238,6 +159,8 @@ export function NotificationPopover() {
             .eq("read", false);
 
           refresh();
+          // Also trigger context to stay in sync if needed, though we just optimistically set it.
+          // contextRefresh(); 
         } catch (error) {
           console.error("Error marking all notifications as read:", error);
         }
@@ -247,7 +170,7 @@ export function NotificationPopover() {
       const timer = setTimeout(markAllAsRead, 1000);
       return () => clearTimeout(timer);
     }
-  }, [open, unreadCount, user?.id, refresh, supabase]);
+  }, [open, unreadCount, user?.id, refresh, supabase, setUnreadCount]);
 
   const isReportFeedbackNotification = (notification: Notification) => {
     return notification.data?.modalType === 'report-feedback';
@@ -369,9 +292,22 @@ export function NotificationPopover() {
             </p>
             {showLink && (
               <div className="flex items-center gap-3 mt-2">
-                <span className="text-xs text-primary hover:underline underline-offset-2 font-medium">
+                <Button
+                  variant="link"
+                  className="h-auto p-0 text-xs text-primary hover:underline underline-offset-2 font-medium"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (notification.action_url) {
+                      router.push(notification.action_url);
+                      setOpen(false);
+                      if (!notification.read) {
+                        markAsRead(notification.id);
+                      }
+                    }
+                  }}
+                >
                   Open link
-                </span>
+                </Button>
               </div>
             )}
           </div>
@@ -409,7 +345,7 @@ export function NotificationPopover() {
           </div>
         ) : notifications.length > 0 ? (
           <div className="flex flex-col divide-y divide-border/40">
-            {notifications.map(renderNotificationItem)}
+            {uniqueNotifications.map(renderNotificationItem)}
 
             {/* Infinite scroll trigger */}
             {hasMore && (
@@ -426,16 +362,16 @@ export function NotificationPopover() {
   );
 
   const notificationTriggerContent = (
-    <>
-      <Bell className="h-4 w-4 text-muted-foreground group-hover:text-foreground" />
+    <div className="relative">
+      <Bell className="h-5 w-5 text-muted-foreground group-hover:text-foreground transition-colors" />
       {unreadCount > 0 && (
         <Badge
-          className="absolute -top-0.5 -right-0.5 h-4 w-4 p-0 flex items-center justify-center bg-destructive text-[10px] border-2 border-background"
+          className="absolute -top-1 -right-1 h-[18px] min-w-[18px] px-1 flex items-center justify-center bg-[#FF0000] hover:bg-[#FF0000] text-white text-[10px] font-bold border-2 border-background rounded-full shadow-sm select-none"
         >
           {unreadCount > 9 ? '9+' : unreadCount}
         </Badge>
       )}
-    </>
+    </div>
   );
 
   const triggerClasses = "relative rounded-full h-9 w-9 inline-flex items-center justify-center hover:bg-muted/50 transition-all border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2";
