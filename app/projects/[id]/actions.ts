@@ -30,11 +30,11 @@ function formatTimeTo12Hour(timeStr: string | undefined): string {
     // Expected format "HH:mm" or "HH:mm:ss"
     const [hours, minutes] = timeStr.split(':').map(Number);
     if (hours === undefined || minutes === undefined || isNaN(hours) || isNaN(minutes)) return timeStr;
-    
+
     const ampm = hours >= 12 ? 'PM' : 'AM';
     const hour12 = hours % 12 || 12;
     const minStr = minutes.toString().padStart(2, '0');
-    
+
     return `${hour12}:${minStr} ${ampm}`;
   } catch {
     return timeStr;
@@ -141,10 +141,10 @@ function getScheduleDetails(project: Project, scheduleId: string) {
     });
 
     const role = schedule.roles.find(r => r.name === scheduleId);
-    
+
     const start12 = formatTimeTo12Hour(role?.startTime || schedule.overallStart);
     const end12 = formatTimeTo12Hour(role?.endTime || schedule.overallEnd);
-    
+
     const timeRange = start12 !== "TBD" && end12 !== "TBD"
       ? `${start12} - ${end12}`
       : start12;
@@ -206,12 +206,12 @@ export async function getProject(projectId: string) {
     `)
     .eq("id", projectId)
     .single()) as {
-    data: Project | null;
-    error: { message: string } | null;
-  };
+      data: Project | null;
+      error: { message: string } | null;
+    };
 
   if (error) {
-    console.error("Error fetching project:", error);
+    console.error("Error fetching project:", JSON.stringify(error, null, 2));
     return { error: "Failed to fetch project" };
   }
 
@@ -235,9 +235,9 @@ export async function getProject(projectId: string) {
         .from("organization_members")
         .select("organization_id, role")
         .eq("user_id", user.id)) as {
-        data: { organization_id: string; role: string }[] | null;
-        error: { message: string } | null;
-      };
+          data: { organization_id: string; role: string }[] | null;
+          error: { message: string } | null;
+        };
 
       // Check if user is a member of the project's organization
       const hasAccess = isProjectVisible(project, user.id, userOrgs || []);
@@ -295,7 +295,7 @@ export async function getActiveWaiverTemplate() {
 export async function getProjectWaiver(projectId: string) {
   try {
     const serviceSupabase = getAdminClient();
-    
+
     // First get the project's waiver config
     const { data: project, error: projectError } = await serviceSupabase
       .from("projects")
@@ -328,7 +328,7 @@ export async function getProjectWaiver(projectId: string) {
 
     // Fall back to global template
     const { template, error: templateError } = await getActiveWaiverTemplate();
-    
+
     if (templateError) {
       return { error: templateError };
     }
@@ -353,7 +353,7 @@ export async function getProjectWaiver(projectId: string) {
 export async function uploadProjectWaiverPdf(projectId: string, pdfDataUrl: string, fileName: string) {
   try {
     const supabase = await createClient();
-    
+
     // Check if user has permission
     const isAllowed = await isProjectCreator(projectId);
     if (!isAllowed) {
@@ -361,7 +361,7 @@ export async function uploadProjectWaiverPdf(projectId: string, pdfDataUrl: stri
     }
 
     const serviceSupabase = getAdminClient();
-    
+
     // Parse and validate the PDF data URL
     const parsed = parseDataUrl(pdfDataUrl);
     if (!parsed) {
@@ -417,8 +417,8 @@ export async function uploadProjectWaiverPdf(projectId: string, pdfDataUrl: stri
     revalidatePath(`/projects/${projectId}`);
     revalidatePath(`/projects/${projectId}/edit`);
 
-    return { 
-      success: true, 
+    return {
+      success: true,
       waiverPdfUrl: urlData.publicUrl,
       waiverPdfStoragePath: storagePath,
     };
@@ -432,7 +432,7 @@ export async function uploadProjectWaiverPdf(projectId: string, pdfDataUrl: stri
 export async function removeProjectWaiverPdf(projectId: string) {
   try {
     const supabase = await createClient();
-    
+
     // Check if user has permission
     const isAllowed = await isProjectCreator(projectId);
     if (!isAllowed) {
@@ -619,7 +619,7 @@ async function persistWaiverSignature(params: {
       .order("version", { ascending: false })
       .limit(1)
       .maybeSingle();
-    
+
     if (activeTemplate) {
       templateId = activeTemplate.id;
     } else {
@@ -1048,7 +1048,7 @@ export async function signUpForProject(
       // Step 2: If any anonymous records exist for this email+project, check if there's a signup for THIS specific schedule
       if (existingAnonRecords && existingAnonRecords.length > 0) {
         const anonIds = existingAnonRecords.map(r => r.id);
-        
+
         const { data: existingSlotSignup, error: slotError } = await supabase
           .from('project_signups')
           .select('id, status, anonymous_id')
@@ -1067,7 +1067,7 @@ export async function signUpForProject(
 
           if (signupStatus === "pending") {
             // Return structured response so frontend can offer resend option
-            return { 
+            return {
               error: "You've already signed up for this slot but haven't confirmed your email yet.",
               canResend: true,
               anonymousSignupId: existingSlotSignup.anonymous_id
@@ -1397,7 +1397,7 @@ export async function cancelSignup(signupId: string, anonymousSignupId?: string)
 
     // Permission check: User who signed up OR project creator/org admin/staff OR valid anonymous signup owner
     let hasPermission = false;
-    
+
     // Check if this is an anonymous cancellation with valid anonymousSignupId
     if (anonymousSignupId && signup.anonymous_id === anonymousSignupId) {
       // Verify the anonymous signup exists and matches
@@ -1406,12 +1406,12 @@ export async function cancelSignup(signupId: string, anonymousSignupId?: string)
         .select("id")
         .eq("id", anonymousSignupId)
         .maybeSingle();
-      
+
       if (!anonError && anonSignup) {
         hasPermission = true;
       }
     }
-    
+
     if (!hasPermission && user) {
       if (signup.user_id === user.id) {
         hasPermission = true;
@@ -1438,7 +1438,7 @@ export async function cancelSignup(signupId: string, anonymousSignupId?: string)
         }
       }
     }
-    
+
     if (!hasPermission && !user && !anonymousSignupId) {
       return { error: "Authentication required to cancel signup." };
     }

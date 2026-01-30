@@ -352,7 +352,7 @@ export default function DraftsSidebar({ initialDrafts }: DraftsSidebarProps) {
                   {drafts.length} draft{drafts.length !== 1 ? "s" : ""} saved
                 </SheetDescription>
               </SheetHeader>
-              <div className="mt-6">
+              <div className="mt-6 px-4">
                 <DraftList />
               </div>
             </SheetContent>

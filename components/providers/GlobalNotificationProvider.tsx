@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import InitialOnboardingModal from "@/components/onboarding/InitialOnboardingModal";
 import FirstLoginTour from "@/components/onboarding/FirstLoginTour";
-import { NotificationListener } from "@/components/notifications/NotificationListener";
+import { NotificationProvider } from "@/contexts/NotificationContext";
 import { useAuth } from "@/hooks/useAuth";
 import { createClient } from "@/lib/supabase/client";
 
@@ -206,8 +206,7 @@ export default function GlobalNotificationProvider({
   }, [suppressOnboardingModal, showIntroTour]);
 
   return (
-    <>
-      {user?.id && <NotificationListener userId={user.id} />}
+    <NotificationProvider>
       {showIntroTour && user?.id && !isLoading && !suppressOnboardingModal && (
         <FirstLoginTour
           isOpen={showIntroTour}
@@ -233,6 +232,6 @@ export default function GlobalNotificationProvider({
         />
       )}
       {children}
-    </>
+    </NotificationProvider>
   );
 }

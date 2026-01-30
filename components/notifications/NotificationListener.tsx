@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import type { RealtimeChannel } from "@supabase/realtime-js";
@@ -24,6 +24,7 @@ type NotificationRecord = {
 };
 
 export function NotificationListener({ userId }: NotificationListenerProps) {
+  const [supabase] = useState(() => createClient());
   const channelRef = useRef<RealtimeChannel | null>(null);
   const initializedRef = useRef(false);
   const retryCountRef = useRef(0);
@@ -37,8 +38,8 @@ export function NotificationListener({ userId }: NotificationListenerProps) {
     console.log('Displaying notification toast:', notification.title);
     displayedNotifications.add(notification.id);
 
-    const toastMethod = notification.severity === 'warning' 
-      ? toast.warning 
+    const toastMethod = notification.severity === 'warning'
+      ? toast.warning
       : notification.severity === 'success'
         ? toast.success
         : toast.info;
@@ -46,11 +47,11 @@ export function NotificationListener({ userId }: NotificationListenerProps) {
     const actionUrl = notification.action_url;
     const action = actionUrl
       ? {
-          label: "View",
-          onClick: () => {
-            window.location.href = actionUrl;
-          },
-        }
+        label: "View",
+        onClick: () => {
+          window.location.href = actionUrl;
+        },
+      }
       : undefined;
 
     toastMethod(notification.title, {
@@ -58,7 +59,6 @@ export function NotificationListener({ userId }: NotificationListenerProps) {
       action,
     });
 
-    const supabase = createClient();
     try {
       await supabase
         .from('notifications')
@@ -81,11 +81,7 @@ export function NotificationListener({ userId }: NotificationListenerProps) {
         return;
       }
 
-      const supabase = createClient();
-      const realtimeClient = supabase as unknown as {
-        channel: (name: string) => RealtimeChannel;
-        removeChannel: (channel: RealtimeChannel) => Promise<unknown>;
-      };
+      const realtimeClient = supabase;
 
       try {
         // Removed connection test query - it's redundant since we're about to make a real query anyway
@@ -113,36 +109,40 @@ export function NotificationListener({ userId }: NotificationListenerProps) {
         }
 
         const channelName = `personal-notifications:${userId}`;
-        
+
         if (channelRef.current) {
           await realtimeClient.removeChannel(channelRef.current);
         }
 
         const channel = realtimeClient
           .channel(channelName)
-          .on('postgres_changes', 
+          .on('postgres_changes',
             {
               event: 'INSERT',
               schema: 'public',
               table: 'notifications',
-              filter: `user_id=eq.${userId}`
+              filter: `user_id=eq.${userId}`,
             },
-            payload => {
+            (payload: any) => {
+              console.log('Realtime notification received:', payload);
               if (!unmountedRef.current && payload.new) {
-                displayNotificationToast(payload.new as NotificationRecord);
+                // Ensure we handle the payload correctly
+                const newNotification = payload.new as NotificationRecord;
+                console.log('Processing new notification:', newNotification.id);
+                displayNotificationToast(newNotification);
               }
             }
           )
-          .subscribe(status => {
+          .subscribe((status: string, err: any) => {
             if (unmountedRef.current) return;
 
             if (status === 'SUBSCRIBED') {
-              console.log('Successfully subscribed to notifications');
+              console.log('Successfully subscribed to notifications channel:', channelName);
               retryCountRef.current = 0;
             }
             else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-              console.log(`Subscription failed (attempt ${retryCountRef.current + 1}/${MAX_RETRIES})`);
-              
+              console.error(`Subscription failed (attempt ${retryCountRef.current + 1}/${MAX_RETRIES}):`, status, err);
+
               if (channelRef.current) {
                 realtimeClient.removeChannel(channelRef.current);
                 channelRef.current = null;
@@ -173,16 +173,12 @@ export function NotificationListener({ userId }: NotificationListenerProps) {
 
     return () => {
       unmountedRef.current = true;
-      const supabase = createClient();
-      const realtimeClient = supabase as unknown as {
-        removeChannel: (channel: RealtimeChannel) => Promise<unknown>;
-      };
       if (channelRef.current) {
-        realtimeClient.removeChannel(channelRef.current);
+        supabase.removeChannel(channelRef.current);
         channelRef.current = null;
       }
     };
-  }, [userId]);
+  }, [userId, supabase]);
 
   return null;
 }

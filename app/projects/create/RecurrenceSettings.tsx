@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Calendar as CalendarIcon, Repeat, Info } from "lucide-react";
+import { Calendar as CalendarIcon, Repeat, Info, AlertCircle, Sparkles } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import {
@@ -130,46 +130,66 @@ export default function RecurrenceSettings({
     return null;
   }
 
+  const frequencyOptions: Record<string, string> = {
+    "daily": "Day(s)",
+    "weekly": "Week(s)",
+    "monthly": "Month(s)",
+    "yearly": "Year(s)"
+  };
+
+  const endTypeOptions: Record<string, string> = {
+    "never": "Never (ongoing)",
+    "on_date": "On a specific date",
+    "after_occurrences": "After # occurrences"
+  };
+
   return (
-    <Card className="mt-6">
-      <CardHeader className="">
+    <Card className="mt-6 border-muted bg-muted/5 shadow-sm">
+      <CardHeader className="cursor-pointer" onClick={() => updateRecurrence("enabled", !recurrence.enabled)}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Repeat className="h-5 w-5 text-primary" />
-            <CardTitle className="text-lg">Recurring Event</CardTitle>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger render={
-                  <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                } />
-                <TooltipContent className="max-w-xs">
-                  <p>
-                    Set up this event to repeat automatically. New events will be
-                    created based on your schedule (e.g., every Friday).
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <Repeat className={cn("h-5 w-5", recurrence.enabled ? "text-primary" : "text-muted-foreground")} />
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-base font-medium">Recurring Event</CardTitle>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger render={
+                      <button type="button" onClick={(e) => e.stopPropagation()}>
+                        <Info className="h-4 w-4 text-muted-foreground/70 hover:text-muted-foreground transition-colors" />
+                      </button>
+                    } />
+                    <TooltipContent className="max-w-xs">
+                      <p>
+                        Set up this event to repeat automatically. New events will be
+                        created based on your schedule.
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              {recurrence.enabled && (
+                <p className="text-sm text-muted-foreground font-normal">
+                  {getRecurrenceSummary()}
+                </p>
+              )}
+            </div>
           </div>
           <Switch
             checked={recurrence.enabled}
             onCheckedChange={(checked) => updateRecurrence("enabled", checked)}
+            onClick={(e) => e.stopPropagation()}
           />
         </div>
-        {recurrence.enabled && (
-          <p className="text-sm text-muted-foreground mt-1">
-            {getRecurrenceSummary()}
-          </p>
-        )}
       </CardHeader>
 
       {recurrence.enabled && (
-        <CardContent className="space-y-6">
-          {/* Frequency and Interval */}
-          <div className="grid sm:grid-cols-2 gap-4">
-            <div>
-              <Label>Repeat every</Label>
-              <div className="flex gap-2 mt-1.5">
+        <CardContent className="space-y-6 pt-0 animate-in slide-in-from-top-2 fade-in duration-200">
+          <div className="grid gap-6 sm:grid-cols-2">
+            {/* Frequency and Interval */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Repeat every</Label>
+              <div className="flex gap-3">
                 <Input
                   type="number"
                   min="1"
@@ -178,7 +198,7 @@ export default function RecurrenceSettings({
                   onChange={(e) =>
                     updateRecurrence("interval", parseInt(e.target.value) || 1)
                   }
-                  className="w-20"
+                  className="w-20 bg-background"
                 />
                 <Select
                   value={recurrence.frequency}
@@ -186,8 +206,10 @@ export default function RecurrenceSettings({
                     updateRecurrence("frequency", value as RecurrenceFrequency)
                   }
                 >
-                  <SelectTrigger className="flex-1">
-                    <SelectValue />
+                  <SelectTrigger className="flex-1 bg-background">
+                    <SelectValue>
+                      {frequencyOptions[recurrence.frequency] || recurrence.frequency}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="daily">Day(s)</SelectItem>
@@ -200,16 +222,18 @@ export default function RecurrenceSettings({
             </div>
 
             {/* End condition */}
-            <div>
-              <Label>Ends</Label>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Ends</Label>
               <Select
                 value={recurrence.endType}
                 onValueChange={(value) =>
                   updateRecurrence("endType", value as RecurrenceEndType)
                 }
               >
-                <SelectTrigger className="mt-1.5">
-                  <SelectValue />
+                <SelectTrigger className="bg-background">
+                  <SelectValue>
+                    {endTypeOptions[recurrence.endType] || recurrence.endType}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="never">Never (ongoing)</SelectItem>
@@ -224,29 +248,31 @@ export default function RecurrenceSettings({
 
           {/* Weekday selection for weekly recurrence */}
           {recurrence.frequency === "weekly" && (
-            <div>
-              <Label className="mb-2 block">Repeat on</Label>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Repeat on</Label>
               <div className="flex flex-wrap gap-2">
                 {WEEKDAYS.map((day) => (
                   <Button
                     key={day.value}
                     type="button"
-                    variant={
-                      recurrence.weekdays.includes(day.value)
-                        ? "default"
-                        : "outline"
-                    }
+                    variant={recurrence.weekdays.includes(day.value) ? "default" : "outline"}
                     size="sm"
                     onClick={() => toggleWeekday(day.value)}
-                    className="min-w-[60px]"
+                    className={cn(
+                      "flex-1 min-w-[3rem] h-9 transition-all text-xs sm:text-sm",
+                      recurrence.weekdays.includes(day.value)
+                        ? "shadow-md hover:opacity-90"
+                        : "hover:bg-accent hover:text-accent-foreground bg-background text-muted-foreground"
+                    )}
                   >
                     {day.short}
                   </Button>
                 ))}
               </div>
               {recurrence.weekdays.length === 0 && (
-                <p className="text-sm text-muted-foreground mt-2">
-                  Select at least one day for weekly recurrence
+                <p className="text-xs text-destructive flex items-center gap-1.5 mt-1.5">
+                  <AlertCircle className="h-3 w-3" />
+                  Select at least one day
                 </p>
               )}
             </div>
@@ -254,14 +280,14 @@ export default function RecurrenceSettings({
 
           {/* End date picker */}
           {recurrence.endType === "on_date" && (
-            <div>
-              <Label>End date</Label>
+            <div className="space-y-2 animate-in fade-in zoom-in-95 duration-200">
+              <Label className="text-sm font-medium">End date</Label>
               <Popover>
                 <PopoverTrigger render={
                   <Button
                     variant="outline"
                     className={cn(
-                      "w-full justify-start text-left font-normal mt-1.5",
+                      "w-full justify-start text-left font-normal bg-background",
                       !recurrence.endDate && "text-muted-foreground"
                     )}
                   >
@@ -288,43 +314,44 @@ export default function RecurrenceSettings({
 
           {/* Number of occurrences */}
           {recurrence.endType === "after_occurrences" && (
-            <div>
-              <Label>Number of occurrences</Label>
-              <Input
-                type="number"
-                min="2"
-                max="52"
-                placeholder="e.g., 10"
-                value={recurrence.endOccurrences || ""}
-                onChange={(e) =>
-                  updateRecurrence(
-                    "endOccurrences",
-                    parseInt(e.target.value) || undefined
-                  )
-                }
-                className="mt-1.5 max-w-[150px]"
-              />
-              <p className="text-sm text-muted-foreground mt-1">
-                Including this event
-              </p>
+            <div className="space-y-2 animate-in fade-in zoom-in-95 duration-200">
+              <Label className="text-sm font-medium">Total occurrences</Label>
+              <div className="flex items-center gap-3">
+                <Input
+                  type="number"
+                  min="2"
+                  max="52"
+                  placeholder="e.g., 10"
+                  value={recurrence.endOccurrences || ""}
+                  onChange={(e) =>
+                    updateRecurrence(
+                      "endOccurrences",
+                      parseInt(e.target.value) || undefined
+                    )
+                  }
+                  className="w-24 bg-background"
+                />
+                <span className="text-sm text-muted-foreground">
+                  events total
+                </span>
+              </div>
             </div>
           )}
 
           {/* Info banner */}
-          <div className="bg-muted/50 rounded-lg p-4 text-sm text-muted-foreground">
-            <p className="font-medium text-foreground mb-1">How it works:</p>
-            <ul className="list-disc list-inside space-y-1">
+          <div className="bg-primary/5 text-primary/80 border border-primary/10 rounded-lg p-4 text-sm">
+            <p className="font-semibold mb-2 flex items-center gap-2">
+              <Sparkles className="h-4 w-4" />
+              How resizing works
+            </p>
+            <ul className="list-disc list-inside space-y-1 opacity-90">
               <li>Future events are automatically created based on your schedule</li>
-              <li>Each occurrence is a separate project that can be edited individually</li>
+              <li>Each occurrence can be edited individually</li>
               <li>Events are generated up to 4 weeks in advance</li>
-              {recurrence.endType === "never" && (
-                <li>New events will keep being created until you stop the recurrence</li>
-              )}
             </ul>
           </div>
         </CardContent>
-      )
-      }
-    </Card >
+      )}
+    </Card>
   );
 }

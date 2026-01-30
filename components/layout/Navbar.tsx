@@ -366,7 +366,7 @@ export default function Navbar() {
               </div>
             ) : user ? (
               <div className="flex items-center gap-5">
-                <NotificationPopover />
+                <NotificationPopover key={user.id} />
                 <DropdownMenu modal={false}>
                   {isProfileLoading ? (
                     <div className="w-9 h-9 rounded-full bg-muted animate-pulse" />
@@ -503,7 +503,7 @@ export default function Navbar() {
               {isAuthLoading ? (
                 <Skeleton className="w-10 h-10 rounded-full" />
               ) : (
-                user && <NotificationPopover />
+                user && <NotificationPopover key={user.id} />
               )}
               {/* Show theme toggle for non-logged in users only */}
               {!isAuthLoading && !user && <ModeToggle />}

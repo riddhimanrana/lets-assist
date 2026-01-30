@@ -5,7 +5,18 @@ import { Placeholder, CharacterCount } from '@tiptap/extensions';
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Bold, Italic, Underline as UnderlineIcon, Link as LinkIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 interface RichTextEditorProps {
     content: string;
@@ -24,6 +35,8 @@ export function RichTextEditor({
 }: RichTextEditorProps) {
     // Removed manual character count state
     const [mounted, setMounted] = useState(false);
+    const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+    const [linkUrl, setLinkUrl] = useState('');
 
     // Function to sanitize HTML content - preserves internal spacing but trims trailing empty paragraphs
     const sanitizeContent = (html: string): string => {
@@ -86,30 +99,48 @@ export function RichTextEditor({
         editorProps: {
             attributes: {
                 class: cn(
-                    "min-h-[150px] max-h-[200px] overflow-y-auto w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 prose prose-sm dark:prose-invert max-w-none",
+                    "min-h-[150px] max-h-[200px] overflow-y-auto w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 prose prose-sm dark:prose-invert max-w-none [&_p]:my-0.5 [&_ul]:my-0.5 [&_ol]:my-0.5 [&_li]:my-0 [&_li_p]:my-0 [&_p]:min-h-[1.5em] text-foreground prose-headings:text-foreground prose-p:text-foreground prose-strong:text-foreground prose-li:text-foreground",
                     className
                 ),
+            },
+            handleKeyDown: (view, event) => {
+                // Handle Cmd+K / Ctrl+K for link
+                if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
+                    event.preventDefault();
+                    openLinkDialog();
+                    return true;
+                }
+                return false;
             }
         }
     });
 
-    const setLink = () => {
+    const openLinkDialog = useCallback(() => {
+        if (!editor) return;
+        const previousUrl = editor.getAttributes('link').href || '';
+        setLinkUrl(previousUrl);
+        setLinkDialogOpen(true);
+    }, [editor]);
+
+    const handleLinkSubmit = useCallback(() => {
         if (!editor) return;
 
-        const previousUrl = editor.getAttributes('link').href;
-        const url = window.prompt('URL', previousUrl);
-
-        if (url === null) {
-            return;
-        }
-
-        if (url === '') {
+        if (linkUrl === '') {
             editor.chain().focus().unsetLink().run();
-            return;
+        } else {
+            editor.chain().focus().setLink({ href: linkUrl }).run();
         }
 
-        editor.chain().focus().setLink({ href: url }).run();
-    };
+        setLinkDialogOpen(false);
+        setLinkUrl('');
+    }, [editor, linkUrl]);
+
+    const handleLinkRemove = useCallback(() => {
+        if (!editor) return;
+        editor.chain().focus().unsetLink().run();
+        setLinkDialogOpen(false);
+        setLinkUrl('');
+    }, [editor]);
 
     useEffect(() => {
         setMounted(true);
@@ -184,7 +215,7 @@ export function RichTextEditor({
                             value="link"
                             size="sm"
                             aria-label="Add link"
-                            onClick={setLink}
+                            onClick={openLinkDialog}
                             data-state={editor.isActive('link') ? 'on' : 'off'}
                             className="px-1"
                         >
@@ -210,6 +241,54 @@ export function RichTextEditor({
                     </span>
                 </div>
             )}
+
+            {/* Link Dialog */}
+            <Dialog open={linkDialogOpen} onOpenChange={setLinkDialogOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Insert Link</DialogTitle>
+                        <DialogDescription>
+                            Enter the URL for the link. Leave empty to remove the link.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                            <Label htmlFor="link-url">URL</Label>
+                            <Input
+                                id="link-url"
+                                type="url"
+                                placeholder="https://example.com"
+                                value={linkUrl}
+                                onChange={(e) => setLinkUrl(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        e.preventDefault();
+                                        handleLinkSubmit();
+                                    }
+                                }}
+                                autoFocus
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter className="gap-2 sm:gap-0">
+                        {editor?.isActive('link') && (
+                            <Button
+                                type="button"
+                                variant="destructive"
+                                onClick={handleLinkRemove}
+                            >
+                                Remove Link
+                            </Button>
+                        )}
+                        <Button type="button" variant="outline" onClick={() => setLinkDialogOpen(false)}>
+                            Cancel
+                        </Button>
+                        <Button type="button" onClick={handleLinkSubmit}>
+                            {linkUrl ? 'Apply' : 'Remove'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
