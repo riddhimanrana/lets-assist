@@ -43,7 +43,7 @@ export function MiniDashboard({
 }: MiniDashboardProps) {
   const months = monthlyData ?? MOCK_MONTHLY_DATA;
   const maxHours = Math.max(...months.map((m) => m.hours), 1);
-  const chartBarColor = "hsl(var(--chart-1))";
+  const chartBarColor = "var(--info)";
 
   const defaultBreakdown: HoursBreakdown = breakdown ?? {
     selfReported: Math.round(totalHours * 0.35),

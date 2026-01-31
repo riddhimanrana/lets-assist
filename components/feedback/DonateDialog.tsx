@@ -8,15 +8,17 @@ import {
 } from "@/components/ui/dialog";
 import {
   Card,
+  CardAction,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
-  CardFooter,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Heart, Mail, Copy, Check, Info } from "lucide-react";
+import { Heart, Mail, Copy, Check, ExternalLink } from "lucide-react";
 import { useState } from "react";
+import { cn } from "@/lib/utils";
 
 interface DonateDialogProps {
   open: boolean;
@@ -41,52 +43,46 @@ export function DonateDialog({ open, onOpenChange }: DonateDialogProps) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="p-0 border-0 bg-transparent shadow-none sm:max-w-md">
         <DialogTitle className="sr-only">Support Let's Assist</DialogTitle>
-        <Card className="w-full border-border shadow-2xl relative overflow-hidden gap-0">
-
-
-          <CardHeader className="relative z-10 pb-4">
-            <div className="flex items-center gap-3 mb-2">
+        <Card className="w-full">
+          <CardHeader>
+            <CardTitle>Support Let's Assist</CardTitle>
+            <CardDescription>
+              We're on a mission to connect volunteers with impactful organizations. Your support helps keep our platform free and our community servers running.
+            </CardDescription>
+            <CardAction>
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-destructive/10 text-destructive">
                 <Heart className="h-5 w-5 fill-current" />
               </div>
-              <CardTitle className="text-xl">Support Let's Assist</CardTitle>
-            </div>
-            <CardDescription className="text-base text-foreground/80 leading-relaxed">
-              We&apos;re on a mission to connect volunteers with impactful organizations. Your support helps keep our platform free and our community servers running.
-            </CardDescription>
+            </CardAction>
           </CardHeader>
-
-          <CardContent className="relative z-10 space-y-4 pb-0">
-            <div className="rounded-lg bg-muted/50 p-4 text-sm text-muted-foreground leading-relaxed border border-border/50">
-              <p className="flex gap-2">
-                <Info className="h-4 w-4 shrink-0 translate-y-0.5 text-primary" />
-                <span>
-                  Scaling a platform for thousands of users comes with significant monthly costs. Your contribution, regardless of size, directly supports our infrastructure.
-                </span>
-              </p>
+          <CardContent className="grid gap-6">
+            <div className="text-sm text-foreground/80 leading-relaxed bg-muted/50 p-3 rounded-lg border border-border/50">
+              Scaling a platform for thousands of users comes with significant monthly costs. Your contribution, regardless of size, directly supports our infrastructure.
             </div>
 
             <div className="space-y-2">
-              <p className="text-sm font-medium text-foreground">
-                Contact for donations:
-              </p>
-              <div className="flex items-center gap-3 p-2.5 pl-4 pr-2 rounded-xl border bg-background/50 shadow-sm ring-offset-background transition-all focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
-                <Mail className="h-4 w-4 text-muted-foreground" />
-                <span className="flex-1 text-sm font-mono truncate">{email}</span>
+              <label htmlFor="email" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                Contact for donations
+              </label>
+              <div className="flex items-center gap-2 p-2 rounded-lg border bg-background shadow-xs">
+                <Mail className="h-4 w-4 ml-2 text-muted-foreground shrink-0" />
+                <code className="relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-sm font-semibold flex-1 truncate">
+                  {email}
+                </code>
                 <Button
                   size="sm"
-                  variant="secondary"
+                  variant="outline"
                   onClick={copyEmail}
-                  className="h-9 px-4 shadow-none rounded-lg"
+                  className="h-8 shadow-none"
                 >
                   {copied ? (
                     <>
-                      <Check className="h-3 w-3 mr-1.5 text-emerald-500" />
-                      <span className="text-emerald-500 font-medium">Copied</span>
+                      <Check className="h-3 w-3 mr-1 text-emerald-500" />
+                      <span className="text-emerald-500">Copied</span>
                     </>
                   ) : (
                     <>
-                      <Copy className="h-3 w-3 mr-1.5" />
+                      <Copy className="h-3 w-3 mr-1" />
                       Copy
                     </>
                   )}
@@ -94,12 +90,10 @@ export function DonateDialog({ open, onOpenChange }: DonateDialogProps) {
               </div>
             </div>
           </CardContent>
-
-          <CardFooter className="p-2 relative z-10">
+          <CardFooter>
             <Button
-              className="w-full text-muted-foreground hover:text-foreground"
-              variant="ghost"
-              size="sm"
+              className="w-full"
+              variant="outline"
               onClick={() => onOpenChange(false)}
             >
               Maybe Later

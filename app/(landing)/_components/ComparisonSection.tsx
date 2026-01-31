@@ -249,7 +249,7 @@ function ModernDashboardMockup() {
     DETAILS: {
       opacity: 1,
       left: ["50%", "25%", "25%", "75%", "75%"],
-      top: ["45%", "80%", "80%", "80%", "80%"],
+      top: ["45%", "85%", "85%", "85%", "85%"],
       scale: [1, 1, 0.9, 1, 0.9],
       transition: {
         duration: 2.5,
@@ -373,7 +373,7 @@ function ModernDashboardMockup() {
                         Community Garden Cleanup
                       </span>
 
-                      <Badge className="text-[9px] h-4 bg-green-100 text-green-700 hover:bg-green-100 dark:bg-green-900/30 dark:text-green-400">
+                      <Badge className="text-[9px] h-4 bg-primary text-primary-foreground hover:bg-primary/80 dark:bg-primary/30 dark:text-primary-foreground">
                         Open
                       </Badge>
                     </div>
@@ -560,7 +560,7 @@ function ModernDashboardMockup() {
                     </p>
                   </div>
 
-                  <div className="h-2 w-2 rounded-full bg-blue-500 mt-1.5 shrink-0" />
+                  <div className="h-2 w-2 rounded-full bg-info mt-1.5 shrink-0" />
                 </motion.div>
               </motion.div>
             )}
@@ -666,13 +666,13 @@ function ModernDashboardMockup() {
                     },
 
                     {
-                      label: "Certs",
+                      label: "Certificates",
 
                       value: stats.certs,
 
                       icon: Award,
 
-                      color: "text-emerald-500",
+                      color: "text-chart-2",
                     },
 
                     {
@@ -682,7 +682,7 @@ function ModernDashboardMockup() {
 
                       icon: Calendar,
 
-                      color: "text-blue-500",
+                      color: "text-chart-3",
                     },
                   ].map((stat, i) => (
                     <motion.div

@@ -2,7 +2,7 @@
 
 import { memo, useCallback, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
-import { animate } from "motion/react";
+import { animate } from "framer-motion";
 
 interface GlowingEffectProps {
   blur?: number;
@@ -77,7 +77,7 @@ const GlowingEffect = memo(
 
           const currentAngle =
             parseFloat(element.style.getPropertyValue("--start")) || 0;
-          const targetAngle =
+          let targetAngle =
             (180 * Math.atan2(mouseY - center[1], mouseX - center[0])) /
             Math.PI +
             90;
@@ -124,7 +124,7 @@ const GlowingEffect = memo(
             "pointer-events-none absolute -inset-px hidden rounded-[inherit] border opacity-0 transition-opacity",
             glow && "opacity-100",
             variant === "white" && "border-white",
-            disabled && "block!"
+            disabled && "!block"
           )}
         />
         <div
@@ -144,26 +144,26 @@ const GlowingEffect = memo(
                   var(--black),
                   var(--black) calc(25% / var(--repeating-conic-gradient-times))
                 )`
-                  : `radial-gradient(circle, hsl(var(--primary)) 10%, rgba(0,0,0,0) 20%),
-                radial-gradient(circle at 40% 40%, hsl(var(--chart-4)) 5%, rgba(0,0,0,0) 15%),
-                radial-gradient(circle at 60% 60%, hsl(var(--chart-5)) 10%, rgba(0,0,0,0) 20%), 
-                radial-gradient(circle at 40% 60%, hsl(var(--chart-3)) 10%, rgba(0,0,0,0) 20%),
+                  : `radial-gradient(circle, var(--chart-1) 10%, var(--chart-1) 0, transparent 20%),
+                radial-gradient(circle at 40% 40%, var(--chart-4) 5%, var(--chart-4) 0, transparent 15%),
+                radial-gradient(circle at 60% 60%, var(--primary) 10%, var(--primary) 0, transparent 20%), 
+                radial-gradient(circle at 40% 60%, var(--chart-3) 10%, var(--chart-3) 0, transparent 20%),
                 repeating-conic-gradient(
                   from 236.84deg at 50% 50%,
-                  hsl(var(--primary)) 0%,
-                  hsl(var(--chart-4)) calc(25% / var(--repeating-conic-gradient-times)),
-                  hsl(var(--chart-5)) calc(50% / var(--repeating-conic-gradient-times)), 
-                  hsl(var(--chart-3)) calc(75% / var(--repeating-conic-gradient-times)),
-                  hsl(var(--primary)) calc(100% / var(--repeating-conic-gradient-times))
+                  var(--chart-1) 0%,
+                  var(--chart-4) calc(25% / var(--repeating-conic-gradient-times)),
+                  var(--primary) calc(50% / var(--repeating-conic-gradient-times)), 
+                  var(--chart-3) calc(75% / var(--repeating-conic-gradient-times)),
+                  var(--chart-1) calc(100% / var(--repeating-conic-gradient-times))
                 )`,
             } as React.CSSProperties
           }
           className={cn(
             "pointer-events-none absolute inset-0 rounded-[inherit] opacity-100 transition-opacity",
             glow && "opacity-100",
-            blur > 0 && "blur-(--blur) ",
+            blur > 0 && "blur-[var(--blur)] ",
             className,
-            disabled && "hidden!"
+            disabled && "!hidden"
           )}
         >
           <div
@@ -172,11 +172,11 @@ const GlowingEffect = memo(
               "rounded-[inherit]",
               'after:content-[""] after:rounded-[inherit] after:absolute after:inset-[calc(-1*var(--glowingeffect-border-width))]',
               "after:[border:var(--glowingeffect-border-width)_solid_transparent]",
-              "after:[background:var(--gradient)] after:bg-fixed",
-              "after:opacity-(--active) after:transition-opacity after:duration-300",
+              "after:[background:var(--gradient)] after:[background-attachment:fixed]",
+              "after:opacity-[var(--active)] after:transition-opacity after:duration-300",
               "after:[mask-clip:padding-box,border-box]",
-              "after:mask-intersect",
-              "after:mask-[linear-gradient(#0000,#0000),conic-gradient(from_calc((var(--start)-var(--spread))*1deg),#00000000_0deg,#fff,#00000000_calc(var(--spread)*2deg))]"
+              "after:[mask-composite:intersect]",
+              "after:[mask-image:linear-gradient(#0000,#0000),conic-gradient(from_calc((var(--start)-var(--spread))*1deg),#00000000_0deg,#fff,#00000000_calc(var(--spread)*2deg))]"
             )}
           />
         </div>

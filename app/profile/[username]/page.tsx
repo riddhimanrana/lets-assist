@@ -358,30 +358,30 @@ export default async function ProfilePage(
   return (
     <div className="min-h-screen bg-background py-4 sm:py-12 flex flex-col items-center">
       <div className="w-full max-w-6xl px-4 space-y-8 sm:space-y-12">
-        
+
         {/* Main Profile Card */}
         <Card className="w-full overflow-hidden border shadow-sm">
-          <CardContent className="px-4 sm:px-8 py-6 sm:py-8 relative">
+          <CardContent className="px-4 sm:px-6 py-5 sm:py-6 relative">
             {/* Header Section */}
-            <div className="flex flex-col sm:flex-row items-center sm:items-center mb-6 sm:mb-10 gap-4 sm:gap-8">
-              
+            <div className="flex flex-col sm:flex-row items-center sm:items-center mb-4 sm:mb-6 gap-4 sm:gap-6">
+
               {/* Avatar */}
               <div className="relative shrink-0">
-                <Avatar className="h-20 w-20 sm:h-32 sm:w-32 border shadow-sm">
+                <Avatar className="h-16 w-16 sm:h-24 sm:w-24 border shadow-sm">
                   <AvatarImage
                     src={profile.avatar_url || undefined}
                     alt={profile.full_name}
                     className="object-cover"
                   />
-                  <AvatarFallback className="text-2xl sm:text-4xl bg-muted text-muted-foreground">
-                    <NoAvatar fullName={profile?.full_name} className="text-2xl sm:text-4xl" />
+                  <AvatarFallback className="text-xl sm:text-3xl bg-muted text-muted-foreground">
+                    <NoAvatar fullName={profile?.full_name} className="text-xl sm:text-3xl" />
                   </AvatarFallback>
                 </Avatar>
                 {isTrusted && (
                   <div className="absolute -bottom-0.5 -right-0.5 sm:-bottom-1 sm:-right-1 bg-background rounded-full shadow-sm border flex items-center justify-center p-0.5">
                     <Tooltip>
                       <TooltipTrigger className="p-1 hover:bg-transparent focus:ring-0">
-                        <BadgeCheck className="h-5 w-5 sm:h-7 sm:w-7 text-primary fill-background" />
+                        <BadgeCheck className="h-4 w-4 sm:h-6 sm:w-6 text-primary fill-background" />
                       </TooltipTrigger>
                       <TooltipContent side="bottom">
                         <p>Trusted Member</p>
@@ -393,8 +393,8 @@ export default async function ProfilePage(
 
               {/* User Info */}
               <div className="flex-1 text-center sm:text-left space-y-1 min-w-0">
-                <h1 className="text-xl sm:text-4xl font-bold tracking-tight truncate">{profile.full_name}</h1>
-                <p className="text-muted-foreground font-medium text-sm sm:text-lg">@{profile.username}</p>
+                <h1 className="text-xl sm:text-3xl font-bold tracking-tight truncate">{profile.full_name}</h1>
+                <p className="text-muted-foreground font-medium text-sm sm:text-base">@{profile.username}</p>
                 <div className="flex items-center justify-center sm:justify-start gap-1.5 text-xs sm:text-sm text-muted-foreground pt-0.5">
                   <CalendarIcon className="h-3.5 w-3.5" />
                   <span>Joined {format(new Date(profile.created_at), "MMMM yyyy")}</span>
@@ -403,7 +403,7 @@ export default async function ProfilePage(
 
               {/* Actions Button */}
               <div className="absolute top-4 right-4 sm:static sm:ml-auto">
-                <ProfileActions 
+                <ProfileActions
                   profileId={profile.id}
                   profileName={profile.full_name}
                   profileUsername={profile.username}
@@ -412,39 +412,39 @@ export default async function ProfilePage(
             </div>
 
             {/* Stats Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
               {/* Hours */}
-              <div className="flex flex-col items-center justify-center p-3 sm:p-6 rounded-xl bg-primary/5 border hover:bg-primary/10 transition-colors group">
-                <div className="flex items-center gap-2 sm:gap-3 mb-0.5 sm:mb-2 text-primary">
-                  <Clock className="h-4 w-4 sm:h-5 sm:w-5" />
-                  <span className="text-lg sm:text-2xl font-bold text-foreground">{formatHours(totalHours)}</span>
+              <div className="flex flex-col items-center justify-center p-3 sm:p-4 rounded-xl bg-primary/5 border hover:bg-primary/10 transition-colors group">
+                <div className="flex items-center gap-2 mb-1 text-primary">
+                  <Clock className="h-4 w-4" />
+                  <span className="text-lg sm:text-xl font-bold text-foreground">{formatHours(totalHours)}</span>
                 </div>
                 <span className="text-[10px] sm:text-xs font-semibold text-muted-foreground uppercase tracking-wider group-hover:text-primary/80 transition-colors">Hours</span>
               </div>
 
               {/* Total Projects */}
-              <div className="flex flex-col items-center justify-center p-3 sm:p-6 rounded-xl bg-chart-3/10 border hover:bg-chart-3/20 transition-colors group">
-                <div className="flex items-center gap-2 sm:gap-3 mb-0.5 sm:mb-2 text-chart-3">
-                  <Briefcase className="h-4 w-4 sm:h-5 sm:w-5" />
-                  <span className="text-lg sm:text-2xl font-bold text-foreground">{totalProjects}</span>
+              <div className="flex flex-col items-center justify-center p-3 sm:p-4 rounded-xl bg-chart-3/10 border hover:bg-chart-3/20 transition-colors group">
+                <div className="flex items-center gap-2 mb-1 text-chart-3">
+                  <Briefcase className="h-4 w-4" />
+                  <span className="text-lg sm:text-xl font-bold text-foreground">{totalProjects}</span>
                 </div>
                 <span className="text-[10px] sm:text-xs font-semibold text-muted-foreground uppercase tracking-wider group-hover:text-chart-3/80 transition-colors">Total</span>
               </div>
 
               {/* Created */}
-              <div className="flex flex-col items-center justify-center p-3 sm:p-6 rounded-xl bg-chart-5/10 border hover:bg-chart-5/20 transition-colors group">
-                <div className="flex items-center gap-2 sm:gap-3 mb-0.5 sm:mb-2 text-chart-5">
-                  <PenTool className="h-4 w-4 sm:h-5 sm:w-5" />
-                  <span className="text-lg sm:text-2xl font-bold text-foreground">{totalCreatedProjects}</span>
+              <div className="flex flex-col items-center justify-center p-3 sm:p-4 rounded-xl bg-chart-5/10 border hover:bg-chart-5/20 transition-colors group">
+                <div className="flex items-center gap-2 mb-1 text-chart-5">
+                  <PenTool className="h-4 w-4" />
+                  <span className="text-lg sm:text-xl font-bold text-foreground">{totalCreatedProjects}</span>
                 </div>
                 <span className="text-[10px] sm:text-xs font-semibold text-muted-foreground uppercase tracking-wider group-hover:text-chart-5/80 transition-colors">Created</span>
               </div>
 
               {/* Attended */}
-              <div className="flex flex-col items-center justify-center p-3 sm:p-6 rounded-xl bg-chart-4/10 border hover:bg-chart-4/20 transition-colors group">
-                <div className="flex items-center gap-2 sm:gap-3 mb-0.5 sm:mb-2 text-chart-4">
-                  <Hash className="h-4 w-4 sm:h-5 sm:w-5" />
-                  <span className="text-lg sm:text-2xl font-bold text-foreground">{totalAttendedProjects}</span>
+              <div className="flex flex-col items-center justify-center p-3 sm:p-4 rounded-xl bg-chart-4/10 border hover:bg-chart-4/20 transition-colors group">
+                <div className="flex items-center gap-2 mb-1 text-chart-4">
+                  <Hash className="h-4 w-4" />
+                  <span className="text-lg sm:text-xl font-bold text-foreground">{totalAttendedProjects}</span>
                 </div>
                 <span className="text-[10px] sm:text-xs font-semibold text-muted-foreground uppercase tracking-wider group-hover:text-chart-4/80 transition-colors">Attended</span>
               </div>
@@ -454,7 +454,7 @@ export default async function ProfilePage(
 
         {/* Content Sections */}
         <div className="space-y-12 sm:space-y-16 w-full">
-          
+
           {/* Organizations */}
           {formattedOrganizations && formattedOrganizations.length > 0 && (
             <div className="space-y-4 sm:space-y-6">
@@ -473,7 +473,7 @@ export default async function ProfilePage(
                   return (
                     <OrganizationCard
                       key={org.id}
-                      org={{...org, verified: org.verified || false}}
+                      org={{ ...org, verified: org.verified || false }}
                       memberCount={0}
                       isUserMember={true}
                       userRole={membership.role}
