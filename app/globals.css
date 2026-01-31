@@ -323,4 +323,10 @@
       display: flex;
     }
   }
+
+  .bg-dot-pattern {
+    background-image: radial-gradient(circle, var(--muted-foreground) 1px, transparent 1px);
+    background-size: 24px 24px;
+    opacity: 0.2;
+  }
 }

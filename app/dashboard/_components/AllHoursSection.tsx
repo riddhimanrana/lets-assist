@@ -88,7 +88,7 @@ export function AllHoursSection({ certificates }: AllHoursSectionProps) {
               <Badge variant="default" className="text-xs">Platform</Badge>
             )}
             {!isSelfReported && cert.is_certified && (
-              <Badge variant="default" className="text-xs bg-emerald-600 hover:bg-emerald-700">
+              <Badge variant="default" className="text-xs bg-chart-2">
                 <Award className="h-3 w-3 mr-1" /> Official Org
               </Badge>
             )}
