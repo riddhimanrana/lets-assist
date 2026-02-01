@@ -86,7 +86,15 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
   // State for publish success modal
   const [showPublishSuccessModal, setShowPublishSuccessModal] = useState(false);
   const [currentPublishedSessionName, setCurrentPublishedSessionName] = useState<string>("");
-  const [emailErrors, setEmailErrors] = useState<string[]>([]);
+  const [publishSummary, setPublishSummary] = useState<{
+    certificatesCreated: number;
+    totalVolunteers: number;
+    registeredVolunteers: number;
+    anonymousVolunteers: number;
+    emailsSent: number;
+    emailErrors: string[];
+    missingEmailCount: number;
+  } | null>(null);
 
   // State for certificates modal
   const [showCertificatesModal, setShowCertificatesModal] = useState(false);
@@ -456,8 +464,21 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
         // Prepare for success modal with updated information
         setCurrentPublishedSessionName(formatSessionName(project, sessionId));
 
+        const totalVolunteers = volunteersData.length;
+        const registeredVolunteers = volunteersData.filter(volunteer => volunteer.userId).length;
+        const anonymousVolunteers = totalVolunteers - registeredVolunteers;
+        const missingEmailCount = volunteersData.filter(volunteer => !volunteer.email).length;
+
         // Store email sent information for the modal
-        setEmailErrors(emailErrors);
+        setPublishSummary({
+          certificatesCreated: result.certificatesCreated ?? totalVolunteers,
+          totalVolunteers,
+          registeredVolunteers,
+          anonymousVolunteers,
+          emailsSent,
+          emailErrors,
+          missingEmailCount,
+        });
         setShowPublishSuccessModal(true);
 
       } else {
@@ -832,6 +853,20 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
   }, [getAllProjectSessions, publishedSessions]);
   // --- End filter ---
 
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://lets-assist.com").replace(/\/$/, "");
+  const certificateBaseUrl = `${siteUrl}/certificates`;
+  const publishEmailErrors = publishSummary?.emailErrors ?? [];
+  const failedEmailCount = publishEmailErrors.filter((err) => {
+    const lower = err.toLowerCase();
+    return !lower.includes("missing email") && !lower.includes("skipped certificate");
+  }).length;
+  const skippedEmailCount = Math.max(publishSummary?.missingEmailCount ?? 0, publishEmailErrors.length - failedEmailCount);
+  const totalVolunteers = publishSummary?.totalVolunteers ?? 0;
+  const certificatesCreated = publishSummary?.certificatesCreated ?? 0;
+  const emailsSent = publishSummary?.emailsSent ?? 0;
+  const registeredVolunteers = publishSummary?.registeredVolunteers ?? 0;
+  const anonymousVolunteers = publishSummary?.anonymousVolunteers ?? 0;
+
   return (
     <div className="container mx-auto px-4 py-6 max-w-7xl">
       <div className="mb-4 sm:mb-6">
@@ -843,7 +878,12 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
       </div>
 
       {/* Publish Success Modal */}
-      <Dialog open={showPublishSuccessModal} onOpenChange={setShowPublishSuccessModal}>
+      <Dialog open={showPublishSuccessModal} onOpenChange={(open) => {
+        setShowPublishSuccessModal(open);
+        if (!open) {
+          setPublishSummary(null);
+        }
+      }}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Hours Published for {currentPublishedSessionName}</DialogTitle>
@@ -852,53 +892,76 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="flex flex-col gap-3">
+            <div className="grid gap-3 sm:grid-cols-2">
               <div className="flex items-center gap-2 p-3 rounded-md bg-success/10 border border-success/80">
                 <CheckCircle className="h-5 w-5 text-success" />
-                <span className="text-sm font-medium">Volunteers: {certificatesModalData?.volunteers.length}</span>
+                <div className="text-sm">
+                  <div className="font-medium">Certificates generated</div>
+                  <div className="text-xs text-muted-foreground">
+                    {certificatesCreated} certificate{certificatesCreated !== 1 ? "s" : ""} for {totalVolunteers} volunteer{totalVolunteers !== 1 ? "s" : ""}
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 p-3 rounded-md bg-muted/50 border">
+                <UserRoundCheck className="h-5 w-5 text-muted-foreground" />
+                <div className="text-sm">
+                  <div className="font-medium">Volunteer breakdown</div>
+                  <div className="text-xs text-muted-foreground">
+                    {registeredVolunteers} registered • {anonymousVolunteers} anonymous
+                  </div>
+                </div>
               </div>
             </div>
 
-            <DialogDescription>
-              This will generate PDF certificates for {certificatesModalData?.volunteers.length} volunteer(s) and send them via email.
-              <br />
-              <div className="mt-4 p-3 bg-muted rounded-md text-xs text-muted-foreground border">
-                <div className="flex items-center gap-2 mb-2 font-semibold">
-                  <Info className="h-4 w-4" />
-                  Verification Info
-                </div>
-                All certificates will include a unique verification code that can be validated at:
-                <span className="block font-mono mt-1 select-all bg-background p-1 rounded border">
-                  https://letsassist.org/verify
-                </span>
-              </div>
+            <div className="text-muted-foreground text-sm">
+              PDF certificates are ready, and volunteer access is now live.
+            </div>
 
-              {/* Add warning about missing emails if any (logic could be added here) */}
-              <div className="flex items-center gap-2 p-3 rounded-md bg-info/10 border border-info/80">
-                <Mail className="h-5 w-5 text-info" />
-                <div className="text-sm">
-                  <p className="font-medium text-orange-800">Email Notifications</p>
-                  <p className="text-orange-600">
-                    {emailErrors.length > 0
-                      ? "Some email notifications failed to send"
-                      : "No email notifications were sent (missing email addresses)"}
-                  </p>
-                </div>
-              </div>
-
-              <Alert variant="default" className="mt-4">
+            <div className="mt-2 p-3 bg-muted rounded-md text-xs text-muted-foreground border">
+              <div className="flex items-center gap-2 mb-2 font-semibold">
                 <Info className="h-4 w-4" />
-                <AlertTitle className="font-semibold">What happens next?</AlertTitle>
-                <AlertDescription className="text-xs space-y-1">
-                  <ul className="list-disc pl-5 space-y-0.5 mt-2">
-                    <li><strong>Volunteers with accounts:</strong> Can access certificates via their profile or the project page</li>
-                    <li><strong>Anonymous volunteers:</strong> Will receive email notifications with direct certificate links</li>
-                    <li><strong>All certificates:</strong> Are now permanently available and can be verified at any time</li>
-                  </ul>
-                  <p className="mt-2">If volunteers need help accessing their certificates, direct them to contact you or support@lets-assist.com</p>
-                </AlertDescription>
-              </Alert>
-            </DialogDescription>
+                Verification Info
+              </div>
+              Each certificate includes a unique ID and verification link inside the PDF/email.
+              <span className="block font-mono mt-1 select-all bg-background p-1 rounded border">
+                {certificateBaseUrl}/{"<certificate-id>"}
+              </span>
+            </div>
+
+            <div className="flex items-start gap-2 p-3 rounded-md bg-info/10 border border-info/80">
+              <Mail className="h-5 w-5 text-info mt-0.5" />
+              <div className="text-sm">
+                <p className="font-medium text-info">Email Notifications</p>
+                <p className="text-muted-foreground">
+                  {emailsSent > 0
+                    ? `Sent ${emailsSent} notification email${emailsSent !== 1 ? "s" : ""}.`
+                    : "No notification emails were sent."}
+                </p>
+                {skippedEmailCount > 0 && (
+                  <p className="text-muted-foreground">
+                    Skipped {skippedEmailCount} volunteer{skippedEmailCount !== 1 ? "s" : ""} without email addresses.
+                  </p>
+                )}
+                {failedEmailCount > 0 && (
+                  <p className="text-muted-foreground">
+                    {failedEmailCount} email{failedEmailCount !== 1 ? "s" : ""} failed to send. You can retry later.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <Alert variant="default" className="mt-4">
+              <Info className="h-4 w-4" />
+              <AlertTitle className="font-semibold">What happens next?</AlertTitle>
+              <AlertDescription className="text-xs space-y-1">
+                <ul className="list-disc pl-5 space-y-0.5 mt-2">
+                  <li><strong>Volunteers with accounts:</strong> Can access certificates via their profile or the project page</li>
+                  <li><strong>Anonymous volunteers:</strong> Receive an email with a direct certificate link (if an email was provided)</li>
+                  <li><strong>Verification:</strong> Anyone with a certificate link can verify it using the certificate page</li>
+                </ul>
+                <p className="mt-2">If volunteers need help accessing their certificates, direct them to contact you or support@lets-assist.com</p>
+              </AlertDescription>
+            </Alert>
           </div>
           <DialogFooter>
             <DialogClose render={
@@ -1083,7 +1146,7 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
             </div>
           </div>
         )}
-        <CardHeader className="px-3 py-4 sm:p-6">
+        <CardHeader className="">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
               <CardTitle className="text-lg sm:text-xl">Manage Volunteer Hours</CardTitle>
@@ -1137,7 +1200,7 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center justify-between">
             <div className="flex flex-col gap-2 flex-1 sm:flex-row sm:items-center">
               <div className="relative w-full">
-                <Search className="absolute left-2.5 top-3 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Search by name or email..."
                   className="pl-8 w-full"
@@ -1148,10 +1211,10 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
               </div>
               <div className="flex flex-row gap-2 w-full sm:w-auto items-center">
                 <Select value={sessionFilter} onValueChange={(val) => setSessionFilter(val || "all")}>
-                  <SelectTrigger className="w-full sm:w-[180px]" aria-label="Filter by session">
+                  <SelectTrigger className="w-full sm:min-w-[240px] sm:w-auto" aria-label="Filter by session">
                     <SelectValue placeholder="Filter by session" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-w-[400px]">
                     <SelectItem value="all">All Sessions</SelectItem>
 
                     {/* Group sessions by status */}

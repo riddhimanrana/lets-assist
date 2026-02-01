@@ -5,7 +5,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { AlertCircle, CheckCircle2, Trash2Icon } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   Card,
   CardContent,
@@ -398,7 +399,7 @@ export default function SecurityClient() {
                     Delete Account
                   </Button>
                 }
-                nativeButton={true}
+                nativeButton={false}
               />
               <AlertDialogContent>
                 <AlertDialogHeader>
