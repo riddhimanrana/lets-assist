@@ -504,20 +504,12 @@ export default function ModerationDashboard({
   };
 
   const reportColumns = useMemo(() => getReportColumns(
-    setSelectedReport,
-    (id) => handleReportStatusChange(id, 'resolved', 'Resolved via dashboard'),
-    (id) => handleReportStatusChange(id, 'dismissed', 'Dismissed via dashboard'),
-    (id) => handleManualReportAction(id, 'block_content', 'Blocked via quick action'),
-    handleReportAiApproval
-  ), [handleReportStatusChange, handleManualReportAction, handleReportAiApproval]);
+    setSelectedReport
+  ), [setSelectedReport]);
 
   const flaggedColumns = useMemo(() => getFlaggedColumns(
-    setSelectedFlag,
-    handleRunAiReviewForFlag,
-    (id) => handleFlagStatusUpdate(id, 'confirmed', 'Confirmed violation'),
-    (id) => handleFlagStatusUpdate(id, 'dismissed', 'False positive'),
-    (id) => handleFlagStatusUpdate(id, 'blocked', 'Blocked for policy violation')
-  ), [handleRunAiReviewForFlag, handleFlagStatusUpdate]);
+    setSelectedFlag
+  ), [setSelectedFlag]);
 
   const getSeverityColor = (severity?: string): 'secondary' | 'destructive' | 'default' => {
     switch ((severity || '').toLowerCase()) {

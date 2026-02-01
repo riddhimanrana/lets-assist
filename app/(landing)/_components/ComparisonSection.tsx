@@ -7,6 +7,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
   Check,
   X,
   QrCode,
@@ -29,6 +37,7 @@ import {
   CheckCircle,
   Loader2,
   Scan,
+  Zap,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -916,13 +925,13 @@ function AnimatedCounter({
 function AnimatedCheck({ delay = 0 }: { delay?: number }) {
   return (
     <motion.div
-      initial={{ scale: 0, opacity: 0 }}
-      whileInView={{ scale: 1, opacity: 1 }}
+      initial={{ scale: 0 }}
+      whileInView={{ scale: 1 }}
       viewport={{ once: true }}
-      transition={{ delay, type: "spring", stiffness: 400, damping: 15 }}
-      className="flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-full bg-emerald-500/15 ring-1 ring-emerald-500/20 mx-auto"
+      transition={{ delay, type: "spring", stiffness: 300, damping: 20 }}
+      className="flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full bg-primary/15 mx-auto"
     >
-      <Check className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-500 stroke-[2.5]" />
+      <Check className="h-3 w-3 sm:h-4 sm:w-4 text-primary" />
     </motion.div>
   );
 }
@@ -930,13 +939,13 @@ function AnimatedCheck({ delay = 0 }: { delay?: number }) {
 function AnimatedX({ delay = 0 }: { delay?: number }) {
   return (
     <motion.div
-      initial={{ scale: 0, opacity: 0 }}
-      whileInView={{ scale: 1, opacity: 1 }}
+      initial={{ scale: 0 }}
+      whileInView={{ scale: 1 }}
       viewport={{ once: true }}
-      transition={{ delay, type: "spring", stiffness: 400, damping: 15 }}
-      className="flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-full bg-rose-500/10 ring-1 ring-rose-500/20 mx-auto"
+      transition={{ delay, type: "spring", stiffness: 300, damping: 20 }}
+      className="flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full bg-destructive/10 mx-auto"
     >
-      <X className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-rose-500 stroke-[2.5]" />
+      <X className="h-3 w-3 sm:h-4 sm:w-4 text-destructive" />
     </motion.div>
   );
 }
@@ -957,36 +966,36 @@ function ComparisonRow({
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
       transition={{ delay, duration: 0.3 }}
-      className={`border-b border-border/40 group hover:bg-muted/30 transition-colors ${feature.highlight ? "bg-primary/5 hover:bg-primary/10" : ""}`}
+      className={`border-b border-border/50 ${feature.highlight ? "bg-primary/5" : ""}`}
     >
-      <td className="py-4 px-4 sm:px-6">
-        <div className="flex items-center gap-3">
+      <TableCell className="py-3 sm:py-4 px-3 sm:px-4">
+        <div className="flex items-center gap-2 sm:gap-3">
           <div
-            className={`rounded-lg p-2 shrink-0 ${feature.highlight ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"}`}
+            className={`rounded-lg p-1 sm:p-1.5 shrink-0 ${feature.highlight ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"}`}
           >
-            <feature.icon className="h-4 w-4" />
+            <feature.icon className="h-3 w-3 sm:h-4 sm:w-4" />
           </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className={`text-sm font-medium ${feature.highlight ? "text-foreground" : "text-muted-foreground group-hover:text-foreground transition-colors"}`}>
-                {feature.name}
-              </span>
+          <div className="min-w-0">
+            <div
+              className={`flex flex-wrap items-center gap-1.5 text-xs sm:text-sm font-medium leading-tight ${feature.highlight ? "text-primary" : "text-foreground"}`}
+            >
+              <span>{feature.name}</span>
               {feature.highlight && (
                 <Badge
                   variant="outline"
-                  className="text-[10px] h-4 px-1.5 border-primary/30 text-primary bg-primary/5 rounded-full"
+                  className="text-[8px] sm:text-[10px] py-0 px-1 sm:px-1.5 border-primary/30 text-primary"
                 >
                   Key
                 </Badge>
               )}
             </div>
-            <p className="text-xs text-muted-foreground/80 truncate mt-0.5 font-medium">
+            <p className="text-[10px] sm:text-xs text-muted-foreground hidden sm:block truncate">
               {feature.description}
             </p>
           </div>
         </div>
-      </td>
-      <td className="py-4 px-4 text-center bg-primary/[0.02]">
+      </TableCell>
+      <TableCell className="py-3 sm:py-4 px-2 sm:px-4 text-center">
         {typeof feature.letsAssist === "boolean" ? (
           feature.letsAssist ? (
             <AnimatedCheck delay={delay + 0.1} />
@@ -999,13 +1008,13 @@ function ComparisonRow({
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
             transition={{ delay: delay + 0.1 }}
-            className="text-xs sm:text-sm font-semibold text-primary"
+            className="text-[10px] sm:text-xs font-medium text-primary"
           >
             {feature.letsAssist}
           </motion.span>
         )}
-      </td>
-      <td className="py-4 px-4 text-center">
+      </TableCell>
+      <TableCell className="py-3 sm:py-4 px-2 sm:px-4 text-center">
         {typeof feature.signupGenius === "boolean" ? (
           feature.signupGenius ? (
             <AnimatedCheck delay={delay + 0.15} />
@@ -1018,31 +1027,83 @@ function ComparisonRow({
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
             transition={{ delay: delay + 0.15 }}
-            className="text-xs sm:text-sm text-muted-foreground font-medium"
+            className="text-[10px] sm:text-xs text-muted-foreground"
           >
             {feature.signupGenius}
           </motion.span>
         )}
-      </td>
+      </TableCell>
     </motion.tr>
+  );
+}
+
+interface PricingItem {
+  feature: string;
+  letsAssist: string;
+  signupGenius: string;
+  highlight?: boolean;
+}
+
+const pricingComparison: PricingItem[] = [
+  {
+    feature: "Remove Ads",
+    letsAssist: "Free",
+    signupGenius: "$9.99/mo",
+    highlight: true,
+  },
+  {
+    feature: "Custom Themes",
+    letsAssist: "Free",
+    signupGenius: "Premium",
+  },
+  {
+    feature: "Multiple Admins",
+    letsAssist: "Free",
+    signupGenius: "$24.99/mo",
+  },
+  {
+    feature: "Advanced Reporting",
+    letsAssist: "Free",
+    signupGenius: "$50+/mo",
+  },
+];
+
+function PricingRow({ item, index }: { item: PricingItem; index: number }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -10 }}
+      whileInView={{ opacity: 1, x: 0 }}
+      viewport={{ once: true }}
+      transition={{ delay: 0.2 + index * 0.1 }}
+      className="flex items-center justify-between py-2 sm:py-3 border-b border-border/50 last:border-0"
+    >
+      <span className="text-xs sm:text-sm text-foreground font-medium">
+        {item.feature}
+      </span>
+      <div className="flex items-center gap-4 text-xs sm:text-sm">
+        <span className="font-bold text-primary">{item.letsAssist}</span>
+        <span className="text-muted-foreground w-20 sm:w-24 text-right">
+          {item.signupGenius}
+        </span>
+      </div>
+    </motion.div>
   );
 }
 
 export default function ComparisonSection() {
   const [showAllFeatures, setShowAllFeatures] = useState(false);
-
-  // Always show the first 6, others are conditional
-  const initialFeatures = comparisonFeatures.slice(0, 6);
-  const hiddenFeatures = comparisonFeatures.slice(6);
+  const visibleFeatures = showAllFeatures
+    ? comparisonFeatures
+    : comparisonFeatures.slice(0, 6);
 
   return (
     <section
       id="comparison"
-      className="py-12 sm:py-20 relative overflow-hidden"
+      className="py-16 sm:py-24 relative overflow-hidden"
     >
       {/* Background gradient */}
       <div className="absolute inset-0 bg-linear-to-b from-background via-muted/20 to-background" />
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(34,197,94,0.03),transparent_70%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(34,197,94,0.05),transparent_70%)]" />
 
       <div className="container relative mx-auto px-4 sm:px-6">
         {/* Section header with text flip */}
@@ -1051,7 +1112,7 @@ export default function ComparisonSection() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
-          className="text-center mx-auto max-w-4xl mb-10 sm:mb-14"
+          className="text-center mx-auto max-w-4xl mb-12 sm:mb-16"
         >
           <div className="space-y-1 sm:space-y-2">
             <h2 className="font-overusedgrotesk text-[1.7rem] sm:text-3xl md:text-4xl lg:text-5xl tracking-tight font-bold">
@@ -1079,98 +1140,214 @@ export default function ComparisonSection() {
         </motion.div>
 
         {/* Side-by-side comparison mockups */}
-        <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 max-w-6xl mx-auto mb-16 sm:mb-20 items-center">
-          <div className="order-2 lg:order-1 transform hover:scale-[1.02] transition-transform duration-500">
+        <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 max-w-6xl mx-auto mb-12 sm:mb-20 items-center">
+          <div className="order-2 lg:order-1">
             <OutdatedMockup />
           </div>
-          <div className="order-1 lg:order-2 transform hover:scale-[1.02] transition-transform duration-500">
+          <div className="order-1 lg:order-2">
             <ModernDashboardMockup />
           </div>
         </div>
 
-        {/* Feature comparison table */}
-        <motion.div
+        {/* Stats banner */}
+        {/* <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="mx-auto max-w-5xl mb-12"
+          className="max-w-4xl mx-auto mb-16"
         >
-          <Card className="overflow-hidden border-border/60 shadow-2xl bg-card/50 backdrop-blur-sm ring-1 ring-border/50">
-            <div className="p-1">
-              <div className="overflow-x-auto rounded-lg">
-                <table className="w-full min-w-[600px] border-collapse">
-                  <thead>
-                    <tr className="bg-muted/40 border-b border-border/60">
-                      <th className="py-6 px-6 text-left w-[40%]">
-                        <span className="text-lg font-bold tracking-tight">Feature Comparison</span>
-                      </th>
-                      <th className="py-6 px-4 text-center w-[30%] bg-primary/[0.03]">
-                        <div className="flex flex-col items-center gap-2">
-                          <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shadow-inner ring-1 ring-primary/20">
-                            <span className="text-xl">✋</span>
-                          </div>
-                          <span className="text-sm font-bold text-primary tracking-tight">
-                            Let&apos;s Assist
-                          </span>
-                        </div>
-                      </th>
-                      <th className="py-6 px-4 text-center w-[30%]">
-                        <div className="flex flex-col items-center gap-2 opacity-80 mix-blend-luminosity hover:mix-blend-normal transition-all duration-300">
-                          <div className="h-10 w-10 rounded-xl bg-muted flex items-center justify-center shadow-inner ring-1 ring-border">
-                            <span className="text-xl">💡</span>
-                          </div>
-                          <span className="text-sm font-semibold text-muted-foreground tracking-tight">
-                            SignUpGenius
-                          </span>
-                        </div>
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-card">
-                    {initialFeatures.map((feature, i) => (
-                      <ComparisonRow
-                        key={feature.name}
-                        feature={feature}
-                        index={i}
-                      />
-                    ))}
-
-                    <AnimatePresence>
-                      {showAllFeatures && (
-                        hiddenFeatures.map((feature, i) => (
-                          <ComparisonRow
-                            key={feature.name}
-                            feature={feature}
-                            index={i + 6}
-                          />
-                        ))
-                      )}
-                    </AnimatePresence>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {!showAllFeatures && comparisonFeatures.length > 6 && (
-              <div className="relative">
-                <div className="absolute inset-x-0 -top-24 h-24 bg-linear-to-b from-transparent to-card pointer-events-none" />
-                <div className="p-6 text-center border-t border-border/40 bg-card relative z-10">
-                  <Button
-                    variant="outline"
-                    size="lg"
-                    onClick={() => setShowAllFeatures(true)}
-                    className="group gap-2 px-8 rounded-full border-primary/20 hover:border-primary/50 hover:bg-primary/5 text-primary transition-all duration-300 shadow-sm"
-                  >
-                    Show all features
-                    <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
-                  </Button>
+          <div className="grid grid-cols-3 gap-4 sm:gap-8 p-6 sm:p-8 rounded-2xl bg-linear-to-r from-primary/5 via-success/5 to-primary/5 border border-primary/10 backdrop-blur-xs">
+            {[
+              { value: 335, suffix: "+", label: "Saved per year" },
+              { value: 100, suffix: "%", label: "Free forever" },
+              { value: 48, suffix: "h", label: "Cert delivery" },
+            ].map((stat, i) => (
+              <motion.div
+                key={stat.label}
+                initial={{ opacity: 0, y: 10 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+                className="text-center"
+              >
+                <div className="text-2xl sm:text-4xl font-bold text-primary">
+                  {stat.label === "Saved per year" && "$"}
+                  <AnimatedCounter value={stat.value} suffix={stat.suffix} />
                 </div>
+                <div className="text-xs sm:text-sm text-muted-foreground mt-1">
+                  {stat.label}
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </motion.div> */}
+
+        {/* Feature comparison table */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true }}
+          className="mx-auto max-w-4xl mb-12 sm:mb-16"
+        >
+          <Card className="overflow-hidden border-border/60 shadow-xl">
+            <div className="overflow-x-auto">
+              <Table className="w-full min-w-[360px]">
+                <TableHeader>
+                  <TableRow className="border-b border-border bg-muted/30">
+                    <TableHead className="py-3 sm:py-5 px-3 sm:px-4 text-left text-xs sm:text-base font-bold text-foreground">
+                      Feature Comparison
+                    </TableHead>
+                    <TableHead className="py-3 sm:py-5 px-2 sm:px-4 text-center w-20 sm:w-32">
+                      <div className="flex flex-col items-center gap-1 sm:gap-1.5">
+                        <div className=" rounded-xl bg-primary/20 flex items-center justify-center shadow-sm">
+                          <Image
+                            src="/logo.png"
+                            alt="Let's Assist"
+                            width={28}
+                            height={28}
+                            className="opacity-90 w-6 h-6 sm:w-7 sm:h-7"
+                          />
+                        </div>
+                        <span className="text-[10px] sm:text-sm font-bold text-primary tracking-tight">
+                          Let&apos;s Assist
+                        </span>
+                      </div>
+                    </TableHead>
+                    <TableHead className="py-3 sm:py-5 px-2 sm:px-4 text-center w-20 sm:w-32">
+                      <div className="flex flex-col items-center gap-1 sm:gap-1.5 grayscale opacity-60">
+                        <Image
+                          src="/signupgenius.jpg"
+                          alt="SignUpGenius"
+                          width={28}
+                          height={28}
+                          className="rounded-lg w-6 h-6 sm:w-7 sm:h-7"
+                        />
+                        <span className="text-[10px] sm:text-sm font-semibold text-muted-foreground tracking-tight">
+                          SignUpGenius
+                        </span>
+                      </div>
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {visibleFeatures.map((feature, i) => (
+                    <ComparisonRow
+                      key={feature.name}
+                      feature={feature}
+                      index={i}
+                    />
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+            {!showAllFeatures && comparisonFeatures.length > 6 && (
+              <div className="p-3 sm:p-4 text-center border-t border-border/50 bg-muted/20">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowAllFeatures(true)}
+                  className="text-primary hover:text-primary/80 hover:bg-primary/10 text-xs sm:text-sm"
+                >
+                  Show all {comparisonFeatures.length} features
+                  <ArrowRight className="ml-1 h-3 w-3 sm:h-4 sm:w-4" />
+                </Button>
               </div>
             )}
           </Card>
         </motion.div>
 
-        {/* Bottom CTA Section - Replaced switching cards with direct CTA */}
+        {/* Why teams switch cards */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
+          className="mb-12 sm:mb-16"
+        >
+          <h3 className="text-center font-overusedgrotesk text-lg sm:text-xl md:text-2xl font-semibold mb-6 sm:mb-8 px-4">
+            Built for <span className="text-primary">real</span> volunteer
+            management
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 max-w-5xl mx-auto">
+            {switchReasons.map((reason, i) => (
+              <motion.div
+                key={reason.title}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1, duration: 0.4 }}
+                whileHover={{ y: -4, transition: { duration: 0.2 } }}
+              >
+                <Card className="h-full border-border/60 bg-background/80 backdrop-blur-xs hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300">
+                  <CardContent className="p-4 sm:p-5">
+                    <div className="mb-2 sm:mb-3 inline-flex rounded-lg sm:rounded-xl bg-linear-to-br from-primary/20 to-emerald-500/20 p-2 sm:p-3 text-primary">
+                      <reason.icon className="h-4 w-4 sm:h-5 sm:w-5" />
+                    </div>
+                    <h4 className="text-sm sm:text-base font-semibold text-foreground mb-1.5 sm:mb-2">
+                      {reason.title}
+                    </h4>
+                    <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+                      {reason.description}
+                    </p>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))}
+          </div>
+        </motion.div>
+
+        {/* Pricing comparison */}
+        {/* <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="max-w-2xl mx-auto mb-16"
+        >
+          <Card className="border-primary/30 bg-linear-to-br from-primary/5 via-background to-emerald-500/5 overflow-hidden shadow-xl">
+            <CardContent className="p-6 sm:p-8">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-semibold flex items-center gap-2">
+                  <Zap className="h-5 w-5 text-primary" />
+                  Price comparison
+                </h3>
+                <Badge className="bg-primary text-primary-foreground">
+                  Save $335+/year
+                </Badge>
+              </div>
+              <div className="flex items-center justify-between mb-4 pb-2 border-b border-border">
+                <span className="text-sm font-medium text-muted-foreground">
+                  Feature
+                </span>
+                <div className="flex items-center gap-4">
+                  <span className="text-sm font-medium text-primary">
+                    Let&apos;s Assist
+                  </span>
+                  <span className="text-sm font-medium text-muted-foreground w-24 text-right">
+                    SignUpGenius
+                  </span>
+                </div>
+              </div>
+              {pricingComparison.map((item, i) => (
+                <PricingRow key={item.feature} item={item} index={i} />
+              ))}
+              <motion.div
+                initial={{ opacity: 0 }}
+                whileInView={{ opacity: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.5 }}
+                className="mt-6 p-4 rounded-xl bg-linear-to-r from-primary/15 to-emerald-500/15 border border-primary/20"
+              >
+                <p className="text-sm text-foreground font-medium">
+                  🎉 Everything you need for volunteer management,{" "}
+                  <span className="text-primary">completely free</span>. No
+                  hidden fees, no premium tiers, no ads.
+                </p>
+              </motion.div>
+            </CardContent>
+          </Card>
+        </motion.div> */}
+
+        {/* CTA */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -1185,7 +1362,7 @@ export default function ComparisonSection() {
                 buttonVariants({
                   size: "lg",
                   className:
-                    "gap-2 px-8 h-12 rounded-full shadow-xl shadow-primary/20 hover:shadow-primary/30 transition-all w-full sm:w-auto text-base",
+                    "gap-2 px-6 sm:px-8 shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-shadow w-full sm:w-auto",
                 }),
               )}
             >
@@ -1196,15 +1373,24 @@ export default function ComparisonSection() {
               href="/projects"
               className={cn(
                 buttonVariants({
-                  variant: "ghost",
+                  variant: "outline",
                   size: "lg",
-                  className: "gap-2 h-12 rounded-full hover:bg-muted w-full sm:w-auto text-base text-muted-foreground hover:text-foreground",
+                  className: "gap-2 hover:bg-primary/5 w-full sm:w-auto",
                 }),
               )}
             >
-              See examples
+              Explore opportunities
             </Link>
           </div>
+          <motion.p
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.3 }}
+            className="mt-4 sm:mt-6 text-xs sm:text-sm text-muted-foreground"
+          >
+            No credit card • Free forever • Switch in minutes
+          </motion.p>
         </motion.div>
       </div>
     </section>
