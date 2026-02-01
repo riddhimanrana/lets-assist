@@ -4,13 +4,69 @@ import { getProjectStatus } from "@/utils/project";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Users, Award } from "lucide-react";
+import { Calendar, Users, Award, Repeat } from "lucide-react";
 import Link from "next/link";
 import { ProjectStatusBadge } from "@/components/ui/status-badge";
 import { redirect } from "next/navigation";
-import type { Project } from "@/types";
+import type { Project, RecurrenceRule, RecurrenceWeekday } from "@/types";
 import { cn } from "@/lib/utils";
 import { ProjectCard } from "./ProjectCard";
+import { format } from "date-fns";
+
+// Helper to format recurrence summary for display
+function formatRecurrenceSummary(rule: RecurrenceRule): string {
+  if (!rule.frequency) return "";
+
+  const WEEKDAY_LABELS: Record<RecurrenceWeekday, string> = {
+    monday: "Mon",
+    tuesday: "Tue",
+    wednesday: "Wed",
+    thursday: "Thu",
+    friday: "Fri",
+    saturday: "Sat",
+    sunday: "Sun",
+  };
+
+  const interval = rule.interval || 1;
+  let frequencyLabel: string;
+  switch (rule.frequency) {
+    case "daily":
+      frequencyLabel = interval === 1 ? "day" : `${interval} days`;
+      break;
+    case "weekly":
+      frequencyLabel = interval === 1 ? "week" : `${interval} weeks`;
+      break;
+    case "monthly":
+      frequencyLabel = interval === 1 ? "month" : `${interval} months`;
+      break;
+    case "yearly":
+      frequencyLabel = interval === 1 ? "year" : `${interval} years`;
+      break;
+    default:
+      frequencyLabel = "week";
+  }
+
+  let summary = `Repeats every ${frequencyLabel}`;
+
+  if (rule.frequency === "weekly" && rule.weekdays && rule.weekdays.length > 0) {
+    const dayNames = rule.weekdays
+      .map((d) => WEEKDAY_LABELS[d])
+      .filter(Boolean)
+      .join(", ");
+    summary += ` on ${dayNames}`;
+  }
+
+  if (rule.end_type === "on_date" && rule.end_date) {
+    const [year, month, day] = rule.end_date.split('-').map(Number);
+    summary += ` until ${format(new Date(year, month - 1, day), "MMM d, yyyy")}`;
+  } else if (rule.end_type === "after_occurrences" && rule.end_occurrences) {
+    summary += `, ${rule.end_occurrences} times`;
+  } else if (rule.end_type === "never") {
+    summary += " (ongoing)";
+  }
+
+  return summary;
+}
 
 // Add interface for the project with creator
 interface ProjectWithCreator extends Project {
@@ -171,6 +227,11 @@ export default async function UserProjects() {
     p.status === "completed" || p.status === "cancelled"
   );
 
+  // Filter recurring projects (those with recurrence_rule set and have frequency)
+  const recurringCreated = processedCreatedProjects.filter(p =>
+    p.recurrence_rule && p.recurrence_rule.frequency && p.status !== "cancelled"
+  );
+
   return (
     <main className="mx-auto px-4 sm:px-8 lg:px-12 py-8 min-h-screen">
       <h1 className="text-3xl font-bold mb-2">My Projects</h1>
@@ -280,6 +341,54 @@ export default async function UserProjects() {
             </div>
           ) : (
             <>
+              {/* Recurring Events section */}
+              {recurringCreated.length > 0 && (
+                <section className="mb-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <Repeat className="h-5 w-5 text-primary" />
+                      <h2 className="text-lg font-semibold">Recurring Events ({recurringCreated.length})</h2>
+                    </div>
+                    <p className="text-xs text-muted-foreground hidden sm:block">
+                      Auto-repeat schedule
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    {recurringCreated.map((project) => (
+                      <Link
+                        key={`recurring-${project.id}`}
+                        href={`/projects/${project.id}`}
+                        className="block group"
+                      >
+                        <div className="flex items-center gap-3 p-3 rounded-lg border border-primary/20 bg-linear-to-r from-primary/5 to-transparent hover:from-primary/10 hover:border-primary/30 transition-all duration-200">
+                          <div className="shrink-0">
+                            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                              <Repeat className="h-5 w-5 text-primary" />
+                            </div>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-medium text-sm truncate group-hover:text-primary transition-colors">
+                              {project.title}
+                            </h3>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <p className="text-xs text-muted-foreground truncate">
+                                {project.recurrence_rule && formatRecurrenceSummary(project.recurrence_rule)}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="shrink-0 hidden sm:flex items-center gap-2">
+                            <Badge variant="outline" className="text-xs">
+                              {(project.project_signups || []).filter((s) => s.status === "approved" || s.status === "attended").length} volunteers
+                            </Badge>
+                            <ProjectStatusBadge size="sm" status={project.status} />
+                          </div>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                </section>
+              )}
+
               {/* Upcoming created projects */}
               <section>
                 <h2 className="text-lg font-semibold mb-3">Upcoming ({upcomingCreated.length})</h2>

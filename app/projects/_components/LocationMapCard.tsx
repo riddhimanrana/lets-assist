@@ -100,13 +100,13 @@ export function LocationMapCard({ location, locationData }: LocationMapCardProps
 
   return (
     <Card>
-      <CardHeader className="pb-3">
+      <CardHeader className="">
         <CardTitle className="flex items-center">
           <MapPin className="h-5 w-5 mr-2" aria-hidden="true" />
           <span>Location</span>
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-3">
         <div className="text-sm text-muted-foreground">
           {locationData?.display_name || location}
         </div>

@@ -20,6 +20,7 @@ interface DateRangePickerProps {
   onChange?: (range: DateRange | undefined) => void;
   placeholder?: string;
   className?: string;
+  buttonClassName?: string;
   align?: "start" | "center" | "end";
   showQuickSelect?: boolean;
 }
@@ -37,14 +38,25 @@ export function DateRangePicker({
   onChange,
   placeholder = "Select date range",
   className,
+  buttonClassName,
   align = "start",
   showQuickSelect = false
 }: DateRangePickerProps) {
   const isMobile = useIsMobile();
+  const [open, setOpen] = React.useState(false);
 
   // Handle the date range selection
   const handleSelect = (range: DateRange | undefined) => {
     onChange?.(range);
+    
+    // Only close the popover when both dates are selected or range is cleared
+    if (range?.from && range?.to) {
+      setOpen(false);
+    } else if (!range?.from && !range?.to) {
+      // Range was cleared
+      setOpen(false);
+    }
+    // If only one date is selected (range.from exists but range.to doesn't), keep popover open
   };
 
   const handleQuickSelect = (val: string | null) => {
@@ -159,14 +171,14 @@ export function DateRangePicker({
           </SelectContent>
         </Select>
       )}
-      <Popover>
+      <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger
           render={
             <Button
               id="date"
-              variant={"outline"}
+              variant="outline"
               className={cn(
-                "justify-start text-left font-normal flex-1 h-9",
+                "justify-start text-left",
                 !value && "text-muted-foreground"
               )}
             >
@@ -186,9 +198,12 @@ export function DateRangePicker({
             </Button>
           }
         />
-        <PopoverContent className="w-auto p-0" align={align}>
+        <PopoverContent 
+          className="w-auto p-0" 
+          align={align}
+          sideOffset={4}
+        >
           <Calendar
-            initialFocus
             mode="range"
             defaultMonth={value?.from}
             selected={value}

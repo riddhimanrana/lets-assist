@@ -1189,12 +1189,12 @@ export default function ComparisonSection() {
           viewport={{ once: true }}
           className="mx-auto max-w-4xl mb-12 sm:mb-16"
         >
-          <Card className="overflow-hidden border-border/60 shadow-xl">
+          <Card className="overflow-hidden border-border/60 shadow-xl py-[-2]">
             <div className="overflow-x-auto">
               <Table className="w-full min-w-[360px]">
                 <TableHeader>
                   <TableRow className="border-b border-border bg-muted/30">
-                    <TableHead className="py-3 sm:py-5 px-3 sm:px-4 text-left text-xs sm:text-base font-bold text-foreground">
+                    <TableHead className="py-3 sm:py-5 px-3 sm:px-4 text-left text-sm sm:text-base font-bold text-foreground">
                       Feature Comparison
                     </TableHead>
                     <TableHead className="py-3 sm:py-5 px-2 sm:px-4 text-center w-20 sm:w-32">

@@ -27,8 +27,8 @@ interface OrganizationCardProps {
 export default function OrganizationCard({ org, memberCount, isUserMember = false, userRole }: OrganizationCardProps) {
   return (
     <Link href={`/organization/${org.username}`} className="block h-full group">
-      <Card className={`h-full flex flex-col hover:shadow-lg transition-all duration-300 py-0 ${isUserMember ? 'border-primary/30 bg-primary/5' : 'hover:border-primary/20'}`}>
-        <CardHeader className="flex flex-row items-start gap-4 space-y-0 p-5 pb-2">
+      <Card className={`h-full flex flex-col hover:shadow-lg transition-all duration-300 ${isUserMember ? 'border-primary/30 bg-primary/5' : 'hover:border-primary/20'}`}>
+        <CardHeader className="flex flex-row items-start gap-4 space-y-0 px-4 pt-2">
           <Avatar className="h-12 w-12 border border-border shrink-0">
             <AvatarImage src={org.logo_url || undefined} alt={org.name} />
             <AvatarFallback>
@@ -55,7 +55,7 @@ export default function OrganizationCard({ org, memberCount, isUserMember = fals
           </div>
         </CardHeader>
 
-        <CardContent className="flex-1 px-5 pb-4 pt-0">
+        <CardContent className="px-5">
           <div className="flex flex-wrap gap-2 mb-2">
             <Badge variant="outline" className="text-[10px] h-5 px-1.5 capitalize">
               {org.type}

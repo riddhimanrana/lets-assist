@@ -115,13 +115,13 @@ export function NotificationSettings() {
         </div>
 
         <Card className="border shadow-xs">
-          <CardHeader className="px-5 py-5 sm:px-6">
+          <CardHeader>
             <CardTitle className="text-xl">Notification Preferences</CardTitle>
             <CardDescription>
               Choose which notifications you&apos;d like to receive
             </CardDescription>
           </CardHeader>
-          <CardContent className="px-5 sm:px-6 py-4">
+          <CardContent>
             {loading ? (
               <div className="space-y-6">
                 <Skeleton className="h-10 w-full" />

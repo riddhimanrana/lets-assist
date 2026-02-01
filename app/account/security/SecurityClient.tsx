@@ -233,11 +233,11 @@ export default function SecurityClient() {
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
           <Card className="flex flex-col h-full">
-            <CardHeader className="p-6">
+            <CardHeader className="">
               <CardTitle className="text-xl">Email Address</CardTitle>
               <CardDescription>Change your email address</CardDescription>
             </CardHeader>
-            <CardContent className="flex-1 p-6">
+            <CardContent className="flex-1">
               <form onSubmit={emailForm.handleSubmit(handleEmailChange)} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="current-email">Current Email</Label>
@@ -294,11 +294,11 @@ export default function SecurityClient() {
             </CardContent>
           </Card>
           <Card className="flex flex-col h-full">
-            <CardHeader className="p-6">
+            <CardHeader className="">
               <CardTitle className="text-xl">Password</CardTitle>
               <CardDescription>Change your password</CardDescription>
             </CardHeader>
-            <CardContent className="flex-1 p-6">
+            <CardContent className="flex-1">
               <CardContent className="flex-1 p-0">
                 <form onSubmit={passwordForm.handleSubmit(handlePasswordChange)} className="space-y-4">
                   <div className="space-y-2">
@@ -335,12 +335,12 @@ export default function SecurityClient() {
                         />
                         <FieldError errors={[fieldState.error]} />
                         <div className="mt-3 space-y-2">
-                          <div className="rounded-lg bg-[hsl(var(--warning)/0.15)] border border-[hsl(var(--warning)/0.4)] p-3 shadow-xs">
-                            <p className="text-xs font-semibold text-[hsl(var(--warning))] dark:text-[hsl(var(--warning))] mb-2 flex items-center gap-2">
+                          <div className="rounded-lg bg-warning/15 border border-warning/40 p-3 shadow-xs">
+                            <p className="text-xs font-semibold text-warning mb-2 flex items-center gap-2">
                               <AlertCircle className="h-3.5 w-3.5" />
                               Password Requirements
                             </p>
-                            <ul className="space-y-1.5 text-xs text-[hsl(var(--warning))] dark:text-[hsl(var(--warning))] opacity-90">
+                            <ul className="space-y-1.5 text-xs text-warning opacity-90">
                               <li className="flex items-start gap-2">
                                 <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                                 <span>At least 8 characters long</span>
@@ -385,15 +385,22 @@ export default function SecurityClient() {
           </Card>
         </div>
         <Card className="border-destructive mt-6">
-          <CardHeader className="p-6">
+          <CardHeader className="">
             <CardTitle className="text-destructive">Delete Account</CardTitle>
             <CardDescription>
               Permanently delete your account and all associated data
             </CardDescription>
           </CardHeader>
-          <CardContent className="p-6">
+          <CardContent>
             <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-              <AlertDialogTrigger render={<Button variant="destructive" className="w-full sm:w-auto">Delete Account</Button>} />
+              <AlertDialogTrigger
+                render={
+                  <Button variant="destructive" className="w-full sm:w-auto">
+                    Delete Account
+                  </Button>
+                }
+                nativeButton={false}
+              />
               <AlertDialogContent>
                 <AlertDialogHeader>
                   <AlertDialogMedia className="bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive">

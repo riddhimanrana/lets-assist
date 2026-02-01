@@ -51,7 +51,7 @@ import {
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { signUpForProject, resendAnonymousConfirmationEmail, getActiveWaiverTemplate } from "./actions";
-import { formatTimeTo12Hour, formatBytes } from "@/lib/utils";
+import { formatTimeTo12Hour, formatBytes, copyToClipboard, isMobileDevice } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { isSlotAvailable, isMultiDaySlotPastByScheduleId, isSameDayMultiAreaSlotPast, isOneTimeSlotPast } from "@/utils/project";
 import { getProjectStatus } from "@/utils/project"; // Import the getProjectStatus utility and date utils
@@ -711,23 +711,33 @@ export default function ProjectDetails({
   };
 
   // Share project
-  const handleShare = () => {
+  const handleShare = async () => {
     const url = window.location.href;
-    if (navigator.share && /Mobi/.test(navigator.userAgent)) {
-      navigator
-        .share({
+
+    if (isMobileDevice() && typeof navigator !== "undefined" && navigator.share) {
+      try {
+        await navigator.share({
           title: `${project.title} - Let's Assist`,
           text: "Check out this project!",
-          url
-        })
-        .catch((err) => {
-          console.error("Share failed: ", err);
-          toast.error("Could not share link");
+          url,
         });
+        return;
+      } catch (error) {
+        if ((error as Error)?.name !== "AbortError") {
+          console.error("Share failed:", error);
+        } else {
+          // User cancelled the share sheet, don't show error or copy to clipboard
+          return;
+        }
+      }
+    }
+
+    // Default to clipboard for desktop or if mobile share failed
+    const copied = await copyToClipboard(url);
+    if (copied) {
+      toast.success("Project link copied to clipboard");
     } else {
-      navigator.clipboard.writeText(url)
-        .then(() => toast.success("Project link copied to clipboard"))
-        .catch(() => toast.error("Could not copy link to clipboard"));
+      toast.error("Could not copy link to clipboard");
     }
   };
 
@@ -938,16 +948,21 @@ export default function ProjectDetails({
 
             {/* Volunteer Opportunities */}
             <Card>
-              <CardHeader className="pb-3 flex flex-col mb-1 sm:flex-row items-start sm:items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <CardTitle>Volunteer Opportunities</CardTitle>
-                </div>
-                {/* Add How It Works button for non-creators */}
-                {!isCreator && (
-                  <div className="mb-2">
-                    <ProjectInstructionsModal project={project} isCreator={false} />
+              <CardHeader className="pb-3">
+                <div className="flex w-full items-center justify-between gap-2">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <CardTitle>Volunteer Opportunities</CardTitle>
                   </div>
-                )}
+                  {/* Add How It Works button for non-creators */}
+                  {!isCreator && (
+                    <ProjectInstructionsModal
+                      project={project}
+                      isCreator={false}
+                      buttonSize="xs"
+                      buttonClassName="whitespace-nowrap"
+                    />
+                  )}
+                </div>
               </CardHeader>
               <CardContent>
                 {project.pause_signups && (
@@ -1450,10 +1465,10 @@ export default function ProjectDetails({
             {/* Project Documents Section */}
             {project.documents && project.documents.length > 0 && (
               <Card className="bg-card">
-                <CardHeader className="pb-3">
+                <CardHeader className="">
                   <CardTitle>Project Documents</CardTitle>
                 </CardHeader>
-                <CardContent className="p-4">
+                <CardContent className="">
                   <div className="space-y-3">
                     {project.documents.map((doc: ProjectDocument, index: number) => (
                       <div

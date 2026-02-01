@@ -34,6 +34,7 @@ import {
   Mail,
   Calendar,
   CalendarCheck,
+  ChevronRight,
 } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
 import { deleteProject, updateProjectStatus } from "./actions";
@@ -228,6 +229,46 @@ export default function CreatorDashboard({ project }: Props) {
   const isCompleted = isAfter(now, endDateTime);
   const isCheckInOpen = hoursUntilStart <= 2 && isBefore(now, endDateTime); // Within 2 hours before start until end
 
+  const statusLabel = isCancelled
+    ? "Cancelled"
+    : isInProgress
+      ? "In progress"
+      : isStartingSoon
+        ? "Starting soon"
+        : isCompleted
+          ? "Completed"
+          : "Scheduled";
+
+  const statusTone = isCancelled
+    ? "bg-destructive/15 text-destructive"
+    : isInProgress
+      ? "bg-warning/15 text-warning"
+      : isStartingSoon
+        ? "bg-info/15 text-info"
+        : isCompleted
+          ? "bg-success/15 text-success"
+          : "bg-primary/10 text-primary";
+
+  const verificationLabel =
+    project.verification_method === "qr-code"
+      ? "QR code"
+      : project.verification_method === "manual"
+        ? "Manual check-in"
+        : project.verification_method === "auto"
+          ? "Auto check-in"
+          : "Signup-only";
+
+  const checkInLabel =
+    project.verification_method === "signup-only"
+      ? "Not required"
+      : project.verification_method === "auto"
+        ? "Automatic"
+        : isCheckInOpen
+          ? "Open"
+          : isCompleted
+            ? "Closed"
+            : "Scheduled";
+
 
   // --- Helper function to get the key used in the 'published' object ---
   const getPublishStateKey = (sessionId: string): string => {
@@ -341,120 +382,312 @@ export default function CreatorDashboard({ project }: Props) {
 
   return (
     <div className="space-y-4 sm:space-y-6 mb-4 px-2 sm:px-0">
-      <Card className="overflow-hidden">
-        <CardHeader className="px-4 py-4 sm:py-6 sm:px-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4">
-            <div className="space-y-1">
+      <Card className="overflow-hidden shadow-sm">
+        <CardHeader className="pb-3">
+          <div className="space-y-1">
+            <div className="flex items-center justify-between gap-3">
               <CardTitle className="text-xl sm:text-2xl">Creator Dashboard</CardTitle>
-              <CardDescription className="text-sm sm:text-base">
-                Manage your project and track volunteer signups
-              </CardDescription>
+              <div className={cn("inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold shrink-0", statusTone)}>
+                {statusLabel}
+              </div>
             </div>
+            <CardDescription className="text-sm">
+              Manage your project, volunteers, and event logistics in one place.
+            </CardDescription>
           </div>
         </CardHeader>
-        <CardContent className="space-y-4 px-4 sm:px-6">
-          <div className="grid grid-cols-1 sm:flex sm:flex-wrap gap-2 sm:gap-3">
-            {/* Project Actions */}
-            <Button
-              variant="outline"
-              className="w-full sm:w-auto flex items-center justify-center gap-2"
-              onClick={() => router.push(`/projects/${project.id}/edit`)}
-            >
-              <Edit className="h-4 w-4" />
-              Edit Project
-            </Button>
-            <Button
-              variant="outline"
-              className="w-full sm:w-auto flex items-center justify-center gap-2"
-              onClick={() => router.push(`/projects/${project.id}/signups`)}
-            >
-              <Users className="h-4 w-4" />
-              Manage Signups
-            </Button>
+        <CardContent className="space-y-5">
+          <div className="hidden sm:block rounded-lg border bg-muted/30">
+            <div className="grid divide-y sm:grid-cols-3 sm:divide-y-0 sm:divide-x">
+              <div className="p-4">
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">Starts</div>
+                <div className="mt-2 text-sm font-semibold text-foreground">
+                  {format(startDateTime, "EEE, MMM d")}
+                </div>
+                <div className="text-xs text-muted-foreground">{format(startDateTime, "p")}</div>
+              </div>
+              <div className="p-4">
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">Ends</div>
+                <div className="mt-2 text-sm font-semibold text-foreground">
+                  {format(endDateTime, "EEE, MMM d")}
+                </div>
+                <div className="text-xs text-muted-foreground">{format(endDateTime, "p")}</div>
+              </div>
+              <div className="p-4">
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">Check-in</div>
+                <div className="mt-2 text-sm font-semibold text-foreground">{checkInLabel}</div>
+                <div className="text-xs text-muted-foreground">{verificationLabel}</div>
+              </div>
+            </div>
+          </div>
 
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger render={
-                  <span className="w-full sm:w-auto">
-                    <Button
-                      variant="outline"
-                      className="w-full sm:w-auto flex items-center justify-center gap-2"
-                      onClick={handleContactAllSignups}
-                      disabled={isCancelled}
-                    >
-                      <Mail className="h-4 w-4" />
-                      Contact All Signups
-                    </Button>
-                  </span>
-                } />
-                <TooltipContent className="max-w-[300px] p-2">
-                  <p>Open your email client with all volunteer emails pre-populated in BCC field</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+          {hasActiveUnpublishedSessions && (
+            <div className="flex items-center gap-2 rounded-md border border-info/40 bg-info/10 px-3 py-2 text-xs text-info">
+              <Clock className="h-3.5 w-3.5" />
+              {activeUnpublishedSessionsInEditingWindow.length} session{activeUnpublishedSessionsInEditingWindow.length === 1 ? "" : "s"} need hours published.
+            </div>
+          )}
 
-            {/* Creator Instructions Modal */}
-            <ProjectInstructionsModal project={project} isCreator={true} />
+          <div className="rounded-lg border bg-background/40">
+            <div className="flex items-center justify-between px-3 py-3 sm:px-4">
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">Quick actions</h3>
+                <p className="text-xs text-muted-foreground hidden sm:block">Jump into the most common creator tasks.</p>
+              </div>
+            </div>
 
-            {/* Calendar Sync Button */}
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger render={
-                  <span className="w-full sm:w-auto">
-                    <Button
-                      variant="outline"
-                      className={`w-full sm:w-auto flex items-center justify-center gap-2 ${isCalendarSynced
-                        ? "bg-success/10 hover:bg-success/20 border-success/80"
-                        : ""
-                        }`}
-                      onClick={() => setShowCalendarModal(true)}
-                    >
-                      {isCalendarSynced ? (
-                        <>
-                          <CalendarCheck className="h-4 w-4 text-success" />
-                          Synced to Calendar
-                        </>
-                      ) : (
-                        <>
-                          <Calendar className="h-4 w-4" />
-                          Add to Calendar
-                        </>
-                      )}
-                    </Button>
-                  </span>
-                } />
-                <TooltipContent className="max-w-[280px] p-2">
-                  <p>
-                    {isCalendarSynced
-                      ? "This project is synced to your calendar. Click to manage or remove."
-                      : "Add this project to your Google Calendar or download an iCal file"}
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <div className="sm:hidden px-2 pb-2">
+              <div className="divide-y rounded-md border bg-background/60">
+                <div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-10 w-full justify-between px-2"
+                    onClick={() => router.push(`/projects/${project.id}/edit`)}
+                  >
+                    <span className="flex items-center gap-2">
+                      <Edit className="h-4 w-4" />
+                      Edit Project
+                    </span>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  </Button>
+                </div>
+                <div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-10 w-full justify-between px-2"
+                    onClick={() => router.push(`/projects/${project.id}/signups`)}
+                  >
+                    <span className="flex items-center gap-2">
+                      <Users className="h-4 w-4" />
+                      Manage Signups
+                    </span>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  </Button>
+                </div>
+                <div>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger render={
+                        <span className="w-full">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-10 w-full justify-between px-2"
+                            onClick={handleContactAllSignups}
+                            disabled={isCancelled}
+                          >
+                            <span className="flex items-center gap-2">
+                              <Mail className="h-4 w-4" />
+                              Contact All Signups
+                            </span>
+                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                          </Button>
+                        </span>
+                      } />
+                      <TooltipContent className="max-w-75 p-2">
+                        <p>Open your email client with all volunteer emails pre-populated in BCC field</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+                <div>
+                  <ProjectInstructionsModal
+                    project={project}
+                    isCreator={true}
+                    buttonVariant="ghost"
+                    buttonSize="sm"
+                    showChevron
+                    buttonClassName="h-10 w-full justify-between px-2"
+                  />
+                </div>
+                <div>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger render={
+                        <span className="w-full">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-10 w-full justify-between px-2"
+                            onClick={() => setShowCalendarModal(true)}
+                          >
+                            <span className="flex items-center gap-2">
+                              {isCalendarSynced ? (
+                                <CalendarCheck className="h-4 w-4 text-success" />
+                              ) : (
+                                <Calendar className="h-4 w-4" />
+                              )}
+                              {isCalendarSynced ? "Synced to Calendar" : "Add to Calendar"}
+                            </span>
+                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                          </Button>
+                        </span>
+                      } />
+                      <TooltipContent className="max-w-70 p-2">
+                        <p>
+                          {isCalendarSynced
+                            ? "This project is synced to your calendar. Click to manage or remove."
+                            : "Add this project to your Google Calendar or download an iCal file"}
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+                {hasActiveUnpublishedSessions && project.verification_method !== 'auto' && (
+                  <div>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger render={
+                          <span className="w-full">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-10 w-full justify-between px-2"
+                              onClick={() => router.push(`/projects/${project.id}/hours`)}
+                            >
+                              <span className="flex items-center gap-2">
+                                <Clock className="h-4 w-4" />
+                                Manage Hours
+                              </span>
+                              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                            </Button>
+                          </span>
+                        } />
+                        <TooltipContent className="max-w-70 p-2">
+                          <p>
+                            {activeUnpublishedSessionsInEditingWindow.length === 1
+                              ? `Editing window open for: ${activeUnpublishedSessionsInEditingWindow[0].name}`
+                              : `Editing windows open for ${activeUnpublishedSessionsInEditingWindow.length} sessions`}
+                          </p>
+                          {activeUnpublishedSessionsInEditingWindow.length > 1 && (
+                            <ul className="text-xs mt-1 space-y-1">
+                              {activeUnpublishedSessionsInEditingWindow.map(session => (
+                                <li key={session.id}>
+                                  • {session.name} ({session.hoursRemaining}h remaining)
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                          <p className="text-xs mt-1 text-muted-foreground">Click to review/edit hours before publishing.</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                )}
+              </div>
+            </div>
 
-            {/* Creator Instructions Modal */}
+            <div className="hidden sm:grid grid-cols-1 gap-2 px-3 pb-3 sm:grid-cols-2 xl:grid-cols-3 sm:px-4 sm:pb-4">
+              <Button
+                variant="outline"
+                className="h-10 w-full justify-between gap-2 bg-background/60 shadow-none"
+                onClick={() => router.push(`/projects/${project.id}/edit`)}
+              >
+                <span className="flex items-center gap-2">
+                  <Edit className="h-4 w-4" />
+                  Edit Project
+                </span>
+                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+              </Button>
+              <Button
+                variant="outline"
+                className="h-10 w-full justify-between gap-2 bg-background/60 shadow-none"
+                onClick={() => router.push(`/projects/${project.id}/signups`)}
+              >
+                <span className="flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  Manage Signups
+                </span>
+                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+              </Button>
 
-            {/* --- MODIFIED: Manage Hours Button (Conditional) --- */}
-            {/* Use the new filtered list */}
-            {hasActiveUnpublishedSessions && project.verification_method !== 'auto' && (
-              <div className="w-full sm:w-auto">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger render={
+                    <span className="w-full">
+                      <Button
+                        variant="outline"
+                        className="h-10 w-full justify-between gap-2 bg-background/60 shadow-none"
+                        onClick={handleContactAllSignups}
+                        disabled={isCancelled}
+                      >
+                        <span className="flex items-center gap-2">
+                          <Mail className="h-4 w-4" />
+                          Contact All Signups
+                        </span>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      </Button>
+                    </span>
+                  } />
+                  <TooltipContent className="max-w-75 p-2">
+                    <p>Open your email client with all volunteer emails pre-populated in BCC field</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+
+              <ProjectInstructionsModal
+                project={project}
+                isCreator={true}
+                buttonClassName="h-10 w-full justify-between px-2 bg-background/60 shadow-none"
+                buttonVariant="outline"
+                showChevron
+              />
+
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger render={
+                    <span className="w-full">
+                      <Button
+                        variant="outline"
+                        className={`h-10 w-full justify-between gap-2 bg-background/60 shadow-none ${isCalendarSynced
+                          ? "bg-success/10 hover:bg-success/20 border-success/80"
+                          : ""
+                          }`}
+                        onClick={() => setShowCalendarModal(true)}
+                      >
+                        <span className="flex items-center gap-2">
+                          {isCalendarSynced ? (
+                            <CalendarCheck className="h-4 w-4 text-success" />
+                          ) : (
+                            <Calendar className="h-4 w-4" />
+                          )}
+                          {isCalendarSynced ? "Synced to Calendar" : "Add to Calendar"}
+                        </span>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      </Button>
+                    </span>
+                  } />
+                  <TooltipContent className="max-w-70 p-2">
+                    <p>
+                      {isCalendarSynced
+                        ? "This project is synced to your calendar. Click to manage or remove."
+                        : "Add this project to your Google Calendar or download an iCal file"}
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+
+              {hasActiveUnpublishedSessions && project.verification_method !== 'auto' && (
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger render={
-                      <span className="w-full sm:w-auto">
+                      <span className="w-full">
                         <Button
                           variant="outline"
-                          className="w-full bg-primary/10 hover:bg-primary/20 border-primary/80 sm:w-auto flex items-center justify-center gap-2"
+                          className="h-10 w-full justify-between gap-2 bg-primary/10 hover:bg-primary/20 border-primary/80 shadow-none"
                           onClick={() => router.push(`/projects/${project.id}/hours`)}
                         >
-                          <Clock className="h-4 w-4" />
-                          Manage Hours
+                          <span className="flex items-center gap-2">
+                            <Clock className="h-4 w-4" />
+                            Manage Hours
+                          </span>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
                         </Button>
                       </span>
                     } />
-                    {/* --- Update tooltip content to use activeUnpublishedSessionsInEditingWindow --- */}
-                    <TooltipContent className="max-w-[280px] p-2">
+                    <TooltipContent className="max-w-70 p-2">
                       <p>
                         {activeUnpublishedSessionsInEditingWindow.length === 1
                           ? `Editing window open for: ${activeUnpublishedSessionsInEditingWindow[0].name}`
@@ -471,12 +704,11 @@ export default function CreatorDashboard({ project }: Props) {
                       )}
                       <p className="text-xs mt-1 text-muted-foreground">Click to review/edit hours before publishing.</p>
                     </TooltipContent>
-                    {/* --- End Update --- */}
                   </Tooltip>
                 </TooltipProvider>
-              </div>
-            )}
-            {/* --- END MODIFIED --- */}
+              )}
+            </div>
+          </div>
 
             {/* Attendance Button - for QR code and manual methods */}
             {/* {(project.verification_method === 'qr-code' || project.verification_method === 'manual') && (
@@ -543,7 +775,6 @@ export default function CreatorDashboard({ project }: Props) {
                 )}
               </Tooltip>
             </TooltipProvider> */}
-          </div>
 
           {/* --- Conditional Alerts --- */}
           {/* Signup-Only */}
@@ -556,10 +787,10 @@ export default function CreatorDashboard({ project }: Props) {
                   <AlertDescription>
                     Your signup-only event starts within 24 hours. Consider pausing signups if you&apos;re no longer accepting volunteers. You can also view or print the current signup list from the Manage Signups page.
                     <div className="mt-3 flex gap-2">
-                      <Link href={`/projects/${project.id}/signups`} className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
+                      <Link href={`/projects/${project.id}/signups`} className={cn(buttonVariants({ variant: "outline", size: "sm" }), "no-underline! hover:no-underline!")}>
                         <Pause className="h-4 w-4 mr-1.5" /> Pause/View Signups
                       </Link>
-                      <Link href={`/projects/${project.id}/signups`} className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
+                      <Link href={`/projects/${project.id}/signups`} className={cn(buttonVariants({ variant: "outline", size: "sm" }), "no-underline! hover:no-underline!")}>
                         <Printer className="h-4 w-4 mr-1.5" /> Print List
                       </Link>
                     </div>
@@ -594,7 +825,7 @@ export default function CreatorDashboard({ project }: Props) {
                               {hasActiveUnpublishedSessions ? (
                                 <Link
                                   href={`/projects/${project.id}/hours`}
-                                  className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+                                  className={cn(buttonVariants({ variant: "outline", size: "sm" }), "no-underline! hover:no-underline!")}
                                 >
                                   <Clock className="h-4 w-4 mr-1.5" /> Manage Hours
                                 </Link>
@@ -636,13 +867,16 @@ export default function CreatorDashboard({ project }: Props) {
                     Your event starts within 24 hours.
                     {project.verification_method === 'qr-code' && " QR codes for check-in will be available 2 hours before the start time."}
                     {project.verification_method === 'manual' && " Prepare for manual volunteer check-in."}
-                    <div className="mt-3 flex gap-2">
+                    <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                       {project.verification_method === 'qr-code' && (
-                        <Button variant="outline" size="sm" onClick={() => setQrCodeOpen(true)}>
+                        <Button variant="outline" size="sm" className="w-full sm:w-auto" onClick={() => setQrCodeOpen(true)}>
                           <QrCode className="h-4 w-4 mr-1.5" /> Preview QR Codes
                         </Button>
                       )}
-                      <Link href={`/projects/${project.id}/signups`} className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
+                      <Link
+                        href={`/projects/${project.id}/signups`}
+                        className={cn(buttonVariants({ variant: "outline", size: "sm" }), "no-underline! hover:no-underline! w-full sm:w-auto")}
+                      >
                         <Users className="h-4 w-4 mr-1.5" /> View Signups
                       </Link>
                     </div>
@@ -663,7 +897,7 @@ export default function CreatorDashboard({ project }: Props) {
                           <QrCode className="h-4 w-4 mr-1.5" /> View QR Codes
                         </Button>
                       )}
-                      <Link href={`/projects/${project.id}/attendance`} className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
+                      <Link href={`/projects/${project.id}/attendance`} className={cn(buttonVariants({ variant: "outline", size: "sm" }), "no-underline! hover:no-underline!")}>
                         <UserCheck className="h-4 w-4 mr-1.5" /> Manage Attendance
                       </Link>
                     </div>
@@ -682,7 +916,7 @@ export default function CreatorDashboard({ project }: Props) {
                           <QrCode className="h-4 w-4 mr-1.5" /> View QR Codes
                         </Button>
                       )}
-                      <Link href={`/projects/${project.id}/attendance`} className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
+                      <Link href={`/projects/${project.id}/attendance`} className={cn(buttonVariants({ variant: "outline", size: "sm" }), "no-underline! hover:no-underline!")}>
                         <UserCheck className="h-4 w-4 mr-1.5" /> Manage Attendance
                       </Link>
                     </div>
@@ -703,7 +937,7 @@ export default function CreatorDashboard({ project }: Props) {
                       ? "Your event has finished. Please review, edit, and publish volunteer hours within 48 hours of the event end time to generate certificates. If you don't edit, hours will be published automatically."
                       : "Your event has finished, and the window for managing volunteer hours has closed or all sessions are published. You can still view the final attendance records."}
                     <div className="mt-3 flex gap-2 flex-wrap">
-                      <Link href={`/projects/${project.id}/attendance`} className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
+                      <Link href={`/projects/${project.id}/attendance`} className={cn(buttonVariants({ variant: "outline", size: "sm" }), "no-underline! hover:no-underline!")}>
                         <UserCheck className="h-4 w-4 mr-1.5" /> Manage Attendance
                       </Link>
                       <TooltipProvider>
@@ -713,7 +947,7 @@ export default function CreatorDashboard({ project }: Props) {
                               {hasActiveUnpublishedSessions ? (
                                 <Link
                                   href={`/projects/${project.id}/hours`}
-                                  className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+                                  className={cn(buttonVariants({ variant: "outline", size: "sm" }), "no-underline! hover:no-underline!")}
                                 >
                                   <Clock className="h-4 w-4 mr-1.5" /> Manage Hours
                                 </Link>
@@ -752,7 +986,7 @@ export default function CreatorDashboard({ project }: Props) {
               <AlertDescription>
                 Volunteer check-in is automatic. Hours are recorded based on the schedule. Manual editing is not available for this project type.
                 <div className="mt-3 flex gap-2">
-                  <Link href={`/projects/${project.id}/attendance`} className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
+                  <Link href={`/projects/${project.id}/attendance`} className={cn(buttonVariants({ variant: "outline", size: "sm" }), "no-underline! hover:no-underline!")}>
                     <Users className="h-4 w-4 mr-1.5" /> View Attendance
                   </Link>
                 </div>
@@ -779,32 +1013,14 @@ export default function CreatorDashboard({ project }: Props) {
               </div>
             </div>
           ) : (
-            <div className="flex flex-col sm:flex-row items-start gap-2 rounded-md border p-3 sm:p-4 bg-muted/50">
-
-              <div className="text-sm text-muted-foreground space-y-2">
-                <AlertCircle className="h-5 w-5 mr-2 text-muted-foreground inline shrink-0" />
-                <p className="inline">
-                  As the project creator, you have full control over this project.
-                  You can edit project details, manage volunteer signups, update
-                  documents, and more.
-                </p>
-                {isInDeletionRestrictionPeriod && (
-                  <div className="mt-2 flex items-center text-warning">
-                    <AlertTriangle className="h-4 w-4 inline mr-2 shrink-0" />
-                    <span className="inline">
-                      Project deletion is restricted during the 72-hour window around the event (24 hours before until 48 hours after).
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
+            <></>
           )}
         </CardContent>
       </Card>
 
       {/* Delete Dialog */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent className="max-w-[95vw] sm:max-w-[425px]">
+        <AlertDialogContent className="max-w-[95vw] sm:max-w-106.25">
           <AlertDialogHeader className="space-y-3">
             <AlertDialogTitle className="text-lg sm:text-xl">Are you sure?</AlertDialogTitle>
             <AlertDialogDescription className="text-sm">

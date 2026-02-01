@@ -71,7 +71,6 @@ export const ProjectsInfiniteScroll: React.FC = () => {
   const [dateSort, setDateSort] = useState<"asc" | "desc" | undefined>(undefined);
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [isClientReady, setIsClientReady] = useState(false);
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [view, setView] = useState<"card" | "list" | "table" | "map">("card");
 
   // Debug local storage issue with hydration
@@ -396,9 +395,10 @@ export const ProjectsInfiniteScroll: React.FC = () => {
       <>
         <div className="mb-8">
           {/* Search and filter controls */}
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 w-full" data-tour-id="home-project-filters">
-            <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
-              <div className="relative w-full sm:w-[280px]">
+          <div className="w-full" data-tour-id="home-project-filters">
+            {/* Mobile layout */}
+            <div className="flex flex-col gap-3 md:hidden">
+              <div className="relative w-full">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Search projects..."
@@ -407,170 +407,352 @@ export const ProjectsInfiniteScroll: React.FC = () => {
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
-              <div className="w-full sm:w-auto">
-                <DateRangePicker
-                  value={dateFilter}
-                  onChange={setDateFilter}
-                  align="start"
-                  className="w-full sm:w-[240px]"
-                />
-              </div>
-            </div>
 
-            <div className="flex items-center gap-2 w-full md:w-auto justify-end">
-              <div className="flex items-center gap-1 mr-2">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className={cn("h-8 w-8 sm:h-9 sm:w-9", view === "card" && "bg-muted")}
-                  onClick={() => setView("card")}
-                >
-                  <LayoutGrid className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className={cn("h-8 w-8 sm:h-9 sm:w-9", view === "list" && "bg-muted")}
-                  onClick={() => setView("list")}
-                >
-                  <List className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className={cn("h-8 w-8 sm:h-9 sm:w-9", view === "table" && "bg-muted")}
-                  onClick={() => setView("table")}
-                >
-                  <Table2 className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className={cn("h-8 w-8 sm:h-9 sm:w-9", view === "map" && "bg-muted")}
-                  onClick={() => setView("map")}
-                >
-                  <Map className="h-4 w-4" />
-                </Button>
-              </div>
+              <div className="flex items-center gap-2 w-full flex-nowrap">
+                <div className="flex-1 min-w-0">
+                  <DateRangePicker
+                    value={dateFilter}
+                    onChange={setDateFilter}
+                    align="start"
+                    placeholder="Pick dates"
+                    className="w-full"
+                    buttonClassName="h-10"
+                  />
+                </div>
 
-              <Popover open={isFilterOpen} onOpenChange={setIsFilterOpen}>
-                <PopoverTrigger
-                  nativeButton={true}
-                  render={
+                {!dateFilter?.from && (
+                  <div className="flex items-center gap-1 shrink-0">
                     <Button
-                      variant="outline"
+                      variant="ghost"
                       size="icon"
-                      className="relative h-8 w-8 sm:h-9 sm:w-9"
+                      className={cn("h-8 w-8", view === "card" && "bg-muted")}
+                      onClick={() => setView("card")}
                     >
-                      <SlidersHorizontal className="h-4 w-4" />
-                      {activeFilterCount > 0 && (
-                        <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-medium text-primary-foreground">
-                          {activeFilterCount}
-                        </span>
-                      )}
+                      <LayoutGrid className="h-4 w-4" />
                     </Button>
-                  }
-                />
-                <PopoverContent className="w-80">
-                  <div className="grid gap-4">
-                    <PopoverHeader className="flex flex-row items-center justify-between pb-2">
-                      <div className="space-y-1">
-                        <PopoverTitle>Filters</PopoverTitle>
-                        <PopoverDescription>
-                          Refine project results
-                        </PopoverDescription>
-                      </div>
-                      {activeFilterCount > 0 && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={clearAllFilters}
-                          className="h-auto px-2 py-0 text-xs font-normal"
-                        >
-                          Clear all
-                        </Button>
-                      )}
-                    </PopoverHeader>
-
-                    <div className="grid gap-2">
-                      <Label htmlFor="event-type">Event Type</Label>
-                      <Select
-                        value={eventTypeFilter ?? "all"}
-                        onValueChange={(value) => setEventTypeFilter((value === "all" || !value) ? undefined : value)}
-                      >
-                        <SelectTrigger id="event-type" className="w-full">
-                          <SelectValue placeholder="All Types">
-                            {eventTypeFilter === "oneTime" ? "Single Event" :
-                              eventTypeFilter === "multiDay" ? "Multi-day Event" :
-                                eventTypeFilter === "sameDayMultiArea" ? "Multi-role Event" :
-                                  "All Types"}
-                          </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent alignItemWithTrigger={false}>
-                          <SelectItem value="all">All Types</SelectItem>
-                          <SelectItem value="oneTime">Single Event</SelectItem>
-                          <SelectItem value="multiDay">Multi-day Event</SelectItem>
-                          <SelectItem value="sameDayMultiArea">Multi-role Event</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="grid gap-2">
-                      <Label htmlFor="sort-date">Sort by Date</Label>
-                      <Select
-                        value={dateSort ?? "no-sort"}
-                        onValueChange={(value) => {
-                          setDateSort((value === "no-sort" || !value) ? undefined : value as "asc" | "desc");
-                          if (value !== "no-sort") {
-                            setVolunteersSort(undefined);
-                          }
-                        }}
-                      >
-                        <SelectTrigger id="sort-date" className="w-full">
-                          <SelectValue placeholder="No sorting">
-                            {dateSort === "desc" ? "Most recent first" :
-                              dateSort === "asc" ? "Future dates first" :
-                                "No sorting"}
-                          </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent alignItemWithTrigger={false}>
-                          <SelectItem value="no-sort">No sorting</SelectItem>
-                          <SelectItem value="desc">Most recent first</SelectItem>
-                          <SelectItem value="asc">Future dates first</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="grid gap-2">
-                      <Label htmlFor="sort-volunteers">Sort by Volunteers</Label>
-                      <Select
-                        value={volunteersSort ?? "no-sort"}
-                        onValueChange={(value) => {
-                          setVolunteersSort((value === "no-sort" || !value) ? undefined : value as "asc" | "desc");
-                          if (value !== "no-sort") {
-                            setDateSort(undefined);
-                          }
-                        }}
-                      >
-                        <SelectTrigger id="sort-volunteers" className="w-full">
-                          <SelectValue placeholder="No sorting">
-                            {volunteersSort === "desc" ? "Most needed first" :
-                              volunteersSort === "asc" ? "Least needed first" :
-                                "No sorting"}
-                          </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent alignItemWithTrigger={false}>
-                          <SelectItem value="no-sort">No sorting</SelectItem>
-                          <SelectItem value="desc">Most needed first</SelectItem>
-                          <SelectItem value="asc">Least needed first</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className={cn("h-8 w-8", view === "list" && "bg-muted")}
+                      onClick={() => setView("list")}
+                    >
+                      <List className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className={cn("h-8 w-8", view === "table" && "bg-muted")}
+                      onClick={() => setView("table")}
+                    >
+                      <Table2 className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className={cn("h-8 w-8", view === "map" && "bg-muted")}
+                      onClick={() => setView("map")}
+                    >
+                      <Map className="h-4 w-4" />
+                    </Button>
                   </div>
-                </PopoverContent>
-              </Popover>
+                )}
+
+                <Popover>
+                  <PopoverTrigger
+                    nativeButton={true}
+                    render={
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="relative h-8 w-8 shrink-0"
+                      >
+                        <SlidersHorizontal className="h-4 w-4" />
+                        {activeFilterCount > 0 && (
+                          <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-medium text-primary-foreground">
+                            {activeFilterCount}
+                          </span>
+                        )}
+                      </Button>
+                    }
+                  />
+                  <PopoverContent className="w-80">
+                    <div className="grid gap-4">
+                      <PopoverHeader className="flex flex-row items-center justify-between pb-2">
+                        <div className="space-y-1">
+                          <PopoverTitle>Filters</PopoverTitle>
+                          <PopoverDescription>
+                            Refine project results
+                          </PopoverDescription>
+                        </div>
+                        {activeFilterCount > 0 && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={clearAllFilters}
+                            className="h-auto px-2 py-0 text-xs font-normal"
+                          >
+                            Clear all
+                          </Button>
+                        )}
+                      </PopoverHeader>
+
+                      <div className="grid gap-2">
+                        <Label htmlFor="event-type-mobile">Event Type</Label>
+                        <Select
+                          value={eventTypeFilter ?? "all"}
+                          onValueChange={(value) => setEventTypeFilter((value === "all" || !value) ? undefined : value)}
+                        >
+                          <SelectTrigger id="event-type-mobile" className="w-full">
+                            <SelectValue placeholder="All Types">
+                              {eventTypeFilter === "oneTime" ? "Single Event" :
+                                eventTypeFilter === "multiDay" ? "Multi-day Event" :
+                                  eventTypeFilter === "sameDayMultiArea" ? "Multi-role Event" :
+                                    "All Types"}
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent alignItemWithTrigger={false}>
+                            <SelectItem value="all">All Types</SelectItem>
+                            <SelectItem value="oneTime">Single Event</SelectItem>
+                            <SelectItem value="multiDay">Multi-day Event</SelectItem>
+                            <SelectItem value="sameDayMultiArea">Multi-role Event</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="grid gap-2">
+                        <Label htmlFor="sort-date-mobile">Sort by Date</Label>
+                        <Select
+                          value={dateSort ?? "no-sort"}
+                          onValueChange={(value) => {
+                            setDateSort((value === "no-sort" || !value) ? undefined : value as "asc" | "desc");
+                            if (value !== "no-sort") {
+                              setVolunteersSort(undefined);
+                            }
+                          }}
+                        >
+                          <SelectTrigger id="sort-date-mobile" className="w-full">
+                            <SelectValue placeholder="No sorting">
+                              {dateSort === "desc" ? "Most recent first" :
+                                dateSort === "asc" ? "Future dates first" :
+                                  "No sorting"}
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent alignItemWithTrigger={false}>
+                            <SelectItem value="no-sort">No sorting</SelectItem>
+                            <SelectItem value="desc">Most recent first</SelectItem>
+                            <SelectItem value="asc">Future dates first</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="grid gap-2">
+                        <Label htmlFor="sort-volunteers-mobile">Sort by Volunteers</Label>
+                        <Select
+                          value={volunteersSort ?? "no-sort"}
+                          onValueChange={(value) => {
+                            setVolunteersSort((value === "no-sort" || !value) ? undefined : value as "asc" | "desc");
+                            if (value !== "no-sort") {
+                              setDateSort(undefined);
+                            }
+                          }}
+                        >
+                          <SelectTrigger id="sort-volunteers-mobile" className="w-full">
+                            <SelectValue placeholder="No sorting">
+                              {volunteersSort === "desc" ? "Most needed first" :
+                                volunteersSort === "asc" ? "Least needed first" :
+                                  "No sorting"}
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent alignItemWithTrigger={false}>
+                            <SelectItem value="no-sort">No sorting</SelectItem>
+                            <SelectItem value="desc">Most needed first</SelectItem>
+                            <SelectItem value="asc">Least needed first</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
             </div>
 
+            {/* Desktop layout */}
+            <div className="hidden md:flex md:flex-row justify-between items-start md:items-center gap-4 w-full">
+              <div className="flex items-center gap-3 w-full md:w-auto">
+                <div className="relative w-full md:w-70">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search projects..."
+                    className="pl-8"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1 w-full md:w-auto justify-end">
+                <div className="w-60">
+                  <DateRangePicker
+                    value={dateFilter}
+                    onChange={setDateFilter}
+                    align="end"
+                    placeholder="Select date range"
+                    className="w-full"
+                  />
+                </div>
+                <div className="flex items-center gap-1 mr-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={cn("h-8 w-8 sm:h-9 sm:w-9", view === "card" && "bg-muted")}
+                    onClick={() => setView("card")}
+                  >
+                    <LayoutGrid className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={cn("h-8 w-8 sm:h-9 sm:w-9", view === "list" && "bg-muted")}
+                    onClick={() => setView("list")}
+                  >
+                    <List className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={cn("h-8 w-8 sm:h-9 sm:w-9", view === "table" && "bg-muted")}
+                    onClick={() => setView("table")}
+                  >
+                    <Table2 className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={cn("h-8 w-8 sm:h-9 sm:w-9", view === "map" && "bg-muted")}
+                    onClick={() => setView("map")}
+                  >
+                    <Map className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                <Popover>
+                  <PopoverTrigger
+                    nativeButton={true}
+                    render={
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="relative h-8 w-8 sm:h-9 sm:w-9"
+                      >
+                        <SlidersHorizontal className="h-4 w-4" />
+                        {activeFilterCount > 0 && (
+                          <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-medium text-primary-foreground">
+                            {activeFilterCount}
+                          </span>
+                        )}
+                      </Button>
+                    }
+                  />
+                  <PopoverContent className="w-80">
+                    <div className="grid gap-4">
+                      <PopoverHeader className="flex flex-row items-center justify-between pb-2">
+                        <div className="space-y-1">
+                          <PopoverTitle>Filters</PopoverTitle>
+                          <PopoverDescription>
+                            Refine project results
+                          </PopoverDescription>
+                        </div>
+                        {activeFilterCount > 0 && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={clearAllFilters}
+                            className="h-auto px-2 py-0 text-xs font-normal"
+                          >
+                            Clear all
+                          </Button>
+                        )}
+                      </PopoverHeader>
+
+                      <div className="grid gap-2">
+                        <Label htmlFor="event-type">Event Type</Label>
+                        <Select
+                          value={eventTypeFilter ?? "all"}
+                          onValueChange={(value) => setEventTypeFilter((value === "all" || !value) ? undefined : value)}
+                        >
+                          <SelectTrigger id="event-type" className="w-full">
+                            <SelectValue placeholder="All Types">
+                              {eventTypeFilter === "oneTime" ? "Single Event" :
+                                eventTypeFilter === "multiDay" ? "Multi-day Event" :
+                                  eventTypeFilter === "sameDayMultiArea" ? "Multi-role Event" :
+                                    "All Types"}
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent alignItemWithTrigger={false}>
+                            <SelectItem value="all">All Types</SelectItem>
+                            <SelectItem value="oneTime">Single Event</SelectItem>
+                            <SelectItem value="multiDay">Multi-day Event</SelectItem>
+                            <SelectItem value="sameDayMultiArea">Multi-role Event</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="grid gap-2">
+                        <Label htmlFor="sort-date">Sort by Date</Label>
+                        <Select
+                          value={dateSort ?? "no-sort"}
+                          onValueChange={(value) => {
+                            setDateSort((value === "no-sort" || !value) ? undefined : value as "asc" | "desc");
+                            if (value !== "no-sort") {
+                              setVolunteersSort(undefined);
+                            }
+                          }}
+                        >
+                          <SelectTrigger id="sort-date" className="w-full">
+                            <SelectValue placeholder="No sorting">
+                              {dateSort === "desc" ? "Most recent first" :
+                                dateSort === "asc" ? "Future dates first" :
+                                  "No sorting"}
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent alignItemWithTrigger={false}>
+                            <SelectItem value="no-sort">No sorting</SelectItem>
+                            <SelectItem value="desc">Most recent first</SelectItem>
+                            <SelectItem value="asc">Future dates first</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="grid gap-2">
+                        <Label htmlFor="sort-volunteers">Sort by Volunteers</Label>
+                        <Select
+                          value={volunteersSort ?? "no-sort"}
+                          onValueChange={(value) => {
+                            setVolunteersSort((value === "no-sort" || !value) ? undefined : value as "asc" | "desc");
+                            if (value !== "no-sort") {
+                              setDateSort(undefined);
+                            }
+                          }}
+                        >
+                          <SelectTrigger id="sort-volunteers" className="w-full">
+                            <SelectValue placeholder="No sorting">
+                              {volunteersSort === "desc" ? "Most needed first" :
+                                volunteersSort === "asc" ? "Least needed first" :
+                                  "No sorting"}
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent alignItemWithTrigger={false}>
+                            <SelectItem value="no-sort">No sorting</SelectItem>
+                            <SelectItem value="desc">Most needed first</SelectItem>
+                            <SelectItem value="asc">Least needed first</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
           </div>
 
           {/* Active filters display */}
@@ -717,9 +899,10 @@ export const ProjectsInfiniteScroll: React.FC = () => {
     <div>
       <div className="mb-8">
         {/* Search and filter controls */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 w-full" data-tour-id="home-project-filters">
-          <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
-            <div className="relative w-full sm:w-[280px]">
+        <div className="w-full" data-tour-id="home-project-filters">
+          {/* Mobile layout */}
+          <div className="flex flex-col gap-3 md:hidden">
+            <div className="relative w-full">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search projects..."
@@ -728,168 +911,349 @@ export const ProjectsInfiniteScroll: React.FC = () => {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <div className="w-full sm:w-auto">
-              <DateRangePicker
-                value={dateFilter}
-                onChange={setDateFilter}
-                align="start"
-                className="w-full sm:w-[240px]"
-              />
+
+            <div className="flex items-center gap-2 w-full flex-nowrap">
+              <div className="flex-1 min-w-0">
+                <DateRangePicker
+                  value={dateFilter}
+                  onChange={setDateFilter}
+                  align="start"
+                  placeholder="Pick dates"
+                  className="w-full"
+                  buttonClassName="h-10"
+                />
+              </div>
+
+              {!dateFilter?.from && (
+                <div className="flex items-center gap-1 shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={cn("h-8 w-8", view === "card" && "bg-muted")}
+                    onClick={() => setView("card")}
+                  >
+                    <LayoutGrid className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={cn("h-8 w-8", view === "list" && "bg-muted")}
+                    onClick={() => setView("list")}
+                  >
+                    <List className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={cn("h-8 w-8", view === "table" && "bg-muted")}
+                    onClick={() => setView("table")}
+                  >
+                    <Table2 className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={cn("h-8 w-8", view === "map" && "bg-muted")}
+                    onClick={() => setView("map")}
+                  >
+                    <Map className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+
+              <Popover>
+                <PopoverTrigger
+                  nativeButton={true}
+                  render={
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="relative h-8 w-8 shrink-0"
+                    >
+                      <SlidersHorizontal className="h-4 w-4" />
+                      {activeFilterCount > 0 && (
+                        <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-medium text-primary-foreground">
+                          {activeFilterCount}
+                        </span>
+                      )}
+                    </Button>
+                  }
+                />
+                <PopoverContent className="w-80">
+                  <div className="grid gap-4">
+                    <PopoverHeader className="flex flex-row items-center justify-between pb-2">
+                      <div className="space-y-1">
+                        <PopoverTitle>Filters</PopoverTitle>
+                        <PopoverDescription>
+                          Refine project results
+                        </PopoverDescription>
+                      </div>
+                      {activeFilterCount > 0 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={clearAllFilters}
+                          className="h-auto px-2 py-0 text-xs font-normal"
+                        >
+                          Clear all
+                        </Button>
+                      )}
+                    </PopoverHeader>
+
+                    <div className="grid gap-2">
+                      <Label htmlFor="event-type-mobile-2">Event Type</Label>
+                      <Select
+                        value={eventTypeFilter ?? "all"}
+                        onValueChange={(value) => setEventTypeFilter((value === "all" || !value) ? undefined : value)}
+                      >
+                        <SelectTrigger id="event-type-mobile-2" className="w-full">
+                          <SelectValue placeholder="All Types">
+                            {eventTypeFilter === "oneTime" ? "Single Event" :
+                              eventTypeFilter === "multiDay" ? "Multi-day Event" :
+                                eventTypeFilter === "sameDayMultiArea" ? "Multi-role Event" :
+                                  "All Types"}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent alignItemWithTrigger={false}>
+                          <SelectItem value="all">All Types</SelectItem>
+                          <SelectItem value="oneTime">Single Event</SelectItem>
+                          <SelectItem value="multiDay">Multi-day Event</SelectItem>
+                          <SelectItem value="sameDayMultiArea">Multi-role Event</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="grid gap-2">
+                      <Label htmlFor="sort-date-mobile-2">Sort by Date</Label>
+                      <Select
+                        value={dateSort ?? "no-sort"}
+                        onValueChange={(value) => {
+                          setDateSort((value === "no-sort" || !value) ? undefined : value as "asc" | "desc");
+                          if (value !== "no-sort") {
+                            setVolunteersSort(undefined);
+                          }
+                        }}
+                      >
+                        <SelectTrigger id="sort-date-mobile-2" className="w-full">
+                          <SelectValue placeholder="No sorting">
+                            {dateSort === "desc" ? "Most recent first" :
+                              dateSort === "asc" ? "Future dates first" :
+                                "No sorting"}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent alignItemWithTrigger={false}>
+                          <SelectItem value="no-sort">No sorting</SelectItem>
+                          <SelectItem value="desc">Most recent first</SelectItem>
+                          <SelectItem value="asc">Future dates first</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="grid gap-2">
+                      <Label htmlFor="sort-volunteers-mobile-2">Sort by Volunteers</Label>
+                      <Select
+                        value={volunteersSort ?? "no-sort"}
+                        onValueChange={(value) => {
+                          setVolunteersSort((value === "no-sort" || !value) ? undefined : value as "asc" | "desc");
+                          if (value !== "no-sort") {
+                            setDateSort(undefined);
+                          }
+                        }}
+                      >
+                        <SelectTrigger id="sort-volunteers-mobile-2" className="w-full">
+                          <SelectValue placeholder="No sorting">
+                            {volunteersSort === "desc" ? "Most needed first" :
+                              volunteersSort === "asc" ? "Least needed first" :
+                                "No sorting"}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent alignItemWithTrigger={false}>
+                          <SelectItem value="no-sort">No sorting</SelectItem>
+                          <SelectItem value="desc">Most needed first</SelectItem>
+                          <SelectItem value="asc">Least needed first</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 w-full md:w-auto justify-end">
-            <div className="flex items-center gap-1 mr-2">
-              <Button
-                variant="ghost"
-                size="icon"
-                className={cn("h-8 w-8 sm:h-9 sm:w-9", view === "card" && "bg-muted")}
-                onClick={() => setView("card")}
-              >
-                <LayoutGrid className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className={cn("h-8 w-8 sm:h-9 sm:w-9", view === "list" && "bg-muted")}
-                onClick={() => setView("list")}
-              >
-                <List className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className={cn("h-8 w-8 sm:h-9 sm:w-9", view === "table" && "bg-muted")}
-                onClick={() => setView("table")}
-              >
-                <Table2 className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className={cn("h-8 w-8 sm:h-9 sm:w-9", view === "map" && "bg-muted")}
-                onClick={() => setView("map")}
-              >
-                <Map className="h-4 w-4" />
-              </Button>
+          {/* Desktop layout */}
+          <div className="hidden md:flex md:flex-row justify-between items-start md:items-center gap-4 w-full">
+            <div className="flex items-center gap-3 w-full md:w-auto">
+              <div className="relative w-full md:w-70">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search projects..."
+                  className="pl-8"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
             </div>
 
-            <Popover open={isFilterOpen} onOpenChange={setIsFilterOpen}>
-              <PopoverTrigger
-                nativeButton={true}
-                render={
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="relative h-8 w-8 sm:h-9 sm:w-9"
-                  >
-                    <SlidersHorizontal className="h-4 w-4" />
-                    {activeFilterCount > 0 && (
-                      <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-medium text-primary-foreground">
-                        {activeFilterCount}
-                      </span>
-                    )}
-                  </Button>
-                }
-              />
-              <PopoverContent className="w-80">
-                <div className="grid gap-4">
-                  <PopoverHeader className="flex flex-row items-center justify-between pb-2">
-                    <div className="space-y-1">
-                      <PopoverTitle>Filters</PopoverTitle>
-                      <PopoverDescription>
-                        Refine project results
-                      </PopoverDescription>
-                    </div>
-                    {activeFilterCount > 0 && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={clearAllFilters}
-                        className="h-auto px-2 py-0 text-xs font-normal"
+            <div className="flex items-center gap-1 w-full md:w-auto justify-end">
+              <div className="flex items-center gap-1 mr-2">
+                <DateRangePicker
+                  value={dateFilter}
+                  onChange={setDateFilter}
+                  align="end"
+                  placeholder="Select date range"
+                  className="w-full mr-2"
+                />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn("h-8 w-8 sm:h-9 sm:w-9", view === "card" && "bg-muted")}
+                  onClick={() => setView("card")}
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn("h-8 w-8 sm:h-9 sm:w-9", view === "list" && "bg-muted")}
+                  onClick={() => setView("list")}
+                >
+                  <List className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn("h-8 w-8 sm:h-9 sm:w-9", view === "table" && "bg-muted")}
+                  onClick={() => setView("table")}
+                >
+                  <Table2 className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn("h-8 w-8 sm:h-9 sm:w-9", view === "map" && "bg-muted")}
+                  onClick={() => setView("map")}
+                >
+                  <Map className="h-4 w-4" />
+                </Button>
+              </div>
+
+              <Popover>
+                <PopoverTrigger
+                  nativeButton={true}
+                  render={
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="relative h-8 w-8 sm:h-9 sm:w-9"
+                    >
+                      <SlidersHorizontal className="h-4 w-4" />
+                      {activeFilterCount > 0 && (
+                        <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-medium text-primary-foreground">
+                          {activeFilterCount}
+                        </span>
+                      )}
+                    </Button>
+                  }
+                />
+                <PopoverContent className="w-80">
+                  <div className="grid gap-4">
+                    <PopoverHeader className="flex flex-row items-center justify-between pb-2">
+                      <div className="space-y-1">
+                        <PopoverTitle>Filters</PopoverTitle>
+                        <PopoverDescription>
+                          Refine project results
+                        </PopoverDescription>
+                      </div>
+                      {activeFilterCount > 0 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={clearAllFilters}
+                          className="h-auto px-2 py-0 text-xs font-normal"
+                        >
+                          Clear all
+                        </Button>
+                      )}
+                    </PopoverHeader>
+
+                    <div className="grid gap-2">
+                      <Label htmlFor="event-type-2">Event Type</Label>
+                      <Select
+                        value={eventTypeFilter ?? "all"}
+                        onValueChange={(value) => setEventTypeFilter((value === "all" || !value) ? undefined : value)}
                       >
-                        Clear all
-                      </Button>
-                    )}
-                  </PopoverHeader>
+                        <SelectTrigger id="event-type-2" className="w-full">
+                          <SelectValue placeholder="All Types">
+                            {eventTypeFilter === "oneTime" ? "Single Event" :
+                              eventTypeFilter === "multiDay" ? "Multi-day Event" :
+                                eventTypeFilter === "sameDayMultiArea" ? "Multi-role Event" :
+                                  "All Types"}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent alignItemWithTrigger={false}>
+                          <SelectItem value="all">All Types</SelectItem>
+                          <SelectItem value="oneTime">Single Event</SelectItem>
+                          <SelectItem value="multiDay">Multi-day Event</SelectItem>
+                          <SelectItem value="sameDayMultiArea">Multi-role Event</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-                  <div className="grid gap-2">
-                    <Label htmlFor="event-type-2">Event Type</Label>
-                    <Select
-                      value={eventTypeFilter ?? "all"}
-                      onValueChange={(value) => setEventTypeFilter((value === "all" || !value) ? undefined : value)}
-                    >
-                      <SelectTrigger id="event-type-2" className="w-full">
-                        <SelectValue placeholder="All Types">
-                          {eventTypeFilter === "oneTime" ? "Single Event" :
-                            eventTypeFilter === "multiDay" ? "Multi-day Event" :
-                              eventTypeFilter === "sameDayMultiArea" ? "Multi-role Event" :
-                                "All Types"}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent alignItemWithTrigger={false}>
-                        <SelectItem value="all">All Types</SelectItem>
-                        <SelectItem value="oneTime">Single Event</SelectItem>
-                        <SelectItem value="multiDay">Multi-day Event</SelectItem>
-                        <SelectItem value="sameDayMultiArea">Multi-role Event</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="sort-date-2">Sort by Date</Label>
+                      <Select
+                        value={dateSort ?? "no-sort"}
+                        onValueChange={(value) => {
+                          setDateSort((value === "no-sort" || !value) ? undefined : value as "asc" | "desc");
+                          if (value !== "no-sort") {
+                            setVolunteersSort(undefined);
+                          }
+                        }}
+                      >
+                        <SelectTrigger id="sort-date-2" className="w-full">
+                          <SelectValue placeholder="No sorting">
+                            {dateSort === "desc" ? "Most recent first" :
+                              dateSort === "asc" ? "Future dates first" :
+                                "No sorting"}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent alignItemWithTrigger={false}>
+                          <SelectItem value="no-sort">No sorting</SelectItem>
+                          <SelectItem value="desc">Most recent first</SelectItem>
+                          <SelectItem value="asc">Future dates first</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-                  <div className="grid gap-2">
-                    <Label htmlFor="sort-date-2">Sort by Date</Label>
-                    <Select
-                      value={dateSort ?? "no-sort"}
-                      onValueChange={(value) => {
-                        setDateSort((value === "no-sort" || !value) ? undefined : value as "asc" | "desc");
-                        if (value !== "no-sort") {
-                          setVolunteersSort(undefined);
-                        }
-                      }}
-                    >
-                      <SelectTrigger id="sort-date-2" className="w-full">
-                        <SelectValue placeholder="No sorting">
-                          {dateSort === "desc" ? "Most recent first" :
-                            dateSort === "asc" ? "Future dates first" :
-                              "No sorting"}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent alignItemWithTrigger={false}>
-                        <SelectItem value="no-sort">No sorting</SelectItem>
-                        <SelectItem value="desc">Most recent first</SelectItem>
-                        <SelectItem value="asc">Future dates first</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <div className="grid gap-2">
+                      <Label htmlFor="sort-volunteers-2">Sort by Volunteers</Label>
+                      <Select
+                        value={volunteersSort ?? "no-sort"}
+                        onValueChange={(value) => {
+                          setVolunteersSort((value === "no-sort" || !value) ? undefined : value as "asc" | "desc");
+                          if (value !== "no-sort") {
+                            setDateSort(undefined);
+                          }
+                        }}
+                      >
+                        <SelectTrigger id="sort-volunteers-2" className="w-full">
+                          <SelectValue placeholder="No sorting">
+                            {volunteersSort === "desc" ? "Most needed first" :
+                              volunteersSort === "asc" ? "Least needed first" :
+                                "No sorting"}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent alignItemWithTrigger={false}>
+                          <SelectItem value="no-sort">No sorting</SelectItem>
+                          <SelectItem value="desc">Most needed first</SelectItem>
+                          <SelectItem value="asc">Least needed first</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
-
-                  <div className="grid gap-2">
-                    <Label htmlFor="sort-volunteers-2">Sort by Volunteers</Label>
-                    <Select
-                      value={volunteersSort ?? "no-sort"}
-                      onValueChange={(value) => {
-                        setVolunteersSort((value === "no-sort" || !value) ? undefined : value as "asc" | "desc");
-                        if (value !== "no-sort") {
-                          setDateSort(undefined);
-                        }
-                      }}
-                    >
-                      <SelectTrigger id="sort-volunteers-2" className="w-full">
-                        <SelectValue placeholder="No sorting">
-                          {volunteersSort === "desc" ? "Most needed first" :
-                            volunteersSort === "asc" ? "Least needed first" :
-                              "No sorting"}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent alignItemWithTrigger={false}>
-                        <SelectItem value="no-sort">No sorting</SelectItem>
-                        <SelectItem value="desc">Most needed first</SelectItem>
-                        <SelectItem value="asc">Least needed first</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </PopoverContent>
-            </Popover>
+                </PopoverContent>
+              </Popover>
+            </div>
           </div>
         </div>
 

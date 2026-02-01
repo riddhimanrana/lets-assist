@@ -73,24 +73,17 @@ const mockCertificateData = {
 
 export default function VolunteerJourneySection() {
   const [active, setActive] = useState(0);
-  const [autoCycleActive, setAutoCycleActive] = useState(false);
   const sectionRef = useRef<HTMLDivElement>(null);
-  const sectionInView = useInView(sectionRef, { once: true, amount: 0.3 });
+  const sectionInView = useInView(sectionRef, { amount: 0.3 });
 
   useEffect(() => {
-    if (!autoCycleActive) {
+    if (!sectionInView) {
       return;
     }
 
     const id = setInterval(() => setActive((s) => (s + 1) % steps.length), 3000);
     return () => clearInterval(id);
-  }, [autoCycleActive]);
-
-  useEffect(() => {
-    if (sectionInView && !autoCycleActive) {
-      setAutoCycleActive(true);
-    }
-  }, [sectionInView, autoCycleActive]);
+  }, [sectionInView]);
 
   const previews = useMemo(
     () => ({
@@ -100,15 +93,15 @@ export default function VolunteerJourneySection() {
         </div>
       ),
       signup: <EmailNotification />,
-      qr: <QRScannerPreview />,
+      qr: <QRScannerPreview shouldAnimate={sectionInView} />,
       dashboard: (
         <MiniDashboard {...mockDashboardData} />
       ),
       certificate: (
-        <MiniCertificate {...mockCertificateData} />
+        <MiniCertificate {...mockCertificateData} shouldAnimate={sectionInView} />
       ),
     }),
-    [],
+    [sectionInView],
   );
 
   return (

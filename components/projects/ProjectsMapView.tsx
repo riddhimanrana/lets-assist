@@ -494,7 +494,7 @@ function MapContent({ initialProjects, projects: externalProjects }: ProjectsMap
       
       {/* Always show radius notice when we have user location */}
       {userLocation && (
-        <div className="hidden sm:inline absolute top-4 left-1/2 transform -translate-x-1/2 bg-background/90 backdrop-blur-xs px-3 py-1.5 rounded-full shadow-xs border">
+        <div className="hidden sm:inline absolute top-2 left-1/2 transform -translate-x-1/2 bg-background/90 backdrop-blur-xs px-3 py-1.5 rounded-full shadow-xs border">
           <span className="text-xs text-center font-medium">
             Showing projects within {RADIUS_MILES} miles
           </span>

@@ -9,6 +9,7 @@ import JoinCodeDialog from "@/app/organization/[id]/JoinCodeDialog";
 import { useRouter } from "next/navigation";
 import type { Organization } from "@/types";
 import { toast } from "sonner";
+import { copyToClipboard, isMobileDevice } from "@/lib/utils";
 
 type OrganizationHeaderOrg = Organization & {
   website?: string | null;
@@ -35,28 +36,31 @@ export default function OrganizationHeader({
       : "ORG";
   };
 
-  const handleShare = () => {
+  const handleShare = async () => {
     const url = window.location.href;
-    if (navigator.share && /Mobi/.test(navigator.userAgent)) {
-      navigator
-        .share({
+    if (isMobileDevice() && typeof navigator !== "undefined" && navigator.share) {
+      try {
+        await navigator.share({
           title: `${organization.name} - Let's Assist`,
           text: `Check out ${organization.name} on Let's Assist!`,
           url
-        })
-        .catch((err) => {
+        });
+        return;
+      } catch (err) {
+        if ((err as Error)?.name !== "AbortError") {
           console.error("Share failed: ", err);
           toast.error("Could not share link");
-        });
-    } else {
-      try {
-        navigator.clipboard.writeText(url).then(() => {
-          toast.success("Link copied to clipboard");
-        });
-      } catch (err) {
-        console.error("Copy operation failed:", err);
-        toast.error("Could not copy link to clipboard");
+        } else {
+          return;
+        }
       }
+    }
+
+    const success = await copyToClipboard(url);
+    if (success) {
+      toast.success("Organization link copied to clipboard");
+    } else {
+      toast.error("Could not copy link to clipboard");
     }
   };
 
@@ -97,12 +101,10 @@ export default function OrganizationHeader({
                 {organization.name}
               </h1>
               {organization.verified && (
-                <BadgeCheck
-                  className="h-6 w-6 text-primary"
-                  fill="currentColor"
-                  stroke="hsl(var(--background))"
-                  strokeWidth={2.5}
-                />
+                  <BadgeCheck
+                    className="h-6 w-6 text-primary"
+                  />
+
               )}
             </div>
 

@@ -9,6 +9,7 @@ interface MiniCertificateProps {
   organizationName: string;
   hours: number;
   volunteerName: string;
+  shouldAnimate?: boolean;
 }
 
 export function MiniCertificate({
@@ -16,7 +17,9 @@ export function MiniCertificate({
   organizationName,
   hours,
   volunteerName,
+  shouldAnimate = true,
 }: MiniCertificateProps) {
+  const isAnimating = shouldAnimate;
   return (
     <motion.div
       initial={{ y: 20, opacity: 0 }}
@@ -77,15 +80,23 @@ export function MiniCertificate({
 
         {/* Decorative gradient orb */}
         <motion.div
-          animate={{
-            scale: [1, 1.2, 1],
-            opacity: [0.3, 0.5, 0.3],
-          }}
-          transition={{
-            duration: 3,
-            repeat: Infinity,
-            ease: "easeInOut",
-          }}
+          animate={
+            isAnimating
+              ? {
+                  scale: [1, 1.2, 1],
+                  opacity: [0.3, 0.5, 0.3],
+                }
+              : { scale: 1, opacity: 0.3 }
+          }
+          transition={
+            isAnimating
+              ? {
+                  duration: 3,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                }
+              : { duration: 0 }
+          }
           className="absolute -bottom-6 -right-6 w-24 h-24 bg-primary/20 rounded-full blur-2xl -z-10 pointer-events-none"
         />
       </div>

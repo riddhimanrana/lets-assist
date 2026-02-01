@@ -18,7 +18,6 @@ type VolunteerSummary = {
   totalHours: number;
   verifiedHours: number;
   pendingHours: number;
-  attendanceHours: number;
   eventsAttended: number;
   lastActivity?: string;
 };
@@ -28,7 +27,6 @@ type MonthlyHours = {
   sortKey: string;
   verified: number;
   pending: number;
-  attendance: number;
   total: number;
 };
 
@@ -38,7 +36,6 @@ type ProjectSummary = {
   status: string | null;
   verifiedHours: number;
   pendingHours: number;
-  attendanceHours: number;
   totalHours: number;
   volunteerCount: number;
 };
@@ -49,7 +46,6 @@ type ReportMetrics = {
   anonymousVolunteers: number;
   verifiedHours: number;
   pendingHours: number;
-  attendanceHours: number;
   totalHours: number;
   totalProjects: number;
 };
@@ -58,6 +54,7 @@ type ProjectRow = {
   id: string;
   title: string;
   status: string | null;
+  workflow_status?: string | null;
   created_at?: string | null;
 };
 
@@ -157,7 +154,7 @@ async function buildReportDataForOrg(
   try {
     const { data: projects, error: projectsError } = (await supabase
       .from("projects")
-      .select("id, title, status, created_at")
+      .select("id, title, status, workflow_status, created_at")
       .eq("organization_id", organizationId)) as {
       data: ProjectRow[] | null;
       error: { message: string } | null;
@@ -168,6 +165,7 @@ async function buildReportDataForOrg(
     }
 
     const projectList = projects || [];
+    const projectById = new Map(projectList.map((project) => [project.id, project]));
     const projectIds = projectList.map((project) => project.id);
     if (projectIds.length === 0) {
       return {
@@ -178,7 +176,6 @@ async function buildReportDataForOrg(
             anonymousVolunteers: 0,
             verifiedHours: 0,
             pendingHours: 0,
-            attendanceHours: 0,
             totalHours: 0,
             totalProjects: 0,
           },
@@ -252,7 +249,6 @@ async function buildReportDataForOrg(
         status: project.status,
         verifiedHours: 0,
         pendingHours: 0,
-        attendanceHours: 0,
         totalHours: 0,
         volunteerCount: 0,
       });
@@ -270,7 +266,6 @@ async function buildReportDataForOrg(
           sortKey,
           verified: 0,
           pending: 0,
-          attendance: 0,
           total: 0,
         });
       }
@@ -291,7 +286,6 @@ async function buildReportDataForOrg(
           totalHours: 0,
           verifiedHours: 0,
           pendingHours: 0,
-          attendanceHours: 0,
           eventsAttended: 0,
           lastActivity: undefined,
         });
@@ -322,8 +316,12 @@ async function buildReportDataForOrg(
         source: cert.user_id ? "registered" : "anonymous",
       });
 
+      const projectForCert = cert.project_id ? projectById.get(cert.project_id) : null;
+      const isProjectPublished = projectForCert?.workflow_status === "published";
+      const isVerifiedCertificate = cert.is_certified || isProjectPublished;
+
       volunteer.totalHours += hours;
-      if (cert.is_certified) {
+      if (isVerifiedCertificate) {
         volunteer.verifiedHours += hours;
       } else {
         volunteer.pendingHours += hours;
@@ -335,7 +333,7 @@ async function buildReportDataForOrg(
 
       const monthRow = ensureMonthlyRow(cert.issued_at);
       if (monthRow) {
-        if (cert.is_certified) {
+        if (isVerifiedCertificate) {
           monthRow.verified += hours;
         } else {
           monthRow.pending += hours;
@@ -344,7 +342,7 @@ async function buildReportDataForOrg(
 
       if (cert.project_id && projectMap.has(cert.project_id)) {
         const project = projectMap.get(cert.project_id)!;
-        if (cert.is_certified) {
+        if (isVerifiedCertificate) {
           project.verifiedHours += hours;
         } else {
           project.pendingHours += hours;
@@ -359,6 +357,12 @@ async function buildReportDataForOrg(
         calculateHours(signup.check_in_time, signup.check_out_time)
       );
       if (hours <= 0) continue;
+
+      const projectForSignup = signup.project_id ? projectById.get(signup.project_id) : null;
+      const isProjectCompleted = projectForSignup?.status === "completed";
+      if (!isProjectCompleted) {
+        continue;
+      }
 
       const profile = Array.isArray(signup.profiles)
         ? signup.profiles[0]
@@ -379,7 +383,7 @@ async function buildReportDataForOrg(
       });
 
       volunteer.totalHours += hours;
-      volunteer.attendanceHours += hours;
+      volunteer.pendingHours += hours;
       volunteer.eventsAttended += 1;
       if (
         signup.check_out_time &&
@@ -390,12 +394,12 @@ async function buildReportDataForOrg(
 
       const monthRow = ensureMonthlyRow(signup.check_in_time);
       if (monthRow) {
-        monthRow.attendance += hours;
+        monthRow.pending += hours;
       }
 
       if (signup.project_id && projectMap.has(signup.project_id)) {
         const project = projectMap.get(signup.project_id)!;
-        project.attendanceHours += hours;
+        project.pendingHours += hours;
         project.totalHours += hours;
         trackProjectVolunteer(signup.project_id, volunteerKey);
       }
@@ -407,7 +411,6 @@ async function buildReportDataForOrg(
         totalHours: roundHours(volunteer.totalHours),
         verifiedHours: roundHours(volunteer.verifiedHours),
         pendingHours: roundHours(volunteer.pendingHours),
-        attendanceHours: roundHours(volunteer.attendanceHours),
       }))
       .sort((a, b) => b.totalHours - a.totalHours);
 
@@ -416,8 +419,7 @@ async function buildReportDataForOrg(
         ...row,
         verified: roundHours(row.verified),
         pending: roundHours(row.pending),
-        attendance: roundHours(row.attendance),
-        total: roundHours(row.verified + row.pending + row.attendance),
+        total: roundHours(row.verified + row.pending),
       }))
       .sort((a, b) => (a.sortKey < b.sortKey ? -1 : 1));
 
@@ -425,14 +427,12 @@ async function buildReportDataForOrg(
       ...project,
       verifiedHours: roundHours(project.verifiedHours),
       pendingHours: roundHours(project.pendingHours),
-      attendanceHours: roundHours(project.attendanceHours),
       totalHours: roundHours(project.totalHours),
       volunteerCount: projectVolunteerMap.get(project.id)?.size || 0,
     }));
 
     const verifiedHours = volunteers.reduce((sum, v) => sum + v.verifiedHours, 0);
     const pendingHours = volunteers.reduce((sum, v) => sum + v.pendingHours, 0);
-    const attendanceHours = volunteers.reduce((sum, v) => sum + v.attendanceHours, 0);
 
     const metrics: ReportMetrics = {
       totalVolunteers: volunteers.length,
@@ -440,8 +440,7 @@ async function buildReportDataForOrg(
       anonymousVolunteers: volunteers.filter((v) => v.source === "anonymous").length,
       verifiedHours: roundHours(verifiedHours),
       pendingHours: roundHours(pendingHours),
-      attendanceHours: roundHours(attendanceHours),
-      totalHours: roundHours(verifiedHours + pendingHours + attendanceHours),
+      totalHours: roundHours(verifiedHours + pendingHours),
       totalProjects: projectList.length,
     };
 
@@ -517,7 +516,6 @@ export async function buildOrganizationReportRows(
         "Total Hours",
         "Verified Hours",
         "Pending Hours",
-        "Unpublished Attendance Hours",
         "Events Attended",
         "Last Activity",
         "Source",
@@ -528,7 +526,6 @@ export async function buildOrganizationReportRows(
         volunteer.totalHours.toFixed(1),
         volunteer.verifiedHours.toFixed(1),
         volunteer.pendingHours.toFixed(1),
-        volunteer.attendanceHours.toFixed(1),
         volunteer.eventsAttended.toString(),
         volunteer.lastActivity ? format(new Date(volunteer.lastActivity), "yyyy-MM-dd") : "",
         volunteer.source === "registered" ? "Registered" : "Anonymous",
@@ -545,7 +542,6 @@ export async function buildOrganizationReportRows(
         "Status",
         "Verified Hours",
         "Pending Hours",
-        "Unpublished Attendance Hours",
         "Total Hours",
         "Volunteer Count",
       ],
@@ -554,7 +550,6 @@ export async function buildOrganizationReportRows(
         project.status || "",
         project.verifiedHours.toFixed(1),
         project.pendingHours.toFixed(1),
-        project.attendanceHours.toFixed(1),
         project.totalHours.toFixed(1),
         project.volunteerCount.toString(),
       ]),
@@ -568,14 +563,12 @@ export async function buildOrganizationReportRows(
       "Month",
       "Verified Hours",
       "Pending Hours",
-      "Unpublished Attendance Hours",
       "Total Hours",
     ],
     ...report.data.monthlyHours.map((month) => [
       month.month,
       month.verified.toFixed(1),
       month.pending.toFixed(1),
-      month.attendance.toFixed(1),
       month.total.toFixed(1),
     ]),
   ];
@@ -601,7 +594,6 @@ export async function buildOrganizationReportRowsForSync(
         "Total Hours",
         "Verified Hours",
         "Pending Hours",
-        "Unpublished Attendance Hours",
         "Events Attended",
         "Last Activity",
         "Source",
@@ -612,7 +604,6 @@ export async function buildOrganizationReportRowsForSync(
         volunteer.totalHours.toFixed(1),
         volunteer.verifiedHours.toFixed(1),
         volunteer.pendingHours.toFixed(1),
-        volunteer.attendanceHours.toFixed(1),
         volunteer.eventsAttended.toString(),
         volunteer.lastActivity ? format(new Date(volunteer.lastActivity), "yyyy-MM-dd") : "",
         volunteer.source === "registered" ? "Registered" : "Anonymous",
@@ -629,7 +620,6 @@ export async function buildOrganizationReportRowsForSync(
         "Status",
         "Verified Hours",
         "Pending Hours",
-        "Unpublished Attendance Hours",
         "Total Hours",
         "Volunteer Count",
       ],
@@ -638,7 +628,6 @@ export async function buildOrganizationReportRowsForSync(
         project.status || "",
         project.verifiedHours.toFixed(1),
         project.pendingHours.toFixed(1),
-        project.attendanceHours.toFixed(1),
         project.totalHours.toFixed(1),
         project.volunteerCount.toString(),
       ]),
@@ -652,14 +641,12 @@ export async function buildOrganizationReportRowsForSync(
       "Month",
       "Verified Hours",
       "Pending Hours",
-      "Unpublished Attendance Hours",
       "Total Hours",
     ],
     ...report.data.monthlyHours.map((month) => [
       month.month,
       month.verified.toFixed(1),
       month.pending.toFixed(1),
-      month.attendance.toFixed(1),
       month.total.toFixed(1),
     ]),
   ];

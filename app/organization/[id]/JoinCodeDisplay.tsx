@@ -15,6 +15,7 @@ import { Check, Copy, Key, Loader2, RefreshCw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { regenerateJoinCode } from "../create/actions";
+import { copyToClipboard } from "@/lib/utils";
 
 interface JoinCodeDisplayProps {
   organizationId: string;
@@ -42,12 +43,12 @@ export default function JoinCodeDisplay({
   }, [isCopied]);
 
   // Copy join code to clipboard
-  const copyToClipboard = async () => {
-    try {
-      await navigator.clipboard.writeText(displayedJoinCode);
+  const handleCopyCode = async () => {
+    const success = await copyToClipboard(displayedJoinCode);
+    if (success) {
       setIsCopied(true);
       toast.success("Join code copied to clipboard");
-    } catch {
+    } else {
       toast.error("Failed to copy join code");
     }
   };
@@ -78,12 +79,12 @@ export default function JoinCodeDisplay({
   return (
     <>
       <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
-        <PopoverTrigger render={
+        <PopoverTrigger asChild>
           <Button variant="outline" size="sm">
             <Key className="h-3 w-3 mr-1" />
             Join Code
           </Button>
-        } />
+        </PopoverTrigger>
         <PopoverContent className="w-auto p-4" align="start">
           <div className="space-y-2 text-center">
             <h4 className="font-medium text-sm">Organization Join Code</h4>
@@ -100,7 +101,7 @@ export default function JoinCodeDisplay({
                 size="icon"
                 variant="outline"
                 className="h-8 w-8"
-                onClick={copyToClipboard}
+                onClick={handleCopyCode}
               >
                 {isCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
               </Button>
@@ -157,7 +158,7 @@ export default function JoinCodeDisplay({
                 <Button
                   size="icon"
                   variant="outline"
-                  onClick={copyToClipboard}
+                  onClick={handleCopyCode}
                 >
                   {isCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                 </Button>
