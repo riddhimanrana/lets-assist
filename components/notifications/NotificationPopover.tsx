@@ -221,8 +221,8 @@ export function NotificationPopover() {
       case 'info':
       default:
         return (
-          <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-            <AlertCircle className="h-3 w-3 text-primary" />
+          <div className="h-6 w-6 rounded-full bg-info/10 flex items-center justify-center shrink-0">
+            <AlertCircle className="h-3 w-3 text-info" />
           </div>
         );
     }
@@ -366,7 +366,7 @@ export function NotificationPopover() {
       <Bell className="h-5 w-5 text-muted-foreground group-hover:text-foreground transition-colors" />
       {unreadCount > 0 && (
         <Badge
-          className="absolute -top-1 -right-1 h-[18px] min-w-[18px] px-1 flex items-center justify-center bg-[#FF0000] hover:bg-[#FF0000] text-white text-[10px] font-bold border-2 border-background rounded-full shadow-sm select-none"
+          className="absolute -top-2 -right-2 h-[16px] min-w-[16px] px-1 flex items-center justify-center bg-destructive hover:bg-destructive text-[10px] font-bold border-2rounded-full shadow-sm select-none"
         >
           {unreadCount > 9 ? '9+' : unreadCount}
         </Badge>

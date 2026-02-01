@@ -2,8 +2,8 @@
 
 import { useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { Toaster, toast } from "sonner";
-// the only other place that toast are used
+import { toast } from "sonner";
+
 export function EmailVerificationToast() {
   const searchParams = useSearchParams();
 
@@ -16,5 +16,5 @@ export function EmailVerificationToast() {
     }
   }, [searchParams]);
 
-  return <Toaster position="bottom-right" theme="dark" richColors />;
+  return null;
 }

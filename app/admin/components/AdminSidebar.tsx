@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, Menu, MessageSquare, ShieldAlert, Users } from "lucide-react";
+import { LayoutDashboard, Menu, MessageSquare, ShieldAlert, Users, BellRing } from "lucide-react";
 import {
   Sheet,
   SheetClose,
@@ -22,6 +22,7 @@ interface AdminSidebarProps {
 
 const navItems = [
   { id: "overview", href: "/admin", label: "Overview", icon: LayoutDashboard, exact: true },
+  { id: "notifications", href: "/admin/notifications", label: "Notifications", icon: BellRing },
   { id: "feedback", href: "/admin/feedback", label: "Feedback", icon: MessageSquare },
   { id: "trusted-members", href: "/admin/trusted-members", label: "Trusted Members", icon: Users },
   { id: "moderation", href: "/admin/moderation", label: "Moderation", icon: ShieldAlert },

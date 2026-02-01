@@ -17,10 +17,10 @@ interface ProfileActionsProps {
   profileUsername: string;
 }
 
-export function ProfileActions({ 
-  profileId, 
-  profileName, 
-  profileUsername 
+export function ProfileActions({
+  profileId,
+  profileName,
+  profileUsername
 }: ProfileActionsProps) {
   const [reportOpen, setReportOpen] = useState(false);
 
@@ -33,8 +33,8 @@ export function ProfileActions({
             <span className="sr-only">Open menu</span>
           </Button>
         } />
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={() => setTimeout(() => setReportOpen(true), 100)}>
+        <DropdownMenuContent>
+          <DropdownMenuItem onClick={() => setReportOpen(true)}>
             <Flag className="mr-2 h-4 w-4" />
             <span>Report Profile</span>
           </DropdownMenuItem>

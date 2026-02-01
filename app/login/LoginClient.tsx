@@ -256,7 +256,7 @@ export default function LoginClient({ redirectPath }: LoginClientProps) {
                       <FieldLabel htmlFor={field.name}>Password</FieldLabel>
                       <Link
                         href="/reset-password"
-                        className="text-xs text-muted-foreground font-medium hover:text-primary transition-colors"
+                        className="text-xs text-muted-foreground/80 font-medium hover:text-primary transition-colors"
                       >
                         Forgot your password?
                       </Link>

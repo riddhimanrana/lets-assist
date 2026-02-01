@@ -59,13 +59,14 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
     // Display Toast Logic (Moved from NotificationListener)
     const displayNotificationToast = useCallback(async (notification: NotificationRecord) => {
-        if (displayedNotifications.has(notification.id)) return;
+        // Remove strict deduplication or make it time-based if needed.
+        // For now, we trust the realtime event is unique per insert.
+        if (displayedNotifications.has(notification.id)) {
+            console.log('[NotificationContext] Notification already displayed:', notification.id);
+            return;
+        }
 
-        // Only show unread notifications as toasts to avoid spam on reload
-        // But we might want to show them if they are 'unread' and just arrived.
-        // The previous logic checked 'displayed: false'. We'll stick to that from the payload.
-
-        console.log('[NotificationContext] Displaying toast:', notification.title);
+        console.log('[NotificationContext] Displaying toast:', notification.title, notification);
         displayedNotifications.add(notification.id);
 
         const toastMethod = notification.severity === 'warning'
@@ -79,6 +80,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
             ? {
                 label: "View",
                 onClick: () => {
+                    // Clean navigation
                     window.location.href = actionUrl;
                 },
             }
@@ -87,9 +89,11 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         toastMethod(notification.title, {
             description: notification.body,
             action,
+            duration: 5000,
         });
 
         // Mark as displayed in DB so we don't show it again on reload (if persisted)
+        // This is done in the background
         try {
             await supabase
                 .from('notifications')
