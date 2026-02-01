@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { checkSuperAdmin, getTrustedMemberApplications } from "../actions";
 import { TrustedMembersTab } from "../components/TrustedMembersTab";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 
 export const metadata = {
   title: "Trusted Members | Admin",

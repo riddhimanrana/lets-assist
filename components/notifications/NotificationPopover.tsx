@@ -25,7 +25,6 @@ import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useAuth } from "@/hooks/useAuth";
-import type { RealtimeChannel } from "@supabase/realtime-js";
 import { useInfiniteQuery, type SupabaseQueryHandler } from "@/hooks/use-infinite-query";
 import { useInView } from "react-intersection-observer";
 import { useNotification } from "@/contexts/NotificationContext";
@@ -43,30 +42,6 @@ type Notification = {
   action_url?: string | null;
   data?: Record<string, unknown> | null;
 };
-
-/**
- * Debounce hook: delays execution of a callback until specified ms have passed
- * without any new calls. Useful for batching rapid realtime events.
- */
-function useDebounce<T extends (...args: unknown[]) => void>(
-  callback: T,
-  delayMs: number = 500
-): (...args: Parameters<T>) => void {
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  return useCallback(
-    (...args: Parameters<T>) => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-      timeoutRef.current = setTimeout(() => {
-        callback(...args);
-        timeoutRef.current = null;
-      }, delayMs);
-    },
-    [callback, delayMs]
-  );
-}
 
 export function NotificationPopover() {
   const { user } = useAuth();
@@ -171,15 +146,6 @@ export function NotificationPopover() {
       return () => clearTimeout(timer);
     }
   }, [open, unreadCount, user?.id, refresh, supabase, setUnreadCount]);
-
-  const isReportFeedbackNotification = (notification: Notification) => {
-    return notification.data?.modalType === 'report-feedback';
-  };
-
-  const isLongNotification = (notification: Notification) => {
-    const body = (notification.body || '').trim();
-    return body.length > 160 || body.includes('\n');
-  };
 
   async function markAsRead(id: string) {
     try {

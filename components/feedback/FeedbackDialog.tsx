@@ -6,7 +6,6 @@ import {
   Dialog,
   DialogContent,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Card,
@@ -24,16 +23,11 @@ import {
   AlertTriangle,
   MoreHorizontal,
   Loader2,
-  Bug,
-  ExternalLink,
-  Mail,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
-import Link from "next/link";
-import { Separator } from "@/components/ui/separator";
 
 interface FeedbackDialogProps {
   onOpenChangeAction: (open: boolean) => void;

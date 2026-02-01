@@ -13,6 +13,7 @@ import { CsvVerificationModal } from "./CsvVerificationModal";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuTrigger,
@@ -194,22 +195,24 @@ export default function OrganizationsDisplay({
               </Button>
             } />
             <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuLabel>Sort By</DropdownMenuLabel>
-              {[
-                { label: "Verified First", value: "verified-first" },
-                { label: "Newest First", value: "newest" },
-                { label: "Oldest First", value: "oldest" },
-                { label: "Alphabetical", value: "alphabetical" },
-              ].map((option) => (
-                <DropdownMenuItem
-                  key={option.value}
-                  className="flex items-center justify-between"
-                  onClick={() => setSortBy(option.value)}
-                >
-                  {option.label}
-                  {sortBy === option.value && <Check className="h-4 w-4" />}
-                </DropdownMenuItem>
-              ))}
+              <DropdownMenuGroup>
+                <DropdownMenuLabel>Sort By</DropdownMenuLabel>
+                {[
+                  { label: "Verified First", value: "verified-first" },
+                  { label: "Newest First", value: "newest" },
+                  { label: "Oldest First", value: "oldest" },
+                  { label: "Alphabetical", value: "alphabetical" },
+                ].map((option) => (
+                  <DropdownMenuItem
+                    key={option.value}
+                    className="flex items-center justify-between"
+                    onClick={() => setSortBy(option.value)}
+                  >
+                    {option.label}
+                    {sortBy === option.value && <Check className="h-4 w-4" />}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuGroup>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

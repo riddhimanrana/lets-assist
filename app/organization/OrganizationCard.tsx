@@ -4,10 +4,10 @@ import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Users2, ExternalLink, BadgeCheck, Shield, UserRoundCog, UserRound } from "lucide-react";
+import { Users2, BadgeCheck, Shield, UserRoundCog, UserRound } from "lucide-react";
 import { NoAvatar } from "@/components/shared/NoAvatar";
 import type { Organization } from "@/types";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 type OrganizationCardOrg = Omit<Organization, "description" | "website" | "logo_url" | "type"> & {
   description?: string | null;

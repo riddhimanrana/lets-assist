@@ -18,7 +18,6 @@ import { cn } from "@/lib/utils";
 import { Project } from "@/types";
 import {
   Edit,
-  AlertCircle,
   Loader2,
   Users,
   AlertTriangle,
@@ -218,9 +217,7 @@ export default function CreatorDashboard({ project }: Props) {
   const startDateTime = getProjectStartDateTime(project);
   const endDateTime = getProjectEndDateTime(project);
   const hoursUntilStart = differenceInHours(startDateTime, now);
-  const hoursAfterEnd = differenceInHours(now, endDateTime);
 
-  const isInDeletionRestrictionPeriod = hoursUntilStart <= 24 && hoursAfterEnd <= 48;
   const isCancelled = project.status === "cancelled";
 
   // --- Phases ---

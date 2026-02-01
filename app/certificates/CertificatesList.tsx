@@ -355,9 +355,9 @@ export function CertificatesList({ certificates, user }: CertificatesListProps) 
                 </Button>
               } />
               <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Date Range</DropdownMenuLabel>
-                <DropdownMenuSeparator />
                 <DropdownMenuGroup>
+                  <DropdownMenuLabel>Date Range</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => setDateFilter('all')}>All</DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setDateFilter('6months')}>Last 6 Months</DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setDateFilter('year')}>Last Year</DropdownMenuItem>
@@ -448,9 +448,9 @@ export function CertificatesList({ certificates, user }: CertificatesListProps) 
                 </Button>
               } />
               <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Sort Certificates</DropdownMenuLabel>
-                <DropdownMenuSeparator />
                 <DropdownMenuGroup>
+                  <DropdownMenuLabel>Sort Certificates</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => handleSortChange("date")}>
                     <Calendar className="h-4 w-4 mr-2" aria-hidden="true" />
                     <span>Date {sortBy === "date" && (sortDirection === "desc" ? "↓" : "↑")}</span>

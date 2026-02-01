@@ -1,7 +1,6 @@
 
 import React from "react";
 import Link from "next/link";
-import { format } from "date-fns";
 import { MapPin } from "lucide-react";
 
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";

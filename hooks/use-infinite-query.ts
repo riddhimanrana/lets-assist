@@ -7,8 +7,7 @@ import { useEffect, useRef, useSyncExternalStore, useCallback } from 'react'
 
 // The following types are used to make the hook type-safe. It extracts the database type from the supabase client.
 // Create a temporary client just for type inference
-const typeClient = createClient()
-type SupabaseClientType = typeof typeClient
+type SupabaseClientType = ReturnType<typeof createClient>
 
 // Utility type to check if the type is any
 type IfAny<T, Y, N> = 0 extends 1 & T ? Y : N
@@ -129,10 +128,10 @@ function createStore<TData extends SupabaseTableData<T>, T extends SupabaseTable
 
     setState({ isFetching: true })
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     let query = supabase
       .from(tableName)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       .select(columns, { count: 'exact' }) as unknown as SupabaseSelectBuilder<T>
 
       if (state.trailingQuery) {
@@ -153,7 +152,7 @@ function createStore<TData extends SupabaseTableData<T>, T extends SupabaseTable
       setState({ error: error as any })
     } else {
       setState({
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         data: [...state.data, ...(newData as TData[])],
         count: count || 0,
         isSuccess: true,

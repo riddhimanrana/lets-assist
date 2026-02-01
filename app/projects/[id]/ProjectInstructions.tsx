@@ -673,7 +673,9 @@ export default function ProjectInstructionsModal({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={
+      <DialogTrigger
+        nativeButton={true}
+        render={
         <Button
           variant={variant}
           size={size}

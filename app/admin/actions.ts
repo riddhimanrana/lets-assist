@@ -39,7 +39,7 @@ export async function createServerNotification(
   }
 }
 
-export async function sendSystemNotification(prevState: any, formData: FormData) {
+export async function sendSystemNotification(prevState: { error?: string; success?: boolean; message?: string } | null, formData: FormData) {
   const { isAdmin } = await checkSuperAdmin();
   if (!isAdmin) {
     return { error: "Unauthorized" };

@@ -6,8 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { Progress } from '@/components/ui/progress';
 import {
   AlertTriangle,
@@ -17,16 +16,11 @@ import {
   XCircle,
   User,
   Calendar,
-  Eye,
   Bot,
-  ShieldX,
   ExternalLink,
-  ChevronDown,
   ChevronRight,
   Sparkles,
   Loader2,
-  Wrench,
-  MoreHorizontal,
   Filter,
 } from 'lucide-react';
 import {
@@ -36,16 +30,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-  DropdownMenuGroup,
-} from "@/components/ui/dropdown-menu";
 import {
   Collapsible,
   CollapsibleContent,
@@ -57,9 +41,7 @@ import {
   updateFlaggedContentStatus,
   getContentReports,
   updateContentReportStatus,
-  runAiReviewForReport,
   runAiReviewForProject,
-  applyAiRecommendationForReport,
   takeFlaggedContentAction,
   takeModeratorAction,
 } from './actions';
@@ -319,22 +301,6 @@ export default function ModerationDashboard({
     }
   };
 
-  const handleRunAiReviewForReport = async (reportId: string) => {
-    setIsActionLoading(true);
-    try {
-      const result = await runAiReviewForReport(reportId);
-      if (result.error) {
-        toast.error(`AI review failed: ${result.error}`);
-        return;
-      }
-      toast.success('AI review completed');
-      await loadContentReports(reportFilter);
-      setSelectedReport(null);
-    } finally {
-      setIsActionLoading(false);
-    }
-  };
-
   const handleRunAiReviewForFlag = async (flag: FlaggedContent) => {
     if (!flag.content_id || flag.content_type !== 'project') {
       toast.error('AI review is only available for projects');
@@ -355,22 +321,6 @@ export default function ModerationDashboard({
       }
       await loadFlaggedContent(flaggedFilter);
       setSelectedFlag(null);
-    } finally {
-      setIsActionLoading(false);
-    }
-  };
-
-  const handleApplyAiRecommendation = async (reportId: string) => {
-    setIsActionLoading(true);
-    try {
-      const result = await applyAiRecommendationForReport(reportId);
-      if (result.error) {
-        toast.error(`Failed to apply AI recommendation: ${result.error}`);
-        return;
-      }
-      toast.success('AI recommendation applied');
-      await loadContentReports(reportFilter);
-      setSelectedReport(null);
     } finally {
       setIsActionLoading(false);
     }
@@ -544,19 +494,6 @@ export default function ModerationDashboard({
       default:
         return 'secondary';
     }
-  };
-
-  const getFlagContentTitle = (flag: FlaggedContent) => {
-    if (flag.content_type === 'project') {
-      return flag.content_details?.title || 'Untitled project';
-    }
-    if (flag.content_type === 'organization') {
-      return flag.content_details?.name || 'Organization';
-    }
-    if (flag.content_type === 'profile') {
-      return flag.content_details?.full_name || flag.content_details?.username || 'Profile';
-    }
-    return flag.content_id || 'Content';
   };
 
   const getFlagContentUrl = (flag: FlaggedContent) => {
@@ -1274,33 +1211,4 @@ function getFlagStatusVariant(status?: string | null): 'default' | 'secondary' |
     default:
       return 'secondary';
   }
-}
-
-function getStatusIcon(status?: string | null) {
-  switch ((status || 'pending').toLowerCase()) {
-    case 'resolved':
-      return <CheckCircle className="h-4 w-4 text-primary" />;
-    case 'dismissed':
-      return <XCircle className="h-4 w-4 text-muted-foreground" />;
-    case 'under_review':
-      return <Eye className="h-4 w-4 text-blue-500" />;
-    default:
-      return <Clock className="h-4 w-4 text-amber-500" />;
-  }
-}
-
-function getPriorityIcon(priority?: string | null) {
-  switch ((priority || '').toLowerCase()) {
-    case 'critical':
-    case 'high':
-      return <ShieldAlert className="h-4 w-4 text-destructive" />;
-    case 'medium':
-      return <AlertTriangle className="h-4 w-4 text-amber-500" />;
-    default:
-      return <div className="w-4" />;
-  }
-}
-
-function getAiReasonSnippet(reasoning: string) {
-  return reasoning.length > 80 ? reasoning.slice(0, 80) + '...' : reasoning;
 }

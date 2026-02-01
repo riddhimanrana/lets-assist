@@ -215,16 +215,18 @@ export default function StaffLinkDisplay({
             </Button>
 
             <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  variant="destructive"
-                  disabled={isLoading}
-                  className="gap-2"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Revoke Link
-                </Button>
-              </AlertDialogTrigger>
+              <AlertDialogTrigger
+                render={
+                  <Button
+                    variant="destructive"
+                    disabled={isLoading}
+                    className="gap-2"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Revoke Link
+                  </Button>
+                }
+              />
               <AlertDialogContent>
                 <AlertDialogHeader>
                   <AlertDialogTitle>Revoke Staff Link?</AlertDialogTitle>

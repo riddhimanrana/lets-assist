@@ -79,12 +79,15 @@ export default function JoinCodeDisplay({
   return (
     <>
       <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
-        <PopoverTrigger asChild>
-          <Button variant="outline" size="sm">
-            <Key className="h-3 w-3 mr-1" />
-            Join Code
-          </Button>
-        </PopoverTrigger>
+        <PopoverTrigger
+          nativeButton={true}
+          render={
+            <Button variant="outline" size="sm">
+              <Key className="h-3 w-3 mr-1" />
+              Join Code
+            </Button>
+          }
+        />
         <PopoverContent className="w-auto p-4" align="start">
           <div className="space-y-2 text-center">
             <h4 className="font-medium text-sm">Organization Join Code</h4>

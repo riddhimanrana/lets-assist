@@ -167,7 +167,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
                     table: "notifications",
                     filter: `user_id=eq.${user.id}`, // RLS Filter
                 },
-                async (payload: any) => {
+                async (payload: { new: NotificationRecord }) => {
                     if (!mountedRef.current) return;
                     console.log('[NotificationContext] INSERT received');
 

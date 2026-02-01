@@ -337,7 +337,7 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
           {filteredProjects.map((project) => (
             <div key={project.id} className="relative group">
               <Link href={`/projects/${project.id}`}>
-                <Card className="hover:shadow-xl dark:hover:shadow-primary/10 transition-all cursor-pointer h-full flex flex-col group/project-card border-muted/40">
+                <Card className="hover:shadow-xl dark:hover:shadow-primary/10 max-w-lg transition-all cursor-pointer h-full flex flex-col group/project-card border-muted/40">
                   <div className="px-4 py-1 flex flex-col h-full">
                     <h3 className="text-xl font-bold mb-1 line-clamp-2 pr-8 leading-tight">
                       {project.title}
