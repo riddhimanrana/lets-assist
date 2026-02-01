@@ -29,7 +29,8 @@ import {
   NavigationMenuLink,
   NavigationMenuList,
   NavigationMenuTrigger,
-} from "@/components/ui/navigation-menu";
+  navigationMenuTriggerStyle,
+} from "@/components/ui/navigation-menu"
 import {
   Sheet,
   SheetContent,
@@ -58,26 +59,30 @@ import { FeedbackDialog } from "@/components/feedback/FeedbackDialog";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserProfile } from "@/hooks/useUserProfile";
 
-const features = [
-  {
-    title: "Volunteer Journey",
-    href: "/#journey",
-    description:
-      "Browse opportunities, confirm attendance, and earn certificates.",
-  },
-  {
-    title: "Platform Features",
-    href: "/#features",
-    description:
-      "Calendar sync, dashboards, QR check-ins, and trusted event types.",
-  },
-  {
-    title: "Organization Tooling",
-    href: "/#org-tooling",
-    description:
-      "Role-based member management, certified reports, and QR verification.",
-  },
-];
+const features: {
+  title: string;
+  href: string;
+  description: string;
+}[] = [
+    {
+      title: "Volunteer Journey",
+      href: "/#journey",
+      description:
+        "Browse opportunities, confirm attendance, and earn certificates.",
+    },
+    {
+      title: "Platform Features",
+      href: "/#features",
+      description:
+        "Calendar sync, dashboards, QR check-ins, and trusted event types.",
+    },
+    {
+      title: "Organization Tooling",
+      href: "/#org-tooling",
+      description:
+        "Role-based member management, certified reports, and QR verification.",
+    },
+  ];
 
 export default function Navbar() {
   // Use centralized auth hook instead of manual state management
@@ -275,39 +280,9 @@ export default function Navbar() {
                 <NavigationMenu>
                   <NavigationMenuList>
                     <NavigationMenuItem>
-                      <NavigationMenuTrigger
-                        className={cn(
-                          pathname === "/#features" &&
-                          "bg-accent text-accent-foreground",
-                        )}
-                      >
-                        Features
-                      </NavigationMenuTrigger>
+                      <NavigationMenuTrigger className={cn(buttonVariants({ variant: "ghost" }), pathname == "/" ? "text-muted-foreground" : "text-muted-foreground")}>Features</NavigationMenuTrigger>
                       <NavigationMenuContent>
-                        <ul className="grid gap-3 p-4 w-[320px] lg:w-[500px] lg:p-6 lg:grid-cols-[.75fr_1fr]">
-                          <li className="row-span-3">
-                            <NavigationMenuLink
-                              render={
-                                <Link
-                                  className="flex h-full w-full select-none flex-col justify-end rounded-md bg-linear-to-b from-muted/50 to-muted p-6 no-underline outline-hidden focus:shadow-md"
-                                  href="/"
-                                >
-                                  <Image
-                                    src="/logo.png"
-                                    alt="letsassist logo"
-                                    width={30}
-                                    height={30}
-                                  />
-                                  <div className="mb-2 mt-4 text-lg font-bold font-overusedgrotesk">
-                                    Let's Assist
-                                  </div>
-                                  <p className="text-sm leading-tight text-muted-foreground">
-                                    Helping communities and volunteers connect
-                                  </p>
-                                </Link>
-                              }
-                            />
-                          </li>
+                        <ul className="w-130">
                           {features.map((feature) => (
                             <ListItem
                               key={feature.title}
@@ -738,30 +713,18 @@ export default function Navbar() {
   );
 }
 
-const ListItem = React.forwardRef<
-  React.ComponentRef<"a">,
-  React.ComponentPropsWithoutRef<"a">
->(({ className, title, children, ...props }, ref) => {
+function ListItem({
+  title,
+  children,
+  href,
+  ...props
+}: React.ComponentPropsWithoutRef<"li"> & { href: string }) {
   return (
-    <li>
-      <NavigationMenuLink
-        render={
-          <a
-            ref={ref}
-            className={cn(
-              "block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-hidden transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
-              className,
-            )}
-            {...props}
-          >
-            <div className="text-sm font-medium leading-none">{title}</div>
-            <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-              {children}
-            </p>
-          </a>
-        }
-      />
+    <li {...props}>
+      <NavigationMenuLink render={<Link href={href}><div className="flex flex-col gap-1 text-sm">
+        <div className="leading-none font-medium">{title}</div>
+        <div className="text-muted-foreground line-clamp-2">{children}</div>
+      </div></Link>} />
     </li>
-  );
-});
-ListItem.displayName = "ListItem";
+  )
+}
