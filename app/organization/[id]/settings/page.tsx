@@ -110,13 +110,13 @@ export default async function OrganizationSettingsPage({ params }: Props) {
             variant="ghost"
             size="sm"
             className="mb-4"
-            render={
-              <Link href={`/organization/${organization.username}`}>
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Organization
-              </Link>
-            }
-          />
+            asChild
+          >
+            <Link href={`/organization/${organization.username}`}>
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Organization
+            </Link>
+          </Button>
 
           <h1 className="text-3xl font-bold tracking-tight">Organization Settings</h1>
           <p className="text-muted-foreground mt-1">
@@ -198,7 +198,7 @@ export default async function OrganizationSettingsPage({ params }: Props) {
                 Irreversible and destructive actions
               </CardDescription>
             </CardHeader>
-            <CardContent className="pt-6">
+            <CardContent className="">
               <div className="space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>

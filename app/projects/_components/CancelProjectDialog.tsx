@@ -73,8 +73,8 @@ export function CancelProjectDialog({
   // Character count helpers
   const getCounterColor = (current: number, max: number) => {
     const percentage = (current / max) * 100;
-    if (percentage >= 90) return "text-destructive";
-    if (percentage >= 75) return "text-warning";
+    if (percentage >= 90) return "text-warning";
+    if (percentage >= 75) return "text-warning/80";
     return "text-muted-foreground";
   };
 
@@ -159,18 +159,18 @@ export function CancelProjectDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="border border-warning/20">
         <DialogHeader>
           <div className="flex items-center gap-2">
-            <XOctagon className="h-5 w-5 text-destructive" />
-            <DialogTitle>Cancel Project</DialogTitle>
+            <XOctagon className="h-5 w-5 text-warning" />
+            <DialogTitle className="text-warning">Cancel Project</DialogTitle>
           </div>
           <DialogDescription>
             This action cannot be undone. The project will be marked as cancelled and approved volunteers will be notified by email. Anonymous volunteers with an email address will only receive the email notice.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-4 py-4">
+        <div className="grid gap-4">
           <div className="rounded-md border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
             {recipientText}
           </div>
@@ -211,9 +211,10 @@ export function CancelProjectDialog({
             Cancel
           </Button>
           <Button
-            variant="destructive"
+            variant="default"
             onClick={handleConfirm}
             disabled={isSubmitting || !reason.trim() || reason.length > CHARACTER_LIMIT}
+            className="bg-warning hover:bg-warning/90"
           >
             {isSubmitting ? (
               <>

@@ -264,8 +264,8 @@ export default function CalendarClient({
             <Image
               src="/googlesheets.svg"
               alt="Google Sheets"
-              width={20}
-              height={20}
+              width={28}
+              height={28}
               className="h-5 w-5 mr-1"
             />
             Google Sheets & Drive Access

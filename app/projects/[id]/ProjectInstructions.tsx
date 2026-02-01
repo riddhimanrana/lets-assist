@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -20,6 +20,8 @@ import {
   UsersRound,
   MapPin,
   Settings,
+  ChevronRight,
+  CircleQuestionMark,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -38,15 +40,29 @@ import {
 } from "@/components/ui/tabs";
 import { Project } from "@/types";
 import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
 
 interface ProjectInstructionsModalProps {
   project: Project;
   isCreator?: boolean;
+  buttonClassName?: string;
+  buttonVariant?: "default" | "outline" | "secondary" | "ghost" | "destructive" | "link";
+  buttonSize?: "default" | "xs" | "sm" | "lg" | "icon" | "icon-xs" | "icon-sm" | "icon-lg";
+  showChevron?: boolean;
 }
 
-export default function ProjectInstructionsModal({ project, isCreator = false }: ProjectInstructionsModalProps) {
+export default function ProjectInstructionsModal({
+  project,
+  isCreator = false,
+  buttonClassName,
+  buttonVariant,
+  buttonSize,
+  showChevron,
+}: ProjectInstructionsModalProps) {
   const [open, setOpen] = useState(false);
   const { event_type, verification_method } = project;
+  const size = buttonSize ?? (isCreator ? "default" : "sm");
+  const variant = buttonVariant ?? "outline";
 
   const getActiveTab = (): string => {
     if (isCreator) return 'overview';
@@ -56,6 +72,10 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
   };
 
   const [activeTab, setActiveTab] = useState<string>(getActiveTab());
+
+  useEffect(() => {
+    setActiveTab(getActiveTab());
+  }, [isCreator, verification_method]);
 
   const getProjectTypeIcon = () => {
     switch (event_type) {
@@ -262,7 +282,7 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
         <div className="grid gap-4">
           {/* Project Setup */}
           <Card className="bg-primary/5 border-primary/20">
-            <CardHeader className="pb-3">
+            <CardHeader className="">
               <CardTitle className="text-base flex items-center gap-2">
                 <Settings className="h-5 w-5 text-primary" />
                 Project Setup Complete
@@ -282,7 +302,7 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
 
           {/* Volunteer Management */}
           <Card>
-            <CardHeader className="pb-3">
+            <CardHeader className="">
               <CardTitle className="text-base flex items-center gap-2">
                 <Users className="h-5 w-5" />
                 Managing Volunteers
@@ -306,7 +326,7 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
           {/* Event Day */}
           {verification_method !== 'signup-only' && (
             <Card>
-              <CardHeader className="pb-3">
+              <CardHeader className="">
                 <CardTitle className="text-base flex items-center gap-2">
                   <Eye className="h-5 w-5" />
                   During the Event
@@ -351,7 +371,7 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
           {/* After Event */}
           {verification_method !== 'auto' && (
             <Card>
-              <CardHeader className="pb-3">
+              <CardHeader className="">
                 <CardTitle className="text-base flex items-center gap-2">
                   <FileText className="h-5 w-5" />
                   After the Event
@@ -373,7 +393,7 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
 
           {/* Notifications */}
           <Card>
-            <CardHeader className="pb-3">
+            <CardHeader className="">
               <CardTitle className="text-base flex items-center gap-2">
                 <Bell className="h-5 w-5" />
                 Communication
@@ -591,7 +611,7 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
         return (
           <div className="space-y-4">
             <div className="text-center mb-6">
-              <Badge className="bg-blue-500/20 text-blue-500 border-blue-500/30 mb-3">Sign-up Only Event</Badge>
+              <Badge className="bg-info/20 text-info border-info/30 mb-3">Sign-up Only Event</Badge>
               <h3 className="text-lg font-semibold">Just Show Up!</h3>
               <p className="text-muted-foreground">This is a simple registration event - no hour tracking</p>
             </div>
@@ -655,18 +675,21 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={
         <Button
-          variant={"outline"}
-          size={isCreator ? "default" : "sm"}
-          className={`gap-2 `}
+          variant={variant}
+          size={size}
+          className={cn("gap-2", showChevron && "justify-between", buttonClassName)}
         >
-          <HelpCircle className="h-4 w-4" />
-          {isCreator ? "Creator Guide" : "How It Works"}
+          <span className="flex items-center gap-2">
+            <HelpCircle className="h-4 w-4" />
+            {isCreator ? "Creator Guide" : "How It Works"}
+          </span>
+          {showChevron && <ChevronRight className="h-4 w-4 text-muted-foreground" />}
         </Button>
       } />
       <DialogContent className="sm:max-w-[700px] p-0 max-h-[90vh]">
         <DialogHeader className="p-6 pb-2 flex flex-row items-center gap-2">
           <div className={`p-2 rounded-full ${isCreator ? "bg-secondary/20" : "bg-primary/10"}`}>
-            {isCreator ? <Settings className="h-5 w-5 text-secondary" /> : getProjectTypeIcon()}
+            {isCreator ? <CircleQuestionMark className="h-5 w-5 text-info" /> : getProjectTypeIcon()}
           </div>
           <DialogTitle className="text-xl">
             {isCreator ? "Creator Guide" : "How It Works"}
@@ -694,7 +717,7 @@ export default function ProjectInstructionsModal({ project, isCreator = false }:
                 {renderCreatorInstructions()}
               </motion.div>
             ) : (
-              <Tabs defaultValue={activeTab} onValueChange={setActiveTab} className="w-full">
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                 <TabsList className="grid grid-cols-3 mb-4">
                   <TabsTrigger value="overview">Overview</TabsTrigger>
                   <TabsTrigger value="signup">Sign Up</TabsTrigger>

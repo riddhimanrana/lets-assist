@@ -29,6 +29,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { QRCode } from "react-qrcode-logo";
 import type { Organization } from "@/types";
+import { copyToClipboard, isMobileDevice } from "@/lib/utils";
 
 interface JoinCodeDialogProps {
   organization: OrganizationWithJoinCode;
@@ -95,13 +96,12 @@ export default function JoinCodeDialog({
   }, [copied]);
 
   // Copy functions
-  const copyToClipboard = async (text: string, type: "code" | "link") => {
-    try {
-      await navigator.clipboard.writeText(text);
+  const handleCopyToClipboard = async (text: string, type: "code" | "link") => {
+    const success = await copyToClipboard(text);
+    if (success) {
       setCopied(type);
       toast.success(type === "code" ? "Join code copied" : "Invitation link copied");
-    } catch (err) {
-      console.error("Failed to copy:", err);
+    } else {
       toast.error("Failed to copy to clipboard");
     }
   };
@@ -186,7 +186,7 @@ export default function JoinCodeDialog({
                       size="icon"
                       variant="ghost"
                       className="absolute right-1 top-1 h-7 w-7"
-                      onClick={() => copyToClipboard(joinCode, "code")}
+                      onClick={() => handleCopyToClipboard(joinCode, "code")}
                       disabled={loading || regenerating}
                     >
                       {copied === "code" ? (
@@ -202,7 +202,7 @@ export default function JoinCodeDialog({
 
               <Separator />
 
-              <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
+              <div className="flex flex-col space-y-2">
                 <Button
                   onClick={handleRegenerateCode}
                   variant="outline"
@@ -222,7 +222,7 @@ export default function JoinCodeDialog({
                   )}
                 </Button>
 
-                {typeof navigator.share === "function" && (
+                {isMobileDevice() && typeof navigator !== "undefined" && navigator.share && (
                   <Button
                     onClick={shareInvitation}
                     variant="secondary"
@@ -256,7 +256,7 @@ export default function JoinCodeDialog({
                     size="icon"
                     variant="ghost"
                     className="absolute right-1 top-1 h-7 w-7"
-                    onClick={() => copyToClipboard(joinLink, "link")}
+                    onClick={() => handleCopyToClipboard(joinLink, "link")}
                     disabled={loading}
                   >
                     {copied === "link" ? (
@@ -271,7 +271,7 @@ export default function JoinCodeDialog({
 
               <div className="flex justify-end">
                 <Button
-                  onClick={() => copyToClipboard(joinLink, "link")}
+                  onClick={() => handleCopyToClipboard(joinLink, "link")}
                   variant="secondary"
                   disabled={loading}
                   className="gap-1.5 w-full sm:w-auto"

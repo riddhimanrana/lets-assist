@@ -187,13 +187,13 @@ function AuthenticationContent() {
           </p>
         </div>
         <Card className="border shadow-xs">
-          <CardHeader className="px-5 py-5">
+          <CardHeader className="">
             <CardTitle className="text-xl">Connected Accounts</CardTitle>
             <CardDescription>
               Connect your accounts for a seamless sign-in experience
             </CardDescription>
           </CardHeader>
-          <CardContent className="px-5 py-4">
+          <CardContent className="">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-3 sm:p-4 border rounded-lg">
               <div className="flex items-center space-x-4">
                 <svg
@@ -241,13 +241,13 @@ function AuthenticationContent() {
           </CardContent>
         </Card>
         <Card className="border shadow-xs">
-          <CardHeader className="p-5">
+          <CardHeader>
             <CardTitle className="text-xl">Two-Factor Authentication</CardTitle>
             <CardDescription>
               Add an extra layer of security to your account
             </CardDescription>
           </CardHeader>
-          <CardContent className="px-5 py-4">
+          <CardContent>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-3 sm:p-4 border rounded-lg opacity-50">
               <div className="space-y-1">
                 <h4 className="text-sm font-semibold">Authenticator App</h4>

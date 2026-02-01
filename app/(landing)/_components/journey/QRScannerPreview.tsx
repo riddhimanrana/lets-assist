@@ -4,28 +4,63 @@ import { motion, useReducedMotion } from "framer-motion";
 import { QrCode, Scan, CheckCircle2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
-export function QRScannerPreview() {
+interface QRScannerPreviewProps {
+  shouldAnimate?: boolean;
+}
+
+export function QRScannerPreview({ shouldAnimate = true }: QRScannerPreviewProps) {
   const prefersReduced = useReducedMotion();
+  const isAnimating = shouldAnimate;
   const [detected, setDetected] = useState(false);
   const [detectedAt, setDetectedAt] = useState<string>("");
 
   useEffect(() => {
+    if (!isAnimating) {
+      setDetected(false);
+      return;
+    }
+
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
     const interval = setInterval(() => {
       setDetected(true);
       const now = new Date();
       const ts = now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
       setDetectedAt(ts);
-      const timeout = setTimeout(() => setDetected(false), 900);
-      // cleanup inner timeout on unmount of interval cycle
-      return () => clearTimeout(timeout);
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      timeoutId = setTimeout(() => setDetected(false), 900);
     }, 2800);
-    return () => clearInterval(interval);
-  }, []);
 
-  const scanLineAnim = useMemo(() => (prefersReduced ? {} : { y: [0, 144, 0] }), [prefersReduced]);
+    return () => {
+      clearInterval(interval);
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [isAnimating]);
+
+  const scanLineAnim = useMemo(
+    () => (prefersReduced || !isAnimating ? {} : { y: [0, 144, 0] }),
+    [prefersReduced, isAnimating]
+  );
   const scanLineTransition = useMemo(
-    () => (prefersReduced ? { duration: 0 } : { repeat: Infinity, duration: 2.2, ease: "linear" as const, repeatDelay: 0.4 }),
-    [prefersReduced]
+    () =>
+      prefersReduced || !isAnimating
+        ? { duration: 0 }
+        : { repeat: Infinity, duration: 2.2, ease: "linear" as const, repeatDelay: 0.4 },
+    [prefersReduced, isAnimating]
+  );
+  const scannerPulseAnim = useMemo(
+    () => (prefersReduced || !isAnimating ? { scale: 1 } : { scale: [1, 1.02, 1] }),
+    [prefersReduced, isAnimating]
+  );
+  const scannerPulseTransition = useMemo(
+    () =>
+      prefersReduced || !isAnimating
+        ? { duration: 0 }
+        : { repeat: Infinity, duration: 2, ease: "easeInOut" as const },
+    [prefersReduced, isAnimating]
   );
   return (
     <div className="flex flex-col items-center justify-center gap-4 p-6">
@@ -43,8 +78,8 @@ export function QRScannerPreview() {
         {/* Scanner square */}
         <div className="absolute inset-0 flex items-center justify-center">
           <motion.div
-            animate={{ scale: [1, 1.02, 1] }}
-            transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
+            animate={scannerPulseAnim}
+            transition={scannerPulseTransition}
             className="relative h-40 w-40 rounded-xl bg-background/50 backdrop-blur-xs border-2 border-primary/40"
           >
             {/* QR hint */}
@@ -76,7 +111,7 @@ export function QRScannerPreview() {
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
+          transition={{ delay: isAnimating ? 0.3 : 0 }}
           className="absolute bottom-5 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-background/80 backdrop-blur-sm border border-border/60 text-xs text-muted-foreground flex items-center gap-2"
         >
           <Scan className="h-3.5 w-3.5 text-primary" /> Scanning…

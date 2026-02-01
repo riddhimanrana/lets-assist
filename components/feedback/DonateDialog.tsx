@@ -17,7 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Heart, Mail, Copy, Check, ExternalLink } from "lucide-react";
 import { useState } from "react";
-import { cn } from "@/lib/utils";
+import { cn, copyToClipboard } from "@/lib/utils";
 
 interface DonateDialogProps {
   open: boolean;
@@ -29,12 +29,10 @@ export function DonateDialog({ open, onOpenChange }: DonateDialogProps) {
   const email = "riddhiman.rana@gmail.com";
 
   const copyEmail = async () => {
-    try {
-      await navigator.clipboard.writeText(email);
+    const success = await copyToClipboard(email);
+    if (success) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error("Failed to copy email:", err);
     }
   };
 

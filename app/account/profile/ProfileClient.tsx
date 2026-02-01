@@ -572,13 +572,13 @@ export default function ProfileClient() {
             </p>
           </div>
           <Card className="border shadow-xs">
-            <CardHeader className="px-5 py-5 sm:px-6">
+            <CardHeader>
               <CardTitle className="text-xl">Profile Picture</CardTitle>
               <CardDescription>
                 Choose a profile picture for your account
               </CardDescription>
             </CardHeader>
-            <CardContent className="px-5 sm:px-6 py-4">
+            <CardContent className="space-y-4">
               {isDataLoading ? (
                 <div className="flex justify-center">
                   <Skeleton className="h-20 w-20 rounded-full" />
@@ -602,13 +602,13 @@ export default function ProfileClient() {
             </CardContent>
           </Card>
           <Card className="border shadow-xs">
-            <CardHeader className="p-5">
+            <CardHeader>
               <CardTitle className="text-xl">Personal Information</CardTitle>
               <CardDescription>
                 Update your personal details and public profile
               </CardDescription>
             </CardHeader>
-            <CardContent className="px-5 sm:px-6 py-4">
+            <CardContent className="space-y-4">
               {isDataLoading ? (
                 <div className="space-y-6">
                   <Skeleton className="h-10 w-full" />
@@ -784,7 +784,7 @@ export default function ProfileClient() {
               transition={{ delay: 0.1 }}
             >
               <Card className="border shadow-xs">
-                <CardHeader className="px-5 py-5 sm:px-6">
+                <CardHeader>
                   <div className="flex items-center gap-2">
                     <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
                       <svg className="h-4 w-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -799,7 +799,7 @@ export default function ProfileClient() {
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent className="px-5 sm:px-6 py-4 space-y-4">
+                <CardContent className="space-y-4">
                   <div className="space-y-2">
                     {emails.map((email, index) => {
                       const isVerified = Boolean(email.verified_at);
@@ -952,7 +952,7 @@ export default function ProfileClient() {
             transition={{ delay: 0.15 }}
           >
             <Card className="border shadow-xs">
-              <CardHeader className="px-5 py-5 sm:px-6">
+              <CardHeader>
                 <div className="flex items-center gap-2">
                   <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
                     <Shield className="h-4 w-4 text-primary" />
@@ -965,7 +965,7 @@ export default function ProfileClient() {
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="px-5 sm:px-6 py-4">
+              <CardContent className="space-y-4">
                 {isDataLoading ? (
                   <Skeleton className="h-20 w-full" />
                 ) : (

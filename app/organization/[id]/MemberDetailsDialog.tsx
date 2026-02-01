@@ -372,22 +372,22 @@ export default function MemberDetailsDialog({
                             <div className="flex items-center gap-2">
                               {event ? (
                                 <Button
-                                  render={
-                                    <a
-                                      href={`/certificates/${event.id}`}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="flex items-center gap-1"
-                                    >
-                                      <FileText className="h-3 w-3" />
-                                      View
-                                      <ExternalLink className="h-2 w-2" />
-                                    </a>
-                                  }
+                                  asChild
                                   variant="ghost"
                                   size="sm"
                                   className="gap-1 h-7 px-2"
-                                />
+                                >
+                                  <a
+                                    href={`/certificates/${event.id}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-1"
+                                  >
+                                    <FileText className="h-3 w-3" />
+                                    View
+                                    <ExternalLink className="h-2 w-2" />
+                                  </a>
+                                </Button>
                               ) : (
                                 <span className="text-xs text-muted-foreground">No certificate</span>
                               )}
@@ -433,23 +433,23 @@ export default function MemberDetailsDialog({
 
                           {event.isCertified && (
                             <Button
-                              render={
-                                <a
-                                  href={`/certificates/${event.id}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="flex items-center gap-1"
-                                >
-                                  <FileText className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                                  <span className="hidden sm:inline">Certificate</span>
-                                  <span className="sm:hidden">Cert</span>
-                                  <ExternalLink className="h-2 w-2" />
-                                </a>
-                              }
+                              asChild
                               variant="ghost"
                               size="sm"
                               className="gap-1 h-6 sm:h-7 px-1.5 sm:px-2 text-[10px] sm:text-xs"
-                            />
+                            >
+                              <a
+                                href={`/certificates/${event.id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-1"
+                              >
+                                <FileText className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+                                <span className="hidden sm:inline">Certificate</span>
+                                <span className="sm:hidden">Cert</span>
+                                <ExternalLink className="h-2 w-2" />
+                              </a>
+                            </Button>
                           )}
                         </div>
                       </div>

@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import {
   Building2,
   Globe,
@@ -32,7 +33,7 @@ import { updateOrganization, checkUsernameAvailability, checkDomainAvailability 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import ImageCropper from "@/components/shared/ImageCropper";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Organization } from "@/types";
 
 // Constants
@@ -42,6 +43,15 @@ const WEBSITE_MAX_LENGTH = 100;
 const DESCRIPTION_MAX_LENGTH = 650;
 const USERNAME_REGEX = /^[a-zA-Z0-9_.-]+$/;
 const normalizeDomain = (value: string | null | undefined) => (value ?? "").toLowerCase().trim();
+
+const ORG_TYPE_LABELS: Record<string, string> = {
+  nonprofit: "Nonprofit Organization",
+  school: "Educational Institution",
+  company: "Company/Business",
+  government: "Government Agency",
+  other: "Other",
+};
+
 const ORG_TYPE_OPTIONS = ["nonprofit", "school", "company", "government", "other"] as const;
 type OrganizationTypeOption = (typeof ORG_TYPE_OPTIONS)[number];
 
@@ -560,19 +570,24 @@ export default function EditOrganizationForm({ organization, userId: _userId }: 
                   <FieldLabel htmlFor={field.name}>Organization Type</FieldLabel>
                   <Select
                     onValueChange={field.onChange}
-                    defaultValue={field.value}
+                    value={field.value}
                   >
                     <SelectTrigger
                       id={field.name}
-                      data-empty={!field.value}
-                      className="data-[empty=true]:text-muted-foreground"
+                      className={cn(
+                        "w-full",
+                        !field.value && "text-muted-foreground"
+                      )}
                       aria-invalid={fieldState.invalid}
                     >
-                      <SelectValue placeholder="Select organization type" />
+                      <SelectValue placeholder="Select organization type">
+                        {field.value
+                          ? ORG_TYPE_LABELS[field.value]
+                          : "Select organization type"}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       <SelectGroup>
-                        <SelectLabel>Type</SelectLabel>
                         <SelectItem value="nonprofit">Nonprofit Organization</SelectItem>
                         <SelectItem value="school">Educational Institution</SelectItem>
                         <SelectItem value="company">Company/Business</SelectItem>

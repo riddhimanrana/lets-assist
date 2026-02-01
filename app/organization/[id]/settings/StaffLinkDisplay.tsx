@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { generateStaffLink, revokeStaffLink, getStaffLinkDetails } from "./actions";
+import { copyToClipboard } from "@/lib/utils";
 import {
   Select,
   SelectContent,
@@ -130,12 +131,12 @@ export default function StaffLinkDisplay({
   const handleCopy = async () => {
     if (!staffLink) return;
 
-    try {
-      await navigator.clipboard.writeText(staffLink);
+    const success = await copyToClipboard(staffLink);
+    if (success) {
       setCopied(true);
       toast.success("Link copied to clipboard");
       setTimeout(() => setCopied(false), 2000);
-    } catch {
+    } else {
       toast.error("Failed to copy link");
     }
   };
@@ -214,7 +215,7 @@ export default function StaffLinkDisplay({
             </Button>
 
             <AlertDialog>
-              <AlertDialogTrigger render={
+              <AlertDialogTrigger asChild>
                 <Button
                   variant="destructive"
                   disabled={isLoading}
@@ -223,7 +224,7 @@ export default function StaffLinkDisplay({
                   <Trash2 className="h-4 w-4" />
                   Revoke Link
                 </Button>
-              } />
+              </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
                   <AlertDialogTitle>Revoke Staff Link?</AlertDialogTitle>

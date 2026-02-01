@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
 import { Badge } from "@/components/ui/badge";
-import { Search, X, HelpCircle } from "lucide-react";
+import { Search, X, HelpCircle, Rocket, Layout, Users, GraduationCap, Award, Download } from "lucide-react";
 import Link from "next/link";
 
 // Import section components
@@ -258,7 +258,7 @@ export default function HelpPage() {
     <div className="container mx-auto px-4 py-8 max-w-6xl">
       <div className="text-center mb-8">
         <h1 className="text-4xl font-bold mb-4">Help Center</h1>
-        <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+        <p className="text-base sm:text-xl text-muted-foreground max-w-2xl mx-auto">
           Everything you need to know about using Let&apos;s Assist for volunteer hour tracking, project management, and certificate generation.
         </p>
       </div>
@@ -332,13 +332,31 @@ export default function HelpPage() {
       </div>
 
       <Tabs value={selectedTab} onValueChange={(val) => val && setSelectedTab(val)} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 lg:grid-cols-6 mb-8">
-          <TabsTrigger value="getting-started">Getting Started</TabsTrigger>
-          <TabsTrigger value="projects">Projects</TabsTrigger>
-          <TabsTrigger value="organizations">Organizations</TabsTrigger>
-          <TabsTrigger value="schools">Schools & CSF</TabsTrigger>
-          <TabsTrigger value="certificates">Certificates</TabsTrigger>
-          <TabsTrigger value="data-export">Data Export</TabsTrigger>
+        <TabsList className="flex w-full overflow-x-auto justify-start lg:justify-center mb-8 bg-muted/50 p-1 h-auto scrollbar-none [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          <TabsTrigger value="getting-started" className="flex-none flex items-center gap-2 px-4 py-2 whitespace-nowrap">
+            <Rocket className="h-4 w-4" />
+            <span>Getting Started</span>
+          </TabsTrigger>
+          <TabsTrigger value="projects" className="flex-none flex items-center gap-2 px-4 py-2 whitespace-nowrap">
+            <Layout className="h-4 w-4" />
+            <span>Projects</span>
+          </TabsTrigger>
+          <TabsTrigger value="organizations" className="flex-none flex items-center gap-2 px-4 py-2 whitespace-nowrap">
+            <Users className="h-4 w-4" />
+            <span>Organizations</span>
+          </TabsTrigger>
+          <TabsTrigger value="schools" className="flex-none flex items-center gap-2 px-4 py-2 whitespace-nowrap">
+            <GraduationCap className="h-4 w-4" />
+            <span>Schools & CSF</span>
+          </TabsTrigger>
+          <TabsTrigger value="certificates" className="flex-none flex items-center gap-2 px-4 py-2 whitespace-nowrap">
+            <Award className="h-4 w-4" />
+            <span>Certificates</span>
+          </TabsTrigger>
+          <TabsTrigger value="data-export" className="flex-none flex items-center gap-2 px-4 py-2 whitespace-nowrap">
+            <Download className="h-4 w-4" />
+            <span>Data Export</span>
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="getting-started" className="space-y-6">

@@ -1,5 +1,5 @@
 import { Project, ProjectStatus } from "@/types";
-import { format, parseISO, isAfter, isBefore, isEqual } from "date-fns";
+import { format, parseISO, isAfter, isBefore, isEqual, addHours, subHours, isWithinInterval } from "date-fns";
 
 const shouldLogProjectDebug = process.env.NODE_ENV === "development";
 
@@ -201,9 +201,17 @@ export const getProjectStatus = (project: Project): ProjectStatus => {
   return "upcoming";
 };
 
-export const canDeleteProject = (_project: Project): boolean => {
-  // No restrictions - allow deletion anytime
-  return true;
+export const isWithinDeletionRestrictionWindow = (
+  project: Project,
+  now: Date = new Date()
+): boolean => {
+  const startWindow = subHours(getProjectStartDateTime(project), 24);
+  const endWindow = addHours(getProjectEndDateTime(project), 48);
+  return isWithinInterval(now, { start: startWindow, end: endWindow });
+};
+
+export const canDeleteProject = (project: Project): boolean => {
+  return !isWithinDeletionRestrictionWindow(project);
 };
 
 export const canCancelProject = (project: Project): boolean => {

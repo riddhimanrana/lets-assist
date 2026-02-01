@@ -73,3 +73,43 @@ export function stripHtml(html: string): string {
   
   return text;
 }
+
+/**
+ * Safely copy text to clipboard with fallback for non-secure contexts
+ */
+export async function copyToClipboard(text: string): Promise<boolean> {
+  try {
+    if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+
+    // Fallback for non-secure contexts or older browsers
+    if (typeof document !== "undefined") {
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.setAttribute("readonly", "");
+      textarea.style.position = "fixed";
+      textarea.style.top = "-9999px";
+      textarea.style.left = "-9999px";
+      document.body.appendChild(textarea);
+      textarea.select();
+      textarea.setSelectionRange(0, text.length);
+      const success = document.execCommand("copy");
+      document.body.removeChild(textarea);
+      return success;
+    }
+    return false;
+  } catch (error) {
+    console.error("Copy failed:", error);
+    return false;
+  }
+}
+
+/**
+ * Check if the current device is likely a mobile device based on User Agent
+ */
+export function isMobileDevice(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+}

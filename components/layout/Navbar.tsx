@@ -218,7 +218,7 @@ export default function Navbar() {
                 width={30}
                 height={30}
               />
-              <span className="text-lg font-overusedgrotesk font-[750]">
+              <span className="text-lg font-overusedgrotesk font-semibold sm:font-[750]">
                 Let's Assist
               </span>
             </div>

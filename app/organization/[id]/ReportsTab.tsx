@@ -5,6 +5,7 @@ import Image from "next/image";
 import { DateRange } from "react-day-picker";
 import { addDays, format } from "date-fns";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import {
   BarChart,
   Clock,
@@ -34,13 +35,16 @@ import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import { Bar, BarChart as RechartsBarChart, XAxis, YAxis } from "recharts";
+import { Bar, BarChart as RechartsBarChart, XAxis, YAxis, CartesianGrid } from "recharts";
 import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -117,21 +121,6 @@ type GoogleApiWindow = Window & {
   google?: GooglePickerNamespace;
 };
 
-const chartConfig = {
-  verified: {
-    label: "Verified",
-    color: "hsl(var(--success))",
-  },
-  pending: {
-    label: "Pending",
-    color: "hsl(var(--warning))",
-  },
-  attendance: {
-    label: "Unpublished",
-    color: "hsl(var(--secondary))",
-  },
-} satisfies ChartConfig;
-
 const presetRanges = [
   { id: "fiscal", label: "This Fiscal Year" },
   { id: "last-fiscal", label: "Last Fiscal Year" },
@@ -139,6 +128,17 @@ const presetRanges = [
   { id: "last-30", label: "Last 30 Days" },
   { id: "lifetime", label: "Lifetime" },
 ] as const;
+
+const reportTypeLabels: Record<ReportType, string> = {
+  "member-hours": "Member Hours Summary",
+  "project-summary": "Project Summary",
+  "monthly-summary": "Monthly Hours",
+};
+
+const rangeModeLabels: Record<"full" | "custom", string> = {
+  full: "Full tab (A1)",
+  custom: "Custom range",
+};
 
 const buildExclusiveRange = (from: Date, toInclusive: Date) => ({
   from,
@@ -153,6 +153,17 @@ const getFiscalYearRange = (reference: Date, offsetYears = 0) => {
 };
 
 export default function ReportsTab({ organizationId, organizationName, userRole }: ReportsTabProps) {
+  const chartConfig = useMemo(() => ({
+    verified: {
+      label: "Verified",
+      color: "var(--chart-3)",
+    },
+    pending: {
+      label: "Pending",
+      color: "var(--chart-4)",
+    },
+  } satisfies ChartConfig), []);
+
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [reportData, setReportData] = useState<OrganizationReportData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -781,21 +792,21 @@ export default function ReportsTab({ organizationId, organizationName, userRole 
           title="Total Hours"
           icon={Clock}
           value={metrics?.totalHours.toFixed(1) || "0.0"}
-          description="Verified + pending + unpublished"
+          description="Verified + Pending"
           loading={loading}
         />
         <SummaryCard
           title="Verified"
           icon={BarChart}
           value={metrics?.verifiedHours.toFixed(1) || "0.0"}
-          description="Approved hours"
+          description="Published hours"
           loading={loading}
         />
         <SummaryCard
           title="Pending"
           icon={Clock}
           value={metrics?.pendingHours.toFixed(1) || "0.0"}
-          description="Awaiting check"
+          description="Unpublished hours"
           loading={loading}
         />
         <SummaryCard
@@ -809,12 +820,12 @@ export default function ReportsTab({ organizationId, organizationName, userRole 
 
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2 overflow-hidden">
-          <CardHeader className="p-4 sm:pb-2">
+          <CardHeader >
             <CardTitle className="text-base flex items-center gap-2">
               <BarChart className="h-4 w-4 text-muted-foreground" />
               Monthly Hours Trend
             </CardTitle>
-            <CardDescription className="text-xs">Verified, pending, and unpublished hours</CardDescription>
+            <CardDescription className="text-xs">Verified and pending hours</CardDescription>
           </CardHeader>
           <CardContent className="p-2 sm:p-6">
             {loading ? (
@@ -825,7 +836,8 @@ export default function ReportsTab({ organizationId, organizationName, userRole 
               </div>
             ) : (
               <ChartContainer config={chartConfig} className="h-[220px] w-full min-h-[200px]">
-                <RechartsBarChart data={monthlyData} margin={{ left: -10, right: 10, top: 10, bottom: 0 }}>
+                <RechartsBarChart accessibilityLayer data={monthlyData} margin={{ left: -10, right: 10, top: 10, bottom: 0 }}>
+                  <CartesianGrid vertical={false} />
                   <XAxis
                     dataKey="month"
                     tickLine={false}
@@ -835,9 +847,9 @@ export default function ReportsTab({ organizationId, organizationName, userRole 
                   />
                   <YAxis hide />
                   <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar dataKey="verified" stackId="a" fill="var(--color-verified)" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="pending" stackId="a" fill="var(--color-pending)" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="attendance" stackId="a" fill="var(--color-attendance)" radius={[4, 4, 0, 0]} />
+                  <ChartLegend content={<ChartLegendContent />} />
+                  <Bar dataKey="verified" stackId="a" fill="var(--color-verified)" radius={4} />
+                  <Bar dataKey="pending" stackId="a" fill="var(--color-pending)" radius={4} />
                 </RechartsBarChart>
               </ChartContainer>
             )}
@@ -1021,16 +1033,16 @@ export default function ReportsTab({ organizationId, organizationName, userRole 
                       <Button
                         variant="outline"
                         size="sm"
-                        render={
-                          <a
-                            href={sheetStatus.syncConfig.sheetUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            Open sheet
-                          </a>
-                        }
-                      />
+                        asChild
+                      >
+                        <a
+                          href={sheetStatus.syncConfig.sheetUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Open sheet
+                        </a>
+                      </Button>
                     )}
                     {sheetStatus.syncConfig && (
                       <Button
@@ -1092,13 +1104,17 @@ export default function ReportsTab({ organizationId, organizationName, userRole 
                                   value={sheetReportType}
                                   onValueChange={(value) => setSheetReportType(value as ReportType)}
                                 >
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Select report" />
+                                  <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Select report">
+                                      {reportTypeLabels[sheetReportType]}
+                                    </SelectValue>
                                   </SelectTrigger>
                                   <SelectContent>
-                                    <SelectItem value="member-hours">Member Hours Summary</SelectItem>
-                                    <SelectItem value="project-summary">Project Summary</SelectItem>
-                                    <SelectItem value="monthly-summary">Monthly Hours</SelectItem>
+                                    <SelectGroup>
+                                      <SelectItem value="member-hours">Member Hours Summary</SelectItem>
+                                      <SelectItem value="project-summary">Project Summary</SelectItem>
+                                      <SelectItem value="monthly-summary">Monthly Hours</SelectItem>
+                                    </SelectGroup>
                                   </SelectContent>
                                 </Select>
                               </div>
@@ -1232,27 +1248,29 @@ export default function ReportsTab({ organizationId, organizationName, userRole 
                                   onValueChange={(value) => setSelectedOwnerId(value || null)}
                                   disabled={ownersLoading}
                                 >
-                                  <SelectTrigger>
+                                  <SelectTrigger className="w-full">
                                     <SelectValue placeholder="Select owner" />
                                   </SelectTrigger>
                                   <SelectContent>
-                                    {ownersLoading && (
-                                      <SelectItem value="loading" disabled>
-                                        Loading connected members...
-                                      </SelectItem>
-                                    )}
-                                    {!ownersLoading && availableOwners.length === 0 && (
-                                      <SelectItem value="none" disabled>
-                                        No connected members found
-                                      </SelectItem>
-                                    )}
-                                    {availableOwners.map((owner) => (
-                                      <SelectItem key={owner.id} value={owner.id}>
-                                        {owner.name || owner.email || "Member"}
-                                        {owner.connectedEmail ? ` • ${owner.connectedEmail}` : ""}
-                                        {owner.hasSheetsAccess ? "" : " (needs Sheets access)"}
-                                      </SelectItem>
-                                    ))}
+                                    <SelectGroup>
+                                      {ownersLoading && (
+                                        <SelectItem value="loading" disabled>
+                                          Loading connected members...
+                                        </SelectItem>
+                                      )}
+                                      {!ownersLoading && availableOwners.length === 0 && (
+                                        <SelectItem value="none" disabled>
+                                          No connected members found
+                                        </SelectItem>
+                                      )}
+                                      {availableOwners.map((owner) => (
+                                        <SelectItem key={owner.id} value={owner.id}>
+                                          {owner.name || owner.email || "Member"}
+                                          {owner.connectedEmail ? ` • ${owner.connectedEmail}` : ""}
+                                          {owner.hasSheetsAccess ? "" : " (needs Sheets access)"}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectGroup>
                                   </SelectContent>
                                 </Select>
                                 <Button
@@ -1297,10 +1315,12 @@ export default function ReportsTab({ organizationId, organizationName, userRole 
                                   <SelectValue placeholder="Interval" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="360">Every 6 hours</SelectItem>
-                                  <SelectItem value="720">Every 12 hours</SelectItem>
-                                  <SelectItem value="1440">Daily</SelectItem>
-                                  <SelectItem value="4320">Every 3 days</SelectItem>
+                                  <SelectGroup>
+                                    <SelectItem value="360">Every 6 hours</SelectItem>
+                                    <SelectItem value="720">Every 12 hours</SelectItem>
+                                    <SelectItem value="1440">Daily</SelectItem>
+                                    <SelectItem value="4320">Every 3 days</SelectItem>
+                                  </SelectGroup>
                                 </SelectContent>
                               </Select>
                             </div>
@@ -1376,13 +1396,17 @@ export default function ReportsTab({ organizationId, organizationName, userRole 
                                 value={sheetReportType}
                                 onValueChange={(value) => setSheetReportType(value as ReportType)}
                               >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select report" />
+                                <SelectTrigger className="w-full">
+                                  <SelectValue placeholder="Select report">
+                                    {reportTypeLabels[sheetReportType]}
+                                  </SelectValue>
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="member-hours">Member Hours Summary</SelectItem>
-                                  <SelectItem value="project-summary">Project Summary</SelectItem>
-                                  <SelectItem value="monthly-summary">Monthly Hours</SelectItem>
+                                  <SelectGroup>
+                                    <SelectItem value="member-hours">Member Hours Summary</SelectItem>
+                                    <SelectItem value="project-summary">Project Summary</SelectItem>
+                                    <SelectItem value="monthly-summary">Monthly Hours</SelectItem>
+                                  </SelectGroup>
                                 </SelectContent>
                               </Select>
                             </div>
@@ -1553,13 +1577,17 @@ export default function ReportsTab({ organizationId, organizationName, userRole 
                                 value={sheetReportType}
                                 onValueChange={(value) => setSheetReportType(value as ReportType)}
                               >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select report" />
+                                <SelectTrigger className="w-full">
+                                  <SelectValue placeholder="Select report">
+                                    {reportTypeLabels[sheetReportType]}
+                                  </SelectValue>
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="member-hours">Member Hours Summary</SelectItem>
-                                  <SelectItem value="project-summary">Project Summary</SelectItem>
-                                  <SelectItem value="monthly-summary">Monthly Hours</SelectItem>
+                                  <SelectGroup>
+                                    <SelectItem value="member-hours">Member Hours Summary</SelectItem>
+                                    <SelectItem value="project-summary">Project Summary</SelectItem>
+                                    <SelectItem value="monthly-summary">Monthly Hours</SelectItem>
+                                  </SelectGroup>
                                 </SelectContent>
                               </Select>
                             </div>
@@ -1882,12 +1910,16 @@ function RangeBuilder({
           onValueChange={(value) => onModeChange(value as "full" | "custom")}
           disabled={disabled}
         >
-          <SelectTrigger className="h-9">
-            <SelectValue placeholder="Range mode" />
+          <SelectTrigger className="w-fit">
+            <SelectValue placeholder="Range mode">
+              {rangeModeLabels[mode]}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="full">Full tab (A1)</SelectItem>
-            <SelectItem value="custom">Custom range</SelectItem>
+            <SelectGroup>
+              <SelectItem value="full">Full tab (A1)</SelectItem>
+              <SelectItem value="custom">Custom range</SelectItem>
+            </SelectGroup>
           </SelectContent>
         </Select>
         <Badge variant="secondary">Range: {rangeLabel}</Badge>
@@ -1901,15 +1933,17 @@ function RangeBuilder({
             </p>
             <div className="mt-2 flex items-center gap-2">
               <Select value={startColumn} onValueChange={(val) => val && onStartColumnChange(val)} disabled={disabled}>
-                <SelectTrigger className="h-9 w-[90px]">
+                <SelectTrigger className="w-[90px]">
                   <SelectValue placeholder="Col" />
                 </SelectTrigger>
                 <SelectContent>
-                  {columns.map((column) => (
-                    <SelectItem key={column} value={column}>
-                      {column}
-                    </SelectItem>
-                  ))}
+                  <SelectGroup>
+                    {columns.map((column) => (
+                      <SelectItem key={column} value={column}>
+                        {column}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
                 </SelectContent>
               </Select>
               <Input

@@ -73,9 +73,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { CancelProjectDialog } from "@/app/projects/_components/CancelProjectDialog";
-import { canDeleteProject } from "@/utils/project";
-import { getProjectStartDateTime, getProjectEndDateTime } from "@/utils/project";
-import { differenceInHours } from "date-fns";
+import { canDeleteProject, isWithinDeletionRestrictionWindow } from "@/utils/project";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import {
@@ -153,6 +151,7 @@ const formSchema = z.object({
   waiver_required: z.boolean(),
   waiver_allow_upload: z.boolean(),
   verification_method: z.enum(["qr-code", "manual", "auto", "signup-only"]),
+  visibility: z.enum(["public", "unlisted", "organization_only"]),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -289,6 +288,19 @@ export default function EditProjectClient({ project }: Props) {
     return !text;
   };
 
+  const verificationMethodLabels: Record<FormValues["verification_method"], string> = {
+    "qr-code": "QR Code Check-in",
+    manual: "Manual Check-in",
+    auto: "Automatic Check-in",
+    "signup-only": "Sign-up Only",
+  };
+
+  const visibilityLabels: Record<FormValues["visibility"], string> = {
+    public: "Public (Everyone)",
+    unlisted: "Unlisted (Link Only)",
+    organization_only: "Organization Members Only",
+  };
+
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -305,6 +317,7 @@ export default function EditProjectClient({ project }: Props) {
       waiver_required: project.waiver_required ?? false,
       waiver_allow_upload: project.waiver_allow_upload ?? true,
       verification_method: project.verification_method,
+      visibility: project.visibility,
     },
   });
 
@@ -425,7 +438,8 @@ export default function EditProjectClient({ project }: Props) {
         formValues.show_attendees_publicly !== (project.show_attendees_publicly ?? false) ||
         formValues.waiver_required !== (project.waiver_required ?? false) ||
         formValues.waiver_allow_upload !== (project.waiver_allow_upload ?? true) ||
-        formValues.verification_method !== project.verification_method;
+        formValues.verification_method !== project.verification_method ||
+        formValues.visibility !== project.visibility;
 
       const initialSchedule = initializeScheduleState(project);
       const scheduleChanged = JSON.stringify(scheduleState) !== JSON.stringify(initialSchedule);
@@ -451,7 +465,8 @@ export default function EditProjectClient({ project }: Props) {
       formValues.show_attendees_publicly !== (project.show_attendees_publicly ?? false) ||
       formValues.waiver_required !== (project.waiver_required ?? false) ||
       formValues.waiver_allow_upload !== (project.waiver_allow_upload ?? true) ||
-      formValues.verification_method !== project.verification_method;
+      formValues.verification_method !== project.verification_method ||
+      formValues.visibility !== project.visibility;
 
     setHasChanges(basicInfoChanged || scheduleChanged);
   }, [scheduleState, form, project]);
@@ -878,7 +893,7 @@ export default function EditProjectClient({ project }: Props) {
 
   const handleDeleteProject = async () => {
     if (!canDeleteProject(project)) {
-      toast.error("Projects cannot be deleted 24 hours before start until 48 hours after end");
+      toast.error("Projects cannot be deleted within 24 hours before start until 48 hours after end");
       setShowDeleteDialog(false);
       return;
     }
@@ -901,14 +916,8 @@ export default function EditProjectClient({ project }: Props) {
     }
   };
 
-  // Calculate time values for deletion restrictions
-  const now = new Date();
-  const startDateTime = getProjectStartDateTime(project);
-  const endDateTime = getProjectEndDateTime(project);
-  const hoursUntilStart = differenceInHours(startDateTime, now);
-  const hoursAfterEnd = differenceInHours(now, endDateTime);
-
-  const isInDeletionRestrictionPeriod = hoursUntilStart <= 24 && hoursAfterEnd <= 48;
+  const isInDeletionRestrictionPeriod = isWithinDeletionRestrictionWindow(project);
+  const canDelete = canDeleteProject(project);
   const isCancelled = project.status === "cancelled";
 
   return (
@@ -1254,10 +1263,12 @@ export default function EditProjectClient({ project }: Props) {
                   <FieldLabel htmlFor={field.name}>Verification Method</FieldLabel>
                   <Select
                     onValueChange={field.onChange}
-                    defaultValue={field.value}
+                    value={field.value}
                   >
                     <SelectTrigger id={field.name} aria-invalid={fieldState.invalid}>
-                      <SelectValue placeholder="Select verification method" />
+                      <SelectValue placeholder="Select verification method">
+                        {verificationMethodLabels[field.value] ?? "Select verification method"}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="qr-code">
@@ -1292,6 +1303,58 @@ export default function EditProjectClient({ project }: Props) {
                           </span>
                         </div>
                       </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                </Field>
+              )}
+            />
+
+            <Controller
+              control={form.control}
+              name="visibility"
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor={field.name}>Project Visibility</FieldLabel>
+                  <FieldDescription>
+                    Choose who can discover and view your project on the platform.
+                  </FieldDescription>
+                  <Select
+                    onValueChange={field.onChange}
+                    value={field.value}
+                  >
+                    <SelectTrigger id={field.name} aria-invalid={fieldState.invalid}>
+                      <SelectValue placeholder="Select visibility">
+                        {visibilityLabels[field.value] ?? "Select visibility"}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="public">
+                        <div className="flex flex-col group">
+                          <span>Public (Everyone)</span>
+                          <span className="text-xs text-muted-foreground hidden group-hover:block group-focus:block">
+                            Appears on the home feed and in search results.
+                          </span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="unlisted">
+                        <div className="flex flex-col group">
+                          <span>Unlisted (Link Only)</span>
+                          <span className="text-xs text-muted-foreground hidden group-hover:block group-focus:block">
+                            Only people with the direct link can view or sign up.
+                          </span>
+                        </div>
+                      </SelectItem>
+                      {project.organization_id && (
+                        <SelectItem value="organization_only">
+                          <div className="flex flex-col group">
+                            <span>Organization Members Only</span>
+                            <span className="text-xs text-muted-foreground hidden group-hover:block group-focus:block">
+                              Visible only to members of your organization.
+                            </span>
+                          </div>
+                        </SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                   {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
@@ -1599,21 +1662,22 @@ export default function EditProjectClient({ project }: Props) {
                 </p>
                 <TooltipProvider>
                   <Tooltip>
-                    <TooltipTrigger>
-                      <Button
-                        variant="destructive"
-                        onClick={() => setShowDeleteDialog(true)}
-                        className="w-full"
-                        asChild
-                      >
-                        <span className="cursor-pointer">
-                          {isDeleting ? (
-                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                          ) : null}
-                          Delete Project
+                    <TooltipTrigger
+                      render={
+                        <span className="w-full" tabIndex={canDelete ? -1 : 0}>
+                          <Button
+                            onClick={() => setShowDeleteDialog(true)}
+                            className="w-full bg-destructive text-background hover:bg-destructive/90"
+                            disabled={isDeleting || !canDelete}
+                          >
+                            {isDeleting ? (
+                              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            ) : null}
+                            Delete Project
+                          </Button>
                         </span>
-                      </Button>
-                    </TooltipTrigger>
+                      }
+                    />
                     {isInDeletionRestrictionPeriod && (
                       <TooltipContent className="max-w-[250px] text-center p-2">
                         <p>Projects cannot be deleted during the 72-hour window around the event</p>

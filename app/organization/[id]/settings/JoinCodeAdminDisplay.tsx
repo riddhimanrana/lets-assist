@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Copy, CheckCircle2, RefreshCw, Loader2 } from "lucide-react";
 import { regenerateJoinCode } from "../../create/actions";
+import { copyToClipboard } from "@/lib/utils";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,9 +35,9 @@ export default function JoinCodeAdminDisplay({
   const [showRegenerateAlert, setShowRegenerateAlert] = useState(false);
 
   // Copy join code to clipboard
-  const copyToClipboard = async () => {
-    try {
-      await navigator.clipboard.writeText(displayedJoinCode);
+  const handleCopyCode = async () => {
+    const success = await copyToClipboard(displayedJoinCode);
+    if (success) {
       setIsCopied(true);
       toast.success("Join code copied to clipboard");
 
@@ -44,7 +45,7 @@ export default function JoinCodeAdminDisplay({
       setTimeout(() => {
         setIsCopied(false);
       }, 2000);
-    } catch {
+    } else {
       toast.error("Failed to copy join code");
     }
   };
@@ -86,7 +87,7 @@ export default function JoinCodeAdminDisplay({
             type="button"
             size="icon"
             variant="outline"
-            onClick={copyToClipboard}
+            onClick={handleCopyCode}
             className="shrink-0"
           >
             {isCopied ? (
