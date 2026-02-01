@@ -12,13 +12,7 @@ function Dialog({ ...props }: DialogPrimitive.Root.Props) {
 }
 
 function DialogTrigger({ ...props }: DialogPrimitive.Trigger.Props) {
-  return (
-    <DialogPrimitive.Trigger
-      data-slot="dialog-trigger"
-      nativeButton={true}
-      {...props}
-    />
-  )
+  return <DialogPrimitive.Trigger data-slot="dialog-trigger" {...props} />
 }
 
 function DialogPortal({ ...props }: DialogPrimitive.Portal.Props) {
@@ -26,13 +20,7 @@ function DialogPortal({ ...props }: DialogPrimitive.Portal.Props) {
 }
 
 function DialogClose({ ...props }: DialogPrimitive.Close.Props) {
-  return (
-    <DialogPrimitive.Close
-      data-slot="dialog-close"
-      nativeButton={true}
-      {...props}
-    />
-  )
+  return <DialogPrimitive.Close data-slot="dialog-close" {...props} />
 }
 
 function DialogOverlay({
@@ -69,18 +57,20 @@ function DialogContent({
       >
         {children}
         {showCloseButton && (
-          <DialogClose
-            className="absolute top-4 right-4 z-50 text-muted-foreground hover:text-foreground"
+          <DialogPrimitive.Close
+            data-slot="dialog-close"
             render={
               <Button
                 variant="ghost"
+                className="absolute top-4 right-4 z-50"
                 size="icon-sm"
               />
             }
           >
-            <XIcon />
+            <XIcon
+            />
             <span className="sr-only">Close</span>
-          </DialogClose>
+          </DialogPrimitive.Close>
         )}
       </DialogPrimitive.Popup>
     </DialogPortal>
@@ -109,18 +99,19 @@ function DialogFooter({
     <div
       data-slot="dialog-footer"
       className={cn(
-        "gap-2 flex flex-col-reverse sm:flex-row sm:justify-end",
+        "gap-2 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end",
         className
       )}
       {...props}
     >
       {children}
       {showCloseButton && (
-        <DialogClose
+        <DialogPrimitive.Close
           render={<Button variant="outline" />}
+          nativeButton={false}
         >
           Close
-        </DialogClose>
+        </DialogPrimitive.Close>
       )}
     </div>
   )

@@ -17,7 +17,7 @@ import {
   BarChart3
 } from "lucide-react";
 import { format } from "date-fns";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,7 @@ import { Loader2 } from "lucide-react";
 import { ProjectStatusBadge } from "@/components/ui/status-badge";
 import { getProjectStatus } from "@/utils/project";
 import ReportsTab from "@/app/organization/[id]/ReportsTab";
+import { cn } from "@/lib/utils";
 import type { Organization, Project } from "@/types";
 
 type OrganizationMember = {
@@ -64,6 +65,7 @@ interface OrganizationTabsProps {
     totalHours: number;
     verifiedHours: number;
     pendingHours: number;
+    attendanceHours: number;
   } | null;
 }
 
@@ -512,7 +514,7 @@ export default function OrganizationTabs({
 
                         <DialogClose
                           render={<Button className="ml-auto">Close</Button>}
-                          nativeButton={true}
+                          nativeButton={false}
                         />
                       </DialogContent>
                     </Dialog>

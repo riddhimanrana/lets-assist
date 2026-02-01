@@ -371,6 +371,7 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
   };
 
   const formatTimeTo12Hour = (time: string) => {
+    if (!time) return "";
     const [hours, minutes] = time.split(':').map(Number);
     const period = hours >= 12 ? 'PM' : 'AM';
     const adjustedHours = hours % 12 || 12;
@@ -378,10 +379,11 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
   };
 
   const formatSessionName = (project: Project, sessionId: string) => {
+    if (sessionId === "all") return "All Sessions";
     if (!project) return sessionId;
 
     if (project.event_type === "oneTime") {
-      if (sessionId === "oneTime" && project.schedule.oneTime) {
+      if ((sessionId === "oneTime" || sessionId === "0" || sessionId === "default") && project.schedule.oneTime) {
         const dateStr = project.schedule.oneTime.date;
         const [year, month, day] = dateStr.split('-').map(Number);
         const date = new Date(year, month - 1, day);
@@ -390,16 +392,33 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
     }
 
     if (project.event_type === "multiDay") {
+      // Handle day-X-slot-Y format
+      if (sessionId.startsWith("day-") && project.schedule.multiDay) {
+        const parts = sessionId.split("-");
+        if (parts.length >= 4) {
+          const dayIndex = parseInt(parts[1], 10);
+          const slotIndex = parseInt(parts[3], 10);
+          const day = project.schedule.multiDay[dayIndex];
+          const slot = day?.slots[slotIndex];
+          if (day && slot) {
+            const [year, month, d] = day.date.split('-').map(Number);
+            const utcDate = new Date(year, month - 1, d);
+            return `${format(utcDate, "EEEE, MMMM d, yyyy")} from ${formatTimeTo12Hour(slot.startTime)} to ${formatTimeTo12Hour(slot.endTime)}`;
+          }
+        }
+      }
+
+      // Handle legacy date-slotIndex format or simplified format
       const parts = sessionId.split("-");
 
       if (parts.length >= 2) {
-        const slotIndex = parts.pop();
+        const slotPart = parts.pop();
         const date = parts.join("-");
 
         const day = project.schedule.multiDay?.find(d => d.date === date);
 
-        if (day && slotIndex !== undefined) {
-          const slotIdx = parseInt(slotIndex, 10);
+        if (day && slotPart !== undefined) {
+          const slotIdx = parseInt(slotPart, 10);
           const slot = day.slots[slotIdx];
 
           if (slot) {
@@ -543,10 +562,12 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
                     value={sessionFilter}
                     onValueChange={(val) => setSessionFilter(val || "all")}
                   >
-                    <SelectTrigger className="w-full sm:w-[180px]" aria-label="Filter by session">
-                      <SelectValue placeholder="Filter by session" />
+                    <SelectTrigger className="w-full sm:min-w-[240px] sm:w-auto" aria-label="Filter by session">
+                      <SelectValue placeholder="Filter by session">
+                        {sessionFilter === "all" ? "All Sessions" : project ? formatSessionName(project, sessionFilter) : "Filter by session"}
+                      </SelectValue>
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="max-w-[400px]">
                       <SelectItem value="all">All Sessions</SelectItem>
                       {availableSessions.map(session => (
                         <SelectItem key={session} value={session}>
