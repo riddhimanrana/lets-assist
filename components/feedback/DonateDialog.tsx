@@ -8,7 +8,6 @@ import {
 } from "@/components/ui/dialog";
 import {
   Card,
-  CardAction,
   CardContent,
   CardDescription,
   CardFooter,
@@ -45,49 +44,46 @@ export function DonateDialog({ open, onOpenChange }: DonateDialogProps) {
         <DialogTitle className="sr-only">Support Let's Assist</DialogTitle>
         <Card className="w-full">
           <CardHeader>
-            <CardTitle>Support Let's Assist</CardTitle>
-            <CardDescription>
-              We're on a mission to connect volunteers with impactful organizations. Your support helps keep our platform free and our community servers running.
-            </CardDescription>
-            <CardAction>
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+            <div className="flex items-center gap-3 pb-2">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-destructive/10 text-destructive shrink-0">
                 <Heart className="h-5 w-5 fill-current" />
               </div>
-            </CardAction>
+              <CardTitle className="text-lg">Support Let's Assist</CardTitle>
+            </div>
+            <CardDescription>
+              I'm on a mission to connect volunteers with impactful organizations. Your support helps keep our platform free and our community servers running.
+            </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-6">
             <div className="text-sm text-foreground/80 leading-relaxed bg-muted/50 p-3 rounded-lg border border-border/50">
               Scaling a platform for thousands of users comes with significant monthly costs. Your contribution, regardless of size, directly supports our infrastructure.
             </div>
-
-            <div className="space-y-2">
-              <label htmlFor="email" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                Contact for donations
-              </label>
-              <div className="flex items-center gap-2 p-2 rounded-lg border bg-background shadow-xs">
-                <Mail className="h-4 w-4 ml-2 text-muted-foreground shrink-0" />
-                <code className="relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-sm font-semibold flex-1 truncate">
-                  {email}
-                </code>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={copyEmail}
-                  className="h-8 shadow-none"
-                >
-                  {copied ? (
-                    <>
-                      <Check className="h-3 w-3 mr-1 text-emerald-500" />
-                      <span className="text-emerald-500">Copied</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="h-3 w-3 mr-1" />
-                      Copy
-                    </>
-                  )}
-                </Button>
-              </div>
+            <label htmlFor="email" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+              Contact for donations
+            </label>
+            <div className="flex items-center gap-2 p-2 rounded-lg border bg-background shadow-xs">
+              <Mail className="h-4 w-4 ml-2 text-muted-foreground shrink-0" />
+              <span className="font-mono text-sm font-semibold flex-1 truncate text-foreground ml-1">
+                {email}
+              </span>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={copyEmail}
+                className="h-8 shadow-none"
+              >
+                {copied ? (
+                  <>
+                    <Check className="h-3 w-3 mr-1 text-success" />
+                    <span className="text-success">Copied</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-3 w-3 mr-1" />
+                    Copy
+                  </>
+                )}
+              </Button>
             </div>
           </CardContent>
           <CardFooter>
@@ -101,6 +97,6 @@ export function DonateDialog({ open, onOpenChange }: DonateDialogProps) {
           </CardFooter>
         </Card>
       </DialogContent>
-    </Dialog>
+    </Dialog >
   );
 }

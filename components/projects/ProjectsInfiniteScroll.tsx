@@ -396,28 +396,29 @@ export const ProjectsInfiniteScroll: React.FC = () => {
       <>
         <div className="mb-8">
           {/* Search and filter controls */}
-          <div className="flex flex-wrap items-center gap-3" data-tour-id="home-project-filters">
-            <div className="relative w-full sm:w-auto sm:flex-1 max-w-md">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search projects..."
-                className="pl-8"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-
-            <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:flex-nowrap">
-              <div className="flex flex-1 items-center gap-2 min-w-[120px] sm:flex-none">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 w-full" data-tour-id="home-project-filters">
+            <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+              <div className="relative w-full sm:w-[280px]">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search projects..."
+                  className="pl-8"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              <div className="w-full sm:w-auto">
                 <DateRangePicker
                   value={dateFilter}
                   onChange={setDateFilter}
-                  align="end"
-                  className="w-full max-w-[140px] sm:max-w-[180px]"
+                  align="start"
+                  className="w-full sm:w-[240px]"
                 />
               </div>
+            </div>
 
-              <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 w-full md:w-auto justify-end">
+              <div className="flex items-center gap-1 mr-2">
                 <Button
                   variant="ghost"
                   size="icon"
@@ -716,29 +717,29 @@ export const ProjectsInfiniteScroll: React.FC = () => {
     <div>
       <div className="mb-8">
         {/* Search and filter controls */}
-        <div className="flex flex-wrap items-center gap-3" data-tour-id="home-project-filters">
-          <div className="relative w-full sm:w-auto sm:flex-1 max-w-md">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search projects..."
-              className="pl-8"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-
-          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:flex-nowrap">
-            <div className="flex flex-1 items-center gap-2 min-w-[120px] sm:flex-none">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 w-full" data-tour-id="home-project-filters">
+          <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+            <div className="relative w-full sm:w-[280px]">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search projects..."
+                className="pl-8"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <div className="w-full sm:w-auto">
               <DateRangePicker
                 value={dateFilter}
                 onChange={setDateFilter}
-                align="end"
-                className="w-full max-w-[140px] sm:max-w-[180px]"
+                align="start"
+                className="w-full sm:w-[240px]"
               />
             </div>
+          </div>
 
-            {/* View Toggle */}
-            <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 w-full md:w-auto justify-end">
+            <div className="flex items-center gap-1 mr-2">
               <Button
                 variant="ghost"
                 size="icon"
@@ -773,7 +774,6 @@ export const ProjectsInfiniteScroll: React.FC = () => {
               </Button>
             </div>
 
-            {/* Filters */}
             <Popover open={isFilterOpen} onOpenChange={setIsFilterOpen}>
               <PopoverTrigger
                 nativeButton={true}

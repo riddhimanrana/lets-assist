@@ -107,7 +107,7 @@ const mockProfile = {
 
 const mockProjects: Project[] = [
   {
-    id: "p1",
+    id: "#p1",
     title: "Bollinger Canyon Creek Cleanup",
     description: "A community creek cleanup to protect local trails and wildlife.",
     location: "Bollinger Canyon Trailhead",
@@ -123,7 +123,7 @@ const mockProjects: Project[] = [
     profiles: mockProfile,
   },
   {
-    id: "p2",
+    id: "#p2",
     title: "Dougherty Valley Senior Center Meals",
     description: "Deliver meals and spend time with seniors in the community.",
     location: "Dougherty Valley Senior Center",
@@ -139,7 +139,7 @@ const mockProjects: Project[] = [
     profiles: mockProfile,
   },
   {
-    id: "p3",
+    id: "#p3",
     title: "Central Park Tree Planting",
     description: "Plant trees to expand shaded spaces in the park.",
     location: "San Ramon Central Park",
@@ -222,7 +222,7 @@ export default function OrgToolingSection() {
             ))}
           </div>
 
-          <div className="rounded-2xl border border-border/70 bg-muted/50 p-6 sm:p-8">
+          {/* <div className="rounded-2xl border border-border/70 bg-muted/50 p-6 sm:p-8">
             <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <p className="text-sm font-semibold uppercase tracking-[0.3em] text-primary/80">Why teams switch</p>
@@ -257,7 +257,7 @@ export default function OrgToolingSection() {
                 </li>
               </ul>
             </div>
-          </div>
+          </div> */}
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-center">
             <Link

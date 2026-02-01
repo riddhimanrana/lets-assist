@@ -566,7 +566,7 @@ export default function Navbar() {
                     {/* Replace theme selector for logged-in users on mobile */}
                   </>
                 ) : (
-                  <div className="grid gap-2 mb-6">
+                  <div className="grid gap-2 mb-4 mt-3">
                     <Link
                       href="/login"
                       className="w-full"

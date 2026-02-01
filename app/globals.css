@@ -81,11 +81,11 @@
     --toast-success-fg: color-mix(in srgb, var(--success) 10%, transparent);
     --toast-error-bg: color-mix(in srgb,
         var(--destructive) 10%,
-        var(--chart-9));
+        var(--primary-foreground));
     --toast-error-fg: color-mix(in srgb, var(--destructive) 10%, transparent);
     --toast-warning-bg: color-mix(in srgb, var(--chart-4) 10%, var(--chart-9));
     --toast-warning-fg: color-mix(in srgb, var(--warning) 10%, transparent);
-    --toast-info-bg: color-mix(in srgb, var(--chart-3) 10%, var(--chart-9));
+    --toast-info-bg: color-mix(in srgb, var(--chart-3) 10%, var(--background));
     --toast-info-fg: color-mix(in srgb, var(--info) 10%, transparent);
   }
 

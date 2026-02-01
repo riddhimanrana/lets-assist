@@ -35,7 +35,7 @@ export default function BayAreaExamples() {
           <p className="text-[0.65rem] font-semibold uppercase tracking-[0.5em] text-muted-foreground/70">
             Partner spotlight
           </p>
-          <h3 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+          <h3 className="text-2xl font-semibold font-overusedgrotesk tracking-tight text-foreground sm:text-3xl">
             Currently connecting with
           </h3>
           <p className="max-w-xl text-sm text-muted-foreground">
