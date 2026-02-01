@@ -262,7 +262,7 @@ export function FeedbackDialog({
               />
             </div>
 
-            <div className="space-y-2 pb-2">
+            <div className="space-y-2 pb-4">
               <div className="flex justify-between">
                 <Label htmlFor="feedback">Description</Label>
                 <span className="text-xs text-muted-foreground">
