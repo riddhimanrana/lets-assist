@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardAction, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardAction } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
 import { CalendarIcon, MapPin, Plus, Search, Calendar, CheckCircle2, AlertCircle, Clock3, LayoutGrid } from "lucide-react";
@@ -10,7 +10,7 @@ import Link from "next/link";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ProjectStatus, Project } from "@/types";
 import { ProjectStatusBadge } from "@/components/ui/status-badge";
-import { getProjectStartDateTime, getProjectStatus } from "@/utils/project";
+import { getProjectStatus } from "@/utils/project";
 import { useRouter } from "next/navigation";
 import { stripHtml, cn } from "@/lib/utils";
 
@@ -159,20 +159,20 @@ function ProjectCard({ project }: { project: Project }) {
   return (
     <Link href={`/projects/${project.id}`} className="group block h-full">
       <Card className="h-full hover:shadow-xl dark:hover:shadow-primary/10 transition-all duration-200 overflow-hidden border-border/50 bg-card">
-        <div className="px-6 py-4 flex flex-col h-full">
+        <div className="px-4 flex flex-col h-full">
           <CardHeader className="p-0 mb-2">
-            <CardTitle className="text-xl font-bold line-clamp-1 pr-2 leading-tight">{project.title}</CardTitle>
+            <CardTitle className="text-lg font-bold line-clamp-1 pr-2 leading-tight">{project.title}</CardTitle>
             <CardAction>
               <ProjectStatusBadge status={currentStatus} className="shrink-0" />
             </CardAction>
           </CardHeader>
           
-          <CardContent className="p-0 mb-4">
+          <CardContent className="p-0 ">
             <CardDescription className="line-clamp-2 mb-3 text-sm text-muted-foreground/90">
               {project.description ? stripHtml(project.description) : "No description provided."}
             </CardDescription>
 
-             <div className="space-y-1.5 text-sm font-medium text-muted-foreground/80">
+             <div className="space-y-1.5 text-xs font-medium text-muted-foreground/80">
               {project.location && (
                 <div className="flex items-center">
                   <MapPin className="h-4 w-4 mr-2 shrink-0" />

@@ -31,13 +31,10 @@ import {
   Users,
   ArrowUpDown,
   Eye,
-  Clock,
   Download,
   Loader2,
   ChevronLeft,
   ChevronRight,
-  ChevronsLeft,
-  ChevronsRight
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -50,13 +47,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Card } from "@/components/ui/card";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { getMemberVolunteerHours } from "./member-hours-actions";
 import MemberDetailsDialog from "./MemberDetailsDialog";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -75,7 +65,6 @@ import {
   useReactTable,
   FilterFn,
 } from "@tanstack/react-table";
-import { cn } from "@/lib/utils";
 
 interface MembersTabProps {
   members: OrganizationMember[];

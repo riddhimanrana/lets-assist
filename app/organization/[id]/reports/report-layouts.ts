@@ -12,7 +12,7 @@ export interface VolunteerItem {
   totalHours: number;
   verifiedHours: number;
   pendingHours: number;
-  attendanceHours: number;
+  attendanceHours?: number;
   eventsAttended: number;
   lastActivity?: string;
   source: "registered" | "anonymous";
@@ -23,7 +23,7 @@ export interface ProjectItem {
   status: string | null;
   verifiedHours: number;
   pendingHours: number;
-  attendanceHours: number;
+  attendanceHours?: number;
   totalHours: number;
   volunteerCount: number;
 }
@@ -32,7 +32,7 @@ export interface MonthlyItem {
   month: string;
   verified: number;
   pending: number;
-  attendance: number;
+  attendance?: number;
   total: number;
 }
 

@@ -24,7 +24,7 @@ export default function AdminNotificationsPage() {
     const [mode, setMode] = useState<"broadcast" | "specific">("broadcast");
     const [selectedUserId, setSelectedUserId] = useState("");
 
-    const [state, formAction, isPending] = useActionState(async (prev: any, formData: FormData) => {
+    const [, formAction, isPending] = useActionState(async (prev: { error?: string; success?: boolean; message?: string } | null, formData: FormData) => {
         // Enforce validations client/state side before submit if needed or let action handle it
         if (mode === "specific" && !selectedUserId) {
             toast.error("Please select a user");

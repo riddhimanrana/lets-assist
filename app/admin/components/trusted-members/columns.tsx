@@ -4,7 +4,7 @@ import { ColumnDef } from "@tanstack/react-table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Check, X, ShieldCheck } from "lucide-react";
+import { Check, X } from "lucide-react";
 import { NoAvatar } from "@/components/shared/NoAvatar";
 import { ProfileHoverCard } from "@/components/shared/ProfileHoverCard";
 import { format } from "date-fns";
@@ -167,7 +167,7 @@ function ActionsCell({ member }: { member: TrustedMember }) {
                 router.refresh();
                 return 'Member approved';
             },
-            error: (err: any) => err.message || 'Failed to approve member'
+            error: (err: Error) => err.message || 'Failed to approve member'
         });
     };
 
@@ -179,7 +179,7 @@ function ActionsCell({ member }: { member: TrustedMember }) {
                 router.refresh();
                 return 'Member denied';
             },
-            error: (err: any) => err.message || 'Failed to deny member'
+            error: (err: Error) => err.message || 'Failed to deny member'
         })
     };
 

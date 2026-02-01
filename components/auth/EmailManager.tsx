@@ -24,6 +24,7 @@ import {
 import {
     DropdownMenu,
     DropdownMenuContent,
+    DropdownMenuGroup,
     DropdownMenuItem,
     DropdownMenuLabel,
     DropdownMenuSeparator,
@@ -210,20 +211,22 @@ export function EmailManager() {
                                         </Button>
                                     } />
                                     <DropdownMenuContent align="end" className="w-48">
-                                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                        <DropdownMenuItem
-                                            onSelect={() => handleSetPrimary(email.email, isVerified)}
-                                            disabled={!isVerified || email.is_primary}
-                                        >
-                                            {email.is_primary ? "Already primary" : "Make primary"}
-                                        </DropdownMenuItem>
-                                        <DropdownMenuSeparator />
-                                        <DropdownMenuItem
-                                            onSelect={() => handleRemoveEmail(email.id)}
-                                            disabled={email.is_primary}
-                                        >
-                                            Remove email
-                                        </DropdownMenuItem>
+                                        <DropdownMenuGroup>
+                                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                            <DropdownMenuItem
+                                                onSelect={() => handleSetPrimary(email.email, isVerified)}
+                                                disabled={!isVerified || email.is_primary}
+                                            >
+                                                {email.is_primary ? "Already primary" : "Make primary"}
+                                            </DropdownMenuItem>
+                                            <DropdownMenuSeparator />
+                                            <DropdownMenuItem
+                                                onSelect={() => handleRemoveEmail(email.id)}
+                                                disabled={email.is_primary}
+                                            >
+                                                Remove email
+                                            </DropdownMenuItem>
+                                        </DropdownMenuGroup>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
                             </div>

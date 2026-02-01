@@ -30,14 +30,11 @@ import {
   Building2,
   GraduationCap,
   Heart,
-  Smartphone,
   TrendingUp,
   MousePointer2,
   MapPin,
   CheckCircle,
-  Loader2,
   Scan,
-  Zap,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -693,7 +690,7 @@ function ModernDashboardMockup() {
 
                       color: "text-info", // Updated from chart-3
                     },
-                  ].map((stat, i) => (
+                  ].map((stat) => (
                     <motion.div
                       key={stat.label}
                       layout
@@ -886,41 +883,6 @@ function OutdatedMockup() {
   );
 }
 
-// Animated counter for stats
-function AnimatedCounter({
-  value,
-  suffix = "",
-}: {
-  value: number;
-  suffix?: string;
-}) {
-  const [count, setCount] = useState(0);
-
-  useEffect(() => {
-    let start = 0;
-    const end = value;
-    if (start === end) return;
-
-    let totalMiliseconds = 1500;
-    let incrementTime = (totalMiliseconds / end) * 2;
-
-    let timer = setInterval(() => {
-      start += 1;
-      setCount(start);
-      if (start === end) clearInterval(timer);
-    }, incrementTime);
-
-    return () => clearInterval(timer);
-  }, [value]);
-
-  return (
-    <span>
-      {count}
-      {suffix}
-    </span>
-  );
-}
-
 // Animated checkmark component
 function AnimatedCheck({ delay = 0 }: { delay?: number }) {
   return (
@@ -1034,59 +996,6 @@ function ComparisonRow({
         )}
       </TableCell>
     </motion.tr>
-  );
-}
-
-interface PricingItem {
-  feature: string;
-  letsAssist: string;
-  signupGenius: string;
-  highlight?: boolean;
-}
-
-const pricingComparison: PricingItem[] = [
-  {
-    feature: "Remove Ads",
-    letsAssist: "Free",
-    signupGenius: "$9.99/mo",
-    highlight: true,
-  },
-  {
-    feature: "Custom Themes",
-    letsAssist: "Free",
-    signupGenius: "Premium",
-  },
-  {
-    feature: "Multiple Admins",
-    letsAssist: "Free",
-    signupGenius: "$24.99/mo",
-  },
-  {
-    feature: "Advanced Reporting",
-    letsAssist: "Free",
-    signupGenius: "$50+/mo",
-  },
-];
-
-function PricingRow({ item, index }: { item: PricingItem; index: number }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, x: -10 }}
-      whileInView={{ opacity: 1, x: 0 }}
-      viewport={{ once: true }}
-      transition={{ delay: 0.2 + index * 0.1 }}
-      className="flex items-center justify-between py-2 sm:py-3 border-b border-border/50 last:border-0"
-    >
-      <span className="text-xs sm:text-sm text-foreground font-medium">
-        {item.feature}
-      </span>
-      <div className="flex items-center gap-4 text-xs sm:text-sm">
-        <span className="font-bold text-primary">{item.letsAssist}</span>
-        <span className="text-muted-foreground w-20 sm:w-24 text-right">
-          {item.signupGenius}
-        </span>
-      </div>
-    </motion.div>
   );
 }
 

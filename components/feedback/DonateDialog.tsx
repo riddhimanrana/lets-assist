@@ -15,9 +15,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Heart, Mail, Copy, Check, ExternalLink } from "lucide-react";
+import { Heart, Mail, Copy, Check } from "lucide-react";
 import { useState } from "react";
-import { cn, copyToClipboard } from "@/lib/utils";
+import { copyToClipboard } from "@/lib/utils";
 
 interface DonateDialogProps {
   open: boolean;

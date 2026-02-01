@@ -80,7 +80,7 @@ interface CertificateRow {
 }
 
 interface CsvVerificationModalProps {
-  children?: React.ReactNode;
+  children?: React.ReactElement;
 }
 
 // Helper function to format hours from decimal to "Xh Ym" format
@@ -623,15 +623,13 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
         <Tooltip>
           <TooltipTrigger render={
             <DialogTrigger render={
-              <div>
-                {children || (
-                  <Button variant="outline" size="sm" className="text-xs sm:text-sm">
-                    <FileCheck className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                    <span className="hidden sm:inline">Verify Certificates</span>
-                    <span className="sm:hidden">Verify</span>
-                  </Button>
-                )}
-              </div>
+              children || (
+                <Button variant="outline" size="sm" className="text-xs sm:text-sm">
+                  <FileCheck className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                  <span className="hidden sm:inline">Verify Certificates</span>
+                  <span className="sm:hidden">Verify</span>
+                </Button>
+              )
             } />
           } />
           <TooltipContent>
@@ -640,7 +638,7 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
         </Tooltip>
       </TooltipProvider>
 
-      <DialogContent className=" max-h-[90vh] max-w-5xl p-0 flex flex-col gap-0">
+      <DialogContent className="max-h-[90vh] sm:max-w-5xl w-[95vw] p-0 flex flex-col gap-0">
         <DialogHeader className="px-4 sm:px-6 py-4 border-b shrink-0">
           <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
             <FileCheck className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -857,7 +855,7 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                 </div>
 
                 {/* Mobile View - Cards */}
-                <div className="block xl:hidden space-y-3">
+                <div className="block lg:hidden space-y-3">
                   <div className="space-y-3">
                     {results.map((row, index) => (
                       <Card key={index} className={
@@ -1084,16 +1082,16 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                 </div>
 
                 {/* Desktop View - Table */}
-                <div className="hidden xl:block">
+                <div className="hidden lg:block">
                   <Card>
                     <div className="overflow-x-auto">
-                      <Table className="min-w-[900px]"> {/* reverted to smaller min width */}
+                      <Table className="min-w-225"> {/* reverted to smaller min width */}
                         <TableHeader className="sticky top-0 z-10">
                           <TableRow>
-                            <TableHead className="w-[40px]">
+                            <TableHead className="w-10">
                               <span className="text-xs sm:text-sm"></span>
                             </TableHead>
-                            <TableHead className="w-[120px]"> {/* smaller fixed width so row doesn't expand */}
+                            <TableHead className="w-30"> {/* smaller fixed width so row doesn't expand */}
                               <span
                                 className="cursor-help text-xs sm:text-sm whitespace-nowrap"
                                 title="Certificate type: Official (verified orgs), Platform (Let's Assist projects), or Self-Reported"
@@ -1101,16 +1099,16 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                                 Type
                               </span>
                             </TableHead>
-                            <TableHead className="min-w-[200px] flex-1">
+                            <TableHead className="min-w-50 flex-1">
                               <span className="text-xs sm:text-sm">Project Title</span>
                             </TableHead>
-                            <TableHead className="w-[130px]">
+                            <TableHead className="w-32.5">
                               <span className="text-xs sm:text-sm">Organization</span>
                             </TableHead>
-                            <TableHead className="w-[130px]">
+                            <TableHead className="w-32.5">
                               <span className="text-xs sm:text-sm">Organizer</span>
                             </TableHead>
-                            <TableHead className="w-[80px]">
+                            <TableHead className="w-20">
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger render={
@@ -1122,7 +1120,7 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                                 </Tooltip>
                               </TooltipProvider>
                             </TableHead>
-                            <TableHead className="w-[100px]">
+                            <TableHead className="w-25">
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger render={

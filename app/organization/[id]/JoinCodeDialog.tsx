@@ -222,7 +222,7 @@ export default function JoinCodeDialog({
                   )}
                 </Button>
 
-                {isMobileDevice() && typeof navigator !== "undefined" && navigator.share && (
+                {isMobileDevice() && typeof navigator !== "undefined" && typeof navigator.share === "function" && (
                   <Button
                     onClick={shareInvitation}
                     variant="secondary"

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { format, startOfDay, endOfDay, subDays, subMonths, startOfMonth, endOfMonth, startOfYear, endOfYear, addYears } from "date-fns";
+import { format, subMonths, startOfMonth, endOfMonth } from "date-fns";
 import { Calendar as CalendarIcon } from "lucide-react";
 import { DateRange } from "react-day-picker";
 
@@ -38,7 +38,7 @@ export function DateRangePicker({
   onChange,
   placeholder = "Select date range",
   className,
-  buttonClassName,
+  buttonClassName: _buttonClassName,
   align = "start",
   showQuickSelect = false
 }: DateRangePickerProps) {
