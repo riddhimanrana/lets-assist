@@ -59,7 +59,7 @@ type ReportsStats = {
 const chartConfig = {
   total: {
     label: "Total",
-    color: "hsl(var(--chart-3))",
+    color: "var(--chart-3)",
   },
 } satisfies ChartConfig;
 
@@ -163,7 +163,7 @@ export function OverviewTab({ stats, flaggedContent, reportPreview, reportsStats
                   tickFormatter={(value) => value.slice(0, 10)}
                 />
                 <ChartTooltip content={<ChartTooltipContent />} />
-                <Bar dataKey="total" radius={4} />
+                <Bar dataKey="total" fill="var(--color-total)" radius={4} />
               </BarChart>
             </ChartContainer>
           </CardContent>

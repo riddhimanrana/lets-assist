@@ -37,12 +37,6 @@ export default async function TrustedMembersPage() {
       </div>
       
       <Card className="border-border bg-card text-card-foreground shadow-xs">
-        <CardHeader>
-          <CardTitle>Applications & Members</CardTitle>
-          <CardDescription>
-            Manage who has trusted member access to the platform.
-          </CardDescription>
-        </CardHeader>
         <CardContent>
           <TrustedMembersTab trustedMembers={applications || []} />
         </CardContent>

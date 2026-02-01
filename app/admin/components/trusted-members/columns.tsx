@@ -53,20 +53,27 @@ export const columns: ColumnDef<TrustedMember>[] = [
                     avatarUrl={member.profiles?.avatar_url || undefined}
                 >
                     <div className="flex items-center gap-3 py-1 cursor-pointer">
-                        {member.profiles?.avatar_url ? (
-                            <Avatar className="h-10 w-10">
-                                <AvatarImage src={member.profiles.avatar_url} />
+                        <Avatar className="h-10 w-10">
+                            {member.profiles?.avatar_url ? (
+                                <>
+                                    <AvatarImage src={member.profiles.avatar_url} />
+                                    <AvatarFallback>
+                                        {member.profiles?.full_name
+                                            ? member.profiles.full_name
+                                                  .split(" ")
+                                                  .map((n) => n[0])
+                                                  .slice(0, 2)
+                                                  .join("")
+                                                  .toUpperCase()
+                                            : (member.name || member.email || "")[0]?.toUpperCase()}
+                                    </AvatarFallback>
+                                </>
+                            ) : (
                                 <AvatarFallback>
-                                    {member.profiles.full_name?.[0]?.toUpperCase() ||
-                                        member.name[0]?.toUpperCase()}
+                                    <NoAvatar fullName={member.profiles?.full_name || member.name || member.email.split("@")[0]} />
                                 </AvatarFallback>
-                            </Avatar>
-                        ) : (
-                            <NoAvatar
-                                fullName={member.profiles?.full_name || member.name}
-                                className="h-10 w-10 rounded-full"
-                            />
-                        )}
+                            )}
+                        </Avatar>
                         <div className="min-w-0">
                             <div className="font-semibold truncate">
                                 {member.profiles?.full_name || member.name}

@@ -139,19 +139,29 @@ export function TrustedMembersTab({ trustedMembers }: TrustedMembersTabProps) {
               {searchResults.map((user) => (
                 <div key={user.id} className="flex items-center justify-between p-3 border rounded-xl hover:bg-muted/50 transition-colors">
                   <div className="flex items-center gap-3">
-                    {user.avatar_url ? (
-                      <Avatar className="h-10 w-10">
-                        <AvatarImage src={user.avatar_url} />
-                        <AvatarFallback className="bg-primary/10 text-primary">{user.full_name?.[0] || user.email[0]}</AvatarFallback>
-                      </Avatar>
-                    ) : (
-                      <NoAvatar
-                        fullName={user.full_name || user.email.split('@')[0]}
-                        className="h-10 w-10 rounded-full"
-                      />
-                    )}
+                    <Avatar className="h-10 w-10">
+                      {user.avatar_url ? (
+                        <>
+                          <AvatarImage src={user.avatar_url} />
+                          <AvatarFallback>
+                            {user.full_name
+                              ? user.full_name
+                                  .split(" ")
+                                  .map((n) => n[0])
+                                  .slice(0, 2)
+                                  .join("")
+                                  .toUpperCase()
+                              : user.email[0].toUpperCase()}
+                          </AvatarFallback>
+                        </>
+                      ) : (
+                        <AvatarFallback>
+                          <NoAvatar fullName={user.full_name || user.email.split("@")[0]} />
+                        </AvatarFallback>
+                      )}
+                    </Avatar>
                     <div className="min-w-0">
-                      <p className="font-medium truncate">{user.full_name || 'No Name'}</p>
+                      <p className="font-medium truncate">{user.full_name || user.email.split("@")[0]}</p>
                       <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                     </div>
                   </div>
