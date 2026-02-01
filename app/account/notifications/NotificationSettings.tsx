@@ -17,7 +17,7 @@ type NotificationSettings = {
   general: boolean;
 };
 
-export function NotificationsClient() {
+export function NotificationSettings() {
   const { user } = useAuth(); // Use cached auth instead of getUser() calls
   const [settings, setSettings] = useState<NotificationSettings | null>(null);
   const [originalSettings, setOriginalSettings] = useState<NotificationSettings | null>(null);
@@ -38,9 +38,9 @@ export function NotificationsClient() {
           .from("notification_settings")
           .select("*")
           .eq("user_id", userId)) as {
-          data: NotificationSettings[] | null;
-          error: { message?: string } | null;
-        };
+            data: NotificationSettings[] | null;
+            error: { message?: string } | null;
+          };
 
         if (error) {
           console.error("Error loading notification settings:", error);
@@ -67,7 +67,7 @@ export function NotificationsClient() {
 
   const saveSettings = async () => {
     if (!settings || !user?.id) return;
-    
+
     setSaving(true);
     try {
       const { error } = (await supabase
@@ -80,7 +80,7 @@ export function NotificationsClient() {
         console.error("Error saving settings:", error);
         return;
       }
-      
+
       toast.success("Notification settings saved successfully");
       setOriginalSettings(settings);
     } catch (error) {
@@ -150,7 +150,7 @@ export function NotificationsClient() {
                       onCheckedChange={(checked) => handleChange("email_notifications", checked)}
                     />
                   </div>
-                  
+
                   <div className="flex items-center justify-between border p-4 rounded-md">
                     <div className="space-y-0.5">
                       <Label htmlFor="project-updates" className="text-base">
@@ -183,10 +183,10 @@ export function NotificationsClient() {
                     />
                   </div>
                 </div>
-                
+
                 <div className="pt-2">
-                  <Button 
-                    onClick={saveSettings} 
+                  <Button
+                    onClick={saveSettings}
                     disabled={saving || !hasChanges}
                     className="w-full sm:w-auto"
                   >

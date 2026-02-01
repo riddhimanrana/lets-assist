@@ -1,5 +1,5 @@
 import { Metadata } from "next";
-import { NotificationsClient } from "./NotificationsClient";
+import { NotificationSettings } from "./NotificationSettings";
 
 export const metadata: Metadata = {
   title: "Notification Settings",
@@ -7,5 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function NotificationsPage() {
-  return <NotificationsClient />;
+  return <NotificationSettings />;
 }

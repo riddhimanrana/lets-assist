@@ -360,7 +360,7 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
                 href={redirectPath ? `/login?redirect=${encodeURIComponent(redirectPath)}` : "/login"}
                 className="underline"
               >
-                Sign in
+                Login
               </Link>
             </div>
           </form>
