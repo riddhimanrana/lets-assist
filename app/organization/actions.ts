@@ -1,11 +1,13 @@
 "use server";
 
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
-import { customAlphabet } from 'nanoid';
 
-// Generate a random 6-digit code
-const generateJoinCode = customAlphabet('0123456789', 6);
+type MembershipRow = {
+  id: string;
+  role: string;
+  organization?: { username: string } | { username: string }[] | null;
+};
 
 /**
  * Join an organization with a join code
@@ -82,12 +84,15 @@ export async function leaveOrganization(organizationId: string) {
   }
   
   // Check if user is a member of the organization
-  const { data: membership, error: memberError } = await supabase
+  const { data: membership, error: memberError } = (await supabase
     .from("organization_members")
     .select("id, role, organization:organizations(username)")
     .eq("organization_id", organizationId)
     .eq("user_id", user.id)
-    .single();
+    .single()) as {
+    data: MembershipRow | null;
+    error: { message: string } | null;
+  };
 
   if (memberError || !membership) {
     return { error: "You are not a member of this organization" };
@@ -127,7 +132,10 @@ export async function leaveOrganization(organizationId: string) {
   }
 
   // Revalidate paths
-  const orgUsername = membership.organization?.[0]?.username;
+  const orgRelation = Array.isArray(membership.organization)
+    ? membership.organization[0]
+    : membership.organization;
+  const orgUsername = orgRelation?.username;
   if (orgUsername) {
     revalidatePath(`/organization/${orgUsername}`);
   }

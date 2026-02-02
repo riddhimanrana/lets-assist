@@ -2,7 +2,8 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { GraduationCap, Award, Target, Download, FileCheck, BookOpen } from "lucide-react";
 import Link from "next/link";
@@ -43,7 +44,7 @@ export function SchoolsSection() {
                 <BookOpen className="h-4 w-4" />
                 For Students
               </h4>
-              <Accordion type="single" collapsible>
+              <Accordion>
                 <AccordionItem value="csf-tracking">
                   <AccordionTrigger>CSF Hour Tracking</AccordionTrigger>
                   <AccordionContent className="space-y-2 text-sm">
@@ -54,12 +55,12 @@ export function SchoolsSection() {
                       <li>Export CSF-ready reports for school submission</li>
                       <li>Maintain detailed logs of all volunteer activities</li>
                     </ul>
-                    <div className="mt-3 p-3 bg-chart-4/10 rounded-lg">
+                    <div className="mt-3 p-3 bg-warning/10 rounded-lg">
                       <p className="text-xs"><strong>CSF Tip:</strong> Most CSF programs require 10-15 hours per semester with proper documentation and verification.</p>
                     </div>
                   </AccordionContent>
                 </AccordionItem>
-                
+
                 <AccordionItem value="school-projects">
                   <AccordionTrigger>School-Approved Projects</AccordionTrigger>
                   <AccordionContent className="space-y-2 text-sm">
@@ -89,14 +90,14 @@ export function SchoolsSection() {
                     <p>Let&apos;s Assist automatically creates CSF-compliant documentation:</p>
                     <div className="space-y-2">
                       <div className="flex items-start gap-2">
-                        <FileCheck className="h-4 w-4 mt-1 text-chart-5" />
+                        <FileCheck className="h-4 w-4 mt-1 text-success" />
                         <div>
                           <h6 className="font-medium text-xs">Automatic Requirements</h6>
                           <p className="text-xs text-muted-foreground">Date, time, location, description, and supervisor info</p>
                         </div>
                       </div>
                       <div className="flex items-start gap-2">
-                        <Download className="h-4 w-4 mt-1 text-chart-5" />
+                        <Download className="h-4 w-4 mt-1 text-success" />
                         <div>
                           <h6 className="font-medium text-xs">Export Ready</h6>
                           <p className="text-xs text-muted-foreground">CSV and PDF formats accepted by most schools</p>
@@ -107,13 +108,13 @@ export function SchoolsSection() {
                 </AccordionItem>
               </Accordion>
             </div>
-            
+
             <div>
               <h4 className="font-semibold mb-3 flex items-center gap-2">
                 <Award className="h-4 w-4" />
                 For Schools & Advisors
               </h4>
-              <Accordion type="single" collapsible>
+              <Accordion>
                 <AccordionItem value="school-setup">
                   <AccordionTrigger>Setting Up School Programs</AccordionTrigger>
                   <AccordionContent className="space-y-2 text-sm">
@@ -124,12 +125,10 @@ export function SchoolsSection() {
                       <li>Monitor student progress and verify hours</li>
                       <li>Generate reports for administrative review</li>
                     </ol>
-                    <Button asChild size="sm" className="mt-2">
-                      <Link href="/organization/create">Set Up School Program</Link>
-                    </Button>
+                    <Link href="/organization/create" className={cn(buttonVariants({ size: "sm", className: "mt-2" }))}>Set Up School Program</Link>
                   </AccordionContent>
                 </AccordionItem>
-                
+
                 <AccordionItem value="student-monitoring">
                   <AccordionTrigger>Monitoring Student Progress</AccordionTrigger>
                   <AccordionContent className="space-y-2 text-sm">
@@ -168,11 +167,11 @@ export function SchoolsSection() {
             </div>
           </div>
 
-          <Card className="border-chart-4/30 bg-chart-4/5">
+          <Card className="border-warning/30 bg-warning/5">
             <CardHeader>
               <div className="flex items-center gap-3">
-                <div className="bg-chart-4/10 p-2 rounded-full">
-                  <Target className="h-5 w-5 text-chart-4" />
+                <div className="bg-warning/10 p-2 rounded-full">
+                  <Target className="h-5 w-5 text-warning" />
                 </div>
                 <div>
                   <CardTitle className="text-lg">Quick CSF Setup Guide</CardTitle>
@@ -189,12 +188,8 @@ export function SchoolsSection() {
                 <li>Export final report when ready to submit to school</li>
               </ol>
               <div className="mt-4 flex gap-2">
-                <Button asChild size="sm" variant="outline">
-                  <Link href="/projects/create">Start CSF Project</Link>
-                </Button>
-                <Button asChild size="sm" variant="outline">
-                  <Link href="/organization">Find School Program</Link>
-                </Button>
+                <Link href="/projects/create" className={cn(buttonVariants({ size: "sm", variant: "outline" }))}>Start CSF Project</Link>
+                <Link href="/organization" className={cn(buttonVariants({ size: "sm", variant: "outline" }))}>Find School Program</Link>
               </div>
             </CardContent>
           </Card>
@@ -205,7 +200,7 @@ export function SchoolsSection() {
               <CardTitle className="text-lg">Common CSF Questions & Resources</CardTitle>
             </CardHeader>
             <CardContent>
-              <Accordion type="single" collapsible>
+              <Accordion>
                 <AccordionItem value="csf-requirements">
                   <AccordionTrigger>What are the typical CSF requirements?</AccordionTrigger>
                   <AccordionContent className="space-y-2 text-sm">
@@ -259,7 +254,7 @@ export function SchoolsSection() {
                       <li>Print individual certificates if required</li>
                       <li>Submit electronic or printed copies to school</li>
                     </ol>
-                    <div className="mt-2 p-2 bg-chart-5/10 rounded text-xs">
+                    <div className="mt-2 p-2 bg-success/10 rounded text-xs">
                       <strong>Pro Tip:</strong> Export your data regularly throughout the semester rather than waiting until the deadline.
                     </div>
                   </AccordionContent>

@@ -3,20 +3,48 @@
  * Handles OAuth token management and calendar event operations
  */
 
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@/lib/supabase/server";
+import { getAdminClient } from "@/lib/supabase/admin";
 import { encrypt, decrypt } from "@/lib/encryption";
 import {
   Project,
   CalendarConnection,
-  OneTimeSchedule,
-  MultiDayScheduleDay,
-  SameDayMultiAreaSchedule,
 } from "@/types";
 
 // Google Calendar API endpoints
 const GOOGLE_CALENDAR_API = "https://www.googleapis.com/calendar/v3";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GOOGLE_REVOKE_URL = "https://oauth2.googleapis.com/revoke";
+
+export const GOOGLE_SHEETS_SCOPES = [
+  "https://www.googleapis.com/auth/spreadsheets",
+  "https://www.googleapis.com/auth/drive.file",
+] as const;
+
+type ScopeInput = string | string[] | null | undefined;
+
+const normalizeGoogleScopes = (scopes: ScopeInput): string[] => {
+  if (!scopes) return [];
+  if (Array.isArray(scopes)) {
+    return scopes.map((scope) => scope.trim()).filter(Boolean);
+  }
+  return scopes
+    .split(" ")
+    .map((scope) => scope.trim())
+    .filter(Boolean);
+};
+
+const hasRequiredScopes = (
+  grantedScopes: ScopeInput,
+  requiredScopes: string[]
+): boolean => {
+  if (!requiredScopes.length) return true;
+  const granted = new Set(normalizeGoogleScopes(grantedScopes));
+  return requiredScopes.every((scope) => granted.has(scope));
+};
+
+export const hasGoogleSheetsScopes = (grantedScopes: ScopeInput): boolean =>
+  hasRequiredScopes(grantedScopes, [...GOOGLE_SHEETS_SCOPES]);
 
 interface GoogleCalendarEvent {
   summary: string;
@@ -44,7 +72,7 @@ interface GoogleCalendarEvent {
 }
 
 /**
- * Get user's active calendar connection
+ * Get user's active calendar connection (for calendar sync)
  */
 export async function getCalendarConnection(
   userId: string
@@ -57,6 +85,35 @@ export async function getCalendarConnection(
     .eq("user_id", userId)
     .eq("is_active", true)
     .eq("provider", "google")
+    .in("connection_type", ["calendar", "both"])
+    .order("connection_type", { ascending: false }) // prefer "calendar" type over "both"
+    .limit(1)
+    .single();
+
+  if (error || !data) {
+    return null;
+  }
+
+  return data as CalendarConnection;
+}
+
+/**
+ * Get user's active sheets connection (for sheets sync)
+ */
+export async function getSheetsConnection(
+  userId: string
+): Promise<CalendarConnection | null> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("user_calendar_connections")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("is_active", true)
+    .eq("provider", "google")
+    .in("connection_type", ["sheets", "both"])
+    .order("connection_type", { ascending: false }) // prefer "sheets" type over "both"
+    .limit(1)
     .single();
 
   if (error || !data) {
@@ -164,7 +221,7 @@ async function getValidAccessToken(
  * Parse date and time into ISO 8601 format for a specific timezone
  * Creates a properly formatted datetime for Google Calendar API
  */
-function parseDateTime(dateStr: string, timeStr: string, timezone: string): string {
+function parseDateTime(dateStr: string, timeStr: string, _timezone: string): string {
   // Create date string in format that will be interpreted as the specified timezone
   // e.g., "2025-10-04T14:30:00" 
   const dateTimeStr = `${dateStr}T${timeStr}:00`;
@@ -218,7 +275,7 @@ function formatProjectToCalendarEvent(
   if (project.event_type === "multiDay" && project.schedule.multiDay) {
     const events: GoogleCalendarEvent[] = [];
 
-    project.schedule.multiDay.forEach((day, dayIndex) => {
+    project.schedule.multiDay.forEach((day, _dayIndex) => {
       day.slots.forEach((slot, slotIndex) => {
         const currentScheduleId = `${day.date}-${slotIndex}`;
         
@@ -370,6 +427,212 @@ async function getOrCreateVolunteeringCalendar(
   } catch (error) {
     console.error("Error creating volunteering calendar:", error);
     return null;
+  }
+}
+
+async function calendarExists(
+  accessToken: string,
+  calendarId: string
+): Promise<boolean> {
+  try {
+    const response = await fetch(
+      `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    );
+
+    return response.ok;
+  } catch (error) {
+    console.error("Error checking calendar existence:", error);
+    return false;
+  }
+}
+
+export async function ensureOrganizationCalendar(
+  accessToken: string,
+  calendarId: string | null | undefined,
+  calendarName: string
+): Promise<{ calendarId: string; created: boolean } | null> {
+  if (calendarId) {
+    const exists = await calendarExists(accessToken, calendarId);
+    if (exists) {
+      return { calendarId, created: false };
+    }
+  }
+
+  try {
+    const response = await fetch(`${GOOGLE_CALENDAR_API}/calendars`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        summary: calendarName,
+        description: `Volunteer events from ${calendarName} on Let's Assist`,
+        timeZone: "America/Los_Angeles",
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      console.error("Failed to create organization calendar:", error);
+      return null;
+    }
+
+    const calendar = await response.json();
+    const newCalendarId = calendar.id as string;
+
+    try {
+      await fetch(
+        `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(newCalendarId)}`,
+        {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            colorId: "3",
+          }),
+        }
+      );
+    } catch (error) {
+      console.error("Failed to set organization calendar color:", error);
+    }
+
+    return { calendarId: newCalendarId, created: true };
+  } catch (error) {
+    console.error("Error creating organization calendar:", error);
+    return null;
+  }
+}
+
+export async function createGoogleCalendarEventForCalendar(
+  accessToken: string,
+  calendarId: string,
+  project: Project,
+  scheduleId?: string
+): Promise<string | null> {
+  const eventData = formatProjectToCalendarEvent(project, scheduleId);
+  if (!eventData) {
+    throw new Error("Invalid project schedule data");
+  }
+
+  if (!Array.isArray(eventData)) {
+    try {
+      const response = await fetch(
+        `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(eventData),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.text();
+        console.error("Failed to create calendar event:", error);
+        throw new Error("Failed to create calendar event");
+      }
+
+      const result = await response.json();
+      return result.id;
+    } catch (error) {
+      console.error("Error creating calendar event:", error);
+      throw error;
+    }
+  }
+
+  const eventIds: string[] = [];
+  for (const event of eventData) {
+    try {
+      const response = await fetch(
+        `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(event),
+        }
+      );
+
+      if (response.ok) {
+        const result = await response.json();
+        eventIds.push(result.id);
+      }
+    } catch (error) {
+      console.error("Error creating calendar event:", error);
+    }
+  }
+
+  return eventIds.length > 0 ? eventIds[0] : null;
+}
+
+export async function updateGoogleCalendarEventForCalendar(
+  accessToken: string,
+  calendarId: string,
+  eventId: string,
+  project: Project,
+  scheduleId?: string
+): Promise<boolean> {
+  const eventData = formatProjectToCalendarEvent(project, scheduleId);
+  if (!eventData || Array.isArray(eventData)) {
+    throw new Error("Invalid project schedule data");
+  }
+
+  try {
+    const response = await fetch(
+      `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(
+        calendarId
+      )}/events/${eventId}`,
+      {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(eventData),
+      }
+    );
+
+    return response.ok;
+  } catch (error) {
+    console.error("Error updating calendar event:", error);
+    return false;
+  }
+}
+
+export async function deleteGoogleCalendarEventForCalendar(
+  accessToken: string,
+  calendarId: string,
+  eventId: string
+): Promise<boolean> {
+  try {
+    const response = await fetch(
+      `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(
+        calendarId
+      )}/events/${eventId}`,
+      {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    );
+
+    return response.ok || response.status === 404;
+  } catch (error) {
+    console.error("Error deleting calendar event:", error);
+    return false;
   }
 }
 
@@ -584,4 +847,107 @@ export async function hasActiveCalendarConnection(
 ): Promise<boolean> {
   const connection = await getCalendarConnection(userId);
   return connection !== null && connection.is_active;
+}
+
+/**
+ * Get a valid Google access token for external integrations (e.g., Sheets)
+ */
+export async function getGoogleAccessToken(
+  userId: string
+): Promise<string | null> {
+  return getGoogleAccessTokenForUser(userId, false, {
+    connectionType: "calendar",
+  });
+}
+
+/**
+ * Get a valid Google access token for Sheets integration.
+ */
+export async function getGoogleAccessTokenForSheets(
+  userId: string
+): Promise<string | null> {
+  return getGoogleAccessTokenForUser(userId, false, {
+    requiredScopes: [...GOOGLE_SHEETS_SCOPES],
+    connectionType: "sheets",
+  });
+}
+
+/**
+ * Get a valid Google access token for Sheets integration with optional service role.
+ */
+export async function getGoogleAccessTokenForSheetsForUser(
+  userId: string,
+  useServiceRole: boolean
+): Promise<string | null> {
+  return getGoogleAccessTokenForUser(userId, useServiceRole, {
+    requiredScopes: [...GOOGLE_SHEETS_SCOPES],
+    connectionType: "sheets",
+  });
+}
+
+/**
+ * Get a Google access token with optional service-role lookup
+ * Used for background jobs where no user session exists.
+ */
+export async function getGoogleAccessTokenForUser(
+  userId: string,
+  useServiceRole: boolean,
+  options?: { requiredScopes?: string[]; connectionType?: "calendar" | "sheets" | "both" }
+): Promise<string | null> {
+  const supabase = useServiceRole ? getAdminClient() : await createClient();
+
+  // Build query with optional connection type filter
+  let query = supabase
+    .from("user_calendar_connections")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("provider", "google")
+    .eq("is_active", true);
+
+  // If specific connection type is requested, prefer that exact type, then fall back to "both"
+  if (options?.connectionType === "sheets") {
+    query = query.in("connection_type", ["sheets", "both"]);
+  } else if (options?.connectionType === "calendar") {
+    query = query.in("connection_type", ["calendar", "both"]);
+  }
+  // If no specific type is requested, get any active connection
+
+  const { data: connection, error } = await query.single();
+
+  if (error || !connection) {
+    return null;
+  }
+
+  const requiredScopes = options?.requiredScopes?.filter(Boolean) ?? [];
+  if (!hasRequiredScopes(connection.granted_scopes, requiredScopes)) {
+    return null;
+  }
+
+  if (!isTokenExpired(connection.token_expires_at)) {
+    return decrypt(connection.access_token);
+  }
+
+  const decryptedRefreshToken = decrypt(connection.refresh_token);
+  const refreshed = await refreshAccessToken(decryptedRefreshToken);
+
+  if (!refreshed) {
+    await supabase
+      .from("user_calendar_connections")
+      .update({ is_active: false })
+      .eq("id", connection.id);
+    return null;
+  }
+
+  const newExpiresAt = new Date(Date.now() + refreshed.expiresIn * 1000);
+  const encryptedAccessToken = encrypt(refreshed.accessToken);
+
+  await supabase
+    .from("user_calendar_connections")
+    .update({
+      access_token: encryptedAccessToken,
+      token_expires_at: newExpiresAt.toISOString(),
+    })
+    .eq("id", connection.id);
+
+  return refreshed.accessToken;
 }

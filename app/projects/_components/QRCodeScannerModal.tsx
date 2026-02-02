@@ -3,10 +3,10 @@
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-// Import Scanner, TrackFunction and necessary types
-import { Scanner, TrackFunction, IDetectedBarcode, boundingBox } from "@yudiel/react-qr-scanner";
+// Import Scanner and necessary types
+import { Scanner, IDetectedBarcode, boundingBox } from "@yudiel/react-qr-scanner";
 import { toast } from "sonner";
-import { AlertCircle, ScanLine, X } from "lucide-react";
+import { AlertCircle, ScanLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface QRCodeScannerModalProps {
@@ -20,7 +20,7 @@ export function QRCodeScannerModal({
   isOpen,
   onClose,
   projectId,
-  expectedScheduleId,
+  expectedScheduleId: _expectedScheduleId,
 }: QRCodeScannerModalProps) {
   const router = useRouter();
   const [scanError, setScanError] = useState<string | null>(null);
@@ -29,8 +29,13 @@ export function QRCodeScannerModal({
   // Sound synthesizer for a "modern" beep
   const playScanSound = useCallback(() => {
     try {
-      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      
+      const AudioContextConstructor =
+        window.AudioContext ||
+        (window as typeof window & { webkitAudioContext?: typeof AudioContext })
+          .webkitAudioContext;
+      if (!AudioContextConstructor) return;
+      const audioCtx = new AudioContextConstructor();
+
       const playTone = (freq: number, startTime: number, duration: number, volume: number) => {
         const osc = audioCtx.createOscillator();
         const g = audioCtx.createGain();
@@ -104,11 +109,11 @@ export function QRCodeScannerModal({
       onClose();
     }
   };
-  
+
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[450px] w-[92vw] md:w-full p-0 overflow-hidden rounded-[2rem] sm:rounded-3xl border-none shadow-2xl">
+      <DialogContent className="sm:max-w-[450px] w-[92vw] md:w-full p-0 overflow-hidden rounded-4xl sm:rounded-3xl border-none shadow-2xl">
         <DialogHeader className="p-6 pb-0">
           <DialogTitle className="flex items-center gap-2 text-xl font-bold">
             <ScanLine className="h-6 w-6 text-primary" /> Scan Check-in QR Code
@@ -122,15 +127,15 @@ export function QRCodeScannerModal({
           {scanError && (
             <div
               role="alert"
-              className="absolute top-6 left-6 right-6 z-20 bg-destructive/95 text-destructive-foreground p-4 rounded-2xl text-sm flex items-center gap-3 shadow-xl backdrop-blur-md transition-all animate-in fade-in slide-in-from-top-4"
+              className="absolute top-6 left-6 right-6 z-20 bg-destructive/95 text-white p-4 rounded-2xl text-sm flex items-center gap-3 shadow-xl backdrop-blur-md transition-all animate-in fade-in slide-in-from-top-4"
             >
-              <AlertCircle className="h-5 w-5 flex-shrink-0" />
+              <AlertCircle className="h-5 w-5 shrink-0" />
               <span>{scanError}</span>
             </div>
           )}
 
           {/* Scanner Component with corrected props */}
-          <div className="overflow-hidden rounded-[2rem] border-4 border-muted/50 relative aspect-square max-h-[340px] mx-auto w-full group shadow-inner bg-black/5">
+          <div className="overflow-hidden rounded-4xl border-4 border-muted/50 relative aspect-square max-h-[340px] mx-auto w-full group shadow-inner bg-black/5">
             {isOpen && (
               <Scanner
                 onScan={handleScan}
@@ -150,14 +155,14 @@ export function QRCodeScannerModal({
                 }}
               />
             )}
-            
+
             {/* Scanner Frame/Overlay */}
             <div className="absolute inset-0 pointer-events-none border-[3px] border-primary/30 rounded-[1.8rem]" />
             <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                <div className="w-48 h-48 border-2 border-dashed border-primary/40 rounded-3xl animate-pulse" />
+              <div className="w-48 h-48 border-2 border-dashed border-primary/40 rounded-3xl animate-pulse" />
             </div>
           </div>
-          
+
           <p className="text-xs font-medium text-muted-foreground text-center mt-6 flex items-center justify-center gap-2">
             <span className="w-1.5 h-1.5 bg-primary/60 rounded-full animate-ping" />
             Ensure the QR code is well-lit and centered.

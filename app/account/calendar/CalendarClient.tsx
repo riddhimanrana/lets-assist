@@ -31,7 +31,7 @@ import {
   CalendarCheck,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import type { CalendarConnection } from "@/types";
 
 interface CalendarClientProps {
@@ -73,28 +73,29 @@ export default function CalendarClient({
   const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
   const [removingEventId, setRemovingEventId] = useState<string | null>(null);
 
+  const sheetsScopes = [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive.file",
+  ];
+
+  const hasSheetsAccess = (scopes?: string | null) => {
+    if (!scopes) return false;
+    const granted = new Set(
+      scopes
+        .split(" ")
+        .map((scope) => scope.trim())
+        .filter(Boolean)
+    );
+    return sheetsScopes.every((scope) => granted.has(scope));
+  };
+
+  const sheetsEnabled = connection ? hasSheetsAccess(connection.granted_scopes) : false;
+  const sheetsConnectUrl = `/api/calendar/google/connect?scopes=sheets&force=1&return_to=${encodeURIComponent(
+    "/account/calendar"
+  )}`;
+
   const handleConnect = async () => {
-    try {
-      const response = await fetch("/api/calendar/google/connect");
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to connect calendar");
-      }
-
-      // Redirect to Google OAuth
-      window.location.href = data.authUrl;
-    } catch (error) {
-      console.error("Failed to connect calendar:", error);
-      toast({
-        title: "Connection Failed",
-        description:
-          error instanceof Error
-            ? error.message
-            : "Failed to connect to Google Calendar",
-        variant: "destructive",
-      });
-    }
+    window.location.href = "/api/calendar/google/connect";
   };
 
   const handleDisconnect = async () => {
@@ -109,22 +110,18 @@ export default function CalendarClient({
         throw new Error(data.error || "Failed to disconnect calendar");
       }
 
-      toast({
-        title: "Calendar Disconnected",
-        description:
-          "Your Google Calendar has been disconnected. Existing synced events will remain in your calendar.",
+      toast.success("Calendar Disconnected", {
+        description: "Your Google Calendar has been disconnected. Existing synced events will remain in your calendar.",
       });
 
       router.refresh();
     } catch (error) {
       console.error("Failed to disconnect calendar:", error);
-      toast({
-        title: "Disconnection Failed",
+      toast.error("Disconnection Failed", {
         description:
           error instanceof Error
             ? error.message
             : "Failed to disconnect Google Calendar",
-        variant: "destructive",
       });
     } finally {
       setIsDisconnecting(false);
@@ -149,21 +146,18 @@ export default function CalendarClient({
         throw new Error(data.error || "Failed to remove event");
       }
 
-      toast({
-        title: "Event Removed",
+      toast.success("Event Removed", {
         description: "The event has been removed from your calendar.",
       });
 
       router.refresh();
     } catch (error) {
       console.error("Failed to remove event:", error);
-      toast({
-        title: "Removal Failed",
+      toast.error("Removal Failed", {
         description:
           error instanceof Error
             ? error.message
             : "Failed to remove event from calendar",
-        variant: "destructive",
       });
     } finally {
       setRemovingEventId(null);
@@ -213,7 +207,7 @@ export default function CalendarClient({
             <div className="space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                 <div className="flex items-start gap-3">
-                  <CheckCircle className="h-5 w-5 text-chart-5 mt-0.5" />
+                  <CheckCircle className="h-5 w-5 text-success mt-0.5" />
                   <div className="min-w-0">
                     <p className="font-medium">Connected</p>
                     <p className="text-sm text-muted-foreground break-all">
@@ -259,6 +253,81 @@ export default function CalendarClient({
                 <Calendar className="h-4 w-4 mr-1" />
                 Connect Google Calendar
               </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center text-xl gap-2">
+            <Image
+              src="/googlesheets.svg"
+              alt="Google Sheets"
+              width={28}
+              height={28}
+              className="h-5 w-5 mr-1"
+            />
+            Google Sheets & Drive Access
+          </CardTitle>
+          <CardDescription>
+            Manage Google Sheets permissions for report exports and syncs
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {connection ? (
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  {sheetsEnabled ? (
+                    <CheckCircle className="h-5 w-5 text-success mt-0.5" />
+                  ) : (
+                    <AlertCircle className="h-5 w-5 text-muted-foreground mt-0.5" />
+                  )}
+                  <div className="min-w-0">
+                    <p className="font-medium">
+                      {sheetsEnabled ? "Sheets Access Enabled" : "Sheets Access Needed"}
+                    </p>
+                    <p className="text-sm text-muted-foreground break-all">
+                      {connection.calendar_email}
+                    </p>
+                    {connection.granted_scopes_updated_at && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Permissions updated on{" "}
+                        {new Date(connection.granted_scopes_updated_at).toLocaleDateString(
+                          "en-US",
+                          {
+                            year: "numeric",
+                            month: "long",
+                            day: "numeric",
+                          }
+                        )}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                  <Button
+                    variant={sheetsEnabled ? "secondary" : "default"}
+                    size="sm"
+                    onClick={() => {
+                      window.location.href = sheetsConnectUrl;
+                    }}
+                    className="w-full sm:w-auto"
+                  >
+                    {sheetsEnabled ? "Reconnect Sheets" : "Enable Sheets Access"}
+                  </Button>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Sheets access is required for exporting reports to Google Sheets.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">
+                Connect Google Calendar first to enable Sheets permissions.
+              </p>
             </div>
           )}
         </CardContent>
@@ -385,7 +454,7 @@ export default function CalendarClient({
         <CardContent className="space-y-4">
           <div className="space-y-3 text-sm">
             <div className="flex gap-3">
-              <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold">
+              <div className="shrink-0 w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold">
                 1
               </div>
               <div>
@@ -397,7 +466,7 @@ export default function CalendarClient({
               </div>
             </div>
             <div className="flex gap-3">
-              <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold">
+              <div className="shrink-0 w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold">
                 2
               </div>
               <div>
@@ -410,7 +479,7 @@ export default function CalendarClient({
               </div>
             </div>
             <div className="flex gap-3">
-              <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold">
+              <div className="shrink-0 w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold">
                 3
               </div>
               <div>
@@ -422,7 +491,7 @@ export default function CalendarClient({
               </div>
             </div>
             <div className="flex gap-3">
-              <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold">
+              <div className="shrink-0 w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold">
                 4
               </div>
               <div>
@@ -456,7 +525,7 @@ export default function CalendarClient({
             <AlertDialogAction
               onClick={handleDisconnect}
               disabled={isDisconnecting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="bg-destructive/10 hover:bg-destructive/20 text-destructive"
             >
               {isDisconnecting ? "Disconnecting..." : "Disconnect"}
             </AlertDialogAction>

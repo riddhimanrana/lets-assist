@@ -65,7 +65,7 @@ export default function AccountLayout({
   return (
     <div className="min-h-[calc(100vh-64px)] flex flex-col bg-muted/30">
       {/* Mobile Header with Drawer */}
-      <div className="lg:hidden flex items-center p-3 border-b sticky top-0 bg-background/95 backdrop-blur-sm z-30">
+      <div className="lg:hidden flex items-center p-3 border-b sticky top-0 bg-background/95 backdrop-blur-xs z-30">
         <Drawer open={isDrawerOpen} onOpenChange={setIsDrawerOpen}>
           <DrawerTrigger asChild>
             <Button variant="ghost" size="icon" className="mr-2 shrink-0">
@@ -144,7 +144,7 @@ export default function AccountLayout({
                   <div
                     className={`flex items-center gap-3 rounded-lg px-3 py-2.5 transition-all duration-200 ${
                       isActive
-                        ? "bg-primary/10 text-primary shadow-sm"
+                        ? "bg-primary/10 text-primary shadow-xs"
                         : "text-muted-foreground hover:bg-accent hover:text-foreground"
                     }`}
                   >

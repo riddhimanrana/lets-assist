@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { parseISO } from "date-fns";
-import { formatInTimeZone } from "date-fns-tz";
+import { format as formatDate, parseISO } from "date-fns";
+import { tz } from "@date-fns/tz";
 
 interface TimezoneDateDisplayProps {
   dateString: string;
@@ -28,10 +28,10 @@ export function TimezoneDateDisplay({
       const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
       // Format the date in user's timezone
-      const formatted = formatInTimeZone(
+      const formatted = formatDate(
         parseISO(dateString),
-        userTimezone,
-        format,
+        format, // Prop name
+        { in: tz(userTimezone) }
       );
 
       // Add timezone abbreviation if the format includes time
@@ -43,7 +43,7 @@ export function TimezoneDateDisplay({
             timeZoneName: 'short',
           }).formatToParts(parseISO(dateString))
             .find(part => part.type === 'timeZoneName')?.value || '';
-          
+
           if (tzAbbr) {
             finalFormatted = `${formatted} ${tzAbbr}`;
           }
@@ -111,16 +111,16 @@ export function TimezoneEventDateRange({
       const tzAbbr = getTzAbbr();
 
       // Format both dates in user's timezone
-      const formattedStart = formatInTimeZone(
+      const formattedStart = formatDate(
         parseISO(startDate),
-        userTimezone,
         "MMM d, yyyy • h:mm a",
+        { in: tz(userTimezone) }
       );
 
-      const formattedEnd = formatInTimeZone(
+      const formattedEnd = formatDate(
         parseISO(endDate),
-        userTimezone,
         "MMM d, yyyy • h:mm a",
+        { in: tz(userTimezone) }
       );
 
       setFormattedDates({
@@ -173,10 +173,10 @@ export function TimezonePrintEventDate({
       const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
       // Format the date in user's timezone
-      const formatted = formatInTimeZone(
+      const formatted = formatDate(
         parseISO(startDate),
-        userTimezone,
         "MMMM d, yyyy",
+        { in: tz(userTimezone) }
       );
 
       setFormattedDate(formatted);

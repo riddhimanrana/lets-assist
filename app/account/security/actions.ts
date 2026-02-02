@@ -1,11 +1,12 @@
 "use server";
 
-import { z } from "zod"; // Import Zod
-import { createClient } from "@/utils/supabase/server";
-import { createClient as createAdminClient } from "@supabase/supabase-js";
+import { z } from "zod";
+import { createClient } from "@/lib/supabase/server";
+import { getAdminClient } from "@/lib/supabase/admin";
 import { deleteUserWithCleanup } from "@/lib/supabase/delete-user-with-cleanup";
+import { getAuthUser } from "@/lib/supabase/auth-helpers";
 
-// Zod schema for password update - add currentPassword field
+// Zod schema for password update (for users with existing password)
 const updatePasswordSchema = z
   .object({
     currentPassword: z.string().min(1, "Current password is required"),
@@ -14,7 +15,18 @@ const updatePasswordSchema = z
   })
   .refine((data) => data.newPassword === data.confirmPassword, {
     message: "New passwords don't match",
-    path: ["confirmPassword"], // Error applies to the confirmation field
+    path: ["confirmPassword"],
+  });
+
+// Zod schema for setting password (for OAuth-only users)
+const setPasswordSchema = z
+  .object({
+    newPassword: z.string().min(8, "Password must be at least 8 characters"),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ["confirmPassword"],
   });
 
 // Zod schema for email update - include confirmEmail field
@@ -56,35 +68,76 @@ export async function updatePasswordAction(formData: FormData) {
     return { error: validatedFields.error.flatten().fieldErrors as ActionErrorResponse };
   }
 
-  const supabase = await createClient();
-  
-  // Get current user's email
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user?.email) {
-    return { error: { server: ["User not found"] } as ActionErrorResponse };
+  // Use getAuthUser with sensitive: true for password changes
+  const { user, error: authError } = await getAuthUser({ sensitive: true });
+
+  if (authError || !user || !user.email) {
+    return { error: { server: ["Not authenticated"] } as ActionErrorResponse };
   }
 
-  // First verify the current password by attempting to sign in
+  const supabase = await createClient();
+
+  // Verify current password by attempting sign in
   const { error: signInError } = await supabase.auth.signInWithPassword({
     email: user.email,
     password: validatedFields.data.currentPassword,
   });
 
   if (signInError) {
-    return { 
-      error: { 
-        currentPassword: ["Current password is incorrect"] 
-      } as ActionErrorResponse 
+    return {
+      error: {
+        currentPassword: ["Current password is incorrect"]
+      } as ActionErrorResponse
     };
   }
 
-  // If current password is verified, proceed with password update
+  // Update to new password
   const { error: updateError } = await supabase.auth.updateUser({
     password: validatedFields.data.newPassword,
   });
 
   if (updateError) {
     console.error("Update password error:", updateError);
+    return { error: { server: [updateError.message] } as ActionErrorResponse };
+  }
+
+  // Explicitly refresh session to ensure it persists
+  const { error: refreshError } = await supabase.auth.refreshSession();
+
+  if (refreshError) {
+    console.error("Session refresh error:", refreshError);
+    // Don't fail the update, session will refresh naturally
+  }
+
+  return { success: true };
+}
+
+export async function setPasswordAction(formData: FormData) {
+  const validatedFields = setPasswordSchema.safeParse({
+    newPassword: formData.get("newPassword"),
+    confirmPassword: formData.get("confirmPassword"),
+  });
+
+  if (!validatedFields.success) {
+    return { error: validatedFields.error.flatten().fieldErrors as ActionErrorResponse };
+  }
+
+  // Use getAuthUser with sensitive: true for password changes
+  const { user, error: authError } = await getAuthUser({ sensitive: true });
+
+  if (authError || !user) {
+    return { error: { server: ["Not authenticated"] } as ActionErrorResponse };
+  }
+
+  const supabase = await createClient();
+
+  // OAuth users can set password directly (no current password verification needed)
+  const { error: updateError } = await supabase.auth.updateUser({
+    password: validatedFields.data.newPassword,
+  });
+
+  if (updateError) {
+    console.error("Set password error:", updateError);
     return { error: { server: [updateError.message] } as ActionErrorResponse };
   }
 
@@ -101,8 +154,15 @@ export async function updateEmailAction(formData: FormData) {
     return { error: validatedFields.error.flatten().fieldErrors as ActionErrorResponse };
   }
 
+  // Use getAuthUser with sensitive: true for email changes
+  const { user, error: authError } = await getAuthUser({ sensitive: true });
+
+  if (authError || !user) {
+    return { error: { server: ["Not authenticated"] } as ActionErrorResponse };
+  }
+
   const supabase = await createClient();
-  
+
   // Determine the correct redirect URL
   let redirectUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
   if (process.env.NODE_ENV === 'development') {
@@ -111,9 +171,9 @@ export async function updateEmailAction(formData: FormData) {
 
   const { error } = await supabase.auth.updateUser(
     { email: validatedFields.data.newEmail },
-    { 
+    {
       // Supabase will automatically append token_hash and type parameters to this URL
-      emailRedirectTo: `${redirectUrl.replace(/\/$/, "")}/auth/confirm?type=email_change` 
+      emailRedirectTo: `${redirectUrl.replace(/\/$/, "")}/auth/confirm?type=email_change`
     }
   );
 
@@ -122,32 +182,23 @@ export async function updateEmailAction(formData: FormData) {
     return { error: { server: [error.message] } as ActionErrorResponse };
   }
 
-  return { 
-    success: true, 
-    message: "Verification email sent to your new address. Please check your inbox and click the link to complete the change." 
+  return {
+    success: true,
+    message: "Verification email sent to your new address. Please check your inbox and click the link to complete the change."
   };
 }
 
 export async function deleteAccount() {
   try {
-    const supabase = await createClient();
-    const { data: { user }, error: getUserErr } = await supabase.auth.getUser();
+    // Use getAuthUser with sensitive: true for account deletion
+    const { user, error: authError } = await getAuthUser({ sensitive: true });
 
-    if (getUserErr) throw new Error(`Failed to get user: ${getUserErr.message}`);
-    if (!user) throw new Error("No user found");
+    if (authError || !user) {
+      throw new Error("Not authenticated");
+    }
 
-    // Read server-only envs
-    const adminUrl = process.env.SUPABASE_URL;
-    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-    if (!adminUrl) throw new Error("SUPABASE_URL is not set");
-    if (!serviceKey) throw new Error("SUPABASE_SERVICE_ROLE_KEY is not set");
-
-    // Optional: debug (do not log secrets)
-    console.info("Admin host:", new URL(adminUrl).host);
-    console.info("Service key prefix:", serviceKey.slice(0, 8));
-
-    const supabaseAdmin = createAdminClient(adminUrl, serviceKey);
+    // Use centralized admin client
+    const supabaseAdmin = getAdminClient();
 
     const report = await deleteUserWithCleanup(supabaseAdmin, user.id, {
       deleteProjects: true,
@@ -161,6 +212,7 @@ export async function deleteAccount() {
       throw new Error(`Cannot delete account until another admin is added to: ${orgs}`);
     }
 
+    const supabase = await createClient();
     await supabase.auth.signOut();
 
     return { success: true };

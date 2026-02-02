@@ -67,13 +67,6 @@ const QRCodeSimulation = () => {
   const [currentStep, setCurrentStep] = useState(0);
   const [isScanning, setIsScanning] = useState(false);
 
-  const steps = [
-    "Generate QR Code",
-    "Volunteer Scans",
-    "Instant Verification",
-    "Data Synchronized"
-  ];
-
   const handleStartDemo = () => {
     setIsScanning(true);
     setCurrentStep(0);

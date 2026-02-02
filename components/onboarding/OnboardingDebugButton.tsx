@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import InitialOnboardingModal from "./InitialOnboardingModal";
-import { createClient } from "@/utils/supabase/client";
+import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function OnboardingDebugButton() {
@@ -12,7 +12,7 @@ export default function OnboardingDebugButton() {
   const [userId, setUserId] = useState<string | null>(null);
   const [userFullName, setUserFullName] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
-  const [debugInfo, setDebugInfo] = useState<any>(null);
+  const [debugInfo, setDebugInfo] = useState<Record<string, unknown> | null>(null);
   const [showDebugInfo, setShowDebugInfo] = useState(false);
 
   const checkCurrentUserState = async () => {

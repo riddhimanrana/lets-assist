@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from 'react';
 import { useTheme } from 'next-themes';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LocationData } from '@/types';
@@ -29,7 +28,7 @@ interface LocationMapCardProps {
   locationData?: LocationData;
 }
 
-function MapComponent({ location, locationData }: LocationMapCardProps) {
+function MapComponent({ location: _location, locationData }: LocationMapCardProps) {
   // Get the current theme
   const { resolvedTheme } = useTheme();
   
@@ -85,7 +84,7 @@ function MapComponent({ location, locationData }: LocationMapCardProps) {
       
       {/* Show a message if no location data is available */}
       {!hasCoordinates && (
-        <div className="absolute inset-0 flex items-center justify-center bg-muted/50 backdrop-blur-sm">
+        <div className="absolute inset-0 flex items-center justify-center bg-muted/50 backdrop-blur-xs">
           <p className="text-sm text-muted-foreground">No precise location available</p>
         </div>
       )}
@@ -101,13 +100,13 @@ export function LocationMapCard({ location, locationData }: LocationMapCardProps
 
   return (
     <Card>
-      <CardHeader className="pb-3">
+      <CardHeader className="">
         <CardTitle className="flex items-center">
           <MapPin className="h-5 w-5 mr-2" aria-hidden="true" />
           <span>Location</span>
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-3">
         <div className="text-sm text-muted-foreground">
           {locationData?.display_name || location}
         </div>

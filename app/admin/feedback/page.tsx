@@ -33,7 +33,7 @@ export default async function FeedbackPage() {
           Review user feedback, ideas, and issues submitted through the platform.
         </p>
       </div>
-      <Card className="border-border bg-card text-card-foreground shadow-sm">
+      <Card className="border-border bg-card text-card-foreground shadow-xs">
         <CardHeader>
           <CardTitle>Feedback & Moderation</CardTitle>
           <CardDescription>Sort, filter, and moderate incoming submissions.</CardDescription>

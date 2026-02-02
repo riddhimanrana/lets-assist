@@ -24,6 +24,7 @@ import {
 import {
     DropdownMenu,
     DropdownMenuContent,
+    DropdownMenuGroup,
     DropdownMenuItem,
     DropdownMenuLabel,
     DropdownMenuSeparator,
@@ -36,6 +37,15 @@ interface UserEmail {
     is_primary: boolean;
     verified_at: string | null;
 }
+
+type AddEmailResponse = {
+    error?: string;
+    warning?: boolean;
+};
+
+type SetPrimaryEmailResponse = {
+    needsConfirmation?: boolean;
+};
 
 export function EmailManager() {
     const [emails, setEmails] = useState<UserEmail[]>([]);
@@ -69,8 +79,8 @@ export function EmailManager() {
 
         setAdding(true);
         try {
-            const result = await addEmail(newEmail);
-            if (result.error && (result as any).warning) {
+            const result = (await addEmail(newEmail)) as AddEmailResponse;
+            if (result.error && result.warning) {
                 toast.warning(result.error);
                 setAdding(false);
                 return;
@@ -85,9 +95,9 @@ export function EmailManager() {
             setPendingEmail(newEmail);
             setVerificationStep(true);
             toast.success("Verification code sent to " + newEmail);
-        } catch (error: any) {
+        } catch (error) {
             console.error("Error adding email:", error);
-            toast.error(error.message || "Failed to add email");
+            toast.error(error instanceof Error ? error.message : "Failed to add email");
         } finally {
             setAdding(false);
         }
@@ -106,9 +116,9 @@ export function EmailManager() {
             setVerificationCode("");
             setPendingEmail("");
             fetchEmails();
-        } catch (error: any) {
+        } catch (error) {
             console.error("Error verifying email:", error);
-            toast.error(error.message || "Invalid verification code");
+            toast.error(error instanceof Error ? error.message : "Invalid verification code");
         } finally {
             setVerifying(false);
         }
@@ -119,9 +129,9 @@ export function EmailManager() {
             await unlinkEmail(id);
             toast.success("Email removed successfully");
             fetchEmails();
-        } catch (error: any) {
+        } catch (error) {
             console.error("Error removing email:", error);
-            toast.error(error.message || "Failed to remove email");
+            toast.error(error instanceof Error ? error.message : "Failed to remove email");
         }
     };
 
@@ -132,16 +142,16 @@ export function EmailManager() {
         }
 
         try {
-            const result = await setPrimaryEmail(email);
-            if ((result as any).needsConfirmation) {
+            const result = (await setPrimaryEmail(email)) as SetPrimaryEmailResponse;
+            if (result.needsConfirmation) {
                 toast.info("Supabase sent a confirmation email to the new address.");
             } else {
                 toast.success("Primary email updated");
             }
             setTimeout(fetchEmails, 500);
-        } catch (error: any) {
+        } catch (error) {
             console.error("Error setting primary email:", error);
-            toast.error(error.message || "Failed to update primary email");
+            toast.error(error instanceof Error ? error.message : "Failed to update primary email");
         }
     };
 
@@ -194,27 +204,29 @@ export function EmailManager() {
                                         )}
                                     </div>
                                 </div>
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
+                                <DropdownMenu modal={false}>
+                                    <DropdownMenuTrigger render={
                                         <Button variant="ghost" size="sm" className="p-1">
                                             <MoreHorizontal className="h-4 w-4" />
                                         </Button>
-                                    </DropdownMenuTrigger>
+                                    } />
                                     <DropdownMenuContent align="end" className="w-48">
-                                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                        <DropdownMenuItem
-                                            onSelect={() => handleSetPrimary(email.email, isVerified)}
-                                            disabled={!isVerified || email.is_primary}
-                                        >
-                                            {email.is_primary ? "Already primary" : "Make primary"}
-                                        </DropdownMenuItem>
-                                        <DropdownMenuSeparator />
-                                        <DropdownMenuItem
-                                            onSelect={() => handleRemoveEmail(email.id)}
-                                            disabled={email.is_primary}
-                                        >
-                                            Remove email
-                                        </DropdownMenuItem>
+                                        <DropdownMenuGroup>
+                                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                            <DropdownMenuItem
+                                                onSelect={() => handleSetPrimary(email.email, isVerified)}
+                                                disabled={!isVerified || email.is_primary}
+                                            >
+                                                {email.is_primary ? "Already primary" : "Make primary"}
+                                            </DropdownMenuItem>
+                                            <DropdownMenuSeparator />
+                                            <DropdownMenuItem
+                                                onSelect={() => handleRemoveEmail(email.id)}
+                                                disabled={email.is_primary}
+                                            >
+                                                Remove email
+                                            </DropdownMenuItem>
+                                        </DropdownMenuGroup>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
                             </div>

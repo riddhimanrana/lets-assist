@@ -3,184 +3,159 @@
 /**
  * Hook: useUserProfile
  * 
- * Provides cached user profile and settings to components
- * 
- * Features:
- * - Returns data from memory cache (instant, no API call)
- * - Subscribes to realtime updates (profile changes in DB)
- * - Handles loading and error states
- * - Used by: Navbar, ProjectDetails, Dashboard, etc.
+ * Provides user profile and settings to components using direct Supabase queries.
+ * Uses getClaims() for fast local JWT verification.
  * 
  * Usage:
  * ```typescript
- * const { profile, settings, isLoading } = useUserProfile();
+ * const { profile, settings, loading } = useUserProfile();
  * ```
  */
 
-import { useEffect, useState, useRef } from 'react';
-import {
-  getCachedUserData,
-  subscribeToProfileCache,
-  shouldFetchProfileData,
-  type CachedUserData,
-} from '@/utils/auth/profile-cache';
-import { subscribeToProfileUpdates, getOrFetchUserData } from '@/utils/auth/batch-fetcher';
+import { useEffect, useState, useMemo, useCallback } from 'react';
+import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 
+export interface UserProfile {
+  id: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  username: string | null;
+  phone: string | null;
+  profile_visibility: 'public' | 'private' | 'organization_only' | null;
+  created_at: string;
+  updated_at: string | null;
+  volunteer_goals: Record<string, unknown> | null;
+}
+
+export interface NotificationSettings {
+  user_id: string;
+  email_notifications: boolean;
+  project_updates: boolean;
+  general: boolean;
+}
+
 export interface UseUserProfileReturn {
-  profile: CachedUserData['profile'];
-  settings: CachedUserData['settings'];
-  isLoading: boolean;
-  isError: boolean;
-  timestamp: number;
-  refetch?: () => Promise<void>;
+  profile: UserProfile | null;
+  settings: NotificationSettings | null;
+  loading: boolean;
+  error: Error | null;
+  refetch: () => Promise<void>;
 }
 
 /**
- * Hook to access cached user profile and settings
- * 
- * Automatically fetches on first call if cache is empty
- * Updates when realtime events fire
- * 
- * @returns Profile data, settings, and loading state
+ * Hook to access user profile and notification settings
+ * Fetches directly from Supabase with RLS protection
  */
 export function useUserProfile(): UseUserProfileReturn {
-  const { user, isLoading: isAuthLoading } = useAuth();
-  const [isLoading, setIsLoading] = useState(isAuthLoading);
-  const [isError] = useState(false);
-  const [cacheData, setCacheData] = useState<CachedUserData>(() =>
-    getCachedUserData(),
-  );
-  
-  // Guard against duplicate concurrent fetches
-  const fetchInProgressRef = useRef(false);
-  // Track the user ID we're fetching for to avoid stale fetches
-  const fetchingForUserIdRef = useRef<string | null>(null);
-  // Track if we've set up subscription
-  const subscriptionReadyRef = useRef(false);
+  const { user, loading: authLoading } = useAuth();
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [settings, setSettings] = useState<NotificationSettings | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
-  // Combined effect: Subscribe to cache changes AND fetch if needed
-  // This ensures subscription is set up BEFORE we fetch, avoiding race conditions
+  const supabase = useMemo(() => createClient(), []);
+
+  const fetchData = useCallback(async (userId: string) => {
+    try {
+      // Fetch profile and settings in parallel
+      const [profileResult, settingsResult] = await Promise.all([
+        supabase
+          .from('profiles')
+          .select('id, full_name, avatar_url, username, phone, profile_visibility, created_at, updated_at, volunteer_goals')
+          .eq('id', userId)
+          .maybeSingle(),
+        supabase
+          .from('notification_settings')
+          .select('user_id, email_notifications, project_updates, general')
+          .eq('user_id', userId)
+          .maybeSingle(),
+      ]);
+
+      if (profileResult.error) {
+        console.error('[useUserProfile] Profile error:', profileResult.error.message);
+      }
+      if (settingsResult.error) {
+        console.error('[useUserProfile] Settings error:', settingsResult.error.message);
+      }
+
+      setProfile(profileResult.data as UserProfile | null);
+      setSettings(settingsResult.data as NotificationSettings | null);
+      setError(null);
+    } catch (err) {
+      console.error('[useUserProfile] Fetch error:', err);
+      setError(err instanceof Error ? err : new Error(String(err)));
+    } finally {
+      setLoading(false);
+    }
+  }, [supabase]);
+
   useEffect(() => {
+    if (authLoading) return;
+
     if (!user?.id) {
-      setCacheData({
-        profile: null,
-        settings: null,
-        timestamp: 0,
-        userId: null,
-      });
-      setIsLoading(false);
-      subscriptionReadyRef.current = false;
+      setProfile(null);
+      setSettings(null);
+      setLoading(false);
       return;
     }
 
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[useUserProfile] Setting up for user:', user.id);
-    }
+    fetchData(user.id);
+  }, [user?.id, authLoading, fetchData]);
 
-    // Step 1: Set up subscription FIRST (before fetching)
-    const unsubscribe = subscribeToProfileCache((data) => {
-      setCacheData(data);
-      setIsLoading(false);
+  // Subscribe to realtime profile updates
+  useEffect(() => {
+    if (!user?.id) return;
 
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[useUserProfile] Cache updated via subscription');
-      }
-    });
-    
-    // Also subscribe to realtime updates
-    const unsubscribeRealtime = subscribeToProfileUpdates(user.id);
-    subscriptionReadyRef.current = true;
-
-    // Step 2: Check if we need to fetch
-    // Re-read cache in case it was updated between render and effect
-    const currentCache = getCachedUserData();
-    const hasCachedData = currentCache.profile || currentCache.settings;
-    const cacheIsFresh = !shouldFetchProfileData();
-    
-    // Always sync state with current cache first
-    // This ensures we pick up any data that was fetched by AuthProvider
-    if (hasCachedData) {
-      setCacheData(currentCache);
-      setIsLoading(false);
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[useUserProfile] Synced with existing cache');
-      }
-    }
-    
-    // Only fetch if cache is empty or stale
-    if (!hasCachedData || !cacheIsFresh) {
-      // Need to fetch - guard against duplicates
-      if (!fetchInProgressRef.current || fetchingForUserIdRef.current !== user.id) {
-        fetchInProgressRef.current = true;
-        fetchingForUserIdRef.current = user.id;
-        if (!hasCachedData) {
-          setIsLoading(true);
+    const channel = supabase
+      .channel(`profile-updates-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${user.id}`,
+        },
+        (payload) => {
+          if (payload.new) {
+            setProfile(payload.new as UserProfile);
+          }
         }
-        
-        getOrFetchUserData(user.id)
-          .then((data) => {
-            // Manually update state with fetched data
-            // This handles the case where cache was already populated
-            // (by AuthProvider) and getOrFetchUserData returns cached data
-            // without triggering a cache update notification
-            if (data.profile || data.settings) {
-              setCacheData({
-                profile: data.profile,
-                settings: data.settings,
-                timestamp: Date.now(),
-                userId: user.id,
-              });
-              setIsLoading(false);
-            }
-            if (process.env.NODE_ENV === 'development') {
-              console.log('[useUserProfile] Fetch complete:', { 
-                hasProfile: !!data.profile,
-                hasSettings: !!data.settings 
-              });
-            }
-          })
-          .finally(() => {
-            if (fetchingForUserIdRef.current === user.id) {
-              fetchInProgressRef.current = false;
-            }
-          });
-      }
-    }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'notification_settings',
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          if (payload.new) {
+            setSettings(payload.new as NotificationSettings);
+          }
+        }
+      )
+      .subscribe();
 
     return () => {
-      unsubscribe();
-      unsubscribeRealtime();
-      subscriptionReadyRef.current = false;
+      supabase.removeChannel(channel);
     };
-  }, [user?.id]);
+  }, [user?.id, supabase]);
 
-  // Update loading state based on cache freshness
-  useEffect(() => {
-    if (!user?.id) {
-      setIsLoading(false);
-      return;
+  const refetch = useCallback(async () => {
+    if (user?.id) {
+      setLoading(true);
+      await fetchData(user.id);
     }
-
-    if (cacheData.profile || cacheData.settings) {
-      setIsLoading(false);
-      return;
-    }
-
-    if (cacheData.timestamp === 0) {
-      setIsLoading(true);
-      return;
-    }
-
-    // Cache was populated but still no profile/settings (e.g. user not found)
-    setIsLoading(false);
-  }, [cacheData, user?.id]);
+  }, [user?.id, fetchData]);
 
   return {
-    profile: cacheData.profile,
-    settings: cacheData.settings,
-    isLoading,
-    isError,
-    timestamp: cacheData.timestamp,
+    profile,
+    settings,
+    loading: authLoading || loading,
+    error,
+    refetch,
   };
 }

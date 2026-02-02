@@ -1,5 +1,5 @@
 import { Metadata } from "next";
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import ResetPasswordClient from "./ResetPasswordClient";
 
@@ -19,8 +19,9 @@ export default async function ResetPasswordPage({
   const supabase = await createClient();
 
   // If user is authenticated, sign them out
-  const { data: { user } } = await supabase.auth.getUser();
-  if (user) {
+  // @ts-ignore - getClaims exists in GoTrueClient
+  const { data: claimsData } = await supabase.auth.getClaims();
+  if (claimsData?.claims) {
     await supabase.auth.signOut();
     redirect('/reset-password');
   }

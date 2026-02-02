@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button-variants";
+import { cn } from "@/lib/utils";
 import { AlertTriangle, Home } from "lucide-react";
 import Link from "next/link";
 
@@ -28,12 +29,13 @@ export function ErrorMessage({ message }: ErrorMessageProps) {
           </p>
         </CardContent>
         <CardFooter className="flex justify-center">
-          <Button asChild variant="outline">
-            <Link href="/projects" className="flex items-center gap-2">
-              <Home className="h-4 w-4" />
-              Browse Projects
-            </Link>
-          </Button>
+          <Link
+            href="/projects"
+            className={cn(buttonVariants({ variant: "outline" }), "flex items-center gap-2")}
+          >
+            <Home className="h-4 w-4" />
+            Browse Projects
+          </Link>
         </CardFooter>
       </Card>
     </div>

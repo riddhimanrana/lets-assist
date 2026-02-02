@@ -21,7 +21,7 @@ export function MaxLengthField({
   const getCounterColor = (current: number, max: number) => {
     const percentage = (current / max) * 100;
     if (percentage >= 90) return "text-destructive";
-    if (percentage >= 75) return "text-chart-6";
+    if (percentage >= 75) return "text-warning";
     return "text-muted-foreground";
   };
 

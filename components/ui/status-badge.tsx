@@ -1,5 +1,6 @@
 import React from "react";
-import { Badge, BadgeProps } from "./badge";
+import { Badge, badgeVariants } from "./badge";
+import { VariantProps } from "class-variance-authority";
 import {
   Clock,
   ClockIcon,
@@ -10,6 +11,8 @@ import {
 import { cn } from "@/lib/utils";
 import { ProjectStatus } from "@/types";
 import { formatStatusText } from "@/utils/project";
+
+type BadgeProps = React.ComponentProps<typeof Badge> & VariantProps<typeof badgeVariants>;
 
 interface StatusBadgeProps extends Omit<BadgeProps, "variant"> {
   status: ProjectStatus;
@@ -27,17 +30,17 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
     upcoming: {
       variant: "secondary" as const,
       icon: Clock,
-      className: "bg-chart-3/10 text-chart-3 hover:bg-chart-3/20",
+      className: "bg-primary/10 text-primary hover:bg-primary/20",
     },
     "in-progress": {
       variant: "default" as const,
       icon: ClockIcon,
-      className: "bg-chart-4/10 text-chart-4 hover:bg-chart-4/20",
+      className: "bg-warning/10 text-warning hover:bg-warning/20",
     },
     completed: {
       variant: "default" as const,
       icon: CheckCircle2,
-      className: "bg-chart-5/10 text-chart-5 hover:bg-chart-5/20",
+      className: "bg-success/10 text-success hover:bg-success/20",
     },
     cancelled: {
       variant: "destructive" as const,

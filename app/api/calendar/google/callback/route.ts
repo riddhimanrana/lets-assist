@@ -3,9 +3,11 @@
  * GET /api/calendar/google/callback
  */
 
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { encrypt } from "@/lib/encryption";
+import { ensureOrganizationCalendar } from "@/services/calendar";
+import { getAdminClient } from "@/lib/supabase/admin";
 
 export async function GET(request: Request) {
   try {
@@ -28,7 +30,15 @@ export async function GET(request: Request) {
     }
 
     // Verify state parameter
-    let stateData: { userId: string; timestamp: number; nonce: string; returnTo?: string | null };
+    let stateData: {
+      userId: string;
+      timestamp: number;
+      nonce: string;
+      returnTo?: string | null;
+      orgId?: string | null;
+      isCalendarSync?: boolean;
+      isSheetsSync?: boolean;
+    };
     try {
       stateData = JSON.parse(Buffer.from(state, "base64").toString());
       
@@ -37,7 +47,7 @@ export async function GET(request: Request) {
       if (Date.now() - stateData.timestamp > fiveMinutes) {
         throw new Error("State expired");
       }
-    } catch (err) {
+    } catch {
       return NextResponse.redirect(
         `${process.env.NEXT_PUBLIC_SITE_URL}/account/calendar?error=invalid_state`
       );
@@ -87,13 +97,13 @@ export async function GET(request: Request) {
     }
 
     const tokens = await tokenResponse.json();
+    const grantedScopes = typeof tokens.scope === "string" ? tokens.scope : null;
+    const grantedScopesUpdatedAt = grantedScopes ? new Date().toISOString() : null;
 
-    if (!tokens.refresh_token) {
-      console.error("No refresh token received");
-      return NextResponse.redirect(
-        `${process.env.NEXT_PUBLIC_SITE_URL}/account/calendar?error=no_refresh_token`
-      );
-    }
+    // Determine connection type based on granted scopes
+    const hasSheetsScopes = grantedScopes && grantedScopes.includes("spreadsheets");
+    const hasCalendarScopes = grantedScopes && grantedScopes.includes("calendar");
+    const connectionType = hasSheetsScopes && hasCalendarScopes ? "both" : hasSheetsScopes ? "sheets" : "calendar";
 
     // Get user's email from Google
     const userInfoResponse = await fetch(
@@ -118,23 +128,41 @@ export async function GET(request: Request) {
     // Calculate token expiry
     const expiresAt = new Date(Date.now() + tokens.expires_in * 1000);
 
-    // Encrypt tokens before storing
-    const encryptedAccessToken = encrypt(tokens.access_token);
-    const encryptedRefreshToken = encrypt(tokens.refresh_token);
-
-    // Check if user already has a connection (active or inactive)
-    const { data: existingConnections } = await supabase
+    // Check if user already has a connection of this type
+    const { data: existingConnections } = (await supabase
       .from("user_calendar_connections")
-      .select("id")
+      .select("id, refresh_token, connection_type")
       .eq("user_id", userId)
       .eq("provider", "google")
-      .order("created_at", { ascending: false });
+      // Find connections that match or can be upgraded to this type
+      .in("connection_type", [connectionType, "both"])
+      .order("created_at", { ascending: false })) as {
+      data:
+        | Array<{
+            id: string;
+            refresh_token: string | null;
+            connection_type: string;
+          }>
+        | null;
+    };
 
     const existingConnection = existingConnections?.[0];
 
+    const encryptedAccessToken = encrypt(tokens.access_token);
+    const encryptedRefreshToken = tokens.refresh_token
+      ? encrypt(tokens.refresh_token)
+      : existingConnection?.refresh_token || null;
+
+    if (!encryptedRefreshToken) {
+      console.error("No refresh token available");
+      return NextResponse.redirect(
+        `${process.env.NEXT_PUBLIC_SITE_URL}/account/calendar?error=no_refresh_token`
+      );
+    }
+
     if (existingConnection) {
       // Update existing connection (and reactivate if it was inactive)
-      const { error: updateError } = await supabase
+      const { error: updateError } = (await supabase
         .from("user_calendar_connections")
         .update({
           access_token: encryptedAccessToken,
@@ -143,16 +171,20 @@ export async function GET(request: Request) {
           calendar_email: calendarEmail,
           connected_at: new Date().toISOString(),
           is_active: true,
+          granted_scopes: grantedScopes,
+          granted_scopes_updated_at: grantedScopesUpdatedAt,
+          connection_type: connectionType,
         })
-        .eq("id", existingConnection.id);
+        .eq("id", existingConnection.id)) as { error: { message?: string } | null };
 
-      // Clean up any other duplicate connections if they exist
+      // Clean up any other duplicate connections of the same type
       if (existingConnections && existingConnections.length > 1) {
         await supabase
           .from("user_calendar_connections")
           .delete()
           .eq("user_id", userId)
           .eq("provider", "google")
+          .eq("connection_type", connectionType)
           .neq("id", existingConnection.id);
       }
 
@@ -164,22 +196,25 @@ export async function GET(request: Request) {
       }
     } else {
       // Create new connection
-      const { error: insertError } = await supabase
-        .from("user_calendar_connections")
-        .insert({
-          user_id: userId,
-          provider: "google",
-          access_token: encryptedAccessToken,
-          refresh_token: encryptedRefreshToken,
-          token_expires_at: expiresAt.toISOString(),
-          calendar_email: calendarEmail,
-          is_active: true,
-          preferences: {
-            reminder_minutes: 15,
-            auto_sync_new_projects: false,
-            auto_sync_signups: false,
-          },
-        });
+        const { error: insertError } = (await supabase
+          .from("user_calendar_connections")
+          .insert({
+            user_id: userId,
+            provider: "google",
+            access_token: encryptedAccessToken,
+            refresh_token: encryptedRefreshToken,
+            token_expires_at: expiresAt.toISOString(),
+            calendar_email: calendarEmail,
+            is_active: true,
+            connection_type: connectionType,
+            granted_scopes: grantedScopes,
+            granted_scopes_updated_at: grantedScopesUpdatedAt,
+            preferences: {
+              reminder_minutes: 15,
+              auto_sync_new_projects: false,
+              auto_sync_signups: false,
+            },
+          })) as { error: { message?: string } | null };
 
       if (insertError) {
         console.error("Failed to save calendar connection:", insertError);
@@ -187,6 +222,76 @@ export async function GET(request: Request) {
           `${process.env.NEXT_PUBLIC_SITE_URL}/account/calendar?error=connection_failed`
         );
       }
+    }
+
+    if (stateData.orgId) {
+      const serviceSupabase = getAdminClient();
+      const { data: membership } = await serviceSupabase
+        .from("organization_members")
+        .select("role")
+        .eq("organization_id", stateData.orgId)
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (!membership || membership.role !== "admin") {
+        const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "";
+        const target = stateData.returnTo || `/organization/${stateData.orgId}/settings`;
+        const errorUrl = new URL(target, baseUrl);
+        errorUrl.searchParams.set("error", "org_admin_required");
+        return NextResponse.redirect(errorUrl.toString());
+      }
+
+      // Handle organization calendar sync (separate from sheets sync)
+      if (stateData.isCalendarSync) {
+        const { data: org } = await serviceSupabase
+          .from("organizations")
+          .select("name")
+          .eq("id", stateData.orgId)
+          .maybeSingle();
+
+        const { data: existingSync } = await serviceSupabase
+          .from("organization_calendar_syncs")
+          .select("calendar_id, auto_sync, last_synced_at")
+          .eq("organization_id", stateData.orgId)
+          .maybeSingle();
+
+        const calendarName = org?.name
+          ? `Let's Assist — ${org.name} Volunteering`
+          : "Let's Assist Organization Volunteering";
+
+        const ensured = await ensureOrganizationCalendar(
+          tokens.access_token,
+          existingSync?.calendar_id,
+          calendarName
+        );
+
+        if (!ensured) {
+          const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "";
+          const target = stateData.returnTo || `/organization/${stateData.orgId}/settings`;
+          const errorUrl = new URL(target, baseUrl);
+          errorUrl.searchParams.set("error", "org_calendar_failed");
+          return NextResponse.redirect(errorUrl.toString());
+        }
+
+        await serviceSupabase
+          .from("organization_calendar_syncs")
+          .upsert(
+            {
+              organization_id: stateData.orgId,
+              created_by: userId,
+              calendar_id: ensured.calendarId,
+              calendar_email: calendarEmail,
+              connected_at: new Date().toISOString(),
+              last_synced_at: existingSync?.last_synced_at ?? null,
+              auto_sync: existingSync?.auto_sync ?? true, // Enable auto-sync by default
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: "organization_id" }
+          );
+      }
+      
+      // Handle organization sheets sync separately (no calendar creation)
+      // The sheets sync configuration is handled in the sheets-actions.ts file
     }
 
     // Success! Check for custom redirect from state or default to calendar settings

@@ -44,7 +44,10 @@ interface OrganizationOption {
 
 interface BasicInfoProps {
   state: EventFormState;
-  updateBasicInfoAction: (field: keyof EventFormState["basicInfo"], value: any) => void;
+  updateBasicInfoAction: (
+    field: keyof EventFormState["basicInfo"],
+    value: EventFormState["basicInfo"][keyof EventFormState["basicInfo"]]
+  ) => void;
   initialOrgId?: string;
   initialOrganizations?: OrganizationOption[];
   errors?: {
@@ -54,28 +57,29 @@ interface BasicInfoProps {
   };
 }
 
-export default function BasicInfo({ 
-  state, 
-  updateBasicInfoAction, 
+export default function BasicInfo({
+  state,
+  updateBasicInfoAction,
   initialOrgId,
   initialOrganizations = [],
   errors = {}
 }: BasicInfoProps) {
   const [open, setOpen] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
-  const [organizationOptions, setOrganizationOptions] = useState<OrganizationOption[]>(
-    initialOrganizations.length > 0 
-      ? initialOrganizations 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [organizationOptions, _setOrganizationOptions] = useState<OrganizationOption[]>(
+    initialOrganizations.length > 0
+      ? initialOrganizations
       : [{ id: "personal", name: "Personal Project", logo_url: null, role: "creator" }]
   );
   const initRef = useRef(false);
-  
+
   // Set default organization and timezone on initial render only
   useEffect(() => {
     if (initRef.current) return;
-    
+
     initRef.current = true;
-    
+
     // If initialOrgId is provided, use it
     if (initialOrgId && state.basicInfo.organizationId !== initialOrgId) {
       updateBasicInfoAction('organizationId', initialOrgId);
@@ -83,7 +87,7 @@ export default function BasicInfo({
       // Otherwise, if no organization is set, default to personal (null)
       updateBasicInfoAction('organizationId', null);
     }
-    
+
     // Initialize timezone to user's current timezone if not set
     if (!state.basicInfo.projectTimezone) {
       const detectedTimezone = getUserTimezone();
@@ -104,7 +108,7 @@ export default function BasicInfo({
     if (orgId === "personal") {
       updateBasicInfoAction("organizationId", null);
     } else {
-      updateBasicInfoAction("organizationId", orgId); 
+      updateBasicInfoAction("organizationId", orgId);
     }
     setOpen(false);
   };
@@ -124,7 +128,7 @@ export default function BasicInfo({
   const getCounterColor = (current: number, max: number) => {
     const percentage = (current / max) * 100;
     if (percentage >= 90) return "text-destructive";
-    if (percentage >= 75) return "text-chart-6";
+    if (percentage >= 75) return "text-warning";
     return "text-muted-foreground";
   };
 
@@ -157,8 +161,8 @@ export default function BasicInfo({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Basic Information</CardTitle>
-        <p className="text-sm text-muted-foreground">
+        <CardTitle className="text-xl sm:text-2xl">Basic Information</CardTitle>
+        <p className="text-xs sm:text-sm text-muted-foreground">
           Let&apos;s start with some basic details about your project.
         </p>
       </CardHeader>
@@ -168,7 +172,7 @@ export default function BasicInfo({
           <div className="space-y-2">
             <Label>Create Project As</Label>
             <Popover open={open} onOpenChange={setOpen}>
-              <PopoverTrigger asChild>
+              <PopoverTrigger render={
                 <Button
                   type="button"
                   variant="outline"
@@ -186,7 +190,7 @@ export default function BasicInfo({
                   )}
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
-              </PopoverTrigger>
+              } />
               <PopoverContent className="w-[300px] p-0" align="start">
                 <Command>
                   <CommandInput placeholder="Search organizations..." />
@@ -213,7 +217,7 @@ export default function BasicInfo({
                             className={cn(
                               "ml-auto h-4 w-4",
                               ((org.id === state.basicInfo.organizationId) ||
-                               (state.basicInfo.organizationId === null && org.id === "personal"))
+                                (state.basicInfo.organizationId === null && org.id === "personal"))
                                 ? "opacity-100"
                                 : "opacity-0"
                             )}
@@ -269,8 +273,8 @@ export default function BasicInfo({
 
         {/* Project Location - Simplified */}
         <div className="space-y-2">
-          <Label htmlFor="location">Project Location</Label> {/* Added external Label */} 
-          <LocationAutocomplete 
+          <Label htmlFor="location">Project Location</Label> {/* Added external Label */}
+          <LocationAutocomplete
             id="location" // Pass id
             value={state.basicInfo.locationData}
             onChangeAction={handleLocationChange}
@@ -295,8 +299,12 @@ export default function BasicInfo({
               updateBasicInfoAction('projectTimezone', value)
             }
           >
-            <SelectTrigger id="timezone">
-              <SelectValue placeholder="Select project timezone" />
+            <SelectTrigger id="timezone" className="w-full">
+              <SelectValue placeholder="Select project timezone">
+                {state.basicInfo.projectTimezone
+                  ? COMMON_TIMEZONES.find(tz => tz.value === state.basicInfo.projectTimezone)?.label || state.basicInfo.projectTimezone
+                  : undefined}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {COMMON_TIMEZONES.map((timezone) => (
@@ -313,27 +321,27 @@ export default function BasicInfo({
           <div className="flex justify-between items-baseline">
             <Label htmlFor="description">Description</Label>
             <div className="space-x-2">
-              <Button 
-                type="button" 
-                variant={previewMode ? "outline" : "default"} 
-                size="sm" 
+              <Button
+                type="button"
+                variant={previewMode ? "secondary" : "default"}
+                size="sm"
                 onClick={() => setPreviewMode(false)}
               >
                 Edit
               </Button>
-              <Button 
-                type="button" 
-                variant={!previewMode ? "outline" : "default"} 
-                size="sm" 
+              <Button
+                type="button"
+                variant={!previewMode ? "secondary" : "default"}
+                size="sm"
                 onClick={() => setPreviewMode(true)}
               >
                 Preview
               </Button>
             </div>
           </div>
-          
+
           {previewMode ? (
-            <div className="rounded-md border text-sm bg-background p-4 shadow-sm">
+            <div className="rounded-md border text-sm bg-background p-4 shadow-xs">
               <RichTextContent content={state.basicInfo.description ?? ''} />
             </div>
           ) : (

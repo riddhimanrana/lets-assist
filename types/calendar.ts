@@ -9,6 +9,8 @@ export interface CalendarConnection {
   access_token: string;
   refresh_token: string;
   token_expires_at: string;
+  granted_scopes?: string | null;
+  granted_scopes_updated_at?: string | null;
   calendar_email: string;
   connected_at: string;
   last_synced_at: string | null;

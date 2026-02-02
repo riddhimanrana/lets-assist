@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sparkles, Loader2, X } from 'lucide-react';
 import { toast } from 'sonner';
-import { EventType } from '@/types';
+import { EventType, ProjectSchedule } from '@/types';
 
 interface AIAssistantProps {
   onApplyData: (data: AIParseResult) => void;
@@ -19,7 +19,7 @@ export interface AIParseResult {
   location?: string;
   description?: string;
   eventType?: EventType;
-  schedule?: any;
+  schedule?: ProjectSchedule;
   verificationMethod?: 'qr-code' | 'manual' | 'auto' | 'signup-only';
   requireLogin?: boolean;
 }
@@ -99,7 +99,10 @@ export default function AIAssistant({ onApplyData, onClose, isOpen }: AIAssistan
               style={{
                 left: `${Math.random() * 100}%`,
                 top: `${Math.random() * 100}%`,
-                animation: `float-up ${1.4 + Math.random() * 0.8}s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards`,
+                animationName: 'float-up',
+                animationDuration: `${1.4 + Math.random() * 0.8}s`,
+                animationTimingFunction: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+                animationFillMode: 'forwards',
                 animationDelay: `${i * 0.06}s`,
               }}
             >
@@ -125,7 +128,7 @@ export default function AIAssistant({ onApplyData, onClose, isOpen }: AIAssistan
         }
       `}</style>
 
-      <Card className={`mb-6 border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-transparent transition-all duration-500 ${
+      <Card className={`mb-6 border-2 border-primary/20 bg-linear-to-br from-primary/5 to-transparent transition-all duration-500 ${
         isApplying ? 'scale-98 opacity-60' : 'scale-100 opacity-100'
       }`}>
         <CardHeader className="pb-3">

@@ -29,7 +29,7 @@ export function LeaveEventConfirmationDialog({
           <AlertDialogAction
             onClick={onConfirm}
             disabled={isLoading}
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            className="bg-destructive/10 hover:bg-destructive/20 text-destructive"
           >
             {isLoading ? "Leaving..." : "Leave Event"}
           </AlertDialogAction>

@@ -5,11 +5,9 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { type Session } from "@supabase/supabase-js";
 import { login, signInWithGoogle } from "./actions";
 import Link from "next/link";
-import { createClient } from "@/utils/supabase/client";
-import { updateCachedUser, initializeUserProfileCache } from "@/utils/auth/auth-context";
+import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -20,13 +18,11 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
-  Form,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormControl,
-  FormMessage,
-} from "@/components/ui/form";
+  Field,
+  FieldLabel,
+  FieldError,
+} from "@/components/ui/field";
+import { Controller } from "react-hook-form";
 import { toast } from "sonner";
 import { TurnstileComponent, TurnstileRef } from "@/components/ui/turnstile";
 
@@ -45,7 +41,8 @@ interface LoginClientProps {
 export default function LoginClient({ redirectPath }: LoginClientProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-  const [turnstileVerified, setTurnstileVerified] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [_turnstileVerified, setTurnstileVerified] = useState(false);
   const turnstileRef = useRef<TurnstileRef>(null);
   const [turnstileReady, setTurnstileReady] = useState(false);
   const router = useRouter();
@@ -66,15 +63,15 @@ export default function LoginClient({ redirectPath }: LoginClientProps) {
 
   async function onSubmit(data: LoginValues) {
     const turnstileToken = turnstileRef.current?.getResponse();
-    
+
     setIsLoading(true);
     const formData = new FormData();
     Object.entries(data).forEach(([key, value]) => formData.append(key, value));
-    
+
     if (turnstileToken) {
       formData.append("turnstileToken", turnstileToken);
     }
-    
+
     const result = await login(formData);
 
     if (result.error) {
@@ -103,10 +100,11 @@ export default function LoginClient({ redirectPath }: LoginClientProps) {
     } else if (result.success) {
       // Login successful
       console.log('[LoginClient] Login successful, session established');
-      
+
       // The server action returns the session directly - use it immediately
       if (result.session?.user) {
         console.log('[LoginClient] Session received from server:', result.session.user.email);
+
         // Persist session in the browser so refreshes stay logged in
         if (result.session.access_token && result.session.refresh_token) {
           const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
@@ -116,34 +114,29 @@ export default function LoginClient({ redirectPath }: LoginClientProps) {
 
           if (sessionError) {
             console.error('[LoginClient] Failed to persist session:', sessionError);
+            toast.error('Failed to establish session. Please try again.');
+            setIsLoading(false);
+            return;
           }
 
           const persistedUser = sessionData?.user ?? result.session.user;
+          console.log('[LoginClient] Session persisted:', persistedUser.email);
 
-          // Update cache IMMEDIATELY with the session from the server action
-          updateCachedUser(persistedUser);
-          console.log('[LoginClient] Cache updated immediately with user:', persistedUser.email);
-
-          // Initialize profile and settings cache in background
-          // This fetches profile + settings in a batch query
-          // and subscribes to realtime updates
-          initializeUserProfileCache(persistedUser.id).catch((error) => {
-            console.error('[LoginClient] Failed to initialize profile cache:', error);
-          });
+          // Wait a brief moment for cookies to be written before redirect
+          // This ensures middleware can read the session cookies
+          await new Promise(resolve => setTimeout(resolve, 100));
         } else {
-          // Fallback: update cache even if tokens are missing (shouldn't happen)
-          updateCachedUser(result.session.user);
-          console.log('[LoginClient] Cache updated immediately with user:', result.session.user.email);
+          // Fallback: even if tokens are missing (shouldn't happen)
+          console.log('[LoginClient] Session established:', result.session.user.email);
 
-          initializeUserProfileCache(result.session.user.id).catch((error) => {
-            console.error('[LoginClient] Failed to initialize profile cache:', error);
-          });
+          // Wait a brief moment for state to synchronize
+          await new Promise(resolve => setTimeout(resolve, 100));
         }
       }
-      
+
       // Navigate immediately - don't wait for profile fetch
       const redirectUrl = redirectPath ? decodeURIComponent(redirectPath) : "/home";
-      
+
       if (isVerified) {
         router.push("/home?confirmed=true");
       } else {
@@ -181,7 +174,7 @@ export default function LoginClient({ redirectPath }: LoginClientProps) {
       if (result.url) {
         window.location.href = result.url;
       }
-    } catch (error) {
+    } catch {
       toast.error("An error occurred. Please try again.");
     } finally {
       setIsGoogleLoading(false);
@@ -190,135 +183,129 @@ export default function LoginClient({ redirectPath }: LoginClientProps) {
 
   return (
     <div className="flex items-center justify-center min-h-screen">
-      <Card className="mx-auto w-[370px] max-w-full mb-12">
-        <CardHeader>
-          <CardTitle className="text-2xl">Login</CardTitle>
-          <CardDescription className="w-full">
-        {redirectPath 
-          ? "Login to continue to the requested page"
-          : "Enter your email below to login to your account"
-        }
+      <Card className="mx-auto w-[380px] max-w-full mb-12 py-0">
+        <CardHeader className="px-6 pt-6 pb-0">
+          <CardTitle className="text-2xl font-bold">Login</CardTitle>
+          <CardDescription>
+            {redirectPath
+              ? "Login to continue to the requested page"
+              : "Enter your email below to login to your account"
+            }
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full mb-2"
-                onClick={handleGoogleSignIn}
-                disabled={isGoogleLoading}
-              >
-                {isGoogleLoading ? (
-                  "Connecting..."
-                ) : (
-                  <>
-                    <svg
-                      className="mr-2 h-4 w-4"
-                      aria-hidden="true"
-                      focusable="false"
-                      data-prefix="fab"
-                      data-icon="google"
-                      role="img"
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 488 512"
-                    >
-                      <path
-                        fill="currentColor"
-                        d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 123 24.5 166.3 64.9l-67.5 64.9C258.5 52.6 94.3 116.6 94.3 256c0 86.5 69.1 156.6 153.7 156.6 98.2 0 135-70.4 140.8-106.9H248v-85.3h236.1c2.3 12.7 3.9 24.9 3.9 41.4z"
-                      ></path>
-                    </svg>
-                    Login with Google
-                  </>
+        <CardContent className="p-6 space-y-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={handleGoogleSignIn}
+              disabled={isGoogleLoading}
+            >
+              {isGoogleLoading ? (
+                "Connecting..."
+              ) : (
+                <>
+                  <svg
+                    className="mr-2 h-4 w-4"
+                    aria-hidden="true"
+                    focusable="false"
+                    data-prefix="fab"
+                    data-icon="google"
+                    role="img"
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 488 512"
+                  >
+                    <path
+                      fill="currentColor"
+                      d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 123 24.5 166.3 64.9l-67.5 64.9C258.5 52.6 94.3 116.6 94.3 256c0 86.5 69.1 156.6 153.7 156.6 98.2 0 135-70.4 140.8-106.9H248v-85.3h236.1c2.3 12.7 3.9 24.9 3.9 41.4z"
+                    ></path>
+                  </svg>
+                  Login with Google
+                </>
+              )}
+            </Button>
+            <div className="relative py-1">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground font-medium">
+                  Or continue with
+                </span>
+              </div>
+            </div>
+            <div className="grid gap-4">
+              <Controller
+                control={form.control}
+                name="email"
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor={field.name}>Email</FieldLabel>
+                    <Input id={field.name} placeholder="m@example.com" {...field} aria-invalid={fieldState.invalid} />
+                    <FieldError errors={[fieldState.error]} />
+                  </Field>
                 )}
-              </Button>
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-card px-2 text-muted-foreground">
-                    Or continue with
-                  </span>
-                </div>
-              </div>
-              <div className="grid gap-4">
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email</FormLabel>
-                      <FormControl>
-                        <Input placeholder="m@example.com" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <div className="flex items-center">
-                        <FormLabel>Password</FormLabel>
-                        <Link
-                          href="/reset-password"
-                          className="ml-auto inline-block text-sm underline"
-                        >
-                          Forgot your password?
-                        </Link>
-                      </div>
-                      <FormControl>
-                        <Input type="password" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <div className="flex justify-center">
-                    <div className="relative w-[300px] h-[65px] overflow-hidden bg-muted/30 rounded-lg flex items-center justify-center border border-border/50">
-                      {!turnstileReady && (
-                        <div className="absolute inset-0 z-10 flex items-center justify-center gap-2 rounded-lg bg-background/80 text-[0.7rem] font-semibold uppercase tracking-wide text-muted-foreground">
-                          <Shield className="h-4 w-4 text-muted-foreground/80" />
-                          <span className="text-[0.7rem] font-semibold normal-case tracking-wide">Bot verification loading…</span>
-                        </div>
-                      )}
-                      <TurnstileComponent
-                        ref={turnstileRef}
-                        onLoad={() => setTurnstileReady(true)}
-                        onVerify={(token) => {
-                          setTurnstileVerified(true);
-                          form.setValue("turnstileToken", token);
-                        }}
-                        onError={() => {
-                          setTurnstileVerified(false);
-                          toast.error("Security verification failed. Please try again.");
-                        }}
-                        onExpire={() => {
-                          setTurnstileVerified(false);
-                          form.setValue("turnstileToken", "");
-                        }}
-                      />
+              />
+              <Controller
+                control={form.control}
+                name="password"
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <div className="flex items-center justify-between">
+                      <FieldLabel htmlFor={field.name}>Password</FieldLabel>
+                      <Link
+                        href="/reset-password"
+                        className="text-xs text-muted-foreground/80 font-medium hover:text-primary transition-colors"
+                      >
+                        Forgot your password?
+                      </Link>
                     </div>
+                    <Input id={field.name} type="password" {...field} aria-invalid={fieldState.invalid} />
+                    <FieldError errors={[fieldState.error]} />
+                  </Field>
+                )}
+              />
+              <div className="flex justify-center">
+                <div className="relative w-[300px] h-[65px] overflow-hidden bg-muted/30 rounded-lg flex items-center justify-center border border-border/50">
+                  {!turnstileReady && (
+                    <div className="absolute inset-0 z-10 flex items-center justify-center gap-2 rounded-lg bg-background/80 text-[0.7rem] font-semibold uppercase tracking-wide text-muted-foreground">
+                      <Shield className="h-4 w-4 text-muted-foreground/80" />
+                      <span className="text-[0.7rem] font-semibold normal-case tracking-wide">Bot verification loading…</span>
+                    </div>
+                  )}
+                  <TurnstileComponent
+                    ref={turnstileRef}
+                    onLoad={() => setTurnstileReady(true)}
+                    onVerify={(token) => {
+                      setTurnstileVerified(true);
+                      form.setValue("turnstileToken", token);
+                    }}
+                    onError={() => {
+                      setTurnstileVerified(false);
+                      toast.error("Security verification failed. Please try again.");
+                    }}
+                    onExpire={() => {
+                      setTurnstileVerified(false);
+                      form.setValue("turnstileToken", "");
+                    }}
+                  />
                 </div>
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? "Logging in..." : "Login"}
-                </Button>
               </div>
-              <div className="mt-4 text-center text-sm">
-                Don&apos;t have an account?{" "}
-                <Link 
-                  href={redirectPath ? `/signup?redirect=${redirectPath}` : "/signup"} 
-                  className="underline"
-                >
-                  Sign up
-                </Link>
-              </div>
-            </form>
-          </Form>
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? "Logging in..." : "Login"}
+              </Button>
+            </div>
+            <div className="mt-2 text-center text-sm text-muted-foreground">
+              Don&apos;t have an account?{" "}
+              <Link
+                href={redirectPath ? `/signup?redirect=${redirectPath}` : "/signup"}
+                className="underline text-primary hover:text-primary/80"
+              >
+                Sign up
+              </Link>
+            </div>
+          </form>
         </CardContent>
       </Card>
     </div>

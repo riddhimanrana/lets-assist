@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { checkOffensiveLanguage } from "@/utils/moderation-helpers";
 
 // Schema for initial onboarding (username + phone only)
@@ -26,7 +26,7 @@ export type InitialOnboardingValues = z.infer<typeof initialOnboardingSchema>;
 
 export async function checkUsernameAvailability(username: string): Promise<{ available: boolean; error?: string }> {
   const supabase = await createClient();
-  
+
   try {
     // 1. Profanity check
     const profanityResult = await checkOffensiveLanguage(username.toLowerCase());
@@ -40,12 +40,12 @@ export async function checkUsernameAvailability(username: string): Promise<{ ava
       .select("username")
       .eq("username", username)
       .maybeSingle();
-    
+
     if (error) {
       console.error("Error checking username:", error);
       return { available: false, error: error.message };
     }
-    
+
     return { available: !existingUser };
   } catch (e) {
     console.error("Unexpected error checking username:", e);
@@ -71,7 +71,7 @@ export async function completeInitialOnboarding(
   });
 
   if (!validatedFields.success) {
-    return { error: "Invalid input: " + validatedFields.error.errors[0].message };
+    return { error: "Invalid input: " + validatedFields.error.issues[0].message };
   }
 
   const { username: validUsername, phoneNumber: validPhoneNumber } = validatedFields.data;
@@ -112,7 +112,7 @@ export async function completeInitialOnboarding(
 
     // Update user metadata to mark onboarding as complete
     const { error: authError } = await supabase.auth.updateUser({
-      data: { 
+      data: {
         has_completed_onboarding: true,
         username: validUsername, // Also store in metadata for consistency
         phone: validPhoneNumber || null, // Store phone number in metadata
@@ -127,6 +127,33 @@ export async function completeInitialOnboarding(
     return { success: true };
   } catch (e) {
     console.error("Unexpected error in completeInitialOnboarding:", e);
+    return { error: "An unexpected error occurred" };
+  }
+}
+
+export async function markIntroTourAsComplete(): Promise<{ success?: boolean; error?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "User not authenticated" };
+  }
+
+  try {
+    const { error: authError } = await supabase.auth.updateUser({
+      data: {
+        has_completed_intro_tour: true
+      },
+    });
+
+    if (authError) {
+      console.error("Error updating intro tour status on server:", authError);
+      return { error: "Failed to update user metadata" };
+    }
+
+    return { success: true };
+  } catch (e) {
+    console.error("Unexpected error in markIntroTourAsComplete:", e);
     return { error: "An unexpected error occurred" };
   }
 }

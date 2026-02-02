@@ -12,7 +12,7 @@ export function EmailNotification() {
         transition={{ type: "spring", duration: 0.6, delay: 0.2 }}
         className="relative"
       >
-        <div className="rounded-2xl bg-gradient-to-br from-primary/10 to-primary/5 p-6 border border-primary/20">
+        <div className="rounded-2xl bg-linear-to-br from-primary/10 to-primary/5 p-6 border border-primary/20">
           <Mail className="h-16 w-16 text-primary" />
         </div>
         <motion.div

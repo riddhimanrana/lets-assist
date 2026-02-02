@@ -1,5 +1,5 @@
 import { Resend } from 'resend';
-import { createClient } from '@/utils/supabase/server';
+import { createClient } from '@/lib/supabase/server';
 import { render } from '@react-email/components';
 import * as React from 'react';
 
@@ -17,9 +17,13 @@ interface SendEmailParams {
 }
 
 export async function sendEmail({ to, subject, html, react, userId, type }: SendEmailParams) {
+    const shouldLog = process.env.NODE_ENV !== "test";
+
     // Validate that either html or react is provided
     if (!html && !react) {
-        console.error('Either html or react must be provided');
+        if (shouldLog) {
+            console.error('Either html or react must be provided');
+        }
         return { success: false, error: 'Either html or react must be provided' };
     }
 
@@ -35,7 +39,9 @@ export async function sendEmail({ to, subject, html, react, userId, type }: Send
             .single();
 
         if (error && error.code !== 'PGRST116') {
-            console.error('Error fetching notification settings:', error);
+            if (shouldLog) {
+                console.error('Error fetching notification settings:', error);
+            }
             // If error fetching settings, default to sending (fail open) or skipping?
             // Safest to probably send if it's important, but let's log it.
         }
@@ -43,19 +49,25 @@ export async function sendEmail({ to, subject, html, react, userId, type }: Send
         if (settings) {
             // Check global email switch
             if (settings.email_notifications === false) {
-                console.log(`Skipping email for user ${userId}: Global email notifications disabled.`);
+                if (shouldLog) {
+                    console.log(`Skipping email for user ${userId}: Global email notifications disabled.`);
+                }
                 return { success: false, skipped: true, reason: 'Global email notifications disabled' };
             }
 
             // Check specific type switch
             // Assuming the column names match the EmailType (except transactional)
             if (type === 'project_updates' && settings.project_updates === false) {
-                console.log(`Skipping email for user ${userId}: Project updates disabled.`);
+                if (shouldLog) {
+                    console.log(`Skipping email for user ${userId}: Project updates disabled.`);
+                }
                 return { success: false, skipped: true, reason: 'Project updates disabled' };
             }
 
             if (type === 'general' && settings.general === false) {
-                console.log(`Skipping email for user ${userId}: General notifications disabled.`);
+                if (shouldLog) {
+                    console.log(`Skipping email for user ${userId}: General notifications disabled.`);
+                }
                 return { success: false, skipped: true, reason: 'General notifications disabled' };
             }
         }
@@ -74,13 +86,17 @@ export async function sendEmail({ to, subject, html, react, userId, type }: Send
         });
 
         if (error) {
-            console.error('Resend error:', error);
+            if (shouldLog) {
+                console.error('Resend error:', error);
+            }
             return { success: false, error };
         }
 
         return { success: true, data };
     } catch (error) {
-        console.error('Error sending email:', error);
+        if (shouldLog) {
+            console.error('Error sending email:', error);
+        }
         return { success: false, error };
     }
 }

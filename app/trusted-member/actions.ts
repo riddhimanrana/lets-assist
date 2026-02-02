@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { notifyAdminsBatched } from "@/services/admin-notifications";
 import { z } from "zod";
 
@@ -18,19 +18,22 @@ export async function submitTrustedMember(input: { name: string; email: string; 
     return { error: parsed.error.issues[0]?.message || "Invalid input" };
   }
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  // @ts-ignore - getClaims exists in GoTrueClient
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const userId = claimsData?.claims?.sub;
+
+  if (!userId) {
     return { error: "You must be logged in" };
   }
 
   // Check existing application
   const { data: existing, error: selectError } = await supabase
     .from("trusted_member")
-    .select("id, status")
-    .eq("id", user.id)
+    .select("id, user_id, status")
+    .or(`id.eq.${userId},user_id.eq.${userId}`)
     .maybeSingle();
 
-    console.log("existing:", existing);
+  console.log("existing:", existing);
   if (selectError) {
     console.error("Error checking existing application:", selectError);
     console.log("existing:", existing);
@@ -55,7 +58,8 @@ export async function submitTrustedMember(input: { name: string; email: string; 
       .from("trusted_member")
       .upsert(
         {
-          id: user.id,
+          id: userId,
+          user_id: userId,
           name: parsed.data.name,
           email: parsed.data.email,
           reason: parsed.data.reason,
@@ -82,7 +86,7 @@ export async function submitTrustedMember(input: { name: string; email: string; 
     try {
       await notifyAdminsBatched({
         type: "trusted_member_application",
-        applicationId: user.id,
+        applicationId: userId,
         applicantName: parsed.data.name,
         applicantEmail: parsed.data.email,
       });

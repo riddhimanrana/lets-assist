@@ -6,6 +6,12 @@ export const metadata: Metadata = {
   description: "An error occurred. Please try again or contact support.",
 };
 
+import { Suspense } from "react";
+
 export default function ErrorPage() {
-  return <ErrorClient />;
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <ErrorClient />
+    </Suspense>
+  );
 }

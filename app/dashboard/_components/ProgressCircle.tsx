@@ -21,25 +21,25 @@ export const ProgressCircle: React.FC<ProgressCircleProps> = ({
 }) => {
   // Ensure value is between 0 and 100
   const normalizedValue = Math.min(100, Math.max(0, value));
-  
+
   // Calculate circle parameters
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
   const strokeDashoffset = circumference - (normalizedValue / 100) * circumference;
-  
+
   // Center position
   const center = size / 2;
-  
+
   // Default colors based on CSS variables
   const defaultColor = "hsl(var(--primary))";
   const defaultTrackColor = "hsl(var(--muted))";
-  
+
   // Set text size based on circle size
   const fontSize = showLabel ? Math.max(size / 4, 12) : 0;
 
   return (
-    <div 
-      className="inline-flex items-center justify-center" 
+    <div
+      className="inline-flex items-center justify-center"
       style={{ width: size, height: size }}
       role="progressbar"
       aria-valuenow={normalizedValue}
@@ -62,7 +62,7 @@ export const ProgressCircle: React.FC<ProgressCircleProps> = ({
           strokeWidth={strokeWidth}
           className="opacity-30"
         />
-        
+
         {/* Foreground progress circle */}
         <circle
           cx={center}
@@ -77,11 +77,11 @@ export const ProgressCircle: React.FC<ProgressCircleProps> = ({
           className="transition-all duration-500 ease-in-out"
         />
       </svg>
-      
+
       {/* Percentage label */}
       {showLabel && (
-        <div 
-          className="absolute text-center font-medium" 
+        <div
+          className="absolute text-center font-medium"
           style={{ fontSize: `${fontSize}px` }}
         >
           {Math.round(normalizedValue)}%

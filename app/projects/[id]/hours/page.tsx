@@ -1,5 +1,5 @@
-import { createClient } from "@/utils/supabase/server";
-import { cookies } from "next/headers";
+import { createClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { notFound, redirect } from "next/navigation";
 import { Metadata } from "next";
 import { differenceInHours, isAfter, format, parseISO } from "date-fns";
@@ -8,9 +8,10 @@ import { Project, ProjectSignup } from "@/types";
 import { HoursClient } from "./HoursClient";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button-variants";
+import { cn } from "@/lib/utils";
 import Link from "next/link";
-import { AlertCircle, ArrowLeft, CalendarClock, Clock } from "lucide-react";
+import { AlertCircle, ArrowLeft, CalendarClock } from "lucide-react";
 import { getProject } from "../actions";
 
 // Define session type for easier handling
@@ -19,6 +20,11 @@ type ProjectSession = {
   name: string;
   endDateTime: Date;
   hoursRemaining: number;
+};
+
+type SignupRow = Omit<ProjectSignup, "profile" | "anonymous_signup"> & {
+  profile?: ProjectSignup["profile"] | ProjectSignup["profile"][] | null;
+  anonymous_signup?: ProjectSignup["anonymous_signup"] | ProjectSignup["anonymous_signup"][] | null;
 };
 
 // Helper function to check if user has permission (Creator or Org Admin/Staff)
@@ -50,7 +56,7 @@ async function checkPermissions(projectId: string, userId: string): Promise<bool
 function getSessionsInEditingWindow(project: Project): ProjectSession[] {
   const now = new Date();
   const result: ProjectSession[] = [];
-  
+
   // Helper function to format time to 12-hour format
   const formatTime12h = (timeStr: string) => {
     const [hours, minutes] = timeStr.split(':').map(Number);
@@ -58,14 +64,14 @@ function getSessionsInEditingWindow(project: Project): ProjectSession[] {
     const hour12 = hours % 12 || 12; // Convert 0 to 12 for 12 AM
     return `${hour12}:${minutes.toString().padStart(2, '0')} ${period}`;
   };
-  
+
   // Check one-time events
   if (project.event_type === "oneTime" && project.schedule.oneTime) {
     const date = parseISO(project.schedule.oneTime.date);
     const [hours, minutes] = project.schedule.oneTime.endTime.split(':').map(Number);
     const sessionEndTime = new Date(date.setHours(hours, minutes));
     const hoursSinceEnd = differenceInHours(now, sessionEndTime);
-    
+
     if (isAfter(now, sessionEndTime) && hoursSinceEnd >= 0 && hoursSinceEnd < 48) {
       result.push({
         id: "oneTime",
@@ -75,17 +81,17 @@ function getSessionsInEditingWindow(project: Project): ProjectSession[] {
       });
     }
   }
-  
+
   // Check multi-day events
   else if (project.event_type === "multiDay" && project.schedule.multiDay) {
     project.schedule.multiDay.forEach((day, dayIndex) => {
       const dayDate = parseISO(day.date);
-      
+
       day.slots.forEach((slot, slotIndex) => {
         const [hours, minutes] = slot.endTime.split(':').map(Number);
         const slotEndTime = new Date(new Date(dayDate).setHours(hours, minutes));
         const hoursSinceEnd = differenceInHours(now, slotEndTime);
-        
+
         if (isAfter(now, slotEndTime) && hoursSinceEnd >= 0 && hoursSinceEnd < 48) {
           const sessionId = `day-${dayIndex}-slot-${slotIndex}`;
           result.push({
@@ -98,16 +104,16 @@ function getSessionsInEditingWindow(project: Project): ProjectSession[] {
       });
     });
   }
-  
+
   // Check same-day multi-area events
   else if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
     const date = parseISO(project.schedule.sameDayMultiArea.date);
-    
+
     project.schedule.sameDayMultiArea.roles.forEach((role, roleIndex) => {
       const [hours, minutes] = role.endTime.split(':').map(Number);
       const roleEndTime = new Date(new Date(date).setHours(hours, minutes));
       const hoursSinceEnd = differenceInHours(now, roleEndTime);
-      
+
       if (isAfter(now, roleEndTime) && hoursSinceEnd >= 0 && hoursSinceEnd < 48) {
         const sessionId = `role-${roleIndex}`;
         result.push({
@@ -119,7 +125,7 @@ function getSessionsInEditingWindow(project: Project): ProjectSession[] {
       }
     });
   }
-  
+
   return result;
 }
 
@@ -141,12 +147,11 @@ export async function generateMetadata({
 }
 
 export default async function HoursPage({ params }: { params: Promise<{ id: string }> }) {
-  const cookieStore = cookies();
   const supabase = await createClient();
   const { id: projectId } = await params;
 
-  // 1. Check User Authentication
-  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  // 1. Check User Authentication using getClaims() for better performance
+  const { user, error: userError } = await getAuthUser();
   if (userError || !user) {
     redirect(`/login?redirect=/projects/${projectId}/hours`);
   }
@@ -173,13 +178,11 @@ export default async function HoursPage({ params }: { params: Promise<{ id: stri
   if (project.verification_method === 'auto') {
     return (
       <div className="container mx-auto px-4 py-6 max-w-5xl">
-         <div className="mb-6">
-          <Button variant="ghost" className="gap-2" asChild>
-            <Link href={`/projects/${projectId}`}>
-              <ArrowLeft className="h-4 w-4" />
-              Back to Project
-            </Link>
-          </Button>
+        <div className="mb-6">
+          <Link href={`/projects/${projectId}`} className={cn(buttonVariants({ variant: "ghost" }), "gap-2")}>
+            <ArrowLeft className="h-4 w-4" />
+            Back to Project
+          </Link>
         </div>
         <Card>
           <CardHeader>
@@ -187,7 +190,7 @@ export default async function HoursPage({ params }: { params: Promise<{ id: stri
             <CardDescription>Review volunteer participation.</CardDescription>
           </CardHeader>
           <CardContent>
-            <Alert variant="default" className="border-chart-2/50 bg-chart-2/10">
+            <Alert variant="default" className="border-secondary/50 bg-secondary/10">
               <AlertCircle className="h-4 w-4" />
               <AlertTitle>Automatic Check-in</AlertTitle>
               <AlertDescription>
@@ -195,12 +198,10 @@ export default async function HoursPage({ params }: { params: Promise<{ id: stri
               </AlertDescription>
             </Alert>
           </CardContent>
-           <CardFooter className="justify-center border-t p-4">
-            <Button variant="outline" asChild>
-              <Link href={`/projects/${projectId}/attendance`}>
-                View Attendance Records
-              </Link>
-            </Button>
+          <CardFooter className="justify-center border-t p-4">
+            <Link href={`/projects/${projectId}/attendance`} className={cn(buttonVariants({ variant: "outline" }))}>
+              View Attendance Records
+            </Link>
           </CardFooter>
         </Card>
       </div>
@@ -212,11 +213,11 @@ export default async function HoursPage({ params }: { params: Promise<{ id: stri
   const projectEndDateTime = getProjectEndDateTime(project);
   const activeSessions = getSessionsInEditingWindow(project);
   const hasActiveSessions = activeSessions.length > 0;
-  
+
   // Find the session with the least time remaining (most urgent)
   let mostUrgentSession: ProjectSession | null = null;
   let hoursUntilWindowCloses: number | null = null;
-  
+
   if (activeSessions.length > 0) {
     mostUrgentSession = activeSessions.reduce(
       (prev, current) => (prev.hoursRemaining < current.hoursRemaining ? prev : current)
@@ -225,7 +226,7 @@ export default async function HoursPage({ params }: { params: Promise<{ id: stri
   }
 
   // 6. Fetch Attendance Data (Signups)
-  const { data: signupsData, error: signupsError } = await supabase
+  const { data: signupsData, error: signupsError } = (await supabase
     .from("project_signups")
     .select(`
       id,
@@ -252,13 +253,16 @@ export default async function HoursPage({ params }: { params: Promise<{ id: stri
       )
     `)
     .eq("project_id", projectId)
-    .in("status", ["attended", "approved"]); // Fetch both attended and approved
+    .in("status", ["attended", "approved"])) as {
+      data: SignupRow[] | null;
+      error: { message: string } | null;
+    }; // Fetch both attended and approved
 
   if (signupsError) {
     console.error("Error fetching signups:", signupsError);
     return <div>Error loading volunteer data.</div>;
   }
-  
+
   // Log for debugging purposes
   console.log("Fetched signups:", signupsData?.length || 0);
   if (signupsData && signupsData.length > 0) {
@@ -266,11 +270,18 @@ export default async function HoursPage({ params }: { params: Promise<{ id: stri
   }
 
   // Transform Supabase response arrays to single objects for profile and anonymous_signup
-  const signups: ProjectSignup[] = (signupsData || []).map((s: any) => ({
-    ...s,
-    profile: Array.isArray(s.profile) ? s.profile[0] : s.profile,
-    anonymous_signup: Array.isArray(s.anonymous_signup) ? s.anonymous_signup[0] : s.anonymous_signup,
-  }));
+  const signups: ProjectSignup[] = (signupsData || []).map((s: SignupRow) => {
+    const profile = Array.isArray(s.profile) ? s.profile[0] : s.profile;
+    const anonymousSignup = Array.isArray(s.anonymous_signup)
+      ? s.anonymous_signup[0]
+      : s.anonymous_signup;
+
+    return {
+      ...s,
+      profile: profile ?? undefined,
+      anonymous_signup: anonymousSignup ?? undefined,
+    };
+  });
 
   // 7. Render Client Component or "Not Yet Available" Message
   if (!hasActiveSessions) {
@@ -278,14 +289,12 @@ export default async function HoursPage({ params }: { params: Promise<{ id: stri
     const hoursUntilWindowOpens = projectEndDateTime ? differenceInHours(projectEndDateTime, now) : null;
 
     return (
-       <div className="container mx-auto px-4 py-6 max-w-5xl">
-         <div className="mb-6">
-          <Button variant="ghost" className="gap-2" asChild>
-            <Link href={`/projects/${projectId}`}>
-              <ArrowLeft className="h-4 w-4" />
-              Back to Project
-            </Link>
-          </Button>
+      <div className="container mx-auto px-4 py-6 max-w-5xl">
+        <div className="mb-6">
+          <Link href={`/projects/${projectId}`} className={cn(buttonVariants({ variant: "ghost" }), "gap-2")}>
+            <ArrowLeft className="h-4 w-4" />
+            Back to Project
+          </Link>
         </div>
         <Card className="min-h-[400px] relative">
           <CardHeader>
@@ -308,23 +317,21 @@ export default async function HoursPage({ params }: { params: Promise<{ id: stri
                 ? "The 48-hour window to edit volunteer hours after the event has ended."
                 : `You can manage volunteer hours here for 48 hours after the event ends.`}
               {!eventHasEnded && hoursUntilWindowOpens !== null && hoursUntilWindowOpens > 0 && (
-                 <span className="block mt-2 text-sm">
-                    (Window opens in approximately {hoursUntilWindowOpens} hour{hoursUntilWindowOpens !== 1 ? 's' : ''})
-                  </span>
+                <span className="block mt-2 text-sm">
+                  (Window opens in approximately {hoursUntilWindowOpens} hour{hoursUntilWindowOpens !== 1 ? 's' : ''})
+                </span>
               )}
-               {!eventHasEnded && projectEndDateTime && (
-                 <span className="block mt-2 text-sm">
-                    Event ends: {format(projectEndDateTime, "MMMM d, yyyy 'at' h:mm a")}
-                  </span>
+              {!eventHasEnded && projectEndDateTime && (
+                <span className="block mt-2 text-sm">
+                  Event ends: {format(projectEndDateTime, "MMMM d, yyyy 'at' h:mm a")}
+                </span>
               )}
             </p>
           </CardContent>
-           <CardFooter className="justify-center border-t p-4">
-            <Button variant="outline" asChild>
-              <Link href={`/projects/${projectId}`}>
-                Return to Project
-              </Link>
-            </Button>
+          <CardFooter className="justify-center border-t p-4">
+            <Link href={`/projects/${projectId}`} className={cn(buttonVariants({ variant: "outline" }))}>
+              Return to Project
+            </Link>
           </CardFooter>
         </Card>
       </div>

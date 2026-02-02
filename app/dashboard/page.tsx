@@ -1,23 +1,23 @@
-import { createClient } from "@/utils/supabase/server";
-import { cookies } from "next/headers";
-import { notFound, redirect } from "next/navigation";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { createClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/supabase/auth-helpers";
+import { redirect } from "next/navigation";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { VolunteerGoals } from "./_components/VolunteerGoals";
 import { Badge } from "@/components/ui/badge";
 import { ProgressCircle } from "./_components/ProgressCircle";
 import { format, subMonths, parseISO, differenceInMinutes, isBefore, isAfter } from "date-fns";
-import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
-import { Award, Calendar, Clock, Users, Target, FileCheck, ChevronRight, Download, GalleryVerticalEnd, TicketCheck, Plus, CalendarDays, BarChart3, CircleCheck, UserCheck } from "lucide-react";
+import { TZDate, tz } from "@date-fns/tz";
+import { Award, Calendar, Users, Target, ChevronRight, Download, CalendarDays, BarChart3, CircleCheck, UserCheck } from "lucide-react";
 import Link from "next/link";
-import { Separator } from "@/components/ui/separator";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button-variants";
+import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ActivityChart } from "./_components/ActivityChart";
 import { ExportSection } from "./_components/ExportSection";
 import { AllHoursSection } from "./_components/AllHoursSection";
 import { AddVolunteerHoursModal } from "./_components/AddVolunteerHoursModal";
-import { Project, ProjectSchedule } from "@/types";
+import { Project } from "@/types";
 import { getSlotDetails } from "@/utils/project";
 import { Metadata } from "next";
 import { TimezoneBadge } from "@/components/shared/TimezoneBadge";
@@ -122,7 +122,10 @@ function getCombinedDateTime(dateStr: string, timeStr: string, timezone?: string
   try {
     const isoString = `${dateStr}T${timeStr}`;
     if (timezone) {
-      return fromZonedTime(isoString, timezone);
+      // Parse to use TZDate constructor safely (Year, MonthIndex, Day, Hour, Minute)
+      const [year, month, day] = dateStr.split('-').map(Number);
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      return new TZDate(year, month - 1, day, hours, minutes, 0, timezone);
     }
     const dateTime = parseISO(isoString);
     return isNaN(dateTime.getTime()) ? null : dateTime;
@@ -133,10 +136,15 @@ function getCombinedDateTime(dateStr: string, timeStr: string, timezone?: string
 }
 
 // Helper function to get session display name
+type SlotDetails = NonNullable<ReturnType<typeof getSlotDetails>> & {
+  name?: string;
+  schedule_id?: string;
+};
+
 function getSessionDisplayName(
   project: Project,
   startTime: Date | null,
-  details: any,
+  details: SlotDetails,
   projectTimezone?: string,
   slotDate?: string
 ): string {
@@ -151,13 +159,13 @@ function getSessionDisplayName(
   }
 
   if (startTime) {
-    const formattedDate = formatInTimeZone(startTime, timezone, "MMM d, yyyy");
-    const formattedStartTime = formatInTimeZone(startTime, timezone, "h:mm a");
+    const formattedDate = format(startTime, "MMM d, yyyy", { in: tz(timezone) });
+    const formattedStartTime = format(startTime, "h:mm a", { in: tz(timezone) });
     const endDateTime = slotDate && details.endTime
       ? getCombinedDateTime(slotDate, details.endTime, timezone)
       : null;
     const formattedEndTime = endDateTime
-      ? formatInTimeZone(endDateTime, timezone, "h:mm a")
+      ? format(endDateTime, "h:mm a", { in: tz(timezone) })
       : null;
 
     if (formattedEndTime) {
@@ -168,19 +176,6 @@ function getSessionDisplayName(
   }
 
   return details.schedule_id || "Session";
-}
-
-// Helper to calculate duration in decimal hours
-function calculateDecimalHours(startTimeISO: string, endTimeISO: string): number {
-  try {
-    const start = parseISO(startTimeISO);
-    const end = parseISO(endTimeISO);
-    const minutes = differenceInMinutes(end, start);
-    return minutes > 0 ? minutes / 60 : 0;
-  } catch (e) {
-    console.error("Error calculating duration:", e);
-    return 0; // Return 0 if parsing fails
-  }
 }
 
 // Helper function to format total duration from hours (decimal) to Xh Ym
@@ -212,42 +207,72 @@ function formatTotalDuration(totalHours: number): string {
 }
 
 export default async function VolunteerDashboard() {
-  const cookieStore = cookies();
   const supabase = await createClient();
 
-  // Check authentication
-  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  // Check authentication using getClaims() for better performance
+  const { user, error: userError } = await getAuthUser();
   if (userError || !user) {
     redirect("/login?redirect=/dashboard");
   }
 
   // Fetch user's profile
-  const { data: profile, error: profileError } = await supabase
+  const { error: profileError } = (await supabase
     .from("profiles")
     .select("*")
     .eq("id", user.id)
-    .single();
+    .single()) as { error: { message?: string } | null };
 
   if (profileError) {
     console.error("Error fetching profile:", profileError);
   }
 
   // Fetch certificates for this user
-  const { data: certificates, error: certificatesError } = await supabase
+  type CertificateRow = {
+    id: string;
+    project_title: string;
+    creator_name: string | null;
+    is_certified: boolean;
+    event_start: string;
+    event_end: string;
+    volunteer_email: string | null;
+    organization_name: string | null;
+    project_id: string | null;
+    schedule_id: string | null;
+    issued_at: string;
+    signup_id: string | null;
+    volunteer_name: string | null;
+    project_location: string | null;
+  };
+
+  const { data: certificates, error: certificatesError } = (await supabase
     .from("certificates")
     .select(`
       *
     `)
     .eq("user_id", user.id)
-    .order("issued_at", { ascending: false });
-    
+    .order("issued_at", { ascending: false })) as {
+      data: CertificateRow[] | null;
+      error: { message?: string } | null;
+    };
+
 
   if (certificatesError) {
     console.error("Error fetching certificates:", certificatesError);
   }
 
   // Fetch upcoming signups
-  const { data: signupData, error: signupsError } = await supabase
+  type SignupRow = {
+    id: string;
+    project_id: string;
+    schedule_id: string;
+    status: string;
+    projects:
+    | Pick<Project, "id" | "title" | "schedule" | "event_type">
+    | Pick<Project, "id" | "title" | "schedule" | "event_type">[]
+    | null;
+  };
+
+  const { data: signupData, error: signupsError } = (await supabase
     .from("project_signups")
     .select(`
       id,
@@ -262,7 +287,10 @@ export default async function VolunteerDashboard() {
       )
     `)
     .eq("user_id", user.id)
-    .in("status", ["approved", "pending"]); // Fetch approved and pending
+    .in("status", ["approved", "pending"])) as {
+      data: SignupRow[] | null;
+      error: { message?: string } | null;
+    }; // Fetch approved and pending
 
   if (signupsError) {
     console.error("Error fetching upcoming signups:", signupsError);
@@ -270,7 +298,7 @@ export default async function VolunteerDashboard() {
   }
 
   // Fetch certificates for the dashboard (modified)
-  const { data: certificatesData, error: certificatesErrorFetch } = await supabase
+  const { error: certificatesErrorFetch } = (await supabase
     .from("certificates")
     .select(`
       *,
@@ -279,7 +307,7 @@ export default async function VolunteerDashboard() {
       )
     `)
     .eq("volunteer_email", user.email) // Assuming you fetch by email
-    .order("issued_at", { ascending: false }); // Sort by most recent
+    .order("issued_at", { ascending: false })) as { error: { message?: string } | null }; // Sort by most recent
 
   if (certificatesErrorFetch) {
     console.error("Error fetching certificates:", certificatesErrorFetch);
@@ -300,15 +328,15 @@ export default async function VolunteerDashboard() {
   const processedCertificates = (certificates || []).map((cert: BackendCertificate) => {
     // Calculate hours for this certificate
     const hours = calculateHours(cert.event_start, cert.event_end);
-    
+
     // Default to 'verified' for existing certificates that don't have the type field
     const certType = cert.type || 'verified';
-    
+
     // Only count verified hours for main statistics
     if (certType === 'verified') {
       statistics.totalHours += hours;
       statistics.totalCertificates++;
-      
+
       // Only track organizations with actual names, exclude "Independent Projects"
       if (cert.organization_name) {
         // Track unique organizations with valid names
@@ -324,7 +352,7 @@ export default async function VolunteerDashboard() {
           statistics.organizations[orgIndex].projects += 1;
         }
       }
-      
+
       // Track hours by month for verified certificates
       const monthYear = format(parseISO(cert.issued_at), "MMM yyyy");
       if (!statistics.hoursByMonth[monthYear]) {
@@ -404,8 +432,8 @@ export default async function VolunteerDashboard() {
 
       if (!slotDate || !details.startTime) continue; // Skip if date or start time missing
 
-  const projectTimezone = project.project_timezone || "America/Los_Angeles"; // Default timezone if not set
-  const sessionStartTime = getCombinedDateTime(slotDate, details.startTime, projectTimezone);
+      const projectTimezone = project.project_timezone || "America/Los_Angeles"; // Default timezone if not set
+      const sessionStartTime = getCombinedDateTime(slotDate, details.startTime, projectTimezone);
 
       // Check if the session start time is valid and in the future
       if (sessionStartTime && isAfter(sessionStartTime, now)) {
@@ -436,7 +464,7 @@ export default async function VolunteerDashboard() {
             Track your volunteering progress and achievements
           </p>
         </div>
-        
+
         <div className="flex items-center gap-3">
           <AddVolunteerHoursModal />
         </div>
@@ -445,16 +473,16 @@ export default async function VolunteerDashboard() {
       {/* Mobile-First Responsive Tabs Layout */}
       <Tabs defaultValue="overview" className="space-y-6">
         {/* Mobile Tab Navigation with Icons */}
-        <TabsList className="grid w-full grid-cols-3 h-auto p-1">
-          <TabsTrigger value="overview" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2 px-2 sm:px-4">
+        <TabsList className="grid grid-cols-3 w-full sm:flex sm:w-auto h-auto">
+          <TabsTrigger value="overview" className="flex items-center ">
             <BarChart3 className="h-4 w-4" />
             <span className="text-xs sm:text-sm">Overview</span>
           </TabsTrigger>
-          <TabsTrigger value="hours" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2 px-2 sm:px-4">
+          <TabsTrigger value="hours" className="flex items-center">
             <CalendarDays className="h-4 w-4" />
             <span className="text-xs sm:text-sm">All Hours</span>
           </TabsTrigger>
-          <TabsTrigger value="export" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2 px-2 sm:px-4">
+          <TabsTrigger value="export" className="flex items-center ">
             <Download className="h-4 w-4" />
             <span className="text-xs sm:text-sm">Export</span>
           </TabsTrigger>
@@ -487,8 +515,8 @@ export default async function VolunteerDashboard() {
             <Card className="col-span-1">
               <CardContent className="p-4 sm:p-6">
                 <div className="flex flex-col lg:flex-row lg:items-center gap-2 lg:gap-4">
-                  <div className="p-2 sm:p-3 rounded-full bg-chart-4/10 dark:bg-chart-4/10 w-fit">
-                    <UserCheck className="h-4 w-4 sm:h-6 sm:w-6 text-chart-4 dark:text-chart-4" />
+                  <div className="p-2 sm:p-3 rounded-full bg-warning/10 dark:bg-warning/10 w-fit">
+                    <UserCheck className="h-4 w-4 sm:h-6 sm:w-6 text-warning dark:text-warning" />
                   </div>
                   <div className="min-w-0">
                     <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">Self-Reported</p>
@@ -503,8 +531,8 @@ export default async function VolunteerDashboard() {
             <Card className="col-span-1">
               <CardContent className="p-4 sm:p-6">
                 <div className="flex flex-col lg:flex-row lg:items-center gap-2 lg:gap-4">
-                  <div className="p-2 sm:p-3 rounded-full bg-chart-3/10 w-fit">
-                    <Users className="h-4 w-4 sm:h-6 sm:w-6 text-chart-3" />
+                  <div className="p-2 sm:p-3 rounded-full bg-info/10 w-fit">
+                    <Users className="h-4 w-4 sm:h-6 sm:w-6 text-info" />
                   </div>
                   <div className="min-w-0">
                     <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">Projects</p>
@@ -519,25 +547,21 @@ export default async function VolunteerDashboard() {
             <Card className="col-span-1">
               <CardContent className="p-4 sm:p-6">
                 <div className="flex flex-col lg:flex-row lg:items-center gap-2 lg:gap-4">
-                  <div className="p-2 sm:p-3 rounded-full bg-chart-5/10 w-fit">
-                    <Calendar className="h-4 w-4 sm:h-6 sm:w-6 text-chart-5" />
+                  <div className="p-2 sm:p-3 rounded-full bg-success/10 w-fit">
+                    <Calendar className="h-4 w-4 sm:h-6 sm:w-6 text-success" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">Upcoming</p>
                     <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold">{upcomingSessions.length}</h2>
                     <p className="text-xs text-muted-foreground hidden sm:block">Sessions</p>
                   </div>
-                  <Button
-                    asChild
-                    size="icon"
-                    variant="ghost"
+                  <Link
+                    href="/projects"
                     aria-label="See all upcoming projects"
-                    className="ml-auto hidden lg:flex"
+                    className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "ml-auto hidden lg:flex")}
                   >
-                    <Link href="/projects">
-                      <ChevronRight className="h-5 w-5" />
-                    </Link>
-                  </Button>
+                    <ChevronRight className="h-5 w-5" />
+                  </Link>
                 </div>
               </CardContent>
             </Card>
@@ -568,10 +592,10 @@ export default async function VolunteerDashboard() {
                               {org.projects} {org.projects === 1 ? 'project' : 'projects'} • {org.hours.toFixed(1)} hours
                             </p>
                           </div>
-                          <div className="w-12 h-12 sm:w-16 sm:h-16 flex-shrink-0">
-                            <ProgressCircle 
-                              value={(org.hours / statistics.totalHours) * 100} 
-                              size={48} 
+                          <div className="w-12 h-12 sm:w-16 sm:h-16 shrink-0">
+                            <ProgressCircle
+                              value={(org.hours / statistics.totalHours) * 100}
+                              size={48}
                               strokeWidth={4}
                               showLabel={false}
                             />
@@ -619,7 +643,7 @@ export default async function VolunteerDashboard() {
                 </CardHeader>
                 <CardContent>
                   {upcomingSessions.length > 0 ? (
-                    <TooltipProvider delayDuration={150}>
+                    <TooltipProvider>
                       <div className="space-y-3 sm:space-y-4">
                         <div className="max-h-[300px] sm:max-h-[350px] overflow-y-auto pr-2 custom-scrollbar">
                           <div className="space-y-3 sm:space-y-4">
@@ -633,10 +657,10 @@ export default async function VolunteerDashboard() {
                                 </p>
                                 <div className="flex items-center gap-2 flex-wrap">
                                   <p className="text-xs sm:text-sm text-muted-foreground">
-                                    Starts: {formatInTimeZone(session.sessionStartTime, session.project_timezone, "MMM d, yyyy 'at' h:mm a")}
+                                    Starts: {format(session.sessionStartTime, "MMM d, yyyy 'at' h:mm a", { in: tz(session.project_timezone) })}
                                   </p>
                                   <Tooltip>
-                                    <TooltipTrigger asChild>
+                                    <TooltipTrigger className="cursor-default">
                                       <TimezoneBadge timezone={session.project_timezone} />
                                     </TooltipTrigger>
                                     <TooltipContent>
@@ -662,9 +686,9 @@ export default async function VolunteerDashboard() {
                       <p className="text-xs sm:text-sm text-muted-foreground mt-1 max-w-xs">
                         You don&apos;t have any upcoming volunteer commitments
                       </p>
-                      <Button className="mt-3 sm:mt-4" variant="outline" size="sm" asChild>
-                        <Link href="/home">Browse Opportunities</Link>
-                      </Button>
+                      <Link href="/home" className={cn(buttonVariants({ variant: "outline", size: "sm" }), "mt-3 sm:mt-4")}>
+                        Browse Opportunities
+                      </Link>
                     </div>
                   )}
                 </CardContent>

@@ -16,9 +16,10 @@ import { Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { deleteOrganization } from "./actions";
 import { useRouter } from "next/navigation";
+import type { Organization } from "@/types";
 
 interface DeleteOrganizationDialogProps {
-  organization: any;
+  organization: Organization;
 }
 
 export default function DeleteOrganizationDialog({
@@ -28,18 +29,18 @@ export default function DeleteOrganizationDialog({
   const [confirmText, setConfirmText] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
   const router = useRouter();
-  
+
   const expectedText = organization.username;
   const isConfirmTextValid = confirmText === expectedText;
-  
+
   const handleDelete = async () => {
     if (!isConfirmTextValid) return;
-    
+
     setIsDeleting(true);
-    
+
     try {
       const result = await deleteOrganization(organization.id);
-      
+
       if (result.error) {
         toast.error(result.error);
       } else {
@@ -54,15 +55,15 @@ export default function DeleteOrganizationDialog({
       setIsDeleting(false);
     }
   };
-  
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
+      <DialogTrigger render={
         <Button variant="destructive" size="sm">
           <Trash2 className="h-4 w-4 mr-2" />
           Delete Organization
         </Button>
-      </DialogTrigger>
+      } />
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-destructive">Delete Organization</DialogTitle>
@@ -81,7 +82,7 @@ export default function DeleteOrganizationDialog({
               <li>This action is <strong>irreversible</strong></li>
             </ul>
           </div>
-          
+
           <div className="space-y-2">
             <p className="text-sm font-medium">
               To confirm, type <span className="font-mono bg-muted px-1 py-0.5 rounded">
@@ -93,8 +94,8 @@ export default function DeleteOrganizationDialog({
               onChange={(e) => setConfirmText(e.target.value)}
               placeholder={`Type "${organization.username}" to confirm`}
               className={
-                confirmText && !isConfirmTextValid 
-                  ? "border-destructive focus:border-destructive" 
+                confirmText && !isConfirmTextValid
+                  ? "border-destructive focus:border-destructive"
                   : ""
               }
             />

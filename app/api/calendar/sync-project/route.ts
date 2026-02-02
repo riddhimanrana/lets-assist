@@ -3,7 +3,7 @@
  * POST /api/calendar/sync-project
  */
 
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { createGoogleCalendarEvent } from "@/services/calendar";
 import { syncProjectSchema } from "@/schemas/calendar-schema";
@@ -31,7 +31,7 @@ export async function POST(request: Request) {
 
     if (!validation.success) {
       return NextResponse.json(
-        { error: "Invalid request data", details: validation.error.errors },
+        { error: "Invalid request data", details: validation.error.issues },
         { status: 400 }
       );
     }
@@ -84,13 +84,13 @@ export async function POST(request: Request) {
     }
 
     // Update project with calendar event ID
-    const { error: updateError } = await supabase
+    const { error: updateError } = (await supabase
       .from("projects")
       .update({
         creator_calendar_event_id: eventId,
         creator_synced_at: new Date().toISOString(),
       })
-      .eq("id", project_id);
+      .eq("id", project_id)) as { error: { message?: string } | null };
 
     if (updateError) {
       console.error("Failed to update project:", updateError);
@@ -114,7 +114,7 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error("Error syncing project to calendar:", error);
-    
+
     if (error instanceof Error) {
       if (error.message.includes("No valid calendar connection")) {
         return NextResponse.json(

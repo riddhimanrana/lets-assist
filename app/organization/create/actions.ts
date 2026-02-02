@@ -1,9 +1,8 @@
 "use server";
 
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { customAlphabet } from 'nanoid';
-import { redirect } from "next/navigation";
 
 // Generate a random 6-digit code
 const generateJoinCode = customAlphabet('0123456789', 6);
@@ -244,7 +243,7 @@ export async function createOrganization(data: OrganizationCreationData) {
         console.log("Logo uploaded successfully:", logoUrl);
 
         // Update the organization with the new logo URL
-        const { error: updateError } = await supabase
+        await supabase
           .from("organizations")
           .update({ logo_url: logoUrl })
           .eq("id", organization.id)
@@ -252,7 +251,7 @@ export async function createOrganization(data: OrganizationCreationData) {
           .single();
 
 
-      } catch (error: any) {
+      } catch (error) {
         console.error("Error updating organization logo:", error);
         // Continue without interrupting organization creation if logo upload fails.
       }
@@ -267,9 +266,9 @@ export async function createOrganization(data: OrganizationCreationData) {
       organizationId: organization.id,
       logoUrl
     };
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error creating organization:", error);
-    return { error: error.message || "Failed to create organization" };
+    return { error: error instanceof Error ? error.message : "Failed to create organization" };
   }
 }
 
@@ -306,7 +305,7 @@ export async function regenerateJoinCode(organizationId: string) {
     .select("join_code")
     .single();
 
-  if (error) {
+  if (error || !data) {
     console.error("Error regenerating join code:", error);
     return { error: "Failed to regenerate join code" };
   }

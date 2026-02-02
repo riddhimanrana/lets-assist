@@ -1,5 +1,4 @@
 const fg = require("fast-glob");
-const path = require("path");
 
 /** @type {import('next-sitemap').IConfig} */
 module.exports = {

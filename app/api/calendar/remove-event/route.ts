@@ -3,7 +3,7 @@
  * DELETE /api/calendar/remove-event
  */
 
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { deleteGoogleCalendarEvent } from "@/services/calendar";
 import { removeCalendarEventSchema } from "@/schemas/calendar-schema";
@@ -31,7 +31,7 @@ export async function DELETE(request: Request) {
 
     if (!validation.success) {
       return NextResponse.json(
-        { error: "Invalid request data", details: validation.error.errors },
+        { error: "Invalid request data", details: validation.error.issues },
         { status: 400 }
       );
     }
@@ -75,7 +75,7 @@ export async function DELETE(request: Request) {
     });
   } catch (error) {
     console.error("Error removing event from calendar:", error);
-    
+
     if (error instanceof Error) {
       if (error.message.includes("No valid calendar connection")) {
         return NextResponse.json(

@@ -1,7 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
-import { differenceInHours, parseISO, isAfter } from "date-fns";
-import { Project, ProjectSignup } from "@/types";
 // Import React Email template and services
 import CertificatePublished from '@/emails/certificate-published';
 import * as React from 'react';
@@ -15,6 +13,38 @@ function createServiceClient() {
   );
 }
 
+function getAllowedCronTokens(): string[] {
+  const tokens = [process.env.CRON_SECRET, process.env.AUTO_PUBLISH_SECRET_TOKEN].filter(
+    (value): value is string => Boolean(value)
+  );
+
+  return tokens;
+}
+
+function authorizeCronRequest(
+  request: NextRequest
+): { ok: true } | { ok: false; response: NextResponse } {
+  const authHeader = request.headers.get("authorization") || "";
+  const token = authHeader.replace("Bearer ", "");
+  const allowedTokens = getAllowedCronTokens();
+
+  if (allowedTokens.length === 0) {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { error: "Cron auth not configured" },
+        { status: 500 }
+      ),
+    };
+  }
+
+  if (!token || !allowedTokens.includes(token)) {
+    return { ok: false, response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
+  }
+
+  return { ok: true };
+}
+
 // Types specific to auto-publish functionality
 interface AutoPublishResult {
   success: boolean;
@@ -25,6 +55,54 @@ interface AutoPublishResult {
   emailsSent: number;
   errors: string[];
 }
+
+type SignupProfileRow = {
+  id?: string | null;
+  full_name?: string | null;
+  email?: string | null;
+};
+
+type SignupAnonymousRow = {
+  id?: string | null;
+  name?: string | null;
+  email?: string | null;
+};
+
+type OrganizationRow = {
+  name?: string | null;
+  verified?: boolean | null;
+};
+
+type ProjectCreatorRow = {
+  full_name?: string | null;
+};
+
+type ProjectRow = {
+  id: string;
+  title: string;
+  location?: string | null;
+  published?: Record<string, boolean> | null;
+  verification_method?: string | null;
+  status?: string | null;
+  project_timezone?: string | null;
+  creator_id?: string | null;
+  profiles?: ProjectCreatorRow | ProjectCreatorRow[] | null;
+  organization?: OrganizationRow | OrganizationRow[] | null;
+};
+
+type SignupRow = {
+  id: string;
+  user_id?: string | null;
+  anonymous_id?: string | null;
+  check_in_time?: string | null;
+  check_out_time?: string | null;
+  profile?: SignupProfileRow | SignupProfileRow[] | null;
+  anonymous_signup?: SignupAnonymousRow | SignupAnonymousRow[] | null;
+  projects?: ProjectRow | ProjectRow[] | null;
+  schedule_id?: string | null;
+  project_id?: string | null;
+  status?: string | null;
+};
 
 // Calculate duration in minutes with validation
 function calculateDuration(checkInISO: string | null, checkOutISO: string | null): {
@@ -117,9 +195,9 @@ async function sendCertificatePublishedEmails(
 
 // Process signups directly into certificates
 async function processSessionSignups(
-  project: any,
+  project: ProjectRow,
   sessionId: string,
-  signups: any[],
+  signups: SignupRow[],
   sessionName: string
 ): Promise<AutoPublishResult> {
   const supabase = createServiceClient();
@@ -140,8 +218,12 @@ async function processSessionSignups(
         continue; // Skip invalid durations
       }
       
-      const name = signup.profile?.full_name || signup.anonymous_signup?.name || "Anonymous Volunteer";
-      const email = signup.profile?.email || signup.anonymous_signup?.email || null;
+      const profile = Array.isArray(signup.profile) ? signup.profile[0] : signup.profile;
+      const anonymous = Array.isArray(signup.anonymous_signup)
+        ? signup.anonymous_signup[0]
+        : signup.anonymous_signup;
+      const name = profile?.full_name || anonymous?.name || "Anonymous Volunteer";
+      const email = profile?.email || anonymous?.email || null;
       
       validVolunteers.push({
         signupId: signup.id,
@@ -170,9 +252,15 @@ async function processSessionSignups(
     console.log(`Processing ${validVolunteers.length} volunteers with valid hours`);
 
     // Get organization info for certificate generation
-    const creatorName = project.profiles?.full_name || "Project Organizer";
-    const organizationName = project.organization?.name || null;
-    const isOrganizationVerified = project.organization?.verified || false;
+    const creatorProfile = Array.isArray(project.profiles)
+      ? project.profiles[0]
+      : project.profiles;
+    const organization = Array.isArray(project.organization)
+      ? project.organization[0]
+      : project.organization;
+    const creatorName = creatorProfile?.full_name || "Project Organizer";
+    const organizationName = organization?.name || null;
+    const isOrganizationVerified = organization?.verified || false;
 
     // Prepare certificate data
     const certificatesToInsert = validVolunteers.map(volunteer => ({
@@ -274,7 +362,10 @@ async function processSessionSignups(
     console.log(`Updated project published status for session ${sessionId}`);
 
     // Send email notifications
-    const emailResult = await sendCertificatePublishedEmails(insertedCerts || [], project.project_timezone);
+    const emailResult = await sendCertificatePublishedEmails(
+      insertedCerts || [],
+      project.project_timezone || undefined
+    );
     
     console.log(`Email sending completed: ${emailResult.emailsSent} sent, ${emailResult.errors.length} errors`);
 
@@ -288,7 +379,7 @@ async function processSessionSignups(
       errors: emailResult.errors
     };
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Unexpected error in processSessionSignups:", error);
     return {
       success: false,
@@ -297,7 +388,7 @@ async function processSessionSignups(
       sessionName,
       certificatesCreated: 0,
       emailsSent: 0,
-      errors: [error.message || "An unexpected server error occurred"]
+      errors: [error instanceof Error ? error.message : "An unexpected server error occurred"]
     };
   }
 }
@@ -320,7 +411,7 @@ async function processExpiredSessions(): Promise<{
     console.log(`Looking for signups with check-out times between: ${seventyTwoHoursAgo.toISOString()} and ${fortyEightHoursAgo.toISOString()}`);
     
     // Find signups with check_out_times in the 48-72 hour window
-    const { data: eligibleSignups, error: signupsError } = await supabase
+    const { data, error: signupsError } = await supabase
       .from("project_signups")
       .select(`
         *,
@@ -351,28 +442,34 @@ async function processExpiredSessions(): Promise<{
       return { processedSessions: 0, successfulSessions: 0, results: [] };
     }
 
-    console.log(`Found ${eligibleSignups?.length || 0} signups with checkout times in the 48-72 hour window`);
+    const eligibleSignups = (data ?? []) as SignupRow[];
 
-    if (!eligibleSignups || eligibleSignups.length === 0) {
+    console.log(`Found ${eligibleSignups.length} signups with checkout times in the 48-72 hour window`);
+
+    if (eligibleSignups.length === 0) {
       console.log("No eligible signups found");
       return { processedSessions: 0, successfulSessions: 0, results: [] };
     }
 
     // Group signups by project_id + schedule_id combination
     const sessionGroups = new Map<string, {
-      project: any;
-      signups: any[];
+      project: ProjectRow;
+      signups: SignupRow[];
       sessionId: string;
       projectId: string;
     }>();
 
-    eligibleSignups.forEach((signup: any) => {
+    eligibleSignups.forEach((signup) => {
       const key = `${signup.project_id}-${signup.schedule_id}`;
       
       if (!sessionGroups.has(key)) {
         // Check if this session is already published
-        const project = signup.projects;
-        const isPublished = project.published && project.published[signup.schedule_id];
+        const project = Array.isArray(signup.projects) ? signup.projects[0] : signup.projects;
+        if (!project || !signup.schedule_id || !signup.project_id) {
+          return;
+        }
+
+        const isPublished = Boolean(project.published && project.published[signup.schedule_id]);
         
         if (!isPublished && project.verification_method && ['manual', 'qr-code'].includes(project.verification_method) && project.status !== 'cancelled') {
           sessionGroups.set(key, {
@@ -392,7 +489,9 @@ async function processExpiredSessions(): Promise<{
         sessionGroups.get(key)!.signups.push({
           ...signup,
           profile: Array.isArray(signup.profile) ? signup.profile[0] : signup.profile,
-          anonymous_signup: Array.isArray(signup.anonymous_signup) ? signup.anonymous_signup[0] : signup.anonymous_signup,
+          anonymous_signup: Array.isArray(signup.anonymous_signup)
+            ? signup.anonymous_signup[0]
+            : signup.anonymous_signup,
         });
       }
     });
@@ -408,7 +507,7 @@ async function processExpiredSessions(): Promise<{
     const results: AutoPublishResult[] = [];
     let successfulSessions = 0;
 
-    for (const [key, sessionGroup] of sessionGroups) {
+    for (const sessionGroup of sessionGroups.values()) {
       const sessionName = `${sessionGroup.project.title} - ${sessionGroup.sessionId}`;
       console.log(`Processing session: ${sessionName} (${sessionGroup.signups.length} signups)`);
       
@@ -427,7 +526,7 @@ async function processExpiredSessions(): Promise<{
         if (result.emailsSent > 0) {
           await new Promise(resolve => setTimeout(resolve, 500));
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error(`Error processing session ${sessionGroup.sessionId}:`, error);
         results.push({
           success: false,
@@ -436,7 +535,7 @@ async function processExpiredSessions(): Promise<{
           sessionName,
           certificatesCreated: 0,
           emailsSent: 0,
-          errors: [error.message || "Unknown error"]
+          errors: [error instanceof Error ? error.message : "Unknown error"]
         });
       }
     }
@@ -449,7 +548,7 @@ async function processExpiredSessions(): Promise<{
       results
     };
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error in processExpiredSessions:", error);
     return { processedSessions: 0, successfulSessions: 0, results: [] };
   }
@@ -458,25 +557,8 @@ async function processExpiredSessions(): Promise<{
 // API Route Handler
 export async function POST(request: NextRequest) {
   try {
-    // Simple authentication - check for a secret token
-    const authHeader = request.headers.get('authorization');
-    const expectedToken = process.env.AUTO_PUBLISH_SECRET_TOKEN;
-    
-    if (!expectedToken) {
-      console.error("AUTO_PUBLISH_SECRET_TOKEN not configured");
-      return NextResponse.json(
-        { error: "Auto-publish service not configured" },
-        { status: 500 }
-      );
-    }
-    
-    if (!authHeader || authHeader !== `Bearer ${expectedToken}`) {
-      console.log("Unauthorized auto-publish attempt");
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
+    const auth = authorizeCronRequest(request);
+    if (!auth.ok) return auth.response;
 
     // Check if auto-publish is enabled
     if (process.env.AUTO_PUBLISH_ENABLED !== 'true') {
@@ -504,10 +586,11 @@ export async function POST(request: NextRequest) {
       results: result.results
     }, { status: 200 });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error in auto-publish API route:", error);
+    const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
-      { error: "Internal server error", message: error.message },
+      { error: "Internal server error", message },
       { status: 500 }
     );
   }
@@ -515,16 +598,16 @@ export async function POST(request: NextRequest) {
 
 // Also support GET for testing/monitoring
 export async function GET(request: NextRequest) {
-  const authHeader = request.headers.get('authorization');
-  const expectedToken = process.env.AUTO_PUBLISH_SECRET_TOKEN;
-  
-  if (!expectedToken || !authHeader || authHeader !== `Bearer ${expectedToken}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (request.nextUrl.searchParams.get("status") === "1") {
+    const auth = authorizeCronRequest(request);
+    if (!auth.ok) return auth.response;
+
+    return NextResponse.json({
+      message: "Auto-publish service is running",
+      enabled: process.env.AUTO_PUBLISH_ENABLED === "true",
+      timestamp: new Date().toISOString(),
+    });
   }
 
-  return NextResponse.json({
-    message: "Auto-publish service is running",
-    enabled: process.env.AUTO_PUBLISH_ENABLED === 'true',
-    timestamp: new Date().toISOString()
-  });
+  return POST(request);
 }

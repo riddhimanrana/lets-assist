@@ -43,7 +43,7 @@ export function MiniDashboard({
 }: MiniDashboardProps) {
   const months = monthlyData ?? MOCK_MONTHLY_DATA;
   const maxHours = Math.max(...months.map((m) => m.hours), 1);
-  const chartBarColor = "hsl(var(--chart-3))";
+  const chartBarColor = "var(--info)";
 
   const defaultBreakdown: HoursBreakdown = breakdown ?? {
     selfReported: Math.round(totalHours * 0.35),
@@ -64,25 +64,29 @@ export function MiniDashboard({
   return (
     <div className="space-y-3 p-2 md:p-3">
       <div className="grid gap-3 md:grid-cols-3">
-        <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/30">
+        <Card className="bg-linear-to-br from-chart-5/10 to-chart-5/5 border border-chart-5/30">
           <CardContent className="p-3">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[10px] font-medium text-muted-foreground">Total Hours</p>
+                <p className="text-[10px] font-medium text-muted-foreground">
+                  Total Hours
+                </p>
                 <p className="text-xl font-semibold">{totalHours}h</p>
               </div>
-              <div className="p-1.5 rounded-md bg-primary/20">
-                <Clock className="h-4 w-4 text-primary" />
+              <div className="p-1.5 rounded-md bg-chart-5/20">
+                <Clock className="h-4 w-4 text-chart-5" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-chart-3/10 to-chart-3/5 border border-chart-3/30">
+        <Card className="bg-linear-to-br from-chart-3/10 to-chart-3/5 border border-chart-3/30">
           <CardContent className="p-3">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[10px] font-medium text-muted-foreground">Projects</p>
+                <p className="text-[10px] font-medium text-muted-foreground">
+                  Projects
+                </p>
                 <p className="text-xl font-semibold">{totalProjects}</p>
               </div>
               <div className="p-1.5 rounded-md bg-chart-3/20">
@@ -92,11 +96,13 @@ export function MiniDashboard({
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-chart-4/10 to-chart-4/5 border border-chart-4/30">
+        <Card className="bg-linear-to-br from-chart-4/10 to-chart-4/5 border border-chart-4/30">
           <CardContent className="p-3">
             <div className="flex items-center justify-between mb-2">
               <div>
-                <p className="text-[10px] font-medium text-muted-foreground">Progress</p>
+                <p className="text-[10px] font-medium text-muted-foreground">
+                  Progress
+                </p>
                 <p className="text-lg font-semibold">{progressPercentage}%</p>
               </div>
               <div className="p-1.5 rounded-md bg-chart-4/20">
@@ -125,7 +131,10 @@ export function MiniDashboard({
             {months.map((m) => {
               const heightPct = Math.round((m.hours / maxHours) * 100);
               return (
-                <div key={m.month} className="flex h-full flex-1 flex-col items-center gap-1">
+                <div
+                  key={m.month}
+                  className="flex h-full flex-1 flex-col items-center gap-1"
+                >
                   <div className="flex h-full w-full flex-col justify-end overflow-hidden rounded-t-md bg-background">
                     <motion.div
                       initial={{ height: 0 }}
@@ -136,7 +145,9 @@ export function MiniDashboard({
                       title={`${m.hours}h`}
                     />
                   </div>
-                  <span className="text-[10px] text-muted-foreground">{m.month}</span>
+                  <span className="text-[10px] text-muted-foreground">
+                    {m.month}
+                  </span>
                 </div>
               );
             })}
@@ -148,7 +159,9 @@ export function MiniDashboard({
         <CardContent className="space-y-4 p-4">
           <div className="flex items-center justify-between">
             <h4 className="text-sm font-medium">Export-style breakdown</h4>
-            <p className="text-xs text-muted-foreground">Aligned with the certificates export view</p>
+            <p className="text-xs text-muted-foreground">
+              Aligned with the certificates export view
+            </p>
           </div>
           <div className="space-y-3">
             {breakdownRows.map((row) => (
@@ -158,7 +171,9 @@ export function MiniDashboard({
               >
                 <div className="flex items-center gap-2">
                   <Badge variant={row.variant}>{row.badge}</Badge>
-                  <span className="text-xs text-muted-foreground">{row.label}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {row.label}
+                  </span>
                 </div>
                 <p className="text-sm font-semibold">{row.hours}h</p>
               </div>

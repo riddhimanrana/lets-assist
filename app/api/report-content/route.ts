@@ -1,13 +1,21 @@
-import { createClient } from '@/utils/supabase/server';
+import { createClient } from '@/lib/supabase/server';
+import { getAuthUser } from '@/lib/supabase/auth-helpers';
 import { notifyAdminsBatched } from '@/services/admin-notifications';
 import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
   try {
     const supabase = await createClient();
-    
-    // Get authenticated user (optional - can allow anonymous reports)
-    const { data: { user } } = await supabase.auth.getUser();
+
+    // Get authenticated user using getClaims() for better performance
+    const { user } = await getAuthUser();
+
+    if (!user) {
+      return NextResponse.json(
+        { error: 'You must be signed in to report content.' },
+        { status: 401 }
+      );
+    }
     
     // Parse request body
     const body = await request.json();

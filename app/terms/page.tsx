@@ -127,7 +127,7 @@ const TermsPage = () => {
             For any questions, reach out to us at{" "}
             <Link
               href="mailto:support@lets-assist.com"
-              className="text-chart-3"
+              className="text-info"
             >
               support@lets-assist.com
             </Link>

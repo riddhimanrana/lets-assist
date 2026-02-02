@@ -4,13 +4,13 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { APIProvider, Map, AdvancedMarker, useApiIsLoaded, ColorScheme, RenderingType } from "@vis.gl/react-google-maps";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Users, MapPin, Locate, Loader2, Info, AlertCircle } from "lucide-react";
+import { Calendar, Users, MapPin, Loader2, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import type { Project } from "@/types";
 
 // Map container styles
 const mapContainerStyle = {
@@ -33,22 +33,26 @@ const RADIUS_METERS = RADIUS_MILES * 1609.34; // Convert miles to meters
 
 interface ProjectsMapViewProps {
   className?: string;
-  initialProjects?: any[];
-  projects?: any[]; // Add projects prop
+  initialProjects?: Project[];
+  projects?: Project[]; // Add projects prop
 }
 
-function ProjectMapInfoWindow({ project, onClose }: { project: any; onClose: () => void }) {
+function ProjectMapInfoWindow({ project, onClose }: { project: Project; onClose: () => void }) {
   // Format date display for projects
-  const formatDateDisplay = (project: any) => {
+  const formatDateDisplay = (project: Project) => {
     if (!project.event_type || !project.schedule) return "";
 
     switch (project.event_type) {
       case "oneTime": {
+        if (!project.schedule.oneTime?.date) return "";
         return format(new Date(project.schedule.oneTime.date), "MMM d");
       }
       case "multiDay": {
+        if (!project.schedule.multiDay || project.schedule.multiDay.length === 0) {
+          return "";
+        }
         const dates = project.schedule.multiDay
-          .map((day: any) => new Date(day.date))
+          .map((day) => new Date(day.date))
           .sort((a: Date, b: Date) => a.getTime() - b.getTime());
         
         // If dates are in same month
@@ -80,6 +84,7 @@ function ProjectMapInfoWindow({ project, onClose }: { project: any; onClose: () 
         }
       }
       case "sameDayMultiArea": {
+        if (!project.schedule.sameDayMultiArea?.date) return "";
         return format(new Date(project.schedule.sameDayMultiArea.date), "MMM d");
       }
       default:
@@ -93,7 +98,7 @@ function ProjectMapInfoWindow({ project, onClose }: { project: any; onClose: () 
   };
 
   // Get volunteer count from a project
-  const getVolunteerCount = (project: any): number => {
+  const getVolunteerCount = (project: Project): number => {
     if (!project.event_type || !project.schedule) return 0;
 
     switch (project.event_type) {
@@ -102,9 +107,9 @@ function ProjectMapInfoWindow({ project, onClose }: { project: any; onClose: () 
       case "multiDay": {
         let total = 0;
         if (project.schedule.multiDay) {
-          project.schedule.multiDay.forEach((day: any) => {
+          project.schedule.multiDay.forEach((day) => {
             if (day.slots) {
-              day.slots.forEach((slot: any) => {
+              day.slots.forEach((slot) => {
                 total += slot.volunteers || 0;
               });
             }
@@ -115,7 +120,7 @@ function ProjectMapInfoWindow({ project, onClose }: { project: any; onClose: () 
       case "sameDayMultiArea": {
         let total = 0;
         if (project.schedule.sameDayMultiArea?.roles) {
-          project.schedule.sameDayMultiArea.roles.forEach((role: any) => {
+          project.schedule.sameDayMultiArea.roles.forEach((role) => {
             total += role.volunteers || 0;
           });
         }
@@ -159,17 +164,14 @@ function ProjectMapInfoWindow({ project, onClose }: { project: any; onClose: () 
   );
 }
 
-function MapContent({ initialProjects, projects: externalProjects, className }: ProjectsMapViewProps) {
+function MapContent({ initialProjects, projects: externalProjects }: ProjectsMapViewProps) {
   const { resolvedTheme } = useTheme();
   const [userLocation, setUserLocation] = useState<google.maps.LatLngLiteral | null>(null);
-  const [projects, setProjects] = useState<any[]>(initialProjects ?? externalProjects ?? []);
-  const [filteredProjects, setFilteredProjects] = useState<any[]>([]);
-  const [selectedProject, setSelectedProject] = useState<any | null>(null);
-  const [isLocating, setIsLocating] = useState(false);
+  const [projects, setProjects] = useState<Project[]>(initialProjects ?? externalProjects ?? []);
+  const [filteredProjects, setFilteredProjects] = useState<Project[]>([]);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [isLoading, setIsLoading] = useState(!initialProjects);
   const [error, setError] = useState<string | null>(null);
-  // Always show radius notice when we have user location
-  const [showRadiusNotice, setShowRadiusNotice] = useState(false);
   const mapRef = useRef<google.maps.Map | null>(null);
   const circleRef = useRef<google.maps.Circle | null>(null);
   const isLoaded = useApiIsLoaded();
@@ -181,7 +183,7 @@ function MapContent({ initialProjects, projects: externalProjects, className }: 
   const mapColorScheme = resolvedTheme === 'dark' ? ColorScheme.DARK : ColorScheme.LIGHT;
   
   // Get project marker position
-  const getProjectPosition = (project: any): google.maps.LatLngLiteral | null => {
+  const getProjectPosition = (project: Project): google.maps.LatLngLiteral | null => {
     try {
       if (project.location_data?.coordinates) {
         return {
@@ -226,11 +228,6 @@ function MapContent({ initialProjects, projects: externalProjects, className }: 
     });
     
     setFilteredProjects(filtered);
-    
-    // Show radius notice if any projects were filtered out
-    if (filtered.length < projects.length) {
-      setShowRadiusNotice(true);
-    }
   }, [userLocation, projects]);
   
   // Fetch projects from API
@@ -244,11 +241,11 @@ function MapContent({ initialProjects, projects: externalProjects, className }: 
         throw new Error(`Error fetching projects: ${response.status}`);
       }
       
-      const data = await response.json();
+      const data = (await response.json()) as Project[];
       setProjects(data);
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error fetching projects:', err);
-      setError(err.message || 'Failed to fetch projects');
+      setError(err instanceof Error ? err.message : 'Failed to fetch projects');
     } finally {
       setIsLoading(false);
     }
@@ -256,7 +253,6 @@ function MapContent({ initialProjects, projects: externalProjects, className }: 
   
   // Get user's current location
   const getUserLocation = useCallback(() => {
-    setIsLocating(true);
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -265,7 +261,6 @@ function MapContent({ initialProjects, projects: externalProjects, className }: 
             lng: position.coords.longitude
           };
           setUserLocation(userPos);
-          setShowRadiusNotice(true);
           
           // Only pan to location when explicitly requested via the button
           if (mapRef.current) {
@@ -277,7 +272,6 @@ function MapContent({ initialProjects, projects: externalProjects, className }: 
             }, 300);
           }
           
-          setIsLocating(false);
         },
         (error) => {
           console.error("Error getting location:", error);
@@ -297,14 +291,12 @@ function MapContent({ initialProjects, projects: externalProjects, className }: 
           }
           
           alert(errorMessage);
-          setIsLocating(false);
         },
         { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
       );
     } else {
       console.error("Geolocation is not supported by this browser");
       alert("Your browser doesn't support geolocation features.");
-      setIsLocating(false);
     }
   }, []); // No dependencies needed since we're using state setters
   
@@ -502,7 +494,7 @@ function MapContent({ initialProjects, projects: externalProjects, className }: 
       
       {/* Always show radius notice when we have user location */}
       {userLocation && (
-        <div className="hidden sm:inline absolute top-4 left-1/2 transform -translate-x-1/2 bg-background/90 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-sm border">
+        <div className="hidden sm:inline absolute top-2 left-1/2 transform -translate-x-1/2 bg-background/90 backdrop-blur-xs px-3 py-1.5 rounded-full shadow-xs border">
           <span className="text-xs text-center font-medium">
             Showing projects within {RADIUS_MILES} miles
           </span>
@@ -530,7 +522,7 @@ function MapContent({ initialProjects, projects: externalProjects, className }: 
       
       {/* Project count badge */}
       {projectsWithCoordinates.length > 0 && (
-        <div className="absolute top-4 left-4 bg-background/90 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-sm border">
+        <div className="absolute top-4 left-4 bg-background/90 backdrop-blur-xs px-3 py-1.5 rounded-full shadow-xs border">
           <span className="text-sm font-medium">
             {projectsWithCoordinates.length} {projectsWithCoordinates.length === 1 ? 'project' : 'projects'} nearby
           </span>

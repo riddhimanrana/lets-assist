@@ -9,6 +9,7 @@ interface MiniCertificateProps {
   organizationName: string;
   hours: number;
   volunteerName: string;
+  shouldAnimate?: boolean;
 }
 
 export function MiniCertificate({
@@ -16,7 +17,9 @@ export function MiniCertificate({
   organizationName,
   hours,
   volunteerName,
+  shouldAnimate = true,
 }: MiniCertificateProps) {
+  const isAnimating = shouldAnimate;
   return (
     <motion.div
       initial={{ y: 20, opacity: 0 }}
@@ -24,7 +27,7 @@ export function MiniCertificate({
       transition={{ duration: 0.5 }}
       className="p-4"
     >
-      <div className="relative overflow-hidden rounded-xl border-2 border-primary/20 bg-gradient-to-br from-primary/10 via-background to-primary/5 p-6 shadow-lg">
+      <div className="relative overflow-hidden rounded-xl border-2 border-primary/20 bg-linear-to-br from-primary/10 via-background to-primary/5 p-6 shadow-lg">
         {/* Header */}
         <div className="flex items-start justify-between mb-4">
           <motion.div
@@ -63,7 +66,7 @@ export function MiniCertificate({
             <span>{organizationName}</span>
           </div>
 
-          <div className="p-3 bg-gradient-to-r from-primary/5 to-transparent backdrop-blur-sm rounded-lg border border-primary/10">
+          <div className="p-3 bg-linear-to-r from-primary/5 to-transparent backdrop-blur-xs rounded-lg border border-primary/10">
             <p className="text-sm font-semibold mb-1">{volunteerName}</p>
             <div className="flex items-center gap-2">
               <Clock className="h-3.5 w-3.5 text-primary" />
@@ -77,15 +80,23 @@ export function MiniCertificate({
 
         {/* Decorative gradient orb */}
         <motion.div
-          animate={{
-            scale: [1, 1.2, 1],
-            opacity: [0.3, 0.5, 0.3],
-          }}
-          transition={{
-            duration: 3,
-            repeat: Infinity,
-            ease: "easeInOut",
-          }}
+          animate={
+            isAnimating
+              ? {
+                  scale: [1, 1.2, 1],
+                  opacity: [0.3, 0.5, 0.3],
+                }
+              : { scale: 1, opacity: 0.3 }
+          }
+          transition={
+            isAnimating
+              ? {
+                  duration: 3,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                }
+              : { duration: 0 }
+          }
           className="absolute -bottom-6 -right-6 w-24 h-24 bg-primary/20 rounded-full blur-2xl -z-10 pointer-events-none"
         />
       </div>

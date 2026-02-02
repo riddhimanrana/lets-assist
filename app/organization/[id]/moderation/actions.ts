@@ -1,7 +1,22 @@
 "use server";
 
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { canViewOrgModeration } from "@/utils/admin-helpers";
+
+type OrgFlaggedContent = {
+  id: string;
+  content_type: string;
+  severity: string;
+  created_at: string;
+  reason?: string | null;
+  categories?: Record<string, boolean | null> | null;
+  profiles?: {
+    full_name?: string | null;
+    email?: string | null;
+    username?: string | null;
+    organization_id?: string | null;
+  } | null;
+};
 
 /**
  * Get flagged content for a specific organization
@@ -9,7 +24,7 @@ import { canViewOrgModeration } from "@/utils/admin-helpers";
 export async function getOrgFlaggedContent(
   organizationId: string,
   status?: 'pending_review' | 'blocked' | 'confirmed' | 'dismissed'
-) {
+): Promise<{ data?: OrgFlaggedContent[]; error?: string }> {
   const supabase = await createClient();
   
   // Check permissions
@@ -49,14 +64,17 @@ export async function getOrgFlaggedContent(
     query = query.eq('status', status);
   }
   
-  const { data, error} = await query;
+  const { data, error } = (await query) as {
+    data: OrgFlaggedContent[] | null;
+    error: { message: string } | null;
+  };
   
   if (error) {
     console.error('Error fetching org flagged content:', error);
     return { error: error.message };
   }
   
-  return { data };
+  return { data: data ?? [] };
 }
 
 /**

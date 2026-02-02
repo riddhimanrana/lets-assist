@@ -1,6 +1,6 @@
 import React from "react";
-import { Card } from "@/components/ui/card";
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { EmailVerificationToast } from "@/components/auth/EmailVerificationToast";
 import { EmailConfirmationModal } from "@/components/auth/EmailConfirmationModal";
 import { Button } from "@/components/ui/button";
@@ -21,9 +21,9 @@ export const metadata: Metadata = {
 
 export default async function Home() {
   const supabase = await createClient();
-  
-  // Get the current user and profile
-  const { data: { user } } = await supabase.auth.getUser();
+
+  // Get the current user using getClaims() for better performance
+  const { user } = await getAuthUser();
   const { data: profileData } = await supabase
     .from("profiles")
     .select("full_name, avatar_url, username, trusted_member")

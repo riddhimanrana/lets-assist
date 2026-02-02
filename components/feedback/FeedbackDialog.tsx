@@ -5,16 +5,27 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
-  DialogFooter,
-  DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Lightbulb, AlertTriangle, MoreHorizontal, Loader2 } from "lucide-react";
+import {
+  Lightbulb,
+  AlertTriangle,
+  MoreHorizontal,
+  Loader2,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
-import { createClient } from "@/utils/supabase/client";
+import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -25,36 +36,48 @@ interface FeedbackDialogProps {
 
 type FeedbackType = "issue" | "idea" | "other";
 
-export function FeedbackDialog({ onOpenChangeAction, initialType = "issue" }: FeedbackDialogProps) {
-  const { user } = useAuth(); // Use centralized auth hook instead of manual getUser()
-  const [selectedType, setSelectedType] = React.useState<FeedbackType>(initialType);
+export function FeedbackDialog({
+  onOpenChangeAction,
+  initialType = "issue",
+}: FeedbackDialogProps) {
+  const { user } = useAuth();
+  const [selectedType, setSelectedType] =
+    React.useState<FeedbackType>(initialType);
   const [email, setEmail] = React.useState("");
   const [title, setTitle] = React.useState("");
   const [feedback, setFeedback] = React.useState("");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
-  const [profile, setProfile] = React.useState<{ full_name: string } | null>(null);
+  const [profile, setProfile] = React.useState<{ full_name: string } | null>(
+    null,
+  );
 
   const feedbackTypes = [
     {
       id: "issue" as FeedbackType,
       label: "Issue",
       icon: AlertTriangle,
-      selectedColor: "bg-chart-6 hover:bg-chart-6/80 text-white border-chart-6",
-      defaultColor: "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground border-border hover:border-muted-foreground/20",
+      selectedColor:
+        "bg-destructive/10 border-destructive text-destructive ring-1 ring-destructive",
+      defaultColor: "bg-background border-input hover:bg-accent hover:text-accent-foreground",
+      iconColor: "text-destructive",
     },
     {
       id: "idea" as FeedbackType,
       label: "Idea",
       icon: Lightbulb,
-      selectedColor: "bg-chart-4 hover:bg-chart-4/80 text-white border-chart-4",
-      defaultColor: "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground border-border hover:border-muted-foreground/20",
+      selectedColor:
+        "bg-warning/10 border-warning text-warning ring-1 ring-warning",
+      defaultColor: "bg-background border-input hover:bg-accent hover:text-accent-foreground",
+      iconColor: "text-warning",
     },
     {
       id: "other" as FeedbackType,
       label: "Other",
       icon: MoreHorizontal,
-      selectedColor: "bg-chart-3 hover:bg-chart-3/80 text-white border-chart-3",
-      defaultColor: "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground border-border hover:border-muted-foreground/20",
+      selectedColor:
+        "bg-info/10 border-info text-info ring-1 ring-info",
+      defaultColor: "bg-background border-input hover:bg-accent hover:text-accent-foreground",
+      iconColor: "text-info",
     },
   ];
 
@@ -67,12 +90,15 @@ export function FeedbackDialog({ onOpenChangeAction, initialType = "issue" }: Fe
 
     const getProfile = async () => {
       const supabase = createClient();
-      const { data: profileData } = await supabase
+      const { data: profileData } = (await supabase
         .from("profiles")
         .select("full_name")
         .eq("id", user.id)
-        .single();
-      
+        .single()) as {
+          data: { full_name: string } | null;
+          error: { message: string } | null;
+        };
+
       setProfile(profileData);
       setEmail(user.email || "");
     };
@@ -102,9 +128,9 @@ export function FeedbackDialog({ onOpenChangeAction, initialType = "issue" }: Fe
       return;
     }
 
-    if (feedback.length > 1000) {
+    if (feedback.length > 2000) {
       toast.error("Feedback too long", {
-        description: "Feedback must be 1000 characters or less.",
+        description: "Feedback must be 2000 characters or less.",
       });
       return;
     }
@@ -113,33 +139,34 @@ export function FeedbackDialog({ onOpenChangeAction, initialType = "issue" }: Fe
 
     try {
       const supabase = createClient();
-      
-      const pagePath = typeof window !== "undefined"
-        ? `${window.location.pathname}${window.location.search}${window.location.hash}`
-        : "";
 
-      // Collect detailed metadata for better debugging and context
-      const metadata = typeof window !== "undefined" ? {
-        url: window.location.href,
-        userAgent: navigator.userAgent,
-        screenSize: `${window.screen.width}x${window.screen.height}`,
-        viewport: `${window.innerWidth}x${window.innerHeight}`,
-        language: navigator.language,
-        referrer: document.referrer,
-        timestamp: new Date().toISOString(),
-      } : {};
-      
-      const { error } = await supabase
-        .from("feedback")
-        .insert({
-          user_id: user.id,
-          section: selectedType,
-          email: email.trim(),
-          title: title.trim(),
-          feedback: feedback.trim(),
-          page_path: pagePath || null,
-          metadata, // Now sending collected metadata
-        });
+      const pagePath =
+        typeof window !== "undefined"
+          ? `${window.location.pathname}${window.location.search}${window.location.hash}`
+          : "";
+
+      const metadata =
+        typeof window !== "undefined"
+          ? {
+            url: window.location.href,
+            userAgent: navigator.userAgent,
+            screenSize: `${window.screen.width}x${window.screen.height}`,
+            viewport: `${window.innerWidth}x${window.innerHeight}`,
+            language: navigator.language,
+            referrer: document.referrer,
+            timestamp: new Date().toISOString(),
+          }
+          : {};
+
+      const { error } = await supabase.from("feedback").insert({
+        user_id: user.id,
+        section: selectedType,
+        email: email.trim(),
+        title: title.trim(),
+        feedback: feedback.trim(),
+        page_path: pagePath || null,
+        metadata,
+      });
 
       if (error) {
         throw error;
@@ -162,120 +189,116 @@ export function FeedbackDialog({ onOpenChangeAction, initialType = "issue" }: Fe
 
   return (
     <Dialog open={true} onOpenChange={onOpenChangeAction}>
-      <DialogContent className="w-[calc(100%-2rem)] sm:max-w-[500px] max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-xl font-semibold">Feedback</DialogTitle>
-        </DialogHeader>
-        <div className="py-2 space-y-6">
-          <p className="text-sm text-muted-foreground">
-            Have some feedback for Let&apos;s Assist? We would love to hear your thoughts!
-          </p>
-          
-          {/* <p className="text-sm text-muted-foreground">
-            This email will be used to contact you for further details on this feedback report{" "}
-          </p> */}
-
-          {user && profile && (
-            <div className="bg-muted rounded-lg p-3 flex items-center space-x-2">
-              <div className="w-2 h-2 bg-primary rounded-full"></div>
-              <span className="text-sm text-muted-foreground">
-                <strong>Note:</strong> You are logged in as {profile.full_name}
+      <DialogContent className="p-0 border-0 bg-transparent shadow-none sm:max-w-[500px]">
+        <DialogTitle className="sr-only">Detail</DialogTitle>
+        <Card className="w-full border-border shadow-lg gap-0">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-xl flex items-center gap-2">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+                <Lightbulb className="h-4 w-4 text-primary" />
               </span>
-            </div>
-          )}
+              Send Feedback
+            </CardTitle>
+            <CardDescription>
+              Help us improve Let's Assist by sharing your thoughts, ideas, or
+              reporting issues.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4 pt-0">
+            {user && profile && (
+              <div className="flex items-center gap-2 rounded-lg border bg-muted/50 p-2.5 text-sm text-muted-foreground">
+                <div className="h-2 w-2 rounded-full bg-success shrink-0" />
+                <span className="truncate">
+                  Sending as <span className="font-medium text-foreground">{profile.full_name}</span>
+                </span>
+              </div>
+            )}
 
-          <div className="grid grid-cols-3 gap-2 sm:gap-4">
-            {feedbackTypes.map((type) => {
-              const Icon = type.icon;
-              const isSelected = selectedType === type.id;
-              
-              return (
-                <button
-                  key={type.id}
-                  onClick={() => setSelectedType(type.id)}
-                  className={cn(
-                    "flex flex-col items-center justify-center p-3 sm:p-4 rounded-xl border-2 transition-all duration-200",
-                    isSelected 
-                      ? cn("scale-105 shadow-md z-10", type.selectedColor)
-                      : type.defaultColor
-                  )}
-                >
-                  <Icon className="w-5 h-5 sm:w-6 sm:h-6 mb-2" />
-                  <span className="text-xs sm:text-sm font-bold">{type.label}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="email" className="text-sm">
-              Email
-            </Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="john@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex justify-between items-center">
-              <Label htmlFor="title" className="text-sm">
-                Title
+            <div className="space-y-3">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Feedback Type
               </Label>
-              <span className="text-xs text-muted-foreground">
-                {title.length}/100
-              </span>
-            </div>
-            <Input
-              id="title"
-              type="text"
-              placeholder="Brief summary of your feedback"
-              value={title}
-              onChange={(e) => setTitle(e.target.value.slice(0, 100))}
-              className={title.length > 90 ? "border-yellow-500 focus:border-yellow-500" : ""}
-            />
-          </div>
+              <div className="grid grid-cols-3 gap-3">
+                {feedbackTypes.map((type) => {
+                  const Icon = type.icon;
+                  const isSelected = selectedType === type.id;
 
-          <div className="space-y-2">
-            <div className="flex justify-between items-center">
-              <Label htmlFor="feedback" className="text-sm">
-                Feedback
-              </Label>
-              <span className="text-xs text-muted-foreground">
-                {feedback.length}/1000
-              </span>
+                  return (
+                    <button
+                      key={type.id}
+                      onClick={() => setSelectedType(type.id)}
+                      className={cn(
+                        "flex flex-col items-center justify-center gap-2 rounded-xl border p-3 transition-all outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                        isSelected ? type.selectedColor : type.defaultColor,
+                      )}
+                    >
+                      <Icon
+                        className={cn(
+                          "h-5 w-5 transition-colors",
+                          isSelected ? type.iconColor : "text-muted-foreground",
+                        )}
+                      />
+                      <span className="text-xs font-medium">{type.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-            <Textarea
-              id="feedback"
-              placeholder="Describe the issue, what you were trying to do, and how the issue occurs"
-              value={feedback}
-              onChange={(e) => setFeedback(e.target.value.slice(0, 1000))}
-              className={`min-h-[100px] resize-none ${feedback.length > 950 ? "border-yellow-500 focus:border-yellow-500" : ""}`}
-              rows={4}
-            />
-          </div>
-        </div>
-        <DialogFooter className="mt-2 flex-col sm:flex-row gap-2">
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => onOpenChangeAction(false)}
-            disabled={isSubmitting}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="button"
-            onClick={handleSubmit}
-            disabled={!email.trim() || !title.trim() || !feedback.trim() || isSubmitting || title.length > 100 || feedback.length > 1000}
-          >
-            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Send
-          </Button>
-        </DialogFooter>
+
+            <div className="space-y-2">
+              <Label htmlFor="title">Subject</Label>
+              <Input
+                id="title"
+                placeholder="What's on your mind?"
+                value={title}
+                onChange={(e) => setTitle(e.target.value.slice(0, 100))}
+                className="bg-background"
+              />
+            </div>
+
+            <div className="space-y-2 pb-4">
+              <div className="flex justify-between">
+                <Label htmlFor="feedback">Description</Label>
+                <span className="text-xs text-muted-foreground">
+                  {feedback.length}/2000
+                </span>
+              </div>
+              <Textarea
+                id="feedback"
+                placeholder="Please include as much detail as possible..."
+                value={feedback}
+                onChange={(e) => setFeedback(e.target.value.slice(0, 2000))}
+                className="min-h-[120px] resize-none bg-background"
+              />
+            </div>
+
+
+          </CardContent>
+          <CardFooter className="flex h-14 py-0 items-center justify-end gap-2">
+            <Button
+              variant="ghost"
+              onClick={() => onOpenChangeAction(false)}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSubmit}
+              disabled={
+                !title.trim() ||
+                !feedback.trim() ||
+                isSubmitting ||
+                title.length > 100 ||
+                feedback.length > 2000
+              }
+            >
+              {isSubmitting && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              Submit Feedback
+            </Button>
+          </CardFooter>
+        </Card>
       </DialogContent>
     </Dialog>
   );

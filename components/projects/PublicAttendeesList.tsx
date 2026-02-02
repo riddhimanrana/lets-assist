@@ -46,7 +46,7 @@ export function PublicAttendeesList({
   }
 
   return (
-    <Card className="border shadow-sm">
+    <Card className="border shadow-xs">
       <CardContent className="p-4">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
@@ -120,7 +120,7 @@ export function PublicAttendeesList({
                   {attendee.volunteer_comment && (
                     <div className="flex-1 ml-2">
                       <div className="text-xs text-muted-foreground mb-1">Comment:</div>
-                      <p className="text-sm bg-muted/40 rounded px-3 py-2 border whitespace-pre-wrap break-words">
+                      <p className="text-sm bg-muted/40 rounded px-3 py-2 border whitespace-pre-wrap wrap-break-word">
                         {attendee.volunteer_comment}
                       </p>
                     </div>

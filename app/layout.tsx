@@ -1,6 +1,6 @@
 // app/layout.tsx
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Geist_Mono, Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "next-themes";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -8,22 +8,77 @@ import Navbar from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import localFont from "next/font/local";
 import { PostHogProvider } from "./providers";
-import { ToasterTheme } from "@/components/theme/ToasterTheme";
+
+import { Toaster } from "@/components/ui/sonner";
 import { QueryMessageToast } from "@/components/shared/QueryMessageToast";
 import GlobalNotificationProvider from "@/components/providers/GlobalNotificationProvider";
 import CalendarOAuthCallbackHandler from "@/components/calendar/CalendarOAuthCallbackHandler";
-import { GeistMono } from 'geist/font/mono';
 import { AuthProvider } from "@/components/providers/AuthProvider";
-import { createClient } from "@/utils/supabase/server";
- 
+import { Suspense } from "react";
+
 export const metadata: Metadata = {
   title: {
     template: "%s - Let's Assist",
     default: "Let's Assist",
   },
-  description: 'Find volunteering opportunities and connect with organizations in need of your help.',
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://lets-assist.com"),
+  description:
+    "Find volunteering opportunities and connect with organizations in need of your help.",
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL ?? "https://lets-assist.com",
+  ),
+  keywords: [
+    "volunteering",
+    "volunteer opportunities",
+    "community service",
+    "nonprofit",
+    "volunteer hours",
+    "PVSA",
+    "volunteer tracking",
+  ],
+  authors: [{ name: "Let's Assist" }],
+  creator: "Let's Assist",
+  publisher: "Let's Assist",
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: process.env.NEXT_PUBLIC_SITE_URL ?? "https://lets-assist.com",
+    siteName: "Let's Assist",
+    title: "Let's Assist",
+    description:
+      "Find volunteering opportunities and connect with organizations in need of your help.",
+    images: [
+      {
+        url: "/opengraph-image",
+        width: 1200,
+        height: 630,
+        alt: "Let's Assist",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Let's Assist",
+    description:
+      "Find volunteering opportunities and connect with organizations in need of your help.",
+    images: ["/opengraph-image"],
+  },
 };
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
 
 const overusedgrotesk = localFont({
   src: "../public/fonts/OverusedGrotesk-VF.woff2",
@@ -31,51 +86,48 @@ const overusedgrotesk = localFont({
   variable: "--font-overusedgrotesk",
 });
 
-
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-sans",
-  display: "swap",
 });
-
-
 
 export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.className} ${GeistMono.variable} ${overusedgrotesk.className}`}>
-        <GlobalNotificationProvider>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-          >
+    <html lang="en" className={inter.className} suppressHydrationWarning>
+      <head />
+      <body
+        className={`${geistMono.variable} ${overusedgrotesk.variable} antialiased`}
+      >
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <AuthProvider>
             <PostHogProvider>
-              <AuthProvider initialUser={user}>
-                <div className="bg-background text-foreground min-h-screen flex flex-col">
-                  {/* Navbar now uses centralized useAuth hook */}
+              <GlobalNotificationProvider>
+                <div className="bg-background text-foreground min-h-screen flex flex-col w-full">
                   <Navbar />
-                  <main className="flex-1">{children}</main>
-                  <ToasterTheme />
-                  <QueryMessageToast />
+                  <Toaster richColors />
+                  <main className="flex-1 w-full">{children}</main>
+                  <Suspense fallback={null}>
+                    <QueryMessageToast />
+                  </Suspense>
                   <Footer />
                   <SpeedInsights />
-                  <CalendarOAuthCallbackHandler />
+                  <Suspense fallback={null}>
+                    <CalendarOAuthCallbackHandler />
+                  </Suspense>
                 </div>
-              </AuthProvider>
+              </GlobalNotificationProvider>
             </PostHogProvider>
-          </ThemeProvider>
-        </GlobalNotificationProvider>
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

@@ -86,7 +86,7 @@ export default async function AdminPage() {
           Platform activity and pending actions across feedback, trusted members, and moderation.
         </p>
       </div>
-      <section className="rounded-2xl border bg-card/80 p-4 shadow-sm sm:p-6">
+      <section className="rounded-2xl border bg-card/80 p-4 shadow-xs sm:p-6">
         <OverviewTab 
           stats={overviewStats}
           flaggedContent={flaggedContentData}

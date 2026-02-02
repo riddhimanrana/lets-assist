@@ -3,11 +3,14 @@
  * GET /api/calendar/synced-events
  */
 
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { SyncedEvent } from "@/types";
+import type { Project } from "@/types";
 
-export async function GET(request: Request) {
+
+
+export async function GET(_request: Request) {
   try {
     const supabase = await createClient();
 
@@ -27,11 +30,19 @@ export async function GET(request: Request) {
     const syncedEvents: SyncedEvent[] = [];
 
     // Get synced projects (where user is creator)
-    const { data: projects, error: projectsError } = await supabase
+    type SyncedProjectRow = Pick<Project, "id" | "title" | "schedule" | "event_type"> & {
+      creator_calendar_event_id: string | null;
+      creator_synced_at: string | null;
+    };
+
+    const { data: projects, error: projectsError } = (await supabase
       .from("projects")
       .select("id, title, schedule, event_type, creator_calendar_event_id, creator_synced_at")
       .eq("creator_id", user.id)
-      .not("creator_calendar_event_id", "is", null);
+      .not("creator_calendar_event_id", "is", null)) as {
+        data: SyncedProjectRow[] | null;
+        error: { message?: string } | null;
+      };
 
     if (!projectsError && projects) {
       for (const project of projects) {
@@ -74,7 +85,18 @@ export async function GET(request: Request) {
     }
 
     // Get synced signups (where user is volunteer)
-    const { data: signups, error: signupsError } = await supabase
+    type SyncedSignupRow = {
+      id: string;
+      schedule_id: string;
+      volunteer_calendar_event_id: string | null;
+      volunteer_synced_at: string | null;
+      projects:
+      | Pick<Project, "id" | "title" | "schedule" | "event_type">
+      | Pick<Project, "id" | "title" | "schedule" | "event_type">[]
+      | null;
+    };
+
+    const { data: signups, error: signupsError } = (await supabase
       .from("project_signups")
       .select(`
         id,
@@ -89,14 +111,17 @@ export async function GET(request: Request) {
         )
       `)
       .eq("user_id", user.id)
-      .not("volunteer_calendar_event_id", "is", null);
+      .not("volunteer_calendar_event_id", "is", null)) as {
+        data: SyncedSignupRow[] | null;
+        error: { message?: string } | null;
+      };
 
     if (!signupsError && signups) {
       for (const signup of signups) {
         if (!signup.projects) continue;
 
-        const project = Array.isArray(signup.projects) 
-          ? signup.projects[0] 
+        const project = Array.isArray(signup.projects)
+          ? signup.projects[0]
           : signup.projects;
 
         // Parse schedule based on schedule_id
@@ -109,7 +134,7 @@ export async function GET(request: Request) {
           endTime = `${s.date}T${s.endTime}`;
         } else if (project.event_type === "multiDay" && project.schedule.multiDay) {
           const [date, slotIndex] = signup.schedule_id.split("-");
-          const day = project.schedule.multiDay.find((d: any) => d.date === date);
+          const day = project.schedule.multiDay.find((d) => d.date === date);
           if (day) {
             const slot = day.slots[parseInt(slotIndex)];
             startTime = `${date}T${slot.startTime}`;
@@ -117,7 +142,7 @@ export async function GET(request: Request) {
           }
         } else if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
           const s = project.schedule.sameDayMultiArea;
-          const role = s.roles.find((r: any) => r.name === signup.schedule_id);
+          const role = s.roles.find((r) => r.name === signup.schedule_id);
           if (role) {
             startTime = `${s.date}T${role.startTime}`;
             endTime = `${s.date}T${role.endTime}`;
@@ -139,7 +164,7 @@ export async function GET(request: Request) {
     }
 
     // Sort by synced_at descending
-    syncedEvents.sort((a, b) => 
+    syncedEvents.sort((a, b) =>
       new Date(b.synced_at).getTime() - new Date(a.synced_at).getTime()
     );
 

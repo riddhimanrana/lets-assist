@@ -14,15 +14,15 @@ export function TrustedInfoIcon({ message, linkLabel = "Apply for Trusted Member
   return (
     <TooltipProvider>
       <Tooltip>
-        <TooltipTrigger asChild>
+        <TooltipTrigger render={
           <span aria-label="Trusted member required" role="img" className={className}>
             <Info className="h-4 w-4 text-muted-foreground" />
           </span>
-        </TooltipTrigger>
+        } />
         <TooltipContent>
           <div className="max-w-xs space-y-2">
             <p className="text-xs leading-snug">{message}</p>
-            <Link href="/trusted-member" className="text-xs text-primary underline">
+            <Link href="/trusted-member" className="text-xs text-primary dark:text-background underline">
               {linkLabel}
             </Link>
           </div>

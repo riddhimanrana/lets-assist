@@ -1,7 +1,7 @@
 import { generateText } from 'ai';
 import { NextRequest } from 'next/server';
 
-export const runtime = 'edge';
+// export const runtime = 'edge'; - incompatible with cacheComponents
 
 const getCurrentDateInfo = () => {
   const now = new Date();

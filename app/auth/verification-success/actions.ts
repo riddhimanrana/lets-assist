@@ -1,7 +1,6 @@
 "use server";
 
-import { createClient } from "@/utils/supabase/server";
-import { createClient as createAdminClient } from "@supabase/supabase-js";
+import { createClient } from "@/lib/supabase/server";
 
 type VerifyEmailResponse = {
   success: boolean;
@@ -50,13 +49,13 @@ export async function verifyEmailToken(token: string): Promise<VerifyEmailRespon
     // Step 2: Update user's profile if you have a profiles table
     try {
       // Update the email in your profile table if needed
-      const { error: profileUpdateError } = await supabase
+      const { error: profileUpdateError } = (await supabase
         .from("profiles")
         .update({ 
           email: newEmail,
           updated_at: new Date().toISOString()
         })
-        .eq("id", user.id);
+        .eq("id", user.id)) as { error: { message?: string } | null };
 
       if (profileUpdateError) {
         console.error("Profile update error:", profileUpdateError);

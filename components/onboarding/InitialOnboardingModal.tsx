@@ -8,32 +8,29 @@ import {
   DialogContent,
   DialogDescription,
   DialogFooter,
-  DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import Image from "next/image";
 import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-  FormDescription,
-} from "@/components/ui/form";
+  Field,
+  FieldLabel,
+  FieldDescription,
+  FieldError as FormMessage,
+} from "@/components/ui/field";
+import { Controller } from "react-hook-form";
 import { Input } from "@/components/ui/input";
 import { initialOnboardingSchema, InitialOnboardingValues } from "@/schemas/onboarding-schema";
 import { useState, useEffect } from "react";
 import { completeInitialOnboarding } from "./onboarding-actions";
 import { toast } from "sonner";
-import { useRouter } from "next/navigation";
-import { createClient } from "@/utils/supabase/client";
-import { CircleCheck, XCircle, Sparkles, Building2, ArrowRight, Loader2 } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+import { CircleCheck, XCircle, Building2, ArrowRight, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 // Constants for validation
-const USERNAME_MIN_LENGTH = 3;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const _USERNAME_MIN_LENGTH = 3;
 const USERNAME_MAX_LENGTH = 32;
 const PHONE_LENGTH = 10;
 
@@ -118,9 +115,9 @@ export default function InitialOnboardingModal({
       const data = await res.json();
       setUsernameAvailable(data.available);
       if (!data.available && data.error) {
-        form.setError("username", { 
+        form.setError("username", {
           type: "manual",
-          message: data.error 
+          message: data.error
         });
       }
     } catch (error) {
@@ -182,10 +179,14 @@ export default function InitialOnboardingModal({
               return false;
             }
 
-            const hasCompletedOnboarding = user?.user_metadata?.has_completed_onboarding === true;
+            const metadata = user?.user_metadata as Record<string, unknown> | undefined;
+            const hasCompletedOnboarding = metadata?.has_completed_onboarding === true;
 
             if (hasCompletedOnboarding) {
-              const autoJoinedOrgName = user?.user_metadata?.auto_joined_org_name;
+              const autoJoinedOrgName =
+                typeof metadata?.auto_joined_org_name === "string"
+                  ? metadata.auto_joined_org_name
+                  : undefined;
               if (autoJoinedOrgName) {
                 setTimeout(() => {
                   toast.info(`You've been automatically added to ${autoJoinedOrgName} based on your email domain.`, {
@@ -212,7 +213,7 @@ export default function InitialOnboardingModal({
         onClose();
 
         setTimeout(() => {
-          window.location.href = "/";
+          window.location.href = "/home";
         }, 1000);
       }
     } catch (error) {
@@ -223,16 +224,13 @@ export default function InitialOnboardingModal({
     }
   }
 
-  const handleInteractOutside = (event: Event) => {
-    event.preventDefault();
-  };
+
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+    <Dialog open={isOpen} onOpenChange={() => { }}>
       <DialogContent
-        className="w-full max-w-[95vw] sm:max-w-[480px] p-0 overflow-hidden gap-0"
-        onInteractOutside={handleInteractOutside}
-        onEscapeKeyDown={handleInteractOutside}
+        className="w-full max-w-[95vw] sm:max-w-[480px] p-0 overflow-hidden gap-0 [&>button]:hidden"
+
       >
         <AnimatePresence>
           {mounted && (
@@ -242,8 +240,8 @@ export default function InitialOnboardingModal({
               transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
             >
               {/* Header with gradient background */}
-              <div className="relative bg-gradient-to-br from-primary/10 via-primary/5 to-background px-6 pt-8 pb-6 border-b">
-                <motion.div 
+              <div className="relative bg-linear-to-br from-primary/10 via-primary/5 to-background px-6 pt-8 pb-6 border-b">
+                <motion.div
                   initial={{ scale: 0.8, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   transition={{ delay: 0.1, duration: 0.4 }}
@@ -254,9 +252,14 @@ export default function InitialOnboardingModal({
                   </div>
                   <div>
                     <DialogTitle className="text-xl font-semibold">Welcome to Let&apos;s Assist!</DialogTitle>
-                    <DialogDescription className="text-sm">
-                      Let&apos;s set up your profile
-                    </DialogDescription>
+                    <div className="space-y-1">
+                      <DialogDescription className="text-sm">
+                        Let&apos;s set up your profile
+                      </DialogDescription>
+                      <p className="text-xs text-muted-foreground/80">
+                        This will keep showing up until filled out and then go away forever.
+                      </p>
+                    </div>
                   </div>
                 </motion.div>
 
@@ -266,7 +269,7 @@ export default function InitialOnboardingModal({
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.2, duration: 0.4 }}
-                    className="flex items-center gap-3 p-3 rounded-lg bg-background/80 backdrop-blur-sm border shadow-sm"
+                    className="flex items-center gap-3 p-3 rounded-lg bg-background/80 backdrop-blur-xs border shadow-xs"
                   >
                     <Avatar className="h-10 w-10 border">
                       <AvatarImage src={orgLogoUrl || undefined} alt={autoJoinedOrg.name} />
@@ -285,162 +288,161 @@ export default function InitialOnboardingModal({
 
               {/* Form content */}
               <div className="px-6 py-6">
-                <Form {...form}>
-                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
-                    <motion.div
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.15, duration: 0.3 }}
-                    >
-                      <FormField
-                        control={form.control}
-                        name="username"
-                        render={({ field }) => (
-                          <FormItem>
-                            <div className="flex justify-between items-center">
-                              <FormLabel className="text-sm font-medium">Choose your username</FormLabel>
-                              <span
-                                className={`text-xs tabular-nums ${usernameLength > USERNAME_MAX_LENGTH ? "text-destructive font-semibold" : "text-muted-foreground"}`}
-                              >
-                                {usernameLength}/{USERNAME_MAX_LENGTH}
-                              </span>
-                            </div>
-                            <div className="relative">
-                              <FormControl>
-                                <Input
-                                  placeholder="username"
-                                  {...field}
-                                  maxLength={USERNAME_MAX_LENGTH}
-                                  className="h-11 pr-10 transition-all duration-200 focus:ring-2 focus:ring-primary/20"
-                                  onChange={(e) => {
-                                    const noSpaces = e.target.value.replace(/\s/g, "");
-                                    const lower = noSpaces.toLowerCase();
-                                    field.onChange(lower);
-                                    setUsernameLength(lower.length);
-                                    // Clear errors and reset availability when typing
-                                    if (form.formState.errors.username) {
-                                      form.clearErrors("username");
-                                    }
-                                    setUsernameAvailable(null);
-                                  }}
-                                  onBlur={(e) => {
-                                    field.onBlur();
-                                    handleUsernameBlur(e);
-                                  }}
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+                  <motion.div
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.15, duration: 0.3 }}
+                  >
+                    <Controller
+                      control={form.control}
+                      name="username"
+                      render={({ field, fieldState }) => (
+                        <Field data-invalid={fieldState.invalid}>
+                          <div className="flex justify-between items-center">
+                            <FieldLabel className="text-sm font-medium" htmlFor={field.name}>Choose your username</FieldLabel>
+                            <span
+                              className={`text-xs tabular-nums ${usernameLength > USERNAME_MAX_LENGTH ? "text-destructive font-semibold" : "text-muted-foreground"}`}
+                            >
+                              {usernameLength}/{USERNAME_MAX_LENGTH}
+                            </span>
+                          </div>
+                          <div className="relative">
+                            <Input
+                              id={field.name}
+                              placeholder="username"
+                              {...field}
+                              maxLength={USERNAME_MAX_LENGTH}
+                              className="h-11 pr-10 transition-all duration-200 focus:ring-2 focus:ring-primary/20"
+                              aria-invalid={fieldState.invalid}
+                              onChange={(e) => {
+                                const noSpaces = e.target.value.replace(/\s/g, "");
+                                const lower = noSpaces.toLowerCase();
+                                field.onChange(lower);
+                                setUsernameLength(lower.length);
+                                // Clear errors and reset availability when typing
+                                if (form.formState.errors.username) {
+                                  form.clearErrors("username");
+                                }
+                                setUsernameAvailable(null);
+                              }}
+                              onBlur={(e) => {
+                                field.onBlur();
+                                handleUsernameBlur(e);
+                              }}
+                            />
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                              {checkingUsername && (
+                                <motion.div
+                                  initial={{ scale: 0 }}
+                                  animate={{ scale: 1 }}
+                                  className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"
                                 />
-                              </FormControl>
-                              <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                                {checkingUsername && (
-                                  <motion.div
-                                    initial={{ scale: 0 }}
-                                    animate={{ scale: 1 }}
-                                    className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"
-                                  />
-                                )}
-                                {usernameAvailable !== null && !checkingUsername && (
-                                  <motion.div
-                                    initial={{ scale: 0 }}
-                                    animate={{ scale: 1 }}
-                                    transition={{ type: "spring", stiffness: 500, damping: 25 }}
-                                  >
-                                    {usernameAvailable ? (
-                                      <CircleCheck className="h-5 w-5 text-primary" />
-                                    ) : (
-                                      <XCircle className="h-5 w-5 text-destructive" />
-                                    )}
-                                  </motion.div>
-                                )}
-                              </div>
+                              )}
+                              {usernameAvailable !== null && !checkingUsername && (
+                                <motion.div
+                                  initial={{ scale: 0 }}
+                                  animate={{ scale: 1 }}
+                                  transition={{ type: "spring", stiffness: 500, damping: 25 }}
+                                >
+                                  {usernameAvailable ? (
+                                    <CircleCheck className="h-5 w-5 text-primary" />
+                                  ) : (
+                                    <XCircle className="h-5 w-5 text-destructive" />
+                                  )}
+                                </motion.div>
+                              )}
                             </div>
-                            <FormDescription className="text-xs">
-                              Letters, numbers, underscores, dots, and hyphens only (3 characters min)
-                            </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </motion.div>
+                          </div>
+                          <FieldDescription className="text-xs">
+                            Letters, numbers, underscores, dots, and hyphens only (3 characters min)
+                          </FieldDescription>
+                          {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                        </Field>
+                      )}
+                    />
+                  </motion.div>
 
-                    <motion.div
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.25, duration: 0.3 }}
-                    >
-                      <FormField
-                        control={form.control}
-                        name="phoneNumber"
-                        render={({ field }) => (
-                          <FormItem>
-                            <div className="flex justify-between items-center">
-                              <FormLabel className="text-sm font-medium">
-                                Phone Number <span className="text-muted-foreground font-normal">(optional)</span>
-                              </FormLabel>
-                              <span
-                                className={`text-xs tabular-nums ${phoneNumberLength > PHONE_LENGTH ? "text-destructive font-semibold" : "text-muted-foreground"}`}
-                              >
-                                {phoneNumberLength}/{PHONE_LENGTH}
-                              </span>
-                            </div>
-                            <FormControl>
-                              <Input
-                                type="tel"
-                                placeholder="XXX-XXX-XXXX"
-                                {...field}
-                                value={field.value || ""}
-                                className="h-11 transition-all duration-200 focus:ring-2 focus:ring-primary/20"
-                                onChange={(e) => {
-                                  const formatted = formatPhoneNumber(e.target.value);
-                                  field.onChange(formatted);
-                                  setPhoneNumberLength(formatted.replace(/-/g, "").length);
-                                }}
-                                maxLength={12}
-                              />
-                            </FormControl>
-                            <FormDescription className="text-xs">
-                              Used for project coordination and volunteer signups
-                            </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </motion.div>
+                  <motion.div
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.25, duration: 0.3 }}
+                  >
+                    <Controller
+                      control={form.control}
+                      name="phoneNumber"
+                      render={({ field, fieldState }) => (
+                        <Field data-invalid={fieldState.invalid}>
+                          <div className="flex justify-between items-center">
+                            <FieldLabel className="text-sm font-medium" htmlFor={field.name}>
+                              Phone Number <span className="text-muted-foreground font-normal">(optional)</span>
+                            </FieldLabel>
+                            <span
+                              className={`text-xs tabular-nums ${phoneNumberLength > PHONE_LENGTH ? "text-destructive font-semibold" : "text-muted-foreground"}`}
+                            >
+                              {phoneNumberLength}/{PHONE_LENGTH}
+                            </span>
+                          </div>
+                          <Input
+                            id={field.name}
+                            type="tel"
+                            placeholder="XXX-XXX-XXXX"
+                            {...field}
+                            value={field.value || ""}
+                            className="h-11 transition-all duration-200 focus:ring-2 focus:ring-primary/20"
+                            onChange={(e) => {
+                              const formatted = formatPhoneNumber(e.target.value);
+                              field.onChange(formatted);
+                              setPhoneNumberLength(formatted.replace(/-/g, "").length);
+                            }}
+                            maxLength={12}
+                            aria-invalid={fieldState.invalid}
+                          />
+                          <FieldDescription className="text-xs">
+                            Used for project coordination and volunteer signups
+                          </FieldDescription>
+                          {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                        </Field>
+                      )}
+                    />
+                  </motion.div>
 
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.35, duration: 0.3 }}
-                    >
-                      <DialogFooter className="pt-2">
-                        <Button
-                          type="submit"
-                          disabled={
-                            isSubmitting ||
-                            checkingUsername ||
-                            usernameAvailable !== true
-                          }
-                          className="w-full h-11 font-medium gap-2 transition-all duration-200"
-                        >
-                          {isSubmitting ? (
-                            <>
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                              Setting up your profile...
-                            </>
-                          ) : (
-                            <>
-                              Get Started
-                              <ArrowRight className="h-4 w-4" />
-                            </>
-                          )}
-                        </Button>
-                      </DialogFooter>
-                    </motion.div>
-                  </form>
-                </Form>
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.35, duration: 0.3 }}
+                  >
+                    <DialogFooter className="pt-2">
+                      <Button
+                        type="submit"
+                        disabled={
+                          isSubmitting ||
+                          checkingUsername ||
+                          usernameAvailable !== true
+                        }
+                        className="w-full h-11 font-medium gap-2 transition-all duration-200"
+                      >
+                        {isSubmitting ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Setting up your profile...
+                          </>
+                        ) : (
+                          <>
+                            Get Started
+                            <ArrowRight className="h-4 w-4" />
+                          </>
+                        )}
+                      </Button>
+                    </DialogFooter>
+                  </motion.div>
+                </form>
+
               </div>
             </motion.div>
           )}
         </AnimatePresence>
       </DialogContent>
-    </Dialog>
+    </Dialog >
   );
 }

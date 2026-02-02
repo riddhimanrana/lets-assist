@@ -1,55 +1,72 @@
-import { createClient } from "@/utils/supabase/server";
+
+import { createClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { getProjectStatus } from "@/utils/project";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { Badge } from "@/components/ui/badge";
-import { format, parseISO } from "date-fns";
-import { Calendar, Clock, MapPin, Users, Award } from "lucide-react"; // Add Award
-import { NoAvatar } from "@/components/shared/NoAvatar";
+import { Calendar, Users, Award, Repeat } from "lucide-react";
 import Link from "next/link";
 import { ProjectStatusBadge } from "@/components/ui/status-badge";
 import { redirect } from "next/navigation";
-import { Metadata } from "next";
-import type { Project } from "@/types";
+import type { Project, RecurrenceRule, RecurrenceWeekday } from "@/types";
+import { cn } from "@/lib/utils";
+import { ProjectCard } from "./ProjectCard";
+import { format } from "date-fns";
 
-// Formats the date display for different project types
-function formatDateDisplay(project: any) {
-  if (!project.event_type || !project.schedule) return "";
+// Helper to format recurrence summary for display
+function formatRecurrenceSummary(rule: RecurrenceRule): string {
+  if (!rule.frequency) return "";
 
-  switch (project.event_type) {
-    case "oneTime": {
-      const dateStr = project.schedule.oneTime?.date;
-      return format(parseISO(dateStr), "MMM d, yyyy");
-    }
-    case "multiDay": {
-      const dates = project.schedule.multiDay
-        .map((day: any) => parseISO(day.date))
-        .sort((a: Date, b: Date) => a.getTime() - b.getTime());
+  const WEEKDAY_LABELS: Record<RecurrenceWeekday, string> = {
+    monday: "Mon",
+    tuesday: "Tue",
+    wednesday: "Wed",
+    thursday: "Thu",
+    friday: "Fri",
+    saturday: "Sat",
+    sunday: "Sun",
+  };
 
-      return `${format(dates[0], "MMM d")} - ${format(dates[dates.length - 1], "MMM d, yyyy")}`;
-    }
-    case "sameDayMultiArea": {
-      const dateStr = project.schedule.sameDayMultiArea?.date;
-      return format(parseISO(dateStr), "MMM d, yyyy");
-    }
+  const interval = rule.interval || 1;
+  let frequencyLabel: string;
+  switch (rule.frequency) {
+    case "daily":
+      frequencyLabel = interval === 1 ? "day" : `${interval} days`;
+      break;
+    case "weekly":
+      frequencyLabel = interval === 1 ? "week" : `${interval} weeks`;
+      break;
+    case "monthly":
+      frequencyLabel = interval === 1 ? "month" : `${interval} months`;
+      break;
+    case "yearly":
+      frequencyLabel = interval === 1 ? "year" : `${interval} years`;
+      break;
     default:
-      return "Date not specified";
+      frequencyLabel = "week";
   }
-}
 
-// Get formatted time from time string
-function formatTime(timeString: string) {
-  if (!timeString) return "";
-  try {
-    const [hours, minutes] = timeString.split(":").map(Number);
-    const date = new Date();
-    date.setHours(hours, minutes);
-    return format(date, "h:mm a");
-  } catch (error) {
-    return timeString;
+  let summary = `Repeats every ${frequencyLabel}`;
+
+  if (rule.frequency === "weekly" && rule.weekdays && rule.weekdays.length > 0) {
+    const dayNames = rule.weekdays
+      .map((d) => WEEKDAY_LABELS[d])
+      .filter(Boolean)
+      .join(", ");
+    summary += ` on ${dayNames}`;
   }
+
+  if (rule.end_type === "on_date" && rule.end_date) {
+    const [year, month, day] = rule.end_date.split('-').map(Number);
+    summary += ` until ${format(new Date(year, month - 1, day), "MMM d, yyyy")}`;
+  } else if (rule.end_type === "after_occurrences" && rule.end_occurrences) {
+    summary += `, ${rule.end_occurrences} times`;
+  } else if (rule.end_type === "never") {
+    summary += " (ongoing)";
+  }
+
+  return summary;
 }
 
 // Add interface for the project with creator
@@ -66,19 +83,25 @@ interface ProjectWithCreator extends Project {
   areHoursPublished?: boolean; // Add this field
 }
 
+type ProjectSignupRow = { status?: string | null };
+
+interface ProjectWithSignups extends ProjectWithCreator {
+  project_signups?: ProjectSignupRow[] | null;
+}
+
 export default async function UserProjects() {
   const supabase = await createClient();
 
-  // Check if user is authenticated
-  const { data: { user } } = await supabase.auth.getUser();
+  // Check if user is authenticated using getClaims() for better performance
+  const { user } = await getAuthUser();
   if (!user) {
     redirect("/login");
   }
 
   // Get user profile
-  const { data: profile } = await supabase
+  const { data: userProfile } = await supabase
     .from("profiles")
-    .select("*")
+    .select("id, full_name, avatar_url, username")
     .eq("id", user.id)
     .single();
 
@@ -127,16 +150,17 @@ export default async function UserProjects() {
     })
     .filter(Boolean);
 
-  let creatorProfiles: Record<string, any> = {};
+  type CreatorProfile = ProjectWithCreator["creator"];
+  let creatorProfiles: Record<string, CreatorProfile> = {};
   if (projectCreatorIds && projectCreatorIds.length > 0) {
     const { data: profiles } = await supabase
       .from("profiles")
       .select("id, full_name, avatar_url, username")
       .in("id", projectCreatorIds);
-    
+
     if (profiles) {
-      creatorProfiles = profiles.reduce((acc: any, profile: any) => {
-        acc[profile.id] = profile;
+      creatorProfiles = profiles.reduce<Record<string, CreatorProfile>>((acc, profile) => {
+        acc[profile.id] = profile as CreatorProfile;
         return acc;
       }, {});
     }
@@ -146,7 +170,7 @@ export default async function UserProjects() {
   const volunteeredProjects: ProjectWithCreator[] = signups?.filter(signup => signup.projects).map(signup => {
     const projectData = Array.isArray(signup.projects) ? signup.projects[0] : signup.projects;
     const creator = creatorProfiles[projectData.creator_id];
-    
+
     // Determine if hours are published for this specific signup's schedule_id
     const areHoursPublished = projectData.published_hours && projectData.published_hours[signup.schedule_id] === true;
 
@@ -160,11 +184,18 @@ export default async function UserProjects() {
     };
   }) || [];
 
-  // Process projects to add status
-  const processedCreatedProjects = createdProjects?.map(project => ({
-    ...project,
-    status: getProjectStatus(project)
-  })) || [];
+  // Process projects to add status and creator info
+  const processedCreatedProjects: ProjectWithSignups[] =
+    (createdProjects as ProjectWithSignups[] | null)?.map((project) => ({
+      ...project,
+      creator: userProfile ? {
+        id: userProfile.id,
+        full_name: userProfile.full_name,
+        avatar_url: userProfile.avatar_url,
+        username: userProfile.username
+      } : undefined,
+      status: getProjectStatus(project),
+    })) || [];
 
   const processedVolunteeredProjects = volunteeredProjects.map(project => ({
     ...project,
@@ -172,29 +203,34 @@ export default async function UserProjects() {
   }));
 
   // Group volunteered projects by status
-  const upcomingVolunteered = processedVolunteeredProjects.filter(p => 
+  const upcomingVolunteered = processedVolunteeredProjects.filter(p =>
     p.status === "upcoming"
   );
-  
-  const inProgressVolunteered = processedVolunteeredProjects.filter(p => 
+
+  const inProgressVolunteered = processedVolunteeredProjects.filter(p =>
     p.status === "in-progress"
   );
-  
-  const pastVolunteered = processedVolunteeredProjects.filter(p => 
+
+  const pastVolunteered = processedVolunteeredProjects.filter(p =>
     p.status === "completed" || p.status === "cancelled"
   );
 
   // Group created projects by status
-  const upcomingCreated = processedCreatedProjects.filter(p => 
+  const upcomingCreated = processedCreatedProjects.filter(p =>
     p.status === "upcoming"
   );
-  
-  const inProgressCreated = processedCreatedProjects.filter(p => 
+
+  const inProgressCreated = processedCreatedProjects.filter(p =>
     p.status === "in-progress"
   );
-  
-  const pastCreated = processedCreatedProjects.filter(p => 
+
+  const pastCreated = processedCreatedProjects.filter(p =>
     p.status === "completed" || p.status === "cancelled"
+  );
+
+  // Filter recurring projects (those with recurrence_rule set and have frequency)
+  const recurringCreated = processedCreatedProjects.filter(p =>
+    p.recurrence_rule && p.recurrence_rule.frequency && p.status !== "cancelled"
   );
 
   return (
@@ -203,7 +239,7 @@ export default async function UserProjects() {
       <p className="text-muted-foreground mb-5">
         Projects you&apos;ve signed up for and projects you&apos;ve created.
       </p>
-      
+
       <Tabs defaultValue="volunteering" className="space-y-5">
         <TabsList className="grid w-full grid-cols-2 mb-6">
           <TabsTrigger value="volunteering">Volunteering For</TabsTrigger>
@@ -221,9 +257,7 @@ export default async function UserProjects() {
               <p className="text-muted-foreground mb-5 max-w-md mx-auto text-sm">
                 You haven&apos;t signed up for any volunteer projects yet.
               </p>
-              <Button asChild size="sm">
-                <Link href="/projects">Browse Projects</Link>
-              </Button>
+              <Link href="/projects" className={cn(buttonVariants({ size: "sm" }))}>Browse Projects</Link>
             </div>
           ) : (
             <>
@@ -232,50 +266,12 @@ export default async function UserProjects() {
                 <h2 className="text-lg font-semibold mb-3">Upcoming ({upcomingVolunteered.length})</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {upcomingVolunteered.map((project) => (
-                    <Card key={`volunteer-${project.id}`} className="overflow-hidden">
-                      <CardHeader className="p-4 pb-0 space-y-1.5">
-                        <div className="flex justify-between items-start gap-2">
-                          <ProjectStatusBadge size="sm" status={project.status} />
-                          <Badge variant="outline" className="text-xs">{formatDateDisplay(project)}</Badge>
-                        </div>
-                        <h3 className="font-medium line-clamp-1">{project.title}</h3>
-                      </CardHeader>
-                      <CardContent className="p-4 pt-2 pb-0 space-y-2">
-                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <MapPin className="h-3 w-3 flex-shrink-0" />
-                          <span className="truncate">{project.location}</span>
-                        </div>
-                        
-                        {/* {project.event_type === "oneTime" && (
-                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <Clock className="h-3 w-3" />
-                            <span>{formatTime(project.schedule?.oneTime?.startTime || "")} - {formatTime(project.schedule?.oneTime?.endTime || "")}</span>
-                          </div>
-                        )} */}
-                        
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-6 w-6">
-                            <AvatarImage 
-                              src={project.organization?.logo_url || project.creator?.avatar_url || ""} 
-                              alt={project.organization?.name || project.creator?.full_name || ""} 
-                            />
-                            <AvatarFallback>
-                              <NoAvatar className="text-xs" fullName={project.organization?.name || project.creator?.full_name || ""} />
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="text-xs font-medium truncate">
-                            {project.organization?.name || project.creator?.full_name || "Anonymous"}
-                          </span>
-                        </div>
-                      </CardContent>
-                      <CardFooter className="p-4 pt-3">
-                        <Button variant="default" size="sm" asChild className="w-full">
-                          <Link href={`/projects/${project.id}`}>
-                            View Project
-                          </Link>
-                        </Button>
-                      </CardFooter>
-                    </Card>
+                    <ProjectCard
+                      key={`volunteer-${project.id}`}
+                      project={project}
+                      href={`/projects/${project.id}`}
+                      topLeftBadge={<ProjectStatusBadge size="sm" status={project.status} />}
+                    />
                   ))}
                 </div>
               </section>
@@ -286,50 +282,13 @@ export default async function UserProjects() {
                   <h2 className="text-lg font-semibold mb-3">In Progress ({inProgressVolunteered.length})</h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {inProgressVolunteered.map((project) => (
-                      <Card key={`volunteer-progress-${project.id}`} className="border-primary/30">
-                        <CardHeader className="p-4 pb-0 space-y-1.5">
-                          <div className="flex justify-between items-start gap-2">
-                            <ProjectStatusBadge size="sm" status={project.status} />
-                            <Badge variant="outline" className="text-xs">{formatDateDisplay(project)}</Badge>
-                          </div>
-                          <h3 className="font-medium line-clamp-1">{project.title}</h3>
-                        </CardHeader>
-                        <CardContent className="p-4 pt-2 pb-0 space-y-2">
-                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <MapPin className="h-3 w-3 flex-shrink-0" />
-                            <span className="truncate">{project.location}</span>
-                          </div>
-                          
-                          {/* {project.event_type === "oneTime" && (
-                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                              <Clock className="h-3 w-3" />
-                              <span>{formatTime(project.schedule?.oneTime?.startTime || "")} - {formatTime(project.schedule?.oneTime?.endTime || "")}</span>
-                            </div>
-                          )} */}
-                          
-                          <div className="flex items-center gap-2">
-                            <Avatar className="h-6 w-6">
-                              <AvatarImage 
-                                src={project.organization?.logo_url || project.creator?.avatar_url || ""} 
-                                alt={project.organization?.name || project.creator?.full_name || ""} 
-                              />
-                              <AvatarFallback>
-                                <NoAvatar className="text-xs" fullName={project.organization?.name || project.creator?.full_name || ""} />
-                              </AvatarFallback>
-                            </Avatar>
-                            <span className="text-xs font-medium truncate">
-                              {project.organization?.name || project.creator?.full_name || "Anonymous"}
-                            </span>
-                          </div>
-                        </CardContent>
-                        <CardFooter className="p-4 pt-3">
-                          <Button variant="default" size="sm" asChild className="w-full">
-                            <Link href={`/projects/${project.id}`}>
-                              View Project
-                            </Link>
-                          </Button>
-                        </CardFooter>
-                      </Card>
+                      <ProjectCard
+                        key={`volunteer-progress-${project.id}`}
+                        project={project}
+                        href={`/projects/${project.id}`}
+                        topLeftBadge={<ProjectStatusBadge size="sm" status={project.status} />}
+                        className="border-primary/30"
+                      />
                     ))}
                   </div>
                 </section>
@@ -341,53 +300,25 @@ export default async function UserProjects() {
                   <h2 className="text-lg font-semibold mb-3">Past ({pastVolunteered.length})</h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {pastVolunteered.map((project) => (
-                      // This key needs to be unique. Using project.signup_id ensures uniqueness per signup.
-                      <Card key={`volunteer-past-${project.id}-${project.signup_id}`} className="bg-muted/30">
-                        <CardHeader className="p-4 pb-0 space-y-1.5">
-                          <div className="flex justify-between items-start gap-2">
-                            {/* Display status based on project.status or if hours are published */}
-                            {project.areHoursPublished ? (
-                              <Badge variant="default" className="text-xs bg-chart-5 text-chart-5-foreground hover:bg-chart-5/90">
-                                <Award className="h-3 w-3 mr-1" />
-                                Hours Published
-                              </Badge>
-                            ) : (
-                              <Badge variant="outline" className="bg-muted text-xs">
-                                {project.status === 'cancelled' ? 'Cancelled' : 'Past Event'}
-                              </Badge>
-                            )}
-                            <Badge variant="outline" className="text-xs">{formatDateDisplay(project)}</Badge>
-                          </div>
-                          <h3 className="font-medium line-clamp-1">{project.title}</h3>
-                        </CardHeader>
-                        <CardContent className="p-4 pt-2 pb-0 space-y-2">
-                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <MapPin className="h-3 w-3 flex-shrink-0" />
-                            <span className="truncate">{project.location}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Avatar className="h-6 w-6">
-                              <AvatarImage
-                                src={project.organization?.logo_url || project.creator?.avatar_url || ""}
-                                alt={project.organization?.name || project.creator?.full_name || ""}
-                              />
-                              <AvatarFallback>
-                                <NoAvatar className="text-xs" fullName={project.organization?.name || project.creator?.full_name || ""} />
-                              </AvatarFallback>
-                            </Avatar>
-                            <span className="text-xs font-medium truncate">
-                              {project.organization?.name || project.creator?.full_name || "Anonymous"}
-                            </span>
-                          </div>
-                        </CardContent>
-                        <CardFooter className="p-4 pt-3">
-                          <Button variant="outline" size="sm" asChild className="w-full">
-                            <Link href={`/projects/${project.id}`}>
-                              View Project
-                            </Link>
-                          </Button>
-                        </CardFooter>
-                      </Card>
+                      <ProjectCard
+                        key={`volunteer-past-${project.id}-${project.signup_id}`}
+                        project={project}
+                        href={`/projects/${project.id}`}
+                        topLeftBadge={
+                          project.areHoursPublished ? (
+                            <Badge variant="default" className="text-xs bg-success text-success-foreground hover:bg-success/90">
+                              <Award className="h-3 w-3 mr-1" />
+                              Hours Published
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-muted text-xs">
+                              {project.status === 'cancelled' ? 'Cancelled' : 'Past Event'}
+                            </Badge>
+                          )
+                        }
+                        className="bg-muted/30"
+                        actionVariant="outline"
+                      />
                     ))}
                   </div>
                 </section>
@@ -407,48 +338,73 @@ export default async function UserProjects() {
               <p className="text-muted-foreground mb-5 max-w-md mx-auto text-sm">
                 You haven&apos;t created any volunteer projects yet.
               </p>
-              <Button asChild size="sm">
-                <Link href="/projects/create">Create First Project</Link>
-              </Button>
+              <Link href="/projects/create" className={cn(buttonVariants({ size: "sm" }))}>Create First Project</Link>
             </div>
           ) : (
             <>
+              {/* Recurring Events section */}
+              {recurringCreated.length > 0 && (
+                <section className="mb-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <Repeat className="h-5 w-5 text-primary" />
+                      <h2 className="text-lg font-semibold">Recurring Events ({recurringCreated.length})</h2>
+                    </div>
+                    <p className="text-xs text-muted-foreground hidden sm:block">
+                      Auto-repeat schedule
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    {recurringCreated.map((project) => (
+                      <Link
+                        key={`recurring-${project.id}`}
+                        href={`/projects/${project.id}`}
+                        className="block group"
+                      >
+                        <div className="flex items-center gap-3 p-3 rounded-lg border border-primary/20 bg-linear-to-r from-primary/5 to-transparent hover:from-primary/10 hover:border-primary/30 transition-all duration-200">
+                          <div className="shrink-0">
+                            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                              <Repeat className="h-5 w-5 text-primary" />
+                            </div>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-medium text-sm truncate group-hover:text-primary transition-colors">
+                              {project.title}
+                            </h3>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <p className="text-xs text-muted-foreground truncate">
+                                {project.recurrence_rule && formatRecurrenceSummary(project.recurrence_rule)}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="shrink-0 hidden sm:flex items-center gap-2">
+                            <Badge variant="outline" className="text-xs">
+                              {(project.project_signups || []).filter((s) => s.status === "approved" || s.status === "attended").length} volunteers
+                            </Badge>
+                            <ProjectStatusBadge size="sm" status={project.status} />
+                          </div>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                </section>
+              )}
+
               {/* Upcoming created projects */}
               <section>
                 <h2 className="text-lg font-semibold mb-3">Upcoming ({upcomingCreated.length})</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {upcomingCreated.map((project) => (
-                    <Card key={`created-${project.id}`}>
-                      <CardHeader className="p-4 pb-0 space-y-1.5">
-                        <div className="flex justify-between items-start gap-2">
-                          <Badge variant="outline" className="text-xs">
-                            {(project.project_signups || []).filter((s: any) => s.status === "approved").length} volunteers
-                          </Badge>
-                          <Badge variant="outline" className="text-xs">{formatDateDisplay(project)}</Badge>
-                        </div>
-                        <h3 className="font-medium line-clamp-1">{project.title}</h3>
-                      </CardHeader>
-                      <CardContent className="p-4 pt-2 pb-0 space-y-2">
-                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <MapPin className="h-3 w-3 flex-shrink-0" />
-                          <span className="truncate">{project.location}</span>
-                        </div>
-                        
-                        {/* {project.event_type === "oneTime" && (
-                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <Clock className="h-3 w-3" />
-                            <span>{formatTime(project.schedule?.oneTime?.startTime)} - {formatTime(project.schedule?.oneTime?.endTime)}</span>
-                          </div>
-                        )} */}
-                      </CardContent>
-                      <CardFooter className="p-4 pt-3">
-                        <Button variant="default" size="sm" asChild className="w-full">
-                            <Link href={`/projects/${project.id}`}>
-                                View Project
-                            </Link>
-                        </Button>
-                      </CardFooter>
-                    </Card>
+                    <ProjectCard
+                      key={`created-${project.id}`}
+                      project={project}
+                      href={`/projects/${project.id}`}
+                      topLeftBadge={
+                        <Badge variant="outline" className="text-xs">
+                          {(project.project_signups || []).filter((s) => s.status === "approved" || s.status === "attended").length} volunteers
+                        </Badge>
+                      }
+                    />
                   ))}
                 </div>
               </section>
@@ -459,37 +415,17 @@ export default async function UserProjects() {
                   <h2 className="text-lg font-semibold mb-3">In Progress ({inProgressCreated.length})</h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {inProgressCreated.map((project) => (
-                      <Card key={`created-progress-${project.id}`} className="border-primary/30">
-                        <CardHeader className="p-4 pb-0 space-y-1.5">
-                          <div className="flex justify-between items-start gap-2">
-                            <Badge variant="outline" className="text-xs">
-                              {(project.project_signups || []).filter((s: any) => s.status === "approved").length} volunteers
-                            </Badge>
-                            <Badge variant="outline" className="text-xs">{formatDateDisplay(project)}</Badge>
-                          </div>
-                          <h3 className="font-medium line-clamp-1">{project.title}</h3>
-                        </CardHeader>
-                        <CardContent className="p-4 pt-2 pb-0 space-y-2">
-                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <MapPin className="h-3 w-3 flex-shrink-0" />
-                            <span className="truncate">{project.location}</span>
-                          </div>
-                          
-                          {/* {project.event_type === "oneTime" && (
-                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                              <Clock className="h-3 w-3" />
-                              <span>{formatTime(project.schedule?.oneTime?.startTime)} - {formatTime(project.schedule?.oneTime?.endTime)}</span>
-                            </div>
-                          )} */}
-                        </CardContent>
-                        <CardFooter className="p-4 pt-3">
-                          <Button variant="default" size="sm" asChild className="w-full">
-                              <Link href={`/projects/${project.id}`}>
-                                  View Project
-                              </Link>
-                          </Button>
-                        </CardFooter>
-                      </Card>
+                      <ProjectCard
+                        key={`created-progress-${project.id}`}
+                        project={project}
+                        href={`/projects/${project.id}`}
+                        topLeftBadge={
+                          <Badge variant="outline" className="text-xs">
+                            {(project.project_signups || []).filter((s) => s.status === "approved" || s.status === "attended").length} volunteers
+                          </Badge>
+                        }
+                        className="border-primary/30"
+                      />
                     ))}
                   </div>
                 </section>
@@ -501,32 +437,20 @@ export default async function UserProjects() {
                   <h2 className="text-lg font-semibold mb-3">Past ({pastCreated.length})</h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {pastCreated.map((project) => (
-                      <Card key={`created-past-${project.id}`} className="bg-muted/30">
-                        <CardHeader className="p-4 pb-0 space-y-1.5">
-                          <div className="flex justify-between items-start gap-2">
-                            <Badge variant="outline" className="bg-muted text-xs">Past Event</Badge>
-                            <Badge variant="outline" className="text-xs">{formatDateDisplay(project)}</Badge>
-                          </div>
-                          <h3 className="font-medium line-clamp-1">{project.title}</h3>
-                        </CardHeader>
-                        <CardContent className="p-4 pt-2 pb-0 space-y-2">
-                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <MapPin className="h-3 w-3 flex-shrink-0" />
-                            <span className="truncate">{project.location}</span>
-                          </div>
+                      <ProjectCard
+                        key={`created-past-${project.id}`}
+                        project={project}
+                        href={`/projects/${project.id}`}
+                        topLeftBadge={<Badge variant="outline" className="bg-muted text-xs">Past Event</Badge>}
+                        className="bg-muted/30"
+                        actionVariant="outline"
+                        footerContent={
                           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                             <Users className="h-3 w-3" />
-                            <span>{(project.project_signups || []).filter((s: any) => s.status === "approved").length} volunteers participated</span>
+                            <span>{(project.project_signups || []).filter((s) => s.status === "approved" || s.status === "attended").length} volunteers participated</span>
                           </div>
-                        </CardContent>
-                        <CardFooter className="p-4 pt-3">
-                          <Button variant="outline" size="sm" asChild className="w-full">
-                            <Link href={`/projects/${project.id}`}>
-                              View Project
-                            </Link>
-                          </Button>
-                        </CardFooter>
-                      </Card>
+                        }
+                      />
                     ))}
                   </div>
                 </section>
