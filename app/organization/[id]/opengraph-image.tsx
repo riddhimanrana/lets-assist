@@ -30,7 +30,8 @@ const palette = {
 };
 
 function cleanText(text: string) {
-  return text.replace(/<[^>]*>?/gm, "").replace(/\s+/g, " ").trim();
+  // Remove all angle brackets to avoid leaving behind partial tags like "<script"
+  return text.replace(/[<>]/g, "").replace(/\s+/g, " ").trim();
 }
 
 async function loadFont(fileName: string) {
