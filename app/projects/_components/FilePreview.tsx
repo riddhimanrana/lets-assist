@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogClose, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
-import { Download, FileText, FileImage, ExternalLink, X, Loader2 } from "lucide-react";
+import { Download, FileText, FileImage, ExternalLink, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import * as VisuallyHidden from "@radix-ui/react-visually-hidden";
 
@@ -32,8 +32,8 @@ export default function FilePreview({
   }, [open, url]);
 
   const getFileIcon = () => {
-    if (fileType.includes('pdf')) return <FileText className="h-5 w-5 text-red-500" />;
-    if (fileType.includes('image')) return <FileImage className="h-5 w-5 text-blue-500" />;
+    if (fileType.includes('pdf')) return <FileText className="h-5 w-5 text-chart-7" />;
+    if (fileType.includes('image')) return <FileImage className="h-5 w-5 text-info" />;
     return <FileText className="h-5 w-5 text-muted-foreground" />;
   };
 
@@ -58,33 +58,38 @@ export default function FilePreview({
 
   const isPDF = url?.toLowerCase().includes('.pdf');
   const isImage = url?.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i);
+  const pdfSrc = isPDF
+    ? (url.includes('#')
+      ? `${url}&toolbar=0&navpanes=0&view=FitH`
+      : `${url}#toolbar=0&navpanes=0&view=FitH`)
+    : url;
 
   if (!url) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl w-[95vw] h-[90vh] p-0 gap-0 overflow-hidden flex flex-col bg-background/95 backdrop-blur-sm border-border/50 shadow-2xl">
+      <DialogContent showCloseButton={false} className="w-[96vw]! max-w-[96vw]! h-[85dvh] rounded-xl p-0 gap-0 overflow-hidden flex flex-col bg-background/95 backdrop-blur-sm border-border/50 shadow-2xl sm:w-[95vw]! sm:max-w-[95vw]! sm:h-[90vh]">
         <VisuallyHidden.Root>
           <DialogTitle>File Preview: {fileName}</DialogTitle>
         </VisuallyHidden.Root>
 
         {/* Header Toolbar */}
-        <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/30 backdrop-blur-md z-10 shrink-0">
-          <div className="flex items-center gap-3 overflow-hidden">
-            <div className="flex-shrink-0 p-2 bg-background rounded-md shadow-sm border">
+        <div className="flex items-center justify-between px-3 py-2 sm:px-4 sm:py-3 border-b bg-muted/30 backdrop-blur-md z-10 shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3 overflow-hidden">
+            <div className="shrink-0 p-1.5 sm:p-2 bg-background rounded-md shadow-sm border">
               {getFileIcon()}
             </div>
             <div className="flex flex-col overflow-hidden">
-              <span className="font-semibold text-sm truncate" title={fileName}>
+              <span className="font-semibold text-xs sm:text-sm truncate" title={fileName}>
                 {fileName}
               </span>
-              <span className="text-xs text-muted-foreground uppercase tracking-wider">
+              <span className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider">
                 {fileType.split('/')[1] || 'FILE'}
               </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             <Button
               variant="ghost"
               size="icon"
@@ -101,15 +106,6 @@ export default function FilePreview({
               title="Download"
             >
               <Download className="h-4 w-4" />
-            </Button>
-            <div className="w-px h-6 bg-border mx-1" />
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive"
-              onClick={() => onOpenChange(false)}
-            >
-              <X className="h-4 w-4" />
             </Button>
           </div>
         </div>
@@ -128,13 +124,13 @@ export default function FilePreview({
 
           {isPDF ? (
             <iframe
-              src={`${url}#toolbar=0&navpanes=0`}
+              src={pdfSrc}
               className="w-full h-full border-0"
               onLoad={() => setLoading(false)}
               title={`Preview of ${fileName}`}
             />
           ) : isImage ? (
-            <div className="relative w-full h-full flex items-center justify-center p-4">
+            <div className="relative w-full h-full flex items-center justify-center p-0 sm:p-4">
               <Image
                 src={url}
                 alt={fileName}
@@ -146,12 +142,12 @@ export default function FilePreview({
               />
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center h-full p-8 text-center animate-in fade-in zoom-in-95 duration-300">
-              <div className="h-24 w-24 rounded-2xl bg-muted flex items-center justify-center mb-6 shadow-inner ring-1 ring-border">
-                <FileText className="h-12 w-12 text-muted-foreground/50" />
+            <div className="flex flex-col items-center justify-center h-full p-6 sm:p-8 text-center animate-in fade-in zoom-in-95 duration-300">
+              <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-2xl bg-muted flex items-center justify-center mb-4 sm:mb-6 shadow-inner ring-1 ring-border">
+                <FileText className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground/50" />
               </div>
-              <h3 className="text-lg font-medium">Preview not available</h3>
-              <p className="text-sm text-muted-foreground mt-2 max-w-xs mx-auto mb-8">
+              <h3 className="text-base sm:text-lg font-medium">Preview not available</h3>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-2 max-w-xs mx-auto mb-6 sm:mb-8">
                 This file type cannot be previewed directly in the browser.
               </p>
               <Button onClick={() => downloadFile(url, fileName)} size="lg" className="shadow-lg">
@@ -160,6 +156,10 @@ export default function FilePreview({
               </Button>
             </div>
           )}
+        </div>
+
+        <div className="flex items-center justify-end gap-2 px-3 py-2 sm:px-4 sm:py-3 border-t bg-muted/20 shrink-0">
+          <DialogClose render={<Button type="button">Close</Button>} />
         </div>
       </DialogContent>
     </Dialog>

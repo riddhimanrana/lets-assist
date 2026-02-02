@@ -867,6 +867,20 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
   const registeredVolunteers = publishSummary?.registeredVolunteers ?? 0;
   const anonymousVolunteers = publishSummary?.anonymousVolunteers ?? 0;
 
+  const sessionLabelMap = useMemo(() => {
+    const map = new Map<string, string>();
+    map.set("all", "All Sessions");
+
+    getAllProjectSessions.forEach((session) => {
+      map.set(session.id, session.name);
+      session.alternativeIds?.forEach((altId) => {
+        map.set(altId, session.name);
+      });
+    });
+
+    return map;
+  }, [getAllProjectSessions]);
+
   return (
     <div className="container mx-auto px-4 py-6 max-w-7xl">
       <div className="mb-4 sm:mb-6">
@@ -1212,7 +1226,15 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
               <div className="flex flex-row gap-2 w-full sm:w-auto items-center">
                 <Select value={sessionFilter} onValueChange={(val) => setSessionFilter(val || "all")}>
                   <SelectTrigger className="w-full sm:min-w-[240px] sm:w-auto" aria-label="Filter by session">
-                    <SelectValue placeholder="Filter by session" />
+                    <SelectValue>
+                      {(value) => {
+                        if (!value) {
+                          return "Filter by session";
+                        }
+
+                        return sessionLabelMap.get(String(value)) ?? String(value);
+                      }}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent className="max-w-[400px]">
                     <SelectItem value="all">All Sessions</SelectItem>

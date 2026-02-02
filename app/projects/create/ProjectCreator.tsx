@@ -832,9 +832,9 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
             <Button
               variant="outline"
               onClick={() => setShowAIAssistant(!showAIAssistant)}
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 ml-1"
             >
-              <Sparkles className="h-4 w-4" />
+              <Sparkles className="w-4 h-4" />
               <span className="hidden sm:inline">AI Auto-fill</span>
             </Button>
           )}
