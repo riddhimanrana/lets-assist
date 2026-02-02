@@ -40,9 +40,13 @@ export async function GET(request: Request) {
         .single();
 
       if (!membership || membership.role !== "admin") {
-        const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "";
-        const target = returnTo || `/organization/${orgId}/settings`;
-        const redirectUrl = new URL(target, baseUrl);
+        // Restrict returnTo to same-origin relative paths only
+        const safeReturnTo = returnTo && returnTo.startsWith("/") 
+          ? returnTo 
+          : `/organization/${orgId}/settings`;
+        
+        const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin;
+        const redirectUrl = new URL(safeReturnTo, baseUrl);
         redirectUrl.searchParams.set("error", "org_admin_required");
         return NextResponse.redirect(redirectUrl.toString());
       }
@@ -108,7 +112,7 @@ export async function GET(request: Request) {
     googleAuthUrl.searchParams.set("include_granted_scopes", "true");
     googleAuthUrl.searchParams.set(
       "prompt",
-      forceConsent ? "consent" : "consent"
+      forceConsent ? "consent" : "select_account"
     ); // Force consent to get refresh token
     googleAuthUrl.searchParams.set("state", state);
 

@@ -166,7 +166,7 @@ export default function VolunteerJourneySection() {
                   type="button"
                   onClick={() => setActive(i)}
                   aria-pressed={i === active}
-                  className="w-full text-left focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/50 rounded-2xl"
+                  className="w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 rounded-2xl"
                 >
                   <Card className={`h-full border-border/60 bg-background/90 shadow-xs ${i === active ? "ring-2 ring-primary/30" : ""}`}>
                     <CardContent className="flex items-start gap-4 p-4">
