@@ -31,8 +31,8 @@ export const ProgressCircle: React.FC<ProgressCircleProps> = ({
   const center = size / 2;
 
   // Default colors based on CSS variables
-  const defaultColor = "var(--primary)";
-  const defaultTrackColor = "var(--muted)";
+  const defaultColor = "hsl(var(--primary))";
+  const defaultTrackColor = "hsl(var(--muted))";
 
   // Set text size based on circle size
   const fontSize = showLabel ? Math.max(size / 4, 12) : 0;

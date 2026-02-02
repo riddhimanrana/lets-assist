@@ -40,8 +40,13 @@ export async function GET(request: Request) {
         .single();
 
       if (!membership || membership.role !== "admin") {
-        const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "";
-        const target = returnTo || `/organization/${orgId}/settings`;
+        const requestUrl = new URL(request.url);
+        const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || requestUrl.origin;
+        const safeReturnTo =
+          returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//")
+            ? returnTo
+            : null;
+        const target = safeReturnTo || `/organization/${orgId}/settings`;
         const redirectUrl = new URL(target, baseUrl);
         redirectUrl.searchParams.set("error", "org_admin_required");
         return NextResponse.redirect(redirectUrl.toString());
@@ -67,7 +72,10 @@ export async function GET(request: Request) {
         userId: user.id,
         timestamp: Date.now(),
         nonce: Math.random().toString(36).substring(7),
-        returnTo: returnTo || null,
+        returnTo:
+          returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//")
+            ? returnTo
+            : null,
         orgId: orgId || null,
         isCalendarSync: isCalendarSync || false,
         isSheetsSync: isSheetsSync || false,
@@ -106,10 +114,9 @@ export async function GET(request: Request) {
     googleAuthUrl.searchParams.set("scope", scopes.join(" "));
     googleAuthUrl.searchParams.set("access_type", "offline");
     googleAuthUrl.searchParams.set("include_granted_scopes", "true");
-    googleAuthUrl.searchParams.set(
-      "prompt",
-      forceConsent ? "consent" : "consent"
-    ); // Force consent to get refresh token
+    if (forceConsent) {
+      googleAuthUrl.searchParams.set("prompt", "consent");
+    }
     googleAuthUrl.searchParams.set("state", state);
 
     if (wantsJson) {
