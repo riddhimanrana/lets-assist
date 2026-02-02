@@ -1,18 +1,26 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import crypto from "crypto";
 import { sendEmail } from "@/services/email";
 import EmailVerificationCode from "@/emails/email-verification-code";
 import * as React from "react";
 
+/**
+ * Send verification email for EMAIL ALIAS (not primary email change).
+ * Use the Security page to change your primary authentication email.
+ *
+ * This function manages secondary/backup emails stored in the user_emails table.
+ */
 export async function sendVerificationEmail(email: string) {
-    const supabase = await createClient();
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    const { user, error: authError } = await getAuthUser();
 
-    if (userError || !user) {
+    if (authError || !user) {
         return { success: false, error: "Not authenticated" };
     }
+
+    const supabase = await createClient();
 
     // Check if email already exists as a primary account in profiles table
     const { data: existingProfile } = await supabase
@@ -86,14 +94,18 @@ export async function sendVerificationEmail(email: string) {
     return { success: true };
 }
 
-
+/**
+ * Verify email token for EMAIL ALIAS.
+ * This verifies secondary/backup emails, not primary authentication email changes.
+ */
 export async function verifyEmailToken(email: string, token: string) {
-    const supabase = await createClient();
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    const { user, error: authError } = await getAuthUser();
 
-    if (userError || !user) {
+    if (authError || !user) {
         return { success: false, error: "Not authenticated" };
     }
+
+    const supabase = await createClient();
 
     const { data: emailRecord, error: fetchError } = await supabase
         .from("user_emails")
@@ -133,17 +145,25 @@ export type SetPrimaryEmailResponse = {
     pendingEmail?: string;
 };
 
+/**
+ * @deprecated This function mixes Supabase auth AND custom user_emails table approaches.
+ * It creates confusion between primary authentication email and email aliases.
+ *
+ * RECOMMENDED APPROACH:
+ * - Use Security page (updateEmailAction in security/actions.ts) to change primary authentication email
+ * - Use email aliases (sendVerificationEmail/verifyEmailToken) for secondary/backup emails only
+ *
+ * This function is kept for backward compatibility but should not be used in new code.
+ */
 export async function setPrimaryEmailAction(email: string): Promise<SetPrimaryEmailResponse> {
     const normalizedEmail = email.trim().toLowerCase();
-    const supabase = await createClient();
-    const {
-        data: { user },
-        error: userError,
-    } = await supabase.auth.getUser();
+    const { user, error: authError } = await getAuthUser();
 
-    if (userError || !user) {
+    if (authError || !user) {
         return { success: false, error: "Not authenticated" };
     }
+
+    const supabase = await createClient();
 
     const { data: aliasRecord, error: aliasError } = await supabase
         .from("user_emails")

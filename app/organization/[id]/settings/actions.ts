@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { revalidatePath } from "next/cache";
 
 // Allowed image MIME types
@@ -92,9 +93,9 @@ export async function checkDomainAvailability(domain: string, excludeOrgId?: str
  */
 export async function updateOrganization(data: OrganizationUpdateData) {
   const supabase = await createClient();
-  
-  // Verify that user is authenticated
-  const { data: { user } } = await supabase.auth.getUser();
+
+  // Verify that user is authenticated using getClaims() for better performance
+  const { user } = await getAuthUser();
   if (!user) {
     return { error: "You must be logged in to update an organization" };
   }
@@ -244,9 +245,9 @@ export async function updateOrganization(data: OrganizationUpdateData) {
  */
 export async function deleteOrganization(organizationId: string) {
   const supabase = await createClient();
-  
-  // Verify that user is authenticated
-  const { data: { user } } = await supabase.auth.getUser();
+
+  // Verify that user is authenticated using getClaims() for better performance
+  const { user } = await getAuthUser();
   if (!user) {
     return { error: "You must be logged in to delete an organization" };
   }
@@ -312,9 +313,9 @@ export async function deleteOrganization(organizationId: string) {
  */
 export async function generateStaffLink(organizationId: string, expiresInDays: number = 30) {
   const supabase = await createClient();
-  
-  // Verify that user is authenticated
-  const { data: { user } } = await supabase.auth.getUser();
+
+  // Verify that user is authenticated using getClaims() for better performance
+  const { user } = await getAuthUser();
   if (!user) {
     return { error: "You must be logged in to generate staff links" };
   }
@@ -372,9 +373,9 @@ export async function generateStaffLink(organizationId: string, expiresInDays: n
  */
 export async function revokeStaffLink(organizationId: string) {
   const supabase = await createClient();
-  
-  // Verify that user is authenticated
-  const { data: { user } } = await supabase.auth.getUser();
+
+  // Verify that user is authenticated using getClaims() for better performance
+  const { user } = await getAuthUser();
   if (!user) {
     return { error: "You must be logged in to revoke staff links" };
   }
@@ -422,9 +423,9 @@ export async function revokeStaffLink(organizationId: string) {
  */
 export async function getStaffLinkDetails(organizationId: string) {
   const supabase = await createClient();
-  
-  // Verify that user is authenticated
-  const { data: { user } } = await supabase.auth.getUser();
+
+  // Verify that user is authenticated using getClaims() for better performance
+  const { user } = await getAuthUser();
   if (!user) {
     return { error: "You must be logged in to view staff link details" };
   }

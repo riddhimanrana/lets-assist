@@ -66,9 +66,10 @@ export async function updateSession(request: NextRequest) {
 
     let user = null;
     if (mustEvaluateAuth || hasAuthCookies) {
-        // Optimization taken from previous codebase: use getClaims for lighter validation
-        // @ts-ignore - getClaims exists in GoTrueClient
-        const { data: claimsData } = await supabase.auth.getClaims();
+        // Use getClaims() for lighter validation - validates JWT locally without API call
+        // This is the recommended approach per Supabase Issue #40985
+        // @see https://github.com/supabase/supabase/issues/40985
+        const { data: claimsData } = await (supabase.auth as any).getClaims();
         if (claimsData?.claims) {
             user = { id: claimsData.claims.sub, ...claimsData.claims };
         }

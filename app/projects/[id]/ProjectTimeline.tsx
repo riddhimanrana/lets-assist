@@ -897,7 +897,6 @@ export default function ProjectTimeline({ project, open, onOpenAction }: Project
         <div className="mt-4 flex justify-end">
           <DialogClose
             render={<Button>Close</Button>}
-            nativeButton={false}
           />
         </div>
       </DialogContent>

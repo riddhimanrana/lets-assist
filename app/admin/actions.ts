@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
 
@@ -97,9 +98,8 @@ export async function sendSystemNotification(prevState: { error?: string; succes
 export async function checkSuperAdmin() {
   const supabase = await createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Get current user using getClaims() for better performance
+  const { user } = await getAuthUser();
 
   if (!user) {
     return { isAdmin: false };

@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { getProject, getCreatorProfile } from "./actions";
 import { notFound } from "next/navigation";
 import { getSlotCapacities } from "@/utils/project";
@@ -122,9 +123,8 @@ export default async function ProjectPage({
   }
 
   // Check if current user is the project creator
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Get current user using getClaims() for better performance
+  const { user } = await getAuthUser();
   const isCreator = user?.id === project.creator_id;
 
   // If redirected after check-in, render the status card

@@ -1,13 +1,14 @@
 import { createClient } from '@/lib/supabase/server';
+import { getAuthUser } from '@/lib/supabase/auth-helpers';
 import { notifyAdminsBatched } from '@/services/admin-notifications';
 import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
   try {
     const supabase = await createClient();
-    
-    // Get authenticated user
-    const { data: { user } } = await supabase.auth.getUser();
+
+    // Get authenticated user using getClaims() for better performance
+    const { user } = await getAuthUser();
 
     if (!user) {
       return NextResponse.json(

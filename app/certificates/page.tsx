@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { CertificatesList } from "./CertificatesList";
 import { Metadata } from "next";
 
@@ -33,10 +34,11 @@ export default async function CertificatesPage() {
   // initialize supabase on the server
   const supabase = await createClient();
   // get logged-in user
+  // Check authentication using getClaims() for better performance
   const {
-    data: { user },
+    user,
     error: authError
-  } = await supabase.auth.getUser();
+  } = await getAuthUser();
   if (authError || !user) {
     return redirect("/login?redirect=/certificates");
   }

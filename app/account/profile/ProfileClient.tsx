@@ -770,7 +770,7 @@ export default function ProfileClient() {
             </CardContent>
           </Card>
 
-          {/* Email Management Section */}
+          {/* Email Aliases Section */}
           {emailLoading ? (
             <Card className="border shadow-xs">
               <CardContent className="pt-6 flex justify-center">
@@ -792,9 +792,9 @@ export default function ProfileClient() {
                       </svg>
                     </div>
                     <div>
-                      <CardTitle className="text-xl">Email Addresses</CardTitle>
+                      <CardTitle className="text-xl">Email Aliases</CardTitle>
                       <CardDescription>
-                        Manage email addresses linked to your account
+                        Manage secondary email addresses for account recovery. To change your primary login email, visit the Security page.
                       </CardDescription>
                     </div>
                   </div>
