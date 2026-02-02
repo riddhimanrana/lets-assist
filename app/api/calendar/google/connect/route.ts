@@ -106,10 +106,10 @@ export async function GET(request: Request) {
     googleAuthUrl.searchParams.set("scope", scopes.join(" "));
     googleAuthUrl.searchParams.set("access_type", "offline");
     googleAuthUrl.searchParams.set("include_granted_scopes", "true");
-    googleAuthUrl.searchParams.set(
-      "prompt",
-      forceConsent ? "consent" : "consent"
-    ); // Force consent to get refresh token
+    // Only force consent when explicitly requested to get a new refresh token
+    if (forceConsent) {
+      googleAuthUrl.searchParams.set("prompt", "consent");
+    }
     googleAuthUrl.searchParams.set("state", state);
 
     if (wantsJson) {
