@@ -473,16 +473,16 @@ export default async function VolunteerDashboard() {
       {/* Mobile-First Responsive Tabs Layout */}
       <Tabs defaultValue="overview" className="space-y-6">
         {/* Mobile Tab Navigation with Icons */}
-        <TabsList className="grid grid-cols-3 w-full sm:flex sm:w-auto h-auto p-1">
-          <TabsTrigger value="overview" className="flex items-center gap-2 py-2 px-2 sm:px-4">
+        <TabsList className="grid grid-cols-3 w-full sm:flex sm:w-auto h-auto">
+          <TabsTrigger value="overview" className="flex items-center ">
             <BarChart3 className="h-4 w-4" />
             <span className="text-xs sm:text-sm">Overview</span>
           </TabsTrigger>
-          <TabsTrigger value="hours" className="flex items-center gap-2 py-2 px-2 sm:px-4">
+          <TabsTrigger value="hours" className="flex items-center">
             <CalendarDays className="h-4 w-4" />
             <span className="text-xs sm:text-sm">All Hours</span>
           </TabsTrigger>
-          <TabsTrigger value="export" className="flex items-center gap-2 py-2 px-2 sm:px-4">
+          <TabsTrigger value="export" className="flex items-center ">
             <Download className="h-4 w-4" />
             <span className="text-xs sm:text-sm">Export</span>
           </TabsTrigger>
