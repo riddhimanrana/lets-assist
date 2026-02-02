@@ -22,7 +22,7 @@ interface ActivityChartProps {
 const chartConfig = {
   hours: {
     label: "Hours",
-    color: "hsl(var(--chart-3))",
+    color: "var(--chart-3)",
   },
 } satisfies ChartConfig;
 
