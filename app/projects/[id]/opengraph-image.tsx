@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { ImageResponse } from "next/og";
+import sanitizeHtml from "sanitize-html";
 
 export const runtime = "nodejs";
 
@@ -30,7 +31,11 @@ const palette = {
 };
 
 function cleanText(text: string) {
-  return text.replace(/<[^>]*>?/gm, "").replace(/\s+/g, " ").trim();
+  const sanitized = sanitizeHtml(text, {
+    allowedTags: [],
+    allowedAttributes: {},
+  });
+  return sanitized.replace(/\s+/g, " ").trim();
 }
 
 async function loadFont(fileName: string) {
