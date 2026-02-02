@@ -56,15 +56,15 @@ export default function FilePreview({
     }
   };
 
-  const isPDF = url?.toLowerCase().includes('.pdf');
-  const isImage = url?.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i);
+  if (!url) return null;
+
+  const isPDF = url.toLowerCase().includes('.pdf');
+  const isImage = url.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i);
   const pdfSrc = isPDF
     ? (url.includes('#')
       ? `${url}&toolbar=0&navpanes=0&view=FitH`
       : `${url}#toolbar=0&navpanes=0&view=FitH`)
     : url;
-
-  if (!url) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

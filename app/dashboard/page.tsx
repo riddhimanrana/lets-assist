@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { VolunteerGoals } from "./_components/VolunteerGoals";
@@ -208,8 +209,8 @@ function formatTotalDuration(totalHours: number): string {
 export default async function VolunteerDashboard() {
   const supabase = await createClient();
 
-  // Check authentication
-  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  // Check authentication using getClaims() for better performance
+  const { user, error: userError } = await getAuthUser();
   if (userError || !user) {
     redirect("/login?redirect=/dashboard");
   }
