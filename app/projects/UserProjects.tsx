@@ -1,5 +1,6 @@
 
 import { createClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { getProjectStatus } from "@/utils/project";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { buttonVariants } from "@/components/ui/button-variants";
@@ -91,8 +92,8 @@ interface ProjectWithSignups extends ProjectWithCreator {
 export default async function UserProjects() {
   const supabase = await createClient();
 
-  // Check if user is authenticated
-  const { data: { user } } = await supabase.auth.getUser();
+  // Check if user is authenticated using getClaims() for better performance
+  const { user } = await getAuthUser();
   if (!user) {
     redirect("/login");
   }

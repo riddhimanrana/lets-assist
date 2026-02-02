@@ -1,5 +1,6 @@
 import React from "react";
 import { createClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { format, parseISO, differenceInMinutes, isBefore } from "date-fns";
@@ -161,8 +162,8 @@ export default async function ProfilePage(
     notFound();
   }
 
-  // Get current user
-  const { data: { user } } = await supabase.auth.getUser();
+  // Get current user using getClaims() for better performance
+  const { user } = await getAuthUser();
   const isOwner = user?.id === profile.id;
 
   // Check profile visibility unless it's the owner viewing their own profile

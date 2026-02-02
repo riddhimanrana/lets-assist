@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { canCancelProject, isProjectVisible } from "@/utils/project";
 import { revalidatePath } from "next/cache";
 import { ProjectStatus } from "@/types";
@@ -164,8 +165,8 @@ export async function isProjectCreator(projectId: string) {
   try {
     const supabase = await createClient();
 
-    // Get current user
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    // Get current user using getClaims() for better performance
+    const { user, error: userError } = await getAuthUser();
     if (userError || !user) {
       return false;
     }
@@ -186,8 +187,8 @@ export async function isProjectCreator(projectId: string) {
 export async function getProject(projectId: string) {
   const supabase = await createClient();
 
-  // Get the current user if logged in
-  const { data: { user } } = await supabase.auth.getUser();
+  // Get the current user if logged in using getClaims() for better performance
+  const { user } = await getAuthUser();
 
   // Fetch the project
   const { data: project, error } = (await supabase
@@ -815,7 +816,7 @@ export async function signUpForProject(
     if (project.restrict_to_org_domains && project.organization?.allowed_email_domains && project.organization.allowed_email_domains.length > 0) {
       const allowedDomains = project.organization.allowed_email_domains as string[];
       let hasValidEmail = false;
-      const userEmailToCheck = isAnonymous ? anonymousData?.email : (await supabase.auth.getUser()).data.user?.email;
+      const userEmailToCheck = isAnonymous ? anonymousData?.email : (await getAuthUser()).user?.email;
 
       // Helper to check domain
       const checkDomain = (email: string) => {
@@ -828,8 +829,8 @@ export async function signUpForProject(
           hasValidEmail = true;
         }
       } else {
-        // Logged in user
-        const { data: { user } } = await supabase.auth.getUser();
+        // Logged in user - get user via getClaims() for better performance
+        const { user } = await getAuthUser();
         if (user) {
           // 1. Check primary email
           if (user.email && checkDomain(user.email)) {
@@ -901,8 +902,8 @@ export async function signUpForProject(
       return { error: "This slot is full" };
     }
 
-    // Handle user authentication
-    const { data: { user } } = await supabase.auth.getUser();
+    // Handle user authentication using getClaims() for better performance
+    const { user } = await getAuthUser();
 
     // If project requires login but user isn't logged in
     if (project.require_login && !user) {
@@ -1275,8 +1276,8 @@ export async function unrejectSignup(signupId: string) {
   const supabase = await createClient();
 
   try {
-    // Get current user
-    const { data: { user } } = await supabase.auth.getUser();
+    // Get current user using getClaims() for better performance
+    const { user } = await getAuthUser();
 
     // Get signup details
     const { data: signup, error: signupError } = await supabase
@@ -1380,8 +1381,8 @@ export async function cancelSignup(signupId: string, anonymousSignupId?: string)
   const supabase = await createClient();
 
   try {
-    // Get current user
-    const { data: { user } } = await supabase.auth.getUser();
+    // Get current user using getClaims() for better performance
+    const { user } = await getAuthUser();
 
     // Get signup details, including anonymous_id
     const { data: signup, error: signupError } = await supabase
@@ -1490,8 +1491,8 @@ export async function updateProjectStatus(
     | { enqueued: boolean; triggerAttempted: boolean; error?: string }
     | undefined;
 
-  // Get current user
-  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  // Get current user using getClaims() for better performance
+  const { user, error: userError } = await getAuthUser();
   if (!user || userError) {
     return { error: "You must be logged in to update project status" };
   }
@@ -1642,8 +1643,8 @@ export async function updateProjectStatus(
 export async function deleteProject(projectId: string) {
   const supabase = await createClient();
 
-  // Get current user
-  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  // Get current user using getClaims() for better performance
+  const { user, error: userError } = await getAuthUser();
   if (!user || userError) {
     return { error: "You must be logged in to delete a project" };
   }
@@ -1735,8 +1736,8 @@ export async function updateProject(projectId: string, updates: Partial<Project>
   try {
     const supabase = await createClient();
 
-    // Get current user
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    // Get current user using getClaims() for better performance
+    const { user, error: userError } = await getAuthUser();
     if (userError || !user) {
       return { error: "Unauthorized" };
     }
@@ -1821,7 +1822,8 @@ export async function getUserProfile() {
   const supabase = await createClient();
 
   try {
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    // Get current user using getClaims() for better performance
+    const { user, error: userError } = await getAuthUser();
 
     if (userError || !user) {
       return { error: "Not authenticated" };
@@ -1855,7 +1857,8 @@ export async function getWaiverDownloadUrl(signupId: string, anonymousSignupId?:
   const supabase = await createClient();
 
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    // Get current user using getClaims() for better performance
+    const { user } = await getAuthUser();
 
     type SignupForWaiver = {
       id: string;

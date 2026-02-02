@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { differenceInMinutes, format } from "date-fns";
 
@@ -466,8 +467,9 @@ export async function getOrganizationReportData(
   const supabase = await createClient();
 
   try {
-    const { data: authData } = await supabase.auth.getUser();
-    if (!authData?.user) {
+    // Get current user using getClaims() for better performance
+    const { user: authData } = await getAuthUser();
+    if (!authData) {
       return { error: "Authentication required" };
     }
 

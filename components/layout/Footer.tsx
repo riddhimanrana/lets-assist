@@ -1,9 +1,14 @@
+"use client";
+
 import Link from "next/link";
 import Image from "next/image";
 import { Mail } from "lucide-react";
 import { SiInstagram, SiX } from "react-icons/si";
+import { useAuth } from "@/hooks/useAuth";
 
 export function Footer() {
+  const { user } = useAuth();
+
   return (
     <footer className="w-full border-t py-8 md:py-6">
       <div className="container px-4 mx-auto">
@@ -23,10 +28,10 @@ export function Footer() {
           {/* Left aligned nav links */}
           <nav className="mt-2 grid grid-cols-2 gap-x-6 gap-y-4 text-left sm:flex sm:flex-wrap sm:justify-start sm:gap-x-8 ml-3">
             <Link
-              href="/"
+              href={user ? "/trusted-member" : "/"}
               className="text-sm text-muted-foreground hover:text-foreground"
             >
-              Home
+              {user ? "Trusted Member" : "Home"}
             </Link>
             <Link
               href="/privacy"
@@ -113,10 +118,10 @@ export function Footer() {
           <div className="flex items-center space-x-8">
             <nav className="flex space-x-6 text-left">
               <Link
-                href="/"
+                href={user ? "/trusted-member" : "/"}
                 className="text-sm text-muted-foreground hover:text-foreground"
               >
-                Home
+                {user ? "Trusted Member" : "Home"}
               </Link>
               <Link
                 href="/privacy"

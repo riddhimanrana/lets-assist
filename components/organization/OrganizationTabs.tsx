@@ -512,7 +512,6 @@ export default function OrganizationTabs({
 
                         <DialogClose
                           render={<Button className="ml-auto">Close</Button>}
-                          nativeButton={false}
                         />
                       </DialogContent>
                     </Dialog>

@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { Separator } from "@/components/ui/separator";
 import EditOrganizationForm from "./EditOrganizationForm";
 import { Metadata } from "next";
@@ -66,8 +67,8 @@ export default async function OrganizationSettingsPage({ params }: Props) {
   const { id } = await params;
   const supabase = await createClient();
 
-  // Check if user is authenticated
-  const { data: { user } } = await supabase.auth.getUser();
+  // Check if user is authenticated using getClaims() for better performance
+  const { user } = await getAuthUser();
   if (!user) {
     redirect(`/login?redirect=/organization/${id}/edit`);
   }

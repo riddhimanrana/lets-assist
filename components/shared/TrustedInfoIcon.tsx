@@ -22,7 +22,7 @@ export function TrustedInfoIcon({ message, linkLabel = "Apply for Trusted Member
         <TooltipContent>
           <div className="max-w-xs space-y-2">
             <p className="text-xs leading-snug">{message}</p>
-            <Link href="/trusted-member" className="text-xs text-primary underline">
+            <Link href="/trusted-member" className="text-xs text-primary dark:text-background underline">
               {linkLabel}
             </Link>
           </div>

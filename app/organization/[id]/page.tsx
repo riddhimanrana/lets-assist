@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { Metadata } from "next";
 import OrganizationHeader from "@/components/organization/OrganizationHeader";
 import OrganizationTabs from "@/components/organization/OrganizationTabs";
@@ -101,9 +102,8 @@ export default async function OrganizationPage({
 }: Props): Promise<React.ReactElement> {
   const { id } = await params;
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Get current user using getClaims() for better performance
+  const { user } = await getAuthUser();
 
   // Check if ID is a username or UUID
   const isUUID =

@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { notFound, redirect } from "next/navigation";
 import { Metadata } from "next";
 import { differenceInHours, isAfter, format, parseISO } from "date-fns";
@@ -149,8 +150,8 @@ export default async function HoursPage({ params }: { params: Promise<{ id: stri
   const supabase = await createClient();
   const { id: projectId } = await params;
 
-  // 1. Check User Authentication
-  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  // 1. Check User Authentication using getClaims() for better performance
+  const { user, error: userError } = await getAuthUser();
   if (userError || !user) {
     redirect(`/login?redirect=/projects/${projectId}/hours`);
   }
