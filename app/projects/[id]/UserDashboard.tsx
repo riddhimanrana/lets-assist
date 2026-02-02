@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { Project, Signup } from "@/types";
-import { User } from "@supabase/supabase-js";
+import { AuthUser } from "@/lib/supabase/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -105,7 +105,7 @@ function calculateVolunteerDuration(checkIn: string | null, checkOut: string | n
 
 interface Props {
   project: Project;
-  user: User;
+  user: AuthUser;
   signups: Signup[]; // Array of user's approved signups for this project
 }
 

@@ -11,8 +11,9 @@ import {
   AnonymousSignupData,
   Signup,
   WaiverSignatureInput,
-  WaiverTemplate
+  WaiverTemplate,
 } from "@/types";
+import { AuthUser } from '@/lib/supabase/types';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -78,7 +79,7 @@ import { ProjectSignupForm } from "./ProjectForm";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { useRef } from "react";
 // Import User type from supabase
-import { User } from "@supabase/supabase-js";
+// import { User } from "@supabase/supabase-js";
 import ProjectInstructionsModal from "./ProjectInstructionsModalWrapper";
 import { SlotAttendeesDropdown, type SlotAttendee } from "@/components/projects/SlotAttendeesDropdown";
 import { SignupConfirmationModal } from "@/app/projects/_components/SignupConfirmationModal";
@@ -107,8 +108,8 @@ interface Props {
   organization?: Organization | null;
   initialSlotData: SlotData;
   initialIsCreator: boolean;
-  // Use the specific User type
-  initialUser: User | null;
+  // Use the specific AuthUser type
+  initialUser: AuthUser | null;
   // Add prop for full signup data
   userSignupsData: Signup[];
 }
@@ -153,8 +154,8 @@ export default function ProjectDetails({
   const [isCreator] = useState(initialIsCreator);
   const [remainingSlots, setRemainingSlots] = useState<Record<string, number>>(initialSlotData.remainingSlots);
   const [hasSignedUp, setHasSignedUp] = useState<Record<string, boolean>>(initialSlotData.userSignups);
-  // Use the specific User type
-  const [user] = useState<User | null>(initialUser);
+  // Use the specific AuthUser type
+  const [user] = useState<AuthUser | null>(initialUser);
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [anonymousDialogOpen, setAnonymousDialogOpen] = useState(false);
   const [currentScheduleId, setCurrentScheduleId] = useState<string>("");

@@ -69,7 +69,7 @@ export async function updateSession(request: NextRequest) {
         // Use getClaims() for lighter validation - validates JWT locally without API call
         // This is the recommended approach per Supabase Issue #40985
         // @see https://github.com/supabase/supabase/issues/40985
-        const { data: claimsData } = await (supabase.auth as any).getClaims();
+        const { data: claimsData } = await supabase.auth.getClaims();
         if (claimsData?.claims) {
             user = { id: claimsData.claims.sub, ...claimsData.claims };
         }

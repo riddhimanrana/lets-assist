@@ -96,8 +96,6 @@ export async function sendSystemNotification(prevState: { error?: string; succes
 }
 
 export async function checkSuperAdmin() {
-  const supabase = await createClient();
-
   // Get current user using getClaims() for better performance
   const { user } = await getAuthUser();
 

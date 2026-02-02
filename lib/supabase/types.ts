@@ -10,8 +10,8 @@ export type AuthClaims = {
   email: string | null;
   phone: string | null;
   role: string | null;
-  user_metadata: Record<string, any> | null;
-  app_metadata: Record<string, any> | null;
+  user_metadata: Record<string, unknown> | null;
+  app_metadata: Record<string, unknown> | null;
   expires_at?: number;
 };
 
@@ -23,6 +23,6 @@ export type AuthUser = {
   email: string | null;
   phone: string | null;
   role: string | null;
-  user_metadata: Record<string, any> | null;
-  app_metadata: Record<string, any> | null;
+  user_metadata: Record<string, unknown> | null;
+  app_metadata: Record<string, unknown> | null;
 };

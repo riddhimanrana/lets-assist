@@ -1,30 +1,46 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { usePathname } from "next/navigation";
+import { useCallback, useEffect, useRef, useState, Suspense } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import InitialOnboardingModal from "@/components/onboarding/InitialOnboardingModal";
 import FirstLoginTour from "@/components/onboarding/FirstLoginTour";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import { useAuth } from "@/hooks/useAuth";
 import { createClient } from "@/lib/supabase/client";
 
-export default function GlobalNotificationProvider({
+function GlobalNotificationProviderInner({
   children,
 }: {
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const isHomeRoute = pathname === "/home";
+  // ... rest of the component body ...
   const { user, loading: isLoading } = useAuth();
   const [showIntroTour, setShowIntroTour] = useState(false);
   const [homeRouteReady, setHomeRouteReady] = useState(false);
   const [introTourStarted, setIntroTourStarted] = useState(false);
   const [showOnboardingModal, setShowOnboardingModal] = useState(false);
+  const [pendingOnboardingAfterTour, setPendingOnboardingAfterTour] = useState(false);
   const [currentUserFullName, setCurrentUserFullName] = useState<string | null>(null);
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
   const [autoJoinedOrg, setAutoJoinedOrg] = useState<{ id: string; name: string } | null>(null);
   const onboardingCompletedRef = useRef(false);
   const introCompletedRef = useRef(false);
+
+  const restrictedPathsForLoggedInUsers = useRef([
+    "/",
+    "/login",
+    "/signup",
+    "/reset-password",
+    "/faq",
+  ]).current;
+
+  const noRedirect = searchParams.get("noRedirect") === "1";
+  const isRestrictedPath = !!pathname && restrictedPathsForLoggedInUsers.includes(pathname);
+  const shouldRedirectHome = !!user && !isLoading && isRestrictedPath && !noRedirect;
 
   const suppressOnboardingModal = !!(
     pathname?.startsWith("/projects/create") ||
@@ -73,6 +89,17 @@ export default function GlobalNotificationProvider({
       setHomeRouteReady(false);
     };
   }, [isHomeRoute]);
+
+  useEffect(() => {
+    if (!shouldRedirectHome) return;
+
+    setShowIntroTour(false);
+    setShowOnboardingModal(false);
+
+    if (pathname !== "/home") {
+      router.replace("/home");
+    }
+  }, [pathname, router, shouldRedirectHome]);
 
   const markIntroTourComplete = useCallback(async () => {
     try {
@@ -127,19 +154,40 @@ export default function GlobalNotificationProvider({
       !onboardingCompletedRef.current &&
       user?.user_metadata?.has_completed_onboarding !== true;
 
-    if (needsProfile && !suppressOnboardingModal) {
+    if (!needsProfile) {
+      return;
+    }
+
+    setPendingOnboardingAfterTour(true);
+
+    if (!suppressOnboardingModal && !isHomeRoute) {
+      router.replace("/home");
+      return;
+    }
+
+    if (!suppressOnboardingModal && isHomeRoute) {
       prepareOnboardingModal();
       setShowOnboardingModal(true);
+      setPendingOnboardingAfterTour(false);
     }
-  }, [markIntroTourComplete, prepareOnboardingModal, suppressOnboardingModal, user]);
+  }, [isHomeRoute, markIntroTourComplete, prepareOnboardingModal, router, suppressOnboardingModal, user]);
 
   useEffect(() => {
+    if (shouldRedirectHome) {
+      setShowIntroTour(false);
+      setShowOnboardingModal(false);
+      setIntroTourStarted(false);
+      setPendingOnboardingAfterTour(false);
+      return;
+    }
+
     if (!user) {
       setShowIntroTour(false);
       setShowOnboardingModal(false);
       onboardingCompletedRef.current = false;
       introCompletedRef.current = false;
       setIntroTourStarted(false);
+      setPendingOnboardingAfterTour(false);
       return;
     }
 
@@ -152,6 +200,22 @@ export default function GlobalNotificationProvider({
 
     // Use the ref as the source of truth (combines server + local optimistic)
     const isIntroEffectiveComplete = introCompletedRef.current;
+    const isTourActive = !isIntroEffectiveComplete && introTourStarted;
+
+    if (isTourActive) {
+      if (!showIntroTour) {
+        setShowIntroTour(true);
+      }
+      setShowOnboardingModal(false);
+      return;
+    }
+
+    if (pendingOnboardingAfterTour && !suppressOnboardingModal && isHomeRoute) {
+      prepareOnboardingModal();
+      setShowOnboardingModal(true);
+      setPendingOnboardingAfterTour(false);
+      return;
+    }
 
     // Priority 1: Tour (Only on Home)
     // We only attempt to show the tour if:
@@ -176,12 +240,13 @@ export default function GlobalNotificationProvider({
       }
     }
 
-    // Priority 2: Onboarding Modal (Any page)
+    // Priority 2: Onboarding Modal (Only on Home)
     // If we reach here, the Tour is NOT showing (either finished, skipped, invalid context, or not on home)
-    setShowIntroTour(false);
-    setIntroTourStarted(false);
+    if (showIntroTour) {
+      setShowIntroTour(false);
+    }
 
-    if (!onboardingCompletedRef.current && !suppressOnboardingModal) {
+    if (!onboardingCompletedRef.current && !suppressOnboardingModal && isHomeRoute) {
       prepareOnboardingModal();
       setShowOnboardingModal(true);
     } else {
@@ -194,16 +259,16 @@ export default function GlobalNotificationProvider({
     homeRouteReady,
     introTourStarted,
     showIntroTour,
+    isHomeRoute,
+    pendingOnboardingAfterTour,
+    shouldRedirectHome,
   ]);
 
   useEffect(() => {
-    if (suppressOnboardingModal) {
+    if (suppressOnboardingModal || !isHomeRoute) {
       setShowOnboardingModal(false);
-      if (showIntroTour) {
-        setShowIntroTour(false);
-      }
     }
-  }, [suppressOnboardingModal, showIntroTour]);
+  }, [isHomeRoute, suppressOnboardingModal]);
 
   return (
     <NotificationProvider>
@@ -233,5 +298,17 @@ export default function GlobalNotificationProvider({
       )}
       {children}
     </NotificationProvider>
+  );
+}
+
+export default function GlobalNotificationProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <Suspense fallback={children}>
+      <GlobalNotificationProviderInner>{children}</GlobalNotificationProviderInner>
+    </Suspense>
   );
 }

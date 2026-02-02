@@ -477,7 +477,7 @@ export async function getOrganizationReportData(
       .from("organization_members")
       .select("role")
       .eq("organization_id", organizationId)
-      .eq("user_id", authData.user.id)
+      .eq("user_id", authData.id)
       .single();
 
     const canView = membership?.role === "admin" || membership?.role === "staff";
