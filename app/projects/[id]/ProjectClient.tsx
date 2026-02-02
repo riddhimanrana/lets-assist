@@ -3,7 +3,7 @@
 import ProjectDetails from './ProjectDetails';
 // Import Signup type along with others if needed
 import { Project, Profile, Organization, Signup } from '@/types'; 
-import { User } from '@supabase/supabase-js';
+import { AuthUser } from '@/lib/supabase/types';
 
 // Define Props interface
 interface Props {
@@ -18,7 +18,7 @@ interface Props {
     attendedSlots: Record<string, boolean>; // Add the missing attendedSlots property
   };
   initialIsCreator: boolean;
-  initialUser: User | null;
+  initialUser: AuthUser | null;
   // Add prop for full signup data
   userSignupsData: Signup[]; 
 }

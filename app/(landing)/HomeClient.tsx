@@ -8,7 +8,7 @@ import PlatformFeaturesSection from "./_components/PlatformFeaturesSection";
 import OrgToolingSection from "./_components/OrgToolingSection";
 import ComparisonSection from "./_components/ComparisonSection";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense } from "react";
+import { Suspense, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -18,15 +18,42 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { AlertCircle } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 function HomeContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { user, loading: isAuthLoading } = useAuth();
 
   // Check for error parameters
   const error = searchParams.get("error");
   const errorCode = searchParams.get("error_code");
   const errorDescription = searchParams.get("error_description");
+  const noRedirect = searchParams.get("noRedirect") === "1";
+  const hasError = !!(error && errorDescription);
+  const shouldRedirect = !!user && !isAuthLoading && !noRedirect && !hasError;
+
+  useEffect(() => {
+    if (shouldRedirect) {
+      router.replace("/home");
+    }
+  }, [router, shouldRedirect]);
+
+  if (isAuthLoading && !noRedirect && !hasError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-pulse">Loading...</div>
+      </div>
+    );
+  }
+
+  if (shouldRedirect) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-pulse">Heading to your home…</div>
+      </div>
+    );
+  }
 
   // Show error page if there's an error
   if (error && errorDescription) {
@@ -43,7 +70,7 @@ function HomeContent() {
 
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Card className="w-[380px] shadow-lg">
+        <Card className="w-95 shadow-lg">
           <CardHeader className="text-center">
             <CardTitle className="flex items-center justify-center gap-2 text-destructive">
               <AlertCircle className="h-6 w-6" />

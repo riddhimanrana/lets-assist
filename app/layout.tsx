@@ -14,6 +14,7 @@ import { QueryMessageToast } from "@/components/shared/QueryMessageToast";
 import GlobalNotificationProvider from "@/components/providers/GlobalNotificationProvider";
 import CalendarOAuthCallbackHandler from "@/components/calendar/CalendarOAuthCallbackHandler";
 import { AuthProvider } from "@/components/providers/AuthProvider";
+import { Suspense } from "react";
 
 export const metadata: Metadata = {
   title: {
@@ -114,10 +115,14 @@ export default async function RootLayout({
                   <Navbar />
                   <Toaster richColors />
                   <main className="flex-1 w-full">{children}</main>
-                  <QueryMessageToast />
+                  <Suspense fallback={null}>
+                    <QueryMessageToast />
+                  </Suspense>
                   <Footer />
                   <SpeedInsights />
-                  <CalendarOAuthCallbackHandler />
+                  <Suspense fallback={null}>
+                    <CalendarOAuthCallbackHandler />
+                  </Suspense>
                 </div>
               </GlobalNotificationProvider>
             </PostHogProvider>
