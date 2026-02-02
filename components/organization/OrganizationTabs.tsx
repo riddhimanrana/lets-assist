@@ -17,7 +17,7 @@ import {
   BarChart3
 } from "lucide-react";
 import { format } from "date-fns";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -29,7 +29,6 @@ import { Loader2 } from "lucide-react";
 import { ProjectStatusBadge } from "@/components/ui/status-badge";
 import { getProjectStatus } from "@/utils/project";
 import ReportsTab from "@/app/organization/[id]/ReportsTab";
-import { cn } from "@/lib/utils";
 import type { Organization, Project } from "@/types";
 
 type OrganizationMember = {
@@ -242,7 +241,7 @@ export default function OrganizationTabs({
 
       <TabsContent value="overview" className="space-y-6">
         <div className="grid gap-4 sm:gap-6 lg:grid-cols-2 items-stretch justify-items-center sm:justify-items-stretch">
-          <Card className="flex flex-col overflow-hidden w-full max-w-[560px] sm:max-w-none">
+          <Card className="flex flex-col overflow-hidden w-full max-w-140 sm:max-w-none">
             <CardHeader>
               <CardTitle className="text-xl! font-bold tracking-tight">About</CardTitle>
             </CardHeader>
@@ -297,7 +296,7 @@ export default function OrganizationTabs({
             </CardContent>
           </Card>
           {/* Quick Stats Card */}
-          <Card className="flex flex-col overflow-hidden w-full max-w-[560px] sm:max-w-none">
+          <Card className="flex flex-col overflow-hidden w-full max-w-140 sm:max-w-none">
             <CardHeader>
               <CardTitle className="text-xl! font-bold tracking-tight">Quick Stats</CardTitle>
             </CardHeader>
@@ -359,7 +358,7 @@ export default function OrganizationTabs({
         </div>
 
         {userRole && (
-          <Card className="overflow-hidden w-full max-w-[560px] sm:max-w-none">
+          <Card className="overflow-hidden w-full max-w-140 sm:max-w-none">
             {userRole === "admin" ? (
               <CardHeader>
                 <div className="flex items-center gap-3">

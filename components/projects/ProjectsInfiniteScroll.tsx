@@ -48,7 +48,6 @@ import { DateRange } from "react-day-picker";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { cn } from "@/lib/utils";
 import { format, parseISO } from "date-fns";
-import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
 import { ProjectsMapView } from "./ProjectsMapView";
 import type { Project } from "@/types";
