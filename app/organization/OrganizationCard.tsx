@@ -42,7 +42,7 @@ export default function OrganizationCard({ org, memberCount, isUserMember = fals
               </CardTitle>
               {org.verified && (
                 <Tooltip>
-                  <TooltipTrigger>
+                  <TooltipTrigger aria-label="Verified organization">
                     <BadgeCheck className="h-4 w-4 shrink-0 text-primary" />
                   </TooltipTrigger>
                   <TooltipContent side="top">
