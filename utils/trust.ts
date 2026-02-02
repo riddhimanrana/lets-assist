@@ -5,7 +5,7 @@
 // - Else: not trusted
 // Note: Do not rely on trusted_member table for public viewers due to RLS.
 
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 
 export async function isTrustedForDisplay(userId: string): Promise<boolean> {
   const supabase = await createClient();

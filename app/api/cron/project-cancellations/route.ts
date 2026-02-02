@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServiceRoleClient } from "@/utils/supabase/service-role";
+import { getAdminClient } from "@/lib/supabase/admin";
 import { sendEmail } from "@/services/email";
 import ProjectCancellation from "@/emails/project-cancellation";
 import * as React from "react";
@@ -38,18 +38,27 @@ type NotificationSettingsRow = {
 function isAuthorized(request: NextRequest): { ok: true } | { ok: false; response: NextResponse } {
   const authHeader = request.headers.get("authorization");
   const expectedToken = process.env.PROJECT_CANCELLATION_WORKER_SECRET_TOKEN;
+  const cronSecret = process.env.CRON_SECRET;
+  const allowedTokens = [expectedToken, cronSecret].filter(
+    (value): value is string => Boolean(value)
+  );
 
-  if (!expectedToken) {
+  if (allowedTokens.length === 0) {
     return {
       ok: false,
       response: NextResponse.json(
-        { error: "PROJECT_CANCELLATION_WORKER_SECRET_TOKEN not configured" },
+        { error: "Cron auth not configured" },
         { status: 500 }
       ),
     };
   }
 
-  if (!authHeader || authHeader !== `Bearer ${expectedToken}`) {
+  if (!authHeader) {
+    return { ok: false, response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
+  }
+
+  const token = authHeader.replace("Bearer ", "");
+  if (!allowedTokens.includes(token)) {
     return { ok: false, response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
   }
 
@@ -61,7 +70,7 @@ function isWorkerEnabled(): boolean {
 }
 
 async function processOneJob(job: CancellationJobRow) {
-  const supabase = getServiceRoleClient();
+  const supabase = getAdminClient();
   const nowIso = new Date().toISOString();
   const batchSize = Number(process.env.PROJECT_CANCELLATION_WORKER_BATCH_SIZE ?? "50");
 
@@ -294,7 +303,7 @@ async function processOneJob(job: CancellationJobRow) {
 }
 
 async function processPendingJobs() {
-  const supabase = getServiceRoleClient();
+  const supabase = getAdminClient();
   const maxJobs = Number(process.env.PROJECT_CANCELLATION_WORKER_MAX_JOBS ?? "3");
 
   const { data: jobs, error } = await supabase
@@ -310,7 +319,6 @@ async function processPendingJobs() {
 
   const results = [];
   for (const job of (jobs ?? []) as CancellationJobRow[]) {
-    // eslint-disable-next-line no-await-in-loop
     const res = await processOneJob(job);
     results.push(res);
   }
@@ -348,15 +356,19 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  const auth = isAuthorized(request);
-  if (!auth.ok) return auth.response;
+  if (request.nextUrl.searchParams.get("status") === "1") {
+    const auth = isAuthorized(request);
+    if (!auth.ok) return auth.response;
 
-  return NextResponse.json(
-    {
-      message: "Project cancellation worker is running",
-      enabled: isWorkerEnabled(),
-      timestamp: new Date().toISOString(),
-    },
-    { status: 200 }
-  );
+    return NextResponse.json(
+      {
+        message: "Project cancellation worker is running",
+        enabled: isWorkerEnabled(),
+        timestamp: new Date().toISOString(),
+      },
+      { status: 200 }
+    );
+  }
+
+  return POST(request);
 }

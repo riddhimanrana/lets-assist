@@ -2,9 +2,10 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Clock, FileSpreadsheet, Timer, Upload, CheckCircle2 } from "lucide-react";
+import { Plus, Clock, FileSpreadsheet, Timer } from "lucide-react";
 import Link from "next/link";
 
 export function ProjectsSection() {
@@ -19,7 +20,7 @@ export function ProjectsSection() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Accordion type="single" collapsible>
+            <Accordion>
               <AccordionItem value="new-project">
                 <AccordionTrigger>How to Create a New Project</AccordionTrigger>
                 <AccordionContent className="space-y-2 text-sm">
@@ -33,13 +34,11 @@ export function ProjectsSection() {
                     <li>Invite team members (optional)</li>
                   </ol>
                   <div className="mt-3">
-                    <Button asChild size="sm">
-                      <Link href="/projects/create">Create Your First Project</Link>
-                    </Button>
+                    <Link href="/projects/create" className={cn(buttonVariants({ size: "sm" }))}>Create Your First Project</Link>
                   </div>
                 </AccordionContent>
               </AccordionItem>
-              
+
               {/* <AccordionItem value="project-types">
                 <AccordionTrigger>Project Types</AccordionTrigger>
                 <AccordionContent className="space-y-2 text-sm">
@@ -82,7 +81,7 @@ export function ProjectsSection() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Accordion type="single" collapsible>
+            <Accordion>
               <AccordionItem value="track-hours">
                 <AccordionTrigger>Ways to Track Your Hours</AccordionTrigger>
                 <AccordionContent className="space-y-3 text-sm">
@@ -111,7 +110,7 @@ export function ProjectsSection() {
                   </div>
                 </AccordionContent>
               </AccordionItem>
-              
+
               <AccordionItem value="verification">
                 <AccordionTrigger>Hour Verification Process</AccordionTrigger>
                 <AccordionContent className="space-y-2 text-sm">
@@ -138,9 +137,7 @@ export function ProjectsSection() {
                     <li>Downloadable PDF for records</li>
                     <li>Shareable links for verification</li>
                   </ul>
-                  <Button asChild size="sm" variant="outline" className="mt-2">
-                    <Link href="/certificates">View My Certificates</Link>
-                  </Button>
+                  <Link href="/certificates" className={cn(buttonVariants({ size: "sm", variant: "outline", className: "mt-2" }))}>View My Certificates</Link>
                 </AccordionContent>
               </AccordionItem>
             </Accordion>
@@ -159,7 +156,7 @@ export function ProjectsSection() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Accordion type="single" collapsible>
+          <Accordion>
             <AccordionItem value="csv-export">
               <AccordionTrigger>Exporting Your Data</AccordionTrigger>
               <AccordionContent className="space-y-3 text-sm">
@@ -184,12 +181,12 @@ export function ProjectsSection() {
                     </ol>
                   </div>
                 </div>
-                <div className="bg-chart-3/20 p-3 rounded-lg">
+                <div className="bg-info/20 p-3 rounded-lg">
                   <p className="text-xs"><strong>Tip:</strong> CSV files can be opened in Excel or Google Sheets for further analysis and school submissions.</p>
                 </div>
               </AccordionContent>
             </AccordionItem>
-            
+
             <AccordionItem value="csv-import">
               <AccordionTrigger>Importing Existing Records</AccordionTrigger>
               <AccordionContent className="space-y-3 text-sm">

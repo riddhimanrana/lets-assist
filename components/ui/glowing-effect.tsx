@@ -2,7 +2,7 @@
 
 import { memo, useCallback, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
-import { animate } from "motion/react";
+import { animate } from "framer-motion";
 
 interface GlowingEffectProps {
   blur?: number;
@@ -77,9 +77,9 @@ const GlowingEffect = memo(
 
           const currentAngle =
             parseFloat(element.style.getPropertyValue("--start")) || 0;
-          let targetAngle =
+          const targetAngle =
             (180 * Math.atan2(mouseY - center[1], mouseX - center[0])) /
-              Math.PI +
+            Math.PI +
             90;
 
           const angleDiff = ((targetAngle - currentAngle + 180) % 360) - 180;
@@ -144,17 +144,17 @@ const GlowingEffect = memo(
                   var(--black),
                   var(--black) calc(25% / var(--repeating-conic-gradient-times))
                 )`
-                  : `radial-gradient(circle, hsl(var(--primary)) 10%, rgba(0,0,0,0) 20%),
-                radial-gradient(circle at 40% 40%, hsl(var(--chart-4)) 5%, rgba(0,0,0,0) 15%),
-                radial-gradient(circle at 60% 60%, hsl(var(--chart-5)) 10%, rgba(0,0,0,0) 20%), 
-                radial-gradient(circle at 40% 60%, hsl(var(--chart-3)) 10%, rgba(0,0,0,0) 20%),
+                  : `radial-gradient(circle, var(--chart-1) 10%, var(--chart-1) 0, transparent 20%),
+                radial-gradient(circle at 40% 40%, var(--chart-4) 5%, var(--chart-4) 0, transparent 15%),
+                radial-gradient(circle at 60% 60%, var(--primary) 10%, var(--primary) 0, transparent 20%), 
+                radial-gradient(circle at 40% 60%, var(--chart-3) 10%, var(--chart-3) 0, transparent 20%),
                 repeating-conic-gradient(
                   from 236.84deg at 50% 50%,
-                  hsl(var(--primary)) 0%,
-                  hsl(var(--chart-4)) calc(25% / var(--repeating-conic-gradient-times)),
-                  hsl(var(--chart-5)) calc(50% / var(--repeating-conic-gradient-times)), 
-                  hsl(var(--chart-3)) calc(75% / var(--repeating-conic-gradient-times)),
-                  hsl(var(--primary)) calc(100% / var(--repeating-conic-gradient-times))
+                  var(--chart-1) 0%,
+                  var(--chart-4) calc(25% / var(--repeating-conic-gradient-times)),
+                  var(--primary) calc(50% / var(--repeating-conic-gradient-times)), 
+                  var(--chart-3) calc(75% / var(--repeating-conic-gradient-times)),
+                  var(--chart-1) calc(100% / var(--repeating-conic-gradient-times))
                 )`,
             } as React.CSSProperties
           }

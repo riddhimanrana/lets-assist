@@ -5,7 +5,8 @@ import { Bar, BarChart, CartesianGrid, XAxis } from "recharts";
 import { Users, MessageSquare, ShieldAlert, Activity, Bot, ArrowUpRight, AlertTriangle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 
 interface OverviewTabProps {
@@ -58,7 +59,7 @@ type ReportsStats = {
 const chartConfig = {
   total: {
     label: "Total",
-    color: "hsl(var(--primary))",
+    color: "var(--chart-3)",
   },
 } satisfies ChartConfig;
 
@@ -162,7 +163,7 @@ export function OverviewTab({ stats, flaggedContent, reportPreview, reportsStats
                   tickFormatter={(value) => value.slice(0, 10)}
                 />
                 <ChartTooltip content={<ChartTooltipContent />} />
-                <Bar dataKey="total" radius={4} />
+                <Bar dataKey="total" fill="var(--color-total)" radius={4} />
               </BarChart>
             </ChartContainer>
           </CardContent>
@@ -243,12 +244,10 @@ export function OverviewTab({ stats, flaggedContent, reportPreview, reportsStats
             )}
           </CardContent>
           <CardFooter>
-            <Button asChild variant="ghost" size="sm" className="gap-1 text-xs">
-              <Link href="/admin/moderation">
-                Review flags
-                <ArrowUpRight className="h-3 w-3" />
-              </Link>
-            </Button>
+            <Link href="/admin/moderation" className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "gap-1 text-xs")}>
+              View all
+              <ArrowUpRight className="h-3 w-3" />
+            </Link>
           </CardFooter>
         </Card>
 
@@ -293,12 +292,10 @@ export function OverviewTab({ stats, flaggedContent, reportPreview, reportsStats
             )}
           </CardContent>
           <CardFooter>
-            <Button asChild variant="ghost" size="sm" className="gap-1 text-xs">
-              <Link href="/admin/moderation">
-                Go to reports
-                <ArrowUpRight className="h-3 w-3" />
-              </Link>
-            </Button>
+            <Link href="/admin/moderation" className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "gap-1 text-xs")}>
+              Go to reports
+              <ArrowUpRight className="h-3 w-3" />
+            </Link>
           </CardFooter>
         </Card>
       </div>

@@ -4,7 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { createClient } from "@/utils/supabase/client";
+import { createClient } from "@/lib/supabase/client";
 import { CheckCircle2, Clock, XCircle, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -20,14 +20,12 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import {
-  Form,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormControl,
-  FormMessage,
-  FormDescription as FieldDescription,
-} from "@/components/ui/form";
+  Field,
+  FieldLabel,
+  FieldDescription,
+  FieldError as FormMessage,
+} from "@/components/ui/field";
+import { Controller } from "react-hook-form";
 import { submitTrustedMember } from "@/app/trusted-member/actions";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
@@ -66,7 +64,7 @@ export function SubmitTrustedMemberForm({
   defaultName?: string;
   defaultEmail?: string;
 }) {
-  const { user, isLoading: authLoading } = useAuth(); // Use centralized auth hook
+  const { user, loading: authLoading } = useAuth(); // Use centralized auth hook
   const [pending, startTransition] = useTransition();
   const [serverError, setServerError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -91,7 +89,7 @@ export function SubmitTrustedMemberForm({
   useEffect(() => {
     // Wait for auth to load
     if (authLoading) return;
-    
+
     let mounted = true;
     (async () => {
       try {
@@ -179,7 +177,7 @@ export function SubmitTrustedMemberForm({
           <div className="flex items-center gap-2">
             <StatusIcon className={
               appStatus === "accepted"
-                ? "h-5 w-5 text-chart-5"
+                ? "h-5 w-5 text-success"
                 : appStatus === "rejected"
                   ? "h-5 w-5 text-destructive"
                   : "h-5 w-5 text-muted-foreground"
@@ -205,116 +203,114 @@ export function SubmitTrustedMemberForm({
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <Form {...form}>
-          <form
-            onSubmit={form.handleSubmit(onSubmit)}
-            className="space-y-6"
-            noValidate
-          >
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <div className="flex items-center justify-between">
-                    <FormLabel>Full name</FormLabel>
-                    <span className="text-xs tabular-nums text-muted-foreground">
-                      {nameVal?.length ?? 0}/{MAX.name}
-                    </span>
-                  </div>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      maxLength={MAX.name}
-                      placeholder="Your full name"
-                      className="w-full"
-                    />
-                  </FormControl>
-                  <FieldDescription>As it appears on official ID.</FieldDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+        <form
+          onSubmit={form.handleSubmit(onSubmit)}
+          className="space-y-6"
+          noValidate
+        >
+          <Controller
+            control={form.control}
+            name="name"
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.invalid}>
+                <div className="flex items-center justify-between">
+                  <FieldLabel htmlFor={field.name}>Full name</FieldLabel>
+                  <span className="text-xs tabular-nums text-muted-foreground">
+                    {nameVal?.length ?? 0}/{MAX.name}
+                  </span>
+                </div>
+                <Input
+                  id={field.name}
+                  {...field}
+                  maxLength={MAX.name}
+                  placeholder="Your full name"
+                  className="w-full"
+                  aria-invalid={fieldState.invalid}
+                />
+                <FieldDescription>As it appears on official ID.</FieldDescription>
+                {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+              </Field>
+            )}
+          />
 
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <div className="flex items-center justify-between">
-                    <FormLabel>Email</FormLabel>
-                    <span className="text-xs tabular-nums text-muted-foreground">
-                      {emailVal?.length ?? 0}/{MAX.email}
-                    </span>
-                  </div>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      type="email"
-                      inputMode="email"
-                      maxLength={MAX.email}
-                      placeholder="you@example.com"
-                      className="w-full"
-                    />
-                  </FormControl>
-                  <FieldDescription>We’ll only use this to contact you about your application.</FieldDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+          <Controller
+            control={form.control}
+            name="email"
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.invalid}>
+                <div className="flex items-center justify-between">
+                  <FieldLabel htmlFor={field.name}>Email</FieldLabel>
+                  <span className="text-xs tabular-nums text-muted-foreground">
+                    {emailVal?.length ?? 0}/{MAX.email}
+                  </span>
+                </div>
+                <Input
+                  id={field.name}
+                  {...field}
+                  type="email"
+                  inputMode="email"
+                  maxLength={MAX.email}
+                  placeholder="you@example.com"
+                  className="w-full"
+                  aria-invalid={fieldState.invalid}
+                />
+                <FieldDescription>We’ll only use this to contact you about your application.</FieldDescription>
+                {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+              </Field>
+            )}
+          />
 
-            <FormField
-              control={form.control}
-              name="reason"
-              render={({ field }) => (
-                <FormItem>
-                  <div className="flex items-center justify-between">
-                    <FormLabel>Reason</FormLabel>
-                    <span className="text-xs tabular-nums text-muted-foreground">
-                      {reasonVal?.length ?? 0}/{MAX.reason}
-                    </span>
-                  </div>
-                  <FormControl>
-                    <Textarea
-                      {...field}
-                      maxLength={MAX.reason}
-                      rows={5}
-                      placeholder="Tell us briefly why you need Trusted Member access"
-                      className="w-full"
-                    />
-                  </FormControl>
-                  <FieldDescription>Minimum 10 characters. Helpful details: what you’re building, expected usage, timelines.</FieldDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+          <Controller
+            control={form.control}
+            name="reason"
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.invalid}>
+                <div className="flex items-center justify-between">
+                  <FieldLabel htmlFor={field.name}>Reason</FieldLabel>
+                  <span className="text-xs tabular-nums text-muted-foreground">
+                    {reasonVal?.length ?? 0}/{MAX.reason}
+                  </span>
+                </div>
+                <Textarea
+                  id={field.name}
+                  {...field}
+                  maxLength={MAX.reason}
+                  rows={5}
+                  placeholder="Tell us briefly why you need Trusted Member access"
+                  className="w-full"
+                  aria-invalid={fieldState.invalid}
+                />
+                <FieldDescription>Minimum 10 characters. Helpful details: what you’re building, expected usage, timelines.</FieldDescription>
+                {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+              </Field>
+            )}
+          />
 
-            {serverError ? (
-              <Alert variant="destructive">
-                <XCircle className="h-4 w-4" />
-                <AlertTitle>Submission failed</AlertTitle>
-                <AlertDescription>{serverError}</AlertDescription>
-              </Alert>
-            ) : null}
-            {success ? (
-              <Alert variant="success">
-                <CheckCircle2 className="h-4 w-4" />
-                <AlertTitle>Success</AlertTitle>
-                <AlertDescription>{success}</AlertDescription>
-              </Alert>
-            ) : null}
+          {serverError ? (
+            <Alert variant="destructive">
+              <XCircle className="h-4 w-4" />
+              <AlertTitle>Submission failed</AlertTitle>
+              <AlertDescription>{serverError}</AlertDescription>
+            </Alert>
+          ) : null}
+          {success ? (
+            <Alert variant="default" className="border-green-200 bg-green-50 dark:bg-green-950/20 dark:border-green-900/30">
+              <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
+              <AlertTitle className="text-green-900 dark:text-green-200">Success</AlertTitle>
+              <AlertDescription className="text-green-800 dark:text-green-300">{success}</AlertDescription>
+            </Alert>
+          ) : null}
 
-            <Separator />
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-              <Button type="submit" className="w-full sm:w-auto" disabled={pending || !form.formState.isValid}>
-                {pending ? "Submitting..." : "Submit Application"}
-              </Button>
-              {!form.formState.isValid && (
-                <span className="text-xs text-muted-foreground">Please fix the errors above to submit.</span>
-              )}
-            </div>
-          </form>
-        </Form>
+          <Separator />
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <Button type="submit" className="w-full sm:w-auto" disabled={pending || !form.formState.isValid}>
+              {pending ? "Submitting..." : "Submit Application"}
+            </Button>
+            {!form.formState.isValid && (
+              <span className="text-xs text-muted-foreground">Please fix the errors above to submit.</span>
+            )}
+          </div>
+        </form>
       </CardContent>
     </Card>
   );

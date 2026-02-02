@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import SignupClient from "./SignupClient";
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
   title: "Sign Up",

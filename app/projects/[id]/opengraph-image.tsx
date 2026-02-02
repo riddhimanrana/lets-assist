@@ -1,5 +1,7 @@
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import { ImageResponse } from "next/og";
-import { getProject } from "./actions";
+import sanitizeHtml from "sanitize-html";
 
 export const runtime = "nodejs";
 
@@ -10,152 +12,304 @@ export const size = {
 
 export const contentType = "image/png";
 
-export default async function Image({ params }: { params: { id: string } }) {
-  const { project } = await getProject(params.id);
+type OgFontWeight = 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900;
+type OgFont = {
+  name: string;
+  data: ArrayBuffer;
+  weight?: OgFontWeight;
+  style?: "normal" | "italic";
+};
+
+const palette = {
+  background: "hsl(0, 0%, 100%)",
+  text: "hsl(240, 10%, 3.9%)",
+  mutedText: "hsl(240, 3.8%, 46.1%)",
+  border: "hsl(240, 5.9%, 90%)",
+  surface: "hsl(240, 4.8%, 95.9%)",
+  accent: "hsl(142.1, 76.2%, 36.3%)",
+  accentText: "hsl(355.7, 100%, 97.3%)",
+};
+
+function cleanText(text: string) {
+  const sanitized = sanitizeHtml(text, {
+    allowedTags: [],
+    allowedAttributes: {},
+  });
+  return sanitized.replace(/\s+/g, " ").trim();
+}
+
+async function loadFont(fileName: string) {
+  try {
+    const fontPath = path.join(
+      process.cwd(),
+      "public",
+      "fonts",
+      fileName,
+    );
+    const fontBuffer = await readFile(fontPath);
+    return fontBuffer.buffer.slice(
+      fontBuffer.byteOffset,
+      fontBuffer.byteOffset + fontBuffer.byteLength,
+    );
+  } catch (error) {
+    console.warn("OG font read failed:", error);
+    return null;
+  }
+}
+
+async function getLogoDataUri(): Promise<string | null> {
+  try {
+    const logoPath = path.join(process.cwd(), "public", "logo.png");
+    const logoBuffer = await readFile(logoPath);
+    const base64 = logoBuffer.toString("base64");
+    return `data:image/png;base64,${base64}`;
+  } catch (error) {
+    console.warn("OG logo read failed:", error);
+    return null;
+  }
+}
+
+// Fetch project data directly using Supabase API
+async function getProjectData(projectId: string) {
+  try {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      return null;
+    }
+
+    const response = await fetch(
+      `${supabaseUrl}/rest/v1/projects?id=eq.${projectId}&select=id,title,description,location,cover_image_url,organization:organizations(name,logo_url)`,
+      {
+        headers: {
+          apikey: supabaseKey,
+          Authorization: `Bearer ${supabaseKey}`,
+        },
+      },
+    );
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const data = await response.json();
+    return data?.[0] || null;
+  } catch (error) {
+    console.error("Error fetching project for OG image:", error);
+    return null;
+  }
+}
+
+export default async function Image({
+  params,
+  searchParams: _searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams?: { theme?: string };
+}) {
+  const { id } = await params;
+  const project = await getProjectData(id);
 
   const title = project?.title ?? "Volunteer Project";
-  const organizationName = project?.organization?.name ?? "Let’s Assist";
-  const location = project?.location ?? "Community opportunity";
-  const coverImageUrl = project?.cover_image_url ?? null;
-  const organizationLogoUrl = project?.organization?.logo_url ?? null;
+  const organizationName = project?.organization?.name ?? "Let's Assist";
+  const description =
+    project?.description ?? "Make an impact with your time and talent.";
+  const location = project?.location ?? "";
+
+  const trimmedTitle = title.length > 64 ? `${title.substring(0, 61)}…` : title;
+  const trimmedOrg =
+    organizationName.length > 36
+      ? `${organizationName.substring(0, 33)}…`
+      : organizationName;
+  const cleanedDescription = cleanText(description ?? "");
+  const trimmedDescription =
+    cleanedDescription.length > 140
+      ? `${cleanedDescription.substring(0, 137)}…`
+      : cleanedDescription;
+
+  const coverImageUrl = project?.cover_image_url;
+  const organizationLogoUrl = project?.organization?.logo_url;
+  const [interRegular, interBold, logoSrc] = await Promise.all([
+    loadFont("Inter-Regular.ttf"),
+    loadFont("Inter-Bold.ttf"),
+    getLogoDataUri(),
+  ]);
+  const coverImageSrc = coverImageUrl ?? undefined;
+  const hostLogoSrc = organizationLogoUrl ?? logoSrc;
+  const fonts: OgFont[] = [];
+  if (interRegular) {
+    fonts.push({ name: "Inter", data: interRegular, weight: 400, style: "normal" });
+  }
+  if (interBold) {
+    fonts.push({ name: "Inter", data: interBold, weight: 700, style: "normal" });
+  }
 
   return new ImageResponse(
     (
       <div
         style={{
-          width: "1200px",
-          height: "630px",
+          width: "100%",
+          height: "100%",
           display: "flex",
-          background: "linear-gradient(135deg, #0f172a 0%, #1e293b 55%, #0f172a 100%)",
+          gap: "48px",
+          padding: "64px",
+          backgroundColor: palette.background,
           fontFamily: "Inter, ui-sans-serif, system-ui",
-          color: "#f8fafc",
-          position: "relative",
+          color: palette.text,
+          boxSizing: "border-box",
         }}
       >
         <div
           style={{
-            flex: 1,
-            padding: "64px",
             display: "flex",
             flexDirection: "column",
-            justifyContent: "space-between",
-            gap: "28px",
+            flex: 1,
+            gap: "18px",
+            justifyContent: "center",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-            {organizationLogoUrl ? (
+          <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+            {logoSrc ? (
               <img
-                src={organizationLogoUrl}
-                alt=""
-                width={56}
-                height={56}
-                style={{
-                  borderRadius: "14px",
-                  objectFit: "cover",
-                  border: "1px solid rgba(255,255,255,0.2)",
-                }}
+                src={logoSrc}
+                alt="Let's Assist"
+                width={42}
+                height={42}
+                style={{ width: "42px", height: "42px", objectFit: "contain" }}
               />
-            ) : (
+            ) : null}
+            <div style={{ fontSize: "30px", fontWeight: 700, display: "flex" }}>
+              Let's Assist
+            </div>
+          </div>
+
+          <div style={{ fontSize: "50px", fontWeight: 700, lineHeight: 1.1, display: "flex" }}>
+            {trimmedTitle}
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            {hostLogoSrc ? (
               <div
                 style={{
-                  width: "56px",
-                  height: "56px",
-                  borderRadius: "14px",
-                  background: "rgba(255,255,255,0.12)",
+                  width: "28px",
+                  height: "28px",
+                  borderRadius: "999px",
+                  border: `1px solid ${palette.border}`,
+                  backgroundColor: palette.surface,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  fontSize: "20px",
-                  fontWeight: 700,
-                  letterSpacing: "0.08em",
+                  overflow: "hidden",
                 }}
               >
-                LA
+                <img
+                  src={hostLogoSrc}
+                  alt=""
+                  width={20}
+                  height={20}
+                  style={{ width: "20px", height: "20px", objectFit: "contain" }}
+                />
               </div>
-            )}
-            <div style={{ fontSize: "22px", opacity: 0.85, fontWeight: 600 }}>{organizationName}</div>
-          </div>
-
-          <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-            <div
-              style={{
-                fontSize: "54px",
-                fontWeight: 700,
-                lineHeight: 1.1,
-                letterSpacing: "-0.02em",
-              }}
-            >
-              {title}
+            ) : null}
+            <div style={{ fontSize: "20px", color: palette.mutedText, display: "flex" }}>
+              Hosted by {trimmedOrg}
             </div>
-            <div style={{ fontSize: "26px", opacity: 0.85 }}>{location}</div>
           </div>
 
           <div
             style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "12px",
-              padding: "10px 18px",
-              borderRadius: "999px",
-              background: "rgba(255,255,255,0.12)",
-              fontSize: "18px",
-              fontWeight: 600,
+              fontSize: "22px",
+              color: palette.mutedText,
+              lineHeight: 1.4,
+              maxWidth: "680px",
+              display: "flex",
             }}
           >
-            Let’s Assist · Volunteer Opportunity
+            {trimmedDescription}
           </div>
+
+              {location ? (
+            <div
+              style={{
+                fontSize: "18px",
+                color: palette.text,
+                backgroundColor: palette.surface,
+                border: `1px solid ${palette.border}`,
+                borderRadius: "999px",
+                padding: "8px 14px",
+                alignSelf: "flex-start",
+                display: "flex",
+              }}
+            >
+              {location}
+            </div>
+          ) : null}
         </div>
 
         <div
           style={{
-            width: "440px",
-            padding: "48px",
+            width: "380px",
+            height: "380px",
+            borderRadius: "24px",
+            backgroundColor: palette.surface,
+            border: `1px solid ${palette.border}`,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
+            overflow: "hidden",
           }}
         >
-          {coverImageUrl ? (
-            <img
-              src={coverImageUrl}
-              alt=""
-              width={360}
-              height={480}
+          {coverImageSrc ? (
+            <div
               style={{
-                width: "360px",
-                height: "480px",
-                objectFit: "cover",
-                borderRadius: "28px",
-                border: "1px solid rgba(255,255,255,0.2)",
-                boxShadow: "0 24px 60px rgba(15, 23, 42, 0.45)",
+                width: "100%",
+                height: "100%",
+                padding: "18px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                boxSizing: "border-box",
               }}
+            >
+              <img
+                src={coverImageSrc}
+                alt={title}
+                width={360}
+                height={360}
+                style={{ width: "100%", height: "100%", objectFit: "contain" }}
+              />
+            </div>
+          ) : organizationLogoUrl ? (
+            // Using organization logo here as large fallback if cover is missing
+            <img
+              src={organizationLogoUrl}
+              alt={organizationName}
+              width={180}
+              height={180}
+              style={{ width: "180px", height: "180px", objectFit: "contain" }}
             />
           ) : (
             <div
               style={{
-                width: "360px",
-                height: "480px",
+                width: "160px",
+                height: "160px",
                 borderRadius: "28px",
-                border: "1px solid rgba(255,255,255,0.2)",
-                background: "linear-gradient(160deg, rgba(255,255,255,0.18), rgba(255,255,255,0.04))",
+                backgroundColor: palette.accent,
+                color: palette.accentText,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                textAlign: "center",
-                padding: "32px",
-                fontSize: "26px",
-                fontWeight: 600,
-                color: "rgba(248,250,252,0.9)",
+                fontSize: "48px",
+                fontWeight: 700,
               }}
             >
-              Discover volunteer opportunities that make a difference.
+              LA
             </div>
           )}
         </div>
       </div>
     ),
-    {
-      ...size,
-    }
+    { ...size, fonts: fonts.length ? fonts : undefined },
   );
 }

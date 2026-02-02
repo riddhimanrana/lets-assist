@@ -1,6 +1,6 @@
 "use client";
 
-import { Shield } from "lucide-react";
+import { Shield, AlertCircle, CheckCircle2 } from "lucide-react";
 import { useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -17,13 +17,11 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
-  Form,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormControl,
-  FormMessage,
-} from "@/components/ui/form";
+  Field,
+  FieldLabel,
+  FieldError as FormMessage,
+} from "@/components/ui/field";
+import { Controller } from "react-hook-form";
 import {
   Dialog,
   DialogContent,
@@ -54,7 +52,6 @@ type SignupValues = z.infer<typeof signupSchema>;
 export default function SignupClient({ redirectPath, staffToken, orgUsername }: SignupClientProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-  const [turnstileVerified, setTurnstileVerified] = useState(false);
   const turnstileRef = useRef<TurnstileRef>(null);
   const [turnstileReady, setTurnstileReady] = useState(false);
   const [isResendCaptchaOpen, setIsResendCaptchaOpen] = useState(false);
@@ -63,6 +60,7 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
   const [resendTurnstileToken, setResendTurnstileToken] = useState<string | null>(null);
   const [resendTurnstileReady, setResendTurnstileReady] = useState(false);
   const resendTurnstileRef = useRef<TurnstileRef>(null);
+  const isTurnstileBypassed = process.env.NEXT_PUBLIC_TURNSTILE_BYPASS === "true";
 
   const router = useRouter();
 
@@ -80,14 +78,15 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
   });
 
   const handleResendWithCaptcha = async () => {
-    if (!unconfirmedEmailForResend || !resendTurnstileToken) {
+    if (!unconfirmedEmailForResend || (!resendTurnstileToken && !isTurnstileBypassed)) {
       toast.error("Please complete the verification challenge.");
       return;
     }
 
     setIsResending(true);
     try {
-      const resendResult = await resendVerificationEmail(unconfirmedEmailForResend, resendTurnstileToken);
+      const resendToken = resendTurnstileToken ?? (isTurnstileBypassed ? "turnstile-bypass" : undefined);
+      const resendResult = await resendVerificationEmail(unconfirmedEmailForResend, resendToken);
       if (resendResult.success) {
         toast.success(resendResult.message || "Verification email sent!");
         router.push(`/signup/success?email=${encodeURIComponent(unconfirmedEmailForResend)}`);
@@ -95,7 +94,7 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
       } else {
         toast.error(resendResult.error || "Failed to resend email");
       }
-    } catch (error) {
+    } catch {
       toast.error("An error occurred. Please try again.");
     } finally {
       setIsResending(false);
@@ -106,14 +105,14 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
 
   async function onSubmit(data: SignupValues) {
     const turnstileToken = turnstileRef.current?.getResponse();
-    
+
     setIsLoading(true);
     const formData = new FormData();
     Object.entries(data).forEach(([key, value]) => formData.append(key, value));
     if (redirectPath) {
       formData.append("redirectUrl", redirectPath);
     }
-    
+
     if (turnstileToken) {
       formData.append("turnstileToken", turnstileToken);
     }
@@ -145,7 +144,6 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
         });
         setIsLoading(false);
         turnstileRef.current?.reset();
-        setTurnstileVerified(false);
         return;
       }
 
@@ -153,7 +151,7 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
       if ('emailStatus' in result && result.emailStatus === 'unconfirmed' && 'email' in result) {
         const unconfirmedEmail = result.email as string;
         const serverMessage = result.error?.server?.[0] || "It looks like you already signed up but haven't confirmed your email yet.";
-        
+
         toast.warning("Email Verification Pending", {
           description: serverMessage,
           action: {
@@ -166,7 +164,6 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
         });
         setIsLoading(false);
         turnstileRef.current?.reset();
-        setTurnstileVerified(false);
         return;
       }
 
@@ -194,7 +191,6 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
     setIsLoading(false);
     // Reset Turnstile after submission
     turnstileRef.current?.reset();
-    setTurnstileVerified(false);
   }
 
   const handleGoogleSignIn = async () => {
@@ -216,7 +212,7 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
       if (result.url) {
         window.location.href = result.url;
       }
-    } catch (error) {
+    } catch {
       toast.error("An error occurred. Please try again.");
     } finally {
       setIsGoogleLoading(false);
@@ -225,150 +221,150 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
 
   return (
     <div className="flex items-center justify-center min-h-screen p-4">
-      <Card className="w-full max-w-sm mx-auto mb-12">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl text-left">
+      <Card className="w-full max-w-[400px] mx-auto mb-12 py-0">
+        <CardHeader className="space-y-1 px-6 pt-6 pb-0">
+          <CardTitle className="text-2xl font-bold text-left">
             {isStaffInvite ? "Staff Invite" : "Create an account"}
           </CardTitle>
           <CardDescription className="text-left">
             {isStaffInvite
               ? `You've been invited to join as staff. Create your account to continue.`
               : redirectPath
-              ? "Sign up to continue with your project signup"
-              : "Enter your details below to create your account"}
+                ? "Sign up to continue with your project signup"
+                : "Enter your details below to create your account"}
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full"
-                onClick={handleGoogleSignIn}
-                disabled={isGoogleLoading}
-              >
-                {isGoogleLoading ? (
-                  "Connecting..."
-                ) : (
-                  <>
-                    <svg
-                      className="mr-2 h-4 w-4"
-                      aria-hidden="true"
-                      focusable="false"
-                      data-prefix="fab"
-                      data-icon="google"
-                      role="img"
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 488 512"
-                    >
-                      <path
-                        fill="currentColor"
-                        d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 123 24.5 166.3 64.9l-67.5 64.9C258.5 52.6 94.3 116.6 94.3 256c0 86.5 69.1 156.6 153.7 156.6 98.2 0 135-70.4 140.8-106.9H248v-85.3h236.1c2.3 12.7 3.9 24.9 3.9 41.4z"
-                      ></path>
-                    </svg>
-                    Continue with Google
-                  </>
-                )}
-              </Button>
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-card px-2 text-muted-foreground">
-                    Or continue with
-                  </span>
-                </div>
+        <CardContent className="p-6 space-y-4">
+
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={handleGoogleSignIn}
+              disabled={isGoogleLoading}
+            >
+              {isGoogleLoading ? (
+                "Connecting..."
+              ) : (
+                <>
+                  <svg
+                    className="mr-2 h-4 w-4"
+                    aria-hidden="true"
+                    focusable="false"
+                    data-prefix="fab"
+                    data-icon="google"
+                    role="img"
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 488 512"
+                  >
+                    <path
+                      fill="currentColor"
+                      d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 123 24.5 166.3 64.9l-67.5 64.9C258.5 52.6 94.3 116.6 94.3 256c0 86.5 69.1 156.6 153.7 156.6 98.2 0 135-70.4 140.8-106.9H248v-85.3h236.1c2.3 12.7 3.9 24.9 3.9 41.4z"
+                    ></path>
+                  </svg>
+                  Continue with Google
+                </>
+              )}
+            </Button>
+            <div className="relative py-1">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
               </div>
-              <FormField
-                control={form.control}
-                name="fullName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Full Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="John Doe" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input placeholder="m@example.com" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Password</FormLabel>
-                    <FormControl>
-                      <Input type="password" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>                  )}
-                />
-                <p className="text-sm text-muted-foreground text-center">
-                  By joining, you agree to our{" "}
-                  <Link href="/terms" className="text-chart-3">
-                    Terms of Service
-                  </Link>{" "}
-                  and{" "}
-                  <Link href="/privacy" className="text-chart-3">
-                    Privacy Policy
-                  </Link>
-                </p>
-                <div className="flex justify-center">
-                  <div className="relative w-[300px] h-[65px] overflow-hidden bg-muted/30 rounded-lg flex items-center justify-center border border-border/50">
-                    {!turnstileReady && (
-                      <div className="absolute inset-0 z-10 flex items-center justify-center gap-2 rounded-lg bg-background/80 text-[0.7rem] font-semibold uppercase tracking-wide text-muted-foreground">
-                        <Shield className="h-4 w-4 text-muted-foreground/80" />
-                        <span className="text-[0.7rem] font-semibold normal-case tracking-wide">Bot verification loading…</span>
-                      </div>
-                    )}
-                    <TurnstileComponent
-                      ref={turnstileRef}
-                      onLoad={() => setTurnstileReady(true)}
-                      onVerify={(token) => {
-                        setTurnstileVerified(true);
-                        form.setValue("turnstileToken", token);
-                      }}
-                      onError={() => {
-                        setTurnstileVerified(false);
-                        toast.error("Security verification failed. Please try again.");
-                      }}
-                      onExpire={() => {
-                        setTurnstileVerified(false);
-                        form.setValue("turnstileToken", "");
-                      }}
-                    />
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground font-medium">
+                  Or continue with
+                </span>
+              </div>
+            </div>
+            <Controller
+              control={form.control}
+              name="fullName"
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor={field.name}>Full Name</FieldLabel>
+                  <Input id={field.name} placeholder="John Doe" {...field} aria-invalid={fieldState.invalid} />
+                  {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                </Field>
+              )}
+            />
+            <Controller
+              control={form.control}
+              name="email"
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor={field.name}>Email</FieldLabel>
+                  <Input id={field.name} placeholder="m@example.com" {...field} aria-invalid={fieldState.invalid} />
+                  {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                </Field>
+              )}
+            />
+            <Controller
+              control={form.control}
+              name="password"
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor={field.name}>Password</FieldLabel>
+                  <Input id={field.name} type="password" {...field} aria-invalid={fieldState.invalid} />
+                  {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                  <div className="mt-3 space-y-2">
+                    <div className="rounded-lg bg-warning/10 border border-warning/20 p-4 shadow-xs">
+                      <p className="text-xs font-semibold text-warning mb-2.5 flex items-center gap-2">
+                        <AlertCircle className="h-4 w-4" />
+                        Password Requirements
+                      </p>
+                      <ul className="space-y-2 text-xs text-warning/90">
+                        <li className="flex items-start gap-2">
+                          <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                          <span>At least 8 characters long</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                          <span>Cannot be a commonly used or compromised password</span>
+                        </li>
+                      </ul>
+                    </div>
                   </div>
-                </div>
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? "Creating Account..." : "Create Account"}
-                </Button>
-              <div className="mt-4 text-center text-sm">
-                Already have an account?{" "}
-                <Link 
-                  href={redirectPath ? `/login?redirect=${encodeURIComponent(redirectPath)}` : "/login"}
-                  className="underline"
-                >
-                  Sign in
-                </Link>
+                </Field>
+              )}
+            />
+            <div className="flex justify-center">
+              <div className="relative w-[300px] h-[65px] overflow-hidden bg-muted/30 rounded-lg flex items-center justify-center border border-border/50">
+                {!turnstileReady && (
+                  <div className="absolute inset-0 z-10 flex items-center justify-center gap-2 rounded-lg bg-background/80 text-[0.7rem] font-semibold uppercase tracking-wide text-muted-foreground">
+                    <Shield className="h-4 w-4 text-muted-foreground/80" />
+                    <span className="text-[0.7rem] font-semibold normal-case tracking-wide">Bot verification loading…</span>
+                  </div>
+                )}
+                <TurnstileComponent
+                  ref={turnstileRef}
+                  onLoad={() => setTurnstileReady(true)}
+                  onVerify={(token) => {
+                    form.setValue("turnstileToken", token);
+                  }}
+                  onError={() => {
+                    toast.error("Security verification failed. Please try again.");
+                  }}
+                  onExpire={() => {
+                    form.setValue("turnstileToken", "");
+                  }}
+                />
               </div>
-            </form>
-          </Form>
+            </div>
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? "Creating Account..." : "Create Account"}
+            </Button>
+            <div className="mt-2 text-center text-sm">
+              Already have an account?{" "}
+              <Link
+                href={redirectPath ? `/login?redirect=${encodeURIComponent(redirectPath)}` : "/login"}
+                className="underline"
+              >
+                Login
+              </Link>
+            </div>
+          </form>
+
         </CardContent>
       </Card>
 
@@ -382,10 +378,10 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
           </DialogHeader>
           <div className="flex justify-center py-4">
             <div className="relative w-[300px] h-[65px] overflow-hidden rounded-lg bg-muted/30 border border-border/50 flex items-center justify-center">
-              {!resendTurnstileReady && (
+              {!resendTurnstileReady && !isTurnstileBypassed && (
                 <div className="absolute inset-0 z-10 flex items-center justify-center gap-2 rounded-lg bg-background/80 text-[0.7rem] font-semibold uppercase tracking-wide text-muted-foreground text-center px-4">
-                   <Shield className="h-4 w-4 text-muted-foreground/80 shrink-0" />
-                   <span>Bot verification loading…</span>
+                  <Shield className="h-4 w-4 text-muted-foreground/80 shrink-0" />
+                  <span>Bot verification loading…</span>
                 </div>
               )}
               <TurnstileComponent
@@ -403,7 +399,7 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
           <DialogFooter className="flex flex-col gap-2">
             <Button
               onClick={handleResendWithCaptcha}
-              disabled={!resendTurnstileToken || isResending}
+              disabled={(!resendTurnstileToken && !isTurnstileBypassed) || isResending}
               className="w-full"
             >
               {isResending ? "Sending…" : "Verify & Send"}

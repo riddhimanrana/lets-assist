@@ -3,10 +3,11 @@
  * POST /api/calendar/add-signup
  */
 
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { createGoogleCalendarEvent } from "@/services/calendar";
 import { syncSignupSchema } from "@/schemas/calendar-schema";
+import type { Project } from "@/types";
 
 export async function POST(request: Request) {
   try {
@@ -31,7 +32,7 @@ export async function POST(request: Request) {
 
     if (!validation.success) {
       return NextResponse.json(
-        { error: "Invalid request data", details: validation.error.errors },
+        { error: "Invalid request data", details: validation.error.issues },
         { status: 400 }
       );
     }
@@ -62,11 +63,11 @@ export async function POST(request: Request) {
     }
 
     // Get the project
-    const { data: project, error: projectError } = await supabase
+    const { data: project, error: projectError } = (await supabase
       .from("projects")
       .select("*")
       .eq("id", project_id)
-      .single();
+      .single()) as { data: Project | null; error: { message?: string } | null };
 
     if (projectError || !project) {
       return NextResponse.json(
@@ -90,13 +91,13 @@ export async function POST(request: Request) {
     }
 
     // Update signup with calendar event ID
-    const { error: updateError } = await supabase
+    const { error: updateError } = (await supabase
       .from("project_signups")
       .update({
         volunteer_calendar_event_id: eventId,
         volunteer_synced_at: new Date().toISOString(),
       })
-      .eq("id", signup_id);
+      .eq("id", signup_id)) as { error: { message?: string } | null };
 
     if (updateError) {
       console.error("Failed to update signup:", updateError);
@@ -120,7 +121,7 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error("Error adding signup to calendar:", error);
-    
+
     if (error instanceof Error) {
       if (error.message.includes("No valid calendar connection")) {
         return NextResponse.json(

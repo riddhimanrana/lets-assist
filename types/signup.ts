@@ -1,5 +1,6 @@
 // Signup-related types
 import type { SignupStatus } from './common';
+import type { WaiverSignature } from './waiver';
 
 export interface AnonymousSignupData {
   name: string;
@@ -16,6 +17,7 @@ export interface ProjectSignup {
   status: SignupStatus;
   anonymous_id?: string | null;
   volunteer_comment?: string | null;
+  waiver_signature?: WaiverSignature | WaiverSignature[] | null;
   anonymous_name?: string;
   anonymous_email?: string;
   anonymous_phone?: string;
@@ -69,6 +71,7 @@ export interface Signup {
   check_in_time: string | null;
   check_out_time: string | null;
   volunteer_comment?: string | null;
+  waiver_signature?: WaiverSignature | WaiverSignature[] | null;
   email?: string | null;
   full_name?: string | null;
   volunteer_calendar_event_id?: string | null;

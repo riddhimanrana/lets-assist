@@ -4,11 +4,26 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { DownloadCloud, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { createClient } from "@/utils/supabase/client";
+import { createClient } from "@/lib/supabase/client";
 
 interface MemberExporterProps {
   organizationId: string;
 }
+
+type MemberProfile = {
+  id: string;
+  username?: string | null;
+  full_name?: string | null;
+  email?: string | null;
+  avatar_url?: string | null;
+};
+
+type MemberRow = {
+  id: string;
+  role: string;
+  joined_at: string;
+  profiles?: MemberProfile | MemberProfile[] | null;
+};
 
 export default function MemberExporter({ organizationId }: MemberExporterProps) {
   const [isExporting, setIsExporting] = useState(false);
@@ -19,7 +34,7 @@ export default function MemberExporter({ organizationId }: MemberExporterProps) 
     
     try {
       // Fetch all members with their profile data
-      const { data, error } = await supabase
+      const { data, error } = (await supabase
         .from("organization_members")
         .select(`
           id,
@@ -33,7 +48,10 @@ export default function MemberExporter({ organizationId }: MemberExporterProps) 
             avatar_url
           )
         `)
-        .eq("organization_id", organizationId);
+        .eq("organization_id", organizationId)) as {
+        data: MemberRow[] | null;
+        error: { message: string } | null;
+      };
       
       if (error) throw error;
       
@@ -43,15 +61,18 @@ export default function MemberExporter({ organizationId }: MemberExporterProps) 
       }
       
       // Format data for CSV
-      const formattedData = data.map(member => ({
-        id: member.id,
-        user_id: member.profiles[0].id,
-        role: member.role,
-        username: member.profiles[0].username || "N/A",
-        full_name: member.profiles[0].full_name || "N/A",
-        email: member.profiles[0].email || "N/A",
-        joined_at: new Date(member.joined_at).toISOString(),
-      }));
+      const formattedData = data.map(member => {
+        const profile = Array.isArray(member.profiles) ? member.profiles[0] : member.profiles;
+        return {
+          id: member.id,
+          user_id: profile?.id || "",
+          role: member.role,
+          username: profile?.username || "N/A",
+          full_name: profile?.full_name || "N/A",
+          email: profile?.email || "N/A",
+          joined_at: new Date(member.joined_at).toISOString(),
+        };
+      });
       
       // Convert to CSV
       const headers = Object.keys(formattedData[0]);

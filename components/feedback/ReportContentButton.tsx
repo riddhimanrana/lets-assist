@@ -5,10 +5,8 @@ import {
   isValidElement,
   MouseEvent,
   ReactElement,
-  useEffect,
   useState,
 } from "react";
-import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -16,32 +14,37 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { Flag, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 
 type ContentType = 'project' | 'profile' | 'comment' | 'image' | 'organization' | 'other';
 
-type ReportReason = 
-  | 'spam' 
-  | 'harassment' 
-  | 'inappropriate_content' 
-  | 'misinformation' 
-  | 'copyright' 
-  | 'privacy_violation' 
-  | 'violence' 
-  | 'hate_speech' 
+type ReportReason =
+  | 'spam'
+  | 'harassment'
+  | 'inappropriate_content'
+  | 'misinformation'
+  | 'copyright'
+  | 'privacy_violation'
+  | 'violence'
+  | 'hate_speech'
   | 'other';
+
+type TriggerElementProps = {
+  onClick?: (event: MouseEvent<HTMLElement>) => void;
+  onSelect?: (event: Event) => void;
+};
 
 interface ReportContentButtonProps {
   contentType: ContentType;
@@ -53,6 +56,12 @@ interface ReportContentButtonProps {
   /** Optional: additional context about the content (e.g., organization name) */
   contentContext?: string;
   triggerButton?: React.ReactNode;
+  /** Controlled open state */
+  open?: boolean;
+  /** Callback for when open state changes */
+  onOpenChange?: (open: boolean) => void;
+  /** Whether to show the default trigger button if triggerButton is not provided */
+  showTrigger?: boolean;
 }
 
 const REPORT_REASONS: { value: ReportReason; label: string }[] = [
@@ -67,15 +76,24 @@ const REPORT_REASONS: { value: ReportReason; label: string }[] = [
   { value: 'other', label: 'Other' },
 ];
 
-export function ReportContentButton({ 
-  contentType, 
-  contentId, 
+export function ReportContentButton({
+  contentType,
+  contentId,
   contentTitle,
   contentCreator,
   contentContext,
-  triggerButton 
+  triggerButton,
+  open: controlledOpen,
+  onOpenChange,
+  showTrigger = true
 }: ReportContentButtonProps) {
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
+  const setOpen = (newOpen: boolean) => {
+    setInternalOpen(newOpen);
+    onOpenChange?.(newOpen);
+  };
+
   const [reason, setReason] = useState<ReportReason | ''>('');
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -127,7 +145,7 @@ export function ReportContentButton({
       }
 
       toast.success('Report submitted successfully');
-      
+
       // Reset form and close dialog
       setReason('');
       setDescription('');
@@ -140,126 +158,123 @@ export function ReportContentButton({
     }
   };
 
-  const triggerElement = isValidElement(triggerButton)
-    ? (() => {
-      const element = triggerButton as ReactElement;
-      return cloneElement(element, {
-        onClick: (event: MouseEvent<HTMLElement>) => {
-          event.stopPropagation(); // Prevent dropdown from closing
-          const previousOnClick = (element.props as any)?.onClick;
-          previousOnClick?.(event);
-          if (event.defaultPrevented) {
-            return;
-          }
-          setOpen(true);
-        },
-        onSelect: (event: Event) => {
-          event.preventDefault(); // Prevent dropdown menu from closing
-        },
-      } as any);
-    })()
-    : (
-      <Button
-        variant="ghost"
-        size="sm"
-        className="text-destructive hover:text-destructive"
-        onClick={(event) => {
-          event.stopPropagation();
-          setOpen(true);
-        }}
-      >
-        <Flag className="h-4 w-4 mr-2" />
-        Report
-      </Button>
-    );
-
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const triggerElement = triggerButton || !showTrigger ? (
+    isValidElement(triggerButton)
+      ? (() => {
+        const element = triggerButton as ReactElement<TriggerElementProps>;
+        return cloneElement(element, {
+          onClick: (event: MouseEvent<HTMLElement>) => {
+            event.stopPropagation(); // Prevent dropdown from closing
+            const previousOnClick = element.props.onClick;
+            previousOnClick?.(event);
+            if (event.defaultPrevented) {
+              return;
+            }
+            setOpen(true);
+          },
+          onSelect: (event: Event) => {
+            event.preventDefault(); // Prevent dropdown menu from closing
+          },
+        });
+      })()
+      : null
+  ) : (
+    <Button
+      variant="ghost"
+      size="sm"
+      className="text-destructive hover:text-destructive"
+      onClick={(event) => {
+        event.stopPropagation();
+        setOpen(true);
+      }}
+    >
+      <Flag className="h-4 w-4 mr-2" />
+      Report
+    </Button>
+  );
 
   return (
     <>
       {triggerElement}
-      {mounted && createPortal(
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-destructive" />
-                <DialogTitle>Report Content</DialogTitle>
-              </div>
-              <DialogDescription>
-                Help us keep our community safe by reporting inappropriate content. Your report will be reviewed by our moderation team.
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="reason">Reason for Report *</Label>
-                <Select value={reason} onValueChange={(value) => setReason(value as ReportReason)}>
-                  <SelectTrigger id="reason">
-                    <SelectValue placeholder="Select a reason" />
-                  </SelectTrigger>
-                  <SelectContent>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              <DialogTitle>Report Content</DialogTitle>
+            </div>
+            <DialogDescription>
+              Help us keep our community safe by reporting inappropriate content. Your report will be reviewed by our moderation team.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <Field>
+              <FieldLabel htmlFor="reason">Reason for Report *</FieldLabel>
+              <Select value={reason} onValueChange={(value) => setReason(value as ReportReason)}>
+                <SelectTrigger id="reason" className="w-full">
+                  <SelectValue placeholder="Select a reason">
+                    {reason ? REPORT_REASONS.find(r => r.value === reason)?.label : "Select a reason"}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
                     {REPORT_REASONS.map((r) => (
                       <SelectItem key={r.value} value={r.value}>
                         {r.label}
                       </SelectItem>
                     ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </Field>
 
-              <div className="space-y-2">
-                <Label htmlFor="description">
-                  Description * <span className="text-muted-foreground text-xs">(minimum 10 characters)</span>
-                </Label>
-                <Textarea
-                  id="description"
-                  placeholder="Please provide specific details about why you're reporting this content..."
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  rows={5}
-                  maxLength={1000}
-                  className="resize-none"
-                />
-                <p className="text-xs text-muted-foreground text-right">
-                  {description.length}/1000
-                </p>
-              </div>
+            <Field>
+              <FieldLabel htmlFor="description">
+                Description * <span className="text-muted-foreground text-xs">(minimum 10 characters)</span>
+              </FieldLabel>
+              <Textarea
+                id="description"
+                placeholder="Please provide specific details about why you're reporting this content..."
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={5}
+                maxLength={1000}
+                className="resize-none"
+              />
+              <p className="text-xs text-muted-foreground text-right">
+                {description.length}/1000
+              </p>
+            </Field>
 
-              <div className="rounded-md bg-muted p-3 text-sm text-muted-foreground">
-                <p className="font-medium mb-1">What happens next?</p>
-                <ul className="list-disc list-inside space-y-1 text-xs">
-                  <li>Our moderation team will review within 24-48 hours</li>
-                  <li>Appropriate action will be taken if violations are found</li>
-                  <li>You may receive a notification about the outcome</li>
+            <div className="rounded-md bg-muted p-3 text-sm text-muted-foreground">
+              <p className="font-medium mb-1">What happens next?</p>
+              <ul className="list-disc list-inside space-y-1 text-xs">
+                <li>Our moderation team will review in 1-2 weeks</li>
+                <li>Appropriate action will be taken if violations are found</li>
+                <li>You may receive a notification about the outcome</li>
 
-                </ul>
-              </div>
+              </ul>
             </div>
+          </div>
 
-            <div className="flex justify-end gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setOpen(false)}
-                disabled={isSubmitting}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleSubmit}
-                disabled={isSubmitting || !reason || !description.trim()}
-              >
-                {isSubmitting ? 'Submitting...' : 'Submit Report'}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>,
-        document.body
-      )}
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setOpen(false)}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSubmit}
+              disabled={isSubmitting || !reason || !description.trim()}
+            >
+              {isSubmitting ? 'Submitting...' : 'Submit Report'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

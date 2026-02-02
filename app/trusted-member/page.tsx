@@ -1,4 +1,4 @@
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { SubmitTrustedMemberForm } from "@/app/trusted-member/submit-form";
 import { Shield, ShieldCheck, XCircle, Clock } from "lucide-react";
 
-export const dynamic = "force-dynamic";
+// export const dynamic = "force-dynamic"; - incompatible with cacheComponents
 
 export const metadata: Metadata = {
   title: "Trusted Member",
@@ -16,8 +16,16 @@ export const metadata: Metadata = {
 
 export default async function TrustedMemberPage() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  // @ts-ignore - getClaims exists in GoTrueClient but types might be outdated
+  const { data: claimsData } = await supabase.auth.getClaims();
+
+  if (!claimsData?.claims) {
+    redirect("/login?redirect=/trusted-member");
+  }
+
+  const userId = claimsData.claims.sub;
+  // If no sub, treat as unauthenticated
+  if (!userId) {
     redirect("/login?redirect=/trusted-member");
   }
 
@@ -25,14 +33,14 @@ export default async function TrustedMemberPage() {
   const { data: profile } = await supabase
     .from("profiles")
     .select("full_name, email, trusted_member")
-    .eq("id", user.id)
+    .eq("id", userId)
     .single();
 
   // Fetch application row (status: null=pending, true=accepted, false=denied)
   const { data: appRow } = await supabase
     .from("trusted_member")
     .select("id, status, name, email, created_at")
-    .eq("id", user.id)
+    .eq("id", userId)
     .maybeSingle();
 
   const isTrusted = !!profile?.trusted_member;
@@ -57,7 +65,7 @@ export default async function TrustedMemberPage() {
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
-              <ShieldCheck className="h-5 w-5 text-chart-5" />
+              <ShieldCheck className="h-5 w-5 text-success" />
               <Badge variant="default">All set</Badge>
               <span className="font-semibold">You&apos;re a Trusted Member</span>
             </div>

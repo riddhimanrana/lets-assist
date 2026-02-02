@@ -1,8 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { createClient } from "@/utils/supabase/server";
-import { verifyTurnstileToken, isTurnstileEnabled } from "@/lib/turnstile";
+import { createClient } from "@/lib/supabase/server";
 
 const resetPasswordSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -30,7 +29,7 @@ export async function requestPasswordReset(formData: FormData) {
 
   try {
     // Pass the CAPTCHA token to Supabase - it will handle verification
-    const resetOptions: any = {
+    const resetOptions: { redirectTo: string; captchaToken?: string } = {
       redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback?type=recovery`,
     };
 

@@ -2,7 +2,8 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Users, Shield, Download, FileSpreadsheet, UserRoundCog, Eye, Settings } from "lucide-react";
 import Link from "next/link";
@@ -27,7 +28,7 @@ export function OrganizationsSection() {
                 <UserRoundCog className="h-4 w-4" />
                 For Volunteers
               </h4>
-              <Accordion type="single" collapsible>
+              <Accordion>
                 <AccordionItem value="join-org">
                   <AccordionTrigger>Joining Organizations</AccordionTrigger>
                   <AccordionContent className="space-y-2 text-sm">
@@ -37,12 +38,10 @@ export function OrganizationsSection() {
                       <li>Wait for approval from organization administrator</li>
                       <li>Start participating in organization projects</li>
                     </ol>
-                    <Button asChild size="sm" variant="outline" className="mt-2">
-                      <Link href="/organization">Browse Organizations</Link>
-                    </Button>
+                    <Link href="/organization" className={cn(buttonVariants({ size: "sm", variant: "outline", className: "mt-2" }))}>Browse Organizations</Link>
                   </AccordionContent>
                 </AccordionItem>
-                
+
                 <AccordionItem value="org-projects">
                   <AccordionTrigger>Organization Projects & Benefits</AccordionTrigger>
                   <AccordionContent className="space-y-3 text-sm">
@@ -105,13 +104,13 @@ export function OrganizationsSection() {
                 </AccordionItem>
               </Accordion>
             </div>
-            
+
             <div className="space-y-4">
               <h4 className="font-semibold flex items-center gap-2">
                 <Shield className="h-4 w-4" />
                 For Organization Admins
               </h4>
-              <Accordion type="single" collapsible>
+              <Accordion>
                 <AccordionItem value="create-org">
                   <AccordionTrigger>Creating Organizations</AccordionTrigger>
                   <AccordionContent className="space-y-2 text-sm">
@@ -122,12 +121,10 @@ export function OrganizationsSection() {
                       <li>Invite volunteers to join your organization</li>
                       <li>Apply for official verification (optional)</li>
                     </ol>
-                    <Button asChild size="sm" className="mt-2">
-                      <Link href="/organization/create">Create Organization</Link>
-                    </Button>
+                    <Link href="/organization/create" className={cn(buttonVariants({ size: "sm", className: "mt-2" }))}>Create Organization</Link>
                   </AccordionContent>
                 </AccordionItem>
-                
+
                 <AccordionItem value="manage-volunteers">
                   <AccordionTrigger>Managing Volunteers & Members</AccordionTrigger>
                   <AccordionContent className="space-y-3 text-sm">
@@ -201,7 +198,7 @@ export function OrganizationsSection() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Accordion type="single" collapsible>
+          <Accordion>
             <AccordionItem value="export-member-data">
               <AccordionTrigger>Exporting Member Data (Admin/Staff Only)</AccordionTrigger>
               <AccordionContent className="space-y-3 text-sm">
@@ -294,7 +291,7 @@ export function OrganizationsSection() {
                 <div className="space-y-3">
                   <div className="p-3 border rounded-lg">
                     <h6 className="font-medium text-xs mb-1 flex items-center gap-1">
-                      <Badge variant="outline" className="bg-chart-5/5 border-chart-5/20 text-chart-5">
+                      <Badge variant="outline" className="bg-success/5 border-success/20 text-success">
                         Verified
                       </Badge>
                       Organization Benefits

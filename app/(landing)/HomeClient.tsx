@@ -6,8 +6,9 @@ import BayAreaExamples from "./_components/BayAreaExamples";
 import VolunteerJourneySection from "./_components/VolunteerJourneySection";
 import PlatformFeaturesSection from "./_components/PlatformFeaturesSection";
 import OrgToolingSection from "./_components/OrgToolingSection";
+import ComparisonSection from "./_components/ComparisonSection";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense } from "react";
+import { Suspense, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -17,15 +18,42 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { AlertCircle } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 function HomeContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { user, loading: isAuthLoading } = useAuth();
 
   // Check for error parameters
   const error = searchParams.get("error");
   const errorCode = searchParams.get("error_code");
   const errorDescription = searchParams.get("error_description");
+  const noRedirect = searchParams.get("noRedirect") === "1";
+  const hasError = !!(error && errorDescription);
+  const shouldRedirect = !!user && !isAuthLoading && !noRedirect && !hasError;
+
+  useEffect(() => {
+    if (shouldRedirect) {
+      router.replace("/home");
+    }
+  }, [router, shouldRedirect]);
+
+  if (isAuthLoading && !noRedirect && !hasError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-pulse">Loading...</div>
+      </div>
+    );
+  }
+
+  if (shouldRedirect) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-pulse">Heading to your home…</div>
+      </div>
+    );
+  }
 
   // Show error page if there's an error
   if (error && errorDescription) {
@@ -68,6 +96,7 @@ function HomeContent() {
     <main className="flex flex-col min-h-screen overflow-x-hidden">
       <Hero />
       <BayAreaExamples />
+      <ComparisonSection />
       <VolunteerJourneySection />
       <PlatformFeaturesSection />
       <OrgToolingSection />

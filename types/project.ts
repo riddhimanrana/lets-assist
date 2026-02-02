@@ -5,7 +5,11 @@ import type {
   ProjectStatus, 
   ProjectVisibility,
   OrganizationRole,
-  LocationData 
+  LocationData,
+  ProjectWorkflowStatus,
+  RecurrenceFrequency,
+  RecurrenceEndType,
+  RecurrenceWeekday
 } from './common';
 import type { ProjectSchedule } from './schedule';
 import type { Profile } from './profile';
@@ -20,6 +24,15 @@ export interface ProjectDocument {
   url: string;
 }
 
+export interface RecurrenceRule {
+  frequency?: RecurrenceFrequency;
+  interval?: number;
+  end_type?: RecurrenceEndType;
+  end_date?: string;
+  end_occurrences?: number;
+  weekdays?: RecurrenceWeekday[];
+}
+
 export interface Project {
   id: string;
   title: string;
@@ -31,6 +44,10 @@ export interface Project {
   require_login: boolean;
   enable_volunteer_comments?: boolean;
   show_attendees_publicly?: boolean;
+  waiver_required?: boolean;
+  waiver_allow_upload?: boolean;
+  waiver_pdf_url?: string | null;
+  waiver_pdf_storage_path?: string | null;
   creator_id: string;
   schedule: ProjectSchedule;
   status: ProjectStatus;
@@ -50,4 +67,9 @@ export interface Project {
   creator_calendar_event_id?: string | null;
   creator_synced_at?: string | null;
   project_timezone?: string;
+  workflow_status?: ProjectWorkflowStatus;
+  recurrence_rule?: RecurrenceRule;
+  recurrence_parent_id?: string;
+  recurrence_sequence?: number;
+  restrict_to_org_domains?: boolean;
 }

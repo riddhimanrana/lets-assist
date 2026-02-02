@@ -35,19 +35,20 @@ export default function BayAreaExamples() {
           <p className="text-[0.65rem] font-semibold uppercase tracking-[0.5em] text-muted-foreground/70">
             Partner spotlight
           </p>
-          <h3 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+          <h3 className="text-2xl font-semibold font-overusedgrotesk tracking-tight text-foreground sm:text-3xl">
             Currently connecting with
           </h3>
           <p className="max-w-xl text-sm text-muted-foreground">
-            These schools and organizations are exploring proof-backed attendance, certificate automation, and
-            volunteer ops built for districts, clubs, and nonprofits.
+            These schools and organizations are exploring proof-backed
+            attendance, certificate automation, and volunteer ops built for
+            districts, clubs, and nonprofits.
           </p>
         </div>
-        <TooltipProvider delayDuration={150}>
+        <TooltipProvider>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-4 sm:gap-6">
             {partners.map((partner) => (
               <Tooltip key={partner.name}>
-                <TooltipTrigger asChild>
+                <TooltipTrigger>
                   <motion.div
                     initial={{ opacity: 0, y: 8 }}
                     whileInView={{ opacity: 1, y: 0 }}
@@ -76,8 +77,8 @@ export default function BayAreaExamples() {
                   </motion.div>
                 </TooltipTrigger>
                 <TooltipContent className="text-xs" side="top" align="center">
-                  <p className="font-semibold text-foreground">{partner.name}</p>
-                  <p className="text-muted-foreground">{partner.note}</p>
+                  <p className="font-semibold">{partner.name}</p>
+                  <p className="opacity-80">{partner.note}</p>
                 </TooltipContent>
               </Tooltip>
             ))}

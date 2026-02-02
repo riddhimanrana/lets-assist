@@ -17,20 +17,19 @@ export const initialOnboardingSchema = z.object({
     .refine(value => value.trim().length > 0, {
       message: "Username cannot be empty or just whitespace",
     }),
-  phoneNumber: z.preprocess(
-    (val) => (typeof val === "string" && val.trim() === "" ? undefined : val),
-    z.string()
-      .refine(
-        (val) => !val || /^\d{3}-\d{3}-\d{4}$/.test(val),
-        "Phone number must be in format XXX-XXX-XXXX"
-      )
-      .transform((val) => {
-        if (!val) return undefined;
-        // Remove all non-digit characters before storing
-        return val.replace(/\D/g, "");
-      })
-      .optional()
-  ),
+  phoneNumber: z
+    .string()
+    .refine(
+      (val) => !val || val === "" || /^\d{3}-\d{3}-\d{4}$/.test(val),
+      "Phone number must be in format XXX-XXX-XXXX"
+    )
+    .transform((val) => {
+      if (!val || val === "") return undefined;
+      // Remove all non-digit characters before storing
+      return val.replace(/\D/g, "");
+    })
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
 });
 
 export type InitialOnboardingValues = z.infer<typeof initialOnboardingSchema>;

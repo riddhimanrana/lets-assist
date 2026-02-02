@@ -101,7 +101,7 @@ export default function MembersClient({
 
             <div className="w-full md:w-48">
               <label className="text-sm font-medium mb-2 block">Role</label>
-              <Select value={roleFilter} onValueChange={setRoleFilter}>
+              <Select value={roleFilter} onValueChange={(val) => val && setRoleFilter(val)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -116,7 +116,7 @@ export default function MembersClient({
 
             <div className="w-full md:w-48">
               <label className="text-sm font-medium mb-2 block">Status</label>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <Select value={statusFilter} onValueChange={(val) => val && setStatusFilter(val)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -203,7 +203,7 @@ export default function MembersClient({
                           className={cn(
                             "capitalize",
                             member.status === "inactive" &&
-                              "text-muted-foreground"
+                            "text-muted-foreground"
                           )}
                         >
                           {member.status}

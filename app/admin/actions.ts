@@ -1,47 +1,22 @@
 "use server";
 
-import { createClient } from "@/utils/supabase/server";
-import { getServiceRoleClient } from "@/utils/supabase/service-role";
+import { createClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/supabase/auth-helpers";
+import { getAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
 
 type NotificationSeverity = "info" | "warning" | "success";
 
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 
-async function fetchAuthUser(userId: string) {
-  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-    throw new Error("Supabase service credentials are not configured.");
-  }
-
-  const response = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${userId}`, {
-    method: "GET",
-    headers: {
-      apikey: SUPABASE_SERVICE_ROLE_KEY,
-      Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-      "Content-Type": "application/json",
-    },
-    cache: "no-store",
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Failed to fetch auth user: ${response.status} ${errorText}`);
-  }
-
-  const json = await response.json();
-  return json?.user ?? json;
-}
-
-async function createServerNotification(
+export async function createServerNotification(
   userId: string,
   title: string,
   body: string,
   severity: NotificationSeverity = "info",
   actionUrl?: string,
 ) {
-  const supabase = getServiceRoleClient();
+  const supabase = getAdminClient();
 
   try {
     const { error } = await supabase
@@ -65,19 +40,78 @@ async function createServerNotification(
   }
 }
 
-export async function checkSuperAdmin() {
-  const supabase = await createClient();
+export async function sendSystemNotification(prevState: { error?: string; success?: boolean; message?: string } | null, formData: FormData) {
+  const { isAdmin } = await checkSuperAdmin();
+  if (!isAdmin) {
+    return { error: "Unauthorized" };
+  }
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const title = formData.get("title") as string;
+  const body = formData.get("body") as string;
+  const severity = formData.get("severity") as NotificationSeverity;
+  const targetUserId = formData.get("targetUserId") as string;
+  const actionUrl = formData.get("actionUrl") as string;
+
+  if (!title || !body) {
+    return { error: "Title and Body are required." };
+  }
+
+  try {
+    if (targetUserId === "all") {
+      // Bulk insert for all users - this might be heavy, consider batching or background job for real prod
+      // For now fetching top 1000 users or similar
+      const supabase = getAdminClient();
+      const { data: users, error } = await supabase.from('profiles').select('id');
+
+      if (error || !users) return { error: "Failed to fetch users for broadcast." };
+
+      const notifications = users.map(u => ({
+        user_id: u.id,
+        title,
+        body,
+        type: "admin_broadcast",
+        severity,
+        action_url: actionUrl || null,
+        displayed: false,
+        read: false,
+      }));
+
+      const { error: insertError } = await supabase.from('notifications').insert(notifications);
+      if (insertError) {
+        console.error('Broadcast error:', insertError);
+        return { error: "Failed to send broadcast." };
+      }
+
+    } else {
+      // Single user
+      await createServerNotification(targetUserId, title, body, severity, actionUrl || undefined);
+    }
+
+    return { success: true, message: "Notification sent successfully." };
+
+  } catch (err) {
+    console.error("Error sending notification:", err);
+    return { error: "Internal Server Error" };
+  }
+}
+
+export async function checkSuperAdmin() {
+  // Get current user using getClaims() for better performance
+  const { user } = await getAuthUser();
 
   if (!user) {
     return { isAdmin: false };
   }
 
   try {
-    const adminUser = await fetchAuthUser(user.id);
+    const serviceClient = getAdminClient();
+    const { data: { user: adminUser }, error } = await serviceClient.auth.admin.getUserById(user.id);
+
+    if (error || !adminUser) {
+      console.error("Error fetching admin user:", error);
+      return { isAdmin: false };
+    }
+
     const isSuperAdmin =
       (adminUser as unknown as { is_super_admin?: boolean } | null)?.is_super_admin === true ||
       adminUser?.user_metadata?.is_super_admin === true ||
@@ -90,7 +124,7 @@ export async function checkSuperAdmin() {
 }
 
 export async function getAllFeedback() {
-  const supabase = getServiceRoleClient();
+  const supabase = getAdminClient();
 
   const { isAdmin } = await checkSuperAdmin();
   if (!isAdmin) {
@@ -144,7 +178,7 @@ export async function getAllFeedback() {
 }
 
 export async function getTrustedMemberApplications() {
-  const supabase = getServiceRoleClient();
+  const supabase = getAdminClient();
 
   const { isAdmin } = await checkSuperAdmin();
   if (!isAdmin) {
@@ -206,7 +240,7 @@ export async function updateTrustedMemberStatus(userId: string, status: boolean)
   if (!isAdmin) return { error: "Unauthorized" };
 
   // Perform the write with the service-role client to bypass RLS
-  const service = getServiceRoleClient();
+  const service = getAdminClient();
 
   // Try user_id match first
   const { error: userIdError } = await service
@@ -255,7 +289,7 @@ export async function updateTrustedMemberStatus(userId: string, status: boolean)
 }
 
 export async function deleteFeedback(feedbackId: string) {
-  const supabase = getServiceRoleClient();
+  const supabase = getAdminClient();
 
   const { isAdmin } = await checkSuperAdmin();
   if (!isAdmin) {
@@ -275,52 +309,39 @@ export async function deleteFeedback(feedbackId: string) {
   return { success: true };
 }
 
-export async function searchUsersByEmail(query: string) {
-  const supabase = getServiceRoleClient();
+export async function searchUsers(query: string) {
+  const supabase = getAdminClient();
   const { isAdmin } = await checkSuperAdmin();
   if (!isAdmin) return { error: "Unauthorized" };
 
-  // Use listUsers to search by email (this is not efficient for large user bases but works for now)
-  // Ideally we'd have a materialized view or a secure function to search users
-  const { data: { users }, error } = await supabase.auth.admin.listUsers({
-    page: 1,
-    perPage: 100 // Limit search scope
-  });
+  // Search in profiles table directly which is much more efficient than listUsers
+  // and allows searching by name
+  const { data: profiles, error } = await supabase
+    .from('profiles')
+    .select('id, full_name, username, email, avatar_url')
+    .or(`full_name.ilike.%${query}%,email.ilike.%${query}%,username.ilike.%${query}%`)
+    .limit(5);
 
   if (error) {
     console.error("Error searching users:", error);
     return { error: "Failed to search users" };
   }
 
-  const lowerQuery = query.toLowerCase();
-  const matchedUsers = users
-    .filter(u => u.email?.toLowerCase().includes(lowerQuery))
-    .slice(0, 5);
+  if (!profiles || profiles.length === 0) return { data: [] };
 
-  if (matchedUsers.length === 0) return { data: [] };
-
-  const userIds = matchedUsers.map(u => u.id);
-  const { data: profiles } = await supabase
-    .from('profiles')
-    .select('id, full_name, username, avatar_url')
-    .in('id', userIds);
-
-  const results = matchedUsers.map(u => {
-    const profile = profiles?.find(p => p.id === u.id);
-    return {
-      id: u.id,
-      email: u.email!,
-      full_name: profile?.full_name,
-      avatar_url: profile?.avatar_url,
-      username: profile?.username
-    };
-  });
+  const results = profiles.map(p => ({
+    id: p.id,
+    email: p.email || "", // profiles should have email, fallback to empty if null
+    full_name: p.full_name,
+    avatar_url: p.avatar_url,
+    username: p.username
+  }));
 
   return { data: results };
 }
 
 export async function addTrustedMember(userId: string, email: string, name: string) {
-  const supabase = getServiceRoleClient();
+  const supabase = getAdminClient();
   const { isAdmin } = await checkSuperAdmin();
   if (!isAdmin) return { error: "Unauthorized" };
 
@@ -336,16 +357,17 @@ export async function addTrustedMember(userId: string, email: string, name: stri
   }
 
   const now = new Date().toISOString();
+  // removed updated_at as it doesn't exist in the table
   const { error } = await supabase
     .from('trusted_member')
     .upsert({
+      id: userId,
       user_id: userId,
       email,
       name,
       reason: 'Added manually by Admin',
       status: true,
       created_at: now,
-      updated_at: now,
     }, {
       onConflict: 'user_id'
     });

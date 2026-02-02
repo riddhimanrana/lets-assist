@@ -1,6 +1,24 @@
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { Metadata } from "next";
 import OrganizationsDisplay from "./OrganizationsDisplay";
+import type { Organization } from "@/types";
+
+type OrganizationRow = Organization & {
+  description?: string | null;
+  website?: string | null;
+  logo_url?: string | null;
+  created_at?: string | null;
+};
+
+type UserMembership = {
+  role: "admin" | "staff" | "member";
+  organization_id: string;
+  organizations?: OrganizationRow | null;
+};
+
+type MemberCountRow = {
+  organization_id: string;
+};
 
 export const metadata: Metadata = {
   title: "Organizations",
@@ -33,7 +51,7 @@ export default async function OrganizationsPage() {
   }
   
   // Fetch all organizations
-  const { data: organizations } = await supabase
+  const { data: organizations } = (await supabase
     .from("organizations")
     .select(`
       id,
@@ -47,12 +65,18 @@ export default async function OrganizationsPage() {
       created_at
     `)
     .order('verified', { ascending: false })
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })) as {
+    data: OrganizationRow[] | null;
+    error: { message: string } | null;
+  };
 
   // Get member counts for all organizations
-  const { data: memberCounts } = await supabase
+  const { data: memberCounts } = (await supabase
     .from("organization_members")
-    .select('organization_id', { count: 'exact', head: false });
+    .select('organization_id', { count: 'exact', head: false })) as {
+    data: MemberCountRow[] | null;
+    error: { message: string } | null;
+  };
 
   // Create member counts map
   const orgMemberCounts = (memberCounts || []).reduce((acc, item) => {
@@ -61,9 +85,9 @@ export default async function OrganizationsPage() {
   }, {} as Record<string, number>);
 
   // If user is logged in, fetch their organization memberships
-  let userMemberships: any[] = [];
+  let userMemberships: UserMembership[] = [];
   if (isLoggedIn && user) {
-    const { data: memberships } = await supabase
+    const { data: memberships } = (await supabase
       .from('organization_members')
       .select(`
         role,
@@ -81,9 +105,17 @@ export default async function OrganizationsPage() {
         )
       `)
       .eq('user_id', user.id)
-      .order('role', { ascending: false }); // Admin first, then staff, then member
+      .order('role', { ascending: false })) as {
+      data: UserMembership[] | null;
+      error: { message: string } | null;
+    }; // Admin first, then staff, then member
 
-    userMemberships = memberships || [];
+    userMemberships = (memberships || []).map((membership) => ({
+      ...membership,
+      organizations: Array.isArray(membership.organizations)
+        ? membership.organizations[0]
+        : membership.organizations,
+    }));
   }
 
   return (

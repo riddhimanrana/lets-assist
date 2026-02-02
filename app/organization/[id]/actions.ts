@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
 /**
@@ -60,12 +60,15 @@ export async function updateMemberRole(
   // Don't allow the last admin to be demoted
   if (membership.role === "admin" && newRole !== "admin") {
     // Count other admins
-    const { count, error: countError } = await supabase
+    const { count, error: countError } = (await supabase
       .from("organization_members")
       .select("*", { count: "exact", head: true })
       .eq("organization_id", organizationId)
       .eq("role", "admin")
-      .neq("id", membershipId);
+      .neq("id", membershipId)) as {
+      count: number | null;
+      error: { message?: string } | null;
+    };
       
     if (countError) {
       return { error: "Failed to verify admin status" };
@@ -79,11 +82,11 @@ export async function updateMemberRole(
   }
   
   // Update the member's role
-  const { error: updateError } = await supabase
+  const { error: updateError } = (await supabase
     .from("organization_members")
     .update({ role: newRole })
     .eq("id", membershipId)
-    .eq("organization_id", organizationId);
+    .eq("organization_id", organizationId)) as { error: { message?: string } | null };
   
   if (updateError) {
     console.error("Error updating member role:", updateError);
@@ -148,12 +151,15 @@ export async function removeMember(organizationId: string, membershipId: string)
     // Don't allow removing the last admin
     if (membership.role === "admin") {
       // Count other admins
-      const { count, error: countError } = await supabase
+      const { count, error: countError } = (await supabase
         .from("organization_members")
         .select("*", { count: "exact", head: true })
         .eq("organization_id", organizationId)
         .eq("role", "admin")
-        .neq("id", membershipId);
+        .neq("id", membershipId)) as {
+        count: number | null;
+        error: { message?: string } | null;
+      };
         
       if (countError) {
         return { error: "Failed to verify admin status" };
@@ -167,12 +173,15 @@ export async function removeMember(organizationId: string, membershipId: string)
     }
   } else if (membership.role === "admin") {
     // If user is removing themselves and they're an admin, check if they're the last admin
-    const { count, error: countError } = await supabase
+    const { count, error: countError } = (await supabase
       .from("organization_members")
       .select("*", { count: "exact", head: true })
       .eq("organization_id", organizationId)
       .eq("role", "admin")
-      .neq("id", membershipId);
+      .neq("id", membershipId)) as {
+      count: number | null;
+      error: { message?: string } | null;
+    };
       
     if (countError) {
       return { error: "Failed to verify admin status" };
@@ -186,11 +195,11 @@ export async function removeMember(organizationId: string, membershipId: string)
   }
   
   // Remove the member
-  const { error: removeError } = await supabase
+  const { error: removeError } = (await supabase
     .from("organization_members")
     .delete()
     .eq("id", membershipId)
-    .eq("organization_id", organizationId);
+    .eq("organization_id", organizationId)) as { error: { message?: string } | null };
   
   if (removeError) {
     console.error("Error removing member:", removeError);

@@ -73,24 +73,17 @@ const mockCertificateData = {
 
 export default function VolunteerJourneySection() {
   const [active, setActive] = useState(0);
-  const [autoCycleActive, setAutoCycleActive] = useState(false);
   const sectionRef = useRef<HTMLDivElement>(null);
-  const sectionInView = useInView(sectionRef, { once: true, amount: 0.3 });
+  const sectionInView = useInView(sectionRef, { amount: 0.3 });
 
   useEffect(() => {
-    if (!autoCycleActive) {
+    if (!sectionInView) {
       return;
     }
 
     const id = setInterval(() => setActive((s) => (s + 1) % steps.length), 3000);
     return () => clearInterval(id);
-  }, [autoCycleActive]);
-
-  useEffect(() => {
-    if (sectionInView && !autoCycleActive) {
-      setAutoCycleActive(true);
-    }
-  }, [sectionInView, autoCycleActive]);
+  }, [sectionInView]);
 
   const previews = useMemo(
     () => ({
@@ -100,15 +93,15 @@ export default function VolunteerJourneySection() {
         </div>
       ),
       signup: <EmailNotification />,
-      qr: <QRScannerPreview />,
+      qr: <QRScannerPreview shouldAnimate={sectionInView} />,
       dashboard: (
         <MiniDashboard {...mockDashboardData} />
       ),
       certificate: (
-        <MiniCertificate {...mockCertificateData} />
+        <MiniCertificate {...mockCertificateData} shouldAnimate={sectionInView} />
       ),
     }),
-    [],
+    [sectionInView],
   );
 
   return (
@@ -175,7 +168,7 @@ export default function VolunteerJourneySection() {
                   aria-pressed={i === active}
                   className="w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 rounded-2xl"
                 >
-                  <Card className={`h-full border-border/60 bg-background/90 shadow-sm ${i === active ? "ring-2 ring-primary/30" : ""}`}>
+                  <Card className={`h-full border-border/60 bg-background/90 shadow-xs ${i === active ? "ring-2 ring-primary/30" : ""}`}>
                     <CardContent className="flex items-start gap-4 p-4">
                       <div className="rounded-full bg-primary/10 p-2 text-primary mt-1">
                         <step.icon className="h-4 w-4" />

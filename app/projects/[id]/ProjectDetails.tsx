@@ -1,20 +1,19 @@
 "use client";
 
 import {
-  EventType,
   Project,
   MultiDayScheduleDay,
-  SameDayMultiAreaSchedule,
   SameDayMultiAreaRole,
-  OneTimeSchedule,
   Profile,
   Organization,
   ProjectStatus,
-  LocationData,
   ProjectDocument,
   AnonymousSignupData,
-  Signup
+  Signup,
+  WaiverSignatureInput,
+  WaiverTemplate,
 } from "@/types";
+import { AuthUser } from '@/lib/supabase/types';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -22,17 +21,16 @@ import { ProjectStatusBadge } from "@/components/ui/status-badge";
 import { Separator } from "@/components/ui/separator";
 import { RichTextContent } from "@/components/ui/rich-text-content";
 import { LocationMapCard } from "@/app/projects/_components/LocationMapCard";
-import { 
-  CalendarDays,
+import {
   CheckCircle2,
-  MapPin, 
-  Users, 
-  Share2, 
-  Clock, 
-  FileText, 
-  Download, 
-  Eye, 
-  File, 
+  MapPin,
+  Users,
+  Share2,
+  Clock,
+  FileText,
+  Download,
+  Eye,
+  File,
   FileImage,
   Lock,
   UserPlus,
@@ -53,12 +51,12 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { signUpForProject, cancelSignup, resendAnonymousConfirmationEmail } from "./actions";
-import { formatTimeTo12Hour, formatBytes } from "@/lib/utils";
-import { createClient } from "@/utils/supabase/client";
-import { getSlotCapacities, getSlotDetails, isSlotAvailable, isMultiDaySlotPast, isMultiDaySlotPastByScheduleId, isSameDayMultiAreaSlotPast, isOneTimeSlotPast } from "@/utils/project";
-import { getProjectStatus, getProjectStartDateTime, getProjectEndDateTime } from "@/utils/project"; // Import the getProjectStatus utility and date utils
-import { useState, useEffect, useCallback } from "react"; // Add useCallback
+import { signUpForProject, resendAnonymousConfirmationEmail, getActiveWaiverTemplate } from "./actions";
+import { formatTimeTo12Hour, formatBytes, copyToClipboard, isMobileDevice } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client";
+import { isSlotAvailable, isMultiDaySlotPastByScheduleId, isSameDayMultiAreaSlotPast, isOneTimeSlotPast } from "@/utils/project";
+import { getProjectStatus } from "@/utils/project"; // Import the getProjectStatus utility and date utils
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -76,12 +74,12 @@ import { OrganizationHoverCard, ProfileHoverCard } from "@/components/shared/Pro
 import FilePreview from "@/app/projects/_components/FilePreview";
 import CreatorDashboard from "./CreatorDashboard";
 // Import the new UserDashboard
-import UserDashboard from "./UserDashboard"; 
+import UserDashboard from "./UserDashboard";
 import { ProjectSignupForm } from "./ProjectForm";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { useRef } from "react";
 // Import User type from supabase
-import { User } from "@supabase/supabase-js"; 
+// import { User } from "@supabase/supabase-js";
 import ProjectInstructionsModal from "./ProjectInstructionsModalWrapper";
 import { SlotAttendeesDropdown, type SlotAttendee } from "@/components/projects/SlotAttendeesDropdown";
 import { SignupConfirmationModal } from "@/app/projects/_components/SignupConfirmationModal";
@@ -110,10 +108,10 @@ interface Props {
   organization?: Organization | null;
   initialSlotData: SlotData;
   initialIsCreator: boolean;
-  // Use the specific User type
-  initialUser: User | null; 
+  // Use the specific AuthUser type
+  initialUser: AuthUser | null;
   // Add prop for full signup data
-  userSignupsData: Signup[]; 
+  userSignupsData: Signup[];
 }
 
 const getFileIcon = (type: string) => {
@@ -141,23 +139,23 @@ const downloadFile = async (url: string, filename: string) => {
   }
 };
 
-export default function ProjectDetails({ 
-  project, 
-  creator, 
-  organization, 
-  initialSlotData, 
-  initialIsCreator, 
+export default function ProjectDetails({
+  project,
+  creator,
+  organization,
+  initialSlotData,
+  initialIsCreator,
   initialUser,
   // Destructure the new prop
-  userSignupsData 
+  userSignupsData
 }: Props) {
   const router = useRouter();
   const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
-  const [isCreator, setIsCreator] = useState(initialIsCreator);
+  const [isCreator] = useState(initialIsCreator);
   const [remainingSlots, setRemainingSlots] = useState<Record<string, number>>(initialSlotData.remainingSlots);
   const [hasSignedUp, setHasSignedUp] = useState<Record<string, boolean>>(initialSlotData.userSignups);
-  // Use the specific User type
-  const [user, setUser] = useState<User | null>(initialUser); 
+  // Use the specific AuthUser type
+  const [user] = useState<AuthUser | null>(initialUser);
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [anonymousDialogOpen, setAnonymousDialogOpen] = useState(false);
   const [currentScheduleId, setCurrentScheduleId] = useState<string>("");
@@ -166,39 +164,36 @@ export default function ProjectDetails({
   const [previewDocName, setPreviewDocName] = useState<string>("Document");
   const [previewDocType, setPreviewDocType] = useState<string>("");
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
-  
+
   // Initialize rejectedSlots from props instead of empty object
   const [rejectedSlots, setRejectedSlots] = useState<Record<string, boolean>>(initialSlotData.rejectedSlots || {});
-  
+
   // Add state for attended slots
   const [attendedSlots, setAttendedSlots] = useState<Record<string, boolean>>(initialSlotData.attendedSlots || {});
 
   // Add state for the confirmation alert
   const [showConfirmationAlert, setShowConfirmationAlert] = useState(false);
-  
+
   // Add state for confirmation modals
   const [showSignupConfirmation, setShowSignupConfirmation] = useState(false);
   const [showCancelConfirmation, setShowCancelConfirmation] = useState(false);
+  const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
   const [pendingScheduleId, setPendingScheduleId] = useState<string>("");
   const [publicAttendees, setPublicAttendees] = useState<SlotAttendee[]>([]);
-  const [userProfile, setUserProfile] = useState<{
-    full_name: string | null;
-    email: string | null;
-    phone: string | null;
-  }>({ full_name: null, email: null, phone: null });
-  
+  const [waiverTemplate, setWaiverTemplate] = useState<WaiverTemplate | null>(null);
+
   // Add state to track calculated status
   // Initialize with project.status to avoid hydration mismatch, then update on client
   const [calculatedStatus, setCalculatedStatus] = useState<ProjectStatus>(project.status);
 
   useEffect(() => {
     setCalculatedStatus(getProjectStatus(project));
-    
+
     // Update status every minute
     const interval = setInterval(() => {
       setCalculatedStatus(getProjectStatus(project));
     }, 60000);
-    
+
     return () => clearInterval(interval);
   }, [project]);
 
@@ -231,6 +226,24 @@ export default function ProjectDetails({
     fetchPublicAttendees();
   }, [project.id, project.show_attendees_publicly, project.visibility]);
 
+  // Function to refetch attendees (called after signup/cancel)
+  const refetchAttendees = async () => {
+    if (!project.show_attendees_publicly) return;
+    if (project.visibility !== "public" && project.visibility !== "unlisted") return;
+
+    const supabase = createClient();
+    const { data, error } = await supabase.rpc("get_public_attendees", {
+      p_project_id: project.id,
+    });
+
+    if (error) {
+      console.error("Error refetching public attendees:", error);
+      return;
+    }
+
+    setPublicAttendees(data || []);
+  };
+
   // Add state for calendar modal after signup
   const [showCalendarModal, setShowCalendarModal] = useState(false);
   const [completedSignup, setCompletedSignup] = useState<{
@@ -243,9 +256,11 @@ export default function ProjectDetails({
   const [resendAnonymousId, setResendAnonymousId] = useState<string | null>(null);
   const [isResending, setIsResending] = useState(false);
 
+  type SignupStatusRow = { id: string; schedule_id: string };
+
   // Remove userRejected state as rejectedSlots handles this per slot
   // const [userRejected, setUserRejected] = useState<boolean>(false);
-  
+
   // Remove the first useEffect for general rejection check
   // useEffect(() => { ... checkPreviousRejection ... }, [user, project.id]);
 
@@ -254,15 +269,18 @@ export default function ProjectDetails({
     async function checkPreviousRejections() {
       if (user) {
         const supabase = createClient();
-        
+
         // Query for all rejected signups for this user and project
-        const { data: rejectedData, error: rejectedError } = await supabase
+        const { data: rejectedData, error: rejectedError } = (await supabase
           .from("project_signups")
           .select("id, schedule_id")
           .eq("project_id", project.id)
           .eq("user_id", user.id)
-          .eq("status", "rejected");
-          
+          .eq("status", "rejected")) as {
+            data: SignupStatusRow[] | null;
+            error: { message: string } | null;
+          };
+
         if (rejectedError) {
           console.error("Error checking for rejections:", rejectedError);
         } else if (rejectedData && rejectedData.length > 0) {
@@ -271,19 +289,22 @@ export default function ProjectDetails({
           rejectedData.forEach(rejection => {
             rejections[rejection.schedule_id] = true;
           });
-          
+
           // Update state with rejected slots
           setRejectedSlots(rejections);
         }
 
         // Query for all attended signups for this user and project
-        const { data: attendedData, error: attendedError } = await supabase
+        const { data: attendedData, error: attendedError } = (await supabase
           .from("project_signups")
           .select("id, schedule_id")
           .eq("project_id", project.id)
           .eq("user_id", user.id)
-          .eq("status", "attended");
-          
+          .eq("status", "attended")) as {
+            data: SignupStatusRow[] | null;
+            error: { message: string } | null;
+          };
+
         if (attendedError) {
           console.error("Error checking for attended status:", attendedError);
         } else if (attendedData && attendedData.length > 0) {
@@ -292,45 +313,50 @@ export default function ProjectDetails({
           attendedData.forEach(slot => {
             attended[slot.schedule_id] = true;
           });
-          
+
           // Update state with attended slots
           setAttendedSlots(attended);
+          // Capture a completed signup for calendar modal and certificate display
+          setCompletedSignup({
+            signupId: attendedData[0].id,
+            scheduleId: attendedData[0].schedule_id,
+          });
         }
       } else {
-         // Clear rejected and attended slots if user logs out
-         setRejectedSlots({});
-         setAttendedSlots({});
+        // Clear rejected and attended slots if user logs out
+        setRejectedSlots({});
+        setAttendedSlots({});
       }
     }
-    
+
     checkPreviousRejections();
   }, [user, project.id]);
 
   // Handle reopening signup modal after OAuth
   useEffect(() => {
     const modalState = sessionStorage.getItem("signupModalState");
-    
+
     // Also check URL params for OAuth callback
     const urlParams = new URLSearchParams(window.location.search);
     const oauthSuccess = urlParams.get("success");
-    
+
     if (modalState) {
       try {
         const { projectId, scheduleId, returnToModal } = JSON.parse(modalState);
-        
+
         // Only reopen if it's for this project and we should return to modal
         if (returnToModal && projectId === project.id && user) {
           // Clear the state
           sessionStorage.removeItem("signupModalState");
-          
+
           // If returning from OAuth, set the just connected flag
           if (oauthSuccess === "connected") {
             sessionStorage.setItem("calendarJustConnected", "true");
-            
+
             // Clean URL
             window.history.replaceState({}, '', `/projects/${project.id}`);
           }
-          
+
           // Reopen the signup modal
           setPendingScheduleId(scheduleId);
           setShowSignupConfirmation(true);
@@ -343,48 +369,46 @@ export default function ProjectDetails({
   }, [project.id, user]);
 
 
-  // Fetch user profile data when user changes
   useEffect(() => {
-    async function fetchUserProfile() {
-      if (user) {
-        const supabase = createClient();
-        const { data: profile, error } = await supabase
-          .from("profiles")
-          .select("full_name, email, phone")
-          .eq("id", user.id)
-          .single();
-          
-        if (error) {
-          console.error("Error fetching user profile:", error);
-        } else if (profile) {
-          setUserProfile({
-            full_name: profile.full_name,
-            email: profile.email,
-            phone: profile.phone,
-          });
+    if (!project.waiver_required || project.waiver_pdf_url) return;
+    let isMounted = true;
+
+    const fetchWaiverTemplate = async () => {
+      try {
+        const result = await getActiveWaiverTemplate();
+        if (result?.template && isMounted) {
+          setWaiverTemplate(result.template as WaiverTemplate);
+        } else if (isMounted) {
+          toast.error("Unable to load waiver template. Please try again later.");
         }
-      } else {
-        // Clear profile if user logs out
-        setUserProfile({ full_name: null, email: null, phone: null });
+      } catch (error) {
+        console.error("Error fetching waiver template:", error);
+        if (isMounted) {
+          toast.error("Unable to load waiver template. Please try again later.");
+        }
       }
-    }
-    
-    fetchUserProfile();
-  }, [user]);
+    };
+
+    fetchWaiverTemplate();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [project.waiver_required]);
 
   // Move updateProjectStatusInDB outside useCallback to break circular dependency
   const updateProjectStatusInDB = async (newStatus: ProjectStatus) => {
     if (isUpdatingStatus) return;
-    
+
     try {
       setIsUpdatingStatus(true);
       const supabase = createClient();
-      
+
       const { error } = await supabase
         .from('projects')
         .update({ status: newStatus })
         .eq('id', project.id);
-        
+
       if (error) {
         console.error("Failed to update project status:", error);
       } else {
@@ -443,11 +467,11 @@ export default function ProjectDetails({
   useEffect(() => {
     const checkStatus = () => {
       const newStatus = getProjectStatus(project);
-      
+
       setCalculatedStatus(prevStatus => {
         if (newStatus !== prevStatus) {
           console.log("Status updated via interval:", newStatus);
-          
+
           if (isCreator && !isUpdatingStatus && newStatus !== project.status) {
             updateProjectStatusInDB(newStatus);
           }
@@ -476,7 +500,7 @@ export default function ProjectDetails({
       toast.info("You cannot sign up for your own project");
       return;
     }
-    
+
     // Check if this specific slot has been rejected
     if (rejectedSlots[scheduleId]) {
       toast.error("You have been rejected for this slot and cannot sign up again.");
@@ -543,9 +567,9 @@ export default function ProjectDetails({
   };
 
   // Handle confirmation modal actions
-  const handleConfirmSignup = (comment?: string) => {
+  const handleConfirmSignup = (comment?: string, waiverSignature?: WaiverSignatureInput | null) => {
     setShowSignupConfirmation(false);
-    handleSignUp(pendingScheduleId, undefined, comment);
+    handleSignUp(pendingScheduleId, undefined, comment, waiverSignature);
     setPendingScheduleId("");
   };
 
@@ -560,13 +584,14 @@ export default function ProjectDetails({
     scheduleId: string,
     anonymousData?: AnonymousSignupData,
     volunteerComment?: string,
+    waiverSignature?: WaiverSignatureInput | null,
   ) => {
     setLoadingStates(prev => ({ ...prev, [scheduleId]: true }));
     // Reset alert state on new signup attempt
     setShowConfirmationAlert(false);
 
     try {
-      const result = await signUpForProject(project.id, scheduleId, anonymousData, volunteerComment);
+      const result = await signUpForProject(project.id, scheduleId, anonymousData, volunteerComment, waiverSignature);
 
       if (result.error) {
         // Check if this is a pending signup that can be resent
@@ -593,7 +618,7 @@ export default function ProjectDetails({
             try {
               const statusResponse = await fetch("/api/calendar/connection-status");
               const statusData = await statusResponse.json();
-              
+
               // API returns 'connected' not 'isConnected'
               if (statusData.connected) {
                 // Automatically sync to calendar
@@ -606,7 +631,7 @@ export default function ProjectDetails({
                     schedule_id: scheduleId,
                   }),
                 });
-                
+
                 if (syncResponse.ok) {
                   calendarSynced = true;
                 }
@@ -616,24 +641,27 @@ export default function ProjectDetails({
               // Don't fail the signup if calendar sync fails
             }
           }
-          
+
           // Success toast with calendar info
           toast.success(
-            calendarSynced 
-              ? "Successfully signed up and added to Google Calendar!" 
+            calendarSynced
+              ? "Successfully signed up and added to Google Calendar!"
               : "Successfully signed up!",
             {
               duration: 5000,
             }
           );
-          
+
           // Update local state to reflect the successful signup
           setHasSignedUp(prev => ({ ...prev, [scheduleId]: true }));
           setRemainingSlots(prev => ({
             ...prev,
             [scheduleId]: Math.max(0, (prev[scheduleId] || 0) - 1)
           }));
-          
+
+          // Refetch attendees to update the list in real-time
+          await refetchAttendees();
+
           // Force a refresh of the page data to ensure we're in sync with the server
           router.refresh();
         }
@@ -648,18 +676,18 @@ export default function ProjectDetails({
   };
 
   // Handle anonymous form submit
-  const handleAnonymousSubmit = (values: AnonymousSignupData) => {
-    handleSignUp(currentScheduleId, values, values.comment);
+  const handleAnonymousSubmit = (values: AnonymousSignupData, waiverSignature?: WaiverSignatureInput | null) => {
+    handleSignUp(currentScheduleId, values, values.comment, waiverSignature);
   };
 
   // Handle resending confirmation email
   const handleResendConfirmation = async () => {
     if (!resendAnonymousId) return;
-    
+
     setIsResending(true);
     try {
       const result = await resendAnonymousConfirmationEmail(resendAnonymousId);
-      
+
       if (result.error) {
         toast.error(result.error);
       } else if (result.success) {
@@ -684,23 +712,33 @@ export default function ProjectDetails({
   };
 
   // Share project
-  const handleShare = () => {
+  const handleShare = async () => {
     const url = window.location.href;
-    if (navigator.share && /Mobi/.test(navigator.userAgent)) {
-      navigator
-        .share({
+
+    if (isMobileDevice() && typeof navigator !== "undefined" && navigator.share) {
+      try {
+        await navigator.share({
           title: `${project.title} - Let's Assist`,
           text: "Check out this project!",
-          url
-        })
-        .catch((err) => {
-          console.error("Share failed: ", err);
-          toast.error("Could not share link");
+          url,
         });
+        return;
+      } catch (error) {
+        if ((error as Error)?.name !== "AbortError") {
+          console.error("Share failed:", error);
+        } else {
+          // User cancelled the share sheet, don't show error or copy to clipboard
+          return;
+        }
+      }
+    }
+
+    // Default to clipboard for desktop or if mobile share failed
+    const copied = await copyToClipboard(url);
+    if (copied) {
+      toast.success("Project link copied to clipboard");
     } else {
-      navigator.clipboard.writeText(url)
-        .then(() => toast.success("Project link copied to clipboard"))
-        .catch(() => toast.error("Could not copy link to clipboard"));
+      toast.error("Could not copy link to clipboard");
     }
   };
 
@@ -721,20 +759,20 @@ export default function ProjectDetails({
     if (isCreator) {
       return "You are the creator";
     }
-    
+
     // Check if this particular slot is rejected
     if (rejectedSlots[scheduleId]) {
       return (
         <HoverCard>
-          <HoverCardTrigger asChild>
+          <HoverCardTrigger render={
             <span className="flex items-center gap-1.5">
               <XCircle className="h-4 w-4" />
               Rejected
             </span>
-          </HoverCardTrigger>
+          } />
           <HoverCardContent className="w-80 p-3">
             <p className="text-sm">
-              Your signup for this slot has been rejected by the project coordinator. 
+              Your signup for this slot has been rejected by the project coordinator.
               Please contact them directly if you have questions.
             </p>
             {creator?.email && (
@@ -754,17 +792,17 @@ export default function ProjectDetails({
         </HoverCard>
       );
     }
-    
+
     // Check if user has attended this slot
     if (attendedSlots[scheduleId]) {
       return (
         <HoverCard>
-          <HoverCardTrigger asChild>
+          <HoverCardTrigger render={
             <span className="flex items-center gap-1.5">
               <CheckCircle2 className="h-4 w-4" />
               Attended
             </span>
-          </HoverCardTrigger>
+          } />
           <HoverCardContent className="w-80 p-3">
             <p className="text-sm">
               You have been marked as attended for this slot. Attendance records cannot be changed.
@@ -773,7 +811,7 @@ export default function ProjectDetails({
         </HoverCard>
       );
     }
-    
+
     if (hasSignedUp[scheduleId]) {
       return (
         <>
@@ -782,11 +820,11 @@ export default function ProjectDetails({
         </>
       );
     }
-    
+
     if (remainingSlots[scheduleId] === 0) {
       return "Full";
     }
-    
+
     if (loadingStates[scheduleId]) {
       return (
         <>
@@ -795,11 +833,11 @@ export default function ProjectDetails({
         </>
       );
     }
-    
+
     if (calculatedStatus === "cancelled") {
       return "Unavailable";
     }
-    
+
     return (
       <>
         <UserPlus className="h-4 w-4" />
@@ -812,12 +850,12 @@ export default function ProjectDetails({
     <>
       <div className="container mx-auto px-4 py-6 max-w-6xl">
         {/* Render Creator Dashboard if user is creator */}
-        
+
 
         {/* Confirmation Alert */}
         {showConfirmationAlert && (
           <Alert className="mb-6 border-primary/70 bg-primary/10">
-            <MailCheck className="h-5 w-5 text-chart-5" />
+            <MailCheck className="h-5 w-5 text-primary" />
             <AlertTitle className="font-semibold text-primary">
               Check Your Email
             </AlertTitle>
@@ -830,7 +868,7 @@ export default function ProjectDetails({
         {/* Project Header */}
         <div className="mb-6">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:gap-4">
-            <div className="flex-1 min-w-0 order-1 sm:order-none">
+            <div className="flex-1 min-w-0 order-1 sm:order-0">
               <h1 className="text-2xl sm:text-3xl font-bold mb-1.5">
                 {project.title}
               </h1>
@@ -841,7 +879,7 @@ export default function ProjectDetails({
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-2 mb-1 sm:mb-0 flex-shrink-0 order-0 sm:order-none justify-between w-full sm:w-auto">
+            <div className="flex items-center gap-2 mb-1 sm:mb-0 shrink-0 order-0 sm:order-0 justify-between w-full sm:w-auto">
               {/* Use calculatedStatus instead of project.status */}
               <ProjectStatusBadge status={calculatedStatus} className="capitalize" />
               <div className="flex gap-2">
@@ -852,39 +890,41 @@ export default function ProjectDetails({
                 >
                   <Share2 className="h-4 w-4 shrink-0" />
                 </Button>
-                
+
                 {/* Report button - only show for non-creators */}
                 {!isCreator && (
                   <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="icon">
+                    <DropdownMenuTrigger render={
+                      <Button variant="outline" size="icon" suppressHydrationWarning>
                         <MoreVertical className="h-4 w-4" />
                         <span className="sr-only">More options</span>
                       </Button>
-                    </DropdownMenuTrigger>
+                    } />
                     <DropdownMenuContent align="end">
-                      <ReportContentButton
-                        contentType="project"
-                        contentId={project.id}
-                        contentTitle={project.title}
-                        contentCreator={creator?.full_name || creator?.username || undefined}
-                        contentContext={organization?.name || undefined}
-                        triggerButton={
-                          <DropdownMenuItem>
-                            <Flag className="mr-2 h-4 w-4" />
-                            <span>Report Project</span>
-                          </DropdownMenuItem>
-                        }
-                      />
+                      <DropdownMenuItem onClick={() => setIsReportDialogOpen(true)}>
+                        <Flag className="mr-2 h-4 w-4" />
+                        <span>Report Project</span>
+                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 )}
+                {/* Fixed Report Content Dialog - moved outside DropdownMenuContent to avoid unmounting when menu closes */}
+                <ReportContentButton
+                  contentType="project"
+                  contentId={project.id}
+                  contentTitle={project.title}
+                  contentCreator={creator?.full_name || creator?.username || undefined}
+                  contentContext={organization?.name || undefined}
+                  open={isReportDialogOpen}
+                  onOpenChange={setIsReportDialogOpen}
+                  showTrigger={false}
+                />
               </div>
             </div>
           </div>
         </div>
 
-{isCreator && <CreatorDashboard project={project} />}
+        {isCreator && <CreatorDashboard project={project} />}
         {/* Render User Dashboard if user is logged in, NOT creator, and has signups */}
         {user && !isCreator && userSignupsData && userSignupsData.length > 0 && (
           <UserDashboard project={project} user={user} signups={userSignupsData} />
@@ -899,8 +939,8 @@ export default function ProjectDetails({
                 <CardTitle>About this Project</CardTitle>
               </CardHeader>
               <CardContent>
-                <RichTextContent 
-                  content={project.description} 
+                <RichTextContent
+                  content={project.description}
                   className="text-muted-foreground text-sm"
                 />
               </CardContent>
@@ -909,114 +949,114 @@ export default function ProjectDetails({
 
             {/* Volunteer Opportunities */}
             <Card>
-              <CardHeader className="pb-3 flex flex-col mb-1 sm:flex-row items-start sm:items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <CardTitle>Volunteer Opportunities</CardTitle>
-                </div>
-                {/* Add How It Works button for non-creators */}
-                {!isCreator && (
-                  <div className="mb-2">
-                    <ProjectInstructionsModal project={project} isCreator={false} />
+              <CardHeader className="pb-3">
+                <div className="flex w-full items-center justify-between gap-2">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <CardTitle>Volunteer Opportunities</CardTitle>
                   </div>
-                )}
+                  {/* Add How It Works button for non-creators */}
+                  {!isCreator && (
+                    <ProjectInstructionsModal
+                      project={project}
+                      isCreator={false}
+                      buttonSize="xs"
+                      buttonClassName="whitespace-nowrap"
+                    />
+                  )}
+                </div>
               </CardHeader>
               <CardContent>
                 {project.pause_signups && (
-                  <Alert className="bg-chart-4/15 border-chart-4/50 mb-4">
-                  <Pause className="h-4 w-4 text-chart-4" />
-                  <AlertTitle className="text-chart-4/90">
-                    Signups are currently paused
-                  </AlertTitle>
-                  <AlertDescription className="text-chart-4">
-                  The project organizer has temporarily paused new volunteer signups. Please check back later or contact the organizer.
-                  </AlertDescription>
-                </Alert>
+                  <Alert className="bg-warning/15 border-warning/50 mb-4">
+                    <Pause className="h-4 w-4 text-warning" />
+                    <AlertTitle className="text-warning/90">
+                      Signups are currently paused
+                    </AlertTitle>
+                    <AlertDescription className="text-warning">
+                      The project organizer has temporarily paused new volunteer signups. Please check back later or contact the organizer.
+                    </AlertDescription>
+                  </Alert>
                 )}
-                
+
                 {project.event_type === "oneTime" && project.schedule.oneTime && (
-                  <Card className="bg-card/50 hover:bg-card/80 transition-colors">
-                    <CardContent className="p-4">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        <div className="max-w-[400px]">
-                          <h3 className="font-medium text-base break-words">
+                  <div className="border rounded-lg p-3 sm:p-4 bg-card/50 hover:bg-card/80 transition-colors">
+                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-sm sm:text-base mb-2">
                           {(() => {
-                          // Create date with no timezone offset issues
-                          const dateStr = project.schedule.oneTime.date;
-                          const [year, month, dayNum] = dateStr.split("-").map(Number);
-                          // Use Date to correctly handle timezones
-                          const date = new Date(year, month - 1, dayNum);
-                          return format(date, "EEEE, MMMM d");
-                          })()}
-                          </h3>
-                          <div className="mt-1.5 text-muted-foreground text-sm space-y-1.5">
-                          <div className="flex items-center gap-1.5">
-                            <Clock className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground/70" />
-                            <div className="flex items-center gap-2">
-                              <span>
-                                {(() => {
-                                  const startLabel = project.schedule.oneTime.startTime ? formatTimeTo12Hour(project.schedule.oneTime.startTime) : "TBD";
-                                  const endLabel = project.schedule.oneTime.endTime ? formatTimeTo12Hour(project.schedule.oneTime.endTime) : undefined;
-                                  return endLabel ? `${startLabel} - ${endLabel}` : startLabel;
-                                })()}
-                              </span>
-                              {project.project_timezone && (
-                                <TimezoneBadge timezone={project.project_timezone} />
-                              )}
-                            </div>
-                          </div>
-                          
-                          <div className="flex items-center">
-                            <div className="flex items-center gap-1.5">
-                            <Users className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground/70" />
-                            <span className="font-medium">
-                              {remainingSlots["oneTime"] ?? project.schedule.oneTime.volunteers}
-                              <span className="font-normal"> of </span>
-                              {project.schedule.oneTime.volunteers}
-                              <span className="font-normal"> spots available</span>
-                            </span>
-                            </div>
-                            
-                            {/* Visual indicator for spots */}
-                            {/* <div className="ml-2 h-1.5 bg-muted rounded-full w-16 overflow-hidden hidden sm:block"> ... </div> */}
-                          </div>
-                          </div>
-                        </div>
-                        <div className="flex flex-col gap-2 items-end">
-                          <Button
-                            variant={hasSignedUp["oneTime"] ? "secondary" : rejectedSlots["oneTime"] ? "destructive" : "default"}
-                            size="sm"
-                            onClick={() => handleSignUpClick("oneTime")}
-                            disabled={
-                              isCreator || 
-                              loadingStates["oneTime"] || 
-                              calculatedStatus === "cancelled" || 
-                              isOneTimeSlotPast(project) ||
-                              rejectedSlots["oneTime"] || 
-                              attendedSlots["oneTime"] ||
-                              (!hasSignedUp["oneTime"] && (remainingSlots["oneTime"] === 0))
+                            // Create date with no timezone offset issues
+                            const dateStr = project.schedule.oneTime.date;
+                            const [year, month, dayNum] = dateStr.split("-").map(Number);
+                            // Validate date components
+                            if (!year || !month || !dayNum || isNaN(year) || isNaN(month) || isNaN(dayNum)) {
+                              return "Invalid date";
                             }
-                            className={`flex-shrink-0 gap-2 ${attendedSlots["oneTime"] || isOneTimeSlotPast(project) ? "opacity-50 cursor-not-allowed" : ""}`}
-                          >
-                            {isOneTimeSlotPast(project) ? "Time Passed" : renderSignupButton("oneTime")}
-                          </Button>
-                          {project.show_attendees_publicly && (
-                            <SlotAttendeesDropdown attendees={getAttendeesForSlot("oneTime")} />
-                          )}
+                            // Use Date to correctly handle timezones
+                            const date = new Date(year, month - 1, dayNum);
+                            // Check if date is valid
+                            if (isNaN(date.getTime())) {
+                              return "Invalid date";
+                            }
+                            return format(date, "EEEE, MMMM d");
+                          })()}
+                        </h3>
+                        <div className="space-y-1 text-xs sm:text-sm text-muted-foreground">
+                          <div className="flex items-center gap-1.5">
+                            <Clock className="h-3.5 w-3.5 shrink-0" />
+                            <span>
+                              {(() => {
+                                const startLabel = project.schedule.oneTime.startTime ? formatTimeTo12Hour(project.schedule.oneTime.startTime) : "TBD";
+                                const endLabel = project.schedule.oneTime.endTime ? formatTimeTo12Hour(project.schedule.oneTime.endTime) : undefined;
+                                return endLabel ? `${startLabel} - ${endLabel}` : startLabel;
+                              })()}
+                            </span>
+                            {project.project_timezone && (
+                              <TimezoneBadge timezone={project.project_timezone} />
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-1.5">
+                            <Users className="h-3.5 w-3.5 shrink-0" />
+                            <span>
+                              <span className="font-medium text-foreground">{remainingSlots["oneTime"] ?? project.schedule.oneTime.volunteers}</span> of {project.schedule.oneTime.volunteers} spots
+                            </span>
+                          </div>
                         </div>
                       </div>
-                    </CardContent>
-                  </Card>
+                      <div className="flex flex-col gap-2 items-stretch sm:items-end shrink-0">
+                        <Button
+                          variant={hasSignedUp["oneTime"] ? "secondary" : rejectedSlots["oneTime"] ? "destructive" : "default"}
+                          size="sm"
+                          onClick={() => handleSignUpClick("oneTime")}
+                          disabled={
+                            isCreator ||
+                            loadingStates["oneTime"] ||
+                            calculatedStatus === "cancelled" ||
+                            isOneTimeSlotPast(project) ||
+                            rejectedSlots["oneTime"] ||
+                            attendedSlots["oneTime"] ||
+                            (!hasSignedUp["oneTime"] && (remainingSlots["oneTime"] === 0))
+                          }
+                          className={`w-full sm:w-auto ${attendedSlots["oneTime"] || isOneTimeSlotPast(project) ? "opacity-50 cursor-not-allowed" : ""}`}
+                        >
+                          {isOneTimeSlotPast(project) ? "Time Passed" : renderSignupButton("oneTime")}
+                        </Button>
+                      </div>
+                    </div>
+                    {project.show_attendees_publicly && (
+                      <SlotAttendeesDropdown attendees={getAttendeesForSlot("oneTime")} />
+                    )}
+                  </div>
                 )}
 
                 {project.event_type === "multiDay" && project.schedule.multiDay && (
                   <div className="space-y-3">
-                    {project.schedule.multiDay.map((day, dayIndex) => {
-                      const isDayPast = isMultiDaySlotPast(day);
+                    {project.schedule.multiDay.map((day) => {
                       const allSlotsInDayPast = day.slots.every((slot, slotIndex) => {
                         const scheduleId = `${day.date}-${slotIndex}`;
                         return isMultiDaySlotPastByScheduleId(project, scheduleId);
                       });
-                      
+
                       return (
                         <div key={day.date} className="mb-4">
                           <div className="flex items-center justify-between mb-2">
@@ -1039,72 +1079,58 @@ export default function ProjectDetails({
                             {day.slots.map((slot, slotIndex) => {
                               const scheduleId = `${day.date}-${slotIndex}`;
                               return (
-                                <Card key={scheduleId} className="bg-card/50 hover:bg-card/80 transition-colors">
-                                  <CardContent className="p-4">
-                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                      <div className="max-w-[400px]">
-                                        <div className="flex flex-col space-y-2">
-                                          <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                                            <Clock className="h-3.5 w-3.5 flex-shrink-0" />
-                                            <div className="flex items-center gap-2">
-                                              <span className="line-clamp-1">
-                                                {(() => {
-                                                  const startLabel = slot.startTime ? formatTimeTo12Hour(slot.startTime) : "TBD";
-                                                  const endLabel = slot.endTime ? formatTimeTo12Hour(slot.endTime) : undefined;
-                                                  return endLabel ? `${startLabel} - ${endLabel}` : startLabel;
-                                                })()}
-                                              </span>
-                                              {project.project_timezone && (
-                                                <TimezoneBadge timezone={project.project_timezone} />
-                                              )}
-                                            </div>
-                                          </div>
-                                          <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                                            <Users className="h-3.5 w-3.5 flex-shrink-0" />
-                                            <div className="flex items-center gap-1.5">
-                                              <span className="font-medium">
-                                                {remainingSlots[scheduleId] ?? slot.volunteers}
-                                                <span className="font-normal"> of </span>
-                                                {slot.volunteers}
-                                              </span>
-                                              <span className="font-normal">spots available</span>
-                                            </div>
-                                            
-                                            {/* Visual indicator for spots */}
-                                            {/* <div className="ml-2 h-1.5 bg-muted rounded-full w-16 overflow-hidden hidden sm:block"> ... </div> */}
-                                          </div>
-                                        </div>
-                                      </div>
-                                      <div className="flex flex-col gap-2 items-end">
-                                        <Button
-                                          variant={hasSignedUp[scheduleId] ? "secondary" : rejectedSlots[scheduleId] ? "destructive" : "default"}
-                                          size="sm"
-                                          onClick={() => handleSignUpClick(scheduleId)}
-                                          disabled={
-                                            isCreator || 
-                                            loadingStates[scheduleId] || 
-                                            calculatedStatus === "cancelled" || 
-                                            rejectedSlots[scheduleId] || 
-                                            attendedSlots[scheduleId] ||
-                                            isMultiDaySlotPastByScheduleId(project, scheduleId) ||
-                                            (!hasSignedUp[scheduleId] && (remainingSlots[scheduleId] === 0))
-                                          }
-                                          className={`flex-shrink-0 gap-2 ${attendedSlots[scheduleId] || isMultiDaySlotPastByScheduleId(project, scheduleId) ? "opacity-50 cursor-not-allowed" : ""}`}
-                                        >
-                                          {isMultiDaySlotPastByScheduleId(project, scheduleId) ? "Time Passed" : renderSignupButton(scheduleId)}
-                                        </Button>
-                                        {project.show_attendees_publicly && (
-                                          <SlotAttendeesDropdown attendees={getAttendeesForSlot(scheduleId)} />
+                                <div key={scheduleId} className="border rounded-lg p-3 bg-card/50 hover:bg-card/80 transition-colors">
+                                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                                    <div className="flex-1 min-w-0 space-y-1 text-xs sm:text-sm text-muted-foreground">
+                                      <div className="flex items-center gap-1.5">
+                                        <Clock className="h-3.5 w-3.5 shrink-0" />
+                                        <span>
+                                          {(() => {
+                                            const startLabel = slot.startTime ? formatTimeTo12Hour(slot.startTime) : "TBD";
+                                            const endLabel = slot.endTime ? formatTimeTo12Hour(slot.endTime) : undefined;
+                                            return endLabel ? `${startLabel} - ${endLabel}` : startLabel;
+                                          })()}
+                                        </span>
+                                        {project.project_timezone && (
+                                          <TimezoneBadge timezone={project.project_timezone} />
                                         )}
                                       </div>
+                                      <div className="flex items-center gap-1.5">
+                                        <Users className="h-3.5 w-3.5 shrink-0" />
+                                        <span>
+                                          <span className="font-medium text-foreground">{remainingSlots[scheduleId] ?? slot.volunteers}</span> of {slot.volunteers} spots
+                                        </span>
+                                      </div>
                                     </div>
-                                </CardContent>
-                              </Card>
-                            );
-                          })}
+                                    <div className="flex flex-col gap-2 items-stretch sm:items-end shrink-0">
+                                      <Button
+                                        variant={hasSignedUp[scheduleId] ? "secondary" : rejectedSlots[scheduleId] ? "destructive" : "default"}
+                                        size="sm"
+                                        onClick={() => handleSignUpClick(scheduleId)}
+                                        disabled={
+                                          isCreator ||
+                                          loadingStates[scheduleId] ||
+                                          calculatedStatus === "cancelled" ||
+                                          rejectedSlots[scheduleId] ||
+                                          attendedSlots[scheduleId] ||
+                                          isMultiDaySlotPastByScheduleId(project, scheduleId) ||
+                                          (!hasSignedUp[scheduleId] && (remainingSlots[scheduleId] === 0))
+                                        }
+                                        className={`w-full sm:w-auto ${attendedSlots[scheduleId] || isMultiDaySlotPastByScheduleId(project, scheduleId) ? "opacity-50 cursor-not-allowed" : ""}`}
+                                      >
+                                        {isMultiDaySlotPastByScheduleId(project, scheduleId) ? "Time Passed" : renderSignupButton(scheduleId)}
+                                      </Button>
+                                    </div>
+                                  </div>
+                                  {project.show_attendees_publicly && (
+                                    <SlotAttendeesDropdown attendees={getAttendeesForSlot(scheduleId)} />
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
-                      </div>
-                    );
+                      );
                     })}
                   </div>
                 )}
@@ -1123,68 +1149,56 @@ export default function ProjectDetails({
                       </h3>
                       <div className="space-y-2">
                         {project.schedule.sameDayMultiArea.roles.map((role) => (
-                          <Card key={role.name} className="bg-card/50 hover:bg-card/80 transition-colors">
-                            <CardContent className="p-4">
-                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                <div className="max-w-[400px]">
-                                  <h4 className="font-medium break-words">{role.name}</h4>
-                                  <div className="flex flex-col space-y-2 mt-1">
-                                    <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                                      <Clock className="h-3.5 w-3.5 flex-shrink-0" />
-                                      <div className="flex items-center gap-2">
-                                        <span className="line-clamp-1">
-                                          {(() => {
-                                            const startLabel = role.startTime ? formatTimeTo12Hour(role.startTime) : "TBD";
-                                            const endLabel = role.endTime ? formatTimeTo12Hour(role.endTime) : undefined;
-                                            return endLabel ? `${startLabel} - ${endLabel}` : startLabel;
-                                          })()}
-                                        </span>
-                                        {project.project_timezone && (
-                                          <TimezoneBadge timezone={project.project_timezone} />
-                                        )}
-                                      </div>
-                                    </div>
-                                    <div className="flex items-center">
-                                      <div className="flex items-center gap-1.5">
-                                        <Users className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground/70" />
-                                        <span className="font-medium text-sm text-muted-foreground">
-                                          {remainingSlots[role.name] ?? role.volunteers}
-                                          <span className="font-normal"> of </span>
-                                          {role.volunteers}
-                                          <span className="font-normal"> spots available</span>
-                                        </span>
-                                      </div>
-                                      
-                                      {/* Visual indicator for spots */}
-                                      {/* <div className="ml-2 h-1.5 bg-muted rounded-full w-16 overflow-hidden hidden sm:block"> ... </div> */}
-                                    </div>
+                          <div key={role.name} className="border rounded-lg p-3 bg-card/50 hover:bg-card/80 transition-colors">
+                            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                              <div className="flex-1 min-w-0">
+                                <h4 className="font-semibold text-sm mb-1.5 wrap-break-word">{role.name}</h4>
+                                <div className="space-y-1 text-xs sm:text-sm text-muted-foreground">
+                                  <div className="flex items-center gap-1.5">
+                                    <Clock className="h-3.5 w-3.5 shrink-0" />
+                                    <span>
+                                      {(() => {
+                                        const startLabel = role.startTime ? formatTimeTo12Hour(role.startTime) : "TBD";
+                                        const endLabel = role.endTime ? formatTimeTo12Hour(role.endTime) : undefined;
+                                        return endLabel ? `${startLabel} - ${endLabel}` : startLabel;
+                                      })()}
+                                    </span>
+                                    {project.project_timezone && (
+                                      <TimezoneBadge timezone={project.project_timezone} />
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-1.5">
+                                    <Users className="h-3.5 w-3.5 shrink-0" />
+                                    <span>
+                                      <span className="font-medium text-foreground">{remainingSlots[role.name] ?? role.volunteers}</span> of {role.volunteers} spots
+                                    </span>
                                   </div>
                                 </div>
-                                <div className="flex flex-col gap-2 items-end">
-                                  <Button
-                                    variant={hasSignedUp[role.name] ? "secondary" : rejectedSlots[role.name] ? "destructive" : "default"}
-                                    size="sm"
-                                    onClick={() => handleSignUpClick(role.name)}
-                                    disabled={
-                                      isCreator || 
-                                      loadingStates[role.name] || 
-                                      calculatedStatus === "cancelled" || 
-                                      isSameDayMultiAreaSlotPast(project, role.name) ||
-                                      rejectedSlots[role.name] || 
-                                      attendedSlots[role.name] ||
-                                      (!hasSignedUp[role.name] && (remainingSlots[role.name] === 0))
-                                    }
-                                    className={`flex-shrink-0 gap-2 ${attendedSlots[role.name] || isSameDayMultiAreaSlotPast(project, role.name) ? "opacity-50 cursor-not-allowed" : ""}`}
-                                  >
-                                    {isSameDayMultiAreaSlotPast(project, role.name) ? "Time Passed" : renderSignupButton(role.name)}
-                                  </Button>
-                                  {project.show_attendees_publicly && (
-                                    <SlotAttendeesDropdown attendees={getAttendeesForSlot(role.name)} />
-                                  )}
-                                </div>
                               </div>
-                            </CardContent>
-                          </Card>
+                              <div className="flex flex-col gap-2 items-stretch sm:items-end shrink-0">
+                                <Button
+                                  variant={hasSignedUp[role.name] ? "secondary" : rejectedSlots[role.name] ? "destructive" : "default"}
+                                  size="sm"
+                                  onClick={() => handleSignUpClick(role.name)}
+                                  disabled={
+                                    isCreator ||
+                                    loadingStates[role.name] ||
+                                    calculatedStatus === "cancelled" ||
+                                    isSameDayMultiAreaSlotPast(project, role.name) ||
+                                    rejectedSlots[role.name] ||
+                                    attendedSlots[role.name] ||
+                                    (!hasSignedUp[role.name] && (remainingSlots[role.name] === 0))
+                                  }
+                                  className={`w-full sm:w-auto ${attendedSlots[role.name] || isSameDayMultiAreaSlotPast(project, role.name) ? "opacity-50 cursor-not-allowed" : ""}`}
+                                >
+                                  {isSameDayMultiAreaSlotPast(project, role.name) ? "Time Passed" : renderSignupButton(role.name)}
+                                </Button>
+                              </div>
+                            </div>
+                            {project.show_attendees_publicly && (
+                              <SlotAttendeesDropdown attendees={getAttendeesForSlot(role.name)} />
+                            )}
+                          </div>
                         ))}
                       </div>
                     </div>
@@ -1194,7 +1208,7 @@ export default function ProjectDetails({
                 {/* Message for cancelled projects */}
                 {calculatedStatus === "cancelled" && (
                   <div className="flex items-start gap-2 rounded-md border border-destructive p-3 bg-destructive/10 mt-4">
-                    <AlertTriangle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
+                    <AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
                     <div className="text-sm text-muted-foreground">
                       <p>
                         This project has been cancelled and is no longer accepting signups.
@@ -1211,7 +1225,7 @@ export default function ProjectDetails({
                 {/* Message for completed projects */}
                 {calculatedStatus === "completed" && (
                   <div className="flex items-start gap-2 rounded-md border p-3 bg-muted/50 mt-4">
-                    <CheckCircle2 className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
+                    <CheckCircle2 className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
                     <div className="text-sm text-muted-foreground">
                       <p>
                         This project has been completed and is no longer accepting signups.
@@ -1248,10 +1262,10 @@ export default function ProjectDetails({
                           className="object-cover w-full aspect-video h-auto hover:scale-105 transition-transform"
                         />
                       </div>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="absolute bottom-2 right-2 bg-background/80 backdrop-blur-sm"
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="absolute bottom-2 right-2 bg-background/80 backdrop-blur-xs"
                         onClick={(e) => {
                           e.stopPropagation();
                           openPreview(project.cover_image_url!, project.title, "image/jpeg");
@@ -1277,13 +1291,13 @@ export default function ProjectDetails({
                       <Link href={`/profile/${creator?.username || ""}`} className="flex items-center gap-3">
                         <Avatar className="h-10 w-10">
                           {creator?.avatar_url ? (
-                            <AvatarImage 
+                            <AvatarImage
                               src={creator.avatar_url}
                               alt={creator?.full_name || "Creator"}
                             />
                           ) : null}
                           <AvatarFallback className="bg-muted">
-                            <NoAvatar 
+                            <NoAvatar
                               fullName={creator?.full_name}
                               className="text-sm font-medium"
                             />
@@ -1302,50 +1316,50 @@ export default function ProjectDetails({
 
                     {project.organization && (
                       <>
-                      <div className="flex items-center my-2">
-                        <Separator className="shrink" />
-                        <span className="px-2 text-xs text-muted-foreground flex items-center">
-                        <Building2 className="h-4 w-4 mr-1 flex-shrink-0" /> Organization
-                        </span>
-                        <Separator className="shrink" />
-                      </div>
-                      <OrganizationHoverCard organization={project.organization}>
-                        <Link
-                          href={`/organization/${project.organization.username}`}
-                          className="flex items-center gap-3"
-                        >
-                          <Avatar className="h-9 w-9 border border-muted">
-                            {project.organization.logo_url ? (
-                              <AvatarImage
-                                src={project.organization.logo_url}
-                                alt={project.organization.name}
-                              />
-                            ) : (
-                              <AvatarFallback className="bg-muted text-xs">
-                                {project.organization.name.substring(0, 2).toUpperCase()}
-                              </AvatarFallback>
-                            )}
-                          </Avatar>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1.5">
-                              <p className="text-sm font-medium hover:underline underline-offset-4 truncate">
-                                {project.organization.name}
-                              </p>
-                              {project.organization.verified && (
-                                <BadgeCheck
-                                  className="h-4 w-4 text-primary"
-                                  fill="hsl(var(--primary))"
-                                  stroke="hsl(var(--popover))"
-                                  strokeWidth={2}
+                        <div className="flex items-center my-2">
+                          <Separator className="shrink" />
+                          <span className="px-2 text-xs text-muted-foreground flex items-center">
+                            <Building2 className="h-4 w-4 mr-1 shrink-0" /> Organization
+                          </span>
+                          <Separator className="shrink" />
+                        </div>
+                        <OrganizationHoverCard organization={project.organization}>
+                          <Link
+                            href={`/organization/${project.organization.username}`}
+                            className="flex items-center gap-3"
+                          >
+                            <Avatar className="h-9 w-9 border border-muted">
+                              {project.organization.logo_url ? (
+                                <AvatarImage
+                                  src={project.organization.logo_url}
+                                  alt={project.organization.name}
                                 />
+                              ) : (
+                                <AvatarFallback className="bg-muted text-xs">
+                                  {project.organization.name.substring(0, 2).toUpperCase()}
+                                </AvatarFallback>
                               )}
+                            </Avatar>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <p className="text-sm font-medium hover:underline underline-offset-4 truncate">
+                                  {project.organization.name}
+                                </p>
+                                {project.organization.verified && (
+                                  <BadgeCheck
+                                    className="h-4 w-4 text-primary"
+                                    fill="hsl(var(--primary))"
+                                    stroke="hsl(var(--popover))"
+                                    strokeWidth={2}
+                                  />
+                                )}
+                              </div>
+                              <p className="text-xs text-muted-foreground truncate">
+                                @{project.organization.username}
+                              </p>
                             </div>
-                            <p className="text-xs text-muted-foreground truncate">
-                              @{project.organization.username}
-                            </p>
-                          </div>
-                        </Link>
-                      </OrganizationHoverCard>
+                          </Link>
+                        </OrganizationHoverCard>
                       </>
                     )}
                   </div>
@@ -1354,26 +1368,26 @@ export default function ProjectDetails({
                 {/* Contact Information */}
                 {creator?.email && (
                   <div>
-                  <h3 className="text-sm font-medium text-muted-foreground mb-2">
-                    Contact Information
-                  </h3>
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-1 text-sm">
-                    <span>{creator.email}</span>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-2">
+                      Contact Information
+                    </h3>
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-1 text-sm">
+                        <span>{creator.email}</span>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          window.location.href = `mailto:${creator.email}?subject=Regarding project: ${project.title}`;
+                          toast.success("Opening email client");
+                        }}
+                        className="mt-1 flex items-center gap-2"
+                      >
+                        <Mail className="h-4 w-4" />
+                        Contact Project Coordinator
+                      </Button>
                     </div>
-                    <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      window.location.href = `mailto:${creator.email}?subject=Regarding project: ${project.title}`;
-                      toast.success("Opening email client");
-                    }}
-                    className="mt-1 flex items-center gap-2"
-                    >
-                    <Mail className="h-4 w-4" />
-                    Contact Project Coordinator
-                    </Button>
-                  </div>
                   </div>
                 )}
 
@@ -1399,9 +1413,19 @@ export default function ProjectDetails({
                         </>
                       )}
                     </Badge>
-                    
+
+                    {project.waiver_required && (
+                      <Badge
+                        variant="outline"
+                        className="text-xs flex items-center gap-1"
+                      >
+                        <FileText className="h-3 w-3" />
+                        Waiver Required
+                      </Badge>
+                    )}
+
                     {/* Add verification method badge */}
-                    <Badge 
+                    <Badge
                       variant="outline"
                       className="text-xs flex items-center gap-1"
                     >
@@ -1434,26 +1458,26 @@ export default function ProjectDetails({
 
 
             {/* Location Map */}
-            <LocationMapCard 
-              location={project.location} 
-              locationData={project.location_data} 
+            <LocationMapCard
+              location={project.location}
+              locationData={project.location_data}
             />
 
             {/* Project Documents Section */}
             {project.documents && project.documents.length > 0 && (
               <Card className="bg-card">
-                <CardHeader className="pb-3">
+                <CardHeader className="">
                   <CardTitle>Project Documents</CardTitle>
                 </CardHeader>
-                <CardContent className="p-4">
+                <CardContent className="">
                   <div className="space-y-3">
                     {project.documents.map((doc: ProjectDocument, index: number) => (
-                      <div 
-                        key={index} 
+                      <div
+                        key={index}
                         className="flex items-center justify-between p-3 rounded-lg border bg-background hover:bg-muted/20 transition-colors"
                       >
                         <div className="flex items-center gap-3 w-0 flex-1">
-                          <div className="bg-muted p-2 rounded-md flex-shrink-0">
+                          <div className="bg-muted p-2 rounded-md shrink-0">
                             {getFileIcon(doc.type)}
                           </div>
                           <div className="min-w-0 w-full overflow-hidden">
@@ -1461,10 +1485,10 @@ export default function ProjectDetails({
                             <p className="text-xs text-muted-foreground">{formatBytes(doc.size)}</p>
                           </div>
                         </div>
-                        <div className="flex gap-2 flex-shrink-0 ml-2">
+                        <div className="flex gap-2 shrink-0 ml-2">
                           {isPreviewable(doc.type) && (
-                            <Button 
-                              variant="outline" 
+                            <Button
+                              variant="outline"
                               size="icon"
                               className="h-8 w-8"
                               onClick={() => openPreview(doc.url, doc.name, doc.type)}
@@ -1472,7 +1496,7 @@ export default function ProjectDetails({
                               <Eye className="h-4 w-4" />
                             </Button>
                           )}
-                          <Button 
+                          <Button
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8"
@@ -1502,15 +1526,15 @@ export default function ProjectDetails({
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="flex flex-col gap-4">
-              <Button 
+              <Button
                 onClick={() => redirectToAuth('login')}
                 className="flex items-center justify-center gap-2"
               >
                 <LogIn className="h-4 w-4" />
                 Login to Your Account
               </Button>
-              <Button 
-                onClick={() => redirectToAuth('signup')} 
+              <Button
+                onClick={() => redirectToAuth('signup')}
                 variant="outline"
                 className="flex items-center justify-center gap-2"
               >
@@ -1524,7 +1548,7 @@ export default function ProjectDetails({
 
       {/* Anonymous Signup Dialog */}
       <Dialog open={anonymousDialogOpen} onOpenChange={setAnonymousDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-5xl w-[95vw] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Quick Sign Up</DialogTitle>
             <DialogDescription>
@@ -1536,6 +1560,10 @@ export default function ProjectDetails({
             onCancel={() => setAnonymousDialogOpen(false)}
             isSubmitting={loadingStates[currentScheduleId]}
             showCommentField={!!project.enable_volunteer_comments}
+            waiverRequired={!!project.waiver_required}
+            waiverAllowUpload={project.waiver_allow_upload ?? true}
+            waiverTemplate={waiverTemplate}
+            waiverPdfUrl={project.waiver_pdf_url || null}
           />
         </DialogContent>
       </Dialog>
@@ -1587,7 +1615,7 @@ export default function ProjectDetails({
       </Dialog>
 
       {/* Document Preview */}
-      <FilePreview 
+      <FilePreview
         url={previewDoc || ""}
         open={previewOpen}
         onOpenChange={setPreviewOpen}
@@ -1602,6 +1630,10 @@ export default function ProjectDetails({
           onClose={handleCloseModals}
           onConfirm={handleConfirmSignup}
           enableVolunteerComments={!!project.enable_volunteer_comments}
+          waiverRequired={!!project.waiver_required}
+          waiverAllowUpload={project.waiver_allow_upload ?? true}
+          waiverTemplate={waiverTemplate}
+          waiverPdfUrl={project.waiver_pdf_url || null}
           project={{
             id: project.id,
             title: project.title,
@@ -1665,10 +1697,12 @@ export default function ProjectDetails({
           onSuccess={(scheduleId) => {
             // Handle successful cancellation
             setHasSignedUp(prev => ({ ...prev, [scheduleId]: false }));
-            setRemainingSlots(prev => ({ 
-              ...prev, 
+            setRemainingSlots(prev => ({
+              ...prev,
               [scheduleId]: (prev[scheduleId] || 0) + 1
             }));
+            // Refetch attendees to update the list in real-time
+            refetchAttendees();
           }}
           project={{
             title: project.title,

@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { format } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -50,13 +50,13 @@ const MAX_DOCUMENTS_COUNT = 5;
 // Allowed file types
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/jpg"];
 const ALLOWED_DOCUMENT_TYPES = [
-  "application/pdf", 
-  "application/msword", 
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document", 
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   "text/plain",
-  "image/jpeg", 
-  "image/png", 
-  "image/webp", 
+  "image/jpeg",
+  "image/png",
+  "image/webp",
   "image/jpg"
 ];
 
@@ -114,11 +114,11 @@ interface FinalizeProps {
   onProfanityChange: (hasProfanity: boolean) => void; // Add this line
 }
 
-export default function Finalize({ 
-  state, 
-  setCoverImageAction, 
+export default function Finalize({
+  state,
+  setCoverImageAction,
   setDocumentsAction,
-  onProfanityChange 
+  onProfanityChange
 }: FinalizeProps) {
   const [coverImagePreview, setCoverImagePreview] = useState<string | null>(null);
   const [localDocuments, setLocalDocuments] = useState<File[]>([]);
@@ -135,7 +135,7 @@ export default function Finalize({
     };
   } | null>(null);
   const [isProfanityDialogOpen, setIsProfanityDialogOpen] = useState(false);
-  
+
   // Calculate total documents size whenever localDocuments change
   useEffect(() => {
     const totalSize = localDocuments.reduce((sum, doc) => sum + doc.size, 0);
@@ -207,39 +207,39 @@ export default function Finalize({
       toast.error("Invalid file type");
       return false;
     }
-    
+
     if (file.size > MAX_COVER_IMAGE_SIZE) {
       toast.error("File too large. Cover image must be less than 5MB.");
       return false;
     }
-    
+
     return true;
   };
-  
+
   const validateDocument = (file: File, existingFiles: File[] = []): boolean => {
     if (!ALLOWED_DOCUMENT_TYPES.includes(file.type)) {
       toast.error("Invalid file type.");
       return false;
     }
-    
+
     if (file.size > MAX_DOCUMENT_SIZE) {
       toast.error("File too large, each document must be less than 10MB");
       return false;
     }
-    
+
     // Check if adding this file would exceed the total documents size limit
     const currentTotalSize = existingFiles.reduce((sum, doc) => sum + doc.size, 0);
     if (currentTotalSize + file.size > MAX_DOCUMENT_SIZE) {
       toast.error("Total documents size must not exceed 10MB");
       return false;
     }
-    
+
     // Check if adding this file would exceed the max count
     if (existingFiles.length >= MAX_DOCUMENTS_COUNT) {
       toast.error("Maximum files reached. You can upload a maximum of 5 documents");
       return false;
     }
-    
+
     return true;
   };
 
@@ -247,7 +247,7 @@ export default function Finalize({
   const handleCoverImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      
+
       if (validateImage(file)) {
         setCoverImageAction(file);
         const fileReader = new FileReader();
@@ -260,26 +260,26 @@ export default function Finalize({
       }
     }
   };
-  
+
   const handleDocumentsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const newFiles = Array.from(e.target.files);
-      
+
       // Check if adding these files would exceed the max count
       if (localDocuments.length + newFiles.length > MAX_DOCUMENTS_COUNT) {
         toast.error("Maximum files reached");
         return;
       }
-      
+
       // Validate each file individually
       const validFiles: File[] = [];
-      
+
       for (const file of newFiles) {
         if (validateDocument(file, [...localDocuments, ...validFiles])) {
           validFiles.push(file);
         }
       }
-      
+
       if (validFiles.length > 0) {
         const updatedDocs = [...localDocuments, ...validFiles];
         setLocalDocuments(updatedDocs);
@@ -287,13 +287,13 @@ export default function Finalize({
       }
     }
   };
-  
+
   const removeDocument = (index: number) => {
     const updatedDocs = localDocuments.filter((_, i) => i !== index);
     setLocalDocuments(updatedDocs);
     setDocumentsAction(updatedDocs);
   };
-  
+
   const removeCoverImage = () => {
     setCoverImageAction(null);
     setCoverImagePreview(null);
@@ -316,10 +316,10 @@ export default function Finalize({
     e.preventDefault();
     e.stopPropagation();
     setDragActive(null);
-    
+
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       const file = e.dataTransfer.files[0];
-      
+
       if (validateImage(file)) {
         setCoverImageAction(file);
         const fileReader = new FileReader();
@@ -337,25 +337,25 @@ export default function Finalize({
     e.preventDefault();
     e.stopPropagation();
     setDragActive(null);
-    
+
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const newFiles = Array.from(e.dataTransfer.files);
-      
+
       // Check if adding these files would exceed the max count
       if (localDocuments.length + newFiles.length > MAX_DOCUMENTS_COUNT) {
         toast.error("Maximum files reached");
         return;
       }
-      
+
       // Validate each file individually
       const validFiles: File[] = [];
-      
+
       for (const file of newFiles) {
         if (validateDocument(file, [...localDocuments, ...validFiles])) {
           validFiles.push(file);
         }
       }
-      
+
       if (validFiles.length > 0) {
         const updatedDocs = [...localDocuments, ...validFiles];
         setLocalDocuments(updatedDocs);
@@ -389,7 +389,7 @@ export default function Finalize({
   // Helper function for determining upload area styling
   const getUploadAreaClassName = (type: "cover" | "docs") => {
     const baseClass = "border-2 border-dashed rounded-lg relative flex flex-col items-center justify-center p-6 transition-colors";
-    
+
     if (dragActive === type) {
       return `${baseClass} border-primary bg-primary/5`;
     } else if (hoverUpload === type) {
@@ -402,22 +402,22 @@ export default function Finalize({
   // Check content for profanity
   const checkContentForProfanity = useCallback(async () => {
     setIsProfanityChecking(true);
-    
+
     try {
       const contentToCheck = {
         title: state.basicInfo.title || '',
         location: state.basicInfo.location || '',
         description: state.basicInfo.description || ''
       };
-      
+
       const result = await checkProfanity(contentToCheck) as ProfanityResult;
-      
+
       setProfanityResult({
         hasProfanity: result.hasProfanity,
         checkedFields: Object.keys(contentToCheck),
         details: result.fieldResults
       });
-      
+
       // Notify parent of profanity status
       onProfanityChange(result.hasProfanity);
     } catch (error) {
@@ -441,21 +441,21 @@ export default function Finalize({
 
   // Helper to get a human-readable field name
   const getFieldDisplayName = (fieldName: string): string => {
-    switch(fieldName) {
+    switch (fieldName) {
       case 'title': return 'Project Title';
       case 'location': return 'Location';
       case 'description': return 'Description';
       default: return fieldName.charAt(0).toUpperCase() + fieldName.slice(1);
     }
   };
-  
+
   // Function to render the confidence level with appropriate color
   const renderConfidenceLevel = (score?: number) => {
     if (!score && score !== 0) return null;
-    
+
     let colorClass = 'text-green-500';
     let label = 'Low';
-    
+
     if (score >= 0.8) {
       colorClass = 'text-destructive font-medium';
       label = 'High';
@@ -463,7 +463,7 @@ export default function Finalize({
       colorClass = 'text-amber-500 font-medium';
       label = 'Medium';
     }
-    
+
     return (
       <span className={colorClass}>
         {label} ({(score * 100).toFixed(1)}%)
@@ -505,7 +505,7 @@ export default function Finalize({
     if (isProfanityChecking) {
       return (
         <>
-          <AlertTriangle className="flex-shrink-0 h-8 w-8 text-muted-foreground animate-pulse mt-0.5" />
+          <AlertTriangle className="shrink-0 h-8 w-8 text-muted-foreground animate-pulse mt-0.5" />
           <div>
             <h4 className="font-semibold">Checking content...</h4>
             <p className="text-sm text-muted-foreground">
@@ -514,33 +514,33 @@ export default function Finalize({
           </div>
         </>
       );
-    } 
-    
+    }
+
     if (profanityResult?.hasProfanity) {
       return (
         <>
-          <AlertTriangle className="flex-shrink-0 h-8 w-8 text-destructive mt-0.5" />
+          <AlertTriangle className="shrink-0 h-8 w-8 text-destructive mt-0.5" />
           <div>
             <h4 className="font-semibold">Content warning</h4>
             <p className="text-sm text-muted-foreground">
-              Our system has detected potentially inappropriate content in your project. 
+              Our system has detected potentially inappropriate content in your project.
               Please review and revise your {profanityResult.checkedFields.join(', ')} before submitting.
             </p>
             <div className="flex gap-2 mt-2">
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={checkContentForProfanity}
               >
                 Check Again
               </Button>
-              
+
               <Dialog open={isProfanityDialogOpen} onOpenChange={setIsProfanityDialogOpen}>
-                <DialogTrigger asChild>
+                <DialogTrigger render={
                   <Button size="sm" variant="secondary">
                     More Details
                   </Button>
-                </DialogTrigger>
+                } />
                 <DialogContent className="sm:max-w-md">
                   <DialogHeader>
                     <DialogTitle>Content Warning Details</DialogTitle>
@@ -548,12 +548,12 @@ export default function Finalize({
                       Our system identified inappropriate content in the following sections:
                     </DialogDescription>
                   </DialogHeader>
-                  
+
                   <div className="space-y-4 my-2 max-h-[60vh] overflow-y-auto">
                     {profanityResult.details && Object.entries(profanityResult.details).map(([fieldName, result]) => {
                       // Skip fields that don't have profanity
                       if (!result.isProfanity) return null;
-                      
+
                       return (
                         <div key={fieldName} className="border rounded-md p-3">
                           <div className="flex items-center justify-between mb-2">
@@ -562,13 +562,13 @@ export default function Finalize({
                               Confidence: {renderConfidenceLevel(result.score)}
                             </div>
                           </div>
-                          
+
                           {renderFlaggedContent(result)}
                         </div>
                       );
                     })}
                   </div>
-                  
+
                   <DialogFooter>
                     <Button onClick={() => setIsProfanityDialogOpen(false)}>Close</Button>
                   </DialogFooter>
@@ -579,10 +579,10 @@ export default function Finalize({
         </>
       );
     }
-    
+
     return (
       <>
-        <CheckCircle2 className="flex-shrink-0 h-8 w-8 text-primary mt-0.5" />
+        <CheckCircle2 className="shrink-0 h-8 w-8 text-primary mt-0.5" />
         <div>
           <h4 className="font-semibold">Ready to create your project</h4>
           <p className="text-sm text-muted-foreground">
@@ -609,7 +609,7 @@ export default function Finalize({
           <div className="space-y-2">
             <h4 className="font-medium">Cover Image</h4>
             <p className="text-xs text-muted-foreground">Upload a cover image for your project (JPEG, JPG, PNG, WebP, max 5MB)</p>
-            <div 
+            <div
               className={getUploadAreaClassName("cover")}
               onDragOver={(e) => handleDragOver(e, "cover")}
               onDragLeave={handleDragLeave}
@@ -619,7 +619,7 @@ export default function Finalize({
             >
               {coverImagePreview ? (
                 <div className="w-full max-w-md mx-auto">
-                  <AspectRatio ratio={4/3} className="bg-muted overflow-hidden rounded-md">
+                  <AspectRatio ratio={4 / 3} className="bg-muted overflow-hidden rounded-md">
                     <div className="relative w-full h-full">
                       <Image
                         src={coverImagePreview}
@@ -642,7 +642,7 @@ export default function Finalize({
               ) : (
                 <>
                   <div className="flex flex-col items-center justify-center space-y-2 py-6">
-                    <div className="rounded-full bg-background p-2 shadow-sm">
+                    <div className="rounded-full bg-background p-2 shadow-xs">
                       <ImageIcon className="h-6 w-6 text-muted-foreground" />
                     </div>
                     <div className="text-center space-y-1">
@@ -659,12 +659,12 @@ export default function Finalize({
                   />
                 </>
               )}
-              
+
             </div>
             <div className="flex items-center mt-2 text-xs text-muted-foreground">
-                <AlertTriangle className="h-3 w-3 mr-1 flex-shrink-0" />
-                <span>Cover images are optional, but if you have an image feel free to show it!</span>
-              </div>
+              <AlertTriangle className="h-3 w-3 mr-1 shrink-0" />
+              <span>Cover images are optional, but if you have an image feel free to show it!</span>
+            </div>
           </div>
 
           {/* Supporting Documents Upload */}
@@ -676,7 +676,7 @@ export default function Finalize({
               </div>
             </div>
             <p className="text-xs text-muted-foreground">Upload permission slips, waivers, instructions or images (PDF, Word, Text, Images, max 10MB total)</p>
-            <div 
+            <div
               className={`${getUploadAreaClassName("docs")} min-h-[180px] ${localDocuments.length >= MAX_DOCUMENTS_COUNT ? 'opacity-50 pointer-events-none' : ''}`}
               onDragOver={(e) => handleDragOver(e, "docs")}
               onDragLeave={handleDragLeave}
@@ -685,7 +685,7 @@ export default function Finalize({
               onMouseLeave={() => setHoverUpload(null)}
             >
               <div className="flex flex-col items-center justify-center space-y-2 my-6">
-                <div className="rounded-full bg-background p-2 shadow-sm">
+                <div className="rounded-full bg-background p-2 shadow-xs">
                   <Upload className="h-6 w-6 text-muted-foreground" />
                 </div>
                 <div className="text-center space-y-1">
@@ -704,14 +704,14 @@ export default function Finalize({
                 )}
               </div>
             </div>
-            
+
             {localDocuments.length > 0 && (
               <div className="w-full space-y-2 mt-4">
                 <p className="text-sm font-medium">Uploaded Documents</p>
                 <div className="space-y-2">
                   {localDocuments.map((doc, index) => (
-                    <div 
-                      key={index} 
+                    <div
+                      key={index}
                       className={`flex items-center justify-between p-3 rounded-md ${hoverIndex === index ? 'bg-muted/80' : 'bg-muted/40'} transition-colors`}
                       onMouseEnter={() => setHoverIndex(index)}
                       onMouseLeave={() => setHoverIndex(null)}
@@ -737,16 +737,16 @@ export default function Finalize({
                 </div>
               </div>
             )}
-            
+
             {!localDocuments.length && (
               <div className="flex items-center mt-2 text-xs text-muted-foreground">
-                <AlertTriangle className="h-3 w-3 mr-1 flex-shrink-0" />
+                <AlertTriangle className="h-3 w-3 mr-1 shrink-0" />
                 <span>Documents are optional but recommended for projects requiring additional information</span>
               </div>
             )}
           </div>
         </div>
-        
+
         <Separator />
 
         <div>
@@ -925,10 +925,10 @@ export default function Finalize({
         </div>
 
         {/* AI Moderation Alert (using Shadcn Alert) */}
-        <Alert variant="warning">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Content Moderation Notice</AlertTitle>
-          <AlertDescription className="text-xs">
+        <Alert variant="default" className="border-warning bg-warning/10">
+          <AlertTriangle className="h-4 w-4 text-warning dark:text-warning" />
+          <AlertTitle className="text-warning">Content Moderation Notice</AlertTitle>
+          <AlertDescription className="text-xs text-warning">
             All projects are reviewed by our AI moderation system. Projects identified as spam or potentially malicious may be automatically flagged or removed to maintain platform safety.
           </AlertDescription>
         </Alert>

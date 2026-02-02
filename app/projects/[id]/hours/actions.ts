@@ -1,8 +1,6 @@
 "use server";
 
-import { createClient } from "@/utils/supabase/server";
-import { cookies } from "next/headers";
-import { v4 as uuidv4 } from "uuid";
+import { createClient } from "@/lib/supabase/server";
 import { Project } from "@/types"; // Import Project type
 // Import React Email template and React
 import CertificatePublished from '@/emails/certificate-published';
@@ -26,7 +24,8 @@ const getPublishStateKey = (project: Project, sessionId: string): string => {
   if (project.event_type === "oneTime") {
     return "oneTime";
   } else if (project.event_type === "multiDay") {
-    const [_, dayIndex, __, slotIndex] = sessionId.split("-");
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const [_day, dayIndex, _slot, slotIndex] = sessionId.split("-");
     const dateKey = project.schedule.multiDay?.[parseInt(dayIndex)]?.date;
     return `${dateKey}-${slotIndex}`;
   } else if (project.event_type === "sameDayMultiArea") {
@@ -105,7 +104,6 @@ export async function publishVolunteerHours(
   sessionId: string,
   sessionData: SessionVolunteerData[]
 ): Promise<{ success: boolean; error?: string; certificatesCreated?: number; emailsSent?: number; emailErrors?: string[] }> {
-  const cookieStore = cookies();
   const supabase = await createClient();
 
   try {
@@ -166,10 +164,22 @@ export async function publishVolunteerHours(
     }));
 
     // 5. Insert certificates into the database and get the created certificates for email sending
-    const { data: insertedCerts, error: insertError } = await supabase
+    const { data: insertedCerts, error: insertError } = (await supabase
       .from("certificates")
       .insert(certificatesToInsert)
-      .select("id, volunteer_name, volunteer_email, project_title, event_start, event_end");
+      .select("id, volunteer_name, volunteer_email, project_title, event_start, event_end")) as {
+      data:
+        | Array<{
+            id: string;
+            volunteer_name: string | null;
+            volunteer_email: string | null;
+            project_title: string;
+            event_start?: string | null;
+            event_end?: string | null;
+          }>
+        | null;
+      error: { message: string } | null;
+    };
 
     if (insertError) {
         console.log(certificatesToInsert)
@@ -230,7 +240,13 @@ export async function publishVolunteerHours(
     }
 
     // 7. Send email notifications
-    const emailResult = await sendCertificatePublishedEmails(insertedCerts || [], project.project_timezone);
+    const emailCertificates = (insertedCerts || []).map((cert) => ({
+      ...cert,
+      event_start: cert.event_start ?? undefined,
+      event_end: cert.event_end ?? undefined,
+    }));
+
+    const emailResult = await sendCertificatePublishedEmails(emailCertificates, project.project_timezone);
     
     console.log(`Successfully created ${certificatesToInsert.length} certificates for project ${projectId}, session ${sessionId}`);
     console.log(`Email sending completed: ${emailResult.emailsSent} sent, ${emailResult.errors.length} errors`);
@@ -242,8 +258,9 @@ export async function publishVolunteerHours(
       emailErrors: emailResult.errors
     };
 
-  } catch (error: any) {
+  } catch (error) {
     console.error("Unexpected error in publishVolunteerHours:", error);
-    return { success: false, error: error.message || "An unexpected server error occurred." };
+    const message = error instanceof Error ? error.message : "An unexpected server error occurred.";
+    return { success: false, error: message };
   }
 }

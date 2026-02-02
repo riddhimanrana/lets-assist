@@ -2,18 +2,17 @@
 
 import React from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { 
-  Calendar, 
-  Clock, 
-  Award, 
+import {
+  Calendar,
+  Clock,
+  Award,
   TicketCheck,
   FileCheck,
   AlertTriangle,
-  ArrowRight,
-  ExternalLink,
   CircleCheck,
   UserCheck
 } from "lucide-react";
@@ -46,14 +45,6 @@ interface AllHoursSectionProps {
   certificates: Certificate[];
 }
 
-function formatTime12Hour(time24: string): string {
-  const [hours, minutes] = time24.split(':');
-  const hour = parseInt(hours);
-  const ampm = hour >= 12 ? 'PM' : 'AM';
-  const hour12 = hour % 12 || 12;
-  return `${hour12}:${minutes} ${ampm}`;
-}
-
 // Client-side utility functions
 function calculateDecimalHours(startTimeISO: string, endTimeISO: string): number {
   const start = new Date(startTimeISO);
@@ -65,7 +56,7 @@ function calculateDecimalHours(startTimeISO: string, endTimeISO: string): number
 function formatTotalDuration(totalHours: number): string {
   const hours = Math.floor(totalHours);
   const minutes = Math.round((totalHours - hours) * 60);
-  
+
   if (hours === 0 && minutes === 0) return "0m";
   if (hours === 0) return `${minutes}m`;
   if (minutes === 0) return `${hours}h`;
@@ -73,11 +64,11 @@ function formatTotalDuration(totalHours: number): string {
 }
 
 export function AllHoursSection({ certificates }: AllHoursSectionProps) {
-  
+
   // Separate platform and self-reported certificates (default to platform for backward compatibility)
   const verifiedCertificates = certificates.filter(cert => (cert.type || "platform") === "platform");
   const selfReportedCertificates = certificates.filter(cert => cert.type === "self-reported");
-  
+
   const totalVerified = verifiedCertificates.length;
   const totalSelfReported = selfReportedCertificates.length;
 
@@ -90,14 +81,14 @@ export function AllHoursSection({ certificates }: AllHoursSectionProps) {
         <div className="flex-1 space-y-1 min-w-0">
           <div className="flex items-center gap-2">
             {isSelfReported ? (
-              <Badge variant="secondary" className="text-xs bg-chart-4/10 text-chart-4 dark:bg-chart-4/10 dark:text-chart-4">
+              <Badge variant="secondary" className="text-xs bg-warning/10 text-warning dark:bg-warning/10 dark:text-warning">
                 Self-Reported
               </Badge>
             ) : (
               <Badge variant="default" className="text-xs">Platform</Badge>
             )}
-                        {!isSelfReported && cert.is_certified && (
-              <Badge variant="default" className="text-xs bg-emerald-600 hover:bg-emerald-700">
+            {!isSelfReported && cert.is_certified && (
+              <Badge variant="default" className="text-xs bg-chart-2">
                 <Award className="h-3 w-3 mr-1" /> Official Org
               </Badge>
             )}
@@ -109,7 +100,7 @@ export function AllHoursSection({ certificates }: AllHoursSectionProps) {
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground pt-1">
             <div className="flex items-center gap-1.5">
               <span className="flex items-center gap-1">
-                <Calendar className="h-3 w-3" /> 
+                <Calendar className="h-3 w-3" />
                 {format(parseISO(cert.event_start), "MMM d, yyyy")}
               </span>
               <TimezoneBadge timezone={cert.projects?.project_timezone || 'America/Los_Angeles'} />
@@ -119,14 +110,12 @@ export function AllHoursSection({ certificates }: AllHoursSectionProps) {
             )}
           </div>
         </div>
-        <div className="flex-shrink-0 w-full sm:w-auto">
-          <Button size="sm" variant="outline" asChild className="w-full sm:w-auto">
-            <Link href={`/certificates/${cert.id}`} target="_blank" rel="noopener noreferrer">
-              <TicketCheck className="h-4 w-4 mr-2" />
-              <span className="hidden sm:inline">View Certificate</span>
-              <span className="sm:hidden">Certificate</span>
-            </Link>
-          </Button>
+        <div className="shrink-0 w-full sm:w-auto">
+          <Link href={`/certificates/${cert.id}`} target="_blank" rel="noopener noreferrer" className={cn(buttonVariants({ variant: "outline", size: "sm" }), "w-full sm:w-auto")}>
+            <TicketCheck className="h-4 w-4 mr-2" />
+            <span className="hidden sm:inline">View Certificate</span>
+            <span className="sm:hidden">Certificate</span>
+          </Link>
         </div>
       </div>
     );
@@ -138,7 +127,7 @@ export function AllHoursSection({ certificates }: AllHoursSectionProps) {
       <Card>
         <CardHeader>
           <div className="flex items-center gap-2">
-            <CircleCheck className="h-5 w-5 text-primary flex-shrink-0" />
+            <CircleCheck className="h-5 w-5 text-primary shrink-0" />
             <CardTitle>Let&apos;s Assist Platform Hours</CardTitle>
             <Badge variant="secondary">{totalVerified}</Badge>
           </div>
@@ -177,7 +166,7 @@ export function AllHoursSection({ certificates }: AllHoursSectionProps) {
       <Card>
         <CardHeader>
           <div className="flex items-center gap-2">
-            <UserCheck className="h-5 w-5 text-chart-4 dark:text-chart-4" />
+            <UserCheck className="h-5 w-5 text-warning dark:text-warning" />
             <CardTitle>Self-Reported Hours</CardTitle>
             <Badge variant="secondary">{totalSelfReported}</Badge>
           </div>

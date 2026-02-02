@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import MembersClient from "../MembersClient";
 import { getOrganizationMembers } from "../actions";
 

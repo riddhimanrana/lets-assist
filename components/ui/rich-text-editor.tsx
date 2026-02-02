@@ -1,16 +1,22 @@
-import { useEditor, EditorContent, BubbleMenu } from '@tiptap/react';
+import { useEditor, EditorContent } from '@tiptap/react';
+import { BubbleMenu } from '@tiptap/react/menus';
 import StarterKit from '@tiptap/starter-kit';
-import Underline from '@tiptap/extension-underline';
-import { BulletList } from '@tiptap/extension-bullet-list';
-import { ListItem } from '@tiptap/extension-list-item';
-import { OrderedList } from '@tiptap/extension-ordered-list';
-import { Link } from '@tiptap/extension-link';
+import { Placeholder, CharacterCount } from '@tiptap/extensions';
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Bold, Italic, Underline as UnderlineIcon, Link as LinkIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useState, useEffect } from 'react';
-import Placeholder from '@tiptap/extension-placeholder';
-import CharacterCount from '@tiptap/extension-character-count';
+import { useState, useEffect, useCallback } from 'react';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 interface RichTextEditorProps {
     content: string;
@@ -20,42 +26,57 @@ interface RichTextEditorProps {
     className?: string;
 }
 
-export function RichTextEditor({ 
-    content, 
-    onChange, 
+export function RichTextEditor({
+    content,
+    onChange,
     placeholder = "e.g., Join us for a day of fun and community service...",
     maxLength,
-    className 
+    className
 }: RichTextEditorProps) {
     // Removed manual character count state
     const [mounted, setMounted] = useState(false);
-    
+    const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+    const [linkUrl, setLinkUrl] = useState('');
+
+    // Function to sanitize HTML content - preserves internal spacing but trims trailing empty paragraphs
+    const sanitizeContent = (html: string): string => {
+        // Remove only trailing empty paragraphs (empty or containing only br/whitespace)
+        // This preserves intentional blank lines within the content
+        let sanitized = html;
+
+        // Pattern to match trailing empty paragraphs at the very end, written to avoid backtracking issues
+        const trailingEmptyPattern = /(?:<p>(?:\s*<br\s*\/?>\s*|\s*)<\/p>\s*)+$/gi;
+        sanitized = sanitized.replace(trailingEmptyPattern, '');
+
+        return sanitized;
+    };
+
     const extensions = [
-        StarterKit,
-        BulletList.configure({
-            HTMLAttributes: {
-                class: 'list-disc list-outside ml-4',
+        StarterKit.configure({
+            bulletList: {
+                HTMLAttributes: {
+                    class: 'list-disc list-outside ml-4',
+                },
+            },
+            orderedList: {
+                HTMLAttributes: {
+                    class: 'list-decimal list-outside ml-4',
+                },
+            },
+            listItem: {
+                HTMLAttributes: {
+                    class: 'my-1',
+                },
+            },
+            link: {
+                openOnClick: true,
+                HTMLAttributes: {
+                    class: 'text-primary underline hover:text-primary/80 hover:cursor-pointer',
+                    rel: 'noopener noreferrer',
+                    target: '_blank',
+                },
             },
         }),
-        OrderedList.configure({
-            HTMLAttributes: {
-                class: 'list-decimal list-outside ml-4',
-            },
-        }),
-        ListItem.configure({
-            HTMLAttributes: {
-                class: 'my-1',
-            },
-        }),
-        Link.configure({
-            openOnClick: true,
-            HTMLAttributes: {
-                class: 'text-primary underline hover:text-primary/80 hover:cursor-pointer',
-                rel: 'noopener noreferrer',
-                target: '_blank',
-            },
-        }),
-        Underline,
         Placeholder.configure({
             placeholder,
             showOnlyWhenEditable: true,
@@ -64,43 +85,62 @@ export function RichTextEditor({
         // Add CharacterCount extension if maxLength is provided
         ...(maxLength ? [CharacterCount.configure({ limit: maxLength })] : [])
     ];
-    
+
     const editor = useEditor({
         extensions,
         content: content,
         onUpdate: ({ editor }) => {
             const html = editor.getHTML();
-            // Removed manual character count update
-            onChange(html);
+            // Sanitize to remove trailing empty paragraphs while preserving internal spacing
+            const sanitizedHtml = sanitizeContent(html);
+            onChange(sanitizedHtml);
         },
         immediatelyRender: false,
         editorProps: {
             attributes: {
                 class: cn(
-                    "min-h-[150px] max-h-[200px] overflow-y-auto w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 prose prose-sm dark:prose-invert max-w-none",
+                    "min-h-[150px] max-h-[200px] overflow-y-auto w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 prose prose-sm dark:prose-invert max-w-none [&_p]:my-0.5 [&_ul]:my-0.5 [&_ol]:my-0.5 [&_li]:my-0 [&_li_p]:my-0 [&_p]:min-h-[1.5em] text-foreground prose-headings:text-foreground prose-p:text-foreground prose-strong:text-foreground prose-li:text-foreground",
                     className
                 ),
+            },
+            handleKeyDown: (view, event) => {
+                // Handle Cmd+K / Ctrl+K for link
+                if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
+                    event.preventDefault();
+                    openLinkDialog();
+                    return true;
+                }
+                return false;
             }
         }
     });
 
-    const setLink = () => {
+    const openLinkDialog = useCallback(() => {
         if (!editor) return;
-        
-        const previousUrl = editor.getAttributes('link').href;
-        const url = window.prompt('URL', previousUrl);
+        const previousUrl = editor.getAttributes('link').href || '';
+        setLinkUrl(previousUrl);
+        setLinkDialogOpen(true);
+    }, [editor]);
 
-        if (url === null) {
-            return;
-        }
+    const handleLinkSubmit = useCallback(() => {
+        if (!editor) return;
 
-        if (url === '') {
+        if (linkUrl === '') {
             editor.chain().focus().unsetLink().run();
-            return;
+        } else {
+            editor.chain().focus().setLink({ href: linkUrl }).run();
         }
 
-        editor.chain().focus().setLink({ href: url }).run();
-    };
+        setLinkDialogOpen(false);
+        setLinkUrl('');
+    }, [editor, linkUrl]);
+
+    const handleLinkRemove = useCallback(() => {
+        if (!editor) return;
+        editor.chain().focus().unsetLink().run();
+        setLinkDialogOpen(false);
+        setLinkUrl('');
+    }, [editor]);
 
     useEffect(() => {
         setMounted(true);
@@ -116,7 +156,7 @@ export function RichTextEditor({
         if (!max) return "text-muted-foreground";
         const percentage = (current / max) * 100;
         if (percentage >= 90) return "text-destructive";
-        if (percentage >= 75) return "text-chart-6";
+        if (percentage >= 75) return "text-warning";
         return "text-muted-foreground";
     };
 
@@ -133,14 +173,11 @@ export function RichTextEditor({
     return (
         <div className="space-y-2">
             {editor && (
-                <BubbleMenu 
-                    editor={editor} 
-                    tippyOptions={{ 
-                        duration: 200,
-                    }}
+                <BubbleMenu
+                    editor={editor}
                     className="flex overflow-hidden rounded-md border bg-background p-1 shadow-md"
                 >
-                    <ToggleGroup type="multiple" className="flex">
+                    <ToggleGroup className="flex">
                         <ToggleGroupItem
                             value="bold"
                             size="sm"
@@ -178,7 +215,7 @@ export function RichTextEditor({
                             value="link"
                             size="sm"
                             aria-label="Add link"
-                            onClick={setLink}
+                            onClick={openLinkDialog}
                             data-state={editor.isActive('link') ? 'on' : 'off'}
                             className="px-1"
                         >
@@ -194,16 +231,64 @@ export function RichTextEditor({
 
             {maxLength && (
                 <div className="flex justify-end">
-                    <span 
+                    <span
                         className={cn(
                             "text-xs transition-colors",
-                            getCounterColor(characterCount, maxLength)
+                            getCounterColor(characterCount || 0, maxLength)
                         )}
                     >
                         {characterCount}/{maxLength}
                     </span>
                 </div>
             )}
+
+            {/* Link Dialog */}
+            <Dialog open={linkDialogOpen} onOpenChange={setLinkDialogOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Insert Link</DialogTitle>
+                        <DialogDescription>
+                            Enter the URL for the link. Leave empty to remove the link.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                            <Label htmlFor="link-url">URL</Label>
+                            <Input
+                                id="link-url"
+                                type="url"
+                                placeholder="https://example.com"
+                                value={linkUrl}
+                                onChange={(e) => setLinkUrl(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        e.preventDefault();
+                                        handleLinkSubmit();
+                                    }
+                                }}
+                                autoFocus
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter className="gap-2 sm:gap-0">
+                        {editor?.isActive('link') && (
+                            <Button
+                                type="button"
+                                variant="destructive"
+                                onClick={handleLinkRemove}
+                            >
+                                Remove Link
+                            </Button>
+                        )}
+                        <Button type="button" variant="outline" onClick={() => setLinkDialogOpen(false)}>
+                            Cancel
+                        </Button>
+                        <Button type="button" onClick={handleLinkSubmit}>
+                            {linkUrl ? 'Apply' : 'Remove'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

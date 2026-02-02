@@ -1,23 +1,23 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { CheckCircle2, Clock, Link as LinkIcon, User, Mail, Phone, Calendar, Info, Loader2, XCircle, AlertTriangle, Clock3, Award, Medal } from "lucide-react"; // Use Medal instead of Certificate
+import { CheckCircle2, Clock, Link as LinkIcon, User, Mail, Phone, Calendar, Info, Loader2, XCircle, AlertTriangle, Award, Medal, FileText } from "lucide-react"; // Use Medal instead of Certificate
 import Link from "next/link";
 import { format, addDays, parseISO, differenceInSeconds, differenceInHours, isAfter } from "date-fns";
-import { formatTimeTo12Hour } from "@/lib/utils";
+import { formatTimeTo12Hour, cn } from "@/lib/utils";
 import { TimezoneBadge } from "@/components/shared/TimezoneBadge";
 import { Project } from "@/types";
 import { useState, useMemo, useEffect } from "react"; // add useEffect
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/utils/supabase/client";
+import { createClient } from "@/lib/supabase/client";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
-import { cancelSignup } from "@/app/projects/[id]/actions";
+import { cancelSignup, getWaiverDownloadUrl } from "@/app/projects/[id]/actions";
 
 // Helper function to format schedule slot (same as before)
 const formatScheduleSlot = (project: Project, slotId: string) => {
@@ -155,7 +155,13 @@ export default function AnonymousSignupClient({
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const [isDeleted, setIsDeleted] = useState(false);
-  
+  const [waiverSignature, setWaiverSignature] = useState<{
+    signature_type: "draw" | "typed" | "upload";
+    signed_at?: string | null;
+    signature_text?: string | null;
+  } | null>(null);
+  const [waiverLoading, setWaiverLoading] = useState(false);
+
   // Parse dates
   const createdDate = new Date(created_at);
   const confirmedDate = confirmed_at ? new Date(confirmed_at) : null;
@@ -218,14 +224,14 @@ export default function AnonymousSignupClient({
       setCancelDialogOpen(false);
       return;
     }
-    
+
     try {
       setIsCancelling(true);
 
       // Use the server action which includes calendar cleanup
       // Pass the anonymousSignupId (id) to allow anonymous cancellation
       const result = await cancelSignup(project_signup_id, id);
-      
+
       if (result.error) {
         toast.error(result.error);
         setCancelDialogOpen(false);
@@ -234,16 +240,16 @@ export default function AnonymousSignupClient({
 
       // Also clean up the anonymous_signups record
       const supabase = createClient();
-      const { error: anonymousSignupError } = await supabase
+      const { error: anonymousSignupError } = (await supabase
         .from("anonymous_signups")
         .delete()
-        .eq("id", id);
-        
+        .eq("id", id)) as { error: { message?: string } | null };
+
       if (anonymousSignupError) {
         console.error("Error deleting anonymous signup:", anonymousSignupError);
         // Continue anyway - the main signup was cancelled
       }
-      
+
       // Close dialog and show success message
       setCancelDialogOpen(false);
       setIsDeleted(true);
@@ -262,14 +268,43 @@ export default function AnonymousSignupClient({
     }
   };
 
+  const handleViewWaiver = async () => {
+    try {
+      setWaiverLoading(true);
+      const result = await getWaiverDownloadUrl(project_signup_id, id);
+
+      if (result?.url) {
+        window.open(result.url, "_blank", "noopener,noreferrer");
+        return;
+      }
+
+      if (result?.signature?.signature_text) {
+        toast.success(`Typed signature on file: ${result.signature.signature_text}`);
+        return;
+      }
+
+      if (result?.error) {
+        toast.error(result.error);
+        return;
+      }
+
+      toast.error("Unable to load waiver at this time.");
+    } catch (error) {
+      console.error("Error loading waiver:", error);
+      toast.error("Unable to load waiver at this time.");
+    } finally {
+      setWaiverLoading(false);
+    }
+  };
+
   // Calculate if we're in the post-event window (first 48 hours after event ends)
   const isInPostEventWindow = useMemo(() => {
     if (!endTime || !sessionDate) return false;
-    
+
     try {
       const endDt = parseISO(`${sessionDate}T${endTime}`);
       if (isNaN(endDt.getTime())) return false;
-      
+
       const hoursSinceEnd = differenceInHours(new Date(), endDt);
       return isAfter(new Date(), endDt) && hoursSinceEnd >= 0 && hoursSinceEnd < 48;
     } catch (error) {
@@ -277,15 +312,15 @@ export default function AnonymousSignupClient({
       return false;
     }
   }, [sessionDate, endTime]);
-  
+
   // Check if project is over
   const isProjectOver = useMemo(() => {
     if (!sessionDate || !endTime) return false;
-    
+
     try {
       const endDt = parseISO(`${sessionDate}T${endTime}`);
       if (isNaN(endDt.getTime())) return false;
-      
+
       return isAfter(new Date(), endDt);
     } catch (error) {
       console.error("Error determining if project is over:", error);
@@ -297,28 +332,58 @@ export default function AnonymousSignupClient({
   const areHoursPublished = useMemo(() => {
     return project.published && project.published[schedule_id] === true;
   }, [project.published, schedule_id]);
-  
+
   // --- Check for corresponding certificate based on project_signup_id ---
-  const [certMap, setCertMap] = useState<Record<string,string>>({});
+  const [certMap, setCertMap] = useState<Record<string, string>>({});
   useEffect(() => {
     const supabase = createClient();
-    supabase
-      .from("certificates")
-      .select("id, signup_id")
-      .eq("signup_id", project_signup_id)
-      .then(({ data, error }) => {
-        if (error) console.error("Error fetching certificates:", error);
-        else {
-          const map: Record<string,string> = {};
-          data?.forEach((cert) => {
-            map[cert.signup_id] = cert.id;
-          });
-          setCertMap(map);
-        }
+    const loadCertificates = async () => {
+      const { data, error } = (await supabase
+        .from("certificates")
+        .select("id, signup_id")
+        .eq("signup_id", project_signup_id)) as {
+          data: { id: string; signup_id: string }[] | null;
+          error: { message?: string } | null;
+        };
+
+      if (error) {
+        console.error("Error fetching certificates:", error);
+        return;
+      }
+
+      const map: Record<string, string> = {};
+      data?.forEach((cert) => {
+        map[cert.signup_id] = cert.id;
       });
+      setCertMap(map);
+    };
+
+    void loadCertificates();
   }, [project_signup_id]);
   const certificateId = certMap[project_signup_id] ?? null;
   // --- END ADDED ---
+
+  useEffect(() => {
+    const supabase = createClient();
+    const loadWaiverSignature = async () => {
+      const { data, error } = (await supabase
+        .from("waiver_signatures")
+        .select("signature_type, signed_at, signature_text")
+        .eq("signup_id", project_signup_id)
+        .maybeSingle()) as {
+          data: typeof waiverSignature | null;
+          error: { message?: string } | null;
+        };
+
+      if (error) {
+        console.error("Error fetching waiver signature:", error);
+        return;
+      }
+      setWaiverSignature(data);
+    };
+
+    void loadWaiverSignature();
+  }, [project_signup_id]);
 
   // Determine if this is a "missed event" situation (approved but didn't attend)
   // --- MODIFIED: Only count as missed if hours are NOT published ---
@@ -340,9 +405,12 @@ export default function AnonymousSignupClient({
               <p className="text-sm text-muted-foreground mb-4">
                 Redirecting you to the projects page...
               </p>
-              <Button asChild>
-                <Link href="/projects">Browse Projects</Link>
-              </Button>
+              <Link
+                href="/projects"
+                className={cn(buttonVariants())}
+              >
+                Browse Projects
+              </Link>
             </div>
           </CardContent>
         </Card>
@@ -356,7 +424,7 @@ export default function AnonymousSignupClient({
         {isProjectCancelled && (
           <div className="bg-destructive/10 border-b border-destructive/30 p-3">
             <div className="flex items-center gap-2 text-destructive">
-              <AlertTriangle className="h-5 w-5 flex-shrink-0" />
+              <AlertTriangle className="h-5 w-5 shrink-0" />
               <div>
                 <p className="font-semibold">Project Has Been Cancelled</p>
                 <p className="text-sm">This project is no longer active. Your signup information is retained for your records.</p>
@@ -364,9 +432,9 @@ export default function AnonymousSignupClient({
             </div>
           </div>
         )}
-        
+
         <CardHeader className={isProjectCancelled ? "pt-4" : ""}>
-            <CardTitle className="leading-tight">Volunteer Signup Details</CardTitle>
+          <CardTitle className="leading-tight">Volunteer Signup Details</CardTitle>
           <CardDescription>
             Details for your anonymous signup for the project:{" "}
             <Link href={`/projects/${project.id}`} className="text-primary hover:underline font-medium">
@@ -374,18 +442,18 @@ export default function AnonymousSignupClient({
             </Link>
           </CardDescription>
         </CardHeader>
-        
+
         <CardContent className="space-y-6">
           <div className="flex items-center gap-2 mb-2">
             {/* Convert alerts to cards */}
 
             {/* --- ADDED: Hours Published Card (Highest Priority Post-Event) --- */}
             {areHoursPublished && (
-              <Card className="w-full border-chart-5/30 bg-chart-5/5 overflow-hidden">
+              <Card className="w-full border-success/30 bg-success/5 overflow-hidden">
                 <CardHeader className="pb-2">
                   <div className="flex items-center gap-3">
-                    <div className="bg-chart-5/10 p-2 rounded-full">
-                      <Award className="h-5 w-5 text-chart-5" />
+                    <div className="bg-success/10 p-2 rounded-full">
+                      <Award className="h-5 w-5 text-success" />
                     </div>
                     <div>
                       <CardTitle className="text-lg">Volunteer Hours Published!</CardTitle>
@@ -414,10 +482,10 @@ export default function AnonymousSignupClient({
                   </div>
 
                   {/* Info Section */}
-                  <div className="relative pl-6 border-chart-5/30 mt-3 space-y-3">
+                  <div className="relative pl-6 border-success/30 mt-3 space-y-3">
                     <div className="relative">
-                      <div className="absolute -left-[27px] top-0 w-5 h-5 rounded-full bg-chart-5/20 flex items-center justify-center">
-                        <div className="w-2 h-2 rounded-full bg-chart-5"></div>
+                      <div className="absolute -left-[27px] top-0 w-5 h-5 rounded-full bg-success/20 flex items-center justify-center">
+                        <div className="w-2 h-2 rounded-full bg-success"></div>
                       </div>
                       <p className="text-sm font-medium">Hours Finalized</p>
                       <p className="text-xs text-muted-foreground">
@@ -429,12 +497,13 @@ export default function AnonymousSignupClient({
                   {/* Certificate Link */}
                   {certificateId && (
                     <div className="mt-3 flex justify-end">
-                      <Button size="sm" variant="outline" asChild>
-                        <Link href={`/certificates/${certificateId}`}>
-                          <Medal className="h-4 w-4 mr-1.5" />
-                          View Certificate
-                        </Link>
-                      </Button>
+                      <Link
+                        href={`/certificates/${certificateId}`}
+                        className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+                      >
+                        <Medal className="h-4 w-4 mr-1.5" />
+                        View Certificate
+                      </Link>
                     </div>
                   )}
 
@@ -455,11 +524,11 @@ export default function AnonymousSignupClient({
 
             {/* --- MODIFIED: Only show processing card if hours are NOT published --- */}
             {status === 'attended' && isInPostEventWindow && !areHoursPublished && (
-              <Card className="w-full border-chart-4/30 bg-chart-4/5 overflow-hidden">
+              <Card className="w-full border-warning/30 bg-warning/5 overflow-hidden">
                 <CardHeader className="pb-2">
                   <div className="flex items-center gap-3">
-                    <div className="bg-chart-4/10 p-2 rounded-full">
-                      <Clock className="h-5 w-5 text-chart-4" />
+                    <div className="bg-warning/10 p-2 rounded-full">
+                      <Clock className="h-5 w-5 text-warning" />
                     </div>
                     <div>
                       <CardTitle className="text-lg">Volunteer Hours Being Processed</CardTitle>
@@ -486,22 +555,22 @@ export default function AnonymousSignupClient({
                       </div>
                     )}
                   </div>
-                  
+
                   {/* Processing information with visual timeline */}
-                  <div className="relative pl-6 border-chart-4/30 mt-3 space-y-3">
+                  <div className="relative pl-6 border-warning/30 mt-3 space-y-3">
                     <div className="relative">
-                      <div className="absolute -left-[27px] top-0 w-5 h-5 rounded-full bg-chart-4/20 flex items-center justify-center">
-                        <div className="w-2 h-2 rounded-full bg-chart-4"></div>
+                      <div className="absolute -left-[27px] top-0 w-5 h-5 rounded-full bg-warning/20 flex items-center justify-center">
+                        <div className="w-2 h-2 rounded-full bg-warning"></div>
                       </div>
                       <p className="text-sm font-medium">Processing Period</p>
                       <p className="text-xs text-muted-foreground">
                         Hours are typically finalized within 48 hours after the event.
                       </p>
                     </div>
-                    
+
                     <div className="relative">
-                      <div className="absolute -left-[27px] top-0 w-5 h-5 rounded-full bg-chart-4/20 flex items-center justify-center">
-                        <div className="w-2 h-2 rounded-full bg-chart-4"></div>
+                      <div className="absolute -left-[27px] top-0 w-5 h-5 rounded-full bg-warning/20 flex items-center justify-center">
+                        <div className="w-2 h-2 rounded-full bg-warning"></div>
                       </div>
                       <p className="text-sm font-medium">Need Adjustments?</p>
                       <p className="text-xs text-muted-foreground">
@@ -509,24 +578,24 @@ export default function AnonymousSignupClient({
                       </p>
                     </div>
                   </div>
-                  
+
                   {/* Approx time remaining */}
-                  <div className="bg-chart-4/10 rounded-md p-3 flex items-center justify-between mt-2">
-                    <span className="text-xs font-medium text-chart-4">Processing time remaining:</span>
-                    <span className="text-xs font-medium text-chart-4">
+                  <div className="bg-warning/10 rounded-md p-3 flex items-center justify-between mt-2">
+                    <span className="text-xs font-medium text-warning">Processing time remaining:</span>
+                    <span className="text-xs font-medium text-warning">
                       {48 - differenceInHours(new Date(), parseISO(`${sessionDate}T${endTime}`))} hours
                     </span>
                   </div>
                 </CardContent>
               </Card>
             )}
-            
+
             {isMissedEvent && (
-              <Card className="w-full border-chart-7/30 bg-chart-7/5 overflow-hidden">
+              <Card className="w-full border-destructive/30 bg-destructive/5 overflow-hidden">
                 <CardHeader className="pb-2">
                   <div className="flex items-center gap-3">
-                    <div className="bg-chart-7/10 p-2 rounded-full">
-                      <AlertTriangle className="h-5 w-5 text-chart-7" />
+                    <div className="bg-destructive/10 p-2 rounded-full">
+                      <AlertTriangle className="h-5 w-5 text-destructive" />
                     </div>
                     <div>
                       <CardTitle className="text-lg">Event Not Attended</CardTitle>
@@ -547,12 +616,12 @@ export default function AnonymousSignupClient({
                       </div>
                     </div>
                   </div>
-                  
+
                   {/* Timeline style info */}
-                  <div className="relative pl-6 border-chart-7/30 mt-3 space-y-3">
+                  <div className="relative pl-6 border-destructive/30 mt-3 space-y-3">
                     <div className="relative">
-                      <div className="absolute -left-[27px] top-0 w-5 h-5 rounded-full bg-chart-7/20 flex items-center justify-center">
-                        <div className="w-2 h-2 rounded-full bg-chart-7"></div>
+                      <div className="absolute -left-[27px] top-0 w-5 h-5 rounded-full bg-destructive/20 flex items-center justify-center">
+                        <div className="w-2 h-2 rounded-full bg-destructive"></div>
                       </div>
                       <p className="text-sm font-medium">Think This Is a Mistake?</p>
                       <p className="text-xs text-muted-foreground">
@@ -565,70 +634,100 @@ export default function AnonymousSignupClient({
             )}
 
             {!isConfirmed && signupStatus === 'pending' && (
-              <Card className="w-full border-amber-500/30 bg-amber-500/5 overflow-hidden">
-                <CardHeader className="pb-2">
-                  <div className="flex items-center gap-3">
-                    <div className="bg-amber-500/10 p-2 rounded-full">
-                      <Clock className="h-5 w-5 text-amber-500" />
+              <Card className="w-full border-warning/30 bg-warning/5 overflow-hidden">
+                <CardContent className="p-6">
+                  <div className="flex items-start gap-4">
+                    <div className="bg-warning/10 p-2 rounded-full">
+                      <Clock className="h-5 w-5 text-warning" />
                     </div>
                     <div>
-                      <CardTitle className="text-lg">Action Required</CardTitle>
-                      <CardDescription>Please confirm your email to finalize your signup.</CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4 pt-2">
-                  <div className="flex flex-col space-y-2 text-sm">
-                    <div className="flex justify-between items-center">
-                      <span className="font-medium text-muted-foreground">Email:</span>
-                      <span className="font-medium">{email}</span>
-                    </div>
-                  </div>
-                  
-                  <div className="relative pl-6 border-amber-500/30 mt-3 space-y-3">
-                    <div className="relative">
-                      <div className="absolute -left-[27px] top-0 w-5 h-5 rounded-full bg-amber-500/20 flex items-center justify-center">
-                        <div className="w-2 h-2 rounded-full bg-amber-500"></div>
-                      </div>
-                      <p className="text-sm font-medium">Next Steps</p>
-                      <p className="text-xs text-muted-foreground">
-                        Check your email for a confirmation link to verify your identity and secure your spot.
+                      <h3 className="font-semibold text-lg text-foreground">Registration Pending</h3>
+                      <p className="text-muted-foreground mt-1">
+                        Your registration has been received and is being processed.
                       </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-            
-            {isConfirmed && signupStatus === 'approved' && !isProjectOver && !areHoursPublished && (
-              <Card className="w-full border-primary/30 bg-primary/5 overflow-hidden">
-                <CardHeader className="pb-2">
-                  <div className="flex items-center gap-3">
-                    <div className="bg-primary/10 p-2 rounded-full">
-                      <CheckCircle2 className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-lg">Signup Confirmed!</CardTitle>
-                      <CardDescription>Your spot for this project is confirmed. Thank you for volunteering!</CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4 pt-2">
-                  <div className="flex flex-col space-y-2 text-sm">
-                    <div className="flex justify-between items-center gap-3 flex-wrap">
-                      <span className="font-medium text-muted-foreground">Event:</span>
-                      <div className="flex items-center gap-2">
-                        <span>{formatScheduleSlot(project, schedule_id)}</span>
-                        {project.project_timezone && (
-                          <TimezoneBadge timezone={project.project_timezone} />
-                        )}
+
+                      <div className="relative pl-6 border-l-2 border-warning/30 mt-6 space-y-6">
+                        <div className="relative">
+                          <div className="absolute -left-[31px] top-0 w-5 h-5 rounded-full bg-warning/20 flex items-center justify-center border-2 border-background">
+                            <div className="w-2 h-2 rounded-full bg-warning"></div>
+                          </div>
+                          <div>
+                            <span className="text-sm font-medium text-foreground">Request Submitted</span>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              We received your sign-up request. An organizer will review it shortly.
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="relative">
+                          <div className="absolute -left-[31px] top-0 w-5 h-5 rounded-full bg-warning/20 flex items-center justify-center border-2 border-background">
+                            <div className="w-2 h-2 rounded-full bg-warning"></div>
+                          </div>
+                          <div>
+                            <span className="text-sm font-medium text-foreground">Awaiting Approval</span>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              You will receive an email confirmation once approved.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="bg-warning/10 rounded-md p-3 flex items-center justify-between mt-6">
+                        <span className="text-xs font-medium text-warning">Processing time:</span>
+                        <span className="text-xs font-medium text-warning">
+                          ~24 hours
+                        </span>
                       </div>
                     </div>
                   </div>
                 </CardContent>
               </Card>
             )}
-            
+
+            {isConfirmed && signupStatus === 'approved' && !isProjectOver && !areHoursPublished && (
+              <Card className="w-full border-success/30 bg-success/5 overflow-hidden">
+                <CardContent className="p-6">
+                  <div className="flex items-start gap-4">
+                    <div className="bg-success/10 p-2 rounded-full">
+                      <Award className="h-5 w-5 text-success" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-lg text-foreground">You&apos;re Signed Up!</h3>
+                      <p className="text-muted-foreground mt-1">
+                        You have successfully registered for {project.title}.
+                      </p>
+
+                      <div className="relative pl-6 border-l-2 border-success/30 mt-6 space-y-6">
+                        <div className="relative">
+                          <div className="absolute -left-[31px] top-0 w-5 h-5 rounded-full bg-success/20 flex items-center justify-center border-2 border-background">
+                            <div className="w-2 h-2 rounded-full bg-success"></div>
+                          </div>
+                          <div>
+                            <span className="text-sm font-medium text-foreground">Confirmation Sent</span>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              A confirmation email with event details has been sent to your inbox.
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="relative">
+                          <div className="absolute -left-[31px] top-0 w-5 h-5 rounded-full bg-success/20 flex items-center justify-center border-2 border-background">
+                            <div className="w-2 h-2 rounded-full bg-success"></div>
+                          </div>
+                          <div>
+                            <span className="text-sm font-medium text-foreground">Ready to Volunteer</span>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              We look forward to seeing you at the event!
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {signupStatus === 'rejected' && (
               <Card className="w-full border-destructive/30 bg-destructive/5 overflow-hidden">
                 <CardHeader className="pb-2">
@@ -664,8 +763,8 @@ export default function AnonymousSignupClient({
             <div className="space-y-3 text-sm">
               <div className="flex gap-3">
                 <div className="flex flex-col items-center">
-                  <div className="w-6 h-6 rounded-full bg-chart-3 text-muted-foreground flex items-center justify-center">
-                    <Clock3 className="h-3.5 w-3.5 my-1 text-popover" />
+                  <div className="w-6 h-6 rounded-full bg-primary text-muted-foreground flex items-center justify-center">
+                    <span className="text-xs font-medium text-primary-foreground">1</span>
                   </div>
                   <div className="w-0.5 h-full bg-border mt-1"></div>
                 </div>
@@ -674,7 +773,7 @@ export default function AnonymousSignupClient({
                   <p className="text-muted-foreground text-xs">{format(createdDate, "MMMM d, yyyy 'at' h:mm a")}</p>
                 </div>
               </div>
-              
+
               <div className="flex gap-3">
                 <div className="flex flex-col items-center">
                   <div className={`w-6 h-6 rounded-full ${confirmedDate ? 'bg-primary text-muted-foreground' : 'bg-muted text-muted-foreground'} flex items-center justify-center`}>
@@ -691,7 +790,7 @@ export default function AnonymousSignupClient({
                   )}
                 </div>
               </div>
-              
+
               <div className="flex gap-3">
                 <div className="flex flex-col items-center">
                   <div className="w-6 h-6 rounded-full bg-muted text-muted-foreground flex items-center justify-center">
@@ -710,49 +809,49 @@ export default function AnonymousSignupClient({
               </div>
             </div>
           </div>
-          
-          
-            {status === 'attended' && check_in_time && !areHoursPublished && (
+
+
+          {status === 'attended' && check_in_time && !areHoursPublished && (
             <>
               <Separator />
               <div className="space-y-3 text-sm">
-              <h3 className="font-medium text-base mb-2">Session Progress</h3>
-              <p className="text-muted-foreground">
-                Checked in at: <span className="text-foreground font-medium">{checkInTimeFormatted}</span>
-              </p>
-              <Progress value={percent} className="h-3" aria-label="Session progress" />
-              <div>
-              <div className="flex justify-between items-center">
-                <p className="text-xs text-muted-foreground">{percent}% of session completed</p>
-                {/* Time remaining */}
-                {(() => {
-                  // Calculate time remaining
-                  let timeRemaining = "";
-                  if (sessionDate && endTime) {
-                    const now = new Date();
-                    const endDt = parseISO(`${sessionDate}T${endTime}`);
-                    let diff = Math.max(0, endDt.getTime() - now.getTime());
-                    const hours = Math.floor(diff / (1000 * 60 * 60));
-                    diff -= hours * 1000 * 60 * 60;
-                    const minutes = Math.floor(diff / (1000 * 60));
-                    if (endDt > now) {
-                      timeRemaining = `${hours > 0 ? `${hours}h ` : ""}${minutes}m remaining`;
-                    } else {
-                      timeRemaining = "Session ended";
-                    }
-                  }
-                  return (
-                    <p className="text-xs text-muted-foreground text-right min-w-[110px]">
-                      {timeRemaining}
-                    </p>
-                  );
-                })()}
-              </div>
-              </div>
+                <h3 className="font-medium text-base mb-2">Session Progress</h3>
+                <p className="text-muted-foreground">
+                  Checked in at: <span className="text-foreground font-medium">{checkInTimeFormatted}</span>
+                </p>
+                <Progress value={percent} className="h-3" aria-label="Session progress" />
+                <div>
+                  <div className="flex justify-between items-center">
+                    <p className="text-xs text-muted-foreground">{percent}% of session completed</p>
+                    {/* Time remaining */}
+                    {(() => {
+                      // Calculate time remaining
+                      let timeRemaining = "";
+                      if (sessionDate && endTime) {
+                        const now = new Date();
+                        const endDt = parseISO(`${sessionDate}T${endTime}`);
+                        let diff = Math.max(0, endDt.getTime() - now.getTime());
+                        const hours = Math.floor(diff / (1000 * 60 * 60));
+                        diff -= hours * 1000 * 60 * 60;
+                        const minutes = Math.floor(diff / (1000 * 60));
+                        if (endDt > now) {
+                          timeRemaining = `${hours > 0 ? `${hours}h ` : ""}${minutes}m remaining`;
+                        } else {
+                          timeRemaining = "Session ended";
+                        }
+                      }
+                      return (
+                        <p className="text-xs text-muted-foreground text-right min-w-[110px]">
+                          {timeRemaining}
+                        </p>
+                      );
+                    })()}
+                  </div>
+                </div>
               </div>
             </>
-            )}
-        <Separator />
+          )}
+          <Separator />
 
           <div className="space-y-3 text-sm">
             <h3 className="font-medium text-base mb-2">Your Information</h3>
@@ -768,11 +867,34 @@ export default function AnonymousSignupClient({
               </div>
             )}
           </div>
-          <Separator />
+          {project.waiver_required && (
+            <>
+              <Separator />
+              <div className="space-y-3 text-sm">
+                <h3 className="font-medium text-base mb-2">Waiver</h3>
+                {waiverSignature ? (
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <FileText className="h-4 w-4" />
+                      <span>
+                        Signed {waiverSignature.signed_at ? format(new Date(waiverSignature.signed_at), "MMMM d, yyyy") : ""}
+                      </span>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={handleViewWaiver} disabled={waiverLoading}>
+                      {waiverLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "View Waiver"}
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="text-xs text-muted-foreground">No waiver signature on file.</div>
+                )}
+              </div>
+              <Separator />
+            </>
+          )}
           <div className="space-y-3 text-sm">
             <h3 className="font-medium text-base mb-2">Project & Slot Details</h3>
-             <div className="flex items-center gap-2 text-muted-foreground">
-              <Calendar className="h-4 w-4 flex-shrink-0" />
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Calendar className="h-4 w-4 shrink-0" />
               <span>Slot:</span>
               <span className="text-foreground font-medium flex items-center gap-2">
                 {formatScheduleSlot(project, schedule_id)}
@@ -785,15 +907,15 @@ export default function AnonymousSignupClient({
               <Info className="h-4 w-4" /> Status:
               <Badge variant={
                 signupStatus === 'approved' ? 'default' :
-                signupStatus === 'attended' ? 'default' :
-                signupStatus === 'pending' ? 'secondary' :
-                'destructive'
+                  signupStatus === 'attended' ? 'default' :
+                    signupStatus === 'pending' ? 'secondary' :
+                      'destructive'
               } className="capitalize ml-1">
                 {signupStatus}
               </Badge>
             </div>
           </div>
-          
+
           {/* --- MODIFIED: Move Data Retention Notice into the Published Hours card --- */}
           {/* {autoDeletionDate && (
             <Alert className="bg-muted/50 border-muted"> ... </Alert>
@@ -802,11 +924,11 @@ export default function AnonymousSignupClient({
 
         <CardFooter className="flex flex-col border-t p-6 gap-4">
           <h3 className="font-medium text-base self-start">Manage Your Signup</h3>
-          
+
           <div className="grid gap-4 w-full sm:grid-cols-2">
             {(isConfirmed || signupStatus === 'pending') && signupStatus !== 'rejected' && !isProjectCancelled && (
-              <Button 
-                variant="destructive" 
+              <Button
+                variant="destructive"
                 onClick={() => setCancelDialogOpen(true)}
                 className="flex items-center gap-2"
               >
@@ -814,27 +936,25 @@ export default function AnonymousSignupClient({
                 Cancel My Signup
               </Button>
             )}
-            
-            <Button variant="outline" asChild>
-              <Link href={`/projects/${project.id}`} className="flex items-center gap-2">
-                <Info className="h-4 w-4" />
-                View Project Details
-              </Link>
-            </Button>
+
+            <Link href={`/projects/${project.id}`} className={cn(buttonVariants({ variant: "outline" }), "flex items-center gap-2")}>
+              <Info className="h-4 w-4" />
+              View Project Details
+            </Link>
           </div>
-          
+
           <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">
-                  Want to manage this signup with your Let&apos;s Assist account or create one? Linking your account allows you to easily track all your volunteer activities.
-                </p>
-                <Button disabled> {/* Disabled for now */}
-                  <LinkIcon className="mr-2 h-4 w-4" />
-                  Link to Let&apos;s Assist Account
-                </Button>
-                <p className="text-xs text-muted-foreground">
-                  (Account linking functionality coming soon!)
-                </p>
-              </div>
+            <p className="text-sm text-muted-foreground">
+              Want to manage this signup with your Let&apos;s Assist account or create one? Linking your account allows you to easily track all your volunteer activities.
+            </p>
+            <Button disabled> {/* Disabled for now */}
+              <LinkIcon className="mr-2 h-4 w-4" />
+              Link to Let&apos;s Assist Account
+            </Button>
+            <p className="text-xs text-muted-foreground">
+              (Account linking functionality coming soon!)
+            </p>
+          </div>
         </CardFooter>
       </Card>
 
@@ -857,16 +977,16 @@ export default function AnonymousSignupClient({
             </Alert>
           </div>
           <DialogFooter className="flex flex-col sm:flex-row gap-2 sm:justify-between">
-            <Button 
-              type="button" 
-              variant="outline" 
+            <Button
+              type="button"
+              variant="outline"
               onClick={() => setCancelDialogOpen(false)}
               disabled={isCancelling}
             >
               Keep My Signup
             </Button>
-            <Button 
-              variant="destructive" 
+            <Button
+              variant="destructive"
               onClick={handleCancelSignup}
               disabled={isCancelling}
               className="flex items-center gap-2"
@@ -879,7 +999,7 @@ export default function AnonymousSignupClient({
       </Dialog>
 
       {/* --- Start: Session Progress Section (Conditional) --- */}
-      
+
       {/* --- End: Session Progress Section --- */}
     </div>
   );

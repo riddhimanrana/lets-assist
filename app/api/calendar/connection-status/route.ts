@@ -3,11 +3,11 @@
  * GET /api/calendar/connection-status
  */
 
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { getCalendarConnection } from "@/services/calendar";
 
-export async function GET(request: Request) {
+export async function GET(_request: Request) {
   try {
     const supabase = await createClient();
 

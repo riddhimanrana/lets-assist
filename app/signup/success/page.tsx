@@ -72,7 +72,7 @@ export default async function SignupSuccessPage({
         <CardContent className="space-y-4">
           <div className="bg-muted p-4 rounded-lg space-y-2">
             <div className="flex items-start gap-3">
-              <Mail className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0" />
+              <Mail className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
               <div className="text-sm text-muted-foreground">
                 <p className="font-medium text-foreground mb-1">Next Steps:</p>
                 <ol className="list-decimal list-inside space-y-1">

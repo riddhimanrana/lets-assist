@@ -1,6 +1,7 @@
 "use server";
 
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { revalidatePath } from "next/cache";
 
 // Allowed image MIME types
@@ -92,9 +93,9 @@ export async function checkDomainAvailability(domain: string, excludeOrgId?: str
  */
 export async function updateOrganization(data: OrganizationUpdateData) {
   const supabase = await createClient();
-  
-  // Verify that user is authenticated
-  const { data: { user } } = await supabase.auth.getUser();
+
+  // Verify that user is authenticated using getClaims() for better performance
+  const { user } = await getAuthUser();
   if (!user) {
     return { error: "You must be logged in to update an organization" };
   }
@@ -119,7 +120,7 @@ export async function updateOrganization(data: OrganizationUpdateData) {
     .eq("id", data.id)
     .single();
 
-  if (orgError) {
+  if (orgError || !currentOrg) {
     console.error("Error fetching organization:", orgError);
     return { error: "Organization not found" };
   }
@@ -193,7 +194,7 @@ export async function updateOrganization(data: OrganizationUpdateData) {
         }
         
         // Upload new logo
-        const { data: uploadData, error: uploadError } = await supabase.storage
+        const { error: uploadError } = await supabase.storage
           .from('organization-logos')
           .upload(fileName, Buffer.from(base64Data, 'base64'), {
             contentType: mimeType,
@@ -233,9 +234,9 @@ export async function updateOrganization(data: OrganizationUpdateData) {
     revalidatePath('/organization');
     
     return { success: true };
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error updating organization:", error);
-    return { error: error.message || "Failed to update organization" };
+    return { error: error instanceof Error ? error.message : "Failed to update organization" };
   }
 }
 
@@ -244,9 +245,9 @@ export async function updateOrganization(data: OrganizationUpdateData) {
  */
 export async function deleteOrganization(organizationId: string) {
   const supabase = await createClient();
-  
-  // Verify that user is authenticated
-  const { data: { user } } = await supabase.auth.getUser();
+
+  // Verify that user is authenticated using getClaims() for better performance
+  const { user } = await getAuthUser();
   if (!user) {
     return { error: "You must be logged in to delete an organization" };
   }
@@ -300,9 +301,9 @@ export async function deleteOrganization(organizationId: string) {
     revalidatePath('/organization');
     
     return { success: true };
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error deleting organization:", error);
-    return { error: error.message || "Failed to delete organization" };
+    return { error: error instanceof Error ? error.message : "Failed to delete organization" };
   }
 }
 
@@ -312,9 +313,9 @@ export async function deleteOrganization(organizationId: string) {
  */
 export async function generateStaffLink(organizationId: string, expiresInDays: number = 30) {
   const supabase = await createClient();
-  
-  // Verify that user is authenticated
-  const { data: { user } } = await supabase.auth.getUser();
+
+  // Verify that user is authenticated using getClaims() for better performance
+  const { user } = await getAuthUser();
   if (!user) {
     return { error: "You must be logged in to generate staff links" };
   }
@@ -361,9 +362,9 @@ export async function generateStaffLink(organizationId: string, expiresInDays: n
       token,
       expiresAt: expiresAt.toISOString(),
     };
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error generating staff link:", error);
-    return { error: error.message || "Failed to generate staff link" };
+    return { error: error instanceof Error ? error.message : "Failed to generate staff link" };
   }
 }
 
@@ -372,9 +373,9 @@ export async function generateStaffLink(organizationId: string, expiresInDays: n
  */
 export async function revokeStaffLink(organizationId: string) {
   const supabase = await createClient();
-  
-  // Verify that user is authenticated
-  const { data: { user } } = await supabase.auth.getUser();
+
+  // Verify that user is authenticated using getClaims() for better performance
+  const { user } = await getAuthUser();
   if (!user) {
     return { error: "You must be logged in to revoke staff links" };
   }
@@ -411,9 +412,9 @@ export async function revokeStaffLink(organizationId: string) {
     revalidatePath(`/organization/${organizationId}/settings`);
 
     return { success: true };
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error revoking staff link:", error);
-    return { error: error.message || "Failed to revoke staff link" };
+    return { error: error instanceof Error ? error.message : "Failed to revoke staff link" };
   }
 }
 
@@ -422,9 +423,9 @@ export async function revokeStaffLink(organizationId: string) {
  */
 export async function getStaffLinkDetails(organizationId: string) {
   const supabase = await createClient();
-  
-  // Verify that user is authenticated
-  const { data: { user } } = await supabase.auth.getUser();
+
+  // Verify that user is authenticated using getClaims() for better performance
+  const { user } = await getAuthUser();
   if (!user) {
     return { error: "You must be logged in to view staff link details" };
   }
@@ -449,8 +450,8 @@ export async function getStaffLinkDetails(organizationId: string) {
       .eq("id", organizationId)
       .single();
 
-    if (error) {
-      throw error;
+    if (error || !org) {
+      throw error ?? new Error("Organization not found");
     }
 
     // Check if token is expired
@@ -465,8 +466,8 @@ export async function getStaffLinkDetails(organizationId: string) {
       expiresAt: org.staff_join_token_expires_at,
       isExpired,
     };
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error getting staff link details:", error);
-    return { error: error.message || "Failed to get staff link details" };
+    return { error: error instanceof Error ? error.message : "Failed to get staff link details" };
   }
 }

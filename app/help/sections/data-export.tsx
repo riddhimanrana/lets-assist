@@ -2,7 +2,8 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { FileSpreadsheet, Download, Calendar, Filter, BarChart3, TrendingUp } from "lucide-react";
 import Link from "next/link";
@@ -50,7 +51,7 @@ export function DataExportSection() {
         </CardContent>
       </Card>
 
-      <Accordion type="single" collapsible className="w-full space-y-4">
+      <Accordion className="w-full space-y-4">
         <AccordionItem value="personal-exports" className="border rounded-lg px-4">
           <AccordionTrigger className="hover:no-underline">
             <div className="flex items-center gap-2">
@@ -94,7 +95,7 @@ export function DataExportSection() {
               </div>
             </div>
 
-            <div className="bg-chart-3/20 p-4 rounded-lg">
+            <div className="bg-info/20 p-4 rounded-lg">
               <h6 className="font-medium text-sm mb-2">CSV Export Contents:</h6>
               <div className="grid md:grid-cols-2 gap-3 text-xs">
                 <div>
@@ -203,9 +204,7 @@ export function DataExportSection() {
                   <li>Monthly hour tracking trends</li>
                   <li>Certificate achievement milestones</li>
                 </ul>
-                <Button asChild size="sm" variant="outline" className="mt-2">
-                  <Link href="/dashboard">View My Analytics</Link>
-                </Button>
+                <Link href="/dashboard" className={cn(buttonVariants({ size: "sm", variant: "outline", className: "mt-2" }))}>View My Analytics</Link>
               </div>
               <div>
                 <h6 className="font-medium mb-2">Organization Analytics (Admin)</h6>
@@ -216,9 +215,7 @@ export function DataExportSection() {
                   <li>Member growth and retention</li>
                   <li>Verification and completion rates</li>
                 </ul>
-                <Button asChild size="sm" variant="outline" className="mt-2">
-                  <Link href="/organization">View Organizations</Link>
-                </Button>
+                <Link href="/organization" className={cn(buttonVariants({ size: "sm", variant: "outline", className: "mt-2" }))}>View Organizations</Link>
               </div>
             </div>
 

@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 
 const resetPasswordSchema = z.object({
   password: z.string().min(8, "Password must be at least 8 characters"),
@@ -27,7 +27,7 @@ export async function updatePassword(formData: FormData) {
 
   try {
     // First exchange the code for a session
-    const { data: sessionData, error: sessionError } = await supabase.auth
+    const { error: sessionError } = await supabase.auth
       .exchangeCodeForSession(validatedFields.data.token);
 
     if (sessionError) {

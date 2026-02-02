@@ -1,12 +1,10 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Building2, Search, Settings2, Check, Users2, ExternalLink, BadgeCheck } from "lucide-react";
+import { Plus, Building2, Search, Settings2, Check } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { JoinOrganizationDialog } from "./JoinOrganizationDialog";
 import { useEffect, useState } from "react";
@@ -15,37 +13,51 @@ import { CsvVerificationModal } from "./CsvVerificationModal";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { NoAvatar } from "@/components/shared/NoAvatar";
+import type { Organization } from "@/types";
+
+type OrganizationDisplay = Organization & {
+  description?: string | null;
+  created_at?: string | null;
+  type?: string | null;
+  verified?: boolean;
+  logo_url?: string | null;
+};
+
+type MembershipRow = {
+  role: 'admin' | 'staff' | 'member';
+  organizations?: OrganizationDisplay | null;
+};
 
 interface OrganizationsDisplayProps {
-  organizations: any[];
+  organizations: OrganizationDisplay[];
   memberCounts: Record<string, number>;
   isLoggedIn: boolean;
-  userMemberships: any[];
+  userMemberships: MembershipRow[];
   isTrusted?: boolean;
   applicationStatus?: boolean | null;
 }
 
 import { TrustedInfoIcon } from "@/components/shared/TrustedInfoIcon";
 
-export default function OrganizationsDisplay({ 
-  organizations, 
+export default function OrganizationsDisplay({
+  organizations,
   memberCounts,
   isLoggedIn,
   userMemberships,
   isTrusted = false,
   applicationStatus = undefined,
 }: OrganizationsDisplayProps) {
-  const router = useRouter();
+  const getCreatedAtTime = (value?: string | null) =>
+    value ? new Date(value).getTime() : 0;
   const [search, setSearch] = useState("");
   const [filteredOrgs, setFilteredOrgs] = useState(organizations);
-  const [userOrgs, setUserOrgs] = useState<any[]>([]);
-  const [otherOrgs, setOtherOrgs] = useState<any[]>([]);
+  const [userOrgs, setUserOrgs] = useState<OrganizationDisplay[]>([]);
+  const [otherOrgs, setOtherOrgs] = useState<OrganizationDisplay[]>([]);
   const [sortBy, setSortBy] = useState("verified-first");
 
   // Helper function to get user's role for an organization
@@ -57,39 +69,39 @@ export default function OrganizationsDisplay({
   // Simplified search and sort with single useEffect
   useEffect(() => {
     let result = [...organizations];
-    
+
     // Apply search filter
     if (search) {
       const searchLower = search.toLowerCase().trim();
-      result = result.filter(org => 
+      result = result.filter(org =>
         org.name.toLowerCase().includes(searchLower) ||
         org.username.toLowerCase().includes(searchLower) ||
         org.description?.toLowerCase().includes(searchLower) ||
         org.type.toLowerCase().includes(searchLower)
       );
     }
-    
+
     // Apply sorting
     switch (sortBy) {
       case "verified-first":
         result.sort((a, b) => {
           if (a.verified === b.verified) {
-            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+            return getCreatedAtTime(b.created_at) - getCreatedAtTime(a.created_at);
           }
           return b.verified ? 1 : -1;
         });
         break;
       case "newest":
-        result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        result.sort((a, b) => getCreatedAtTime(b.created_at) - getCreatedAtTime(a.created_at));
         break;
       case "oldest":
-        result.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+        result.sort((a, b) => getCreatedAtTime(a.created_at) - getCreatedAtTime(b.created_at));
         break;
       case "alphabetical":
         result.sort((a, b) => a.name.localeCompare(b.name));
         break;
     }
-    
+
     // Separate user's organizations and other organizations
     // Create a map of user memberships for quick lookup
     const membershipMap = new Map();
@@ -98,15 +110,17 @@ export default function OrganizationsDisplay({
         membershipMap.set(membership.organizations.id, membership.role);
       }
     });
-    
+
     // Separate organizations based on user membership
-    const userOrganizations = userMemberships.map(membership => membership.organizations).filter(Boolean);
+    const userOrganizations = userMemberships
+      .map((membership) => membership.organizations)
+      .filter((org): org is OrganizationDisplay => Boolean(org));
     const otherOrgsList = result.filter(org => !membershipMap.has(org.id));
-    
+
     // Update state
     setUserOrgs(userOrganizations);
     setOtherOrgs(otherOrgsList);
-    
+
     setFilteredOrgs(result);
   }, [organizations, search, sortBy, isLoggedIn, userMemberships]);
 
@@ -121,7 +135,7 @@ export default function OrganizationsDisplay({
               Join or create organizations to collaborate on projects
             </p>
           </div>
-          
+
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2" data-tour-id="org-actions">
             {isLoggedIn && (
               <>
@@ -129,12 +143,10 @@ export default function OrganizationsDisplay({
                 <JoinOrganizationDialog />
                 <div className="flex items-center gap-2">
                   {isTrusted || applicationStatus === true ? (
-                    <Button className="w-full sm:w-auto" asChild>
-                      <Link href="/organization/create">
-                        <Plus className="w-4 h-4 mr-2" />
-                        Create Organization
-                      </Link>
-                    </Button>
+                    <Link href="/organization/create" className={cn(buttonVariants(), "w-full sm:w-auto")}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Create Organization
+                    </Link>
                   ) : (
                     <Button className="w-full sm:w-auto cursor-not-allowed opacity-60" disabled>
                       <Plus className="w-4 h-4 mr-2" />
@@ -154,11 +166,9 @@ export default function OrganizationsDisplay({
               </>
             )}
             {!isLoggedIn && (
-              <Button className="w-full sm:w-auto" asChild variant="outline">
-                <Link href="/login?redirect=/organization">
-                  Sign In to Join or Create
-                </Link>
-              </Button>
+              <Link href="/login?redirect=/organization" className={cn(buttonVariants({ variant: "outline" }), "w-full sm:w-auto")}>
+                Sign In to Join or Create
+              </Link>
             )}
           </div>
         </div>
@@ -178,29 +188,31 @@ export default function OrganizationsDisplay({
           </div>
 
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+            <DropdownMenuTrigger render={
               <Button variant="outline">
                 <Settings2 className="mr-2 h-4 w-4" />
                 Filter & Sort
               </Button>
-            </DropdownMenuTrigger>
+            } />
             <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuLabel>Sort By</DropdownMenuLabel>
-              {[
-                { label: "Verified First", value: "verified-first" },
-                { label: "Newest First", value: "newest" },
-                { label: "Oldest First", value: "oldest" },
-                { label: "Alphabetical", value: "alphabetical" },
-              ].map((option) => (
-                <DropdownMenuItem
-                  key={option.value}
-                  className="flex items-center justify-between"
-                  onClick={() => setSortBy(option.value)}
-                >
-                  {option.label}
-                  {sortBy === option.value && <Check className="h-4 w-4" />}
-                </DropdownMenuItem>
-              ))}
+              <DropdownMenuGroup>
+                <DropdownMenuLabel>Sort By</DropdownMenuLabel>
+                {[
+                  { label: "Verified First", value: "verified-first" },
+                  { label: "Newest First", value: "newest" },
+                  { label: "Oldest First", value: "oldest" },
+                  { label: "Alphabetical", value: "alphabetical" },
+                ].map((option) => (
+                  <DropdownMenuItem
+                    key={option.value}
+                    className="flex items-center justify-between"
+                    onClick={() => setSortBy(option.value)}
+                  >
+                    {option.label}
+                    {sortBy === option.value && <Check className="h-4 w-4" />}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuGroup>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -216,12 +228,10 @@ export default function OrganizationsDisplay({
               {search ? "Try different keywords or filters" : "Be the first to create an organization!"}
             </p>
             {isLoggedIn && !search && (
-              <Button asChild className="mt-4">
-                <Link href="/organization/create">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create Organization
-                </Link>
-              </Button>
+              <Link href="/organization/create" className={cn(buttonVariants(), "mt-4")}>
+                <Plus className="w-4 h-4 mr-2" />
+                Create Organization
+              </Link>
             )}
           </div>
         ) : (
@@ -233,10 +243,10 @@ export default function OrganizationsDisplay({
                   My Organizations
                 </h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                  {userOrgs.map((org: any) => (
-                    <OrganizationCard 
-                      key={org.id} 
-                      org={org} 
+                  {userOrgs.map((org) => (
+                    <OrganizationCard
+                      key={org.id}
+                      org={org}
                       memberCount={memberCounts[org.id] || 0}
                       isUserMember={true}
                       userRole={getUserRole(org.id)}
@@ -253,10 +263,10 @@ export default function OrganizationsDisplay({
                   Discover Organizations
                 </h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                  {otherOrgs.map((org: any) => (
-                    <OrganizationCard 
-                      key={org.id} 
-                      org={org} 
+                  {otherOrgs.map((org) => (
+                    <OrganizationCard
+                      key={org.id}
+                      org={org}
                       memberCount={memberCounts[org.id] || 0}
                     />
                   ))}

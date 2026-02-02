@@ -1,6 +1,5 @@
-import { createClient } from "@/utils/supabase/client";
+import { createClient } from "@/lib/supabase/client";
 import { sendVerificationEmail, verifyEmailToken, setPrimaryEmailAction, type SetPrimaryEmailResponse } from "@/app/account/email-actions";
-import { requireUser } from "@/utils/auth/auth-context";
 
 /**
  * Initiates the process of adding a new email.
@@ -9,7 +8,7 @@ import { requireUser } from "@/utils/auth/auth-context";
 export async function addEmail(email: string) {
     // Call server action
     const result = await sendVerificationEmail(email);
-    if (result.error && !(result as any).warning) {
+    if (result.error && !('warning' in result)) {
         throw new Error(result.error);
     }
     return result;
@@ -45,7 +44,7 @@ export async function unlinkEmail(emailId: string) {
  * This updates the `email` field on the `auth.users` table.
  * The trigger `on_auth_user_email_change` will sync this to `user_emails`.
  */
-export interface SetPrimaryEmailResult extends SetPrimaryEmailResponse {}
+export interface SetPrimaryEmailResult extends SetPrimaryEmailResponse { }
 
 export async function setPrimaryEmail(email: string) {
     const result = await setPrimaryEmailAction(email);
@@ -60,7 +59,11 @@ export async function setPrimaryEmail(email: string) {
  */
 export async function getLinkedIdentities() {
     const supabase = createClient();
-    const user = await requireUser(supabase);
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+        throw new Error('User not found');
+    }
 
     // Upsert auth email in one query instead of check + insert
     if (user.email) {

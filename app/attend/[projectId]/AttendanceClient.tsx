@@ -8,13 +8,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress"; // Import Progress component
-import { format, parseISO, formatDistance, differenceInMinutes, parse } from "date-fns"; // Add differenceInMinutes, parse
+import { format, parseISO, differenceInMinutes, parse } from "date-fns";
 import { formatTimeTo12Hour } from "@/lib/utils";
 import { getSlotDetails } from "@/utils/project";
 import { toast } from "sonner";
 import {
   CheckCircle,
-  Timer,
   LogIn,
   // UserPlus, // No longer needed
   Loader2,
@@ -37,8 +36,8 @@ import { SessionEndedCard } from "./_components/SessionEndedCard";
 interface AttendanceClientProps {
   project: Project;
   scheduleId: string;
-  user: any; // Can be null if not logged in
-  existingCheckIn: any; // Can be null if no signup or not checked in yet for the *logged-in user*
+  user: AuthUser | null; // Can be null if not logged in
+  existingCheckIn: ExistingCheckIn | null; // Can be null if no signup or not checked in yet for the *logged-in user*
   scanInfo: {
     valid: boolean;
     isMobileDevice: boolean;
@@ -47,6 +46,21 @@ interface AttendanceClientProps {
   };
   projectAllowsAnonymous: boolean; // <-- new prop
 }
+
+type AuthUser = {
+  id: string;
+  email?: string | null;
+  user_metadata?: {
+    full_name?: string | null;
+  };
+};
+
+type ExistingCheckIn = {
+  id: string;
+  check_in_time?: string | null;
+  check_out_time?: string | null;
+  schedule_id?: string | null;
+};
 
 // Define LookupResult type based on the server action's return structure
 type LookupResult = {
@@ -99,7 +113,11 @@ export default function AttendanceClient({
   const [remainingTimeFormatted, setRemainingTimeFormatted] = useState("");
 
   // Session details state
-  const [sessionDetails, setSessionDetails] = useState<any>(null);
+  type SessionDetails = NonNullable<ReturnType<typeof getSlotDetails>> & {
+    name?: string;
+    date?: string;
+  };
+  const [sessionDetails, setSessionDetails] = useState<SessionDetails | null>(null);
 
   // Session ended state
   const [sessionHasEnded, setSessionHasEnded] = useState(false);
@@ -199,7 +217,6 @@ export default function AttendanceClient({
         const elapsedSinceCheckInMinutes = differenceInMinutes(now, checkInTime);
 
         // Track elapsed time for the end screen
-        const totalMs = totalDurationMinutes * 60 * 1000;
         const elapsedMs = elapsedSinceCheckInMinutes * 60 * 1000;
         elapsedTimeRef.current = Math.max(0, elapsedMs);
 
@@ -263,9 +280,10 @@ export default function AttendanceClient({
       } else {
         throw new Error(result.error || "Check-in failed.");
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error("Check-in error:", error);
-      toast.error(`Failed to check in: ${error.message}`);
+      const message = error instanceof Error ? error.message : "Check-in failed.";
+      toast.error(`Failed to check in: ${message}`);
       // Reset state if check-in fails but component doesn't unmount
       setIsCheckedIn(false);
       setCheckInTime(null);
@@ -292,9 +310,10 @@ export default function AttendanceClient({
       } else {
         throw new Error(result.error || "Failed to leave event.");
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error("Leave event error:", error);
-      toast.error(`Failed to leave event: ${error.message}`);
+      const message = error instanceof Error ? error.message : "Failed to leave event.";
+      toast.error(`Failed to leave event: ${message}`);
     } finally {
       setIsCheckingOut(false);
     }
@@ -320,9 +339,10 @@ export default function AttendanceClient({
       } else {
         toast.error(result.error || "Anonymous check-in failed. Please ensure you are signed up and approved.");
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error("Anonymous check-in error:", err);
-      toast.error(err.message || "Anonymous check-in encountered an error.");
+      const message = err instanceof Error ? err.message : "Anonymous check-in encountered an error.";
+      toast.error(message);
     } finally {
       setIsAnonSubmitting(false);
     }
@@ -573,7 +593,7 @@ export default function AttendanceClient({
             {/* Warning if not mobile */}
             {!scanInfo.isMobileDevice && (
               <div className="flex items-start gap-2 rounded-md border border-amber-500/30 p-3 bg-amber-500/10 mb-4"> {/* Added mb-4 */}
-                <AlertTriangle className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
                 <div className="text-sm text-muted-foreground">
                   <p>This page is intended for QR code scans on mobile devices. Functionality may be limited.</p> {/* Updated text */}
                 </div>
@@ -583,7 +603,9 @@ export default function AttendanceClient({
             {/* === Logged-in User Check-in UI === */}
             {user && existingCheckIn && (
               <div className="space-y-4">
-                <h3 className="text-lg font-medium">Welcome, {user?.name}</h3>
+                <h3 className="text-lg font-medium">
+                  Welcome, {user?.user_metadata?.full_name || user?.email || "Volunteer"}
+                </h3>
                 <p className="text-sm text-muted-foreground">
                   You are signed up for this session. Click below to confirm your attendance.
                 </p>
@@ -666,10 +688,10 @@ export default function AttendanceClient({
 
                   {/* Divider */}
                   <div className="flex items-center my-2 text-sm text-muted-foreground">
-                    <span className="flex-grow border-t"></span>
+                    <span className="grow border-t"></span>
                     {/* Updated divider text */}
                     <span className="px-2">Not sure?</span>
-                    <span className="flex-grow border-t"></span>
+                    <span className="grow border-t"></span>
                   </div>
 
                   {/* Email Lookup Section */}
@@ -713,7 +735,7 @@ export default function AttendanceClient({
                               : "bg-muted border-muted-foreground/30"
                         : "bg-muted border-muted-foreground/30"
                     }`}>
-                      <p className="mb-2 font-medium break-words">{lookupResult.message}</p>
+                      <p className="mb-2 font-medium wrap-break-word">{lookupResult.message}</p>
 
                       {/* Prompt to log in if registered user found */}
                       {lookupResult.isRegistered && (

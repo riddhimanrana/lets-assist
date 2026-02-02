@@ -1,8 +1,8 @@
 import { Metadata } from "next";
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
-import { format, differenceInMinutes, parseISO, isValid } from "date-fns";
-import { formatInTimeZone } from "date-fns-tz";
+import { differenceInMinutes, parseISO, isValid } from "date-fns";
+
 import { Badge } from "@/components/ui/badge";
 import {
   Calendar,
@@ -10,15 +10,12 @@ import {
   MapPin,
   Building2,
   User,
-  ExternalLink,
-  Award,
   QrCode,
   UserCheck,
   Clipboard,
   BadgeCheck,
 } from "lucide-react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { CardContainer, CardBody, CardItem } from "@/components/ui/3d-card";
 import { CertificateCardButton } from "./_components/CertificateCardButton";
@@ -34,7 +31,6 @@ import {
   TimezoneDateDisplay,
   TimezoneEventDateRange,
 } from "./_components/TimezoneDateDisplay";
-import { TimezoneDebugInfo } from "./_components/TimezoneDebugInfo";
 
 // Define the expected shape of the fetched data based on the 'certificates' table
 interface CertificateData {
@@ -147,7 +143,7 @@ export default async function VolunteerRecordPage({
 
   // Type assertion after checking for null and converting to unknown first
   const data = record as unknown as CertificateData;
-  
+
   // Determine if this is a self-reported certificate (default to verified for backward compatibility)
   const isSelfReported = data.type === "self-reported";
 
@@ -172,8 +168,8 @@ export default async function VolunteerRecordPage({
             {isSelfReported ? "Self-Reported" : "Volunteer"} Certificate
           </h1>
           <p className="text-muted-foreground">
-            {isSelfReported 
-              ? "Self-reported volunteer activity record" 
+            {isSelfReported
+              ? "Self-reported volunteer activity record"
               : "Official record of volunteer activity"
             }
           </p>
@@ -194,19 +190,17 @@ export default async function VolunteerRecordPage({
       {/* <TimezoneDebugInfo show={true} className="mb-6" /> */}
 
       <CardContainer className="py-8" containerClassName="w-full">
-        <CardBody className={`relative h-auto w-full max-w-3xl rounded-xl border border-border/40 shadow-2xl ${
-          isSelfReported 
-            ? "bg-gradient-to-br from-gray-50 via-gray-100/50 to-gray-200/30 dark:from-gray-800/20 dark:via-gray-700/10 dark:to-gray-600/20" 
-            : "bg-gradient-to-br from-background via-background to-muted"
-        }`}>
+        <CardBody className={`relative h-auto w-full max-w-3xl rounded-xl border border-border/40 shadow-2xl ${isSelfReported
+          ? "bg-linear-to-br from-gray-50 via-gray-100/50 to-gray-200/30 dark:from-gray-800/20 dark:via-gray-700/10 dark:to-gray-600/20"
+          : "bg-linear-to-br from-background via-background to-muted"
+          }`}>
           {/* Certificate Header with Glow Effect */}
           <CardItem
             translateZ={20}
-            className={`w-full rounded-t-xl p-6 ${
-              isSelfReported 
-                ? "bg-gradient-to-r from-gray-200/40 via-gray-100/30 to-gray-50/20 dark:from-gray-700/30 dark:via-gray-600/20 dark:to-gray-500/10" 
-                : "bg-gradient-to-r from-primary/10 via-primary/5 to-background"
-            }`}
+            className={`w-full rounded-t-xl p-6 ${isSelfReported
+              ? "bg-linear-to-r from-gray-200/40 via-gray-100/30 to-gray-50/20 dark:from-gray-700/30 dark:via-gray-600/20 dark:to-gray-500/10"
+              : "bg-linear-to-r from-primary/10 via-primary/5 to-background"
+              }`}
           >
             <div className="relative z-10">
               <div className="flex justify-between items-start">
@@ -247,7 +241,7 @@ export default async function VolunteerRecordPage({
                       ) : (
                         <Link
                           href={`/profile/${certificateData.creator_username}`}
-                          className="text-sm font-semibold text-foreground hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/60 rounded"
+                          className="text-sm font-semibold text-foreground hover:text-primary focus:outline-hidden focus:ring-2 focus:ring-primary/60 rounded"
                           aria-label={`View profile of ${data.creator_name}`}
                         >
                           {data.creator_name}
@@ -260,16 +254,16 @@ export default async function VolunteerRecordPage({
                   <CardItem translateZ={60} as="div">
                     <TooltipProvider>
                       <Tooltip>
-                        <TooltipTrigger asChild>
+                        <TooltipTrigger render={
                           <Badge
                             variant="secondary"
-                            className="ml-auto backdrop-blur-sm bg-primary/10 border border-primary/20 text-chart-5"
+                            className="ml-auto backdrop-blur-xs bg-success/10 border border-success/20 text-success"
                             tabIndex={0}
                             aria-label="Verified badge"
                           >
                             <BadgeCheck className="h-3.5 w-3.5 mr-1" /> Verified
                           </Badge>
-                        </TooltipTrigger>
+                        } />
                         <TooltipContent
                           side="left"
                           className="max-w-xs"
@@ -291,8 +285,8 @@ export default async function VolunteerRecordPage({
             {/* Volunteer Info Card */}
             <CardItem translateZ={60} className="w-full group">
               <div
-                className="p-6 bg-gradient-to-r from-secondary/40 via-secondary/20 to-secondary/40
-                backdrop-blur-sm rounded-lg border border-primary/10 shadow-sm
+                className="p-6 bg-linear-to-r from-secondary/40 via-secondary/20 to-secondary/40
+                backdrop-blur-xs rounded-lg border border-primary/10 shadow-xs
                 group-hover:shadow-[0_0_25px_rgba(var(--primary)/0.15)] transition-all duration-300"
               >
                 <CardItem
@@ -300,13 +294,13 @@ export default async function VolunteerRecordPage({
                   className="flex items-center gap-4 mb-4"
                 >
                   <div
-                    className="h-14 w-14 rounded-full bg-gradient-to-br from-primary/30 to-primary/10
-                    flex items-center justify-center shadow-sm border border-primary/10"
+                    className="h-14 w-14 rounded-full bg-linear-to-br from-primary/30 to-primary/10
+                    flex items-center justify-center shadow-xs border border-primary/10"
                   >
                     <User className="h-7 w-7 text-primary/80" />
                   </div>
                   <div>
-                    <p className="text-base font-semibold bg-gradient-to-r from-foreground to-foreground/90 bg-clip-text">
+                    <p className="text-base font-semibold bg-linear-to-r from-foreground to-foreground/90 bg-clip-text">
                       {data.volunteer_name || "Unnamed Volunteer"}
                     </p>
                     {data.volunteer_email && (
@@ -325,8 +319,8 @@ export default async function VolunteerRecordPage({
                     className="flex items-start gap-3 group/item"
                   >
                     <div
-                      className="h-10 w-10 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5
-                      flex items-center justify-center shadow-sm border border-primary/10
+                      className="h-10 w-10 rounded-lg bg-linear-to-br from-primary/20 to-primary/5
+                      flex items-center justify-center shadow-xs border border-primary/10
                       group-hover/item:shadow-[0_0_15px_rgba(var(--primary)/0.2)] transition-all duration-300"
                     >
                       <Clock className="h-5 w-5 text-primary/80" />
@@ -346,8 +340,8 @@ export default async function VolunteerRecordPage({
                     className="flex items-start gap-3 group/item"
                   >
                     <div
-                      className="h-10 w-10 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5
-                      flex items-center justify-center shadow-sm border border-primary/10
+                      className="h-10 w-10 rounded-lg bg-linear-to-br from-primary/20 to-primary/5
+                      flex items-center justify-center shadow-xs border border-primary/10
                       group-hover/item:shadow-[0_0_15px_rgba(var(--primary)/0.2)] transition-all duration-300"
                     >
                       <Calendar className="h-5 w-5 text-primary/80" />
@@ -370,8 +364,8 @@ export default async function VolunteerRecordPage({
                     className="flex items-start gap-3 mt-6 group/item"
                   >
                     <div
-                      className="h-10 w-10 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5
-                      flex items-center justify-center shadow-sm border border-primary/10
+                      className="h-10 w-10 rounded-lg bg-linear-to-br from-primary/20 to-primary/5
+                      flex items-center justify-center shadow-xs border border-primary/10
                       group-hover/item:shadow-[0_0_15px_rgba(var(--primary)/0.2)] transition-all duration-300"
                     >
                       <MapPin className="h-5 w-5 text-primary/80" />
@@ -394,9 +388,9 @@ export default async function VolunteerRecordPage({
                     className="flex items-start gap-3 mt-6 group/item"
                   >
                     <div
-                      className="h-10 w-10 rounded-lg bg-gradient-to-br from-gray-200/60 to-gray-100/30 dark:from-gray-600/40 dark:to-gray-700/20
-                      flex items-center justify-center shadow-sm border border-gray-200/50 dark:border-gray-600/30
-                      group-hover/item:shadow-[0_0_15px_rgba(156,163,175,0.2)] transition-all duration-300 flex-shrink-0"
+                      className="h-10 w-10 rounded-lg bg-linear-to-br from-gray-200/60 to-gray-100/30 dark:from-gray-600/40 dark:to-gray-700/20
+                      flex items-center justify-center shadow-xs border border-gray-200/50 dark:border-gray-600/30
+                      group-hover/item:shadow-[0_0_15px_rgba(156,163,175,0.2)] transition-all duration-300 shrink-0"
                     >
                       <Clipboard className="h-5 w-5 text-gray-600 dark:text-gray-400" />
                     </div>
@@ -417,7 +411,7 @@ export default async function VolunteerRecordPage({
             <CardItem translateZ={20} className="w-full">
               <div
                 className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pt-2
-                bg-gradient-to-r from-transparent via-secondary/10 to-transparent p-4 rounded-lg"
+                bg-linear-to-r from-transparent via-secondary/10 to-transparent p-4 rounded-lg"
               >
                 <div className="text-sm text-muted-foreground">
                   <p>
@@ -449,9 +443,9 @@ export default async function VolunteerRecordPage({
                             : data.check_in_method.toLowerCase() === "auto"
                               ? "Automatic Check-in"
                               : data.check_in_method.toLowerCase() ===
-                                    "signup only" ||
-                                  data.check_in_method.toLowerCase() ===
-                                    "signup-only"
+                                "signup only" ||
+                                data.check_in_method.toLowerCase() ===
+                                "signup-only"
                                 ? "Signup Only"
                                 : data.check_in_method
                           : "Manual"}
@@ -486,18 +480,17 @@ export default async function VolunteerRecordPage({
 
       <div className="mt-8 text-center">
         <p className="text-sm text-muted-foreground mb-1">
-          {isSelfReported 
+          {isSelfReported
             ? "This is a self-reported record of volunteer hours logged by the user."
             : "This is an official record of volunteer hours from Let's Assist."
           }
         </p>
         <p className="text-xs text-muted-foreground">
           {isSelfReported ? "Record" : "Verification"} ID:{" "}
-          <span className={`font-medium transition-colors ${
-            isSelfReported 
-              ? "text-muted-foreground/80 hover:text-muted-foreground" 
-              : "text-primary/80 hover:text-primary"
-          }`}>
+          <span className={`font-medium transition-colors ${isSelfReported
+            ? "text-muted-foreground/80 hover:text-muted-foreground"
+            : "text-primary/80 hover:text-primary"
+            }`}>
             {data.id}
           </span>
         </p>

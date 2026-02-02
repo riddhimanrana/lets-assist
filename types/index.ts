@@ -22,5 +22,11 @@ export * from './project';
 // Signup types
 export * from './signup';
 
+// SignUpGenius integration types
+export * from './signupgenius';
+
 // Calendar types
 export * from './calendar';
+
+// Waiver types
+export * from './waiver';

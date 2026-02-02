@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { updatePassword } from "./actions";
+import { AlertTriangle, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -15,13 +16,11 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
-  Form,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormControl,
-  FormMessage,
-} from "@/components/ui/form";
+  Field,
+  FieldLabel,
+  FieldError as FormMessage,
+} from "@/components/ui/field";
+import { Controller } from "react-hook-form";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
@@ -80,7 +79,7 @@ export default function ResetPasswordForm({ token }: ResetPasswordFormProps) {
         );
         router.push("/login");
       }
-    } catch (error) {
+    } catch {
       toast.error("An unexpected error occurred. Please try again.");
     }
 
@@ -97,47 +96,63 @@ export default function ResetPasswordForm({ token }: ResetPasswordFormProps) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>New Password</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="password"
-                        placeholder="Enter your new password"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="confirmPassword"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Confirm New Password</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="password"
-                        placeholder="Confirm your new password"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "Setting New Password..." : "Set New Password"}
-              </Button>
-            </form>
-          </Form>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <Controller
+              control={form.control}
+              name="password"
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor={field.name}>New Password</FieldLabel>
+                  <Input
+                    id={field.name}
+                    type="password"
+                    placeholder="Enter your new password"
+                    {...field}
+                    aria-invalid={fieldState.invalid}
+                  />
+                  {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                  <div className="mt-3 space-y-2">
+                    <div className="rounded-lg bg-[hsl(var(--warning)/0.15)] border border-[hsl(var(--warning)/0.4)] p-3 shadow-xs">
+                      <p className="text-xs font-semibold text-[hsl(var(--warning))] dark:text-[hsl(var(--warning))] mb-2 flex items-center gap-2">
+                        <AlertTriangle className="h-3.5 w-3.5" />
+                        Password Requirements
+                      </p>
+                      <ul className="space-y-1.5 text-xs text-[hsl(var(--warning))] dark:text-[hsl(var(--warning))] opacity-90">
+                        <li className="flex items-start gap-2">
+                          <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                          <span>At least 8 characters long</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                          <span>Cannot be a commonly used or compromised password</span>
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                </Field>
+              )}
+            />
+            <Controller
+              control={form.control}
+              name="confirmPassword"
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor={field.name}>Confirm New Password</FieldLabel>
+                  <Input
+                    id={field.name}
+                    type="password"
+                    placeholder="Confirm your new password"
+                    {...field}
+                    aria-invalid={fieldState.invalid}
+                  />
+                  {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                </Field>
+              )}
+            />
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? "Setting New Password..." : "Set New Password"}
+            </Button>
+          </form>
         </CardContent>
       </Card>
     </div>

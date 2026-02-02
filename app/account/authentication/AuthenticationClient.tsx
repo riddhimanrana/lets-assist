@@ -9,12 +9,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { createClient } from "@/utils/supabase/client";
+import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 import { useSearchParams, useRouter } from "next/navigation";
-import { refreshUser } from "@/utils/auth/auth-context";
 
 function AuthenticationContent() {
   const { user } = useAuth(); // Use centralized auth hook
@@ -30,10 +29,10 @@ function AuthenticationContent() {
   // Unified function to check connection status using the most reliable source
   const checkGoogleConnection = async () => {
     if (!user) return;
-    
+
     try {
       const { data: identitiesData, error } = await supabase.auth.getUserIdentities();
-      
+
       if (error) {
         console.error("Error fetching identities:", error);
         return;
@@ -71,7 +70,7 @@ function AuthenticationContent() {
       router.replace("/account/authentication");
     }
   }, [searchParams, router]);
-  
+
   useEffect(() => {
     if (user) {
       checkGoogleConnection();
@@ -79,8 +78,8 @@ function AuthenticationContent() {
       setIsGoogleConnected(false);
       setLinkedGoogleEmail(null);
     }
-  }, [user]); 
-  
+  }, [user]);
+
   const handleGoogleLink = async () => {
     setIsConnecting(true);
     try {
@@ -136,7 +135,7 @@ function AuthenticationContent() {
 
       // Instead of just checking length, make sure they have at least one other login method
       const otherIdentities = identities.filter(id => id.id !== googleIdentity.id);
-      
+
       if (otherIdentities.length === 0) {
         toast.error("Cannot disconnect your only sign-in method. Please set a password or connect another account first.");
         setIsConnecting(false);
@@ -148,8 +147,8 @@ function AuthenticationContent() {
 
       if (unlinkError) throw unlinkError;
 
-      // Force refresh the user cache so the local UI reflects the disconnection
-      await refreshUser(supabase);
+      // Trigger re-check to update local UI after disconnect
+      await checkGoogleConnection();
 
       toast.success("Google account disconnected successfully.");
       setIsGoogleConnected(false);
@@ -163,7 +162,7 @@ function AuthenticationContent() {
       setIsConnecting(false);
     }
   };
-  
+
   const handleGoogleConnect = async () => {
     if (isGoogleConnected) {
       await handleGoogleDisconnect();
@@ -171,7 +170,7 @@ function AuthenticationContent() {
       await handleGoogleLink();
     }
   };
-  
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -187,14 +186,14 @@ function AuthenticationContent() {
             Manage your connected accounts and sign-in methods
           </p>
         </div>
-        <Card className="border shadow-sm">
-          <CardHeader className="px-5 py-5">
+        <Card className="border shadow-xs">
+          <CardHeader className="">
             <CardTitle className="text-xl">Connected Accounts</CardTitle>
             <CardDescription>
               Connect your accounts for a seamless sign-in experience
             </CardDescription>
           </CardHeader>
-          <CardContent className="px-5 py-4">
+          <CardContent className="">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-3 sm:p-4 border rounded-lg">
               <div className="flex items-center space-x-4">
                 <svg
@@ -241,14 +240,14 @@ function AuthenticationContent() {
             </div>
           </CardContent>
         </Card>
-        <Card className="border shadow-sm">
-          <CardHeader className="p-5">
+        <Card className="border shadow-xs">
+          <CardHeader>
             <CardTitle className="text-xl">Two-Factor Authentication</CardTitle>
             <CardDescription>
               Add an extra layer of security to your account
             </CardDescription>
           </CardHeader>
-          <CardContent className="px-5 py-4">
+          <CardContent>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-3 sm:p-4 border rounded-lg opacity-50">
               <div className="space-y-1">
                 <h4 className="text-sm font-semibold">Authenticator App</h4>

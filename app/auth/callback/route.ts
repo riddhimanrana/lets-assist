@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/utils/supabase/server";
-import { createAdminClient } from "@/utils/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
+import { getAdminClient } from "@/lib/supabase/admin";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -62,11 +62,16 @@ export async function GET(request: Request) {
         const isRecentSignup = timeSinceCreation < 5 * 60 * 1000; // 5 minutes
         
         // Check if user has completed onboarding
-        const hasCompletedOnboarding = user.user_metadata?.has_completed_onboarding === true;
+        const userMetadata = user.user_metadata as { has_completed_onboarding?: boolean } | null;
+        const hasCompletedOnboarding = userMetadata?.has_completed_onboarding === true;
         
         // Check if this is an OAuth login (Google, etc.) by checking identities
-        const isOAuthLogin = user.identities && user.identities.length > 0 && 
-                            user.identities.some(identity => identity.provider !== 'email');
+        const identities = (user as { identities?: Array<{ provider?: string | null }> })
+          .identities;
+        const isOAuthLogin =
+          !!identities &&
+          identities.length > 0 &&
+          identities.some((identity) => identity.provider !== "email");
 
         // ONLY show verification success page for email/password signups (not OAuth)
         // If this is a recent email/password signup verification, DON'T sign in the user
@@ -85,31 +90,48 @@ export async function GET(request: Request) {
         }
 
         // This is an OAuth flow or existing user - create/update profile
-        const { data: existingProfile } = await supabase
+        const { data: existingProfile } = (await supabase
           .from("profiles")
           .select("*")
           .eq("id", user.id)
-          .single();
+          .single()) as { data: Record<string, unknown> | null };
 
         if (!existingProfile) {
-          // Get user's full name and avatar from Google identity data first, then fallback to metadata
-          const identityData = user.identities?.[0]?.identity_data;
+          // Get user's full name and avatar from identity data, then fallback to metadata
+          const identities = (user as { identities?: Array<{ identity_data?: Record<string, unknown> }> })
+            .identities;
+          const identityData = identities?.[0]?.identity_data as
+            | {
+                full_name?: string;
+                name?: string;
+                avatar_url?: string;
+                picture?: string;
+              }
+            | undefined;
+          const userMetadata = user.user_metadata as
+            | {
+                full_name?: string;
+                name?: string;
+                avatar_url?: string;
+                picture?: string;
+              }
+            | null;
           const fullName =
             identityData?.full_name ||
             identityData?.name ||
-            user.user_metadata?.full_name ||
-            user.user_metadata?.name ||
+            userMetadata?.full_name ||
+            userMetadata?.name ||
             "Unknown User";
 
           // Try to get the highest quality avatar URL available
           const avatarUrl =
             identityData?.avatar_url ||
             identityData?.picture ||
-            user.user_metadata?.avatar_url ||
-            user.user_metadata?.picture;
+            userMetadata?.avatar_url ||
+            userMetadata?.picture;
 
           // Create profile with email
-          const { error: profileError } = await supabase
+          const { error: profileError } = (await supabase
             .from("profiles")
             .insert({
               id: user.id,
@@ -119,7 +141,7 @@ export async function GET(request: Request) {
               email: user.email,
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString(),
-            });
+            })) as { error: { message?: string } | null };
 
           if (profileError) {
             console.error("Profile creation error:", profileError);
@@ -137,13 +159,13 @@ export async function GET(request: Request) {
           }
         } else {
           // Update email in case it changed
-          const { error: updateError } = await supabase
+          const { error: updateError } = (await supabase
             .from("profiles")
             .update({ 
               email: user.email,
               updated_at: new Date().toISOString()
             })
-            .eq("id", user.id);
+            .eq("id", user.id)) as { error: { message?: string } | null };
 
           if (updateError) {
             console.error("Profile update error:", updateError);
@@ -203,7 +225,7 @@ export async function GET(request: Request) {
  * Handle email domain affiliation - auto-add user to organization based on email domain
  */
 async function handleEmailDomainAffiliation(userId: string, email: string): Promise<void> {
-  const adminClient = createAdminClient();
+  const adminClient = getAdminClient();
   
   const domain = email.split("@")[1]?.toLowerCase();
   if (!domain) return;
@@ -220,14 +242,13 @@ async function handleEmailDomainAffiliation(userId: string, email: string): Prom
   }
 
   // Add user to the organization as a member
-  const { error: memberError } = await adminClient
+  const { error: memberError } = (await adminClient
     .from("organization_members")
     .insert({
       organization_id: org.id,
       user_id: userId,
       role: "member",
-      joined_at: new Date().toISOString(),
-    });
+    })) as { error: { message?: string; code?: string } | null };
 
   if (memberError) {
     if (memberError.code !== "23505") {

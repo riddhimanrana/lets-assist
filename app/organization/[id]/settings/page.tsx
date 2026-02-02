@@ -1,31 +1,37 @@
 import { notFound, redirect } from "next/navigation";
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { Separator } from "@/components/ui/separator";
 import EditOrganizationForm from "./EditOrganizationForm";
 import { Metadata } from "next";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import { 
-  Card, 
-  CardHeader, 
-  CardTitle, 
-  CardDescription, 
-  CardContent 
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent
 } from "@/components/ui/card";
 import JoinCodeAdminDisplay from "./JoinCodeAdminDisplay";
 import StaffLinkDisplay from "./StaffLinkDisplay";
 import DeleteOrganizationDialog from "./DeleteOrganizationDialog";
-import MemberExporter from "./MemberExporter";
+import OrganizationCalendarSettings from "./OrganizationCalendarSettings";
 
 type Props = {
   params: Promise<{ id: string }>;
 };
 
+type OrganizationMember = {
+  user_id: string;
+  role: string;
+};
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const supabase = await createClient();
-  
+
   // Try to fetch by username first
   const { data: orgByUsername } = await supabase
     .from("organizations")
@@ -34,23 +40,23 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     .single();
 
   // If not found by username, try by ID
-  const { data: orgById } = !orgByUsername 
+  const { data: orgById } = !orgByUsername
     ? await supabase
       .from("organizations")
       .select("name")
       .eq("id", id)
       .single()
     : { data: null };
-  
+
   const org = orgByUsername || orgById;
-  
+
   if (!org) {
     return {
       title: "Organization Settings",
       description: "Manage organization settings and details",
     };
   }
-  
+
   return {
     title: `${org.name} Settings`,
     description: `Manage ${org.name} organization settings and details`,
@@ -60,36 +66,36 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function OrganizationSettingsPage({ params }: Props) {
   const { id } = await params;
   const supabase = await createClient();
-  
-  // Check if user is authenticated
-  const { data: { user } } = await supabase.auth.getUser();
+
+  // Check if user is authenticated using getClaims() for better performance
+  const { user } = await getAuthUser();
   if (!user) {
     redirect(`/login?redirect=/organization/${id}/edit`);
   }
 
   // Check if ID is a username or UUID
   const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
-  
+
   // Try to fetch organization by username or ID depending on the format
   const { data: organization } = isUUID
     ? await supabase
-        .from("organizations")
-        .select("*, organization_members!inner(user_id, role)")
-        .eq("id", id)
-        .single()
+      .from("organizations")
+      .select("*, organization_members!inner(user_id, role)")
+      .eq("id", id)
+      .single()
     : await supabase
-        .from("organizations")
-        .select("*, organization_members!inner(user_id, role)")
-        .eq("username", id)
-        .single();
-  
+      .from("organizations")
+      .select("*, organization_members!inner(user_id, role)")
+      .eq("username", id)
+      .single();
+
   if (!organization) {
     notFound();
   }
 
   // Check if user is an admin
-  const isAdmin = organization.organization_members.some(
-    (member: any) => member.user_id === user.id && member.role === 'admin'
+  const isAdmin = (organization.organization_members as OrganizationMember[]).some(
+    (member) => member.user_id === user.id && member.role === 'admin'
   );
 
   // If not admin, redirect to organization page
@@ -101,33 +107,33 @@ export default async function OrganizationSettingsPage({ params }: Props) {
     <div className="flex justify-center w-full">
       <div className="container max-w-4xl py-4 sm:py-8 px-4 sm:px-6">
         <div className="mb-2">
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            asChild
+          <Button
+            variant="ghost"
+            size="sm"
             className="mb-4"
+            asChild
           >
             <Link href={`/organization/${organization.username}`}>
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Organization
             </Link>
           </Button>
-          
+
           <h1 className="text-3xl font-bold tracking-tight">Organization Settings</h1>
           <p className="text-muted-foreground mt-1">
             Manage settings and details for {organization.name}
           </p>
         </div>
-        
+
         <Separator className="my-6" />
-        
+
         <div className="space-y-8">
           {/* Basic Details Section */}
-          <EditOrganizationForm 
-            organization={organization} 
-            userId={user.id} 
+          <EditOrganizationForm
+            organization={organization}
+            userId={user.id}
           />
-          
+
           {/* Join Code Management */}
           <Card>
             <CardHeader>
@@ -146,7 +152,7 @@ export default async function OrganizationSettingsPage({ params }: Props) {
               />
             </CardContent>
           </Card>
-          
+
           {/* Staff Invite Link */}
           <Card>
             <CardHeader>
@@ -162,7 +168,13 @@ export default async function OrganizationSettingsPage({ params }: Props) {
               />
             </CardContent>
           </Card>
-          
+
+          <OrganizationCalendarSettings
+            organizationId={organization.id}
+            organizationSlug={organization.username || organization.id}
+            organizationName={organization.name}
+          />
+
           {/* Member Data Management */}
           {/* <Card>
             <CardHeader>
@@ -178,7 +190,7 @@ export default async function OrganizationSettingsPage({ params }: Props) {
               <MemberExporter organizationId={organization.id} />
             </CardContent>
           </Card> */}
-          
+
           {/* Danger Zone */}
           <Card className="border-destructive/50">
             <CardHeader className="border-b border-destructive/10">
@@ -187,7 +199,7 @@ export default async function OrganizationSettingsPage({ params }: Props) {
                 Irreversible and destructive actions
               </CardDescription>
             </CardHeader>
-            <CardContent className="pt-6">
+            <CardContent className="">
               <div className="space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>

@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { EventType, VerificationMethod } from "@/types";
 
 // Helper to validate time is not in past
 const isTimeInPast = (dateStr: string, timeStr: string): boolean => {
@@ -223,6 +222,8 @@ export const verificationSettingsSchema = z.object({
   visibility: z.enum(["public", "unlisted", "organization_only"] as const),
   enableVolunteerComments: z.boolean().optional(),
   showAttendeesPublicly: z.boolean().optional(),
+  waiverRequired: z.boolean().optional(),
+  waiverAllowUpload: z.boolean().optional(),
 });
 
 // Event Form Schema
@@ -239,4 +240,6 @@ export const eventFormSchema = z.object({
   visibility: z.enum(["public", "unlisted", "organization_only"] as const),
   enableVolunteerComments: z.boolean().optional(),
   showAttendeesPublicly: z.boolean().optional(),
+  waiverRequired: z.boolean().optional(),
+  waiverAllowUpload: z.boolean().optional(),
 });

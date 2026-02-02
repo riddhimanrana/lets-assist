@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertCircle, ExternalLink, Lock, LogIn, Shield, Users } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -15,9 +16,9 @@ interface ProjectUnauthorizedProps {
   projectId: string;
 }
 
-export default function ProjectUnauthorized({ projectId }: ProjectUnauthorizedProps) {
+export default function ProjectUnauthorized({ projectId: _projectId }: ProjectUnauthorizedProps) {
   const router = useRouter();
-  const { user, isLoading } = useAuth(); // Use centralized auth hook
+  const { user, loading: isLoading } = useAuth(); // Use centralized auth hook
   const [isRedirecting, setIsRedirecting] = useState(false);
   const isLoggedIn = !!user;
 
@@ -54,21 +55,21 @@ export default function ProjectUnauthorized({ projectId }: ProjectUnauthorizedPr
               <Separator className="my-1.5" />
               <ul className="mt-2 space-y-2 text-left text-sm">
                 <li className="flex items-center">
-                  <span className="flex-shrink-0 inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-xs font-medium text-primary mr-2">
+                  <span className="shrink-0 inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-xs font-medium text-primary mr-2">
                     1
                   </span>
                   <span>Be a member of the organization that owns this project</span>
                 </li>
                 {!isLoggedIn && (
                   <li className="flex items-center">
-                    <span className="flex-shrink-0 inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-xs font-medium text-primary mr-2">
+                    <span className="shrink-0 inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-xs font-medium text-primary mr-2">
                       2
                     </span>
                     <span>Log in with an account that has access to this organization</span>
                   </li>
                 )}
                 <li className="flex items-center">
-                  <span className="flex-shrink-0 inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-xs font-medium text-primary mr-2">
+                  <span className="shrink-0 inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-xs font-medium text-primary mr-2">
                     {!isLoggedIn ? "3" : "2"}
                   </span>
                   <span>Request access from the organization administrator if needed</span>
@@ -78,14 +79,14 @@ export default function ProjectUnauthorized({ projectId }: ProjectUnauthorizedPr
 
             <TooltipProvider>
               <Tooltip>
-                <TooltipTrigger asChild>
+                <TooltipTrigger render={
                   <div className="flex items-center justify-center p-2 bg-muted/30 rounded-lg border border-border/50 hover:bg-muted/50 transition-colors cursor-help">
-                    <Shield className="h-4 w-4 text-muted-foreground mr-2 flex-shrink-0" />
+                    <Shield className="h-4 w-4 text-muted-foreground mr-2 shrink-0" />
                     <p className="text-xs text-muted-foreground">
                       Private projects help organizations maintain confidentiality
                     </p>
                   </div>
-                </TooltipTrigger>
+                } />
                 <TooltipContent>
                   <p className="max-w-xs text-xs">Organization administrators can manage access in the project settings</p>
                 </TooltipContent>
@@ -111,16 +112,12 @@ export default function ProjectUnauthorized({ projectId }: ProjectUnauthorizedPr
             )}
 
             <div className="flex flex-col sm:flex-row gap-3 w-full">
-              <Button variant="outline" asChild className="w-full" size="sm">
-                <Link href="/organization/join">
-                  Join Organization
-                  <ExternalLink className="ml-2 h-3 w-3" />
-                </Link>
-              </Button>
+              <Link href="/organization/join" className={cn(buttonVariants({ variant: "outline", size: "sm" }), "w-full")}>
+                Join Organization
+                <ExternalLink className="ml-2 h-3 w-3" />
+              </Link>
 
-              <Button variant="ghost" asChild className="w-full" size="sm">
-                <Link href="/projects">Browse Public Projects</Link>
-              </Button>
+              <Link href="/projects" className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "w-full")}>Browse Public Projects</Link>
             </div>
           </CardFooter>
         </Card>

@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { checkSuperAdmin, getTrustedMemberApplications } from "../actions";
 import { TrustedMembersTab } from "../components/TrustedMembersTab";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 
 export const metadata = {
   title: "Trusted Members | Admin",
@@ -36,13 +36,7 @@ export default async function TrustedMembersPage() {
         </p>
       </div>
       
-      <Card className="border-border bg-card text-card-foreground shadow-sm">
-        <CardHeader>
-          <CardTitle>Applications & Members</CardTitle>
-          <CardDescription>
-            Manage who has trusted member access to the platform.
-          </CardDescription>
-        </CardHeader>
+      <Card className="border-border bg-card text-card-foreground shadow-xs">
         <CardContent>
           <TrustedMembersTab trustedMembers={applications || []} />
         </CardContent>

@@ -13,12 +13,11 @@ import { Button } from "@/components/ui/button";
 import {
   Download,
   Loader2,
-  Check,
   CheckCircle,
   MapPin,
   Calendar as CalendarIcon,
 } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import {
   generateProjectICalFile,
   downloadICalFile,
@@ -46,7 +45,6 @@ export default function CalendarOptionsModal({
   onSyncSuccess,
 }: CalendarOptionsModalProps) {
   const [isConnecting, setIsConnecting] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [isCheckingConnection, setIsCheckingConnection] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
@@ -84,63 +82,40 @@ export default function CalendarOptionsModal({
 
     // Not connected, initiate OAuth flow
     setIsConnecting(true);
-    try {
-      // Store project page for redirect back
-      const projectUrl = `/projects/${project.id}`;
-      sessionStorage.setItem("calendarRedirectUrl", projectUrl);
 
-      // Get OAuth URL
-      const connectResponse = await fetch(
-        `/api/calendar/google/connect?return_to=${encodeURIComponent(projectUrl)}`,
+    // Store project page for redirect back
+    const projectUrl = `/projects/${project.id}`;
+    sessionStorage.setItem("calendarRedirectUrl", projectUrl);
+
+    // Store the signup/project ID to sync after OAuth callback
+    if (mode === "volunteer" && signup) {
+      sessionStorage.setItem(
+        "pendingCalendarSync",
+        JSON.stringify({
+          type: "signup",
+          signupId: signup.id,
+          projectId: project.id,
+          scheduleId: signup.schedule_id,
+        }),
       );
-      const connectData = await connectResponse.json();
-
-      if (!connectResponse.ok) {
-        throw new Error(connectData.error || "Failed to connect calendar");
-      }
-
-      // Store the signup/project ID to sync after OAuth callback
-      if (mode === "volunteer" && signup) {
-        sessionStorage.setItem(
-          "pendingCalendarSync",
-          JSON.stringify({
-            type: "signup",
-            signupId: signup.id,
-            projectId: project.id,
-            scheduleId: signup.schedule_id,
-          }),
-        );
-      } else {
-        sessionStorage.setItem(
-          "pendingCalendarSync",
-          JSON.stringify({
-            type: "project",
-            projectId: project.id,
-          }),
-        );
-      }
-
-      // Store flag to reopen calendar modal after OAuth
-      sessionStorage.setItem("reopenCalendarModal", "true");
-
-      // Redirect to Google OAuth
-      window.location.href = connectData.authUrl;
-    } catch (error) {
-      console.error("Failed to connect to Google Calendar:", error);
-      toast({
-        title: "Connection Failed",
-        description:
-          error instanceof Error
-            ? error.message
-            : "Failed to connect to Google Calendar",
-        variant: "destructive",
-      });
-      setIsConnecting(false);
+    } else {
+      sessionStorage.setItem(
+        "pendingCalendarSync",
+        JSON.stringify({
+          type: "project",
+          projectId: project.id,
+        }),
+      );
     }
+
+    // Store flag to reopen calendar modal after OAuth
+    sessionStorage.setItem("reopenCalendarModal", "true");
+
+    // Redirect to Google OAuth
+    window.location.href = `/api/calendar/google/connect?return_to=${encodeURIComponent(projectUrl)}`;
   };
 
   const syncToCalendar = async () => {
-    setIsSyncing(true);
     try {
       if (mode === "volunteer" && signup) {
         // Sync volunteer signup - use correct parameter names (snake_case)
@@ -159,8 +134,7 @@ export default function CalendarOptionsModal({
           throw new Error(data.error || "Failed to sync signup");
         }
 
-        toast({
-          title: "✓ Added to Google Calendar",
+        toast.success("✓ Added to Google Calendar", {
           description: "Your volunteer signup has been added to your calendar",
         });
 
@@ -179,8 +153,7 @@ export default function CalendarOptionsModal({
           throw new Error(data.error || "Failed to sync project");
         }
 
-        toast({
-          title: "Project Synced",
+        toast.success("Project Synced", {
           description: "Your project has been synced to Google Calendar",
         });
 
@@ -191,16 +164,12 @@ export default function CalendarOptionsModal({
       onOpenChange(false);
     } catch (error) {
       console.error("Failed to sync to calendar:", error);
-      toast({
-        title: "Sync Failed",
+      toast.error("Sync Failed", {
         description:
           error instanceof Error
             ? error.message
             : "Failed to sync event to calendar",
-        variant: "destructive",
       });
-    } finally {
-      setIsSyncing(false);
     }
   };
 
@@ -222,20 +191,17 @@ export default function CalendarOptionsModal({
       const filename = generateICalFilename(project, scheduleId);
       downloadICalFile(icalContent, filename);
 
-      toast({
-        title: "iCal File Downloaded",
+      toast.success("iCal File Downloaded", {
         description: "Open the file to add the event to your calendar app",
       });
       onOpenChange(false);
     } catch (error) {
       console.error("Failed to download iCal:", error);
-      toast({
-        title: "Download Failed",
+      toast.error("Download Failed", {
         description:
           error instanceof Error
             ? error.message
             : "Failed to download iCal file",
-        variant: "destructive",
       });
     } finally {
       setIsDownloading(false);
@@ -248,8 +214,8 @@ export default function CalendarOptionsModal({
         <DialogHeader>
           {showSuccessMessage ? (
             <div className="flex items-center gap-3 mb-2">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-chart-5/20">
-                <CheckCircle className="h-6 w-6 text-chart-5" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-success/20">
+                <CheckCircle className="h-6 w-6 text-success" />
               </div>
               <div className="flex-1 min-w-0">
                 <DialogTitle className="text-xl">
@@ -280,19 +246,19 @@ export default function CalendarOptionsModal({
         {/* Project Info Card - Only show when success message is shown */}
         {showSuccessMessage && (
           <div className="rounded-lg border p-3 space-y-2 bg-muted/30">
-            <p className="font-semibold text-sm break-words">{project.title}</p>
+            <p className="font-semibold text-sm wrap-break-word">{project.title}</p>
             {project.location_data && (
               <p className="text-xs text-muted-foreground flex items-start gap-1">
-                <MapPin className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
-                <span className="break-words">
+                <MapPin className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                <span className="wrap-break-word">
                   {project.location_data.text}
                 </span>
               </p>
             )}
             {project.schedule?.oneTime?.date && (
               <p className="text-xs text-muted-foreground flex items-start gap-1">
-                <CalendarIcon className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
-                <span className="break-words">
+                <CalendarIcon className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                <span className="wrap-break-word">
                   {new Date(project.schedule.oneTime.date).toLocaleDateString(
                     "en-US",
                     {
@@ -316,13 +282,13 @@ export default function CalendarOptionsModal({
             </div>
           ) : isConnected ? (
             <div className="space-y-3">
-              <div className="flex items-center gap-3 p-4 bg-chart-5/10 border border-chart-5/30 rounded-lg text-chart-5">
-                <CheckCircle className="h-5 w-5 flex-shrink-0" />
+              <div className="flex items-center gap-3 p-4 bg-success/10 border border-success/30 rounded-lg text-success">
+                <CheckCircle className="h-5 w-5 shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-sm mb-0.5 break-words">
+                  <p className="font-semibold text-sm mb-0.5 wrap-break-word">
                     Calendar Connected
                   </p>
-                  <p className="text-xs text-muted-foreground leading-relaxed break-words">
+                  <p className="text-xs text-muted-foreground leading-relaxed wrap-break-word">
                     We&apos;ll automatically add this to your calendar.
                   </p>
                   {connectedEmail && (
@@ -342,21 +308,21 @@ export default function CalendarOptionsModal({
             >
               <div className="flex items-center gap-3 text-left w-full min-w-0">
                 {isConnecting ? (
-                  <Loader2 className="h-5 w-5 animate-spin flex-shrink-0 text-primary" />
+                  <Loader2 className="h-5 w-5 animate-spin shrink-0 text-primary" />
                 ) : (
                   <Image
                     src="/googlecalendar.svg"
                     alt="Google Calendar"
                     width={20}
                     height={20}
-                    className="flex-shrink-0"
+                    className="shrink-0"
                   />
                 )}
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-sm mb-0.5 break-words">
+                  <p className="font-semibold text-sm mb-0.5 wrap-break-word">
                     Connect Google Calendar
                   </p>
-                  <p className="text-xs text-muted-foreground leading-relaxed break-words">
+                  <p className="text-xs text-muted-foreground leading-relaxed wrap-break-word">
                     Connect your account to auto-sync this event
                   </p>
                 </div>
@@ -373,15 +339,15 @@ export default function CalendarOptionsModal({
           >
             <div className="flex items-center gap-3 text-left w-full min-w-0">
               {isDownloading ? (
-                <Loader2 className="h-5 w-5 animate-spin flex-shrink-0 text-primary" />
+                <Loader2 className="h-5 w-5 animate-spin shrink-0 text-primary" />
               ) : (
-                <Download className="h-5 w-5 flex-shrink-0 text-primary" />
+                <Download className="h-5 w-5 shrink-0 text-primary" />
               )}
               <div className="flex-1 min-w-0">
-                <p className="font-semibold text-sm mb-0.5 break-words">
+                <p className="font-semibold text-sm mb-0.5 wrap-break-word">
                   Download iCal File
                 </p>
-                <p className="text-xs text-muted-foreground leading-relaxed break-words">
+                <p className="text-xs text-muted-foreground leading-relaxed wrap-break-word">
                   For Apple Calendar, Outlook, and other calendar apps
                 </p>
               </div>

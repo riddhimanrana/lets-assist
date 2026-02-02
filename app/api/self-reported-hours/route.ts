@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 
 // Shape of request body expected from AddVolunteerHoursModal
 interface SelfReportedHoursRequest {
@@ -57,7 +57,9 @@ export async function POST(request: Request) {
       project_id: null,
       user_id: user.id,
       signup_id: null,
-      volunteer_name: user.user_metadata?.full_name || null,
+      volunteer_name:
+        (user.user_metadata as { full_name?: string } | null)?.full_name ||
+        null,
       volunteer_email: user.email,
       project_title: body.title.substring(0, 140),
       project_location: null,

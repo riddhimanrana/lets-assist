@@ -2,15 +2,10 @@
 
 import {
   Printer,
-  Calendar,
-  Clock,
-  MapPin,
-  Building2,
-  Award,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format, parseISO } from "date-fns";
-import { formatInTimeZone } from "date-fns-tz";
+import { tz } from "@date-fns/tz";
 import { useEffect, useState, useRef } from "react";
 
 interface CertificateData {
@@ -64,16 +59,16 @@ export function PrintCertificate({ data }: { data: CertificateData }) {
     const userTimezone = getUserTimezone();
 
     // Format dates in user's timezone for print
-    const printEventDate = formatInTimeZone(
+    const printEventDate = format(
       parseISO(data.event_start),
-      userTimezone,
       "MMMM d, yyyy",
+      { in: tz(userTimezone) }
     );
 
-    const printIssuedDate = formatInTimeZone(
+    const printIssuedDate = format(
       parseISO(data.issued_at),
-      userTimezone,
       "MMM d, yyyy",
+      { in: tz(userTimezone) }
     );
 
     // Assemble the HTML content for the certificate
@@ -128,26 +123,24 @@ export function PrintCertificate({ data }: { data: CertificateData }) {
                 <p class="print-text" style="margin:.5rem 0">${printEventDate}</p>
                 <p class="print-text" style="margin:0;font-size:0.9rem;">Event Date</p>
               </div>
-                ${
-                  data.organization_name
-                    ? `
+                ${data.organization_name
+        ? `
                 <div style="text-align:center">
                   <span class="print-accent" aria-hidden="true">🏢</span>
                   <p class="print-text" style="margin:.5rem 0">${data.organization_name}</p>
                   <p class="print-text" style="margin:0;font-size:0.9rem;">Organization</p>
                 </div>`
-                    : ""
-                }
-                ${
-                  data.project_location
-                    ? `
+        : ""
+      }
+                ${data.project_location
+        ? `
                 <div style="text-align:center">
                   <span class="print-accent" aria-hidden="true">📍</span>
                   <p class="print-text" style="margin:.5rem 0">${data.project_location}</p>
                   <p class="print-text" style="margin:0;font-size:0.9rem;">Location</p>
                 </div>`
-                    : ""
-                }
+        : ""
+      }
                 <div style="text-align:center">
                   <span class="print-accent" aria-hidden="true">⏰</span>
                   <p class="print-text" style="margin:.5rem 0">${data.durationText}</p>
@@ -162,15 +155,14 @@ export function PrintCertificate({ data }: { data: CertificateData }) {
                 <p class="print-text" style="font-weight:bold;margin:.25rem 0">${data.creator_name || "Let's Assist Admin"}</p>
                 <p class="print-text" style="margin:0;font-size:0.9rem;">Issued: ${printIssuedDate}</p>
               </div>
-              ${
-                data.is_certified
-                  ? `
+              ${data.is_certified
+        ? `
               <div style="display:flex;align-items:center">
                 <span class="print-accent" aria-hidden="true" style="font-size:2rem;">🏅</span>
                 <span class="print-text print-accent" style="font-weight:bold;margin-left:.5rem">OFFICIALLY VERIFIED</span>
               </div>`
-                  : ""
-              }
+        : ""
+      }
               <div style="text-align:right">
                 <p class="print-text" style="margin:0">Verify at:</p>
                 <p class="print-text" style="font-weight:bold;margin:.25rem 0">lets-assist.com/certificates/${data.id}</p>

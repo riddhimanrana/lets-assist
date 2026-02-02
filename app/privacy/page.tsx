@@ -105,7 +105,7 @@ const PrivacyPage = () => {
               href="https://developers.google.com/terms/api-services-user-data-policy"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-chart-3 underline"
+              className="text-info underline"
             >
               Google API Services User Data Policy
             </a>
@@ -152,7 +152,7 @@ const PrivacyPage = () => {
               this in your account settings or by contacting{" "}
               <Link
                 href="mailto:privacy@lets-assist.com"
-                className="text-chart-3"
+                className="text-info"
               >
                 privacy@lets-assist.com
               </Link>
@@ -180,7 +180,7 @@ const PrivacyPage = () => {
             For privacy-related inquiries, email us at{" "}
             <Link
               href="mailto:privacy@lets-assist.com"
-              className="text-chart-3"
+              className="text-info"
             >
               privacy@lets-assist.com
             </Link>

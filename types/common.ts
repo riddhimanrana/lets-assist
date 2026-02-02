@@ -7,6 +7,17 @@ export type ProfileVisibility = 'public' | 'private' | 'organization_only';
 export type ProjectVisibility = 'public' | 'unlisted' | 'organization_only';
 export type ProjectStatus = "upcoming" | "in-progress" | "completed" | "cancelled";
 export type OrganizationRole = "admin" | "staff" | "member";
+export type ProjectWorkflowStatus = "draft" | "pending_review" | "published" | "archived";
+export type RecurrenceFrequency = "daily" | "weekly" | "monthly" | "yearly";
+export type RecurrenceEndType = "never" | "on_date" | "after_occurrences";
+export type RecurrenceWeekday =
+  | "monday"
+  | "tuesday"
+  | "wednesday"
+  | "thursday"
+  | "friday"
+  | "saturday"
+  | "sunday";
 
 // Location data with optional coordinates
 export interface LocationData {

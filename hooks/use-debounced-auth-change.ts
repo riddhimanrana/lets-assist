@@ -26,7 +26,7 @@
  */
 
 import { useEffect, useRef, useCallback } from 'react';
-import { createClient } from '@/utils/supabase/client';
+import { createClient } from '@/lib/supabase/client';
 import type { User } from '@supabase/supabase-js';
 
 const DEBOUNCE_DELAY_MS = 1000; // 1 second window
@@ -44,7 +44,7 @@ const DEBOUNCE_DELAY_MS = 1000; // 1 second window
  */
 export function useDebouncedAuthChange(
   onAuthChange: (user: User | null) => Promise<void> | void,
-  deps: React.DependencyList = [],
+  _deps: React.DependencyList = [],
 ) {
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastUserIdRef = useRef<string | null>(null);
@@ -138,13 +138,8 @@ export function debounceAuthChange<T extends (...args: unknown[]) => unknown>(
 ): (...args: Parameters<T>) => void {
   let timeoutId: NodeJS.Timeout | null = null;
   let lastArgs: Parameters<T> | null = null;
-  let lastCallTime = 0;
-  let lastInvokeTime = 0;
 
   return (...args: Parameters<T>) => {
-    const time = Date.now();
-    const isInvoking = false;
-
     if (timeoutId) {
       clearTimeout(timeoutId);
     }
@@ -160,7 +155,6 @@ export function debounceAuthChange<T extends (...args: unknown[]) => unknown>(
         }
       }
       timeoutId = null;
-      lastInvokeTime = Date.now();
     }, delayMs);
   };
 }

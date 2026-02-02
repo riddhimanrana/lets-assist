@@ -115,7 +115,7 @@ export function DateTimePicker({
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
-      <PopoverTrigger asChild>
+      <PopoverTrigger render={
         <Button
           variant="outline"
           className={cn(
@@ -131,7 +131,7 @@ export function DateTimePicker({
             <span>{placeholder}</span>
           )}
         </Button>
-      </PopoverTrigger>
+      } />
       <PopoverContent className="w-auto p-0">
         <div className="sm:flex">
           <Calendar
@@ -141,7 +141,7 @@ export function DateTimePicker({
             initialFocus
           />
           <div className="flex flex-col sm:flex-row sm:h-[300px] divide-y sm:divide-y-0 sm:divide-x">
-            <ScrollArea className="w-64 sm:w-auto">
+            <ScrollArea className="w-full sm:w-auto">
               <div className="flex sm:flex-col p-2">
                 {hours.map((hour) => (
                   <Button
@@ -161,7 +161,7 @@ export function DateTimePicker({
               </div>
               <ScrollBar orientation="horizontal" className="sm:hidden" />
             </ScrollArea>
-            <ScrollArea className="w-64 sm:w-auto">
+            <ScrollArea className="w-full sm:w-auto">
               <div className="flex sm:flex-col p-2">
                 {minutes.map((minute) => (
                   <Button
@@ -191,8 +191,8 @@ export function DateTimePicker({
                     size="icon"
                     variant={
                       date &&
-                      ((ampm === "AM" && date.getHours() < 12) ||
-                        (ampm === "PM" && date.getHours() >= 12))
+                        ((ampm === "AM" && date.getHours() < 12) ||
+                          (ampm === "PM" && date.getHours() >= 12))
                         ? "default"
                         : "ghost"
                     }

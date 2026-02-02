@@ -3,7 +3,7 @@
  * GET /api/calendar/google/connect
  */
 
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
@@ -11,6 +11,12 @@ export async function GET(request: Request) {
     const supabase = await createClient();
     const { searchParams } = new URL(request.url);
     const returnTo = searchParams.get("return_to");
+    const scopeType = searchParams.get("scopes") || "calendar"; // "calendar" | "sheets" | "both"
+    const forceConsent = searchParams.get("force") === "1";
+    const wantsJson = searchParams.get("format") === "json";
+    const orgId = searchParams.get("org_id");
+    const isCalendarSync = searchParams.get("calendar_sync") === "1";
+    const isSheetsSync = searchParams.get("sheets_sync") === "1";
 
     // Check if user is authenticated
     const {
@@ -23,6 +29,28 @@ export async function GET(request: Request) {
         { error: "Unauthorized" },
         { status: 401 }
       );
+    }
+
+    if (orgId) {
+      const { data: membership } = await supabase
+        .from("organization_members")
+        .select("role")
+        .eq("organization_id", orgId)
+        .eq("user_id", user.id)
+        .single();
+
+      if (!membership || membership.role !== "admin") {
+        const requestUrl = new URL(request.url);
+        const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || requestUrl.origin;
+        const safeReturnTo =
+          returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//")
+            ? returnTo
+            : null;
+        const target = safeReturnTo || `/organization/${orgId}/settings`;
+        const redirectUrl = new URL(target, baseUrl);
+        redirectUrl.searchParams.set("error", "org_admin_required");
+        return NextResponse.redirect(redirectUrl.toString());
+      }
     }
 
     // Get environment variables
@@ -44,7 +72,13 @@ export async function GET(request: Request) {
         userId: user.id,
         timestamp: Date.now(),
         nonce: Math.random().toString(36).substring(7),
-        returnTo: returnTo || null,
+        returnTo:
+          returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//")
+            ? returnTo
+            : null,
+        orgId: orgId || null,
+        isCalendarSync: isCalendarSync || false,
+        isSheetsSync: isSheetsSync || false,
       })
     ).toString("base64");
 
@@ -54,14 +88,44 @@ export async function GET(request: Request) {
     googleAuthUrl.searchParams.set("client_id", clientId);
     googleAuthUrl.searchParams.set("redirect_uri", redirectUri); // Use exact URI from env
     googleAuthUrl.searchParams.set("response_type", "code");
-    googleAuthUrl.searchParams.set("scope", "https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/userinfo.email");
+    
+    // Always include email scope
+    const scopes = ["https://www.googleapis.com/auth/userinfo.email"];
+    
+    // Determine which scopes to request based on the connection type
+    if (scopeType === "sheets" || isSheetsSync) {
+      // Sheets-only connection (for organization reports)
+      scopes.push(
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive.file"
+      );
+    } else if (scopeType === "both") {
+      // Both calendar and sheets (rare case)
+      scopes.push(
+        "https://www.googleapis.com/auth/calendar",
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive.file"
+      );
+    } else {
+      // Default to calendar-only (for organization calendar sync or personal calendar)
+      scopes.push("https://www.googleapis.com/auth/calendar");
+    }
+
+    googleAuthUrl.searchParams.set("scope", scopes.join(" "));
     googleAuthUrl.searchParams.set("access_type", "offline");
-    googleAuthUrl.searchParams.set("prompt", "consent"); // Force consent to get refresh token
+    googleAuthUrl.searchParams.set("include_granted_scopes", "true");
+    if (forceConsent) {
+      googleAuthUrl.searchParams.set("prompt", "consent");
+    }
     googleAuthUrl.searchParams.set("state", state);
 
-    return NextResponse.json({
-      authUrl: googleAuthUrl.toString(),
-    });
+    if (wantsJson) {
+      return NextResponse.json({
+        authUrl: googleAuthUrl.toString(),
+      });
+    }
+
+    return NextResponse.redirect(googleAuthUrl.toString());
   } catch (error) {
     console.error("Error initiating Google Calendar connection:", error);
     return NextResponse.json(

@@ -2,17 +2,15 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Project, EventType } from "@/types";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Project } from "@/types";
 import { QRCode } from "react-qrcode-logo";
 import { Button } from "@/components/ui/button";
 import { differenceInHours, parseISO, format, isBefore, subHours } from "date-fns";
-import { Printer, Calendar, Clock, Info, Lock, Users, QrCode as QrIcon } from "lucide-react";
+import { Printer, Clock, Lock, QrCode as QrIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { formatTimeTo12Hour } from "@/lib/utils";
-import { Card, CardContent } from "@/components/ui/card";
 import { useReactToPrint } from "react-to-print";
-import Image from "next/image";
+import { cn } from "@/lib/utils";
 
 // Remove the complex token generation function - we'll use cookies/sessions instead
 
@@ -34,11 +32,9 @@ interface SessionInfo {
 }
 
 export function ProjectQRCodeModal({ project, open, onOpenChange }: ProjectQRCodeModalProps) {
-  const [activeTab, setActiveTab] = useState<string>("all");
   const [sessions, setSessions] = useState<SessionInfo[]>([]);
   const printRef = useRef<HTMLDivElement>(null);
   const [selectedQRCode, setSelectedQRCode] = useState<SessionInfo | null>(null);
-  const qrCodeSize = 210;
   
   const handlePrint = useReactToPrint({
     contentRef: printRef,
@@ -141,7 +137,6 @@ export function ProjectQRCodeModal({ project, open, onOpenChange }: ProjectQRCod
   const renderAvailabilityBadge = (session: SessionInfo) => {
     const now = new Date();
     const startDate = parseISO(`${session.date}T${session.startTime}`);
-    const endDate = parseISO(`${session.date}T${session.endTime}`);
 
     if (session.isAvailable) {
       return <Badge variant="default">Available Now</Badge>;
@@ -161,146 +156,105 @@ export function ProjectQRCodeModal({ project, open, onOpenChange }: ProjectQRCod
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-xl">QR Code Check-In</DialogTitle>
-        </DialogHeader>
-        
-        <div className="grid md:grid-cols-2 gap-6 mt-4">
-          {/* Left side - Session list */}
-          <div className="space-y-4 border-r pr-4">
-            <h3 className="font-medium text-lg">Project Sessions</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              QR codes become available 24 hours before each session starts and expire when the session ends. They can be scanned 2 hours before to check in.
+      <DialogContent className="sm:max-w-2xl p-0">
+        <div className="flex max-h-[90vh] flex-col">
+          <DialogHeader className="border-b px-5 py-4">
+            <DialogTitle className="text-lg sm:text-xl">QR Code Check-In</DialogTitle>
+            <p className="text-sm text-muted-foreground">
+              QR codes become available 24 hours before each session starts, can be scanned 2 hours before for check-in,
+              and expire when the session ends.
             </p>
-            
-            <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
-              {sessions.map((session) => (
-                <Card 
-                  key={session.id}
-                  className={`cursor-pointer hover:bg-muted/50 transition-colors ${selectedQRCode?.id === session.id ? 'border-primary' : ''}`}
-                  onClick={() => setSelectedQRCode(session)}
-                >
-                  <CardContent className="p-4">
-                    <div className="flex justify-between items-start mb-2">
-                      <h4 className="font-medium">{session.name}</h4>
-                      {renderAvailabilityBadge(session)}
-                    </div>
-                    <div className="space-y-1 text-sm text-muted-foreground">
-                      <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4" />
-                        <span>{format(parseISO(session.date), "EEEE, MMMM d, yyyy")}</span>
+          </DialogHeader>
+
+          <div className="grid gap-4 px-5 pb-5 pt-5 md:grid-cols-2">
+            {/* Sessions */}
+            <div className="space-y-3">
+              <div className="space-y-2 max-h-100 overflow-y-auto pr-2">
+                {sessions.map((session) => (
+                  <button
+                    key={session.id}
+                    type="button"
+                    onClick={() => setSelectedQRCode(session)}
+                    className={cn(
+                      "w-full rounded-lg border p-3 text-left transition hover:bg-muted/40",
+                      selectedQRCode?.id === session.id ? "border-primary bg-primary/5" : "bg-background"
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-medium text-foreground">{session.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {format(parseISO(session.date), "EEEE, MMM d")}
+                        </p>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Clock className="h-4 w-4" />
-                        <span>{formatTimeTo12Hour(session.startTime)} - {formatTimeTo12Hour(session.endTime)}</span>
+                      <div className="shrink-0">
+                        {renderAvailabilityBadge(session)}
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
-              
-              {sessions.length === 0 && (
-                <div className="text-center p-4 text-muted-foreground">
-                  No sessions found for this project
+                    <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                      <Clock className="h-3.5 w-3.5" />
+                      {formatTimeTo12Hour(session.startTime)} - {formatTimeTo12Hour(session.endTime)}
+                    </div>
+                  </button>
+                ))}
+
+                {sessions.length === 0 && (
+                  <div className="text-center p-4 text-muted-foreground">
+                    No sessions found for this project
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* QR preview */}
+            <div className="flex items-center justify-center">
+              {selectedQRCode ? (
+                <div className="w-full h-full flex items-center justify-center">
+                  <div className="w-full max-w-70 rounded-3xl border bg-muted/20 p-4 sm:p-6 flex flex-col items-center">
+                    <div className="rounded-xl border-4 border-muted/30 bg-white p-3 shadow-inner">
+                      {selectedQRCode.isAvailable ? (
+                        <QRCode
+                          value={selectedQRCode.qrUrl}
+                          size={180}
+                          logoImage="/logo.png"
+                          qrStyle="dots"
+                          eyeRadius={{ outer: 8, inner: 1 }}
+                          fgColor="#000000"
+                          bgColor="#FFFFFF"
+                          removeQrCodeBehindLogo
+                          logoPadding={2}
+                          ecLevel="L"
+                        />
+                      ) : (
+                        <div className="w-45 h-45 flex flex-col items-center justify-center p-4 text-center">
+                          <Lock className="h-10 w-10 mb-3 text-muted-foreground" />
+                          <p className="text-[10px] leading-tight text-muted-foreground uppercase tracking-wider font-semibold">
+                            {isBefore(new Date(), parseISO(`${selectedQRCode.date}T${selectedQRCode.startTime}`))
+                              ? "Will be available 24 hours before"
+                              : "Session Ended"}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    <Button
+                      type="button"
+                      onClick={() => { void handlePrint(); }}
+                      disabled={!selectedQRCode.isAvailable}
+                      className="mt-6 w-full gap-2"
+                      size="lg"
+                    >
+                      <Printer className="h-4 w-4" /> Print QR Code
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="w-full max-w-70 h-87.5 rounded-3xl border border-dashed flex flex-col items-center justify-center p-6 text-center text-muted-foreground">
+                  <QrIcon className="h-12 w-12 mb-4 opacity-20" />
+                  <p className="text-sm">Select a session to preview QR</p>
                 </div>
               )}
             </div>
-          </div>
-          
-          {/* Right side - QR code display */}
-          <div className="space-y-4">
-            {selectedQRCode ? (
-              <>
-                {/* On-screen only */}
-                <div className="print:hidden flex flex-col items-center justify-center space-y-4">
-                  {/* Session header */}
-                  <div className="text-center mb-2">
-                    <h3 className="font-semibold text-lg">{selectedQRCode.name}</h3>
-                    <p className="text-muted-foreground text-sm mb-1">
-                      {format(parseISO(selectedQRCode.date), "EEEE, MMMM d, yyyy")}
-                    </p>
-                    <p className="text-muted-foreground text-sm">
-                      {formatTimeTo12Hour(selectedQRCode.startTime)} - {formatTimeTo12Hour(selectedQRCode.endTime)}
-                    </p>
-                  </div>
-                  {/* QR code box */}
-                  <div className="border p-4 rounded-xl">
-                    {selectedQRCode.isAvailable ? (
-                      <QRCode
-                        value={selectedQRCode.qrUrl}
-                        size={qrCodeSize}
-                        logoImage="/logo.png"
-                        qrStyle="dots"
-                        eyeRadius={{ outer: 8, inner: 1 }}
-                        fgColor="#000000"
-                        bgColor="#FFFFFF"
-                        removeQrCodeBehindLogo
-                        logoPadding={2}
-                        ecLevel="L"
-                      />
-                    ) : (
-                      <div className="w-[220px] h-[220px] border-2 border-dashed rounded-xl flex flex-col items-center justify-center p-4 text-center">
-                        <Lock className="h-10 w-10 mb-3 text-muted-foreground" />
-                        <p className="text-sm text-muted-foreground">
-                          {isBefore(new Date(), parseISO(`${selectedQRCode.date}T${selectedQRCode.startTime}`))
-                            ? "QR code will be available 24 hours before the session starts."
-                            : "This session has ended."}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                  {/* Print button */}
-                  <Button
-                    type="button"
-                    onClick={() => { void handlePrint(); }}
-                    disabled={!selectedQRCode.isAvailable}
-                    className="mt-2"
-                  >
-                    <Printer className="mr-2 h-4 w-4" /> Print QR Code
-                  </Button>
-                </div>
-
-                {/* Print-only view */}
-                <div
-                  ref={printRef}
-                  className="hidden print:flex flex-col items-center justify-center w-full h-screen p-0 bg-white"
-                  style={{ pageBreakInside: 'avoid' }}
-                >
-                  <h1 className="text-4xl font-bold mb-4">{project.title}</h1>
-                  <h2 className="text-3xl font-semibold mb-2">{selectedQRCode.name}</h2>
-                  <p className="text-2xl mb-6 text-center">
-                    {format(parseISO(selectedQRCode.date), "EEEE, MMMM d, yyyy")}<br/>
-                    {formatTimeTo12Hour(selectedQRCode.startTime)} - {formatTimeTo12Hour(selectedQRCode.endTime)}
-                  </p>
-                  <QRCode
-                    value={selectedQRCode.qrUrl}
-                    size={400}
-                    logoImage="/logo.png"
-                    qrStyle="dots"
-                    eyeRadius={{ outer: 8, inner: 1 }}
-                    fgColor="#000000"
-                    bgColor="#FFFFFF"
-                    removeQrCodeBehindLogo
-                    logoPadding={4}
-                    ecLevel="H"
-                  />
-                  <p className="text-xl mt-6 text-center">
-                    Scan this code to confirm your attendance.
-                  </p>
-                </div>
-              </>
-            ) : (
-              <div className="flex flex-col items-center justify-center h-full">
-                <div className="text-center p-8">
-                  <QrIcon className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                  <h3 className="font-medium text-lg mb-2">Select a session</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Choose a project session from the left to view its QR code
-                  </p>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </DialogContent>

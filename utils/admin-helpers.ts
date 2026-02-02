@@ -4,7 +4,7 @@
  * Utilities for checking admin permissions and roles
  */
 
-import { createClient } from '@/utils/supabase/server';
+import { createClient } from '@/lib/supabase/server';
 import { checkSuperAdmin } from '@/app/admin/actions';
 
 /**

@@ -3,11 +3,13 @@
 import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Users, Key, BarChart3, Eye, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import OrganizationHeader from "@/components/organization/OrganizationHeader";
 import OrganizationTabs from "@/components/organization/OrganizationTabs";
+import type { Project } from "@/types";
 
 const orgFeatures = [
   {
@@ -44,7 +46,21 @@ const mockOrganization = {
   created_at: "2024-01-01T00:00:00.000Z",
 };
 
-const mockMembers = [
+type OrganizationMember = {
+  id: string;
+  role: "admin" | "staff" | "member";
+  joined_at: string;
+  user_id: string;
+  organization_id: string;
+  profiles: {
+    id: string;
+    username: string;
+    full_name: string;
+    avatar_url: string | null;
+  };
+};
+
+const mockMembers: OrganizationMember[] = [
   {
     id: "m1",
     role: "admin",
@@ -77,44 +93,66 @@ function oneTime(dateISO: string, start: string, end: string) {
 }
 
 const STATIC_DATE = "2024-01-01T00:00:00.000Z";
-const now = new Date(STATIC_DATE);
 const todayISO = STATIC_DATE;
 const yesterdayISO = "2023-12-31T00:00:00.000Z";
 const tomorrowISO = "2024-01-02T00:00:00.000Z";
 
-const mockProjects = [
+const mockProfile = {
+  full_name: "Riddhiman Rana",
+  email: "hello@lets-assist.com",
+  avatar_url: null,
+  username: "riddhiman",
+  created_at: todayISO,
+};
+
+const mockProjects: Project[] = [
   {
-    id: "p1",
+    id: "#p1",
     title: "Bollinger Canyon Creek Cleanup",
+    description: "A community creek cleanup to protect local trails and wildlife.",
     location: "Bollinger Canyon Trailhead",
     created_at: todayISO,
     event_type: "oneTime",
     schedule: oneTime(tomorrowISO, "09:00", "12:00"),
     status: "upcoming",
-    visibility: "public" as const,
+    visibility: "public",
     creator_id: "u1",
+    verification_method: "manual",
+    require_login: true,
+    pause_signups: false,
+    profiles: mockProfile,
   },
   {
-    id: "p2",
+    id: "#p2",
     title: "Dougherty Valley Senior Center Meals",
+    description: "Deliver meals and spend time with seniors in the community.",
     location: "Dougherty Valley Senior Center",
     created_at: todayISO,
     event_type: "oneTime",
     schedule: oneTime(yesterdayISO, "11:00", "13:00"),
     status: "completed",
-    visibility: "public" as const,
+    visibility: "public",
     creator_id: "u2",
+    verification_method: "manual",
+    require_login: true,
+    pause_signups: false,
+    profiles: mockProfile,
   },
   {
-    id: "p3",
+    id: "#p3",
     title: "Central Park Tree Planting",
+    description: "Plant trees to expand shaded spaces in the park.",
     location: "San Ramon Central Park",
     created_at: todayISO,
     event_type: "oneTime",
     schedule: oneTime(todayISO, "08:00", "10:00"),
     status: "upcoming",
-    visibility: "public" as const,
+    visibility: "public",
     creator_id: "u3",
+    verification_method: "manual",
+    require_login: true,
+    pause_signups: false,
+    profiles: mockProfile,
   },
 ];
 
@@ -148,8 +186,8 @@ export default function OrgToolingSection() {
           transition={{ duration: 0.5 }}
           className="relative mx-auto mt-12 w-full max-w-6xl"
         >
-          <div className="pointer-events-none absolute -inset-x-8 -inset-y-6 rounded-3xl bg-[radial-gradient(40%_30%_at_30%_20%,theme(colors.emerald.400/_18%),transparent_70%),radial-gradient(30%_25%_at_70%_10%,theme(colors.primary.DEFAULT/_16%),transparent_70%)] blur-2xl" />
-          <div className="relative rounded-2xl border border-primary/20 bg-card/90 shadow-2xl backdrop-blur-sm">
+          <div className="pointer-events-none absolute -inset-x-8 -inset-y-6 rounded-3xl bg-[radial-gradient(40%_30%_at_30%_20%,--theme(--color-emerald-400/18%),transparent_70%),radial-gradient(30%_25%_at_70%_10%,--theme(--color-primary/16%),transparent_70%)] blur-2xl" />
+          <div className="relative rounded-2xl border border-primary/20 bg-card/90 shadow-2xl backdrop-blur-xs">
             <div className="p-4 sm:p-6">
               <OrganizationHeader
                 organization={mockOrganization}
@@ -172,7 +210,7 @@ export default function OrgToolingSection() {
         <div className="mt-12 space-y-10">
           <div className="grid gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {orgFeatures.map((feat) => (
-              <Card key={feat.title} className="h-full border-border/60 bg-background/90 shadow-sm">
+              <Card key={feat.title} className="h-full border-border/60 bg-background/90 shadow-xs">
                 <CardContent className="p-4">
                   <div className="mb-2 inline-flex rounded-lg bg-primary/10 p-2 text-primary">
                     <feat.icon className="h-4 w-4" />
@@ -184,56 +222,58 @@ export default function OrgToolingSection() {
             ))}
           </div>
 
-            <div className="rounded-2xl border border-border/70 bg-muted/50 p-6 sm:p-8">
+          {/* <div className="rounded-2xl border border-border/70 bg-muted/50 p-6 sm:p-8">
             <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
               <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.3em] text-primary/80">Why teams switch</p>
-              <h3 className="mt-2 text-xl font-semibold text-foreground">
-                Built-in tools SignUpGenius doesn’t offer
-              </h3>
-              <p className="mt-2 text-sm text-muted-foreground max-w-prose">
-                Attendance verification, auto-published certificates, member exports, and organization roles are all
-                native here. No plug-ins, no workarounds.
-              </p>
+                <p className="text-sm font-semibold uppercase tracking-[0.3em] text-primary/80">Why teams switch</p>
+                <h3 className="mt-2 text-xl font-semibold text-foreground">
+                  Built-in tools SignUpGenius doesn’t offer
+                </h3>
+                <p className="mt-2 text-sm text-muted-foreground max-w-prose">
+                  Attendance verification, auto-published certificates, member exports, and organization roles are all
+                  native here. No plug-ins, no workarounds.
+                </p>
               </div>
 
               <ul className="grid gap-3 text-sm text-foreground sm:grid-cols-2">
-              <li className="flex items-start gap-3">
-                <span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-semibold text-primary whitespace-nowrap">Let's Assist</span>
-                <span className="leading-relaxed">Verified QR check‑in/out with optional supervisor approvals</span>
-              </li>
+                <li className="flex items-start gap-3">
+                  <span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-semibold text-primary whitespace-nowrap">Let's Assist</span>
+                  <span className="leading-relaxed">Verified QR check‑in/out with optional supervisor approvals</span>
+                </li>
 
-              <li className="flex items-start gap-3">
-                <span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-semibold text-primary whitespace-nowrap">Let's Assist</span>
-                <span className="leading-relaxed">Certificate automation + downloadable proof for students and volunteers</span>
-              </li>
+                <li className="flex items-start gap-3">
+                  <span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-semibold text-primary whitespace-nowrap">Let's Assist</span>
+                  <span className="leading-relaxed">Certificate automation + downloadable proof for students and volunteers</span>
+                </li>
 
-              <li className="flex items-start gap-3">
-                <span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-semibold text-primary whitespace-nowrap">Let's Assist</span>
-                <span className="leading-relaxed">Org roles (admin / staff / member) with audit‑ready exports and filters</span>
-              </li>
+                <li className="flex items-start gap-3">
+                  <span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-semibold text-primary whitespace-nowrap">Let's Assist</span>
+                  <span className="leading-relaxed">Org roles (admin / staff / member) with audit‑ready exports and filters</span>
+                </li>
 
-              <li className="flex items-start gap-3 text-muted-foreground/80">
-                <span className="rounded-full border border-border px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap">SignUpGenius</span>
-                <span className="leading-relaxed">Sign-up lists only — no verified hours, certificates, or compliance features</span>
-              </li>
+                <li className="flex items-start gap-3 text-muted-foreground/80">
+                  <span className="rounded-full border border-border px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap">SignUpGenius</span>
+                  <span className="leading-relaxed">Sign-up lists only — no verified hours, certificates, or compliance features</span>
+                </li>
               </ul>
             </div>
-            </div>
+          </div> */}
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-center">
-            <Button asChild size="lg" className="gap-2">
-              <Link href="/trusted-member">
-                Apply for trusted member access
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </Button>
-            <Button asChild size="lg" variant="outline" className="gap-2">
-              <Link href="/organization">
-                Explore organizations
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </Button>
+            <Link
+              href="/trusted-member"
+              className={cn(buttonVariants({ size: "lg", className: "gap-2" }))}
+            >
+              Apply for trusted member access
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+            <Link
+              href="/organization"
+              className={cn(buttonVariants({ size: "lg", variant: "outline", className: "gap-2" }))}
+            >
+              Explore organizations
+              <ArrowRight className="h-4 w-4" />
+            </Link>
           </div>
         </div>
       </div>

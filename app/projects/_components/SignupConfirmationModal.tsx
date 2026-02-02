@@ -17,11 +17,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { User, Mail, Phone, Calendar, MapPin, Clock, Loader2, Check, ChevronDown, Download } from 'lucide-react';
+import { User, Mail, Phone, Calendar, MapPin, Clock, Loader2, ChevronDown, Download, CheckCircle } from 'lucide-react';
 import Image from "next/image";
 import { getUserProfile } from '@/app/projects/[id]/actions';
-import { toast } from '@/hooks/use-toast';
+import { toast } from "sonner";
 import { TimezoneBadge } from '@/components/shared/TimezoneBadge';
+import { WaiverSignatureSection } from '@/app/projects/_components/WaiverSignatureSection';
+import type { Project, WaiverSignatureInput, WaiverTemplate } from '@/types';
 
 interface UserProfile {
   full_name: string | null;
@@ -32,8 +34,12 @@ interface UserProfile {
 interface SignupConfirmationModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: (comment?: string) => void;
+  onConfirm: (comment?: string, waiverSignature?: WaiverSignatureInput | null) => void;
   enableVolunteerComments?: boolean;
+  waiverRequired?: boolean;
+  waiverAllowUpload?: boolean;
+  waiverTemplate?: WaiverTemplate | null;
+  waiverPdfUrl?: string | null;
   project: {
     id: string;
     title: string;
@@ -52,6 +58,10 @@ export function SignupConfirmationModal({
   onClose,
   onConfirm,
   enableVolunteerComments = false,
+  waiverRequired = false,
+  waiverAllowUpload = true,
+  waiverTemplate = null,
+  waiverPdfUrl = null,
   project,
   scheduleId,
   isLoading = false,
@@ -59,7 +69,8 @@ export function SignupConfirmationModal({
   const [currentUserProfile, setCurrentUserProfile] = useState<UserProfile | null>(null);
   const [isFetchingProfile, setIsFetchingProfile] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
-  
+  const [waiverSignature, setWaiverSignature] = useState<WaiverSignatureInput | null>(null);
+
   // Calendar connection state
   const [calendarConnected, setCalendarConnected] = useState(false);
   const [connectedEmail, setConnectedEmail] = useState<string | null>(null);
@@ -70,6 +81,7 @@ export function SignupConfirmationModal({
   useEffect(() => {
     if (!isOpen) {
       setComment('');
+      setWaiverSignature(null);
     }
   }, [isOpen]);
 
@@ -78,15 +90,15 @@ export function SignupConfirmationModal({
       if (!isOpen) {
         return;
       }
-      
+
       if (currentUserProfile) return;
 
       setIsFetchingProfile(true);
       setProfileError(null);
-      
+
       try {
         const result = await getUserProfile();
-        
+
         if (result.error) {
           setProfileError(result.error);
           setCurrentUserProfile(null);
@@ -122,7 +134,7 @@ export function SignupConfirmationModal({
       try {
         const response = await fetch('/api/calendar/connection-status');
         const data = await response.json();
-        
+
         // API returns 'connected' not 'isConnected'
         setCalendarConnected(data.connected || false);
         setConnectedEmail(data.calendar_email || null);
@@ -147,26 +159,16 @@ export function SignupConfirmationModal({
         scheduleId: scheduleId,
         returnToModal: true,
       }));
-      
+
       // Build return URL for this project
       const returnUrl = `/projects/${project.id}`;
-      
-      // Get OAuth URL with return parameter
-      const response = await fetch(`/api/calendar/google/connect?return_to=${encodeURIComponent(returnUrl)}`);
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to connect calendar');
-      }
 
       // Redirect to OAuth
-      window.location.href = data.authUrl;
+      window.location.href = `/api/calendar/google/connect?return_to=${encodeURIComponent(returnUrl)}`;
     } catch (error) {
       console.error('Failed to connect calendar:', error);
-      toast({
-        title: 'Connection Failed',
+      toast.error('Connection Failed', {
         description: error instanceof Error ? error.message : 'Failed to connect Google Calendar',
-        variant: 'destructive',
       });
       setConnectingCalendar(false);
     }
@@ -177,45 +179,48 @@ export function SignupConfirmationModal({
     import('@/utils/ical').then(({ generateProjectICalFile, downloadICalFile, generateICalFilename }) => {
       try {
         // We need to create a minimal project object with the schedule
-        const projectData: any = {
-          ...project,
-          event_type: 'oneTime' as const,
+        const projectData: Project = {
+          id: project.id,
+          title: project.title,
+          description: '',
+          location: project.location,
+          event_type: 'oneTime',
           schedule: {
             oneTime: {
               date: project.date,
               startTime: project.start_time || '00:00',
               endTime: project.end_time || '23:59',
-              slots: 1,
+              volunteers: 1,
             }
           },
-          description: '',
-          creator_id: '',
-          organization_id: null,
-          status: 'active' as const,
-          visibility: 'public' as const,
-          created_at: '',
-          updated_at: '',
-          published: {},
-          required_volunteers: 1,
-          verification_method: 'qr',
+          verification_method: 'manual',
           require_login: false,
+          creator_id: '',
+          status: 'upcoming',
+          visibility: 'public',
           pause_signups: false,
+          profiles: {
+            full_name: '',
+            email: '',
+            avatar_url: null,
+            username: '',
+            created_at: '',
+          },
+          created_at: '',
+          published: {},
         };
 
         const icalContent = generateProjectICalFile(projectData, scheduleId);
         const filename = generateICalFilename(projectData, scheduleId);
         downloadICalFile(icalContent, filename);
 
-        toast({
-          title: 'iCal Downloaded',
+        toast.success('iCal Downloaded', {
           description: 'Open the file to add the event to your calendar app',
         });
       } catch (error) {
         console.error('Failed to download iCal:', error);
-        toast({
-          title: 'Download Failed',
+        toast.error('Download Failed', {
           description: 'Failed to download calendar file',
-          variant: 'destructive',
         });
       }
     });
@@ -233,7 +238,7 @@ export function SignupConfirmationModal({
 
   const handleConfirm = () => {
     const trimmed = comment.trim();
-    onConfirm(trimmed.length > 0 ? trimmed : undefined);
+    onConfirm(trimmed.length > 0 ? trimmed : undefined, waiverSignature);
   };
 
   const formatTime = (timeString: string) => {
@@ -247,18 +252,19 @@ export function SignupConfirmationModal({
     });
   };
 
-  const canConfirm = !isLoading && !isFetchingProfile && !profileError && !!currentUserProfile;
+  const waiverSatisfied = !waiverRequired || !!waiverSignature;
+  const canConfirm = !isLoading && !isFetchingProfile && !profileError && !!currentUserProfile && waiverSatisfied;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-5xl w-[95vw] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Confirm Event Signup</DialogTitle>
           <DialogDescription>
             Please review your information and event details before confirming your signup.
           </DialogDescription>
         </DialogHeader>
-        
+
         <div className="space-y-6">
           {/* User Information */}
           <div className="space-y-3">
@@ -337,6 +343,20 @@ export function SignupConfirmationModal({
             </div>
           </div>
 
+          {waiverRequired && (
+            <div className="space-y-3 pt-3 border-t">
+              <WaiverSignatureSection
+                template={waiverTemplate || null}
+                waiverPdfUrl={waiverPdfUrl}
+                signerName={currentUserProfile?.full_name || undefined}
+                signerEmail={currentUserProfile?.email || undefined}
+                allowUpload={waiverAllowUpload}
+                required
+                onChange={setWaiverSignature}
+              />
+            </div>
+          )}
+
           {enableVolunteerComments && (
             <div className="space-y-3 pt-3 border-t">
               <div className="flex justify-between items-center">
@@ -370,40 +390,36 @@ export function SignupConfirmationModal({
                 Checking connection...
               </div>
             ) : calendarConnected ? (
-              <div className="flex items-center justify-between gap-3 p-3 bg-chart-5/10 border border-chart-5/80 rounded-lg">
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <div className="flex-shrink-0">
-                    <div className="h-8 w-8 rounded-full bg-chart-5/20 flex items-center justify-center">
-                      <Image
-              src="/googlecalendar.svg"
-              alt="Google Calendar"
-              width={20}
-              height={20}
-              className="h-4 w-4"
-            />
-                    </div>
+              <div className="flex items-center justify-between gap-3 p-3 bg-success/10 border border-success/80 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className="h-8 w-8 rounded-full bg-success/20 flex items-center justify-center">
+                    <CheckCircle className="h-5 w-5 text-success" />
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-chart-5">
-                      Connected to Google Calendar
+                  <div>
+                    <div className="text-sm font-medium text-success">
+                      Signup Confirmed
+                    </div>
+                    {/* Optional: Add timestamp or confirmation code here if available */}
+                    <div className="text-xs text-success/80 truncate">
+                      You are now registered for this project
                     </div>
                     {connectedEmail && (
-                      <div className="text-xs text-chart-5/80 truncate">
+                      <div className="text-xs text-success/80 truncate">
                         {connectedEmail}
                       </div>
                     )}
                   </div>
                 </div>
                 <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
+                  <DropdownMenuTrigger render={
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-8 w-8 p-0 flex-shrink-0"
+                      className="h-8 w-8 p-0 shrink-0"
                     >
                       <ChevronDown className="h-4 w-4" />
                     </Button>
-                  </DropdownMenuTrigger>
+                  } />
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem onClick={handleDownloadICal}>
                       <Download className="h-4 w-4 mr-2" />
@@ -421,7 +437,7 @@ export function SignupConfirmationModal({
               >
                 <div className="flex items-center gap-3 w-full">
                   {connectingCalendar ? (
-                    <Loader2 className="h-5 w-5 animate-spin flex-shrink-0" />
+                    <Loader2 className="h-5 w-5 animate-spin shrink-0" />
                   ) : (
                     <Image
                       src="/googlecalendar.svg"

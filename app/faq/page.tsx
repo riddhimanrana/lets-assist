@@ -65,7 +65,7 @@ export default function FAQPage() {
         </div>
 
         <section className="rounded-3xl border border-border/60 bg-card/80 p-6 shadow-lg shadow-foreground/5">
-          <Accordion type="single" collapsible className="w-full" defaultValue="item-1">
+          <Accordion className="w-full" defaultValue={["item-1"]}>
             {faqs.map((faq, index) => (
               <AccordionItem key={faq.question} value={`item-${index + 1}`}>
                 <AccordionTrigger>{faq.question}</AccordionTrigger>
