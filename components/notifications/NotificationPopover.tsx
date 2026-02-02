@@ -2,11 +2,13 @@
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Bell, AlertCircle, AlertTriangle, CircleCheck, Loader2, Settings } from "lucide-react";
+import * as VisuallyHidden from "@radix-ui/react-visually-hidden";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Drawer,
   DrawerContent,
   DrawerTrigger,
+  DrawerTitle,
 } from "@/components/ui/drawer";
 import {
   Dialog,
@@ -417,6 +419,9 @@ export function NotificationPopover() {
             {NotificationTrigger}
           </DrawerTrigger>
           <DrawerContent className="max-h-[85vh] p-0">
+            <VisuallyHidden.Root>
+              <DrawerTitle>Notifications</DrawerTitle>
+            </VisuallyHidden.Root>
             {renderNotificationsContent()}
           </DrawerContent>
         </Drawer>

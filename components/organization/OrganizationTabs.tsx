@@ -65,7 +65,6 @@ interface OrganizationTabsProps {
     totalHours: number;
     verifiedHours: number;
     pendingHours: number;
-    attendanceHours: number;
   } | null;
 }
 

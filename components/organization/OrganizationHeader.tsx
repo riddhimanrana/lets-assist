@@ -75,25 +75,32 @@ export default function OrganizationHeader({
     <div className="flex w-full flex-col gap-6">
       <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
         <div className="flex flex-col items-center gap-4 md:flex-row md:items-start">
-          <Avatar className="h-20 w-20 shrink-0 rounded-full border-4 border-background shadow-sm md:h-24 md:w-24">
-            <AvatarImage src={organization.logo_url || undefined} alt={organization.name} />
-            <AvatarFallback className="bg-primary/10 text-xl rounded-2xl">
-              {(() => {
-                switch (organization.type) {
-                  case 'company':
-                    return <Building2 className="h-10 w-10 text-primary/60" />;
-                  case 'school':
-                    return <GraduationCap className="h-10 w-10 text-primary/60" />;
-                  case 'government':
-                    return <Building className="h-10 w-10 text-primary/60" />;
-                  case 'nonprofit':
-                  case 'other':
-                  default:
-                    return getInitials(organization.name);
-                }
-              })()}
-            </AvatarFallback>
-          </Avatar>
+          <div className="relative shrink-0">
+            <Avatar className="h-20 w-20 rounded-full border-4 border-background shadow-sm md:h-24 md:w-24">
+              <AvatarImage src={organization.logo_url || undefined} alt={organization.name} />
+              <AvatarFallback className="bg-primary/10 text-xl rounded-2xl">
+                {(() => {
+                  switch (organization.type) {
+                    case 'company':
+                      return <Building2 className="h-10 w-10 text-primary/60" />;
+                    case 'school':
+                      return <GraduationCap className="h-10 w-10 text-primary/60" />;
+                    case 'government':
+                      return <Building className="h-10 w-10 text-primary/60" />;
+                    case 'nonprofit':
+                    case 'other':
+                    default:
+                      return getInitials(organization.name);
+                  }
+                })()}
+              </AvatarFallback>
+            </Avatar>
+            {organization.verified && (
+              <div className="absolute -bottom-0.5 -right-0.5 bg-background rounded-full shadow-sm border flex items-center justify-center p-0.5 md:hidden">
+                <BadgeCheck className="h-4 w-4 text-primary fill-background" />
+              </div>
+            )}
+          </div>
 
           <div className="flex flex-col items-center text-center md:items-start md:text-left space-y-2">
             <div className="flex items-center gap-2">
@@ -101,10 +108,9 @@ export default function OrganizationHeader({
                 {organization.name}
               </h1>
               {organization.verified && (
-                  <BadgeCheck
-                    className="h-6 w-6 text-primary"
-                  />
-
+                <BadgeCheck
+                  className="hidden md:block h-6 w-6 text-primary"
+                />
               )}
             </div>
 
