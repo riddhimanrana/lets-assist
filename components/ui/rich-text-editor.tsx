@@ -44,8 +44,8 @@ export function RichTextEditor({
         // This preserves intentional blank lines within the content
         let sanitized = html;
 
-        // Pattern to match trailing empty paragraphs at the very end
-        const trailingEmptyPattern = /(<p>\s*(<br\s*\/?>)?\s*<\/p>\s*)+$/gi;
+        // Pattern to match trailing empty paragraphs at the very end, written to avoid backtracking issues
+        const trailingEmptyPattern = /(?:<p>(?:\s*<br\s*\/?>\s*|\s*)<\/p>\s*)+$/gi;
         sanitized = sanitized.replace(trailingEmptyPattern, '');
 
         return sanitized;
