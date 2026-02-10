@@ -139,18 +139,16 @@ export default function OrganizationsDisplay({
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2" data-tour-id="org-actions">
             {isLoggedIn && (
               <>
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-1 sm:flex-initial">
-                  <CsvVerificationModal />
-                  <JoinOrganizationDialog />
-                </div>
+                <CsvVerificationModal />
+                <JoinOrganizationDialog />
                 <div className="flex items-center gap-2">
                   {isTrusted || applicationStatus === true ? (
-                    <Link href="/organization/create" className={cn(buttonVariants(), "flex-1 sm:flex-initial w-auto sm:w-auto")}>
+                    <Link href="/organization/create" className={cn(buttonVariants(), "w-full sm:w-auto")}>
                       <Plus className="w-4 h-4 mr-2" />
                       Create Organization
                     </Link>
                   ) : (
-                    <Button className="font-semibold flex items-center gap-1 flex-1 sm:flex-initial w-auto sm:w-auto" disabled>
+                    <Button className="w-full sm:w-auto cursor-not-allowed opacity-60" disabled>
                       <Plus className="w-4 h-4 mr-2" />
                       Create Organization
                     </Button>
@@ -244,7 +242,7 @@ export default function OrganizationsDisplay({
                 <h2 className="text-lg sm:text-xl font-semibold mb-4">
                   My Organizations
                 </h2>
-                <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(380px,1fr))] gap-4 sm:gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                   {userOrgs.map((org) => (
                     <OrganizationCard
                       key={org.id}
@@ -264,7 +262,7 @@ export default function OrganizationsDisplay({
                 <h2 className="text-lg sm:text-xl font-semibold mb-4">
                   Discover Organizations
                 </h2>
-                <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(380px,1fr))] gap-4 sm:gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                   {otherOrgs.map((org) => (
                     <OrganizationCard
                       key={org.id}
