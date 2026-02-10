@@ -82,6 +82,22 @@ export async function GET(request: Request) {
       })
     ).toString("base64");
 
+    const wantsSheetsScopes = scopeType === "sheets" || scopeType === "both" || isSheetsSync;
+    const connectionTypesToCheck = wantsSheetsScopes
+      ? ["sheets", "both"]
+      : ["calendar", "both"];
+
+    const { data: existingConnection } = await supabase
+      .from("user_calendar_connections")
+      .select("refresh_token")
+      .eq("user_id", user.id)
+      .eq("provider", "google")
+      .eq("is_active", true)
+      .in("connection_type", connectionTypesToCheck)
+      .maybeSingle();
+
+    const shouldPromptConsent = forceConsent || !existingConnection?.refresh_token;
+
     // Build Google OAuth URL
     // IMPORTANT: redirect_uri must exactly match what's configured in Google Cloud Console
     const googleAuthUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
@@ -114,7 +130,7 @@ export async function GET(request: Request) {
     googleAuthUrl.searchParams.set("scope", scopes.join(" "));
     googleAuthUrl.searchParams.set("access_type", "offline");
     googleAuthUrl.searchParams.set("include_granted_scopes", "true");
-    if (forceConsent) {
+    if (shouldPromptConsent) {
       googleAuthUrl.searchParams.set("prompt", "consent");
     }
     googleAuthUrl.searchParams.set("state", state);

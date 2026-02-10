@@ -18,15 +18,20 @@ export async function GET(request: Request) {
 
     // Handle user denial
     if (error) {
-      return NextResponse.redirect(
-        `${process.env.NEXT_PUBLIC_SITE_URL}/account/calendar?error=access_denied`
-      );
+      const stateData = state ? JSON.parse(Buffer.from(state, "base64").toString()) : null;
+      const redirectUrl = stateData?.returnTo || "/account/calendar";
+      const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "";
+      const errorUrl = new URL(redirectUrl, baseUrl);
+      errorUrl.searchParams.set("error", "access_denied");
+      return NextResponse.redirect(errorUrl.toString());
     }
 
     if (!code || !state) {
-      return NextResponse.redirect(
-        `${process.env.NEXT_PUBLIC_SITE_URL}/account/calendar?error=invalid_request`
-      );
+      const stateData = state ? JSON.parse(Buffer.from(state, "base64").toString()) : null;
+      const redirectUrl = stateData?.returnTo || "/account/calendar";
+      const errorUrl = new URL(redirectUrl, process.env.NEXT_PUBLIC_SITE_URL || "");
+      errorUrl.searchParams.set("error", "invalid_request");
+      return NextResponse.redirect(errorUrl.toString());
     }
 
     // Verify state parameter
@@ -48,9 +53,9 @@ export async function GET(request: Request) {
         throw new Error("State expired");
       }
     } catch {
-      return NextResponse.redirect(
-        `${process.env.NEXT_PUBLIC_SITE_URL}/account/calendar?error=invalid_state`
-      );
+      const errorUrl = new URL("/account/calendar", process.env.NEXT_PUBLIC_SITE_URL || "");
+      errorUrl.searchParams.set("error", "invalid_state");
+      return NextResponse.redirect(errorUrl.toString());
     }
 
     const supabase = await createClient();
@@ -65,9 +70,10 @@ export async function GET(request: Request) {
     // If no session, we'll still proceed but use the userId from state
     if (user && user.id !== stateData.userId) {
       console.error("User ID mismatch:", { sessionUser: user.id, stateUser: stateData.userId });
-      return NextResponse.redirect(
-        `${process.env.NEXT_PUBLIC_SITE_URL}/account/calendar?error=unauthorized`
-      );
+      const redirectUrl = stateData?.returnTo || "/account/calendar";
+      const errorUrl = new URL(redirectUrl, process.env.NEXT_PUBLIC_SITE_URL || "");
+      errorUrl.searchParams.set("error", "unauthorized");
+      return NextResponse.redirect(errorUrl.toString());
     }
 
     // Use userId from state (this is secure because state is signed and time-limited)
@@ -91,9 +97,10 @@ export async function GET(request: Request) {
     if (!tokenResponse.ok) {
       const errorData = await tokenResponse.text();
       console.error("Token exchange failed:", errorData);
-      return NextResponse.redirect(
-        `${process.env.NEXT_PUBLIC_SITE_URL}/account/calendar?error=token_exchange_failed`
-      );
+      const redirectUrl = stateData?.returnTo || "/account/calendar";
+      const errorUrl = new URL(redirectUrl, process.env.NEXT_PUBLIC_SITE_URL || "");
+      errorUrl.searchParams.set("error", "token_exchange_failed");
+      return NextResponse.redirect(errorUrl.toString());
     }
 
     const tokens = await tokenResponse.json();
@@ -117,9 +124,10 @@ export async function GET(request: Request) {
 
     if (!userInfoResponse.ok) {
       console.error("Failed to get user info");
-      return NextResponse.redirect(
-        `${process.env.NEXT_PUBLIC_SITE_URL}/account/calendar?error=failed_to_get_email`
-      );
+      const redirectUrl = stateData?.returnTo || "/account/calendar";
+      const errorUrl = new URL(redirectUrl, process.env.NEXT_PUBLIC_SITE_URL || "");
+      errorUrl.searchParams.set("error", "failed_to_get_email");
+      return NextResponse.redirect(errorUrl.toString());
     }
 
     const userInfo = await userInfoResponse.json();
@@ -128,25 +136,22 @@ export async function GET(request: Request) {
     // Calculate token expiry
     const expiresAt = new Date(Date.now() + tokens.expires_in * 1000);
 
-    // Check if user already has a connection of this type
-    const { data: existingConnections } = (await supabase
+    // Check if user already has any active Google connection
+    const { data: existingConnection } = (await supabase
       .from("user_calendar_connections")
       .select("id, refresh_token, connection_type")
       .eq("user_id", userId)
       .eq("provider", "google")
-      // Find connections that match or can be upgraded to this type
-      .in("connection_type", [connectionType, "both"])
-      .order("created_at", { ascending: false })) as {
+      .eq("is_active", true)
+      .maybeSingle()) as {
       data:
-        | Array<{
+        | {
             id: string;
             refresh_token: string | null;
             connection_type: string;
-          }>
+          }
         | null;
     };
-
-    const existingConnection = existingConnections?.[0];
 
     const encryptedAccessToken = encrypt(tokens.access_token);
     const encryptedRefreshToken = tokens.refresh_token
@@ -155,9 +160,10 @@ export async function GET(request: Request) {
 
     if (!encryptedRefreshToken) {
       console.error("No refresh token available");
-      return NextResponse.redirect(
-        `${process.env.NEXT_PUBLIC_SITE_URL}/account/calendar?error=no_refresh_token`
-      );
+      const redirectUrl = stateData?.returnTo || "/account/calendar";
+      const errorUrl = new URL(redirectUrl, process.env.NEXT_PUBLIC_SITE_URL || "");
+      errorUrl.searchParams.set("error", "no_refresh_token");
+      return NextResponse.redirect(errorUrl.toString());
     }
 
     if (existingConnection) {
@@ -177,50 +183,43 @@ export async function GET(request: Request) {
         })
         .eq("id", existingConnection.id)) as { error: { message?: string } | null };
 
-      // Clean up any other duplicate connections of the same type
-      if (existingConnections && existingConnections.length > 1) {
-        await supabase
-          .from("user_calendar_connections")
-          .delete()
-          .eq("user_id", userId)
-          .eq("provider", "google")
-          .eq("connection_type", connectionType)
-          .neq("id", existingConnection.id);
-      }
-
       if (updateError) {
         console.error("Failed to update calendar connection:", updateError);
-        return NextResponse.redirect(
-          `${process.env.NEXT_PUBLIC_SITE_URL}/account/calendar?error=connection_failed`
-        );
+        const redirectUrl = stateData.returnTo || "/account/calendar";
+        const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "";
+        const errorUrl = new URL(redirectUrl, baseUrl);
+        errorUrl.searchParams.set("error", "connection_failed");
+        return NextResponse.redirect(errorUrl.toString());
       }
     } else {
       // Create new connection
-        const { error: insertError } = (await supabase
-          .from("user_calendar_connections")
-          .insert({
-            user_id: userId,
-            provider: "google",
-            access_token: encryptedAccessToken,
-            refresh_token: encryptedRefreshToken,
-            token_expires_at: expiresAt.toISOString(),
-            calendar_email: calendarEmail,
-            is_active: true,
-            connection_type: connectionType,
-            granted_scopes: grantedScopes,
-            granted_scopes_updated_at: grantedScopesUpdatedAt,
-            preferences: {
-              reminder_minutes: 15,
-              auto_sync_new_projects: false,
-              auto_sync_signups: false,
-            },
-          })) as { error: { message?: string } | null };
+      const { error: insertError } = (await supabase
+        .from("user_calendar_connections")
+        .insert({
+          user_id: userId,
+          provider: "google",
+          access_token: encryptedAccessToken,
+          refresh_token: encryptedRefreshToken,
+          token_expires_at: expiresAt.toISOString(),
+          calendar_email: calendarEmail,
+          is_active: true,
+          connection_type: connectionType,
+          granted_scopes: grantedScopes,
+          granted_scopes_updated_at: grantedScopesUpdatedAt,
+          preferences: {
+            reminder_minutes: 15,
+            auto_sync_new_projects: false,
+            auto_sync_signups: false,
+          },
+        })) as { error: { message?: string } | null };
 
       if (insertError) {
         console.error("Failed to save calendar connection:", insertError);
-        return NextResponse.redirect(
-          `${process.env.NEXT_PUBLIC_SITE_URL}/account/calendar?error=connection_failed`
-        );
+        const redirectUrl = stateData.returnTo || "/account/calendar";
+        const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "";
+        const errorUrl = new URL(redirectUrl, baseUrl);
+        errorUrl.searchParams.set("error", "connection_failed");
+        return NextResponse.redirect(errorUrl.toString());
       }
     }
 
@@ -292,6 +291,40 @@ export async function GET(request: Request) {
       
       // Handle organization sheets sync separately (no calendar creation)
       // The sheets sync configuration is handled in the sheets-actions.ts file
+      if (stateData.isSheetsSync && stateData.orgId) {
+        // Automatically make the connecting admin the owner of the sync
+        // if they are connecting specifically for this organization.
+        
+        // Check if sync already exists
+        const { data: existingSync } = await serviceSupabase
+          .from("organization_sheet_syncs")
+          .select("organization_id")
+          .eq("organization_id", stateData.orgId)
+          .maybeSingle();
+
+        if (existingSync) {
+          // If it exists, only update the owner and timestamp
+          await serviceSupabase
+            .from("organization_sheet_syncs")
+            .update({ 
+               created_by: userId, 
+               updated_at: new Date().toISOString() 
+            })
+            .eq("organization_id", stateData.orgId);
+        } else {
+          // If it doesn't exist, create it with defaults
+          await serviceSupabase
+            .from("organization_sheet_syncs")
+            .insert({
+               organization_id: stateData.orgId,
+               created_by: userId,
+               report_type: 'member-hours',
+               auto_sync: false,
+               sync_interval_minutes: 1440,
+               updated_at: new Date().toISOString() 
+            });
+        }
+      }
     }
 
     // Success! Check for custom redirect from state or default to calendar settings
@@ -303,8 +336,10 @@ export async function GET(request: Request) {
     return NextResponse.redirect(successUrl.toString());
   } catch (error) {
     console.error("Error in Google Calendar callback:", error);
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "";
+    // If we have state data in the error context, we might be able to redirect back to where we came from
     return NextResponse.redirect(
-      `${process.env.NEXT_PUBLIC_SITE_URL}/account/calendar?error=unknown`
+      `${baseUrl}/account/calendar?error=unknown`
     );
   }
 }
