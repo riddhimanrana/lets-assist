@@ -264,7 +264,7 @@ export default async function UserProjects() {
               {/* Upcoming volunteer projects */}
               <section>
                 <h2 className="text-lg font-semibold mb-3">Upcoming ({upcomingVolunteered.length})</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(380px,1fr))] gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {upcomingVolunteered.map((project) => (
                     <ProjectCard
                       key={`volunteer-${project.id}`}
@@ -280,7 +280,7 @@ export default async function UserProjects() {
               {inProgressVolunteered.length > 0 && (
                 <section className="mt-6">
                   <h2 className="text-lg font-semibold mb-3">In Progress ({inProgressVolunteered.length})</h2>
-                  <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(380px,1fr))] gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {inProgressVolunteered.map((project) => (
                       <ProjectCard
                         key={`volunteer-progress-${project.id}`}
@@ -298,7 +298,7 @@ export default async function UserProjects() {
               {pastVolunteered.length > 0 && (
                 <section>
                   <h2 className="text-lg font-semibold mb-3">Past ({pastVolunteered.length})</h2>
-                  <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(380px,1fr))] gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {pastVolunteered.map((project) => (
                       <ProjectCard
                         key={`volunteer-past-${project.id}-${project.signup_id}`}
@@ -393,7 +393,7 @@ export default async function UserProjects() {
               {/* Upcoming created projects */}
               <section>
                 <h2 className="text-lg font-semibold mb-3">Upcoming ({upcomingCreated.length})</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(380px,1fr))] gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {upcomingCreated.map((project) => (
                     <ProjectCard
                       key={`created-${project.id}`}
@@ -413,7 +413,7 @@ export default async function UserProjects() {
               {inProgressCreated.length > 0 && (
                 <section className="mt-6">
                   <h2 className="text-lg font-semibold mb-3">In Progress ({inProgressCreated.length})</h2>
-                  <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(380px,1fr))] gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {inProgressCreated.map((project) => (
                       <ProjectCard
                         key={`created-progress-${project.id}`}
@@ -435,7 +435,7 @@ export default async function UserProjects() {
               {pastCreated.length > 0 && (
                 <section>
                   <h2 className="text-lg font-semibold mb-3">Past ({pastCreated.length})</h2>
-                  <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(380px,1fr))] gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {pastCreated.map((project) => (
                       <ProjectCard
                         key={`created-past-${project.id}`}
