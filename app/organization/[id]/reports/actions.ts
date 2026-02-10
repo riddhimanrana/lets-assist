@@ -525,9 +525,9 @@ export async function buildOrganizationReportRows(
       ...report.data.volunteers.map((volunteer) => [
         volunteer.name,
         volunteer.email || "",
-        volunteer.totalHours.toFixed(1),
-        volunteer.verifiedHours.toFixed(1),
-        volunteer.pendingHours.toFixed(1),
+        (volunteer.totalHours ?? 0).toFixed(1),
+        (volunteer.verifiedHours ?? 0).toFixed(1),
+        (volunteer.pendingHours ?? 0).toFixed(1),
         volunteer.eventsAttended.toString(),
         volunteer.lastActivity ? format(new Date(volunteer.lastActivity), "yyyy-MM-dd") : "",
         volunteer.source === "registered" ? "Registered" : "Anonymous",
@@ -550,9 +550,9 @@ export async function buildOrganizationReportRows(
       ...report.data.projects.map((project) => [
         project.title,
         project.status || "",
-        project.verifiedHours.toFixed(1),
-        project.pendingHours.toFixed(1),
-        project.totalHours.toFixed(1),
+        (project.verifiedHours ?? 0).toFixed(1),
+        (project.pendingHours ?? 0).toFixed(1),
+        (project.totalHours ?? 0).toFixed(1),
         project.volunteerCount.toString(),
       ]),
     ];
@@ -569,9 +569,9 @@ export async function buildOrganizationReportRows(
     ],
     ...report.data.monthlyHours.map((month) => [
       month.month,
-      month.verified.toFixed(1),
-      month.pending.toFixed(1),
-      month.total.toFixed(1),
+      (month.verified ?? 0).toFixed(1),
+      (month.pending ?? 0).toFixed(1),
+      (month.total ?? 0).toFixed(1),
     ]),
   ];
 
@@ -603,9 +603,9 @@ export async function buildOrganizationReportRowsForSync(
       ...report.data.volunteers.map((volunteer) => [
         volunteer.name,
         volunteer.email || "",
-        volunteer.totalHours.toFixed(1),
-        volunteer.verifiedHours.toFixed(1),
-        volunteer.pendingHours.toFixed(1),
+        (volunteer.totalHours ?? 0).toFixed(1),
+        (volunteer.verifiedHours ?? 0).toFixed(1),
+        (volunteer.pendingHours ?? 0).toFixed(1),
         volunteer.eventsAttended.toString(),
         volunteer.lastActivity ? format(new Date(volunteer.lastActivity), "yyyy-MM-dd") : "",
         volunteer.source === "registered" ? "Registered" : "Anonymous",
@@ -628,9 +628,9 @@ export async function buildOrganizationReportRowsForSync(
       ...report.data.projects.map((project) => [
         project.title,
         project.status || "",
-        project.verifiedHours.toFixed(1),
-        project.pendingHours.toFixed(1),
-        project.totalHours.toFixed(1),
+        (project.verifiedHours ?? 0).toFixed(1),
+        (project.pendingHours ?? 0).toFixed(1),
+        (project.totalHours ?? 0).toFixed(1),
         project.volunteerCount.toString(),
       ]),
     ];
@@ -647,9 +647,9 @@ export async function buildOrganizationReportRowsForSync(
     ],
     ...report.data.monthlyHours.map((month) => [
       month.month,
-      month.verified.toFixed(1),
-      month.pending.toFixed(1),
-      month.total.toFixed(1),
+      (month.verified ?? 0).toFixed(1),
+      (month.pending ?? 0).toFixed(1),
+      (month.total ?? 0).toFixed(1),
     ]),
   ];
 

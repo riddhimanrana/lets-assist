@@ -221,7 +221,11 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
             )
             .subscribe((status: string, err?: Error) => {
                 if (status === "CHANNEL_ERROR") {
-                    console.error('[NotificationContext] Subscription Error:', err);
+                    if (err) {
+                        console.error("[NotificationContext] Subscription Error:", err);
+                    } else {
+                        console.warn("[NotificationContext] Subscription Error: Unknown error");
+                    }
                     // Optional: Retry logic?
                 } else {
                     console.log(`[NotificationContext] Status: ${status}`);

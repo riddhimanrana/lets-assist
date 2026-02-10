@@ -18,6 +18,7 @@ import JoinCodeAdminDisplay from "./JoinCodeAdminDisplay";
 import StaffLinkDisplay from "./StaffLinkDisplay";
 import DeleteOrganizationDialog from "./DeleteOrganizationDialog";
 import OrganizationCalendarSettings from "./OrganizationCalendarSettings";
+import OrganizationSheetsSettings from "./OrganizationSheetsSettings";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -170,6 +171,12 @@ export default async function OrganizationSettingsPage({ params }: Props) {
           </Card>
 
           <OrganizationCalendarSettings
+            organizationId={organization.id}
+            organizationSlug={organization.username || organization.id}
+            organizationName={organization.name}
+          />
+
+          <OrganizationSheetsSettings 
             organizationId={organization.id}
             organizationSlug={organization.username || organization.id}
             organizationName={organization.name}

@@ -39,22 +39,6 @@ function HomeContent() {
     }
   }, [router, shouldRedirect]);
 
-  if (isAuthLoading && !noRedirect && !hasError) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-pulse">Loading...</div>
-      </div>
-    );
-  }
-
-  if (shouldRedirect) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-pulse">Heading to your home…</div>
-      </div>
-    );
-  }
-
   // Show error page if there's an error
   if (error && errorDescription) {
     // Decode URL-encoded error description
@@ -70,7 +54,7 @@ function HomeContent() {
 
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Card className="w-[380px] shadow-lg">
+        <Card className="w-95 shadow-lg">
           <CardHeader className="text-center">
             <CardTitle className="flex items-center justify-center gap-2 text-destructive">
               <AlertCircle className="h-6 w-6" />
@@ -107,13 +91,7 @@ function HomeContent() {
 
 export default function HomeClient() {
   return (
-    <Suspense
-      fallback={
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="animate-pulse">Loading...</div>
-        </div>
-      }
-    >
+    <Suspense fallback={null}>
       <HomeContent />
     </Suspense>
   );

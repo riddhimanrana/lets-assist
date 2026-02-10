@@ -22,7 +22,7 @@ import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogClose, DialogFooter } from "@/components/ui/dialog";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { leaveOrganization } from "@/app/organization/actions";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
@@ -65,6 +65,7 @@ interface OrganizationTabsProps {
     verifiedHours: number;
     pendingHours: number;
   } | null;
+  organizationSlug?: string;
 }
 
 function LeaveOrganizationDialog({
@@ -159,8 +160,25 @@ export default function OrganizationTabs({
   userRole,
   currentUserId,
   reportSummary,
+  organizationSlug,
 }: OrganizationTabsProps) {
-  const [activeTab, setActiveTab] = useState("overview");
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "overview");
+
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (tab && (tab === "overview" || tab === "members" || tab === "projects" || tab === "reports")) {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
+
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", value);
+    router.replace(`?${params.toString()}`, { scroll: false });
+  };
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -215,7 +233,7 @@ export default function OrganizationTabs({
     <Tabs
       defaultValue="overview"
       value={activeTab}
-      onValueChange={setActiveTab}
+      onValueChange={handleTabChange}
       className="w-full"
     >
       <TabsList className="mb-6 flex h-auto w-full sm:w-fit self-start max-w-full items-center justify-start overflow-x-auto bg-muted p-1 text-muted-foreground [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
@@ -308,7 +326,7 @@ export default function OrganizationTabs({
                 </div>
                 <div className="rounded-md border bg-muted/30 p-2.5 sm:p-3 flex flex-col items-center justify-center min-w-0">
                   <p className="text-base sm:text-lg font-semibold leading-none truncate w-full text-center">
-                    {reportSummary ? reportSummary.totalHours.toFixed(1) : "0.0"}
+                    {reportSummary?.totalHours != null ? reportSummary.totalHours.toFixed(1) : "0.0"}
                   </p>
                   <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 text-center truncate w-full">Hours</p>
                 </div>
@@ -566,6 +584,7 @@ export default function OrganizationTabs({
             organizationId={organization.id}
             organizationName={organization.name}
             userRole={userRole}
+            organizationSlug={organizationSlug}
           />
         </TabsContent>
       )}

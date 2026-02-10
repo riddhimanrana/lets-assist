@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
 import {
-  getCalendarConnection,
+  getSheetsConnection,
   getGoogleAccessTokenForSheets,
   getGoogleAccessTokenForSheetsForUser,
   hasGoogleSheetsScopes,
@@ -28,6 +28,8 @@ export type SheetSyncStatus = {
   connected: boolean;
   connectedEmail?: string | null;
   scopesOk?: boolean;
+  viewerConnected?: boolean;
+  viewerScopesOk?: boolean;
   connectedBy?: {
     id: string;
     name: string | null;
@@ -83,7 +85,7 @@ export async function getSheetSyncStatus(
     return { connected: false, error: access.error ?? undefined };
   }
 
-  const connection = await getCalendarConnection(access.userId);
+  const connection = await getSheetsConnection(access.userId);
 
   const serviceSupabase = getAdminClient();
   const { data: syncConfig, error: syncError } = await serviceSupabase
@@ -94,6 +96,9 @@ export async function getSheetSyncStatus(
     .eq("organization_id", organizationId)
     .maybeSingle();
 
+  const viewerConnected = !!connection;
+  const viewerScopesOk = connection ? hasGoogleSheetsScopes(connection.granted_scopes) : false;
+  
   let connectedBy: SheetSyncStatus["connectedBy"] = null;
   let connected = !!connection;
   let connectedEmail = connection?.calendar_email || null;
@@ -134,6 +139,8 @@ export async function getSheetSyncStatus(
       connected,
       connectedEmail,
       scopesOk,
+      viewerConnected,
+      viewerScopesOk,
       connectedBy,
       viewerIsOwner,
       error: "Sheets sync configuration not available",
@@ -144,6 +151,8 @@ export async function getSheetSyncStatus(
     connected,
     connectedEmail,
     scopesOk,
+    viewerConnected,
+    viewerScopesOk,
     connectedBy,
     viewerIsOwner,
     syncConfig: syncConfig
@@ -179,7 +188,7 @@ export async function createSheetSync(
     return { success: false, error: "Admin access required" };
   }
 
-  const connection = await getCalendarConnection(access.userId);
+  const connection = await getSheetsConnection(access.userId);
   if (!connection) {
     return { success: false, error: "Google connection required" };
   }
@@ -456,7 +465,7 @@ export async function getSheetsAccessTokenForPicker(
     return { success: false, error: "Admin access required" };
   }
 
-  const connection = await getCalendarConnection(access.userId);
+  const connection = await getSheetsConnection(access.userId);
   if (!connection) {
     return { success: false, error: "Google connection required" };
   }

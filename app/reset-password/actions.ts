@@ -25,6 +25,7 @@ export async function requestPasswordReset(formData: FormData) {
     return { error: validatedFields.error.flatten().fieldErrors as ErrorResponse };
   }
 
+
   const supabase = await createClient();
 
   try {
