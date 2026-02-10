@@ -158,10 +158,10 @@ function ProjectCard({ project }: { project: Project }) {
 
   return (
     <Link href={`/projects/${project.id}`} className="group block h-full">
-      <Card className="h-full hover:shadow-xl dark:hover:shadow-primary/10 transition-all duration-200 overflow-hidden border-border/50 bg-card">
+      <Card className="h-full hover:shadow-xl transition-all duration-200 overflow-hidden border-border/50 bg-card">
         <div className="px-4 flex flex-col h-full">
           <CardHeader className="p-0 mb-2">
-            <CardTitle className="text-lg font-bold line-clamp-1 pr-2 leading-tight">{project.title}</CardTitle>
+            <CardTitle className="text-lg font-bold truncate pr-2 leading-tight">{project.title}</CardTitle>
             <CardAction>
               <ProjectStatusBadge status={currentStatus} className="shrink-0" />
             </CardAction>
