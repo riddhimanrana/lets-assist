@@ -56,27 +56,27 @@ async function getLogoDataUri(): Promise<string | null> {
 }
 
 export default async function Image() {
-  const [groteskBlack, interBold, logoSrc] = await Promise.all([
+  const [groteskExtraBold, groteskBold, logoSrc] = await Promise.all([
+    loadFont("OverusedGrotesk-ExtraBold.ttf"),
     loadFont("OverusedGrotesk-Bold.ttf"),
-    loadFont("Inter-Bold.ttf"),
     getLogoDataUri(),
   ]);
 
   const fonts: OgFont[] = [];
-  
-  if (groteskBlack) {
+
+  if (groteskExtraBold) {
     fonts.push({
       name: "Overused Grotesk",
-      data: groteskBlack,
+      data: groteskExtraBold,
       weight: 900,
       style: "normal",
     });
   }
 
-  if (interBold) {
+  if (groteskBold) {
     fonts.push({
-      name: "Inter",
-      data: interBold,
+      name: "Overused Grotesk",
+      data: groteskBold,
       weight: 700,
       style: "normal",
     });
@@ -89,105 +89,56 @@ export default async function Image() {
           width: "100%",
           height: "100%",
           display: "flex",
+          flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
           backgroundColor: "#ffffff",
-          backgroundImage: "linear-gradient(to bottom right, #ffffff, #f0fdf4, #e8f5e9)",
-          fontFamily: 'Overused Grotesk, Inter, "sans-serif"',
+          backgroundImage:
+            "radial-gradient(circle at 50% 0%, rgba(34, 197, 94, 0.35) 0%, transparent 80%)",
+          fontFamily: 'Overused Grotesk, "sans-serif"',
           color: palette.text,
-          position: "relative",
           textAlign: "center",
-          overflow: "hidden",
         }}
       >
-        {/* Decorative Background Elements */}
-        {/* Large Green Glow */}
+        {/* Branding Section */}
         <div
           style={{
-            position: "absolute",
-            top: "-20%",
-            left: "-10%",
-            width: "60%",
-            height: "80%",
-            backgroundImage: "radial-gradient(circle at center, rgba(34, 197, 94, 0.2), transparent 70%)",
-            filter: "blur(60px)",
-            zIndex: 0,
-          }}
-        />
-        
-        {/* Another Glow at Bottom Right */}
-        <div
-          style={{
-            position: "absolute",
-            bottom: "-20%",
-            right: "-10%",
-            width: "60%",
-            height: "80%",
-            backgroundImage: "radial-gradient(circle at center, rgba(22, 163, 74, 0.15), transparent 70%)",
-            filter: "blur(60px)",
-            zIndex: 0,
-          }}
-        />
-
-        {/* Subtle Grid dots */}
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            display: "flex",
-            backgroundImage: "radial-gradient(circle, #e2e8f0 1.5px, transparent 1.5px)",
-            backgroundSize: "48px 48px",
-            opacity: 0.4,
-            zIndex: 0,
-          }}
-        />
-
-        {/* Top Brand Section - Positioned Absolutely to keep headline centered */}
-        <div
-          style={{
-            position: "absolute",
-            top: 60,
-            left: 0,
-            right: 0,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             gap: 16,
-            zIndex: 2,
+            marginBottom: 48,
           }}
         >
           {logoSrc ? (
             <img
               src={logoSrc}
               alt="Logo"
-              width={48}
-              height={48}
-              style={{ width: "48px", height: "48px" }}
+              width={54}
+              height={54}
+              style={{ borderRadius: 12 }}
             />
           ) : null}
           <div
             style={{
-              fontSize: 32,
-              fontWeight: 600,
+              fontSize: 34,
+              fontWeight: 700,
               letterSpacing: "-0.03em",
               color: palette.text,
-              fontFamily: "Overused Grotesk, sans-serif",
             }}
           >
             Let's Assist
           </div>
         </div>
 
-        {/* Main Content Stack - Dead Center */}
+        {/* Main Content Stack */}
         <div
           style={{
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
-            zIndex: 1,
             width: "100%",
-            padding: "0 40px",
           }}
         >
           {/* Huge Headline */}
@@ -196,29 +147,28 @@ export default async function Image() {
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
-              fontSize: 110,
+              fontSize: 106,
               fontWeight: 900,
-              lineHeight: 1.05,
+              lineHeight: 1.0,
               letterSpacing: "-0.04em",
               maxWidth: 1100,
-              paddingBottom: 20,
             }}
           >
             <div style={{ display: "flex" }}>Give back to your</div>
-            <div style={{ display: "flex", gap: 24, padding: "10px 0" }}>
-              community,{" "}
+            <div style={{ display: "flex", gap: 16 }}>
               <div
                 style={{
-                  backgroundImage: "linear-gradient(to right, #16a34a, #22c55e, #4ade80)",
+                  backgroundImage: "linear-gradient(to right, #4ed247, #1AA54A)",
                   backgroundClip: "text",
-                  WebkitBackgroundClip: "text",
+                  // @ts-ignore
+                  "-webkit-background-clip": "text",
                   color: "transparent",
                   display: "flex",
-                  paddingRight: 15,
                 }}
               >
-                your way.
+                community
               </div>
+              <div style={{ display: "flex" }}>your way</div>
             </div>
           </div>
         </div>
