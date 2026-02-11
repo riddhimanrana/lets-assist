@@ -20,13 +20,12 @@ type OgFont = {
 };
 
 const palette = {
-  background: "hsl(0, 0%, 100%)",
-  text: "hsl(240, 10%, 3.9%)",
-  mutedText: "hsl(240, 3.8%, 46.1%)",
-  border: "hsl(240, 5.9%, 90%)",
-  surface: "hsl(240, 4.8%, 95.9%)",
-  accent: "hsl(142.1, 76.2%, 36.3%)",
-  accentText: "hsl(355.7, 100%, 97.3%)",
+  background: "#ffffff",
+  text: "#09090b",
+  mutedText: "#71717a",
+  primary: "#16a34a", // hsl(142.1 76.2% 36.3%)
+  overlayLine: "rgba(0, 0, 0, 0.05)",
+  overlayGreen: "rgba(34, 197, 94, 0.12)",
 };
 
 async function loadFont(fileName: string) {
@@ -67,7 +66,9 @@ export default async function Image({
 } = {}) {
   const [interRegular, interBold, logoSrc] = await Promise.all([
     loadFont("Inter-Regular.ttf"),
-    loadFont("Inter-Bold.ttf"),    getLogoDataUri(),  ]);
+    loadFont("Inter-Bold.ttf"),
+    getLogoDataUri(),
+  ]);
   const fonts: OgFont[] = [];
   if (interRegular) {
     fonts.push({ name: "Inter", data: interRegular, weight: 400, style: "normal" });
@@ -83,95 +84,109 @@ export default async function Image({
           width: "100%",
           height: "100%",
           display: "flex",
-          gap: "48px",
-          padding: "64px",
+          alignItems: "center",
+          justifyContent: "center",
+          position: "relative",
+          overflow: "hidden",
           backgroundColor: palette.background,
           fontFamily: "Inter, ui-sans-serif, system-ui",
           color: palette.text,
           boxSizing: "border-box",
         }}
       >
+        {/* Background Gradients & Grid */}
         <div
           style={{
+            position: "absolute",
+            inset: 0,
             display: "flex",
-            flexDirection: "column",
-            flex: 1,
-            gap: "20px",
-            justifyContent: "center",
+            opacity: 0.8,
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              display: "flex",
+              backgroundImage: `radial-gradient(circle at top, ${palette.overlayGreen}, transparent 70%)`,
+            }}
+          />
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              display: "flex",
+              backgroundImage: `linear-gradient(120deg, ${palette.overlayLine} 1px, transparent 1px)`,
+              backgroundSize: "160px 160px",
+            }}
+          />
+        </div>
+
+        {/* Content Stack */}
+        <div
+          style={{
+            position: "relative",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            textAlign: "center",
+            width: "100%",
+            height: "100%",
+            padding: "80px",
+            gap: "48px",
+          }}
+        >
+          {/* Logo + Brand (Center Top-ish) */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "16px",
+            }}
+          >
             {logoSrc ? (
               <img
                 src={logoSrc}
-                alt="Let's Assist"
-                width={42}
-                height={42}
-                style={{ width: "42px", height: "42px", objectFit: "contain" }}
+                alt="Logo"
+                width={52}
+                height={52}
+                style={{ width: "52px", height: "52px", objectFit: "contain" }}
               />
             ) : null}
-            <div style={{ fontSize: "32px", fontWeight: 700, display: "flex" }}>
+            <div
+              style={{
+                display: "flex",
+                fontSize: "36px",
+                fontWeight: 700,
+                color: palette.text,
+                letterSpacing: "-0.01em",
+              }}
+            >
               Let's Assist
             </div>
           </div>
 
-          <div style={{ fontSize: "56px", fontWeight: 700, lineHeight: 1.1, display: "flex", flexDirection: "column" }}>
-            <span>Volunteer together.</span>
-            <span>Make impact.</span>
-          </div>
-
+          {/* Large Headline */}
           <div
             style={{
-              fontSize: "24px",
-              color: palette.mutedText,
-              maxWidth: "680px",
-              lineHeight: 1.4,
               display: "flex",
+              flexDirection: "column",
+              fontSize: "92px",
+              fontWeight: 800,
+              lineHeight: 1.05,
+              letterSpacing: "-0.04em",
+              maxWidth: "1000px",
             }}
           >
-            Discover volunteer opportunities, connect with trusted
-            organizations, and track every hour of impact.
+            <span style={{ display: "flex" }}>Give back to your</span>
+            <span style={{ display: "flex", justifyContent: "center", gap: "16px" }}>
+              community,{" "}
+              <span style={{ color: palette.primary, display: "flex" }}>
+                your way.
+              </span>
+            </span>
           </div>
-        </div>
-
-        <div
-          style={{
-            width: "360px",
-            height: "360px",
-            borderRadius: "28px",
-            backgroundColor: palette.surface,
-            border: `1px solid ${palette.border}`,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          {logoSrc ? (
-            <img
-              src={logoSrc}
-              alt="Let's Assist logo"
-              width={180}
-              height={180}
-              style={{ width: "180px", height: "180px", objectFit: "contain" }}
-            />
-          ) : (
-            <div
-              style={{
-                width: "180px",
-                height: "180px",
-                borderRadius: "32px",
-                backgroundColor: palette.accent,
-                color: palette.accentText,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: "56px",
-                fontWeight: 700,
-              }}
-            >
-              LA
-            </div>
-          )}
         </div>
       </div>
     ),

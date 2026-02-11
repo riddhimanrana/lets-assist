@@ -1348,9 +1348,6 @@ export default function ProjectDetails({
                                 {project.organization.verified && (
                                   <BadgeCheck
                                     className="h-4 w-4 text-primary"
-                                    fill="hsl(var(--primary))"
-                                    stroke="hsl(var(--popover))"
-                                    strokeWidth={2}
                                   />
                                 )}
                               </div>

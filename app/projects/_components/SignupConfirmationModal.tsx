@@ -164,7 +164,7 @@ export function SignupConfirmationModal({
       const returnUrl = `/projects/${project.id}`;
 
       // Redirect to OAuth
-      window.location.href = `/api/calendar/google/connect?return_to=${encodeURIComponent(returnUrl)}`;
+      window.location.href = `/api/calendar/google/connect?scopes=calendar&return_to=${encodeURIComponent(returnUrl)}`;
     } catch (error) {
       console.error('Failed to connect calendar:', error);
       toast.error('Connection Failed', {

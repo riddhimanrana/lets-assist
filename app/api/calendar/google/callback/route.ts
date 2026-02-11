@@ -107,10 +107,15 @@ export async function GET(request: Request) {
     const grantedScopes = typeof tokens.scope === "string" ? tokens.scope : null;
     const grantedScopesUpdatedAt = grantedScopes ? new Date().toISOString() : null;
 
+    // Log granted scopes for debugging
+    console.log("[Calendar OAuth Callback] Granted scopes:", grantedScopes);
+
     // Determine connection type based on granted scopes
     const hasSheetsScopes = grantedScopes && grantedScopes.includes("spreadsheets");
     const hasCalendarScopes = grantedScopes && grantedScopes.includes("calendar");
     const connectionType = hasSheetsScopes && hasCalendarScopes ? "both" : hasSheetsScopes ? "sheets" : "calendar";
+    
+    console.log("[Calendar OAuth Callback] Connection type:", connectionType, "for user:", stateData.userId);
 
     // Get user's email from Google
     const userInfoResponse = await fetch(

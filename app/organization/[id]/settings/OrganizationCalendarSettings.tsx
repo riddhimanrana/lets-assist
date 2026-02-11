@@ -46,7 +46,7 @@ export default function OrganizationCalendarSettings({
 
   const connectUrl = useMemo(
     () =>
-      `/api/calendar/google/connect?calendar_sync=1&org_id=${organizationId}&return_to=${encodeURIComponent(
+      `/api/calendar/google/connect?scopes=calendar&calendar_sync=1&org_id=${organizationId}&return_to=${encodeURIComponent(
         `/organization/${organizationSlug}/settings?section=calendar`
       )}`,
     [organizationId, organizationSlug]

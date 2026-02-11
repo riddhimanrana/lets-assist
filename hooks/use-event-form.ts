@@ -295,9 +295,18 @@ const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
       // Deep clone to avoid mutation
       const updatedDay = { ...updatedMultiDay[dayIndex] };
 
+      // Ensure slots is always an array
+      if (!Array.isArray(updatedDay.slots)) {
+        updatedDay.slots = [{ ...defaultMultiDaySlot }];
+      }
+
       if (slotIndex !== undefined) {
         // Update a slot field
         const updatedSlots = [...updatedDay.slots];
+        // Ensure the slot exists
+        if (!updatedSlots[slotIndex]) {
+          updatedSlots[slotIndex] = { ...defaultMultiDaySlot };
+        }
         updatedSlots[slotIndex] = {
           ...updatedSlots[slotIndex],
           [field]: value,
