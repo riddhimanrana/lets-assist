@@ -17,7 +17,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { User, Mail, Phone, Calendar, MapPin, Clock, Loader2, ChevronDown, Download, CheckCircle } from 'lucide-react';
+import { User, Mail, Phone, Calendar, MapPin, Clock, Loader2, ChevronDown, Download } from 'lucide-react';
 import Image from "next/image";
 import { getUserProfile } from '@/app/projects/[id]/actions';
 import { toast } from "sonner";
@@ -257,7 +257,7 @@ export function SignupConfirmationModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-5xl w-[95vw] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[95vw] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Confirm Event Signup</DialogTitle>
           <DialogDescription>
@@ -390,18 +390,14 @@ export function SignupConfirmationModal({
                 Checking connection...
               </div>
             ) : calendarConnected ? (
-              <div className="flex items-center justify-between gap-3 p-3 bg-success/10 border border-success/80 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className="h-8 w-8 rounded-full bg-success/20 flex items-center justify-center">
-                    <CheckCircle className="h-5 w-5 text-success" />
+              <div className="flex items-center justify-between gap-3 p-3 bg-success/10 border border-success/80 rounded-lg max-w-md">
+                <div className="flex items-center gap-3 overflow-hidden">
+                  <div className="h-8 w-8 rounded-full bg-success/20 flex items-center justify-center shrink-0">
+                    <Image className="h-4 w-4" src="/googlecalendar.svg" alt="Google Calendar" width={16} height={16} />
                   </div>
-                  <div>
-                    <div className="text-sm font-medium text-success">
-                      Signup Confirmed
-                    </div>
-                    {/* Optional: Add timestamp or confirmation code here if available */}
-                    <div className="text-xs text-success/80 truncate">
-                      You are now registered for this project
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-success truncate">
+                      Google Calendar Connected
                     </div>
                     {connectedEmail && (
                       <div className="text-xs text-success/80 truncate">
@@ -411,7 +407,7 @@ export function SignupConfirmationModal({
                   </div>
                 </div>
                 <DropdownMenu>
-                  <DropdownMenuTrigger render={
+                  <DropdownMenuTrigger asChild>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -419,7 +415,7 @@ export function SignupConfirmationModal({
                     >
                       <ChevronDown className="h-4 w-4" />
                     </Button>
-                  } />
+                  </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem onClick={handleDownloadICal}>
                       <Download className="h-4 w-4 mr-2" />
@@ -431,7 +427,7 @@ export function SignupConfirmationModal({
             ) : (
               <Button
                 variant="outline"
-                className="w-full justify-start h-auto p-3"
+                className="w-full max-w-md justify-start h-auto p-3"
                 onClick={handleConnectCalendar}
                 disabled={connectingCalendar}
               >
