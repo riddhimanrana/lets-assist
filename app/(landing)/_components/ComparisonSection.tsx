@@ -779,7 +779,7 @@ function OutdatedMockup() {
         </div>
 
         {/* Old-style content */}
-        <div className="p-3 sm:p-4 md:p-6 space-y-3 sm:space-y-4 bg-linear-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
+        <div className="p-3 sm:p-4 md:p-6 space-y-3 sm:space-y-4 rounded-b-xl  bg-linear-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
           {/* SignUpGenius logo */}
           <div className="flex items-center gap-2 sm:gap-3">
             <Image
