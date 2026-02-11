@@ -74,7 +74,7 @@ export default function CalendarClient({
   const [removingEventId, setRemovingEventId] = useState<string | null>(null);
 
   const handleConnect = async () => {
-    window.location.href = "/api/calendar/google/connect";
+    window.location.href = "/api/calendar/google/connect?scopes=calendar";
   };
 
   const handleDisconnect = async () => {

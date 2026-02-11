@@ -112,7 +112,7 @@ export default function CalendarOptionsModal({
     sessionStorage.setItem("reopenCalendarModal", "true");
 
     // Redirect to Google OAuth
-    window.location.href = `/api/calendar/google/connect?return_to=${encodeURIComponent(projectUrl)}`;
+    window.location.href = `/api/calendar/google/connect?scopes=calendar&return_to=${encodeURIComponent(projectUrl)}`;
   };
 
   const syncToCalendar = async () => {

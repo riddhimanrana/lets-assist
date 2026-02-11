@@ -284,6 +284,27 @@
     @apply bg-background text-foreground;
   }
 
+  /* Lenis smooth scrolling helpers */
+  html.lenis {
+    height: auto;
+  }
+
+  .lenis.lenis-smooth {
+    scroll-behavior: auto;
+  }
+
+  .lenis.lenis-smooth [data-lenis-prevent] {
+    overscroll-behavior: contain;
+  }
+
+  .lenis.lenis-stopped {
+    overflow: hidden;
+  }
+
+  .lenis.lenis-smooth iframe {
+    pointer-events: none;
+  }
+
   button:not(:disabled),
   /* bring back pointer cursor from tailwind css v3*/
   [role="button"]:not(:disabled) {

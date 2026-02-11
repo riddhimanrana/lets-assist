@@ -4,6 +4,7 @@
  */
 
 import { createClient } from "@/lib/supabase/server";
+import { logError } from '@/lib/logger';
 import { getAdminClient } from "@/lib/supabase/admin";
 import { encrypt, decrypt } from "@/lib/encryption";
 import {
@@ -156,7 +157,10 @@ async function refreshAccessToken(
     });
 
     if (!response.ok) {
-      console.error("Failed to refresh token:", await response.text());
+      const errorText = await response.text();
+      logError('Failed to refresh Google Calendar token', new Error(errorText), {
+        error_response: errorText.substring(0, 200),
+      });
       return null;
     }
 
@@ -166,7 +170,7 @@ async function refreshAccessToken(
       expiresIn: data.expires_in,
     };
   } catch (error) {
-    console.error("Error refreshing access token:", error);
+    logError('Exception while refreshing Google Calendar access token', error);
     return null;
   }
 }
@@ -363,7 +367,10 @@ async function getOrCreateVolunteeringCalendar(
         return connection.preferences.volunteering_calendar_id;
       }
     } catch (error) {
-      console.error("Error checking existing calendar:", error);
+      logError('Failed to check existing Google Calendar', error, {
+        user_id: userId,
+        calendar_id: connection?.preferences?.volunteering_calendar_id,
+      });
     }
   }
 
@@ -384,7 +391,10 @@ async function getOrCreateVolunteeringCalendar(
 
     if (!response.ok) {
       const error = await response.text();
-      console.error("Failed to create calendar:", error);
+      logError('Failed to create Google Calendar', new Error(error), {
+        user_id: userId,
+        calendar_name: "Let's Assist Volunteering",
+      });
       return null;
     }
 
@@ -407,7 +417,9 @@ async function getOrCreateVolunteeringCalendar(
         }
       );
     } catch (error) {
-      console.error("Failed to set calendar color:", error);
+      logError('Failed to set calendar color', error, {
+        calendar_id: calendarId,
+      });
       // Non-critical, continue anyway
     }
 
@@ -426,7 +438,9 @@ async function getOrCreateVolunteeringCalendar(
 
     return calendarId;
   } catch (error) {
-    console.error("Error creating volunteering calendar:", error);
+    logError('Exception while creating volunteering calendar', error, {
+      user_id: userId,
+    });
     return null;
   }
 }
@@ -447,7 +461,9 @@ async function calendarExists(
 
     return response.ok;
   } catch (error) {
-    console.error("Error checking calendar existence:", error);
+    logError('Failed to check calendar existence', error, {
+      calendar_id: calendarId,
+    });
     return false;
   }
 }
@@ -480,7 +496,10 @@ export async function ensureOrganizationCalendar(
 
     if (!response.ok) {
       const error = await response.text();
-      console.error("Failed to create organization calendar:", error);
+      logError('Failed to create organization calendar', new Error(error), {
+        calendar_name: calendarName,
+        existing_calendar_id: calendarId ?? undefined,
+      });
       return null;
     }
 
@@ -502,12 +521,16 @@ export async function ensureOrganizationCalendar(
         }
       );
     } catch (error) {
-      console.error("Failed to set organization calendar color:", error);
+      logError('Failed to set organization calendar color', error, {
+        calendar_id: newCalendarId,
+      });
     }
 
     return { calendarId: newCalendarId, created: true };
   } catch (error) {
-    console.error("Error creating organization calendar:", error);
+    logError('Exception while creating organization calendar', error, {
+      calendar_name: calendarName,
+    });
     return null;
   }
 }
@@ -539,14 +562,21 @@ export async function createGoogleCalendarEventForCalendar(
 
       if (!response.ok) {
         const error = await response.text();
-        console.error("Failed to create calendar event:", error);
+        logError('Failed to create Google Calendar event (single)', new Error(error), {
+          calendar_id: calendarId,
+          project_id: project.id,
+          project_title: project.title,
+        });
         throw new Error("Failed to create calendar event");
       }
 
       const result = await response.json();
       return result.id;
     } catch (error) {
-      console.error("Error creating calendar event:", error);
+      logError('Exception while creating Google Calendar event (single)', error, {
+        calendar_id: calendarId,
+        project_id: project.id,
+      });
       throw error;
     }
   }
@@ -571,7 +601,10 @@ export async function createGoogleCalendarEventForCalendar(
         eventIds.push(result.id);
       }
     } catch (error) {
-      console.error("Error creating calendar event:", error);
+      logError('Exception in createGoogleCalendarEventForCalendar (batch)', error, {
+        calendar_id: calendarId,
+        project_id: project.id,
+      });
     }
   }
 
@@ -607,7 +640,11 @@ export async function updateGoogleCalendarEventForCalendar(
 
     return response.ok;
   } catch (error) {
-    console.error("Error updating calendar event:", error);
+    logError('Exception while updating calendar event for calendar', error, {
+      calendar_id: calendarId,
+      event_id: eventId,
+      project_id: project.id,
+    });
     return false;
   }
 }
@@ -632,7 +669,10 @@ export async function deleteGoogleCalendarEventForCalendar(
 
     return response.ok || response.status === 404;
   } catch (error) {
-    console.error("Error deleting calendar event:", error);
+    logError('Exception while deleting Google Calendar event', error, {
+      calendar_id: calendarId,
+      event_id: eventId,
+    });
     return false;
   }
 }
@@ -654,7 +694,9 @@ export async function createGoogleCalendarEvent(
   // Get or create dedicated volunteering calendar
   const calendarId = await getOrCreateVolunteeringCalendar(accessToken, userId);
   if (!calendarId) {
-    console.error("Failed to get or create volunteering calendar");
+    logError('Failed to get or create volunteering calendar in createGoogleCalendarEvent', new Error('Calendar creation failed'), {
+      user_id: userId,
+    });
     throw new Error("Failed to access volunteering calendar");
   }
 
@@ -682,14 +724,22 @@ export async function createGoogleCalendarEvent(
 
       if (!response.ok) {
         const error = await response.text();
-        console.error("Failed to create calendar event:", error);
+        logError('Failed to create calendar event in createGoogleCalendarEvent (single)', new Error(error), {
+          user_id: userId,
+          calendar_id: calendarId,
+          project_id: project.id,
+        });
         throw new Error("Failed to create calendar event");
       }
 
       const result = await response.json();
       return result.id;
     } catch (error) {
-      console.error("Error creating calendar event:", error);
+      logError('Exception in createGoogleCalendarEvent (single)', error, {
+        user_id: userId,
+        calendar_id: calendarId,
+        project_id: project.id,
+      });
       throw error;
     }
   }
@@ -717,7 +767,11 @@ export async function createGoogleCalendarEvent(
         eventIds.push(result.id);
       }
     } catch (error) {
-      console.error("Error creating calendar event:", error);
+      logError('Exception in createGoogleCalendarEvent (batch processing)', error, {
+        user_id: userId,
+        calendar_id: calendarId,
+        project_id: project.id,
+      });
     }
   }
 
@@ -742,7 +796,9 @@ export async function updateGoogleCalendarEvent(
   // Get or create dedicated volunteering calendar
   const calendarId = await getOrCreateVolunteeringCalendar(accessToken, userId);
   if (!calendarId) {
-    console.error("Failed to get or create volunteering calendar");
+    logError('Failed to get or create volunteering calendar in updateGoogleCalendarEvent', new Error('Calendar creation failed'), {
+      user_id: userId,
+    });
     throw new Error("Failed to access volunteering calendar");
   }
 
@@ -768,7 +824,12 @@ export async function updateGoogleCalendarEvent(
 
     return response.ok;
   } catch (error) {
-    console.error("Error updating calendar event:", error);
+    logError('Exception in updateGoogleCalendarEvent', error, {
+      user_id: userId,
+      event_id: eventId,
+      calendar_id: calendarId,
+      project_id: project.id,
+    });
     return false;
   }
 }
@@ -789,7 +850,9 @@ export async function deleteGoogleCalendarEvent(
   // Get or create dedicated volunteering calendar
   const calendarId = await getOrCreateVolunteeringCalendar(accessToken, userId);
   if (!calendarId) {
-    console.error("Failed to get or create volunteering calendar");
+    logError('Failed to get or create volunteering calendar in deleteGoogleCalendarEvent', new Error('Calendar creation failed'), {
+      user_id: userId,
+    });
     throw new Error("Failed to access volunteering calendar");
   }
 
@@ -808,7 +871,11 @@ export async function deleteGoogleCalendarEvent(
 
     return response.ok || response.status === 404; // 404 means already deleted
   } catch (error) {
-    console.error("Error deleting calendar event:", error);
+    logError('Exception in deleteGoogleCalendarEvent', error, {
+      user_id: userId,
+      event_id: eventId,
+      calendar_id: calendarId,
+    });
     return false;
   }
 }
@@ -827,7 +894,7 @@ export async function revokeGoogleCalendarAccess(
 
     return response.ok;
   } catch (error) {
-    console.error("Error revoking access:", error);
+    logError('Exception while revoking Google Calendar access', error);
     return false;
   }
 }

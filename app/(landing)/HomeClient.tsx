@@ -8,7 +8,7 @@ import PlatformFeaturesSection from "./_components/PlatformFeaturesSection";
 import OrgToolingSection from "./_components/OrgToolingSection";
 import ComparisonSection from "./_components/ComparisonSection";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -24,6 +24,11 @@ function HomeContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { user, loading: isAuthLoading } = useAuth();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Check for error parameters
   const error = searchParams.get("error");
@@ -34,10 +39,10 @@ function HomeContent() {
   const shouldRedirect = !!user && !isAuthLoading && !noRedirect && !hasError;
 
   useEffect(() => {
-    if (shouldRedirect) {
+    if (mounted && shouldRedirect) {
       router.replace("/home");
     }
-  }, [router, shouldRedirect]);
+  }, [mounted, router, shouldRedirect]);
 
   // Show error page if there's an error
   if (error && errorDescription) {

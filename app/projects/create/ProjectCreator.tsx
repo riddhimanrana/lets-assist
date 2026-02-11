@@ -124,6 +124,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
 
   // AI Assistant state
   const [showAIAssistant, setShowAIAssistant] = useState(false);
+  const [showLocationPointer, setShowLocationPointer] = useState(false);
 
   // Autosave state - initialize with loaded draft ID if available
   const [autosaveDraftId, setAutosaveDraftId] = useState<string | undefined>(initialDraftId || undefined);
@@ -342,8 +343,36 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
       updateRequireLogin(data.requireLogin);
     }
 
+    // Apply recurrence settings
+    if (data.recurrence) {
+      if (data.recurrence.enabled !== undefined) {
+        updateRecurrence('enabled', data.recurrence.enabled);
+      }
+      if (data.recurrence.frequency) {
+        updateRecurrence('frequency', data.recurrence.frequency);
+      }
+      if (data.recurrence.interval !== undefined) {
+        updateRecurrence('interval', data.recurrence.interval);
+      }
+      if (data.recurrence.endType) {
+        updateRecurrence('endType', data.recurrence.endType);
+      }
+      if (data.recurrence.endDate) {
+        updateRecurrence('endDate', data.recurrence.endDate);
+      }
+      if (data.recurrence.endOccurrences !== undefined) {
+        updateRecurrence('endOccurrences', data.recurrence.endOccurrences);
+      }
+      if (data.recurrence.weekdays) {
+        updateRecurrence('weekdays', data.recurrence.weekdays);
+      }
+    }
+
     // Close AI Assistant
     setShowAIAssistant(false);
+    
+    // Show a pointer to the location field to encourage manual verification/filling
+    setShowLocationPointer(true);
   };
 
   // Clear errors when a field is updated
@@ -725,6 +754,8 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
             updateBasicInfoAction={handleBasicInfoUpdate}
             initialOrgId={initialOrgId}
             initialOrganizations={initialOrgOptions}
+            showLocationPointer={showLocationPointer}
+            onLocationPointerDismiss={() => setShowLocationPointer(false)}
             errors={{
               title: getFieldError("title", basicInfoErrors),
               location: getFieldError("location", basicInfoErrors),

@@ -27,16 +27,30 @@ export async function POST(request: Request) {
 
     // Validate request body
     const body = await request.json();
-    const validation = syncProjectSchema.safeParse(body);
+    
+    // Support both camelCase (legacy) and snake_case
+    const normalizedBody = {
+      project_id: body.project_id || body.projectId,
+      schedule_id: body.schedule_id || body.scheduleId,
+    };
+    
+    const validation = syncProjectSchema.safeParse(normalizedBody);
 
     if (!validation.success) {
+      console.error("Sync project validation failed:", validation.error.issues);
       return NextResponse.json(
-        { error: "Invalid request data", details: validation.error.issues },
+        { 
+          error: "Invalid request data", 
+          details: validation.error.issues,
+          hint: "project_id is required"
+        },
         { status: 400 }
       );
     }
 
     const { project_id, schedule_id } = validation.data;
+    
+    console.log("[Sync Project] Syncing project:", project_id, "schedule:", schedule_id, "for user:", user.id);
 
     // Get the project
     const { data: project, error: projectError } = await supabase
