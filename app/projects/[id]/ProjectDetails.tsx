@@ -51,7 +51,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { signUpForProject, resendAnonymousConfirmationEmail, getActiveWaiverTemplate } from "./actions";
+import { signUpForProject, resendAnonymousConfirmationEmail, getProjectWaiver } from "./actions";
 import { formatTimeTo12Hour, formatBytes, copyToClipboard, isMobileDevice } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { isSlotAvailable, isMultiDaySlotPastByScheduleId, isSameDayMultiAreaSlotPast, isOneTimeSlotPast } from "@/utils/project";
@@ -181,6 +181,7 @@ export default function ProjectDetails({
   const [pendingScheduleId, setPendingScheduleId] = useState<string>("");
   const [publicAttendees, setPublicAttendees] = useState<SlotAttendee[]>([]);
   const [waiverTemplate, setWaiverTemplate] = useState<WaiverTemplate | null>(null);
+  const [waiverDefinition, setWaiverDefinition] = useState<any | null>(null); // Use 'any' or import full type
 
   // Add state to track calculated status
   // Initialize with project.status to avoid hydration mismatch, then update on client
@@ -370,31 +371,37 @@ export default function ProjectDetails({
 
 
   useEffect(() => {
-    if (!project.waiver_required || project.waiver_pdf_url) return;
+    if (!project.waiver_required) return;
     let isMounted = true;
 
-    const fetchWaiverTemplate = async () => {
+    const fetchWaiverConfig = async () => {
       try {
-        const result = await getActiveWaiverTemplate();
-        if (result?.template && isMounted) {
-          setWaiverTemplate(result.template as WaiverTemplate);
-        } else if (isMounted) {
-          toast.error("Unable to load waiver template. Please try again later.");
+        const result = await getProjectWaiver(project.id);
+        if (!isMounted) return;
+
+        if (result.error) {
+             console.error("Error fetching waiver config:", result.error);
+             return;
+        }
+
+        if (result.definition) {
+             setWaiverDefinition(result.definition);
+        }
+        
+        if (result.template) {
+             setWaiverTemplate(result.template as WaiverTemplate);
         }
       } catch (error) {
-        console.error("Error fetching waiver template:", error);
-        if (isMounted) {
-          toast.error("Unable to load waiver template. Please try again later.");
-        }
+        console.error("Error fetching waiver configuration:", error);
       }
     };
 
-    fetchWaiverTemplate();
+    fetchWaiverConfig();
 
     return () => {
       isMounted = false;
     };
-  }, [project.waiver_required]);
+  }, [project.id, project.waiver_required]);
 
   // Move updateProjectStatusInDB outside useCallback to break circular dependency
   const updateProjectStatusInDB = async (newStatus: ProjectStatus) => {
@@ -1560,7 +1567,8 @@ export default function ProjectDetails({
             waiverRequired={!!project.waiver_required}
             waiverAllowUpload={project.waiver_allow_upload ?? true}
             waiverTemplate={waiverTemplate}
-            waiverPdfUrl={project.waiver_pdf_url || null}
+            waiverPdfUrl={waiverDefinition?.pdf_public_url || project.waiver_pdf_url || null}
+            waiverDefinition={waiverDefinition}
           />
         </DialogContent>
       </Dialog>
@@ -1630,7 +1638,8 @@ export default function ProjectDetails({
           waiverRequired={!!project.waiver_required}
           waiverAllowUpload={project.waiver_allow_upload ?? true}
           waiverTemplate={waiverTemplate}
-          waiverPdfUrl={project.waiver_pdf_url || null}
+          waiverPdfUrl={waiverDefinition?.pdf_public_url || project.waiver_pdf_url || null}
+          waiverDefinition={waiverDefinition}
           project={{
             id: project.id,
             title: project.title,

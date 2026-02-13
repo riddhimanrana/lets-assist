@@ -30,3 +30,6 @@ export * from './calendar';
 
 // Waiver types
 export * from './waiver';
+
+// Waiver Definitions types (Phase 1: Multi-signer system)
+export * from './waiver-definitions';

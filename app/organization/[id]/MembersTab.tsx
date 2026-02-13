@@ -503,7 +503,7 @@ export default function MembersTab({
                         )}
                         disabled={member.role === "staff"}
                       >
-                        <UserRoundCog className="h-4 w-4 text-blue-500" />
+                        <UserRoundCog className="h-4 w-4 text-info" />
                         <span className="font-medium">Make Staff</span>
                       </DropdownMenuItem>
                       <DropdownMenuItem
@@ -532,7 +532,7 @@ export default function MembersTab({
                         "staff"
                       )}
                     >
-                      <UserRoundCog className="h-4 w-4 text-blue-500" />
+                      <UserRoundCog className="h-4 w-4 text-info" />
                       <span className="font-medium">Make Staff</span>
                     </DropdownMenuItem>
                   )}

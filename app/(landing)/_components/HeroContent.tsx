@@ -56,7 +56,7 @@ export const HeroContent = () => {
             transition={{ delay: 0.2, duration: 0.5 }}
             className="mx-auto w-full max-w-(--breakpoint-md) px-2"
           >
-            <h1 className="font-overusedgrotesk text-[2.83rem] font-bold sm:font-extrabold leading-[1.1] tracking-tight sm:text-5xl md:text-[3.9rem]">
+            <h1 className="font-overusedgrotesk text-[2.83rem] font-bold sm:font-extrabold leading-[1.1] tracking-tight sm:text-5xl md:text-[4.3rem]">
               Give back to your{" "}
               <span
                 className="text-transparent bg-linear-to-r from-[#4ed247] to-primary bg-clip-text"

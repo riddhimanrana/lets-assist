@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, Menu, MessageSquare, ShieldAlert, Users, BellRing } from "lucide-react";
+import { LayoutDashboard, Menu, MessageSquare, ShieldAlert, Users, BellRing, FileText } from "lucide-react";
 import {
   Sheet,
   SheetClose,
@@ -26,6 +26,7 @@ const navItems = [
   { id: "feedback", href: "/admin/feedback", label: "Feedback", icon: MessageSquare },
   { id: "trusted-members", href: "/admin/trusted-members", label: "Trusted Members", icon: Users },
   { id: "moderation", href: "/admin/moderation", label: "Moderation", icon: ShieldAlert },
+  { id: "waivers", href: "/admin/waivers", label: "Waivers", icon: FileText },
 ];
 
 export function AdminSidebar({ activeTab, onTabChange }: AdminSidebarProps = {}) {
