@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 // Replace shadcn toast with Sonner
 import { toast } from "sonner";
 import { createProject, uploadCoverImage, uploadProjectDocument, uploadWaiverPdf, finalizeProject, saveProjectAsNewDraft, autoSaveDraft } from "./actions";
+import { saveWaiverDefinition } from "../[id]/actions";
 import { useRouter } from "next/navigation";
 // Import Zod schemas
 import {
@@ -96,6 +97,8 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
     updateWaiverAllowUpload,
     updateWaiverPdfFile,
     updateWaiverPdfValidation,
+    updateWaiverDefinition,
+    updateDetectedFields,
     clearWaiverPdf,
     updateRecurrence,
     loadDraftState,
@@ -652,6 +655,15 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
             console.error(`Waiver PDF: ${waiverResult.error}`);
             hasErrors = true;
           }
+          
+          // Step 4.5: Save waiver definition if configured
+          if (!waiverResult.error && state.waiverDefinition) {
+             const defResult = await saveWaiverDefinition(projectId, state.waiverDefinition);
+             if (defResult.error) {
+                console.error(`Waiver Definition: ${defResult.error}`);
+                hasErrors = true;
+             }
+          }
         } catch (error) {
           console.error("Error processing waiver PDF:", error);
           hasErrors = true;
@@ -801,6 +813,10 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
             waiverPdfFile={state.waiverPdfFile}
             waiverPdfUrl={state.waiverPdfUrl}
             waiverPdfValidation={state.waiverPdfValidation}
+            waiverDefinition={state.waiverDefinition}
+            detectedFields={state.detectedFields}
+            updateWaiverDefinitionAction={updateWaiverDefinition}
+            updateDetectedFieldsAction={updateDetectedFields}
             restrictToOrgDomains={state.restrictToOrgDomains}
             allowedEmailDomains={
               state.basicInfo.organizationId

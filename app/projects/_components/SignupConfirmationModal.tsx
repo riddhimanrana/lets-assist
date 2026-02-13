@@ -22,8 +22,9 @@ import Image from "next/image";
 import { getUserProfile } from '@/app/projects/[id]/actions';
 import { toast } from "sonner";
 import { TimezoneBadge } from '@/components/shared/TimezoneBadge';
-import { WaiverSignatureSection } from '@/app/projects/_components/WaiverSignatureSection';
-import type { Project, WaiverSignatureInput, WaiverTemplate } from '@/types';
+import { WaiverSigningDialog } from '@/components/waiver/WaiverSigningDialog';
+import { Check, PenTool } from 'lucide-react';
+import type { Project, WaiverSignatureInput, WaiverTemplate, WaiverDefinitionFull } from '@/types';
 
 interface UserProfile {
   full_name: string | null;
@@ -40,6 +41,7 @@ interface SignupConfirmationModalProps {
   waiverAllowUpload?: boolean;
   waiverTemplate?: WaiverTemplate | null;
   waiverPdfUrl?: string | null;
+  waiverDefinition?: WaiverDefinitionFull | null;
   project: {
     id: string;
     title: string;
@@ -59,9 +61,10 @@ export function SignupConfirmationModal({
   onConfirm,
   enableVolunteerComments = false,
   waiverRequired = false,
-  waiverAllowUpload = true,
+  waiverAllowUpload: _waiverAllowUpload = true,
   waiverTemplate = null,
   waiverPdfUrl = null,
+  waiverDefinition = null,
   project,
   scheduleId,
   isLoading = false,
@@ -70,6 +73,7 @@ export function SignupConfirmationModal({
   const [isFetchingProfile, setIsFetchingProfile] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [waiverSignature, setWaiverSignature] = useState<WaiverSignatureInput | null>(null);
+  const [isWaiverDialogOpen, setIsWaiverDialogOpen] = useState(false);
 
   // Calendar connection state
   const [calendarConnected, setCalendarConnected] = useState(false);
@@ -238,7 +242,8 @@ export function SignupConfirmationModal({
 
   const handleConfirm = () => {
     const trimmed = comment.trim();
-    onConfirm(trimmed.length > 0 ? trimmed : undefined, waiverSignature);
+    // Use type assertion if needed, as the action accepts compatible structure
+    onConfirm(trimmed.length > 0 ? trimmed : undefined, waiverSignature as WaiverSignatureInput);
   };
 
   const formatTime = (timeString: string) => {
@@ -254,6 +259,11 @@ export function SignupConfirmationModal({
 
   const waiverSatisfied = !waiverRequired || !!waiverSignature;
   const canConfirm = !isLoading && !isFetchingProfile && !profileError && !!currentUserProfile && waiverSatisfied;
+
+  const handleWaiverComplete = async (input: WaiverSignatureInput) => {
+    setWaiverSignature(input);
+    setIsWaiverDialogOpen(false);
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -345,14 +355,51 @@ export function SignupConfirmationModal({
 
           {waiverRequired && (
             <div className="space-y-3 pt-3 border-t">
-              <WaiverSignatureSection
-                template={waiverTemplate || null}
+              <h4 className="font-semibold text-sm text-text">
+                Waiver Agreement
+              </h4>
+              <p className="text-sm text-muted-foreground mb-4">
+                You must sign the waiver to participate in this event.
+              </p>
+
+              {!waiverSignature ? (
+                <Button 
+                  onClick={() => setIsWaiverDialogOpen(true)}
+                  className="w-full sm:w-auto"
+                >
+                  <PenTool className="h-4 w-4 mr-2" />
+                  Sign Waiver
+                </Button>
+              ) : (
+                <div className="flex items-center justify-between p-3 bg-green-50/50 border border-green-200 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center text-green-600">
+                      <Check className="h-4 w-4" />
+                    </div>
+                    <div className="text-sm font-medium text-green-700">
+                      Waiver Signed
+                    </div>
+                  </div>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => setIsWaiverDialogOpen(true)}
+                    className="text-muted-foreground hover:text-text"
+                  >
+                    Edit
+                  </Button>
+                </div>
+              )}
+
+              <WaiverSigningDialog
+                isOpen={isWaiverDialogOpen}
+                onClose={() => setIsWaiverDialogOpen(false)}
+                onComplete={handleWaiverComplete}
+                waiverDefinition={waiverDefinition}
                 waiverPdfUrl={waiverPdfUrl}
-                signerName={currentUserProfile?.full_name || undefined}
-                signerEmail={currentUserProfile?.email || undefined}
-                allowUpload={waiverAllowUpload}
-                required
-                onChange={setWaiverSignature}
+                waiverTemplate={waiverTemplate}
+                defaultSignerName={currentUserProfile?.full_name || ""}
+                defaultSignerEmail={currentUserProfile?.email || ""}
               />
             </div>
           )}
@@ -407,7 +454,7 @@ export function SignupConfirmationModal({
                   </div>
                 </div>
                 <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
+                  <DropdownMenuTrigger render={
                     <Button
                       variant="ghost"
                       size="sm"
@@ -415,7 +462,7 @@ export function SignupConfirmationModal({
                     >
                       <ChevronDown className="h-4 w-4" />
                     </Button>
-                  </DropdownMenuTrigger>
+                  } />
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem onClick={handleDownloadICal}>
                       <Download className="h-4 w-4 mr-2" />

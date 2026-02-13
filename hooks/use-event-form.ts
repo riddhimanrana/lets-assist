@@ -10,6 +10,8 @@ import {
   RecurrenceWeekday,
   LocationData,
 } from '@/types';
+import { DetectedPdfField } from '@/lib/waiver/pdf-field-detect';
+import { WaiverDefinitionInput } from '@/components/waiver/WaiverBuilderDialog';
 
 // --- Helper Functions --- 
 
@@ -115,6 +117,8 @@ export interface EventFormState {
     hasSignatureFields: boolean;
     warnings: string[];
   } | null;
+  waiverDefinition: WaiverDefinitionInput | null;
+  detectedFields: DetectedPdfField[] | null;
   recurrence: {
     enabled: boolean;
     frequency: RecurrenceFrequency;
@@ -154,6 +158,8 @@ type EventFormAction =
   | { type: 'UPDATE_WAIVER_PDF_FILE'; payload: File | null }
   | { type: 'UPDATE_WAIVER_PDF_URL'; payload: string | null }
   | { type: 'UPDATE_WAIVER_PDF_VALIDATION'; payload: { hasSignatureFields: boolean; warnings: string[] } | null }
+  | { type: 'UPDATE_WAIVER_DEFINITION'; payload: WaiverDefinitionInput | null }
+  | { type: 'UPDATE_DETECTED_FIELDS'; payload: DetectedPdfField[] | null }
   | { type: 'CLEAR_WAIVER_PDF' }
   | {
       type: 'UPDATE_RECURRENCE';
@@ -234,6 +240,8 @@ const initialState: EventFormState = {
   waiverPdfFile: null,
   waiverPdfUrl: null,
   waiverPdfValidation: null,
+  waiverDefinition: null,
+  detectedFields: null,
   recurrence: {
     enabled: false,
     frequency: 'weekly',
@@ -484,12 +492,26 @@ const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
         waiverPdfValidation: action.payload,
       };
     }
+    case 'UPDATE_WAIVER_DEFINITION': {
+      return {
+        ...state,
+        waiverDefinition: action.payload,
+      };
+    }
+    case 'UPDATE_DETECTED_FIELDS': {
+      return {
+        ...state,
+        detectedFields: action.payload,
+      };
+    }
     case 'CLEAR_WAIVER_PDF': {
       return {
         ...state,
         waiverPdfFile: null,
         waiverPdfUrl: null,
         waiverPdfValidation: null,
+        waiverDefinition: null,
+        detectedFields: null,
       };
     }
     case 'UPDATE_RECURRENCE': {
@@ -672,6 +694,12 @@ export const useEventForm = () => {
   const updateWaiverPdfValidation = (validation: { hasSignatureFields: boolean; warnings: string[] } | null) =>
     dispatch({ type: 'UPDATE_WAIVER_PDF_VALIDATION', payload: validation });
 
+  const updateWaiverDefinition = (definition: WaiverDefinitionInput | null) =>
+    dispatch({ type: 'UPDATE_WAIVER_DEFINITION', payload: definition });
+
+  const updateDetectedFields = (fields: DetectedPdfField[] | null) =>
+    dispatch({ type: 'UPDATE_DETECTED_FIELDS', payload: fields });
+
   const clearWaiverPdf = () =>
     dispatch({ type: 'CLEAR_WAIVER_PDF' });
 
@@ -715,6 +743,8 @@ export const useEventForm = () => {
     updateWaiverPdfFile,
     updateWaiverPdfUrl,
     updateWaiverPdfValidation,
+    updateWaiverDefinition,
+    updateDetectedFields,
     clearWaiverPdf,
     updateRecurrence,
     removeDay,

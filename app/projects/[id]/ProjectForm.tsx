@@ -14,8 +14,9 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { DialogFooter } from "@/components/ui/dialog";
 import { useState } from "react"; // Import useState
-import { WaiverSignatureSection } from "@/app/projects/_components/WaiverSignatureSection";
-import type { WaiverSignatureInput, WaiverTemplate } from "@/types";
+import type { WaiverSignatureInput, WaiverTemplate, WaiverDefinitionFull } from "@/types";
+import { WaiverSigningDialog } from '@/components/waiver/WaiverSigningDialog';
+import { PenTool, Check } from 'lucide-react';
 
 // Constants for phone validation
 const PHONE_LENGTH = 10; // For raw digits
@@ -61,6 +62,7 @@ interface ProjectFormProps {
   waiverAllowUpload?: boolean;
   waiverTemplate?: WaiverTemplate | null;
   waiverPdfUrl?: string | null;
+  waiverDefinition?: WaiverDefinitionFull | null;
 }
 
 // Helper function to format phone number input
@@ -86,9 +88,13 @@ export function ProjectSignupForm({
   waiverAllowUpload = true,
   waiverTemplate = null,
   waiverPdfUrl = null,
+  waiverDefinition = null,
 }: ProjectFormProps) {
+  // Mobile check for responsive layout if needed
+  // Using simple responsive classes instead of hook
   const [phoneNumberLength, setPhoneNumberLength] = useState(0); // State for phone number length
   const [waiverSignature, setWaiverSignature] = useState<WaiverSignatureInput | null>(null);
+  const [isWaiverDialogOpen, setIsWaiverDialogOpen] = useState(false);
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -109,6 +115,11 @@ export function ProjectSignupForm({
   const signerName = form.watch("name");
   const signerEmail = form.watch("email");
   const waiverSatisfied = !waiverRequired || !!waiverSignature;
+
+  const handleWaiverComplete = async (input: WaiverSignatureInput) => {
+    setWaiverSignature(input);
+    setIsWaiverDialogOpen(false);
+  };
 
 
   return (
@@ -207,15 +218,55 @@ export function ProjectSignupForm({
       )}
 
       {waiverRequired && (
-        <WaiverSignatureSection
-          template={waiverTemplate}
-          waiverPdfUrl={waiverPdfUrl}
-          signerName={signerName}
-          signerEmail={signerEmail}
-          allowUpload={waiverAllowUpload}
-          required
-          onChange={setWaiverSignature}
-        />
+        <div className="space-y-2 border rounded-md p-4 bg-secondary/10">
+          <FieldLabel>Waiver Agreement</FieldLabel>
+          <div className="text-sm text-muted-foreground mb-4">
+            A signature is required to participate in this event.
+          </div>
+          
+          {!waiverSignature ? (
+             <Button 
+               type="button" 
+               onClick={() => setIsWaiverDialogOpen(true)}
+               variant="outline"
+               className="w-full sm:w-auto"
+             >
+               <PenTool className="h-4 w-4 mr-2" />
+               Sign Waiver
+             </Button>
+          ) : (
+             <div className="flex items-center justify-between p-3 bg-green-50/50 border border-green-200 rounded-lg">
+                <div className="flex items-center gap-2">
+                   <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center text-green-600">
+                      <Check className="h-4 w-4" />
+                   </div>
+                   <div className="text-sm font-medium text-green-700">
+                      Signature Captured
+                   </div>
+                </div>
+                <Button 
+                   type="button" 
+                   variant="ghost" 
+                   size="sm"
+                   onClick={() => setIsWaiverDialogOpen(true)}
+                   className="text-muted-foreground hover:text-text"
+                >
+                   Review
+                </Button>
+             </div>
+          )}
+
+          <WaiverSigningDialog
+            isOpen={isWaiverDialogOpen}
+            onClose={() => setIsWaiverDialogOpen(false)}
+            waiverDefinition={waiverDefinition}
+            waiverPdfUrl={waiverPdfUrl}
+            waiverTemplate={waiverTemplate}
+            onComplete={handleWaiverComplete}
+            defaultSignerName={signerName}
+            defaultSignerEmail={signerEmail}
+          />
+        </div>
       )}
 
       <DialogFooter>

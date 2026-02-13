@@ -88,6 +88,11 @@ import { AspectRatio } from "@/components/ui/aspect-ratio";
 import Image from "next/image";
 import { formatBytes } from "@/lib/utils";
 import FilePreview from "@/app/projects/_components/FilePreview";
+import { detectPdfWidgets, DetectedPdfField } from "@/lib/waiver/pdf-field-detect";
+import { WaiverBuilderDialog, WaiverDefinitionInput } from "@/components/waiver/WaiverBuilderDialog";
+import { WaiverDefinitionFull } from "@/types/waiver-definitions";
+import { getWaiverDefinition, saveWaiverDefinition } from "../actions";
+import { Settings } from "lucide-react";
 
 // Constants for character limits
 const TITLE_LIMIT = 125;
@@ -273,6 +278,53 @@ export default function EditProjectClient({ project }: Props) {
   const [waiverPdfError, setWaiverPdfError] = useState<string | null>(null);
   const [waiverPdfValidation, setWaiverPdfValidation] = useState<{ hasSignatureFields: boolean; warnings: string[] } | null>(null);
   const waiverPdfInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Waiver Builder State
+  const [waiverBuilderOpen, setWaiverBuilderOpen] = useState(false);
+  const [waiverDefinition, setWaiverDefinition] = useState<WaiverDefinitionFull | null>(null);
+  const [lastDetectedFields, setLastDetectedFields] = useState<DetectedPdfField[]>([]);
+  const [waiverPdfUrl, setWaiverPdfUrl] = useState<string | null>(project.waiver_pdf_url ?? null);
+
+  // Fetch waiver definition if exists
+  useEffect(() => {
+    async function fetchDefinition() {
+      if (waiverPdfUrl) {
+        try {
+          const result = await getWaiverDefinition(project.id);
+          if (result.success && result.definition) {
+            setWaiverDefinition(result.definition);
+          }
+        } catch (error) {
+          console.error("Error fetching waiver definition:", error);
+        }
+      }
+    }
+    fetchDefinition();
+  }, [project.id, waiverPdfUrl]);
+
+  // Handler for saving waiver definition
+  const handleWaiverSave = async (definition: WaiverDefinitionInput) => {
+    const loadingToast = toast.loading("Saving waiver configuration...");
+    try {
+      const result = await saveWaiverDefinition(project.id, definition);
+      if (result.success) {
+        // Fetch the saved definition to update local state
+        const updatedResult = await getWaiverDefinition(project.id);
+        if (updatedResult.success && updatedResult.definition) {
+          setWaiverDefinition(updatedResult.definition);
+        }
+        setWaiverBuilderOpen(false);
+        toast.dismiss(loadingToast);
+        toast.success("Waiver configuration saved successfully");
+      } else {
+        throw new Error(result.error || "Failed to save waiver configuration");
+      }
+    } catch (error) {
+      console.error("Error saving waiver definition:", error);
+      toast.dismiss(loadingToast);
+      toast.error("Failed to save waiver configuration");
+    }
+  };
 
   const getCounterColor = (current: number, max: number) => {
     const percentage = (current / max) * 100;
@@ -530,20 +582,34 @@ export default function EditProjectClient({ project }: Props) {
         return null;
       }
 
-      const pdfText = new TextDecoder("latin1").decode(bytes);
-      const hasSignatureFields =
-        pdfText.includes("/Sig") ||
-        pdfText.includes("/AcroForm") ||
-        pdfText.includes("/SigFlags") ||
-        pdfText.includes("signature") ||
-        pdfText.includes("/Widget");
-
-      const warnings: string[] = [];
-      if (!hasSignatureFields) {
-        warnings.push("No signature fields detected. Volunteers will sign electronically alongside the PDF.");
+      // Use PDF.js-based widget detection
+      const detectionResult = await detectPdfWidgets(file);
+      
+      // Store detected fields for builder
+      if (detectionResult.success) {
+        setLastDetectedFields(detectionResult.fields);
+      } else {
+        setLastDetectedFields([]);
       }
 
-      const validation = { hasSignatureFields, warnings };
+      const warnings: string[] = [];
+      
+      if (!detectionResult.success) {
+        // PDF.js failed, but we have fallback detection result
+        warnings.push('Could not fully analyze PDF structure.');
+        if (detectionResult.errors) {
+          warnings.push(...detectionResult.errors);
+        }
+      }
+
+      if (!detectionResult.hasSignatureFields) {
+        warnings.push("No signature fields detected. Volunteers will sign electronically alongside the PDF.");
+      } else if (detectionResult.success && detectionResult.fields.length > 0) {
+        const sigFields = detectionResult.fields.filter(f => f.fieldType === 'signature');
+        warnings.push(`Detected ${sigFields.length} signature field(s) and ${detectionResult.fields.length - sigFields.length} other form field(s) across ${detectionResult.pageCount} page(s).`);
+      }
+
+      const validation = { hasSignatureFields: detectionResult.hasSignatureFields, warnings };
       setWaiverPdfValidation(validation);
       return validation;
     } catch (error) {
@@ -720,6 +786,12 @@ export default function EditProjectClient({ project }: Props) {
         throw new Error(result.error);
       }
 
+      if (result.waiverPdfUrl) {
+        setWaiverPdfUrl(result.waiverPdfUrl);
+        // Automatically open builder after upload
+        setWaiverBuilderOpen(true);
+      }
+
       toast.dismiss(loadingToast);
       toast.success("Waiver PDF uploaded successfully");
       router.refresh();
@@ -744,6 +816,10 @@ export default function EditProjectClient({ project }: Props) {
       if (result.error) {
         throw new Error(result.error);
       }
+
+      setWaiverPdfUrl(null);
+      setWaiverDefinition(null);
+      setLastDetectedFields([]);
 
       toast.dismiss(loadingToast);
       toast.success("Waiver PDF removed");
@@ -1107,19 +1183,28 @@ export default function EditProjectClient({ project }: Props) {
                       Upload a PDF waiver to show volunteers during signup.
                     </CardDescription>
                   </div>
-                  {project.waiver_pdf_url && (
+                  {(waiverPdfUrl || project.waiver_pdf_url) && (
                     <div className="flex flex-wrap gap-2">
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => openPreview(project.waiver_pdf_url!, "Waiver PDF", "application/pdf")}
+                        onClick={() => setWaiverBuilderOpen(true)}
+                      >
+                        <Settings className="h-4 w-4 mr-1" />
+                        Configure
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openPreview((waiverPdfUrl || project.waiver_pdf_url)!, "Waiver PDF", "application/pdf")}
                       >
                         <Eye className="h-4 w-4 mr-1" />
                         Preview
                       </Button>
                       <a
-                        href={project.waiver_pdf_url}
+                        href={waiverPdfUrl || project.waiver_pdf_url || "#"}
                         download
                         className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
                       >
@@ -1148,7 +1233,7 @@ export default function EditProjectClient({ project }: Props) {
                   disabled={waiverPdfUploading}
                 />
 
-                {!project.waiver_pdf_url ? (
+                {!(waiverPdfUrl || project.waiver_pdf_url) ? (
                   <div
                     className={cn(
                       "border-2 border-dashed rounded-lg p-4 text-center cursor-pointer hover:border-primary/50 transition-colors",
@@ -1201,9 +1286,9 @@ export default function EditProjectClient({ project }: Props) {
                   </Alert>
                 )}
 
-                {!project.waiver_pdf_url && (
-                  <Alert className="bg-blue-50 border-blue-200 dark:bg-blue-950/20 dark:border-blue-900">
-                    <AlertDescription className="text-xs text-blue-700 dark:text-blue-400">
+                {!(waiverPdfUrl || project.waiver_pdf_url) && (
+                  <Alert className="bg-info/20 border-info">
+                    <AlertDescription className="text-xs text-info">
                       If you don&apos;t upload a custom waiver, the global platform waiver template will be used instead.
                     </AlertDescription>
                   </Alert>
@@ -1737,6 +1822,19 @@ export default function EditProjectClient({ project }: Props) {
         fileName={previewDocName}
         fileType={previewDocType}
       />
+
+      {/* Waiver Builder Dialog */}
+      {(waiverPdfUrl || project.waiver_pdf_url) && (
+        <WaiverBuilderDialog
+          open={waiverBuilderOpen}
+          onOpenChange={setWaiverBuilderOpen}
+          pdfFile={null}
+          pdfUrl={(waiverPdfUrl || project.waiver_pdf_url)!}
+          existingDefinition={waiverDefinition ?? undefined}
+          detectedFields={lastDetectedFields}
+          onSave={handleWaiverSave}
+        />
+      )}
     </div>
   );
 }

@@ -21,6 +21,7 @@ import * as React from 'react';
 import { NotificationService } from "@/services/notifications";
 import { removeCalendarEventForSignup, removeCalendarEventForProject } from "@/utils/calendar-helpers";
 import { getAdminClient } from "@/lib/supabase/admin";
+import { validateWaiverPayload, validateLegacyWaiverPayload } from "@/lib/waiver/validate-waiver-payload";
 
 // Define your site URL (replace with environment variable ideally)
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
@@ -292,6 +293,8 @@ export async function getActiveWaiverTemplate() {
   }
 }
 
+import { getActiveGlobalTemplate } from '@/app/admin/waivers/actions';
+
 // Get project-specific waiver or fall back to global template
 export async function getProjectWaiver(projectId: string) {
   try {
@@ -300,7 +303,7 @@ export async function getProjectWaiver(projectId: string) {
     // First get the project's waiver config
     const { data: project, error: projectError } = await serviceSupabase
       .from("projects")
-      .select("waiver_required, waiver_allow_upload, waiver_pdf_url, waiver_pdf_storage_path")
+      .select("waiver_required, waiver_allow_upload, waiver_pdf_url, waiver_pdf_storage_path, waiver_definition_id")
       .eq("id", projectId)
       .maybeSingle();
 
@@ -311,6 +314,34 @@ export async function getProjectWaiver(projectId: string) {
 
     if (!project) {
       return { error: "Project not found" };
+    }
+
+    // Phase 4: Check for Waiver Definition (New System)
+    if (project.waiver_definition_id) {
+      const { data: definition, error: defError } = await serviceSupabase
+        .from("waiver_definitions")
+        .select(`
+          *,
+          signers:waiver_definition_signers(*),
+          fields:waiver_definition_fields(*)
+        `)
+        .eq("id", project.waiver_definition_id)
+        .single();
+
+      if (!defError && definition) {
+        return {
+          waiverConfig: {
+             waiverRequired: project.waiver_required ?? true,
+             waiverAllowUpload: project.waiver_allow_upload ?? true,
+             waiverPdfUrl: definition.pdf_public_url || project.waiver_pdf_url, // Prefer definition PDF
+             waiverPdfStoragePath: definition.pdf_storage_path,
+             isProjectSpecific: true,
+             isWaiverDefinition: true,
+          },
+          definition,
+          template: null
+        };
+      }
     }
 
     // If project has a custom waiver PDF, use that
@@ -327,7 +358,25 @@ export async function getProjectWaiver(projectId: string) {
       };
     }
 
-    // Fall back to global template
+    // Fall back to active global template (Phase 6)
+    const activeGlobalTemplate = await getActiveGlobalTemplate();
+    
+    if (activeGlobalTemplate) {
+        return {
+            waiverConfig: {
+                waiverRequired: project.waiver_required ?? true,
+                waiverAllowUpload: project.waiver_allow_upload ?? true,
+                waiverPdfUrl: activeGlobalTemplate.pdf_public_url,
+                waiverPdfStoragePath: activeGlobalTemplate.pdf_storage_path,
+                isProjectSpecific: false,
+                isWaiverDefinition: true,
+            },
+            definition: activeGlobalTemplate,
+            template: null
+        };
+    }
+
+    // Fall back to legacy global template if no new definition
     const { template, error: templateError } = await getActiveWaiverTemplate();
 
     if (templateError) {
@@ -590,12 +639,14 @@ async function persistWaiverSignature(params: {
   // Check for project-specific waiver PDF first
   const { data: project } = await serviceSupabase
     .from("projects")
-    .select("waiver_pdf_url")
+    .select("waiver_pdf_url, waiver_allow_upload")
     .eq("id", params.projectId)
     .maybeSingle();
 
   let templateId: string | null = params.waiverSignature.templateId === "project-pdf" ? null : params.waiverSignature.templateId;
   const waiverPdfUrl = project?.waiver_pdf_url || params.waiverSignature.waiverPdfUrl || null;
+  // Phase 1: Default to true for backward compatibility with projects created before this feature
+  const waiverAllowUpload = project?.waiver_allow_upload ?? true;
 
   // If using project-specific PDF, we don't need a template
   if (waiverPdfUrl) {
@@ -631,7 +682,71 @@ async function persistWaiverSignature(params: {
   const { ipAddress, userAgent } = await getRequestMetadata();
   let signatureStoragePath: string | null = null;
   let uploadStoragePath: string | null = null;
+  let signaturePayload: Record<string, unknown> | null = null;
+  const waiverDefinitionId: string | null = params.waiverSignature.definitionId || null;
 
+  // Handle Multi-Signer Payload (Phase 4)
+  if (params.waiverSignature.signatureType === "multi-signer" && params.waiverSignature.payload) {
+    const rawPayload = params.waiverSignature.payload;
+    const processedSigners = [];
+    
+    // Phase 1: Validate upload permissions for multi-signer flow
+    for (const signer of rawPayload.signers) {
+      if (signer.method === "upload" && !waiverAllowUpload) {
+        return { error: "Signature upload is not allowed for this project." };
+      }
+    }
+    
+    // Process each signer (upload assets)
+    for (const signer of rawPayload.signers) {
+      const processedSigner = { ...signer };
+      
+      if (signer.data && (signer.method === "draw" || signer.method === "upload")) {
+        // Phase 1: Multi-signer signatures are ONLY images, never full PDFs
+        // The "upload" method here refers to uploading a signature image, not a full waiver PDF
+        const bucket = WAIVER_SIGNATURE_BUCKET; // Always use signature bucket for multi-signer assets
+        const maxBytes = MAX_WAIVER_SIGNATURE_BYTES;
+        const allowedTypes = ["image/png", "image/jpeg", "image/jpg"]; // Images only
+        
+        // Detect file extension from data URL for proper storage
+        const parsed = parseDataUrl(signer.data);
+        let fileExt = "png"; // default
+        if (parsed?.contentType === "image/jpeg" || parsed?.contentType === "image/jpg") {
+          fileExt = "jpg";
+        }
+        
+        const fileName = `waiver_${params.signupId}_${signer.role_key}_${Date.now()}.${fileExt}`;
+
+        // Upload asset
+        const uploadResult = await uploadWaiverAsset({
+          bucket,
+          dataUrl: signer.data,
+          fileName,
+          maxBytes,
+          allowedTypes,
+        });
+
+        if (uploadResult.error) {
+           console.error(`Error uploading signer asset (${signer.role_key}):`, uploadResult.error);
+           return { error: `Failed to upload signature for ${signer.role_key}: ${uploadResult.error}` };
+        }
+
+        // Replace data with storage path
+        processedSigner.data = uploadResult.path || "";
+      }
+      processedSigners.push(processedSigner);
+    }
+
+    signaturePayload = {
+      ...rawPayload,
+      signers: processedSigners
+    };
+
+    // Also populate legacy fields for primary signer/backward compat if reasonable?
+    // Maybe not. Just set signature_type to 'multi-signer' and let UI handle it.
+  }
+
+  // Legacy/Single Signer Handling
   if (params.waiverSignature.signatureType === "draw") {
     if (!params.waiverSignature.signatureImageDataUrl) {
       return { error: "Signature drawing is required." };
@@ -654,6 +769,11 @@ async function persistWaiverSignature(params: {
   }
 
   if (params.waiverSignature.signatureType === "upload") {
+    // Phase 1: Enforce upload permission server-side
+    if (!waiverAllowUpload) {
+      return { error: "Waiver upload is not allowed for this project." };
+    }
+    
     if (!params.waiverSignature.uploadFileDataUrl || !params.waiverSignature.uploadFileName) {
       return { error: "Signed waiver upload is required." };
     }
@@ -686,6 +806,7 @@ async function persistWaiverSignature(params: {
     .from("waiver_signatures")
     .insert({
       waiver_template_id: templateId,
+      waiver_definition_id: waiverDefinitionId,
       waiver_pdf_url: waiverPdfUrl,
       project_id: params.projectId,
       signup_id: params.signupId,
@@ -697,6 +818,7 @@ async function persistWaiverSignature(params: {
       signature_text: signatureText,
       signature_storage_path: signatureStoragePath,
       upload_storage_path: uploadStoragePath,
+      signature_payload: signaturePayload,
       form_data: params.waiverSignature.formData ?? null,
       ip_address: ipAddress,
       user_agent: userAgent,
@@ -794,6 +916,44 @@ export async function signUpForProject(
 
       if (waiverSignature.signatureType === "upload" && !waiverSignature.uploadFileDataUrl) {
         return { error: "Please upload a signed waiver to continue." };
+      }
+
+      // Phase 5: Validate waiver payload against definition
+      if (waiverSignature.signatureType === "multi-signer" && waiverSignature.payload) {
+        // Check if project has a waiver definition
+        const waiverInfo = await getProjectWaiver(projectId);
+        
+        if ('error' in waiverInfo) {
+          return { error: "Failed to load waiver configuration" };
+        }
+
+        const { waiverConfig, definition } = waiverInfo;
+
+        if (definition) {
+          // Validate against waiver definition
+          // Phase 1 Fix Issue 2: Skip non-signature field validation until Phase 4 UI implements field collection
+          const validationResult = validateWaiverPayload(waiverSignature.payload, definition, false);
+          
+          if (!validationResult.valid) {
+            return {
+              error: `Waiver validation failed: ${validationResult.errors.join(', ')}`
+            };
+          }
+
+          // Log warnings if any
+          if (validationResult.warnings && validationResult.warnings.length > 0) {
+            console.warn('Waiver validation warnings:', validationResult.warnings);
+          }
+        } else {
+          // Legacy system: Basic validation
+          const validationResult = validateLegacyWaiverPayload(waiverSignature.payload);
+          
+          if (!validationResult.valid) {
+            return {
+              error: `Waiver validation failed: ${validationResult.errors.join(', ')}`
+            };
+          }
+        }
       }
     }
 
@@ -2044,6 +2204,229 @@ export async function resendAnonymousConfirmationEmail(anonymousSignupId: string
   } catch (error) {
     console.error("Error in resendAnonymousConfirmationEmail:", error);
     return { error: "An unexpected error occurred." };
+  }
+}
+
+// Get waiver definition for a project
+export async function getWaiverDefinition(projectId: string): Promise<{
+  success: boolean;
+  definition?: any;
+  error?: string;
+}> {
+  try {
+    const supabase = await createClient();
+    const { user } = await getAuthUser();
+
+    if (!user) {
+      return { success: false, error: "Unauthorized" };
+    }
+
+    // Get project to check waiver_definition_id
+    const { data: project } = await supabase
+      .from("projects")
+      .select("waiver_definition_id")
+      .eq("id", projectId)
+      .single();
+
+    if (!project?.waiver_definition_id) {
+      return { success: true, definition: null };
+    }
+
+    // Fetch the definition with related data
+    const { data: definition, error } = await supabase
+      .from("waiver_definitions")
+      .select(`
+        *,
+        signers:waiver_definition_signers(*),
+        fields:waiver_definition_fields(*)
+      `)
+      .eq("id", project.waiver_definition_id)
+      .single();
+
+    if (error) {
+      console.error("Error fetching waiver definition:", error);
+      return { success: false, error: "Failed to fetch waiver definition" };
+    }
+
+    return { success: true, definition };
+  } catch (error) {
+    console.error("Error in getWaiverDefinition:", error);
+    return { success: false, error: "An unexpected error occurred" };
+  }
+}
+
+// Save waiver definition for a project
+export async function saveWaiverDefinition(
+  projectId: string,
+  definitionInput: any
+): Promise<{ success: boolean; definitionId?: string; error?: string }> {
+  try {
+    const supabase = await createClient();
+    const { user } = await getAuthUser();
+
+    if (!user) {
+      return { success: false, error: "Unauthorized" };
+    }
+
+    // Check if user is project creator
+    const creator = await isProjectCreator(projectId);
+    if (!creator) {
+      return { success: false, error: "Only project creator can configure waivers" };
+    }
+
+    // Get project info
+    const { data: project } = await supabase
+      .from("projects")
+      .select("waiver_definition_id, waiver_pdf_url, waiver_pdf_storage_path")
+      .eq("id", projectId)
+      .single();
+
+    if (!project) {
+      return { success: false, error: "Project not found" };
+    }
+
+    const serviceSupabase = getAdminClient();
+    let definitionId = project.waiver_definition_id;
+
+    // If definition exists, update it; otherwise create new
+    if (definitionId) {
+      // Update existing definition
+      const { error: updateError } = await serviceSupabase
+        .from("waiver_definitions")
+        .update({
+          title: definitionInput.title || "Project Waiver",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", definitionId);
+
+      if (updateError) {
+        console.error("Error updating waiver definition:", updateError);
+        return { success: false, error: "Failed to update waiver definition" };
+      }
+
+      // Delete existing signers and fields
+      await serviceSupabase
+        .from("waiver_definition_signers")
+        .delete()
+        .eq("waiver_definition_id", definitionId);
+
+      await serviceSupabase
+        .from("waiver_definition_fields")
+        .delete()
+        .eq("waiver_definition_id", definitionId);
+    } else {
+      // Create new definition
+      const { data: newDef, error: createError } = await serviceSupabase
+        .from("waiver_definitions")
+        .insert({
+          scope: "project",
+          project_id: projectId,
+          title: definitionInput.title || "Project Waiver",
+          version: 1,
+          active: true,
+          pdf_storage_path: project.waiver_pdf_storage_path,
+          pdf_public_url: project.waiver_pdf_url,
+          source: "project_pdf",
+          created_by: user.id,
+        })
+        .select("id")
+        .single();
+
+      if (createError) {
+        console.error("Error creating waiver definition:", createError);
+        return { success: false, error: "Failed to create waiver definition" };
+      }
+
+      definitionId = newDef.id;
+
+      // Link project to definition
+      await supabase
+        .from("projects")
+        .update({ waiver_definition_id: definitionId })
+        .eq("id", projectId);
+    }
+
+    // Insert signers
+    if (definitionInput.signers && definitionInput.signers.length > 0) {
+      const signersToInsert = definitionInput.signers.map((signer: any, index: number) => ({
+        waiver_definition_id: definitionId,
+        role_key: signer.roleKey,
+        label: signer.label,
+        required: signer.required ?? true,
+        order_index: signer.orderIndex ?? index,
+        rules: signer.rules || null,
+      }));
+
+      const { error: signersError } = await serviceSupabase
+        .from("waiver_definition_signers")
+        .insert(signersToInsert);
+
+      if (signersError) {
+        console.error("Error inserting waiver signers:", signersError);
+        return { success: false, error: "Failed to save signer configuration" };
+      }
+    }
+
+    // Insert fields
+    if (definitionInput.fields) {
+      const fieldsToInsert: any[] = [];
+
+      // Add detected fields
+      if (definitionInput.fields.detected) {
+        Object.entries(definitionInput.fields.detected).forEach(([fieldKey, mapping]: [string, any]) => {
+          // Find corresponding detected field info if available
+          fieldsToInsert.push({
+            waiver_definition_id: definitionId,
+            field_key: fieldKey,
+            field_type: "signature",
+            label: mapping.label || fieldKey,
+            required: mapping.required ?? false,
+            source: "pdf_widget",
+            pdf_field_name: fieldKey,
+            page_index: mapping.pageIndex ?? 0,
+            rect: mapping.rect || { x: 0, y: 0, width: 200, height: 50 },
+            signer_role_key: mapping.signerRoleKey || null,
+          });
+        });
+      }
+
+      // Add custom fields
+      if (definitionInput.fields.custom && definitionInput.fields.custom.length > 0) {
+        definitionInput.fields.custom.forEach((field: any) => {
+          fieldsToInsert.push({
+            waiver_definition_id: definitionId,
+            field_key: field.id || field.fieldKey,
+            field_type: "signature",
+            label: field.label,
+            required: field.required ?? false,
+            source: "custom_overlay",
+            pdf_field_name: null,
+            page_index: field.pageIndex,
+            rect: field.rect,
+            signer_role_key: field.signerRoleKey || null,
+          });
+        });
+      }
+
+      if (fieldsToInsert.length > 0) {
+        const { error: fieldsError } = await serviceSupabase
+          .from("waiver_definition_fields")
+          .insert(fieldsToInsert);
+
+        if (fieldsError) {
+          console.error("Error inserting waiver fields:", fieldsError);
+          return { success: false, error: "Failed to save field configuration" };
+        }
+      }
+    }
+
+    revalidatePath(`/projects/${projectId}`);
+    revalidatePath(`/projects/${projectId}/edit`);
+
+    return { success: true, definitionId };
+  } catch (error) {
+    console.error("Error in saveWaiverDefinition:", error);
+    return { success: false, error: "An unexpected error occurred" };
   }
 }
 

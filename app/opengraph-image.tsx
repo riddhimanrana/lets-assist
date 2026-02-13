@@ -23,6 +23,7 @@ const palette = {
   background: "#ffffff",
   text: "#09090b",
   primary: "#22c55e",
+  subtext: "#3d3d3d",
   primaryDark: "#16a34a",
   overlayGreen: "rgba(34, 197, 94, 0.15)",
   overlayLine: "rgba(0, 0, 0, 0.05)",
@@ -94,7 +95,7 @@ export default async function Image() {
           justifyContent: "center",
           backgroundColor: "#ffffff",
           backgroundImage:
-            "radial-gradient(circle at 50% 0%, rgba(34, 197, 94, 0.35) 0%, transparent 80%)",
+            "radial-gradient(ellipse at 50% -5%, rgba(34, 197, 94, 0.4) 0%, transparent 100%)",
           fontFamily: 'Overused Grotesk, "sans-serif"',
           color: palette.text,
           textAlign: "center",
@@ -104,10 +105,11 @@ export default async function Image() {
         <div
           style={{
             display: "flex",
+            position: "absolute",
+            top: 100,
             alignItems: "center",
             justifyContent: "center",
             gap: 16,
-            marginBottom: 48,
           }}
         >
           {logoSrc ? (
@@ -124,7 +126,7 @@ export default async function Image() {
               fontSize: 34,
               fontWeight: 700,
               letterSpacing: "-0.03em",
-              color: palette.text,
+              color: palette.subtext,
             }}
           >
             Let's Assist
