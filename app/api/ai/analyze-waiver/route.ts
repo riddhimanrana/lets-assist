@@ -55,20 +55,20 @@ interface PageDimension {
   height: number;
 }
 
-type CoordinateSystem = 'bottom-left' | 'top-left' | 'unknown';
-
+/**
+ * Phase 4 Standardization: All coordinates in this system use PDF coordinate space:
+ * - Origin: bottom-left corner of each page
+ * - Units: PDF points (1/72 inch)
+ * - Y-axis: increases upward from page bottom
+ * 
+ * No coordinate system inference or y-axis flipping is performed.
+ */
 interface ParsedField {
   fieldType: typeof FIELD_TYPES[number];
   label: string;
   signerRole: string;
   pageIndex: number;
   boundingBox: {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  };
-  normalizedBoundingBox?: {
     x: number;
     y: number;
     width: number;
@@ -108,17 +108,6 @@ function toRoleLabel(roleKey: string): string {
     .join(' ');
 }
 
-function rectInBounds(rect: { x: number; y: number; width: number; height: number }, page: PageDimension): boolean {
-  return (
-    rect.width > 0 &&
-    rect.height > 0 &&
-    rect.x >= 0 &&
-    rect.y >= 0 &&
-    rect.x + rect.width <= page.width &&
-    rect.y + rect.height <= page.height
-  );
-}
-
 function shouldConvertFromOneBased(pageIndexes: number[], pageCount: number): boolean {
   if (pageIndexes.length === 0) return false;
 
@@ -137,80 +126,23 @@ function normalizePageIndex(rawPageIndex: number, pageCount: number, convertFrom
   return clamp(base, 0, Math.max(pageCount - 1, 0));
 }
 
-function inferYAxisFlipByPage(
-  fields: ParsedField[],
-  pageDimensions: PageDimension[],
-  pageCount: number,
-  convertFromOneBased: boolean,
-  coordinateSystem: CoordinateSystem
-): Map<number, boolean> {
-  if (coordinateSystem === 'top-left') {
-    return new Map(pageDimensions.map((page) => [page.pageIndex, true]));
-  }
-
-  if (coordinateSystem === 'bottom-left') {
-    return new Map(pageDimensions.map((page) => [page.pageIndex, false]));
-  }
-
-  const votes = new Map<number, { asIs: number; flipped: number }>();
-
-  for (const field of fields) {
-    const pageIndex = normalizePageIndex(field.pageIndex, pageCount, convertFromOneBased);
-    const page = pageDimensions[pageIndex];
-    if (!page) continue;
-
-    let x = safeNumber(field.boundingBox.x);
-    let y = safeNumber(field.boundingBox.y);
-    let width = safeNumber(field.boundingBox.width);
-    let height = safeNumber(field.boundingBox.height);
-
-    if (width < 0) {
-      x += width;
-      width = Math.abs(width);
-    }
-    if (height < 0) {
-      y += height;
-      height = Math.abs(height);
-    }
-
-    const asIsRect = { x, y, width, height };
-    const flippedRect = { x, y: page.height - y - height, width, height };
-
-    const inAsIs = rectInBounds(asIsRect, page);
-    const inFlipped = rectInBounds(flippedRect, page);
-
-    if (!votes.has(pageIndex)) {
-      votes.set(pageIndex, { asIs: 0, flipped: 0 });
-    }
-
-    const pageVotes = votes.get(pageIndex);
-    if (!pageVotes) continue;
-
-    if (inAsIs && !inFlipped) pageVotes.asIs += 1;
-    if (inFlipped && !inAsIs) pageVotes.flipped += 1;
-
-    // For unknown coordinate systems, only use strong geometric evidence (in-bounds asymmetry).
-  }
-
-  const flipByPage = new Map<number, boolean>();
-  for (const [pageIndex, score] of votes.entries()) {
-    // Conservative threshold: require multiple votes favoring flip.
-    const flip = score.flipped >= 3 && score.flipped > score.asIs * 1.5;
-    flipByPage.set(pageIndex, flip);
-  }
-
-  return flipByPage;
-}
-
+/**
+ * Phase 4: Normalizes field coordinates for overlay rendering.
+ * 
+ * CONTRACT:
+ * - Input coordinates MUST be in PDF coordinate space (bottom-left origin, points)
+ * - Output coordinates are in the same space (no y-axis flipping)
+ * - Only performs: negative dimension fixes, page index normalization, bounds clamping, minimum size enforcement
+ * 
+ * No coordinate system inference or conversion is performed.
+ */
 export function normalizeFieldsForOverlay(
   fields: ParsedField[],
   pageDimensions: PageDimension[],
-  pageCount: number,
-  coordinateSystem: CoordinateSystem
+  pageCount: number
 ): ParsedField[] {
   const pageIndexes = fields.map((f) => Math.round(safeNumber(f.pageIndex, 0)));
   const convertFromOneBased = shouldConvertFromOneBased(pageIndexes, pageCount);
-  const flipByPage = inferYAxisFlipByPage(fields, pageDimensions, pageCount, convertFromOneBased, coordinateSystem);
 
   const normalized: ParsedField[] = [];
 
@@ -219,18 +151,10 @@ export function normalizeFieldsForOverlay(
     const page = pageDimensions[pageIndex] ?? pageDimensions[0];
     if (!page) continue;
 
-    // Prefer normalizedBoundingBox when available; it's generally more stable than absolute points.
-    const hasNormalized =
-      field.normalizedBoundingBox &&
-      Number.isFinite(Number(field.normalizedBoundingBox.x)) &&
-      Number.isFinite(Number(field.normalizedBoundingBox.y)) &&
-      Number.isFinite(Number(field.normalizedBoundingBox.width)) &&
-      Number.isFinite(Number(field.normalizedBoundingBox.height));
-
-    let x = hasNormalized ? safeNumber(field.normalizedBoundingBox!.x, 0) * page.width : safeNumber(field.boundingBox.x, 0);
-    let y = hasNormalized ? safeNumber(field.normalizedBoundingBox!.y, 0) * page.height : safeNumber(field.boundingBox.y, 0);
-    let width = hasNormalized ? safeNumber(field.normalizedBoundingBox!.width, 0) * page.width : safeNumber(field.boundingBox.width, 0);
-    let height = hasNormalized ? safeNumber(field.normalizedBoundingBox!.height, 0) * page.height : safeNumber(field.boundingBox.height, 0);
+    let x = safeNumber(field.boundingBox.x, 0);
+    let y = safeNumber(field.boundingBox.y, 0);
+    let width = safeNumber(field.boundingBox.width, 0);
+    let height = safeNumber(field.boundingBox.height, 0);
 
     if (width < 0) {
       x += width;
@@ -241,9 +165,7 @@ export function normalizeFieldsForOverlay(
       height = Math.abs(height);
     }
 
-    if (flipByPage.get(pageIndex)) {
-      y = page.height - y - height;
-    }
+    // Phase 4: No y-axis flipping - coordinates are already in bottom-left PDF space
 
     const minWidth = field.fieldType === 'signature' ? 72 : field.fieldType === 'checkbox' ? 10 : 24;
     const minHeight = field.fieldType === 'signature' ? 18 : field.fieldType === 'checkbox' ? 10 : 12;

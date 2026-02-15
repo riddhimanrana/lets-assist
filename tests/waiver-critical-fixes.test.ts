@@ -232,8 +232,7 @@ describe('Waiver Critical Fixes', () => {
       const [result] = normalizeFieldsForOverlay(
         [makeField({ boundingBox: { x: 300, y: 100, width: -200, height: 50 } })],
         pageDimensions,
-        2,
-        'bottom-left'
+        2
       );
 
       expect(result.boundingBox.x).toBe(100); // 300 + (-200)
@@ -244,8 +243,7 @@ describe('Waiver Critical Fixes', () => {
       const [result] = normalizeFieldsForOverlay(
         [makeField({ boundingBox: { x: 100, y: 300, width: 200, height: -50 } })],
         pageDimensions,
-        2,
-        'bottom-left'
+        2
       );
 
       expect(result.boundingBox.y).toBe(250); // 300 + (-50)
@@ -256,30 +254,17 @@ describe('Waiver Critical Fixes', () => {
       const [result] = normalizeFieldsForOverlay(
         [makeField({ pageIndex: 1 })],
         pageDimensions,
-        2,
-        'bottom-left'
+        2
       );
 
       expect(result.pageIndex).toBe(0); // Converted from one-based because no zero indices were present
     });
 
-    it('should apply top-left coordinate conversion when coordinateSystem is top-left', () => {
-      const [result] = normalizeFieldsForOverlay(
-        [makeField({ fieldType: 'signature', boundingBox: { x: 100, y: 600, width: 200, height: 50 } })],
-        pageDimensions,
-        2,
-        'top-left'
-      );
-
-      expect(result.boundingBox.y).toBe(142); // 792 - 600 - 50
-    });
-
-    it('should not flip valid bottom-left coordinates even when signature is high on the page', () => {
+    it('should preserve valid bottom-left coordinates without flipping', () => {
       const [result] = normalizeFieldsForOverlay(
         [makeField({ fieldType: 'signature', boundingBox: { x: 100, y: 650, width: 200, height: 50 } })],
         pageDimensions,
-        2,
-        'bottom-left'
+        2
       );
 
       expect(result.boundingBox.y).toBe(650);
@@ -289,8 +274,7 @@ describe('Waiver Critical Fixes', () => {
       const [result] = normalizeFieldsForOverlay(
         [makeField({ boundingBox: { x: 700, y: 800, width: 200, height: 100 } })],
         pageDimensions,
-        2,
-        'bottom-left'
+        2
       );
 
       expect(result.boundingBox.x).toBeLessThanOrEqual(612);
@@ -313,8 +297,7 @@ describe('Waiver Critical Fixes', () => {
           }),
         ],
         pageDimensions,
-        2,
-        'bottom-left'
+        2
       );
 
       expect(result.boundingBox.x).toBe(0);

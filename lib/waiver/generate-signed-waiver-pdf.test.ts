@@ -2,16 +2,16 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { generateSignedWaiverPdf, requiresPdfGeneration } from './generate-signed-waiver-pdf';
 import type { SignaturePayload } from '@/types/waiver-definitions';
 
+const mockPage = {
+  getHeight: vi.fn(() => 800),
+  drawImage: vi.fn(),
+  drawText: vi.fn(),
+};
+
 // Mock pdf-lib
 vi.mock('pdf-lib', () => {
   const mockPdfDoc = {
-    getPages: vi.fn(() => [
-      {
-        getHeight: vi.fn(() => 800),
-        drawImage: vi.fn(),
-        drawText: vi.fn(),
-      },
-    ]),
+    getPages: vi.fn(() => [mockPage]),
     getForm: vi.fn(() => ({
       flatten: vi.fn(),
     })),
@@ -108,6 +108,33 @@ describe('generateSignedWaiverPdf', () => {
     expect(result).toBeInstanceOf(Buffer);
     expect(result.length).toBeGreaterThan(0);
     expect(global.fetch).toHaveBeenCalledWith('https://example.com/test.pdf');
+  });
+
+  it('should stamp draw signatures using bottom-left y directly (no flip)', async () => {
+    const payload: SignaturePayload = {
+      signers: [
+        {
+          role_key: 'volunteer',
+          method: 'draw',
+          data: 'data:image/png;base64,iVBORw0KGgoAAAANS',
+          timestamp: '2026-02-10T10:00:00Z',
+        },
+      ],
+      fields: {},
+    };
+
+    await generateSignedWaiverPdf({
+      waiverPdfUrl: 'https://example.com/test.pdf',
+      definition: mockDefinition,
+      signaturePayload: payload,
+    });
+
+    expect(mockPage.drawImage).toHaveBeenCalled();
+    const drawImageOptions = mockPage.drawImage.mock.calls[0]?.[1];
+    expect(drawImageOptions?.x).toBe(100);
+    expect(drawImageOptions?.y).toBe(500);
+    expect(drawImageOptions?.width).toBe(200);
+    expect(drawImageOptions?.height).toBe(50);
   });
 
   it('should generate PDF with typed signature', async () => {
