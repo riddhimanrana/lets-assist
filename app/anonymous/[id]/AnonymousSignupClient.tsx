@@ -274,7 +274,15 @@ export default function AnonymousSignupClient({
       const result = await getWaiverDownloadUrl(project_signup_id, id);
 
       if (result?.url) {
+        // Direct URL (legacy or offline upload)
         window.open(result.url, "_blank", "noopener,noreferrer");
+        return;
+      }
+
+      if (result?.signatureId) {
+        // Multi-signer - use download API with anonymousSignupId for security
+        const downloadUrl = `/api/waivers/${result.signatureId}/download?anonymousSignupId=${id}`;
+        window.open(downloadUrl, "_blank", "noopener,noreferrer");
         return;
       }
 

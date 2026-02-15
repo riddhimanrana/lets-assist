@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import type { SignaturePayload } from '@/types/waiver-definitions';
 
 /**
@@ -230,7 +230,6 @@ describe('Waiver Preview/Download Legacy Signature Handling', () => {
 
   describe('Storage Bucket Selection', () => {
     it('should use waiver-uploads bucket for upload_storage_path', () => {
-      const path = 'waivers/uploaded-123.pdf';
       const isFullWaiverUpload = true; // Detected from upload_storage_path column
       const bucket = isFullWaiverUpload ? 'waiver-uploads' : 'waiver-signatures';
 
@@ -238,7 +237,6 @@ describe('Waiver Preview/Download Legacy Signature Handling', () => {
     });
 
     it('should use waiver-signatures bucket for signature_storage_path', () => {
-      const path = 'signatures/sig-123.png';
       const isFullWaiverUpload = false; // Legacy signature image
       const bucket = isFullWaiverUpload ? 'waiver-uploads' : 'waiver-signatures';
 
@@ -246,7 +244,6 @@ describe('Waiver Preview/Download Legacy Signature Handling', () => {
     });
 
     it('should use waiver-signatures bucket for signature assets in payload', () => {
-      const signerData = 'signatures/multi-sig-parent-123.png';
       const isUploadStoragePath = false; // This is from payload, not upload_storage_path
       const bucket = isUploadStoragePath ? 'waiver-uploads' : 'waiver-signatures';
 

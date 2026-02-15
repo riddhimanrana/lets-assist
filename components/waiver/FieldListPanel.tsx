@@ -26,6 +26,10 @@ export interface FieldMapping {
   signerRoleKey?: string; // For signature fields
   required: boolean;
   label?: string; // Override label
+  fieldType: string; // PDF field type
+  pageIndex: number;
+  rect: { x: number; y: number; width: number; height: number };
+  pdfFieldName?: string;
 }
 
 interface FieldListPanelProps {
@@ -54,7 +58,11 @@ export function FieldListPanel({
     return fieldMappings[field.fieldName] || {
       fieldKey: field.fieldName,
       required: field.required || false,
-      signerRoleKey: undefined
+      signerRoleKey: undefined,
+      fieldType: field.fieldType,
+      pageIndex: field.pageIndex,
+      rect: field.rect,
+      pdfFieldName: field.fieldName
     };
   };
 
@@ -88,7 +96,7 @@ export function FieldListPanel({
         <div className="flex items-start justify-between mb-2">
           <div className="flex items-center gap-2">
             {getIcon(field.fieldType)}
-            <span className="font-medium text-sm truncate max-w-[150px]" title={field.fieldName}>
+            <span className="font-medium text-sm truncate max-w-36" title={field.fieldName}>
               {field.fieldName}
             </span>
           </div>

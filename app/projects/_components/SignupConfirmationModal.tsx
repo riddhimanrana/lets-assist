@@ -61,7 +61,7 @@ export function SignupConfirmationModal({
   onConfirm,
   enableVolunteerComments = false,
   waiverRequired = false,
-  waiverAllowUpload: _waiverAllowUpload = true,
+  waiverAllowUpload = true,
   waiverTemplate = null,
   waiverPdfUrl = null,
   waiverDefinition = null,
@@ -400,6 +400,7 @@ export function SignupConfirmationModal({
                 waiverTemplate={waiverTemplate}
                 defaultSignerName={currentUserProfile?.full_name || ""}
                 defaultSignerEmail={currentUserProfile?.email || ""}
+                allowUpload={waiverAllowUpload}
               />
             </div>
           )}

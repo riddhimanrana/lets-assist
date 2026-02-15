@@ -22,6 +22,7 @@ import { NotificationService } from "@/services/notifications";
 import { removeCalendarEventForSignup, removeCalendarEventForProject } from "@/utils/calendar-helpers";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { validateWaiverPayload, validateLegacyWaiverPayload } from "@/lib/waiver/validate-waiver-payload";
+import { mapDetectedFieldsForDb, mapCustomPlacementsForDb } from "@/lib/waiver/map-definition-input";
 
 // Define your site URL (replace with environment variable ideally)
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
@@ -47,6 +48,81 @@ const WAIVER_SIGNATURE_BUCKET = "waiver-signatures";
 const WAIVER_UPLOAD_BUCKET = "waiver-uploads";
 const MAX_WAIVER_SIGNATURE_BYTES = 2 * 1024 * 1024; // 2MB
 const MAX_WAIVER_UPLOAD_BYTES = 10 * 1024 * 1024; // 10MB
+
+const LEGACY_WAIVER_FIELD_TYPES = new Set([
+  "signature",
+  "text",
+  "checkbox",
+  "radio",
+  "dropdown",
+  "date",
+]);
+
+type PostgrestErrorLike = {
+  message?: string;
+  details?: string;
+  hint?: string;
+  code?: string;
+};
+
+function normalizeWaiverFieldTypeForLegacyConstraint(fieldType: unknown): string {
+  const normalized = typeof fieldType === "string" ? fieldType.trim().toLowerCase() : "";
+
+  if (LEGACY_WAIVER_FIELD_TYPES.has(normalized)) {
+    return normalized;
+  }
+
+  switch (normalized) {
+    case "name":
+    case "email":
+    case "phone":
+    case "address":
+    case "initial":
+      return "text";
+    default:
+      return "text";
+  }
+}
+
+function isWaiverFieldTypeConstraintError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+
+  const pgError = error as PostgrestErrorLike;
+  const joined = `${pgError.message ?? ""} ${pgError.details ?? ""} ${pgError.hint ?? ""}`.toLowerCase();
+
+  return joined.includes("field_type") && (joined.includes("check constraint") || joined.includes("violat"));
+}
+
+function toLegacyCompatibleWaiverFields(fields: Array<Record<string, unknown>>) {
+  let changed = false;
+
+  const normalizedFields = fields.map((field) => {
+    const originalFieldType = typeof field.field_type === "string" ? field.field_type : "text";
+    const nextFieldType = normalizeWaiverFieldTypeForLegacyConstraint(originalFieldType);
+
+    if (nextFieldType === originalFieldType) {
+      return field;
+    }
+
+    changed = true;
+
+    const currentMeta =
+      field.meta && typeof field.meta === "object" && !Array.isArray(field.meta)
+        ? (field.meta as Record<string, unknown>)
+        : {};
+
+    return {
+      ...field,
+      field_type: nextFieldType,
+      meta: {
+        ...currentMeta,
+        original_field_type: originalFieldType,
+      },
+    };
+  });
+
+  return { normalizedFields, changed };
+}
 
 type ParsedDataUrl = {
   contentType: string;
@@ -931,8 +1007,8 @@ export async function signUpForProject(
 
         if (definition) {
           // Validate against waiver definition
-          // Phase 1 Fix Issue 2: Skip non-signature field validation until Phase 4 UI implements field collection
-          const validationResult = validateWaiverPayload(waiverSignature.payload, definition, false);
+          // Phase 4: Enable strict field validation as UI now collects fields
+          const validationResult = validateWaiverPayload(waiverSignature.payload, definition, true);
           
           if (!validationResult.valid) {
             return {
@@ -2078,7 +2154,7 @@ export async function getWaiverDownloadUrl(signupId: string, anonymousSignupId?:
     const serviceSupabase = getAdminClient();
     const { data: waiverSignature, error: waiverError } = await serviceSupabase
       .from("waiver_signatures")
-      .select("signature_type, signature_storage_path, upload_storage_path, signature_text, signed_at, signer_name")
+      .select("id, signature_type, signature_storage_path, upload_storage_path, signature_payload, signature_text, signed_at, signer_name")
       .eq("signup_id", signupId)
       .maybeSingle();
 
@@ -2086,21 +2162,43 @@ export async function getWaiverDownloadUrl(signupId: string, anonymousSignupId?:
       return { error: "Waiver signature not found" };
     }
 
-    const storagePath = waiverSignature.signature_storage_path || waiverSignature.upload_storage_path || null;
-    if (!storagePath) {
+    // Priority 1: Offline upload (direct file)
+    if (waiverSignature.upload_storage_path) {
+      const { data: signedUrl, error: urlError } = await serviceSupabase.storage
+        .from(WAIVER_UPLOAD_BUCKET)
+        .createSignedUrl(waiverSignature.upload_storage_path, 3600);
+
+      if (!urlError && signedUrl?.signedUrl) {
+        return { url: signedUrl.signedUrl, signatureId: waiverSignature.id };
+      }
+    }
+
+    // Priority 2: Legacy signature (single image/file)
+    if (waiverSignature.signature_storage_path) {
+      const { data: signedUrl, error: urlError } = await serviceSupabase.storage
+        .from(WAIVER_SIGNATURE_BUCKET)
+        .createSignedUrl(waiverSignature.signature_storage_path, 3600);
+
+      if (!urlError && signedUrl?.signedUrl) {
+        return { url: signedUrl.signedUrl, signatureId: waiverSignature.id };
+      }
+    }
+
+    // Priority 3: Multi-signer payload (needs on-demand generation)
+    if (waiverSignature.signature_payload) {
+      // Return the signature ID so client can use download API
+      return {
+        signatureId: waiverSignature.id,
+        // No direct URL - client will use /api/waivers/[signatureId]/download
+      };
+    }
+
+    // Fallback for typed signatures
+    if (waiverSignature.signature_text) {
       return { signature: waiverSignature };
     }
 
-    const bucket = waiverSignature.signature_type === "upload" ? WAIVER_UPLOAD_BUCKET : WAIVER_SIGNATURE_BUCKET;
-    const { data: signedUrl, error: urlError } = await serviceSupabase.storage
-      .from(bucket)
-      .createSignedUrl(storagePath, 60);
-
-    if (urlError || !signedUrl?.signedUrl) {
-      return { error: "Failed to generate waiver URL" };
-    }
-
-    return { url: signedUrl.signedUrl, signature: waiverSignature };
+    return { error: "No waiver data available" };
   } catch (error) {
     console.error("Error generating waiver download URL:", error);
     return { error: "Failed to generate waiver URL" };
@@ -2371,47 +2469,69 @@ export async function saveWaiverDefinition(
     if (definitionInput.fields) {
       const fieldsToInsert: any[] = [];
 
-      // Add detected fields
+      // Process detected field mappings
       if (definitionInput.fields.detected) {
-        Object.entries(definitionInput.fields.detected).forEach(([fieldKey, mapping]: [string, any]) => {
-          // Find corresponding detected field info if available
-          fieldsToInsert.push({
-            waiver_definition_id: definitionId,
-            field_key: fieldKey,
-            field_type: "signature",
-            label: mapping.label || fieldKey,
-            required: mapping.required ?? false,
-            source: "pdf_widget",
-            pdf_field_name: fieldKey,
-            page_index: mapping.pageIndex ?? 0,
-            rect: mapping.rect || { x: 0, y: 0, width: 200, height: 50 },
-            signer_role_key: mapping.signerRoleKey || null,
-          });
-        });
+        const detectedFieldMappings = Object.entries(definitionInput.fields.detected).map(([fieldKey, mapping]: [string, any]) => ({
+          fieldKey: mapping.fieldKey || fieldKey,
+          fieldType: mapping.fieldType || "text",
+          pageIndex: mapping.pageIndex,
+          rect: mapping.rect,
+          pdfFieldName: mapping.pdfFieldName || fieldKey,
+          label: mapping.label || fieldKey,
+          required: mapping.required ?? false,
+          signerRoleKey: mapping.signerRoleKey || undefined,
+        }));
+        
+        const detectedFields = mapDetectedFieldsForDb(definitionId, detectedFieldMappings);
+        fieldsToInsert.push(...detectedFields);
       }
 
-      // Add custom fields
+      // Process custom signature placements
       if (definitionInput.fields.custom && definitionInput.fields.custom.length > 0) {
-        definitionInput.fields.custom.forEach((field: any) => {
-          fieldsToInsert.push({
-            waiver_definition_id: definitionId,
-            field_key: field.id || field.fieldKey,
-            field_type: "signature",
-            label: field.label,
-            required: field.required ?? false,
-            source: "custom_overlay",
-            pdf_field_name: null,
-            page_index: field.pageIndex,
-            rect: field.rect,
-            signer_role_key: field.signerRoleKey || null,
-          });
-        });
+        const customPlacements = definitionInput.fields.custom.map((field: any) => ({
+          id: field.id || field.fieldKey,
+          label: field.label || undefined,
+          fieldType: field.fieldType || "signature",
+          pageIndex: field.pageIndex,
+          rect: field.rect,
+          signerRoleKey: field.signerRoleKey || undefined,
+          required: field.required ?? undefined,
+        }));
+        
+        const customFields = mapCustomPlacementsForDb(definitionId, customPlacements);
+        fieldsToInsert.push(...customFields);
       }
 
+      // Insert all fields
       if (fieldsToInsert.length > 0) {
-        const { error: fieldsError } = await serviceSupabase
+        const { error: initialFieldsError } = await serviceSupabase
           .from("waiver_definition_fields")
           .insert(fieldsToInsert);
+
+        let fieldsError = initialFieldsError;
+
+        // Backward compatibility: some environments still enforce a narrower
+        // field_type check constraint than the app-level waiver field taxonomy.
+        if (fieldsError && isWaiverFieldTypeConstraintError(fieldsError)) {
+          const { normalizedFields, changed } = toLegacyCompatibleWaiverFields(
+            fieldsToInsert as Array<Record<string, unknown>>
+          );
+
+          if (changed) {
+            const { error: retryFieldsError } = await serviceSupabase
+              .from("waiver_definition_fields")
+              .insert(normalizedFields);
+
+            if (!retryFieldsError) {
+              console.warn("Waiver fields saved with legacy field_type compatibility mapping", {
+                projectId,
+                definitionId,
+              });
+            }
+
+            fieldsError = retryFieldsError;
+          }
+        }
 
         if (fieldsError) {
           console.error("Error inserting waiver fields:", fieldsError);

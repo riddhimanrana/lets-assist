@@ -265,6 +265,7 @@ export function ProjectSignupForm({
             onComplete={handleWaiverComplete}
             defaultSignerName={signerName}
             defaultSignerEmail={signerEmail}
+            allowUpload={waiverAllowUpload}
           />
         </div>
       )}
