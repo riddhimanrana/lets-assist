@@ -1,12 +1,13 @@
 'use server';
 
-import { createClient } from '@/lib/supabase/server';
-import { requireAuth } from '@/lib/supabase/auth-helpers';
-import { WaiverDefinition, CreateWaiverDefinitionInput, WaiverBuilderDefinition } from '@/types/waiver-definitions';
+import { getAdminClient } from '@/lib/supabase/admin';
+import { mapCustomPlacementsForDb, mapDetectedFieldsForDb } from '@/lib/waiver/map-definition-input';
+import { WaiverDefinition, WaiverBuilderDefinition } from '@/types/waiver-definitions';
 import { checkSuperAdmin } from '../actions';
 
 /**
  * Get all global waiver templates (admin only)
+ * Uses service-role client to bypass RLS
  */
 export async function getGlobalWaiverTemplates(): Promise<WaiverDefinition[]> {
   const { isAdmin } = await checkSuperAdmin();
@@ -14,7 +15,7 @@ export async function getGlobalWaiverTemplates(): Promise<WaiverDefinition[]> {
     throw new Error('Unauthorized');
   }
   
-  const supabase = await createClient();
+  const supabase = getAdminClient();
   
   const { data, error } = await supabase
     .from('waiver_definitions')
@@ -33,9 +34,11 @@ export async function getGlobalWaiverTemplates(): Promise<WaiverDefinition[]> {
 
 /**
  * Get the active global waiver template
+ * Uses service-role client to ensure reliability regardless of RLS
+ * No admin check - this is called by non-admin server flows
  */
 export async function getActiveGlobalTemplate(): Promise<WaiverDefinition | null> {
-  const supabase = await createClient();
+  const supabase = getAdminClient();
   
   const { data, error } = await supabase
     .from('waiver_definitions')
@@ -62,18 +65,19 @@ export async function getActiveGlobalTemplate(): Promise<WaiverDefinition | null
 
 /**
  * Create a new global waiver template
+ * Uses service-role client for all DB and storage operations
  */
 export async function createGlobalWaiverTemplate(
   title: string,
   pdfFile: FormData,
   builderDefinition: WaiverBuilderDefinition
 ): Promise<{ success: boolean; definitionId?: string; error?: string }> {
-  const { isAdmin } = await checkSuperAdmin();
+  const { isAdmin, userId } = await checkSuperAdmin();
   if (!isAdmin) {
     return { success: false, error: 'Unauthorized' };
   }
 
-  const supabase = await createClient();
+  const supabase = getAdminClient();
   const file = pdfFile.get('file') as File;
   
   if (!file) {
@@ -84,7 +88,7 @@ export async function createGlobalWaiverTemplate(
   const timestamp = Date.now();
   const filePath = `global-templates/${timestamp}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
   
-  const { data: uploadData, error: uploadError } = await supabase.storage
+  const { error: uploadError } = await supabase.storage
     .from('waivers')
     .upload(filePath, file);
 
@@ -120,6 +124,7 @@ export async function createGlobalWaiverTemplate(
       pdf_storage_path: filePath,
       pdf_public_url: publicUrl,
       source: 'global_pdf',
+      created_by: userId ?? null,
     })
     .select()
     .single();
@@ -148,47 +153,61 @@ export async function createGlobalWaiverTemplate(
       }
   }
 
-  // 5. Create Fields
+  // 5. Create Fields (detected + custom)
   const fieldsToInsert = [];
-  
-  // Custom fields
-  for (const field of builderDefinition.fields.custom) {
-      fieldsToInsert.push({
-          waiver_definition_id: definition.id,
-          field_key: field.id, // Using the custom ID as key
-          field_type: 'signature', // Currently builder only does signatures usually, but assuming signature for custom placement
-          label: field.label,
-          required: field.required,
-          source: 'custom_overlay',
-          page_index: field.pageIndex,
-          rect: field.rect, // JSONB
-          signer_role_key: field.signerRoleKey,
-      });
+
+  type DetectedFieldMappingForDb = {
+    fieldKey: string;
+    fieldType: string;
+    pageIndex: number;
+    rect: { x: number; y: number; width: number; height: number };
+    pdfFieldName: string;
+    label: string;
+    required: boolean;
+    signerRoleKey?: string;
+  };
+
+  const detectedFieldMappings: DetectedFieldMappingForDb[] = [];
+  for (const [fieldKey, mapping] of Object.entries(builderDefinition.fields.detected || {})) {
+    const pageIndex = mapping.pageIndex;
+    const rect = mapping.rect;
+
+    if (
+      typeof pageIndex !== 'number' ||
+      !rect ||
+      typeof rect.x !== 'number' ||
+      typeof rect.y !== 'number' ||
+      typeof rect.width !== 'number' ||
+      typeof rect.height !== 'number'
+    ) {
+      continue;
+    }
+
+    detectedFieldMappings.push({
+      fieldKey: mapping.fieldKey || fieldKey,
+      fieldType: mapping.fieldType || 'text',
+      pageIndex,
+      rect,
+      pdfFieldName: mapping.pdfFieldName || fieldKey,
+      label: mapping.label || mapping.fieldKey || fieldKey,
+      required: mapping.required ?? false,
+      signerRoleKey: mapping.signerRoleKey || undefined,
+    });
   }
 
-  // Detected fields mapping
-  // We need the original PDF fields info to map them fully. 
-  // Assuming the builder passes detected fields info if they are used? 
-  // The provided `WaiverBuilderDefinition` only has `detected` which is a Record of mapping.
-  // It doesn't seem to have the rect/page info for detected fields.
-  // In Phase 3, the builder probably handles this by saving what was detected.
-  // For now, let's assume we only handle custom placements or if detected fields are needed, they would be passed differently.
-  // Re-reading Phase 3 or assuming WaiverBuilderDefinition is sufficient.
-  // If `detected` fields are mapped, we need to know their original attributes.
-  // The `WaiverBuilderDialog` usually outputs the mapping.
-  // If we rely on the backend to parse the PDF again to get field info, that's complex.
-  // Ideally `WaiverBuilderDefinition` should contain full field info.
-  
-  // Let's stick to what's in `WaiverBuilderDefinition`. 
-  // If `detected` has keys, it implies we are using PDF form fields.
-  // But without the rect/page info of those fields, we can't fully populate `waiver_definition_fields` with `source='pdf_field'`.
-  // However, `waiver_definition_fields` stores metadata for overlay.
-  // If `source='pdf_field'`, we store `pdf_field_name`.
-  
-  // For this implementation, I will assume we are mostly dealing with custom overlays for signature blocks.
-  // If the user mapped PDF fields, we would need that data.
-  // Let's proceed with custom fields for now as that's the primary use case for the builder (placing signature blocks).
-  
+  const customPlacements = (builderDefinition.fields.custom || []).map((field) => ({
+    id: field.id,
+    label: field.label,
+    fieldType: field.fieldType || 'signature',
+    pageIndex: field.pageIndex,
+    rect: field.rect,
+    signerRoleKey: field.signerRoleKey,
+    required: field.required,
+  }));
+
+  fieldsToInsert.push(...mapDetectedFieldsForDb(definition.id, detectedFieldMappings));
+  fieldsToInsert.push(...mapCustomPlacementsForDb(definition.id, customPlacements));
+
   if (fieldsToInsert.length > 0) {
       const { error: fieldsError } = await supabase
         .from('waiver_definition_fields')
@@ -204,6 +223,7 @@ export async function createGlobalWaiverTemplate(
 
 /**
  * Activate a global template (deactivates others)
+ * Uses service-role client for DB updates
  */
 export async function activateGlobalTemplate(
   definitionId: string
@@ -213,25 +233,39 @@ export async function activateGlobalTemplate(
     return { success: false, error: 'Unauthorized' };
   }
   
-  const supabase = await createClient();
-  
-  // Start transaction: deactivate all, activate this one
-  const { error: deactivateError } = await supabase
+  const supabase = getAdminClient();
+
+  // Validate target exists and is global-scoped
+  const { data: targetTemplate, error: targetError } = await supabase
     .from('waiver_definitions')
-    .update({ active: false })
-    .eq('scope', 'global');
-  
-  if (deactivateError) {
-    return { success: false, error: deactivateError.message };
+    .select('id')
+    .eq('id', definitionId)
+    .eq('scope', 'global')
+    .single();
+
+  if (targetError || !targetTemplate) {
+    return { success: false, error: 'Global template not found' };
   }
   
+  // Activate target template first, then deactivate others.
   const { error: activateError } = await supabase
     .from('waiver_definitions')
     .update({ active: true })
-    .eq('id', definitionId);
-  
+    .eq('id', definitionId)
+    .eq('scope', 'global');
+
   if (activateError) {
     return { success: false, error: activateError.message };
+  }
+
+  const { error: deactivateError } = await supabase
+    .from('waiver_definitions')
+    .update({ active: false })
+    .eq('scope', 'global')
+    .neq('id', definitionId);
+  
+  if (deactivateError) {
+    return { success: false, error: deactivateError.message };
   }
   
   return { success: true };
@@ -239,6 +273,7 @@ export async function activateGlobalTemplate(
 
 /**
  * Delete a global template (with safety checks)
+ * Uses service-role client for safety checks and deletion
  */
 export async function deleteGlobalTemplate(
   definitionId: string
@@ -248,7 +283,19 @@ export async function deleteGlobalTemplate(
     return { success: false, error: 'Unauthorized' };
   }
   
-  const supabase = await createClient();
+  const supabase = getAdminClient();
+
+  // Validate target exists and is global-scoped
+  const { data: targetTemplate, error: targetError } = await supabase
+    .from('waiver_definitions')
+    .select('id')
+    .eq('id', definitionId)
+    .eq('scope', 'global')
+    .single();
+
+  if (targetError || !targetTemplate) {
+    return { success: false, error: 'Global template not found' };
+  }
   
   // Check if any projects are using this template (though projects link to global via fallback usually)
   // Actually, projects might not directly link to a *specific* global definition ID if they are using fallback.
@@ -286,7 +333,8 @@ export async function deleteGlobalTemplate(
   const { error } = await supabase
     .from('waiver_definitions')
     .delete()
-    .eq('id', definitionId);
+    .eq('id', definitionId)
+    .eq('scope', 'global');
   
   if (error) {
     return { success: false, error: error.message };
@@ -297,6 +345,7 @@ export async function deleteGlobalTemplate(
 
 /**
  * Update global template metadata
+ * Uses service-role client for DB updates
  */
 export async function updateGlobalTemplateMetadata(
   definitionId: string,
@@ -307,12 +356,13 @@ export async function updateGlobalTemplateMetadata(
     return { success: false, error: 'Unauthorized' };
   }
   
-  const supabase = await createClient();
+  const supabase = getAdminClient();
   
   const { error } = await supabase
     .from('waiver_definitions')
     .update(updates)
-    .eq('id', definitionId);
+    .eq('id', definitionId)
+    .eq('scope', 'global');
   
   if (error) {
     return { success: false, error: error.message };

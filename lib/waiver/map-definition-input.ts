@@ -1,0 +1,56 @@
+interface DetectedFieldInput {
+  fieldKey: string;
+  fieldType: string;
+  pageIndex: number;
+  rect: { x: number; y: number; width: number; height: number };
+  pdfFieldName?: string;
+  label?: string;
+  required?: boolean;
+  signerRoleKey?: string;
+}
+
+interface CustomPlacementInput {
+  id?: string;
+  label?: string;
+  fieldType?: string;
+  pageIndex: number;
+  rect: { x: number; y: number; width: number; height: number };
+  signerRoleKey?: string;
+  required?: boolean;
+}
+
+export function mapDetectedFieldsForDb(
+  definitionId: string,
+  mappings: DetectedFieldInput[]
+) {
+  return mappings.map(mapping => ({
+    waiver_definition_id: definitionId,
+    field_key: mapping.fieldKey,
+    field_type: mapping.fieldType,
+    label: mapping.label || mapping.fieldKey,
+    source: 'pdf_widget' as const,
+    page_index: mapping.pageIndex,
+    rect: mapping.rect,
+    pdf_field_name: mapping.pdfFieldName || mapping.fieldKey,
+    required: mapping.required ?? false,
+    signer_role_key: mapping.signerRoleKey || null,
+  }));
+}
+
+export function mapCustomPlacementsForDb(
+  definitionId: string,
+  placements: CustomPlacementInput[]
+) {
+  return placements.map(placement => ({
+    waiver_definition_id: definitionId,
+    field_key: placement.id || `signature-${Date.now()}`,
+    field_type: placement.fieldType || 'signature',
+    label: placement.label || 'Signature',
+    source: 'custom_overlay' as const,
+    page_index: placement.pageIndex,
+    rect: placement.rect,
+    required: placement.required ?? true,
+    signer_role_key: placement.signerRoleKey || null,
+    pdf_field_name: null,
+  }));
+}

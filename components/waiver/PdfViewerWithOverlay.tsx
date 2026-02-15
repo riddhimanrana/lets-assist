@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DetectedPdfField, PdfRect } from "@/lib/waiver/pdf-field-detect";
+import { WaiverFieldType } from "@/types/waiver-definitions";
 
 // Configure worker
 if (typeof window !== 'undefined' && !pdfjsLib.GlobalWorkerOptions.workerSrc) {
@@ -16,6 +17,7 @@ export interface CustomPlacement {
   id: string;
   label: string;
   signerRoleKey: string;
+  fieldType: WaiverFieldType;
   required: boolean;
   pageIndex: number;
   rect: PdfRect;
@@ -56,16 +58,25 @@ export function PdfViewerWithOverlay({
 
   // Load PDF
   useEffect(() => {
+    let isStale = false;
+    let loadingTask: any | null = null;
+
     const loadPdf = async () => {
       try {
         setLoading(true);
         setError(null);
-        const loadingTask = pdfjsLib.getDocument(pdfUrl);
+        setCurrentPage(1);
+
+        loadingTask = pdfjsLib.getDocument(pdfUrl);
         const doc = await loadingTask.promise;
+        if (isStale) return;
         setPdfDoc(doc);
         setPageCount(doc.numPages);
+        // Clamp current page just in case
+        setCurrentPage((prev) => Math.min(Math.max(1, prev), doc.numPages || 1));
         setLoading(false);
       } catch (err) {
+        if (isStale) return;
         console.error("Error loading PDF:", err);
         setError("Failed to load PDF document.");
         setLoading(false);
@@ -75,20 +86,34 @@ export function PdfViewerWithOverlay({
     if (pdfUrl) {
       loadPdf();
     }
+
+    return () => {
+      isStale = true;
+      if (loadingTask?.destroy) {
+        try {
+          loadingTask.destroy();
+        } catch {
+          // ignore
+        }
+      }
+    };
   }, [pdfUrl]);
 
   // Handle page navigation
   const prevPage = () => setCurrentPage((p) => Math.max(1, p - 1));
-  const nextPage = () => setCurrentPage((p) => Math.min(pageCount, p + 1));
+  const nextPage = () => setCurrentPage((p) => Math.max(1, Math.min(pageCount, p + 1)));
   const zoomIn = () => setScale((s) => Math.min(2.0, s + 0.1));
   const zoomOut = () => setScale((s) => Math.max(0.5, s - 0.1));
 
   // Scroll to highlighted field page
   useEffect(() => {
     if (highlightedField) {
-      setCurrentPage(highlightedField.pageIndex + 1);
+      const target = highlightedField.pageIndex + 1;
+      if (pageCount > 0 && target >= 1 && target <= pageCount) {
+        setCurrentPage(target);
+      }
     }
-  }, [highlightedField]);
+  }, [highlightedField, pageCount]);
 
   return (
     <div className="flex flex-col h-full bg-muted overflow-hidden border rounded-md">
@@ -180,39 +205,131 @@ function PdfPage({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [viewport, setViewport] = useState<pdfjsLib.PageViewport | null>(null);
+  const renderTaskRef = useRef<any | null>(null);
+  const [renderAttempts, setRenderAttempts] = useState(0);
+
+  const clampRectToPage = useCallback(
+    (rect: PdfRect, minWidth = 30, minHeight = 20): PdfRect => {
+      if (!viewport) return rect;
+
+      const viewBox = (viewport as any).viewBox as [number, number, number, number] | undefined;
+      const xMin = viewBox?.[0] ?? 0;
+      const yMin = viewBox?.[1] ?? 0;
+      const xMax = viewBox?.[2] ?? viewport.width / viewport.scale;
+      const yMax = viewBox?.[3] ?? viewport.height / viewport.scale;
+
+      const pageWidth = Math.max(0, xMax - xMin);
+      const pageHeight = Math.max(0, yMax - yMin);
+
+      const width = Math.min(Math.max(rect.width, minWidth), pageWidth);
+      const height = Math.min(Math.max(rect.height, minHeight), pageHeight);
+
+      const x = Math.min(Math.max(rect.x, xMin), xMin + pageWidth - width);
+      const y = Math.min(Math.max(rect.y, yMin), yMin + pageHeight - height);
+
+      return { x, y, width, height };
+    },
+    [viewport]
+  );
 
   // Render Page
   useEffect(() => {
+    let isStale = false;
+    let retryTimeout: NodeJS.Timeout | null = null;
+
     const renderPage = async () => {
-      const page = await pdfDoc.getPage(pageNumber);
-      const vp = page.getViewport({ scale });
-      setViewport(vp);
-
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-
-      const context = canvas.getContext('2d');
-      if (!context) return;
-
-      canvas.height = vp.height;
-      canvas.width = vp.width;
-
-      const renderContext = {
-        canvasContext: context,
-        viewport: vp,
-        canvas,
-      };
-      
       try {
-        await page.render(renderContext).promise;
+        const page = await pdfDoc.getPage(pageNumber);
+        if (isStale) return;
+
+        const vp = page.getViewport({ scale });
+        setViewport(vp);
+
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+
+        const context = canvas.getContext('2d');
+        if (!context) return;
+
+        // Clear any previous content
+        context.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Set canvas actual pixel dimensions (for high DPI)
+        const pixelRatio = window.devicePixelRatio || 1;
+        canvas.width = vp.width * pixelRatio;
+        canvas.height = vp.height * pixelRatio;
+
+        // Set CSS dimensions
+        canvas.style.width = `${vp.width}px`;
+        canvas.style.height = `${vp.height}px`;
+
+        // Scale context for high DPI
+        context.scale(pixelRatio, pixelRatio);
+
+        const renderContext = {
+          canvasContext: context,
+          viewport: vp,
+          canvas,
+        };
+
+        // Cancel any in-flight render before starting a new one.
+        if (renderTaskRef.current?.cancel) {
+          try {
+            renderTaskRef.current.cancel();
+          } catch {
+            // ignore
+          }
+        }
+
+        const renderTask = page.render(renderContext as any);
+        renderTaskRef.current = renderTask;
+        await renderTask.promise;
+        renderTaskRef.current = null;
+        setRenderAttempts(0); // Reset attempts on successful render
       } catch (err) {
-        // Only log if it's not a cancelled request (which happens on fast navigation)
-        console.error("Page render error:", err);
+        if (isStale) return;
+        const name = (err as any)?.name;
+        // RenderingCancelledException is expected on fast navigation/zoom.
+        if (name !== 'RenderingCancelledException') {
+          console.error("Page render error:", err);
+          // Retry once after 100ms if initial render fails
+          if (renderAttempts === 0) {
+            retryTimeout = setTimeout(() => {
+              if (!isStale) {
+                setRenderAttempts(1);
+              }
+            }, 100);
+          }
+        }
       }
     };
 
     renderPage();
-  }, [pdfDoc, pageNumber, scale]);
+
+    return () => {
+      isStale = true;
+      if (retryTimeout) clearTimeout(retryTimeout);
+      if (renderTaskRef.current?.cancel) {
+        try {
+          renderTaskRef.current.cancel();
+        } catch {
+          // ignore
+        }
+      }
+      renderTaskRef.current = null;
+    };
+  }, [pdfDoc, pageNumber, scale, renderAttempts]);
+
+  // Force re-render after PDF fully loads
+  useEffect(() => {
+    if (pdfDoc && pageNumber > 0) {
+      // Small delay to ensure DOM is ready
+      const timer = setTimeout(() => {
+        setRenderAttempts((prev) => prev + 1);
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [pdfDoc]);
 
   const handleCanvasClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (mode !== 'add-signature' || !viewport) return;
@@ -237,14 +354,20 @@ function PdfPage({
     const finalX = pdfX - (newWidth / 2);
     const finalY = pdfY - (newHeight / 2);
 
-    onAddPlacement({
-      pageIndex: pageNumber - 1,
-      rect: {
+    const clampedRect = clampRectToPage(
+      {
         x: finalX,
         y: finalY,
         width: newWidth,
-        height: newHeight
-      }
+        height: newHeight,
+      },
+      30,
+      20
+    );
+
+    onAddPlacement({
+      pageIndex: pageNumber - 1,
+      rect: clampedRect,
     });
   };
 
@@ -289,7 +412,7 @@ function PdfPage({
         
         return (
           <div
-            key={`detected-${idx}`}
+            key={`detected-${field.fieldName}-${field.pageIndex}`}
             style={getStyle(field.rect)}
             className={cn(
               "border-2 absolute transition-all cursor-pointer group flex items-center justify-center z-10",
@@ -320,6 +443,7 @@ function PdfPage({
             viewport={viewport}
             onPlacementClick={onPlacementClick}
             onPlacementResize={onPlacementResize}
+            clampRectToPage={clampRectToPage}
           />
         );
       })}
@@ -334,6 +458,7 @@ interface ResizablePlacementProps {
   viewport: pdfjsLib.PageViewport;
   onPlacementClick: (placementId: string) => void;
   onPlacementResize?: (placementId: string, newRect: PdfRect) => void;
+  clampRectToPage: (rect: PdfRect, minWidth?: number, minHeight?: number) => PdfRect;
 }
 
 function ResizablePlacement({
@@ -341,7 +466,8 @@ function ResizablePlacement({
   isSelected,
   viewport,
   onPlacementClick,
-  onPlacementResize
+  onPlacementResize,
+  clampRectToPage
 }: ResizablePlacementProps) {
   const [isResizing, setIsResizing] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -406,11 +532,11 @@ function ResizablePlacement({
         const pdfDeltaX = deltaX / scale;
         const pdfDeltaY = -deltaY / scale;
 
-        const newRect = {
+        const newRect = clampRectToPage({
           ...startRectRef.current,
           x: startRectRef.current.x + pdfDeltaX,
           y: startRectRef.current.y + pdfDeltaY
-        };
+        });
 
         onPlacementResize(placement.id, newRect);
         return;
@@ -461,7 +587,7 @@ function ResizablePlacement({
           break;
       }
 
-      onPlacementResize(placement.id, newRect);
+      onPlacementResize(placement.id, clampRectToPage(newRect));
     };
 
     const handleMouseUp = () => {
@@ -479,16 +605,19 @@ function ResizablePlacement({
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isResizing, isDragging, resizeHandle, viewport, placement.id, onPlacementResize]);
+  }, [isResizing, isDragging, resizeHandle, viewport, placement.id, onPlacementResize, clampRectToPage]);
 
   const style = getStyle(placement.rect);
 
+  const isSignature = placement.fieldType === 'signature';
+  
   return (
     <div
       style={style}
       className={cn(
-        "border-2 border-primary bg-primary/20 absolute hover:bg-primary/30 transition-all z-20 flex items-center justify-center select-none rounded-sm",
-        isSelected && "ring-2 ring-primary ring-offset-2 shadow-lg border-primary bg-primary/30",
+        "border-2 absolute hover:bg-opacity-30 transition-all z-20 flex items-center justify-center select-none rounded-sm",
+        isSignature ? "border-primary bg-primary/20" : "border-indigo-500 bg-indigo-500/20",
+        isSelected && (isSignature ? "ring-2 ring-primary ring-offset-2 shadow-lg border-primary bg-primary/30" : "ring-2 ring-indigo-500 ring-offset-2 shadow-lg border-indigo-500 bg-indigo-500/30"),
         isResizing && "cursor-crosshair",
         isDragging ? "cursor-grabbing opacity-80 shadow-xl" : "cursor-move"
       )}
@@ -498,8 +627,11 @@ function ResizablePlacement({
       }}
       onMouseDown={handleDragStart}
     >
-      <div className="text-[9px] md:text-[10px] bg-primary text-primary-foreground px-1.5 py-0.5 rounded truncate max-w-full pointer-events-none font-medium">
-        {placement.label}
+      <div className={cn(
+        "text-[9px] md:text-[10px] text-white px-1.5 py-0.5 rounded truncate max-w-full pointer-events-none font-medium",
+        isSignature ? "bg-primary" : "bg-indigo-600"
+      )}>
+        {placement.label || (isSignature ? "Signature" : placement.fieldType)}
       </div>
       
       {isSelected && !isResizing && !isDragging && (

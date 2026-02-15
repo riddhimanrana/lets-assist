@@ -4,8 +4,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { SignaturePayload, SignerData } from '@/types/waiver-definitions';
-import { Loader2, Download } from 'lucide-react';
-import { useState } from 'react';
+import { Loader2, Download, Printer } from 'lucide-react';
+import { useState, useEffect } from 'react';
 
 // Define a compatible type for the signature
 export interface WaiverPreviewSignature {
@@ -26,7 +26,9 @@ interface WaiverPreviewDialogProps {
   onOpenChange: (open: boolean) => void;
   signature: WaiverPreviewSignature | null;
   onDownload: (signatureId: string) => void;
+  onPrint?: (signatureId: string) => void;
   isDownloading?: boolean;
+  isPrinting?: boolean;
 }
 
 export function WaiverPreviewDialog({
@@ -34,9 +36,16 @@ export function WaiverPreviewDialog({
   onOpenChange,
   signature,
   onDownload,
-  isDownloading = false
+  onPrint,
+  isDownloading = false,
+  isPrinting = false
 }: WaiverPreviewDialogProps) {
   const [iframeLoading, setIframeLoading] = useState(true);
+
+  // Reset iframe loading state when dialog opens or signature changes
+  useEffect(() => {
+    setIframeLoading(true);
+  }, [open, signature?.id]);
 
   if (!signature) return null;
 
@@ -49,6 +58,16 @@ export function WaiverPreviewDialog({
   const mainSignedAt = signature.signed_at 
     ? new Date(signature.signed_at).toLocaleString() 
     : new Date(signature.created_at).toLocaleString();
+
+  // Handle print action
+  const handlePrint = () => {
+    if (onPrint) {
+      onPrint(signature.id);
+    } else {
+      // Fallback: Open preview URL in new window for printing with security attributes
+      window.open(`/api/waivers/${signature.id}/preview`, '_blank', 'noopener,noreferrer');
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -106,7 +125,7 @@ export function WaiverPreviewDialog({
           </div>
           
           {/* PDF Preview Section */}
-          <div className="border rounded-lg overflow-hidden relative bg-muted/10 h-[500px]">
+          <div className="border rounded-lg overflow-hidden relative bg-muted/10 h-125">
             {/* We will rely on download for now if preview endpoint isn't ready, 
                 but ideally we have a preview endpoint. 
                 Using the download endpoint for preview might force download on some browsers if Content-Disposition is attachment.
@@ -141,6 +160,23 @@ export function WaiverPreviewDialog({
         <div className="p-6 pt-0 flex justify-end gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Close
+          </Button>
+          <Button 
+            variant="outline"
+            onClick={handlePrint}
+            disabled={isPrinting || iframeLoading}
+          >
+            {isPrinting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Printing...
+              </>
+            ) : (
+              <>
+                <Printer className="mr-2 h-4 w-4" />
+                Print
+              </>
+            )}
           </Button>
           <Button 
             onClick={() => onDownload(signature.id)}

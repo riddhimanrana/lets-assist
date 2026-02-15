@@ -11,7 +11,9 @@ import { SignerRolesEditor, WaiverDefinitionSignerInput } from "./SignerRolesEdi
 import { FieldListPanel, FieldMapping } from "./FieldListPanel";
 import { SignaturePlacementsEditor } from "./SignaturePlacementsEditor";
 import { toast } from "sonner";
-import { WaiverDefinitionFull } from "@/types/waiver-definitions";
+import { WaiverDefinitionFull, WaiverFieldType } from "@/types/waiver-definitions";
+import { useMediaQuery } from "@/hooks/use-media-query";
+import { Separator } from "@/components/ui/separator";
 
 export interface WaiverDefinitionInput {
   signers: WaiverDefinitionSignerInput[];
@@ -45,6 +47,7 @@ export function WaiverBuilderDialog({
   const [activeTab, setActiveTab] = useState("signers");
   const [isSaving, setIsSaving] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
+  const isMobile = useMediaQuery("(max-width: 640px)");
   
   // State
   const [signers, setSigners] = useState<WaiverDefinitionSignerInput[]>([
@@ -60,6 +63,30 @@ export function WaiverBuilderDialog({
   
   // Mode
   const [viewerMode, setViewerMode] = useState<'view' | 'add-signature' | 'edit'>('view');
+
+  // Handle PDF URL and load existing definition PDF (Task 3)
+  const [effectivePdfUrl, setEffectivePdfUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (pdfUrl) {
+      setEffectivePdfUrl(pdfUrl);
+    } else if (pdfFile && pdfFile instanceof Blob) {
+      try {
+        const url = URL.createObjectURL(pdfFile);
+        setEffectivePdfUrl(url);
+        return () => URL.revokeObjectURL(url);
+      } catch (error) {
+        console.error('Failed to create object URL for PDF:', error);
+        toast.error('Error loading PDF file');
+      }
+    } else if (existingDefinition?.pdf_public_url) {
+      // Logic handled below in initialization effect for URL setting,
+      // but here we ensure state is sync
+      if (!effectivePdfUrl) {
+        setEffectivePdfUrl(existingDefinition.pdf_public_url);
+      }
+    }
+  }, [pdfUrl, pdfFile, existingDefinition]);
 
   // Initialize state
   useEffect(() => {
@@ -86,17 +113,22 @@ export function WaiverBuilderDialog({
          
          if (existingDefinition.fields && Array.isArray(existingDefinition.fields)) {
             existingDefinition.fields.forEach(f => {
-              if (f.source === 'pdf_widget' && f.pdf_field_name && f.signer_role_key) {
+              if (f.source === 'pdf_widget' && f.pdf_field_name) {
                  mappings[f.pdf_field_name] = {
                    fieldKey: f.pdf_field_name,
-                   signerRoleKey: f.signer_role_key!,
-                   required: f.required
+                   signerRoleKey: f.signer_role_key || undefined,
+                   required: f.required,
+                   fieldType: f.field_type,
+                   pageIndex: f.page_index,
+                   rect: f.rect,
+                   pdfFieldName: f.pdf_field_name
                  };
               } else if (f.source === 'custom_overlay' && f.signer_role_key) {
                  custom.push({
                    id: f.field_key,
                    label: f.label,
                    signerRoleKey: f.signer_role_key,
+                   fieldType: f.field_type,
                    required: f.required,
                    pageIndex: f.page_index,
                    rect: f.rect
@@ -110,18 +142,6 @@ export function WaiverBuilderDialog({
       }
     }
   }, [open, existingDefinition]);
-
-  // Handle PDF URL
-  const [effectivePdfUrl, setEffectivePdfUrl] = useState<string | null>(null);
-  useEffect(() => {
-    if (pdfUrl) {
-      setEffectivePdfUrl(pdfUrl);
-    } else if (pdfFile) {
-      const url = URL.createObjectURL(pdfFile);
-      setEffectivePdfUrl(url);
-      return () => URL.revokeObjectURL(url);
-    }
-  }, [pdfUrl, pdfFile]);
 
   const handleSave = async () => {
     // Validate
@@ -150,14 +170,31 @@ export function WaiverBuilderDialog({
       }
     });
 
-    // Warn if roles are unused? No, that's fine.
+    // Validating Task 2: Ensure complete data persistence
+    // We construct the payload, ensuring detected fields carry their metadata (rect, pageIndex)
+    
+    const completeDetectedMappings: Record<string, FieldMapping> = {};
+    
+    detectedFields.forEach(field => {
+       const userMapping = fieldMappings[field.fieldName];
+       completeDetectedMappings[field.fieldName] = {
+          fieldKey: field.fieldName,
+          signerRoleKey: userMapping?.signerRoleKey || undefined,
+          required: userMapping?.required ?? field.required ?? false,
+          label: userMapping?.label || field.fieldName,
+          fieldType: field.fieldType,
+          pageIndex: field.pageIndex,
+          rect: field.rect,
+          pdfFieldName: field.fieldName
+       };
+    });
     
     setIsSaving(true);
     try {
       await onSave({
         signers,
         fields: {
-          detected: fieldMappings,
+          detected: completeDetectedMappings,
           custom: customPlacements
         }
       });
@@ -181,6 +218,7 @@ export function WaiverBuilderDialog({
       id: `custom_${Date.now()}`,
       label: "Signature",
       signerRoleKey: defaultSigner,
+      fieldType: 'signature',
       required: true,
       pageIndex: placement.pageIndex,
       rect: placement.rect
@@ -189,7 +227,7 @@ export function WaiverBuilderDialog({
     setCustomPlacements([...customPlacements, newPlacement]);
     setViewerMode('view'); // Exit add mode
     setSelectedPlacementId(newPlacement.id);
-    setActiveTab("placements");
+    setActiveTab("fields"); // Replaced "placements" with "fields" for unified view
   };
 
   const handleAIScan = async () => {
@@ -271,6 +309,9 @@ export function WaiverBuilderDialog({
         id: `ai_${Date.now()}_${index}`,
         label: field.label,
         signerRoleKey: field.signerRole,
+        fieldType: (['signature', 'name', 'date', 'email', 'phone', 'address', 'text', 'checkbox', 'radio', 'dropdown', 'initial'].includes(field.fieldType) 
+          ? field.fieldType 
+          : 'text') as WaiverFieldType,
         required: field.required,
         pageIndex: field.pageIndex, // Already 0-indexed from API
         rect: {
@@ -282,7 +323,7 @@ export function WaiverBuilderDialog({
       }));
 
       setCustomPlacements(aiPlacements);
-      setActiveTab("placements");
+      setActiveTab("fields");
 
       toast.success("AI scan complete!", {
         description: `Detected ${analysis.signerRoles.length} signer role(s) and ${analysis.fields.length} field(s) across ${analysis.pageCount} page(s).`,
@@ -300,17 +341,42 @@ export function WaiverBuilderDialog({
     }
   };
 
+  if (isMobile) {
+    return (
+      <Dialog open={open} onOpenChange={(v) => onOpenChange(v)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Waiver Builder</DialogTitle>
+            <DialogDescription>
+              For the best experience, please use a desktop or tablet device to configure waivers.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm">
+              The waiver builder requires a larger screen for proper PDF viewing, field mapping, and signature placement.
+            </p>
+            <Button onClick={() => onOpenChange(false)} className="w-full">
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   return (
+    <div>
     <Dialog open={open} onOpenChange={(val) => !isSaving && !isScanning && onOpenChange(val)}>
-      <DialogContent className="max-w-[98vw] md:max-w-[95vw] lg:max-w-350 h-[95vh] md:h-[90vh] flex flex-col p-0 gap-0">
+      <DialogContent className="max-w-[98vw] md:max-w-[95vw] lg:max-w-7xl h-[95vh] md:h-[90vh] flex flex-col p-0 gap-0">
         <DialogHeader className="px-4 md:px-6 py-3 border-b shrink-0">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
               <DialogTitle className="text-lg md:text-xl">Configure Waiver</DialogTitle>
               <DialogDescription className="text-xs md:text-sm mt-1">
-                Define who needs to sign and where. <span className="md:hidden text-warning">Desktop recommended.</span>
+                Define who needs to sign and where.
               </DialogDescription>
             </div>
+            <div className="flex items-center gap-2">
             <Button 
               onClick={handleAIScan}
               disabled={isScanning || !pdfFile}
@@ -325,6 +391,7 @@ export function WaiverBuilderDialog({
               )}
               <span className="hidden sm:inline">AI Scan</span>
             </Button>
+            </div>
           </div>
         </DialogHeader>
 
@@ -339,7 +406,7 @@ export function WaiverBuilderDialog({
                 selectedPlacementId={selectedPlacementId}
                 onPlacementClick={(id) => {
                    setSelectedPlacementId(id);
-                   setActiveTab("placements");
+                   setActiveTab("fields"); // Switch to fields tab
                    setHighlightedField(null);
                 }}
                 onDetectedFieldClick={(field) => {
@@ -378,26 +445,20 @@ export function WaiverBuilderDialog({
           </div>
           
           {/* Sidebar: Configuration (Right) */}
-          <div className="w-full md:w-87.5 lg:w-100 flex flex-col bg-background shrink-0">
+          <div className="w-full md:w-87.5 lg:w-100 flex flex-col bg-background shrink-0 border-t md:border-t-0">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
               <TabsList className="w-full justify-start h-auto p-1 bg-muted/50 rounded-none border-b">
                 <TabsTrigger 
                   value="signers" 
-                  className="flex-1 data-[state=active]:bg-background data-[state=active]:shadow-sm text-xs md:text-sm"
+                  className="flex-1 data-[state=active]:bg-background data-[state=active]:shadow-sm text-xs md:text-sm py-2"
                 >
-                  Signers
+                  1. Signers
                 </TabsTrigger>
                 <TabsTrigger 
                   value="fields" 
-                  className="flex-1 data-[state=active]:bg-background data-[state=active]:shadow-sm text-xs md:text-sm"
+                  className="flex-1 data-[state=active]:bg-background data-[state=active]:shadow-sm text-xs md:text-sm py-2"
                 >
-                  Fields
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="placements" 
-                  className="flex-1 data-[state=active]:bg-background data-[state=active]:shadow-sm text-xs md:text-sm"
-                >
-                  Custom
+                  2. Fields & Signatures
                 </TabsTrigger>
               </TabsList>
 
@@ -410,51 +471,88 @@ export function WaiverBuilderDialog({
                     signers={signers}
                     onSignersChange={setSigners}
                   />
+                  <div className="mt-6 pt-4 border-t">
+                     <Button 
+                       className="w-full" 
+                       onClick={() => setActiveTab("fields")}
+                       variant="outline"
+                     >
+                       Next: Configure Fields
+                     </Button>
+                  </div>
                 </TabsContent>
 
-                <TabsContent value="fields" className="h-full m-0 p-4 overflow-auto">
-                   <div className="text-xs md:text-sm text-muted-foreground mb-3 pb-3 border-b">
-                     {detectedFields.length > 0 
-                       ? `Map ${detectedFields.length} detected PDF field${detectedFields.length !== 1 ? 's' : ''} to signer roles.`
-                       : "No PDF fields detected. Use AI Scan or add custom fields."}
-                  </div>
-                  <FieldListPanel
-                    detectedFields={detectedFields}
-                    fieldMappings={fieldMappings}
-                    signers={signers}
-                    onFieldMappingChange={(key, mapping) => setFieldMappings(prev => ({ ...prev, [key]: mapping }))}
-                    onFieldClick={(field) => {
-                       setHighlightedField(field);
-                    }}
-                    highlightedField={highlightedField}
-                  />
-                </TabsContent>
-
-                <TabsContent value="placements" className="h-full m-0 p-4 overflow-auto">
-                   <div className="text-xs md:text-sm text-muted-foreground mb-3 pb-3 border-b">
-                     {customPlacements.length > 0
-                       ? `${customPlacements.length} custom signature box${customPlacements.length !== 1 ? 'es' : ''}. Drag to move, resize by handles.`
-                       : "Add custom signature boxes that signers will fill in."}
-                  </div>
-                  <SignaturePlacementsEditor
-                    placements={customPlacements}
-                    signers={signers}
-                    onPlacementsChange={setCustomPlacements}
-                    onAddPlacement={() => setViewerMode('add-signature')}
-                    selectedPlacementId={selectedPlacementId}
-                    onSelectPlacement={(id) => {
-                       setSelectedPlacementId(id);
-                       setHighlightedField(null);
-                    }}
-                    isAddingPlacement={viewerMode === 'add-signature'}
-                  />
+                <TabsContent value="fields" className="h-full m-0 overflow-auto">
+                   <div className="p-4 space-y-6">
+                      
+                      {/* Section 1: Detected Fields */}
+                      <div>
+                        <h3 className="text-sm font-semibold mb-2 flex items-center gap-2">Detected PDF Fields
+                           <span className="text-xs font-normal text-muted-foreground ml-auto bg-muted px-2 py-0.5 rounded-full">
+                              {detectedFields.length}
+                           </span>
+                        </h3>
+                        <p className="text-xs text-muted-foreground mb-4">
+                          These are interactive form fields detected in your PDF. Map signature fields to roles.
+                        </p>
+                        
+                        {detectedFields.length > 0 ? (
+                          <div className="border rounded-md max-h-75 overflow-auto">
+                            <FieldListPanel
+                              detectedFields={detectedFields}
+                              fieldMappings={fieldMappings}
+                              signers={signers}
+                              onFieldMappingChange={(key, mapping) => setFieldMappings(prev => ({ ...prev, [key]: mapping }))}
+                              onFieldClick={(field) => {
+                                setHighlightedField(field);
+                              }}
+                              highlightedField={highlightedField}
+                            />
+                          </div>
+                        ) : (
+                          <div className="text-sm text-muted-foreground border rounded-md p-4 text-center bg-muted/20">
+                             No PDF form fields detected. <br/>
+                             Use "Custom Signatures" below.
+                          </div>
+                        )}
+                      </div>
+                      
+                      <Separator />
+                      
+                      {/* Section 2: Custom Placements */}
+                      <div>
+                        <h3 className="text-sm font-semibold mb-2 flex items-center gap-2">Custom Signature Placements
+                           <span className="text-xs font-normal text-muted-foreground ml-auto bg-muted px-2 py-0.5 rounded-full">
+                              {customPlacements.length}
+                           </span>
+                        </h3>
+                        <p className="text-xs text-muted-foreground mb-4">
+                          Draw custom signature boxes where signers should sign.
+                        </p>
+                        
+                        <div className="border rounded-md max-h-100 overflow-auto p-2">
+                           <SignaturePlacementsEditor
+                            placements={customPlacements}
+                            signers={signers}
+                            onPlacementsChange={setCustomPlacements}
+                            onAddPlacement={() => setViewerMode('add-signature')}
+                            selectedPlacementId={selectedPlacementId}
+                            onSelectPlacement={(id) => {
+                               setSelectedPlacementId(id);
+                               setHighlightedField(null);
+                            }}
+                            isAddingPlacement={viewerMode === 'add-signature'}
+                          />
+                        </div>
+                      </div>
+                   </div>
                 </TabsContent>
               </div>
             </Tabs>
           </div>
         </div>
 
-        <DialogFooter className="px-6 py-4 border-t">
+        <DialogFooter className="px-6 py-4 border-t bg-background shrink-0 flex flex-row items-center justify-between gap-3">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving}>
             Cancel
           </Button>
@@ -466,5 +564,6 @@ export function WaiverBuilderDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    </div>
   );
 }

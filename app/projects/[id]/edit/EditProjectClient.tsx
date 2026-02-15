@@ -155,6 +155,7 @@ const formSchema = z.object({
   show_attendees_publicly: z.boolean(),
   waiver_required: z.boolean(),
   waiver_allow_upload: z.boolean(),
+  waiver_disable_esignature: z.boolean(),
   verification_method: z.enum(["qr-code", "manual", "auto", "signup-only"]),
   visibility: z.enum(["public", "unlisted", "organization_only"]),
 });
@@ -368,6 +369,7 @@ export default function EditProjectClient({ project }: Props) {
       show_attendees_publicly: project.show_attendees_publicly ?? false,
       waiver_required: project.waiver_required ?? false,
       waiver_allow_upload: project.waiver_allow_upload ?? true,
+      waiver_disable_esignature: project.waiver_disable_esignature ?? false,
       verification_method: project.verification_method,
       visibility: project.visibility,
     },
@@ -490,6 +492,7 @@ export default function EditProjectClient({ project }: Props) {
         formValues.show_attendees_publicly !== (project.show_attendees_publicly ?? false) ||
         formValues.waiver_required !== (project.waiver_required ?? false) ||
         formValues.waiver_allow_upload !== (project.waiver_allow_upload ?? true) ||
+        formValues.waiver_disable_esignature !== (project.waiver_disable_esignature ?? false) ||
         formValues.verification_method !== project.verification_method ||
         formValues.visibility !== project.visibility;
 
@@ -517,6 +520,7 @@ export default function EditProjectClient({ project }: Props) {
       formValues.show_attendees_publicly !== (project.show_attendees_publicly ?? false) ||
       formValues.waiver_required !== (project.waiver_required ?? false) ||
       formValues.waiver_allow_upload !== (project.waiver_allow_upload ?? true) ||
+      formValues.waiver_disable_esignature !== (project.waiver_disable_esignature ?? false) ||
       formValues.verification_method !== project.verification_method ||
       formValues.visibility !== project.visibility;
 
@@ -1160,6 +1164,29 @@ export default function EditProjectClient({ project }: Props) {
                     <FieldLabel htmlFor={field.name}>Allow Print & Upload</FieldLabel>
                     <FieldDescription>
                       Allow volunteers to upload a signed PDF or image instead of drawing/typing.
+                    </FieldDescription>
+                  </div>
+                  <Switch
+                    id={field.name}
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                    disabled={!waiverRequired}
+                    aria-invalid={fieldState.invalid}
+                  />
+                  {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                </Field>
+              )}
+            />
+
+            <Controller
+              control={form.control}
+              name="waiver_disable_esignature"
+              render={({ field, fieldState }) => (
+                <Field className="flex flex-row items-center justify-between rounded-lg border p-4" data-invalid={fieldState.invalid}>
+                  <div className="space-y-0.5">
+                    <FieldLabel htmlFor={field.name}>Disable E-Signatures (Print/Upload Only)</FieldLabel>
+                    <FieldDescription>
+                      Require volunteers to print, sign, and upload the waiver. Disables drawing/typing signatures.
                     </FieldDescription>
                   </div>
                   <Switch

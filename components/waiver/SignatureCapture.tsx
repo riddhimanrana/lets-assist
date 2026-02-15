@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Eraser, PenTool, Type, Upload } from "lucide-react";
 import { WaiverDefinitionSigner, SignerData } from "@/types/waiver-definitions";
+import { useTheme } from "next-themes";
 
 const SIGNATURE_CANVAS_HEIGHT = 160;
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10MB
@@ -43,6 +44,15 @@ export function SignatureCapture({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const drawingRef = useRef(false);
+  
+  const { theme, resolvedTheme } = useTheme();
+
+  // Get stroke color based on theme
+  const getStrokeColor = () => {
+    // resolvedTheme is the actual applied theme (light or dark)
+    const currentTheme = resolvedTheme || theme || 'light';
+    return currentTheme === 'dark' ? '#ffffff' : '#000000';
+  };
 
   // Initialize canvas only if method is draw
   useEffect(() => {
@@ -51,7 +61,7 @@ export function SignatureCapture({
       window.addEventListener("resize", resizeCanvas);
       return () => window.removeEventListener("resize", resizeCanvas);
     }
-  }, [method]);
+  }, [method, resolvedTheme]); // Re-initialize when theme changes
 
   const emitSignature = (data: string | null, sigMethod: "draw" | "typed" | "upload") => {
     if (data) {
@@ -100,9 +110,9 @@ export function SignatureCapture({
     const ctx = canvas.getContext("2d");
     if (ctx) {
       ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 2.5; // Slightly thicker for better visibility
       ctx.lineCap = "round";
-      ctx.strokeStyle = "#111827";
+      ctx.strokeStyle = getStrokeColor(); // Dynamic color based on theme
     }
     setDrawn(false); // Reset drawn state on resize as canvas is cleared
     emitSignature(null, "draw");
@@ -123,6 +133,11 @@ export function SignatureCapture({
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
+
+    // Ensure stroke color is up to date
+    ctx.strokeStyle = getStrokeColor();
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = "round";
 
     drawingRef.current = true;
     const point = getCanvasPoint(event);

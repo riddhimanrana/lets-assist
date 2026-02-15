@@ -2,6 +2,7 @@
 
 import { CustomPlacement } from "./PdfViewerWithOverlay";
 import { WaiverDefinitionSignerInput } from "./SignerRolesEditor";
+import { WaiverFieldType } from "@/types/waiver-definitions";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -93,15 +94,39 @@ export function SignaturePlacementsEditor({
                    <div className="flex items-start gap-2">
                      <div className="flex-1 space-y-2">
                        <div className="flex items-center gap-2">
-                         <input
-                           className="flex h-8 w-full rounded-md border border-input bg-background px-2 py-1 text-xs shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
-                           value={placement.label}
-                           onChange={(e) => handleUpdatePlacement(placement.id, { label: e.target.value })}
-                           placeholder="Field label"
-                           onClick={(e) => e.stopPropagation()}
-                         />
-                         <Badge variant="secondary" className="shrink-0 text-xs">
-                           Page {placement.pageIndex + 1}
+                         <div className="flex-1">
+                           <input
+                             className="flex h-8 w-full rounded-md border border-input bg-background px-2 py-1 text-xs shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+                             value={placement.label}
+                             onChange={(e) => handleUpdatePlacement(placement.id, { label: e.target.value })}
+                             placeholder="Field label"
+                             onClick={(e) => e.stopPropagation()}
+                           />
+                         </div>
+                         <div className="w-24 shrink-0">
+                            <Select
+                               value={placement.fieldType}
+                               onValueChange={(val) => val && handleUpdatePlacement(placement.id, { fieldType: val as WaiverFieldType })}
+                             >
+                               <SelectTrigger className="h-8 text-[10px] px-2" onClick={(e) => e.stopPropagation()}>
+                                 <SelectValue />
+                               </SelectTrigger>
+                               <SelectContent>
+                                  <SelectItem value="signature" className="text-xs">Signature</SelectItem>
+                                  <SelectItem value="initial" className="text-xs">Initial</SelectItem>
+                                  <SelectItem value="name" className="text-xs">Name</SelectItem>
+                                  <SelectItem value="date" className="text-xs">Date</SelectItem>
+                                  <SelectItem value="email" className="text-xs">Email</SelectItem>
+                                  <SelectItem value="phone" className="text-xs">Phone</SelectItem>
+                                  <SelectItem value="text" className="text-xs">Text</SelectItem>
+                                  <SelectItem value="checkbox" className="text-xs">Checkbox</SelectItem>
+                                  <SelectItem value="radio" className="text-xs">Radio</SelectItem>
+                                  <SelectItem value="dropdown" className="text-xs">Dropdown</SelectItem>
+                               </SelectContent>
+                             </Select>
+                         </div>
+                         <Badge variant="secondary" className="shrink-0 text-[10px] h-5">
+                           P{placement.pageIndex + 1}
                          </Badge>
                        </div>
 

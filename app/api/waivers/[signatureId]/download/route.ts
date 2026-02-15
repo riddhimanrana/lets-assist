@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
 import { getAuthUser } from '@/lib/supabase/auth-helpers';
 import { getAdminClient } from '@/lib/supabase/admin';
 import { generateSignedWaiverPdf, requiresPdfGeneration } from '@/lib/waiver/generate-signed-waiver-pdf';
+import { checkWaiverAccess, getContentDisposition } from '@/lib/waiver/preview-auth-helpers';
 import type { SignaturePayload } from '@/types/waiver-definitions';
 
 interface WaiverSignatureRecord {
   id: string;
+  user_id: string | null;
+  anonymous_id: string | null;
   waiver_pdf_url: string | null;
   signature_payload: SignaturePayload | null;
   signature_file_url: string | null;
@@ -46,18 +48,16 @@ export async function GET(
   { params }: { params: Promise<{ signatureId: string }> }
 ) {
   const { signatureId } = await params;
-  const supabase = await createClient();
+  const adminClient = getAdminClient();
   const { user } = await getAuthUser();
 
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
   // 1. Load waiver signature record
-  const { data: signature, error: sigError } = await supabase
+  const { data: signature, error: sigError } = await adminClient
     .from('waiver_signatures')
     .select(`
       id,
+      user_id,
+      anonymous_id,
       waiver_pdf_url,
       signature_payload,
       signature_file_url,
@@ -95,8 +95,8 @@ export async function GET(
 
   const typedSignature = signature as unknown as WaiverSignatureRecord;
 
-  // 2. Check authorization (must be project organizer or admin)
-  const { data: project } = await supabase
+  // 2. Check authorization (organizer, signer self-access, or authorized anonymous signer)
+  const { data: project } = await adminClient
     .from('projects')
     .select('creator_id, organization_id')
     .eq('id', typedSignature.project_id)
@@ -108,24 +108,38 @@ export async function GET(
 
   const typedProject = project as ProjectForAuth;
 
-  // Check if user is project creator
-  let hasPermission = typedProject.creator_id === user.id;
-
-  // Check if user is org admin/staff
-  if (!hasPermission && typedProject.organization_id) {
-    const { data: orgMember } = await supabase
+  // Check authorization using centralized helper
+  // Load org member data if needed
+  let orgMember = null;
+  if (typedProject.organization_id && user) {
+    const { data } = await adminClient
       .from('organization_members')
       .select('role')
       .eq('organization_id', typedProject.organization_id)
       .eq('user_id', user.id)
       .single();
-
-    if (orgMember && ['admin', 'staff'].includes(orgMember.role)) {
-      hasPermission = true;
-    }
+    
+    orgMember = data;
   }
 
-  if (!hasPermission) {
+  const url = new URL(request.url);
+  const anonymousSignupIdParam = url.searchParams.get('anonymousSignupId');
+
+  const authResult = checkWaiverAccess({
+    currentUserId: user?.id ?? null,
+    signature: {
+      user_id: typedSignature.user_id,
+      anonymous_id: typedSignature.anonymous_id,
+    },
+    project: {
+      creator_id: typedProject.creator_id,
+      organization_id: typedProject.organization_id,
+    },
+    orgMember,
+    anonymousSignupIdParam,
+  });
+
+  if (!authResult.hasPermission) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
   }
 
@@ -134,8 +148,6 @@ export async function GET(
   //    Priority 2: Multi-signer signature_payload (online mode with PDF generation)
   //    Priority 3: Legacy signature_storage_path (pre-migration draw/type signatures)
   //    Priority 4: Very old signature_file_url (ancient public URL format)
-
-  const adminClient = getAdminClient();
 
   // Priority 1: Uploaded full waiver (offline mode)
   if (typedSignature.upload_storage_path) {
@@ -161,7 +173,7 @@ export async function GET(
       return new NextResponse(data, {
         headers: {
           'Content-Type': contentType,
-          'Content-Disposition': `attachment; filename="waiver-${signatureId}.pdf"`,
+          'Content-Disposition': getContentDisposition(false, signatureId),
         },
       });
     } catch (error) {
@@ -220,7 +232,7 @@ export async function GET(
       return new NextResponse(new Uint8Array(pdfBuffer), {
         headers: {
           'Content-Type': 'application/pdf',
-          'Content-Disposition': `attachment; filename="signed-waiver-${signatureId}.pdf"`,
+          'Content-Disposition': getContentDisposition(false, signatureId),
         },
       });
     } catch (error) {
@@ -299,7 +311,7 @@ export async function GET(
       return new NextResponse(new Uint8Array(pdfBuffer), {
         headers: {
           'Content-Type': 'application/pdf',
-          'Content-Disposition': `attachment; filename="signed-waiver-${signatureId}.pdf"`,
+          'Content-Disposition': getContentDisposition(false, signatureId),
         },
       });
     } catch (error) {

@@ -13,7 +13,7 @@
 
 export type WaiverDefinitionScope = 'project' | 'global';
 export type WaiverDefinitionSource = 'project_pdf' | 'global_pdf' | 'rich_text';
-export type WaiverFieldType = 'signature' | 'text' | 'checkbox' | 'radio' | 'dropdown' | 'date';
+export type WaiverFieldType = 'signature' | 'name' | 'date' | 'email' | 'phone' | 'address' | 'text' | 'checkbox' | 'radio' | 'dropdown' | 'initial';
 export type WaiverFieldSource = 'pdf_widget' | 'custom_overlay';
 
 // ============================================================================
@@ -291,11 +291,18 @@ export interface WaiverBuilderSigner {
 export interface WaiverBuilderFieldMapping {
   signerRoleKey: string;
   required: boolean;
+  fieldKey?: string;
+  label?: string;
+  fieldType?: WaiverFieldType;
+  pageIndex?: number;
+  rect?: FieldRect;
+  pdfFieldName?: string;
 }
 
 export interface WaiverBuilderCustomPlacement {
   id: string;
   label: string;
+  fieldType: WaiverFieldType;
   signerRoleKey: string;
   required: boolean;
   pageIndex: number;
