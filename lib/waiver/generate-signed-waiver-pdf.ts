@@ -24,6 +24,11 @@ export interface PdfGenerationOptions {
  * 
  * Phase 2: Now supports both data URLs and storage paths for signatures.
  * If signature data is a storage path, storageResolver must be provided.
+ * 
+ * Phase 4 Coordinate System:
+ * - Input field coordinates are in PDF coordinate space (bottom-left origin, PDF points)
+ * - pdf-lib drawing APIs use the same bottom-left origin
+ * - Therefore coordinates are used directly without y-axis flipping
  */
 export async function generateSignedWaiverPdf(
   options: PdfGenerationOptions
@@ -60,8 +65,7 @@ export async function generateSignedWaiverPdf(
       // Handle typed signatures (draw text instead of image)
       if (signerSignature.method === 'typed') {
         const { x, y, height } = field.rect;
-        const pageHeight = page.getHeight();
-        const yPosition = pageHeight - y - height;
+        const yPosition = y;
 
         // Draw typed signature as text
         const fontSize = Math.min(height * 0.6, 24); // Scale font to fit
@@ -132,10 +136,7 @@ export async function generateSignedWaiverPdf(
 
       // Calculate dimensions and position
       const { x, y, width, height } = field.rect;
-      const pageHeight = page.getHeight();
-
-      // Convert PDF coordinates (bottom-left origin) to pdf-lib coordinates
-      const yPosition = pageHeight - y - height;
+      const yPosition = y;
 
       // Draw the signature
       page.drawImage(signatureImage, {
@@ -171,17 +172,13 @@ export async function generateSignedWaiverPdf(
     
     const rect = field.rect || { x: 0, y: 0, width: 100, height: 20 };
     
-    // Convert PDF coordinates to pdf-lib (y is inverted from bottom-left origin)
-    const { height: pageHeight } = page.getSize();
-    const yPdfLib = pageHeight - rect.y - rect.height;
-    
     switch (field.field_type) {
       case 'text':
       case 'date':
         // Draw text value
         page.drawText(String(value), {
           x: rect.x,
-          y: yPdfLib,
+          y: rect.y,
           size: 10,
           color: rgb(0, 0, 0),
         });
@@ -192,7 +189,7 @@ export async function generateSignedWaiverPdf(
         if (value === true || value === 'true' || value === 'yes') {
           page.drawText('✓', {
             x: rect.x,
-            y: yPdfLib,
+            y: rect.y,
             size: 12,
             color: rgb(0, 0, 0),
           });
@@ -204,7 +201,7 @@ export async function generateSignedWaiverPdf(
         // Draw selected option
         page.drawText(String(value), {
           x: rect.x,
-          y: yPdfLib,
+          y: rect.y,
           size: 10,
           color: rgb(0, 0, 0),
         });

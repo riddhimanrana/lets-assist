@@ -596,7 +596,7 @@ describe('Phase 3: AI Schema with Candidate Selection', () => {
         { pageIndex: 0, width: 612, height: 792 },
       ];
 
-      const normalized = normalizeFieldsForOverlay(fields, pageDimensions, 1, 'bottom-left');
+      const normalized = normalizeFieldsForOverlay(fields, pageDimensions, 1);
 
       expect(normalized).toHaveLength(1);
       expect(normalized[0].pageIndex).toBe(0);

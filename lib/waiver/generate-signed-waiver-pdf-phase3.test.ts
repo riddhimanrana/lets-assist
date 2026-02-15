@@ -2,16 +2,16 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { generateSignedWaiverPdf } from './generate-signed-waiver-pdf';
 import type { SignaturePayload } from '@/types/waiver-definitions';
 
+const mockPage = {
+  getHeight: vi.fn(() => 800),
+  getWidth: vi.fn(() => 600),
+  getSize: vi.fn(() => ({ height: 800, width: 600 })),
+  drawImage: vi.fn(),
+  drawText: vi.fn(),
+};
+
 // Mock pdf-lib
 vi.mock('pdf-lib', () => {
-  const mockPage = {
-    getHeight: vi.fn(() => 800),
-    getWidth: vi.fn(() => 600),
-    getSize: vi.fn(() => ({ height: 800, width: 600 })),
-    drawImage: vi.fn(),
-    drawText: vi.fn(),
-  };
-
   const mockPdfDoc = {
     getPages: vi.fn(() => [mockPage]),
     getPage: vi.fn((_index: number) => mockPage),
@@ -142,13 +142,13 @@ describe('Phase 3: Non-Signature Field Stamping', () => {
       signers: [
         {
           role_key: 'volunteer',
-          method: 'typed',
-          data: 'John Doe',
+          method: 'draw',
+          data: 'data:image/png;base64,iVBORw0KGgoAAAANS',
           timestamp: '2026-02-10T10:00:00Z',
         },
       ],
       fields: {
-        volunteer_name: 'John Doe',
+        volunteer_name: 'Alice Smith',
       },
     };
 
@@ -161,6 +161,11 @@ describe('Phase 3: Non-Signature Field Stamping', () => {
     // Should successfully generate PDF with stamped fields
     expect(result).toBeInstanceOf(Buffer);
     expect(result.length).toBeGreaterThan(0);
+
+    const textCall = mockPage.drawText.mock.calls.find(([text]) => text === 'Alice Smith');
+    expect(textCall).toBeDefined();
+    expect(textCall?.[1]?.x).toBe(100);
+    expect(textCall?.[1]?.y).toBe(600);
   });
 
   it('should stamp checkbox fields when checked', async () => {
@@ -168,8 +173,8 @@ describe('Phase 3: Non-Signature Field Stamping', () => {
       signers: [
         {
           role_key: 'volunteer',
-          method: 'typed',
-          data: 'John Doe',
+          method: 'draw',
+          data: 'data:image/png;base64,iVBORw0KGgoAAAANS',
           timestamp: '2026-02-10T10:00:00Z',
         },
       ],
@@ -187,6 +192,11 @@ describe('Phase 3: Non-Signature Field Stamping', () => {
     // Should successfully generate PDF with checkbox stamped
     expect(result).toBeInstanceOf(Buffer);
     expect(result.length).toBeGreaterThan(0);
+
+    const checkboxCall = mockPage.drawText.mock.calls.find(([text]) => text === '✓');
+    expect(checkboxCall).toBeDefined();
+    expect(checkboxCall?.[1]?.x).toBe(100);
+    expect(checkboxCall?.[1]?.y).toBe(650);
   });
 
   it('should stamp date field values onto PDF', async () => {
