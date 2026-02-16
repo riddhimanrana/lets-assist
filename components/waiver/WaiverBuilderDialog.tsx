@@ -33,6 +33,7 @@ interface WaiverBuilderDialogProps {
   detectedFields: DetectedPdfField[];
   onSave: (definition: WaiverDefinitionInput) => Promise<void>;
   existingDefinition?: WaiverDefinitionFull;
+  existingDraftDefinition?: WaiverDefinitionInput | null;
 }
 
 export function WaiverBuilderDialog({
@@ -42,7 +43,8 @@ export function WaiverBuilderDialog({
   pdfUrl,
   detectedFields,
   onSave,
-  existingDefinition
+  existingDefinition,
+  existingDraftDefinition,
 }: WaiverBuilderDialogProps) {
   const [activeTab, setActiveTab] = useState("signers");
   const [isSaving, setIsSaving] = useState(false);
@@ -91,6 +93,27 @@ export function WaiverBuilderDialog({
   // Initialize state
   useEffect(() => {
     if (open) {
+      if (existingDraftDefinition) {
+        const loadedSigners = existingDraftDefinition.signers
+          .map((signer) => ({
+            roleKey: signer.roleKey,
+            label: signer.label,
+            required: signer.required,
+            orderIndex: signer.orderIndex,
+          }))
+          .sort((a, b) => a.orderIndex - b.orderIndex);
+
+        setSigners(
+          loadedSigners.length > 0
+            ? loadedSigners
+            : [{ roleKey: "volunteer", label: "Volunteer", required: true, orderIndex: 0 }]
+        );
+
+        setFieldMappings(existingDraftDefinition.fields?.detected ?? {});
+        setCustomPlacements(existingDraftDefinition.fields?.custom ?? []);
+        return;
+      }
+
       // If we have an existing definition, load it
       if (!existingDefinition) {
          setSigners([{ roleKey: "volunteer", label: "Volunteer", required: true, orderIndex: 0 }]);
@@ -141,7 +164,7 @@ export function WaiverBuilderDialog({
          setCustomPlacements(custom);
       }
     }
-  }, [open, existingDefinition]);
+  }, [open, existingDefinition, existingDraftDefinition]);
 
   const handleSave = async () => {
     // Validate
@@ -383,6 +406,7 @@ export function WaiverBuilderDialog({
               variant="outline"
               size="sm"
               className="gap-2 mr-6"
+              data-testid="waiver-ai-scan-button"
             >
               {isScanning ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -498,25 +522,25 @@ export function WaiverBuilderDialog({
                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
                               <div className="flex flex-col">
                                  <span className="text-muted-foreground">Signer Roles</span>
-                                 <span className="font-medium">{signers.length}</span>
+                                <span className="font-medium" data-testid="waiver-summary-signer-roles">{signers.length}</span>
                               </div>
                               <div className="flex flex-col">
                                  <span className="text-muted-foreground">Signature Fields</span>
-                                 <span className="font-medium">{detectedFields.filter(f => f.fieldType === 'signature').length}</span>
+                                <span className="font-medium" data-testid="waiver-summary-signature-fields">{detectedFields.filter(f => f.fieldType === 'signature').length}</span>
                               </div>
                               <div className="flex flex-col">
                                  <span className="text-muted-foreground">Other Fields</span>
-                                 <span className="font-medium">{detectedFields.filter(f => f.fieldType !== 'signature').length}</span>
+                                <span className="font-medium" data-testid="waiver-summary-other-fields">{detectedFields.filter(f => f.fieldType !== 'signature').length}</span>
                               </div>
                               <div className="flex flex-col">
                                 <span className="text-muted-foreground">Custom Placements</span>
-                                 <span className="font-medium">{customPlacements.length}</span>
+                                <span className="font-medium" data-testid="waiver-summary-custom-placements">{customPlacements.length}</span>
                               </div>
                            </div>
 
                            {/* Warning States */}
                            {(detectedFields.filter(f => f.fieldType === 'signature').length === 0) && (
-                              <div className="flex items-start gap-2 text-amber-600 bg-amber-50 dark:bg-amber-950/30 p-2 rounded mt-2">
+                            <div className="flex items-start gap-2 text-warning bg-warning/10 border border-warning/40 p-2 rounded mt-2">
                                  <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
                                  <span>No signature fields detected. Please use "Custom Signature Placements" below.</span>
                               </div>
@@ -524,7 +548,7 @@ export function WaiverBuilderDialog({
                            
                            {(detectedFields.filter(f => f.fieldType === 'signature').length > 0 && 
                              detectedFields.filter(f => f.fieldType === 'signature').length < signers.length) && (
-                              <div className="flex items-start gap-2 text-blue-600 bg-blue-50 dark:bg-blue-950/30 p-2 rounded mt-2">
+                            <div className="flex items-start gap-2 text-info bg-info/10 border border-info/40 p-2 rounded mt-2">
                                  <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
                                  <span>Fewer signature fields than signer roles. You may need custom placements.</span>
                               </div>
@@ -536,7 +560,7 @@ export function WaiverBuilderDialog({
                                (f.fieldType === 'text' || f.fieldType === 'unknown') && 
                                (f.fieldName.toLowerCase().includes('email') || f.fieldName.toLowerCase().includes('phone'))
                              )) && (
-                              <div className="flex items-start gap-2 text-orange-600 bg-orange-50 dark:bg-orange-950/30 p-2 rounded mt-2">
+                            <div className="flex items-start gap-2 text-warning bg-warning/10 border border-warning/40 p-2 rounded mt-2">
                                  <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
                                  <span>Guardian role detected but no contact fields found. Ensure you collect email/phone.</span>
                               </div>

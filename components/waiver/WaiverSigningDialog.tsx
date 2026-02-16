@@ -6,7 +6,9 @@ import {
   DialogContent, 
   DialogHeader, 
   DialogTitle,
-  DialogDescription
+  DialogDescription,
+  DialogPortal,
+  DialogOverlay
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { SignerData, SignaturePayload, WaiverDefinitionSigner, WaiverDefinitionFull, WaiverDefinitionField } from "@/types/waiver-definitions";
@@ -17,7 +19,7 @@ import { PdfViewerWithOverlay, CustomPlacement } from "./PdfViewerWithOverlay";
 import { WaiverFieldForm } from "./WaiverFieldForm";
 import { WaiverConsentStep } from "./WaiverConsentStep";
 import { cn } from "@/lib/utils";
-import { Loader2, ArrowLeft, ArrowRight, CheckCircle, Upload } from "lucide-react";
+import { Loader2, ArrowLeft, ArrowRight, CheckCircle, Upload, PenTool, ExternalLink } from "lucide-react";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -407,8 +409,14 @@ export function WaiverSigningDialog({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(val) => !isSubmitting && onClose(val)}>
-      <DialogContent className="w-[98vw] max-w-[98vw] sm:max-w-[98vw] md:max-w-[95vw] lg:max-w-[92vw] xl:max-w-screen-2xl h-[95vh] sm:h-[90vh] p-0 gap-0 overflow-hidden flex flex-col relative">
+    <Dialog open={isOpen} onOpenChange={(val) => !isSubmitting && onClose(val)} modal={true}>
+      <DialogPortal>
+        <DialogOverlay className="z-9998" />
+        <DialogContent 
+          data-testid="waiver-signer-dialog" 
+          className="w-[95vw] max-w-[95vw] sm:max-w-[90vw] md:max-w-[85vw] lg:max-w-[80vw] xl:max-w-[75vw] 2xl:max-w-7xl h-[90vh] sm:h-[85vh] p-0 gap-0 overflow-hidden flex flex-col fixed! top-[5vh]! left-1/2! -translate-x-1/2! translate-y-0! z-9999"
+          showCloseButton={false}
+        >
         {/* Loading Overlay During Submission */}
         {isSubmitting && (
           <div className="absolute inset-0 z-50 bg-black/50 flex items-center justify-center">
@@ -508,20 +516,22 @@ export function WaiverSigningDialog({
                     {currentStep?.type === 'review' && (
                         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                            {isDesktop && (
-                               <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-900/30 rounded-lg p-4 text-sm text-amber-800 dark:text-amber-200 mb-4">
+                           <div className="bg-primary/10 border border-primary/30 rounded-lg p-4 text-sm mb-4">
                                    Please review the waiver document on the left carefully.
                                </div>
                            )}
                            
                            {!isDesktop && waiverPdfUrl && (
-                               // Mobile: Inline PDF viewer for review step
-                               <div className="h-96 border rounded-md overflow-hidden mb-6 shadow-sm">
-                                   <WaiverSigningPdfPane
-                                        pdfUrl={waiverPdfUrl}
-                                        onDownload={handleDownload}
-                                        onPrint={handlePrint}
-                                        className="h-full w-full scale-90 origin-top" // Slight scale down for mobile fit
-                                    />
+                               // Mobile: Button to open PDF in new tab
+                               <div className="mb-6">
+                                   <Button 
+                                       variant="outline" 
+                                       className="w-full" 
+                                       onClick={() => window.open(waiverPdfUrl, '_blank')}
+                                   >
+                                       <ExternalLink className="h-4 w-4 mr-2" />
+                                       View Waiver Document (opens in new tab)
+                                   </Button>
                                </div>
                            )}
 
@@ -531,11 +541,56 @@ export function WaiverSigningDialog({
                                waiverTitle={effectiveDefinition.title}
                            />
                            
-                           {allowUpload && (
+                           {/* Choice between E-Sign and Print/Upload */}
+                           {!disableEsignature && (
+                               <div className="pt-6 mt-6 border-t">
+                                   <h4 className="font-semibold text-sm mb-4">How would you like to sign?</h4>
+                                   <div className="grid gap-3">
+                                       <div className="p-4 border-2 border-primary rounded-lg bg-primary/5">
+                                           <div className="flex items-start gap-3">
+                                               <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                                                   <PenTool className="h-5 w-5 text-primary" />
+                                               </div>
+                                               <div className="flex-1">
+                                                   <h5 className="font-medium text-sm mb-1">Sign Electronically (Recommended)</h5>
+                                                   <p className="text-xs text-muted-foreground mb-3">
+                                                       Complete your signature directly in your browser. Fast and secure.
+                                                   </p>
+                                                   <Button variant="default" size="sm" onClick={handleNext} disabled={!consented} className="w-full">
+                                                       Continue to E-Sign
+                                                   </Button>
+                                               </div>
+                                           </div>
+                                       </div>
+                                       
+                                       {allowUpload && (
+                                           <div className="p-4 border rounded-lg">
+                                               <div className="flex items-start gap-3">
+                                                   <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center shrink-0">
+                                                       <Upload className="h-5 w-5 text-muted-foreground" />
+                                                   </div>
+                                                   <div className="flex-1">
+                                                       <h5 className="font-medium text-sm mb-1">Print, Sign & Upload</h5>
+                                                       <p className="text-xs text-muted-foreground mb-3">
+                                                           Download the waiver, print it, sign manually, and upload a photo or scan.
+                                                       </p>
+                                                       <Button variant="outline" size="sm" onClick={handleOfflineUpload} className="w-full">
+                                                           <Upload className="mr-2 h-4 w-4" /> Upload Signed Copy
+                                                       </Button>
+                                                   </div>
+                                               </div>
+                                           </div>
+                                       )}
+                                   </div>
+                               </div>
+                           )}
+                           
+                           {/* Print/Upload only mode */}
+                           {disableEsignature && allowUpload && (
                                <div className="pt-8 mt-8 border-t">
                                    <div className="text-center">
-                                       <p className="text-sm text-muted-foreground mb-3">Already have a signed copy?</p>
-                                       <Button variant="outline" size="sm" onClick={handleOfflineUpload} className="w-full">
+                                       <p className="text-sm text-muted-foreground mb-3">This waiver requires a printed and signed copy.</p>
+                                       <Button variant="default" size="sm" onClick={handleOfflineUpload} className="w-full">
                                             <Upload className="mr-2 h-4 w-4" /> Upload Signed Waiver
                                        </Button>
                                    </div>
@@ -578,7 +633,7 @@ export function WaiverSigningDialog({
                     {currentStep?.type === 'sign' && currentStep.signer && (
                         <div className="animate-in fade-in slide-in-from-right-4 duration-300">
                              {disableEsignature && (
-                                <Alert className="mb-4 border-amber-200 bg-amber-50 dark:bg-amber-950/20">
+                                <Alert className="mb-4 border-warning/40 bg-warning/10 text-warning">
                                   <AlertDescription className="text-sm">
                                     ⚠️ This waiver requires a printed, signed, and uploaded copy. E-signatures are not available.
                                   </AlertDescription>
@@ -626,52 +681,66 @@ export function WaiverSigningDialog({
 
              {/* Footer Controls */}
              <div className="p-4 border-t bg-background shrink-0 flex items-center justify-between gap-4 z-20 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-                <Button 
-                    variant="outline" 
-                    onClick={handleBack} 
-                    disabled={isSubmitting || currentStepIndex === 0}
-                >
-                    <ArrowLeft className="h-4 w-4 mr-2" /> Back
-                </Button>
-
-                <div className="flex gap-2">
-                  {/* Skip button for optional signers */}
-                  {currentStep?.type === 'sign' && currentStep.signer && !currentStep.signer.required && (
+                {currentStep?.type === 'review' && !disableEsignature ? (
+                  // Special footer for review step with choice - no nav buttons
+                  <div className="w-full text-center text-xs text-muted-foreground">
+                    Choose your signing method above to continue
+                  </div>
+                ) : (
+                  <>
                     <Button 
-                        variant="outline"
-                        onClick={handleSkipOptionalSigner} 
-                        disabled={isSubmitting}
-                        className="shadow-sm"
+                        variant="outline" 
+                        onClick={handleBack} 
+                        disabled={isSubmitting || currentStepIndex === 0}
+                      data-testid="waiver-signer-back"
                     >
-                        Skip (Optional)
+                        <ArrowLeft className="h-4 w-4 mr-2" /> Back
                     </Button>
-                  )}
 
-                  {currentStep?.isLast ? (
-                      <Button 
-                          onClick={handleSubmit} 
-                          disabled={!isStepValid || isSubmitting}
-                          className="w-32 shadow-md"
-                          variant="default" // Primary action
-                      >
-                          {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : (
-                              <>Complete <CheckCircle className="h-4 w-4 ml-2" /></>
-                          )}
-                      </Button>
-                  ) : (
-                      <Button 
-                          onClick={handleNext} 
-                          disabled={!isStepValid}
-                          className="shadow-sm"
-                      >
-                          Next <ArrowRight className="h-4 w-4 ml-2" />
-                      </Button>
-                  )}
-                </div>
+                    <div className="flex gap-2">
+                      {/* Skip button for optional signers */}
+                      {currentStep?.type === 'sign' && currentStep.signer && !currentStep.signer.required && (
+                        <Button 
+                            variant="outline"
+                            onClick={handleSkipOptionalSigner} 
+                            disabled={isSubmitting}
+                            className="shadow-sm"
+                          data-testid="waiver-signer-skip-optional"
+                        >
+                            Skip (Optional)
+                        </Button>
+                      )}
+
+                      {currentStep?.isLast ? (
+                          <Button 
+                              onClick={handleSubmit} 
+                              disabled={!isStepValid || isSubmitting}
+                              className="w-32 shadow-md"
+                              variant="default" // Primary action
+                              data-testid="waiver-signer-complete"
+                          >
+                              {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : (
+                                  <>Complete <CheckCircle className="h-4 w-4 ml-2" /></>
+                              )}
+                          </Button>
+                      ) : (
+                          <Button 
+                              onClick={handleNext} 
+                              disabled={!isStepValid || (currentStep?.type === 'review' && !consented)}
+                              className="shadow-sm"
+                              data-testid="waiver-signer-next"
+                          >
+                              Next <ArrowRight className="h-4 w-4 ml-2" />
+                          </Button>
+                      )}
+                    </div>
+                  </>
+                )}
              </div>
           </div>
         </div>
       </DialogContent>
+      </DialogPortal>
     </Dialog>
   );
 }

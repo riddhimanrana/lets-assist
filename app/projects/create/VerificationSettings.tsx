@@ -707,7 +707,8 @@ export default function VerificationSettings({
                         updateWaiverDefinitionAction?.(def);
                         setShowBuilder(false);
                      }}
-                     existingDefinition={undefined} // No existing DB definition yet
+                    existingDefinition={undefined} // No existing DB definition yet
+                    existingDraftDefinition={waiverDefinition ?? null}
                    />
                 )}
 

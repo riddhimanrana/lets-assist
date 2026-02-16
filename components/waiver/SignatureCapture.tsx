@@ -218,11 +218,11 @@ export function SignatureCapture({
           setMethod(v as "draw" | "typed" | "upload");
       }} className="w-full">
         <TabsList className={`grid w-full ${allowUpload ? 'grid-cols-3' : 'grid-cols-2'}`}>
-          <TabsTrigger value="draw" className="flex gap-2"><PenTool className="h-4 w-4" /> Draw</TabsTrigger>
-          <TabsTrigger value="typed" className="flex gap-2"><Type className="h-4 w-4" /> Type</TabsTrigger>
+          <TabsTrigger value="draw" className="flex gap-2" data-testid="signature-tab-draw"><PenTool className="h-4 w-4" /> Draw</TabsTrigger>
+          <TabsTrigger value="typed" className="flex gap-2" data-testid="signature-tab-typed"><Type className="h-4 w-4" /> Type</TabsTrigger>
           {/* Phase 1: Only show upload tab when explicitly allowed */}
           {allowUpload && (
-            <TabsTrigger value="upload" className="flex gap-2"><Upload className="h-4 w-4" /> Upload</TabsTrigger>
+            <TabsTrigger value="upload" className="flex gap-2" data-testid="signature-tab-upload"><Upload className="h-4 w-4" /> Upload</TabsTrigger>
           )}
         </TabsList>
 
@@ -230,6 +230,7 @@ export function SignatureCapture({
            <div ref={containerRef} className="rounded-lg border bg-background relative overflow-hidden">
             <canvas
               ref={canvasRef}
+              data-testid="signature-draw-canvas"
               className="w-full touch-none cursor-crosshair block"
               style={{ height: SIGNATURE_CANVAS_HEIGHT }}
               onPointerDown={startDrawing}
@@ -241,7 +242,7 @@ export function SignatureCapture({
           </div>
           <div className="flex justify-between items-center">
             <p className="text-xs text-muted-foreground">Sign with your mouse or finger</p>
-            <Button variant="ghost" size="sm" onClick={clearSignature} className="h-8">
+            <Button variant="ghost" size="sm" onClick={clearSignature} className="h-8" data-testid="signature-clear-button">
               <Eraser className="h-3 w-3 mr-1" /> Clear
             </Button>
           </div>
@@ -255,6 +256,7 @@ export function SignatureCapture({
               placeholder="Start typing your name..." 
               value={typedValue}
               onChange={(e) => setTypedValue(e.target.value)}
+              data-testid="signature-typed-input"
             />
           </div>
           {typedValue.trim() && (
@@ -281,7 +283,7 @@ export function SignatureCapture({
             {uploadError && <p className="text-xs text-destructive">{uploadError}</p>}
             
             {uploadDataUrl && !uploadError && (
-               <div className="p-3 border rounded-lg bg-green-50/50 dark:bg-green-900/20 text-green-700 dark:text-green-300 text-sm flex items-center gap-2">
+              <div className="p-3 border rounded-lg bg-success/10 border-success/30 text-success text-sm flex items-center gap-2">
                   <span className="font-medium">✓ File selected</span>
                </div>
             )}

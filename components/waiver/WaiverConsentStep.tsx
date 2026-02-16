@@ -25,6 +25,7 @@ export function WaiverConsentStep({
             checked={consented}
             onCheckedChange={(checked) => onConsent(checked as boolean)}
             className="mt-1"
+          data-testid="waiver-consent-checkbox"
         />
         <div className="space-y-1">
             <Label 
