@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
-import { getProjectStatus } from "@/utils/project";
 import { ReportContentButton } from "@/components/feedback/ReportContentButton";
 import {
   MapPin,
@@ -39,6 +38,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { Project as BaseProject, Organization, Signup } from "@/types";
+import { getProjectStatus as getProjectStatusUtil } from "@/utils/project";
 
 type ProjectWithExtras = BaseProject & {
   organizations?: Organization;
@@ -251,10 +251,10 @@ const getRemainingSpots = (project: ProjectWithExtras) => {
 };
 
 // Function to check if project has upcoming status
+// Uses actual event dates to determine if project is truly upcoming/in-progress
 const isUpcomingProject = (project: ProjectWithExtras) => {
-  return (
-    project.status === "upcoming" || getProjectStatus(project) === "upcoming"
-  );
+  const actualStatus = getProjectStatusUtil(project);
+  return actualStatus === "upcoming" || actualStatus === "in-progress";
 };
 
 // Function to get project organization or creator name
@@ -594,14 +594,14 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                     )}
                   </div>
                 </TableHead>
-                <TableHead className="w-[100px] text-right">Actions</TableHead>
+                <TableHead className="w-25 text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredProjects.map((project) => (
                 <TableRow key={project.id}>
                   <TableCell>
-                    <div className="max-w-[300px] sm:max-w-none">
+                    <div className="max-w-75 sm:max-w-none">
                       <div className="font-medium line-clamp-1">
                         {project.title}
                       </div>
@@ -628,7 +628,7 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                   <TableCell className="hidden sm:table-cell">
                     <div className="flex items-center gap-1">
                       <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                      <span className="text-sm truncate max-w-[180px]">
+                      <span className="text-sm truncate max-w-45">
                         {project.location}
                       </span>
                     </div>
@@ -717,7 +717,7 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
       )}
 
       {view === "map" && (
-        <div className="w-full h-[500px]">
+        <div className="w-full h-125">
           <ProjectsMapView initialProjects={filteredProjects} />
         </div>
       )}

@@ -435,7 +435,7 @@ export function WaiverBuilderDialog({
   return (
     <div>
     <Dialog open={open} onOpenChange={(val) => !isSaving && !isScanning && onOpenChange(val)}>
-      <DialogContent className="max-w-[98vw] md:max-w-[95vw] lg:max-w-7xl h-[95vh] md:h-[90vh] flex flex-col p-0 gap-0">
+      <DialogContent className="max-w-[98vw] md:max-w-[96vw] lg:max-w-350 h-[96vh] md:h-[94vh] flex flex-col p-0 gap-0">
         <DialogHeader className="px-4 md:px-6 py-3 border-b shrink-0">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
@@ -468,8 +468,8 @@ export function WaiverBuilderDialog({
         <div className="flex-1 overflow-hidden min-h-0">
           <ResizablePanelGroup orientation="horizontal" className="h-full">
             {/* Main Area: PDF Viewer (Left/Center) */}
-            <ResizablePanel defaultSize={60} minSize={40} maxSize={75} className="p-0">
-              <div className="h-full bg-muted/20 p-4 relative flex flex-col">
+            <ResizablePanel defaultSize="60%" minSize="40%" maxSize="75%" className="p-0 min-w-0">
+              <div className="h-full bg-muted/20 p-0 relative flex flex-col">
                 {effectivePdfUrl ? (
                   <PdfViewerWithOverlay
                     pdfUrl={effectivePdfUrl}
@@ -520,7 +520,7 @@ export function WaiverBuilderDialog({
             <ResizableHandle withHandle />
             
             {/* Sidebar: Configuration (Right) */}
-            <ResizablePanel defaultSize={40} minSize={25} maxSize={60} className="p-0">
+            <ResizablePanel defaultSize="40%" minSize="25%" maxSize="60%" className="p-0 min-w-0">
               <div className="h-full flex flex-col bg-background">
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
                   <TabsList className="w-full justify-start h-auto p-1 bg-muted/50 rounded-none border-b">

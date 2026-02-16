@@ -2287,8 +2287,11 @@ export async function getWaiverDownloadUrl(signupId: string, anonymousSignupId?:
     }
 
     // Fallback for typed signatures
-    if (waiverSignature.signature_text) {
-      return { signature: waiverSignature };
+    if (waiverSignature.signature_text || waiverSignature.signature_type === 'typed') {
+      return { 
+        signatureId: waiverSignature.id,
+        signature: waiverSignature 
+      };
     }
 
     return { error: "No waiver data available" };

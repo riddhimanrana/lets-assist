@@ -52,6 +52,7 @@ import { format, parseISO } from "date-fns";
 import Link from "next/link";
 import { ProjectsMapView } from "./ProjectsMapView";
 import type { Project } from "@/types";
+import { getProjectStatus } from "@/utils/project";
 
 
 
@@ -316,7 +317,12 @@ export const ProjectsInfiniteScroll: React.FC = () => {
     // Only filter for remaining spots - server is already filtering for status
     const hasRemainingSpots = getRemainingSpots(project) > 0;
 
-    return matchesDateRange && hasRemainingSpots;
+    // CRITICAL: Filter out completed events based on actual event dates
+    // The database status field may not be updated, so we use getProjectStatus()
+    const projectStatus = getProjectStatus(project);
+    const isActuallyUpcoming = projectStatus === "upcoming" || projectStatus === "in-progress";
+
+    return matchesDateRange && hasRemainingSpots && isActuallyUpcoming;
   });
 
   // Apply sorting if needed

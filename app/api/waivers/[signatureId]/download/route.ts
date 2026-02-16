@@ -15,6 +15,7 @@ interface WaiverSignatureRecord {
   signature_storage_path: string | null;
   signed_at: string | null;
   upload_storage_path: string | null;
+  signature_text: string | null;
   waiver_definition_id: string | null;
   project_id: string;
   waiver_definition?: {
@@ -62,6 +63,7 @@ export async function GET(
       signature_storage_path,
       signed_at,
       upload_storage_path,
+      signature_text,
       waiver_definition_id,
       project_id,
       signup_id,
@@ -346,6 +348,64 @@ export async function GET(
   if (typedSignature.signature_file_url) {
     // Very old format - public URL to signature, just redirect
     return NextResponse.redirect(typedSignature.signature_file_url);
+  }
+
+  // Priority 5: Legacy signature_text format (Phase 1 legacy compatibility)
+  if (typedSignature.signature_text) {
+    try {
+      const waiverPdfUrl = typedSignature.waiver_pdf_url || 
+                           typedSignature.waiver_definition?.pdf_public_url;
+      
+      if (!waiverPdfUrl) {
+         return NextResponse.json({ error: 'Waiver PDF not found for typed signature' }, { status: 404 });
+      }
+
+      const definition = typedSignature.waiver_definition || {
+        id: 'legacy-typed-definition',
+        pdf_public_url: waiverPdfUrl,
+        signers: [{
+          id: 'legacy-signer',
+          role_key: 'participant',
+          label: 'Participant Signature',
+          required: true,
+          order_index: 0,
+        }],
+        fields: [{
+          id: 'legacy-field',
+          field_key: 'participant_signature',
+          field_type: 'signature' as const,
+          page_index: 0,
+          rect: { x: 100, y: 650, width: 250, height: 60 },
+          signer_role_key: 'participant',
+        }],
+      };
+
+      const legacyPayload: SignaturePayload = {
+        signers: [{
+          role_key: 'participant',
+          method: 'typed',
+          data: typedSignature.signature_text,
+          timestamp: typedSignature.signed_at || new Date().toISOString(),
+        }],
+        fields: {},
+      };
+
+      const pdfBuffer = await generateSignedWaiverPdf({
+        waiverPdfUrl,
+        definition,
+        signaturePayload: legacyPayload,
+      });
+
+      return new NextResponse(new Uint8Array(pdfBuffer), {
+        headers: {
+          'Content-Type': 'application/pdf',
+          'Content-Disposition': getContentDisposition(false, signatureId),
+        },
+      });
+    } catch (error) {
+      console.error('Legacy typed signature PDF generation failed:', error);
+      return NextResponse.json({ error: 'Failed to generate PDF for typed signature' }, { status: 500 });
+    }
   }
 
   // No signature data found

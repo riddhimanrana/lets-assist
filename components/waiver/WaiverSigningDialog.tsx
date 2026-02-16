@@ -427,7 +427,7 @@ export function WaiverSigningDialog({
     <Dialog open={isOpen} onOpenChange={(val) => !isSubmitting && onClose(val)} modal={true}>
       <DialogContent 
         data-testid="waiver-signer-dialog" 
-        className="w-[96vw] max-w-330 h-[90vh] sm:h-[85vh] p-0 gap-0 overflow-hidden flex flex-col top-[5vh] translate-y-0"
+        className="w-[98vw] sm:max-w-[calc(100vw-2rem)] lg:max-w-350 h-[95vh] sm:h-[92vh] p-0 gap-0 overflow-hidden flex flex-col top-[2.5vh] translate-y-0"
         showCloseButton={true}
       >
         {/* Loading Overlay During Submission */}
@@ -464,9 +464,9 @@ export function WaiverSigningDialog({
                 defaultSize="56%"
                 minSize="34%"
                 maxSize="62%"
-                className="p-0! gap-0! min-w-0 bg-muted/20"
+                className="min-w-0 bg-muted/20"
               >
-                <div className="h-full w-full border-r relative">
+                <div className="h-full w-full relative">
                   {hasPdfDocument ? (
                     allPlacements.length > 0 ? (
                       <PdfViewerWithOverlay
@@ -531,10 +531,10 @@ export function WaiverSigningDialog({
                 defaultSize="44%"
                 minSize="38%"
                 maxSize="66%"
-                className="p-0! gap-0! min-w-0"
+                className="min-w-0"
               >
                 {/* Right Panel / Steps Container */}
-                <div className="h-full flex flex-col bg-background overflow-hidden relative z-10 border-l shadow-sm">
+                <div className="h-full flex flex-col bg-background overflow-hidden relative z-10 shadow-sm">
                   <div className="flex-1 overflow-y-auto p-4 sm:p-6 scroll-smooth">
                      {/* Step Content */}
                      <div className="space-y-6">
