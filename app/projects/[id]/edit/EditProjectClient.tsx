@@ -1121,10 +1121,10 @@ export default function EditProjectClient({ project }: Props) {
               control={form.control}
               name="require_login"
               render={({ field, fieldState }) => (
-                <Field className="flex flex-row items-center justify-between rounded-lg border p-4" data-invalid={fieldState.invalid}>
-                  <div className="space-y-0.5">
+                <Field className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-lg border p-4" data-invalid={fieldState.invalid}>
+                  <div className="space-y-0.5 min-w-0">
                     <FieldLabel htmlFor={field.name}>Require Account</FieldLabel>
-                    <FieldDescription>
+                    <FieldDescription className="break-words">
                       Require volunteers to create an account to sign up
                     </FieldDescription>
                   </div>
@@ -1143,10 +1143,10 @@ export default function EditProjectClient({ project }: Props) {
               control={form.control}
               name="waiver_required"
               render={({ field, fieldState }) => (
-                <Field className="flex flex-row items-center justify-between rounded-lg border p-4" data-invalid={fieldState.invalid}>
-                  <div className="space-y-0.5">
+                <Field className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-lg border p-4" data-invalid={fieldState.invalid}>
+                  <div className="space-y-0.5 min-w-0">
                     <FieldLabel htmlFor={field.name}>Require Waiver Signature</FieldLabel>
-                    <FieldDescription>
+                    <FieldDescription className="break-words">
                       Volunteers must sign your waiver PDF or the global template before signing up.
                     </FieldDescription>
                   </div>
@@ -1165,10 +1165,10 @@ export default function EditProjectClient({ project }: Props) {
               control={form.control}
               name="waiver_disable_esignature"
               render={({ field, fieldState }) => (
-                <Field className="flex flex-row items-center justify-between rounded-lg border p-4" data-invalid={fieldState.invalid}>
-                  <div className="space-y-0.5">
+                <Field className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-lg border p-4" data-invalid={fieldState.invalid}>
+                  <div className="space-y-0.5 min-w-0">
                     <FieldLabel htmlFor={field.name}>Enable E-Signatures</FieldLabel>
-                    <FieldDescription>
+                    <FieldDescription className="break-words">
                       Let volunteers draw or type signatures. Print &amp; upload remains available as a backup.
                     </FieldDescription>
                   </div>
@@ -1188,10 +1188,10 @@ export default function EditProjectClient({ project }: Props) {
               control={form.control}
               name="waiver_allow_upload"
               render={({ field, fieldState }) => (
-                <Field className="flex flex-row items-center justify-between rounded-lg border p-4" data-invalid={fieldState.invalid}>
-                  <div className="space-y-0.5">
+                <Field className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-lg border p-4" data-invalid={fieldState.invalid}>
+                  <div className="space-y-0.5 min-w-0">
                     <FieldLabel htmlFor={field.name}>Print &amp; Upload (Backup)</FieldLabel>
-                    <FieldDescription>
+                    <FieldDescription className="break-words">
                       Print &amp; upload is always available as a backup option for volunteers.
                     </FieldDescription>
                   </div>
@@ -1335,10 +1335,10 @@ export default function EditProjectClient({ project }: Props) {
               control={form.control}
               name="enable_volunteer_comments"
               render={({ field, fieldState }) => (
-                <Field className="flex flex-row items-center justify-between rounded-lg border p-4" data-invalid={fieldState.invalid}>
-                  <div className="space-y-0.5">
+                <Field className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-lg border p-4" data-invalid={fieldState.invalid}>
+                  <div className="space-y-0.5 min-w-0">
                     <FieldLabel htmlFor={field.name}>Enable Volunteer Comments</FieldLabel>
-                    <FieldDescription>
+                    <FieldDescription className="break-words">
                       Allow volunteers to include a short note when signing up
                     </FieldDescription>
                   </div>
@@ -1357,10 +1357,10 @@ export default function EditProjectClient({ project }: Props) {
               control={form.control}
               name="show_attendees_publicly"
               render={({ field, fieldState }) => (
-                <Field className="flex flex-row items-center justify-between rounded-lg border p-4" data-invalid={fieldState.invalid}>
-                  <div className="space-y-0.5">
+                <Field className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-lg border p-4" data-invalid={fieldState.invalid}>
+                  <div className="space-y-0.5 min-w-0">
                     <FieldLabel htmlFor={field.name}>Show Attendees Publicly</FieldLabel>
-                    <FieldDescription>
+                    <FieldDescription className="break-words">
                       Display attendee count on the public project page
                     </FieldDescription>
                   </div>

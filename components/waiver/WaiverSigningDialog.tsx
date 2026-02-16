@@ -6,9 +6,7 @@ import {
   DialogContent, 
   DialogHeader, 
   DialogTitle,
-  DialogDescription,
-  DialogPortal,
-  DialogOverlay
+  DialogDescription
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { SignerData, SignaturePayload, WaiverDefinitionSigner, WaiverDefinitionFull, WaiverDefinitionField } from "@/types/waiver-definitions";
@@ -18,11 +16,11 @@ import { WaiverSigningPdfPane } from "./WaiverSigningPdfPane";
 import { PdfViewerWithOverlay, CustomPlacement } from "./PdfViewerWithOverlay";
 import { WaiverFieldForm } from "./WaiverFieldForm";
 import { WaiverConsentStep } from "./WaiverConsentStep";
-import { cn } from "@/lib/utils";
-import { Loader2, ArrowLeft, ArrowRight, CheckCircle, Upload, PenTool, ExternalLink } from "lucide-react";
+import { Loader2, ArrowLeft, ArrowRight, CheckCircle, Upload, PenTool, ExternalLink, Download, Printer } from "lucide-react";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 
 interface WaiverSigningDialogProps {
   isOpen: boolean;
@@ -195,27 +193,44 @@ export function WaiverSigningDialog({
   }, [effectiveDefinition, sortedSigners]);
 
   const currentStep = steps[currentStepIndex];
+  const hasPdfDocument = Boolean(waiverPdfUrl);
 
-  // Filter signature fields for current signer (for tap-to-place overlays)
-  const currentSignerFields = useMemo(() => {
-    if (currentStep?.type !== 'sign' || !currentStep.signer) return [];
-    return effectiveDefinition.fields.filter(
-      f => f.field_type === 'signature' && f.signer_role_key === currentStep.signer?.role_key
-    );
-  }, [currentStep, effectiveDefinition.fields]);
+  const generatedWaiverPreview = useMemo(() => {
+    const templateContent = waiverTemplate?.content?.trim();
+    if (templateContent) return templateContent;
 
-  // Convert definition fields to CustomPlacement format for overlay
-  const customPlacements = useMemo<CustomPlacement[]>(() => {
-    return currentSignerFields.map(field => ({
+    const signerLabels = sortedSigners.map((s) => s.label).join(", ");
+    const signersText = signerLabels.length > 0 ? signerLabels : "Volunteer";
+
+    return [
+      "WAIVER & RELEASE OF LIABILITY",
+      "",
+      "By participating in this activity, I acknowledge and agree that participation may involve risks, including possible injury, loss, or damage.",
+      "",
+      "I voluntarily assume all such risks and release the organizer, host venue, and affiliated staff/volunteers from claims arising from my participation, except where prohibited by law.",
+      "",
+      `This waiver applies to the following signer role(s): ${signersText}.`,
+      "",
+      "I confirm that I have read this waiver, understand its contents, and agree that my electronic signature is legally binding.",
+      "",
+      "Signed electronically via Lets Assist.",
+    ].join("\n");
+  }, [waiverTemplate?.content, sortedSigners]);
+
+  // Convert ALL definition fields to placements for PDF overlay value rendering.
+  // (We still keep currentSignerFields for any step-specific UX decisions.)
+  const allPlacements = useMemo<CustomPlacement[]>(() => {
+    return (effectiveDefinition.fields || []).map((field) => ({
       id: field.id,
+      fieldKey: field.field_key,
       label: field.label,
-      signerRoleKey: field.signer_role_key || 'volunteer',
+      signerRoleKey: field.signer_role_key || 'global',
       fieldType: field.field_type,
       required: field.required,
       pageIndex: field.page_index,
-      rect: field.rect
+      rect: field.rect,
     }));
-  }, [currentSignerFields]);
+  }, [effectiveDefinition.fields]);
 
   // Logic to determine if current step is valid
   const isStepValid = useMemo(() => {
@@ -410,13 +425,11 @@ export function WaiverSigningDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={(val) => !isSubmitting && onClose(val)} modal={true}>
-      <DialogPortal>
-        <DialogOverlay className="z-9998" />
-        <DialogContent 
-          data-testid="waiver-signer-dialog" 
-          className="w-[95vw] max-w-[95vw] sm:max-w-[90vw] md:max-w-[85vw] lg:max-w-[80vw] xl:max-w-[75vw] 2xl:max-w-7xl h-[90vh] sm:h-[85vh] p-0 gap-0 overflow-hidden flex flex-col fixed! top-[5vh]! left-1/2! -translate-x-1/2! translate-y-0! z-9999"
-          showCloseButton={false}
-        >
+      <DialogContent 
+        data-testid="waiver-signer-dialog" 
+        className="w-[96vw] max-w-330 h-[90vh] sm:h-[85vh] p-0 gap-0 overflow-hidden flex flex-col top-[5vh] translate-y-0"
+        showCloseButton={true}
+      >
         {/* Loading Overlay During Submission */}
         {isSubmitting && (
           <div className="absolute inset-0 z-50 bg-black/50 flex items-center justify-center">
@@ -444,63 +457,342 @@ export function WaiverSigningDialog({
             </div>
         </DialogHeader>
 
-        <div className="flex-1 flex flex-col lg:flex-row min-h-0 overflow-hidden">
-          {/* PDF Panel - Left Side on Desktop */}
-          <div className={cn(
-             "flex-1 bg-muted/20 min-h-0 flex flex-col border-r h-full relative",
-             !isDesktop && "hidden" // Hide completely on mobile, use step-based view instead
-          )}>
-               {/* On mobile, ONLY show this pane if step is review */}
-             <div className={cn(
-                 "absolute inset-0 z-10 bg-background lg:static lg:bg-transparent lg:h-full lg:w-full",
-                 !isDesktop && currentStep?.type !== 'review' && "hidden"
-             )}>
-                 {waiverPdfUrl ? (
-                   /* Use PdfViewerWithOverlay for signature steps with field overlays */
-                   currentStep?.type === 'sign' && customPlacements.length > 0 ? (
-                     <PdfViewerWithOverlay
-                        pdfUrl={waiverPdfUrl}
+        <div className="flex-1 min-h-0 overflow-hidden">
+          {isDesktop ? (
+            <ResizablePanelGroup orientation="horizontal" className="h-full w-full">
+              <ResizablePanel
+                defaultSize="56%"
+                minSize="34%"
+                maxSize="62%"
+                className="p-0! gap-0! min-w-0 bg-muted/20"
+              >
+                <div className="h-full w-full border-r relative">
+                  {hasPdfDocument ? (
+                    allPlacements.length > 0 ? (
+                      <PdfViewerWithOverlay
+                        pdfUrl={waiverPdfUrl!}
                         detectedFields={[]}
-                        customPlacements={customPlacements}
+                        customPlacements={allPlacements}
                         selectedPlacementId={selectedFieldKey || undefined}
                         onPlacementClick={(placementId) => {
                           setSelectedFieldKey(placementId);
-                          // Open signature capture for this field
-                          // For now, we'll just highlight it. Full integration would show a modal.
                         }}
                         onDetectedFieldClick={undefined}
                         onAddPlacement={() => {}}
                         onPlacementResize={undefined}
                         mode="view"
                         highlightedField={null}
-                     />
-                   ) : (
-                     <WaiverSigningPdfPane
-                        pdfUrl={waiverPdfUrl}
+                        valueLayer={{
+                          fieldValues,
+                          signatures,
+                        }}
+                      />
+                    ) : (
+                      <WaiverSigningPdfPane
+                        pdfUrl={waiverPdfUrl!}
                         onDownload={handleDownload}
                         onPrint={handlePrint}
                         className="h-full w-full border-none rounded-none"
-                     />
-                   )
-                ) : (
-                   <div className="flex flex-col items-center justify-center h-full p-8 text-center text-muted-foreground group">
-                      <p>No PDF Document Available</p>
-                      {allowUpload && (
-                          <Button variant="outline" className="mt-4" onClick={handleOfflineUpload}>
+                      />
+                    )
+                  ) : (
+                    <div className="h-full flex flex-col bg-muted/20">
+                      <div className="px-4 py-3 border-b bg-background/90 text-xs text-muted-foreground">
+                        No waiver PDF is configured. Showing a generated waiver preview.
+                      </div>
+                      <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+                        <article className="mx-auto max-w-3xl rounded-lg border bg-background shadow-sm p-5 sm:p-6 space-y-4">
+                          <h3 className="text-base font-semibold">
+                            {waiverTemplate?.title || effectiveDefinition?.title || "Waiver"}
+                          </h3>
+                          <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-6">
+                            {generatedWaiverPreview}
+                          </p>
+                          <div className="pt-3 border-t text-xs text-muted-foreground">
+                            This generated text is shown because no signed PDF template is currently available.
+                          </div>
+                        </article>
+                        {allowUpload && (
+                          <div className="mt-4 flex justify-center">
+                            <Button variant="outline" onClick={handleOfflineUpload}>
                               <Upload className="mr-2 h-4 w-4" /> Upload Signed Copy Instead
-                          </Button>
-                      )}
-                   </div>
-                )}
-             </div>
-          </div>
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </ResizablePanel>
 
+              <ResizableHandle withHandle className="bg-border/70 hover:bg-border transition-colors" />
 
-          {/* Right Panel / Steps Container */}
-          <div className={cn(
-             "w-full lg:w-md xl:w-lg flex flex-col bg-background shrink-0 h-full overflow-hidden transition-all relative z-10",
-             isDesktop ? "border-l shadow-sm" : "absolute inset-0" // Mobile: take full screen over PDF
-          )}>
+              <ResizablePanel
+                defaultSize="44%"
+                minSize="38%"
+                maxSize="66%"
+                className="p-0! gap-0! min-w-0"
+              >
+                {/* Right Panel / Steps Container */}
+                <div className="h-full flex flex-col bg-background overflow-hidden relative z-10 border-l shadow-sm">
+                  <div className="flex-1 overflow-y-auto p-4 sm:p-6 scroll-smooth">
+                     {/* Step Content */}
+                     <div className="space-y-6">
+                         {/* Review Consent Step */}
+                         {currentStep?.type === 'review' && (
+                             <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                                <div className="bg-primary/10 border border-primary/30 rounded-lg p-4 text-sm mb-4">
+                                  {hasPdfDocument
+                                    ? "Please review the waiver document on the left carefully."
+                                    : "Please review the generated waiver text on the left carefully."}
+                                </div>
+
+                                {/* Always provide explicit PDF actions in the review step */}
+                                {waiverPdfUrl && (
+                                  <div className="grid gap-2 sm:grid-cols-3">
+                                    <Button
+                                      variant="outline"
+                                      className="w-full"
+                                      onClick={() => window.open(waiverPdfUrl, '_blank', 'noopener,noreferrer')}
+                                    >
+                                      <ExternalLink className="h-4 w-4 mr-2" />
+                                      View PDF
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      className="w-full"
+                                      onClick={handleDownload}
+                                    >
+                                      <Download className="h-4 w-4 mr-2" />
+                                      Download
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      className="w-full"
+                                      onClick={handlePrint}
+                                    >
+                                      <Printer className="h-4 w-4 mr-2" />
+                                      Print
+                                    </Button>
+                                  </div>
+                                )}
+
+                                {!hasPdfDocument && (
+                                  <div className="rounded-lg border bg-muted/30 p-4">
+                                    <p className="text-xs font-medium text-muted-foreground mb-2">Generated waiver preview</p>
+                                    <p className="text-sm text-muted-foreground whitespace-pre-wrap max-h-56 overflow-y-auto leading-6">
+                                      {generatedWaiverPreview}
+                                    </p>
+                                  </div>
+                                )}
+
+                                <WaiverConsentStep 
+                                    consented={consented}
+                                    onConsent={setConsented}
+                                    waiverTitle={effectiveDefinition.title}
+                                />
+
+                                {/* Choice between E-Sign and Print/Upload */}
+                                {!disableEsignature && (
+                                    <div className="pt-6 mt-6 border-t">
+                                        <h4 className="font-semibold text-sm mb-4">How would you like to sign?</h4>
+                                        <div className="grid gap-3">
+                                            <div className="p-3 sm:p-4 border-2 border-primary rounded-lg bg-primary/5">
+                                                <div className="flex flex-col sm:flex-row items-start gap-3">
+                                                    <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                                                        <PenTool className="h-5 w-5 text-primary" />
+                                                    </div>
+                                                    <div className="flex-1 min-w-0 w-full">
+                                                        <h5 className="font-medium text-sm mb-1">Sign Electronically (Recommended)</h5>
+                                                        <p className="text-xs text-muted-foreground mb-3">
+                                                            Complete your signature directly in your browser. Fast and secure.
+                                                        </p>
+                                                        <Button variant="default" size="sm" onClick={handleNext} disabled={!consented} className="w-full">
+                                                            Continue to E-Sign
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {allowUpload && (
+                                                <div className="p-3 sm:p-4 border rounded-lg">
+                                                    <div className="flex flex-col sm:flex-row items-start gap-3">
+                                                        <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center shrink-0">
+                                                            <Upload className="h-5 w-5 text-muted-foreground" />
+                                                        </div>
+                                                        <div className="flex-1 min-w-0 w-full">
+                                                            <h5 className="font-medium text-sm mb-1">Print, Sign & Upload</h5>
+                                                            <p className="text-xs text-muted-foreground mb-3">
+                                                                Download the waiver, print it, sign manually, and upload a photo or scan.
+                                                            </p>
+                                                            <Button variant="outline" size="sm" onClick={handleOfflineUpload} className="w-full">
+                                                                <Upload className="mr-2 h-4 w-4" /> Upload Signed Copy
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Print/Upload only mode */}
+                                {disableEsignature && allowUpload && (
+                                    <div className="pt-8 mt-8 border-t">
+                                        <div className="text-center">
+                                            <p className="text-sm text-muted-foreground mb-3">This waiver requires a printed and signed copy.</p>
+                                            <Button variant="default" size="sm" onClick={handleOfflineUpload} className="w-full">
+                                                <Upload className="mr-2 h-4 w-4" /> Upload Signed Waiver
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}
+                             </div>
+                         )}
+
+                         {/* Fields Step */}
+                         {currentStep?.type === 'fields' && (
+                             <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+                                 {currentStep.signer ? (
+                                     <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                                         <span className="bg-primary/10 text-primary w-6 h-6 rounded-full flex items-center justify-center text-xs">
+                                             {sortedSigners.indexOf(currentStep.signer) + 1}
+                                         </span>
+                                         {currentStep.signer.label} Details
+                                     </h3>
+                                 ) : (
+                                     <h3 className="text-lg font-semibold mb-4">
+                                         Your Information
+                                     </h3>
+                                 )}
+                                 <WaiverFieldForm
+                                     fields={
+                                         currentStep.signer 
+                                           ? effectiveDefinition.fields.filter(f => f.signer_role_key === currentStep.signer?.role_key)
+                                           : effectiveDefinition.fields.filter(f => !f.signer_role_key)
+                                     }
+                                     values={fieldValues}
+                                     onChange={handleFieldChange}
+                                     signerRoleKey={currentStep.signer?.role_key} 
+                                     showErrors={false}
+                                     className="pb-4"
+                                 />
+                             </div>
+                         )}
+
+                         {/* Signature Step */}
+                         {currentStep?.type === 'sign' && currentStep.signer && (
+                             <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+                                  {disableEsignature && (
+                                     <Alert className="mb-4 border-warning/40 bg-warning/10 text-warning">
+                                       <AlertDescription className="text-sm">
+                                         ⚠️ This waiver requires a printed, signed, and uploaded copy. E-signatures are not available.
+                                       </AlertDescription>
+                                     </Alert>
+                                  )}
+
+                                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                                     <span className="bg-primary/10 text-primary w-6 h-6 rounded-full flex items-center justify-center text-xs">
+                                         {sortedSigners.indexOf(currentStep.signer) + 1}
+                                     </span>
+                                     Sign as {currentStep.signer.label}
+                                 </h3>
+
+                                 {disableEsignature ? (
+                                     <div className="space-y-4">
+                                       <div className="p-6 border-2 border-dashed rounded-lg text-center">
+                                         <Upload className="h-12 w-12 mx-auto mb-3 text-muted-foreground" />
+                                         <p className="text-sm font-medium mb-2">Print and Upload Required</p>
+                                         <p className="text-xs text-muted-foreground mb-4">
+                                           Please download the waiver, print it, sign it, and upload a scanned copy.
+                                         </p>
+                                         <div className="flex flex-col gap-2">
+                                           <Button variant="outline" onClick={handleDownload}>
+                                             Download Waiver PDF
+                                           </Button>
+                                           <Button onClick={handleOfflineUpload}>
+                                             <Upload className="mr-2 h-4 w-4" /> Upload Signed Copy
+                                           </Button>
+                                         </div>
+                                       </div>
+                                     </div>
+                                 ) : (
+                                     <SignatureCapture 
+                                         signerRole={currentStep.signer}
+                                         onSignatureComplete={(sig) => handleSignatureComplete(currentStep.signer!.role_key, sig)}
+                                         existingSignature={signatures[currentStep.signer.role_key]}
+                                         userName={defaultSignerName}
+                                         allowUpload={false}
+                                     />
+                                 )}
+                             </div>
+                         )}
+                     </div>
+                  </div>
+
+                  {/* Footer Controls */}
+                  <div className="p-4 border-t bg-background shrink-0 flex items-center justify-between gap-4 z-20 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+                    {currentStep?.type === 'review' && !disableEsignature ? (
+                      <div className="w-full text-center text-xs text-muted-foreground">
+                        Choose your signing method above to continue
+                      </div>
+                    ) : (
+                      <>
+                        <Button 
+                            variant="outline" 
+                            onClick={handleBack} 
+                            disabled={isSubmitting || currentStepIndex === 0}
+                          data-testid="waiver-signer-back"
+                        >
+                            <ArrowLeft className="h-4 w-4 mr-2" /> Back
+                        </Button>
+
+                        <div className="flex gap-2">
+                          {currentStep?.type === 'sign' && currentStep.signer && !currentStep.signer.required && (
+                            <Button 
+                                variant="outline"
+                                onClick={handleSkipOptionalSigner} 
+                                disabled={isSubmitting}
+                                className="shadow-sm"
+                              data-testid="waiver-signer-skip-optional"
+                            >
+                                Skip (Optional)
+                            </Button>
+                          )}
+
+                          {currentStep?.isLast ? (
+                              <Button 
+                                  onClick={handleSubmit} 
+                                  disabled={!isStepValid || isSubmitting}
+                                  className="w-32 shadow-md"
+                                  variant="default"
+                                  data-testid="waiver-signer-complete"
+                              >
+                                  {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : (
+                                      <>Complete <CheckCircle className="h-4 w-4 ml-2" /></>
+                                  )}
+                              </Button>
+                          ) : (
+                              <Button 
+                                  onClick={handleNext} 
+                                  disabled={!isStepValid || (currentStep?.type === 'review' && !consented)}
+                                  className="shadow-sm"
+                                  data-testid="waiver-signer-next"
+                              >
+                                  Next <ArrowRight className="h-4 w-4 ml-2" />
+                              </Button>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </ResizablePanel>
+            </ResizablePanelGroup>
+          ) : (
+            <div className="h-full w-full min-h-0 overflow-hidden">
+              {/* Right Panel / Steps Container */}
+              <div className="w-full h-full flex flex-col bg-background overflow-hidden transition-all absolute inset-0 z-10">
              {/* Mobile Header (since global header might be covered or we want context) */}
              {!isDesktop && (
                  <div className="bg-muted/10 p-2 text-center text-xs font-medium border-b flex justify-between px-4 items-center">
@@ -509,7 +801,7 @@ export function WaiverSigningDialog({
                  </div>
              )}
 
-             <div className="flex-1 overflow-y-auto p-6 scroll-smooth">
+             <div className="flex-1 overflow-y-auto p-4 sm:p-6 scroll-smooth">
                 {/* Step Content */}
                 <div className="space-y-6">
                     {/* Review Consent Step */}
@@ -521,18 +813,43 @@ export function WaiverSigningDialog({
                                </div>
                            )}
                            
-                           {!isDesktop && waiverPdfUrl && (
-                               // Mobile: Button to open PDF in new tab
-                               <div className="mb-6">
-                                   <Button 
-                                       variant="outline" 
-                                       className="w-full" 
-                                       onClick={() => window.open(waiverPdfUrl, '_blank')}
-                                   >
-                                       <ExternalLink className="h-4 w-4 mr-2" />
-                                       View Waiver Document (opens in new tab)
-                                   </Button>
-                               </div>
+                           {/* Always provide explicit PDF actions in the review step */}
+                           {waiverPdfUrl && (
+                             <div className="grid gap-2 sm:grid-cols-3">
+                               <Button
+                                 variant="outline"
+                                 className="w-full"
+                                 onClick={() => window.open(waiverPdfUrl, '_blank', 'noopener,noreferrer')}
+                               >
+                                 <ExternalLink className="h-4 w-4 mr-2" />
+                                 View PDF
+                               </Button>
+                               <Button
+                                 variant="outline"
+                                 className="w-full"
+                                 onClick={handleDownload}
+                               >
+                                 <Download className="h-4 w-4 mr-2" />
+                                 Download
+                               </Button>
+                               <Button
+                                 variant="outline"
+                                 className="w-full"
+                                 onClick={handlePrint}
+                               >
+                                 <Printer className="h-4 w-4 mr-2" />
+                                 Print
+                               </Button>
+                             </div>
+                           )}
+
+                           {!hasPdfDocument && (
+                             <div className="rounded-lg border bg-muted/30 p-4">
+                               <p className="text-xs font-medium text-muted-foreground mb-2">Generated waiver preview</p>
+                               <p className="text-sm text-muted-foreground whitespace-pre-wrap max-h-56 overflow-y-auto leading-6">
+                                 {generatedWaiverPreview}
+                               </p>
+                             </div>
                            )}
 
                            <WaiverConsentStep 
@@ -546,12 +863,12 @@ export function WaiverSigningDialog({
                                <div className="pt-6 mt-6 border-t">
                                    <h4 className="font-semibold text-sm mb-4">How would you like to sign?</h4>
                                    <div className="grid gap-3">
-                                       <div className="p-4 border-2 border-primary rounded-lg bg-primary/5">
-                                           <div className="flex items-start gap-3">
+                                       <div className="p-3 sm:p-4 border-2 border-primary rounded-lg bg-primary/5">
+                                           <div className="flex flex-col sm:flex-row items-start gap-3">
                                                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                                                    <PenTool className="h-5 w-5 text-primary" />
                                                </div>
-                                               <div className="flex-1">
+                                               <div className="flex-1 min-w-0 w-full">
                                                    <h5 className="font-medium text-sm mb-1">Sign Electronically (Recommended)</h5>
                                                    <p className="text-xs text-muted-foreground mb-3">
                                                        Complete your signature directly in your browser. Fast and secure.
@@ -564,12 +881,12 @@ export function WaiverSigningDialog({
                                        </div>
                                        
                                        {allowUpload && (
-                                           <div className="p-4 border rounded-lg">
-                                               <div className="flex items-start gap-3">
+                                           <div className="p-3 sm:p-4 border rounded-lg">
+                                               <div className="flex flex-col sm:flex-row items-start gap-3">
                                                    <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center shrink-0">
                                                        <Upload className="h-5 w-5 text-muted-foreground" />
                                                    </div>
-                                                   <div className="flex-1">
+                                                   <div className="flex-1 min-w-0 w-full">
                                                        <h5 className="font-medium text-sm mb-1">Print, Sign & Upload</h5>
                                                        <p className="text-xs text-muted-foreground mb-3">
                                                            Download the waiver, print it, sign manually, and upload a photo or scan.
@@ -737,10 +1054,11 @@ export function WaiverSigningDialog({
                   </>
                 )}
              </div>
-          </div>
+              </div>
+            </div>
+          )}
         </div>
       </DialogContent>
-      </DialogPortal>
     </Dialog>
   );
 }

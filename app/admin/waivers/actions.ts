@@ -49,18 +49,19 @@ export async function getActiveGlobalTemplate(): Promise<WaiverDefinition | null
     `)
     .eq('scope', 'global')
     .eq('active', true)
-    .single();
-    
-    if (error) {
-        if (error.code === 'PGRST116') { // No rows found
-            return null;
-        }
-        console.error("Error fetching active global template:", error);
-        return null;
-    }
-  
+    // Be deterministic even if multiple active rows exist.
+    .order('created_at', { ascending: false })
+    .order('id', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Error fetching active global template:", error);
+    return null;
+  }
+
   // @ts-ignore
-  return data;
+  return data ?? null;
 }
 
 /**

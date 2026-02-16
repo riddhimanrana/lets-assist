@@ -19,6 +19,16 @@ interface CustomPlacementInput {
   required?: boolean;
 }
 
+function normalizeSignatureRect(rect: { x: number; y: number; width: number; height: number }) {
+  // Signature boxes frequently get detected as a single text-line height.
+  // Enforce a sane minimum so drawn signatures are readable.
+  return {
+    ...rect,
+    width: Math.max(rect.width, 180),
+    height: Math.max(rect.height, 50),
+  };
+}
+
 export function mapDetectedFieldsForDb(
   definitionId: string,
   mappings: DetectedFieldInput[]
@@ -30,7 +40,7 @@ export function mapDetectedFieldsForDb(
     label: mapping.label || mapping.fieldKey,
     source: 'pdf_widget' as const,
     page_index: mapping.pageIndex,
-    rect: mapping.rect,
+    rect: mapping.fieldType === 'signature' ? normalizeSignatureRect(mapping.rect) : mapping.rect,
     pdf_field_name: mapping.pdfFieldName || mapping.fieldKey,
     required: mapping.required ?? false,
     signer_role_key: mapping.signerRoleKey || null,
@@ -48,7 +58,9 @@ export function mapCustomPlacementsForDb(
     label: placement.label || 'Signature',
     source: 'custom_overlay' as const,
     page_index: placement.pageIndex,
-    rect: placement.rect,
+    rect: (placement.fieldType || 'signature') === 'signature'
+      ? normalizeSignatureRect(placement.rect)
+      : placement.rect,
     required: placement.required ?? true,
     signer_role_key: placement.signerRoleKey || null,
     pdf_field_name: null,

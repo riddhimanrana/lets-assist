@@ -138,12 +138,26 @@ export async function generateSignedWaiverPdf(
       const { x, y, width, height } = field.rect;
       const yPosition = y;
 
+      // Signature boxes detected from text baselines can be too small.
+      // Enforce a sane minimum for image signatures while clamping to page bounds.
+      const pageWidth = page.getWidth();
+      const pageHeight = page.getHeight();
+
+      const minSigWidth = 180;
+      const minSigHeight = 50;
+
+      const desiredWidth = Math.max(width, minSigWidth);
+      const desiredHeight = Math.max(height, minSigHeight);
+
+      const finalWidth = Math.min(desiredWidth, Math.max(1, pageWidth - x));
+      const finalHeight = Math.min(desiredHeight, Math.max(1, pageHeight - yPosition));
+
       // Draw the signature
       page.drawImage(signatureImage, {
         x,
         y: yPosition,
-        width,
-        height,
+        width: finalWidth,
+        height: finalHeight,
       });
 
       // Add timestamp text below signature

@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Loader2 } from "lucide-reac
 import { cn } from "@/lib/utils";
 import { DetectedPdfField, PdfRect } from "@/lib/waiver/pdf-field-detect";
 import { WaiverFieldType } from "@/types/waiver-definitions";
+import type { SignerData } from "@/types/waiver-definitions";
 
 // Configure worker
 if (typeof window !== 'undefined' && !pdfjsLib.GlobalWorkerOptions.workerSrc) {
@@ -15,6 +16,8 @@ if (typeof window !== 'undefined' && !pdfjsLib.GlobalWorkerOptions.workerSrc) {
 
 export interface CustomPlacement {
   id: string;
+  /** For definition-backed fields, this maps to `waiver_definition_fields.field_key` (used to look up entered values). */
+  fieldKey?: string;
   label: string;
   signerRoleKey: string;
   fieldType: WaiverFieldType;
@@ -22,6 +25,11 @@ export interface CustomPlacement {
   pageIndex: number;
   rect: PdfRect;
 }
+
+export type PdfViewerValueLayer = {
+  fieldValues: Record<string, string | boolean | number | null | undefined>;
+  signatures: Record<string, SignerData | undefined>;
+};
 
 interface PdfViewerWithOverlayProps {
   pdfUrl: string;
@@ -34,6 +42,8 @@ interface PdfViewerWithOverlayProps {
   onPlacementResize?: (placementId: string, newRect: PdfRect) => void;
   mode: 'view' | 'add-signature' | 'edit';
   highlightedField?: DetectedPdfField | null;
+  /** Optional: renders entered field values/signatures over the PDF (DOM overlay). */
+  valueLayer?: PdfViewerValueLayer;
 }
 
 export function PdfViewerWithOverlay({
@@ -46,7 +56,8 @@ export function PdfViewerWithOverlay({
   onAddPlacement,
   onPlacementResize,
   mode,
-  highlightedField
+  highlightedField,
+  valueLayer
 }: PdfViewerWithOverlayProps) {
   const [pdfDoc, setPdfDoc] = useState<pdfjsLib.PDFDocumentProxy | null>(null);
   const [pageCount, setPageCount] = useState<number>(0);
@@ -116,7 +127,7 @@ export function PdfViewerWithOverlay({
   }, [highlightedField, pageCount]);
 
   return (
-    <div className="flex flex-col h-full bg-muted overflow-hidden border rounded-md">
+    <div className="flex flex-col h-full bg-muted overflow-hidden">
       {/* Toolbar */}
       <div className="flex items-center justify-between px-3 py-2 bg-background border-b">
         <div className="flex items-center gap-1.5">
@@ -166,6 +177,7 @@ export function PdfViewerWithOverlay({
             onPlacementResize={onPlacementResize}
             mode={mode}
             highlightedField={highlightedField?.pageIndex === currentPage - 1 ? highlightedField : null}
+            valueLayer={valueLayer}
           />
         )}
       </div>
@@ -186,6 +198,7 @@ interface PdfPageProps {
   onPlacementResize?: (placementId: string, newRect: PdfRect) => void;
   mode: 'view' | 'add-signature' | 'edit';
   highlightedField: DetectedPdfField | null;
+  valueLayer?: PdfViewerValueLayer;
 }
 
 function PdfPage({
@@ -200,7 +213,8 @@ function PdfPage({
   onAddPlacement,
   onPlacementResize,
   mode,
-  highlightedField
+  highlightedField,
+  valueLayer
 }: PdfPageProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -434,6 +448,12 @@ function PdfPage({
       {/* Custom Placements Overlay */}
       {customPlacements.map((placement) => {
         const isSelected = selectedPlacementId === placement.id;
+
+        const fieldValue = placement.fieldKey && valueLayer?.fieldValues
+          ? valueLayer.fieldValues[placement.fieldKey]
+          : undefined;
+
+        const signature = valueLayer?.signatures?.[placement.signerRoleKey] ?? undefined;
         
         return (
           <ResizablePlacement
@@ -444,10 +464,89 @@ function PdfPage({
             onPlacementClick={onPlacementClick}
             onPlacementResize={onPlacementResize}
             clampRectToPage={clampRectToPage}
+            mode={mode}
+            fieldValue={fieldValue}
+            signature={signature}
           />
         );
       })}
     </div>
+  );
+}
+
+export function WaiverPlacementValue({
+  placement,
+  fieldValue,
+  signature,
+}: {
+  placement: CustomPlacement;
+  fieldValue: string | boolean | number | null | undefined;
+  signature?: SignerData;
+}) {
+  // IMPORTANT: This overlay renders on top of a PDF canvas which is typically a white page,
+  // even when the app theme is dark. Keep the ink color black for readability.
+  const inkClass = "text-black/90";
+
+  if (placement.fieldType === 'signature') {
+    if (!signature) return null;
+
+    if (signature.method === 'typed') {
+      const text = signature.data?.trim();
+      if (!text) return null;
+      return (
+        <span
+          data-testid="waiver-placement-signature-typed"
+          className={cn(
+            "text-[11px] md:text-xs font-medium whitespace-nowrap overflow-hidden text-ellipsis max-w-full",
+            inkClass
+          )}
+          style={{ fontFamily: 'cursive' }}
+        >
+          {text}
+        </span>
+      );
+    }
+
+    const src = signature.data;
+    if (!src) return null;
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        data-testid="waiver-placement-signature-image"
+        alt={placement.label ? `${placement.label} signature` : 'Signature'}
+        src={src}
+        className="max-h-full max-w-full object-contain opacity-90"
+      />
+    );
+  }
+
+  if (typeof fieldValue === 'boolean') {
+    if (!fieldValue) return null;
+    return (
+      <span
+        data-testid="waiver-placement-checkbox"
+        className={cn("text-base md:text-lg font-bold", inkClass)}
+        aria-label="Checked"
+      >
+        ✓
+      </span>
+    );
+  }
+
+  if (fieldValue === null || fieldValue === undefined) return null;
+  const text = String(fieldValue).trim();
+  if (!text) return null;
+
+  return (
+    <span
+      data-testid="waiver-placement-text"
+      className={cn(
+        "text-[11px] md:text-xs font-medium whitespace-nowrap overflow-hidden text-ellipsis max-w-full",
+        inkClass
+      )}
+    >
+      {text}
+    </span>
   );
 }
 
@@ -459,6 +558,9 @@ interface ResizablePlacementProps {
   onPlacementClick: (placementId: string) => void;
   onPlacementResize?: (placementId: string, newRect: PdfRect) => void;
   clampRectToPage: (rect: PdfRect, minWidth?: number, minHeight?: number) => PdfRect;
+  mode: 'view' | 'add-signature' | 'edit';
+  fieldValue?: string | boolean | number | null;
+  signature?: SignerData;
 }
 
 function ResizablePlacement({
@@ -467,7 +569,10 @@ function ResizablePlacement({
   viewport,
   onPlacementClick,
   onPlacementResize,
-  clampRectToPage
+  clampRectToPage,
+  mode,
+  fieldValue,
+  signature
 }: ResizablePlacementProps) {
   const [isResizing, setIsResizing] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -610,31 +715,41 @@ function ResizablePlacement({
   const style = getStyle(placement.rect);
 
   const isSignature = placement.fieldType === 'signature';
+
+  const isEditable = mode === 'edit' && typeof onPlacementResize === 'function';
   
   return (
     <div
       style={style}
       className={cn(
-        "border-2 absolute hover:bg-opacity-30 transition-all z-20 flex items-center justify-center select-none rounded-sm",
+        "border-2 absolute hover:bg-opacity-30 transition-all z-20 select-none rounded-sm",
         isSignature ? "border-primary bg-primary/20" : "border-indigo-500 bg-indigo-500/20",
         isSelected && (isSignature ? "ring-2 ring-primary ring-offset-2 shadow-lg border-primary bg-primary/30" : "ring-2 ring-indigo-500 ring-offset-2 shadow-lg border-indigo-500 bg-indigo-500/30"),
         isResizing && "cursor-crosshair",
-        isDragging ? "cursor-grabbing opacity-80 shadow-xl" : "cursor-move"
+        isEditable ? (isDragging ? "cursor-grabbing opacity-80 shadow-xl" : "cursor-move") : "cursor-pointer"
       )}
       onClick={(e) => {
         e.stopPropagation();
         onPlacementClick(placement.id);
       }}
-      onMouseDown={handleDragStart}
+      onMouseDown={isEditable ? handleDragStart : undefined}
     >
-      <div className={cn(
-        "text-[9px] md:text-[10px] text-white px-1.5 py-0.5 rounded truncate max-w-full pointer-events-none font-medium",
-        isSignature ? "bg-primary" : "bg-indigo-600"
-      )}>
+      {/* Label */}
+      <div
+        className={cn(
+          "absolute left-1 top-1 text-[9px] md:text-[10px] text-white px-1.5 py-0.5 rounded truncate max-w-[calc(100%-0.5rem)] pointer-events-none font-medium",
+          isSignature ? "bg-primary" : "bg-indigo-600"
+        )}
+      >
         {placement.label || (isSignature ? "Signature" : placement.fieldType)}
       </div>
+
+      {/* Value overlay */}
+      <div className="absolute inset-0 flex items-center justify-center px-1.5 py-1 pointer-events-none">
+        <WaiverPlacementValue placement={placement} fieldValue={fieldValue} signature={signature} />
+      </div>
       
-      {isSelected && !isResizing && !isDragging && (
+      {isSelected && isEditable && !isResizing && !isDragging && (
         <>
           {/* Corner handles */}
           <div

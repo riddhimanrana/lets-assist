@@ -7,7 +7,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Eraser, PenTool, Type, Upload } from "lucide-react";
 import { WaiverDefinitionSigner, SignerData } from "@/types/waiver-definitions";
-import { useTheme } from "next-themes";
 
 const SIGNATURE_CANVAS_HEIGHT = 160;
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10MB
@@ -45,14 +44,11 @@ export function SignatureCapture({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const drawingRef = useRef(false);
   
-  const { theme, resolvedTheme } = useTheme();
-
-  // Get stroke color based on theme
-  const getStrokeColor = () => {
-    // resolvedTheme is the actual applied theme (light or dark)
-    const currentTheme = resolvedTheme || theme || 'light';
-    return currentTheme === 'dark' ? '#ffffff' : '#000000';
-  };
+  // IMPORTANT:
+  // We always store drawn signatures as BLACK ink because they are rendered/stamped onto
+  // a (typically white) PDF page. To keep the draw experience good in dark mode,
+  // the draw canvas background is forced to white.
+  const getStrokeColor = () => '#000000';
 
   // Initialize canvas only if method is draw
   useEffect(() => {
@@ -61,7 +57,7 @@ export function SignatureCapture({
       window.addEventListener("resize", resizeCanvas);
       return () => window.removeEventListener("resize", resizeCanvas);
     }
-  }, [method, resolvedTheme]); // Re-initialize when theme changes
+  }, [method]);
 
   const emitSignature = (data: string | null, sigMethod: "draw" | "typed" | "upload") => {
     if (data) {
@@ -226,8 +222,8 @@ export function SignatureCapture({
           )}
         </TabsList>
 
-        <TabsContent value="draw" className="space-y-2 mt-4">
-           <div ref={containerRef} className="rounded-lg border bg-background relative overflow-hidden">
+          <TabsContent value="draw" className="space-y-2 mt-4">
+            <div ref={containerRef} className="rounded-lg border bg-white relative overflow-hidden">
             <canvas
               ref={canvasRef}
               data-testid="signature-draw-canvas"

@@ -790,12 +790,15 @@ ${structuredInput}
 **INSTRUCTIONS**:
 
 1. **Look at the PDF visually** and identify where signatures, dates, names, initials, email, and phone fields should be filled in.
+   - **IMPORTANT**: This PDF may have MULTIPLE PAGES. Check ALL pages for fields, not just page 0.
+   - Each candidate has a pageIndex - make sure you select candidates from the correct page where you see the field.
 
 2. **For each field you find**:
-   - Look at the candidates array and find the candidateId that best matches the visual location
-   - The candidate should be near the label and in a logical fill-in location
+   - Look at the candidates array and find the candidateId that best matches the visual location AND page
+   - The candidate should be near the label, on the SAME PAGE, and in a logical fill-in location
    - Prefer candidates with higher scores and matching typeHints
-  - If the form has repeated sections (e.g., volunteer + parent/guardian), select candidates for EACH section, not just one
+   - If the form has repeated sections (e.g., volunteer + parent/guardian), select candidates for EACH section, not just one
+   - Pay attention to pageIndex in the candidate - a field on page 1 should use a candidate from pageIndex: 1
 
 3. **Be direct and accurate**:
    - Select exactly where someone would naturally sign or fill in the field
@@ -911,6 +914,12 @@ Look for these visual cues:
 Assign fields to: volunteer, parent, guardian, witness (based on waiver language)
 
 Also return signerRoles with roleKey/label/required. Include all distinct signer sections.
+
+**MULTI-PAGE HANDLING**:
+- This PDF has ${pageCount} page(s)
+- pageIndex is 0-based: page 1 = pageIndex 0, page 2 = pageIndex 1, etc.
+- Fields on different pages should have different pageIndex values
+- Make sure to check ALL pages for signature/form fields
 
 Page dimensions:
 ${JSON.stringify(pageDimensions)}

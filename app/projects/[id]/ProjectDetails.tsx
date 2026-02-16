@@ -1565,7 +1565,8 @@ export default function ProjectDetails({
             isSubmitting={loadingStates[currentScheduleId]}
             showCommentField={!!project.enable_volunteer_comments}
             waiverRequired={!!project.waiver_required}
-            waiverAllowUpload={project.waiver_allow_upload ?? true}
+            waiverAllowUpload={project.waiver_disable_esignature ? true : (project.waiver_allow_upload ?? true)}
+            waiverDisableEsignature={project.waiver_disable_esignature ?? false}
             waiverTemplate={waiverTemplate}
             waiverPdfUrl={waiverDefinition?.pdf_public_url || project.waiver_pdf_url || null}
             waiverDefinition={waiverDefinition}
@@ -1636,7 +1637,8 @@ export default function ProjectDetails({
           onConfirm={handleConfirmSignup}
           enableVolunteerComments={!!project.enable_volunteer_comments}
           waiverRequired={!!project.waiver_required}
-          waiverAllowUpload={project.waiver_allow_upload ?? true}
+          waiverAllowUpload={project.waiver_disable_esignature ? true : (project.waiver_allow_upload ?? true)}
+          waiverDisableEsignature={project.waiver_disable_esignature ?? false}
           waiverTemplate={waiverTemplate}
           waiverPdfUrl={waiverDefinition?.pdf_public_url || project.waiver_pdf_url || null}
           waiverDefinition={waiverDefinition}

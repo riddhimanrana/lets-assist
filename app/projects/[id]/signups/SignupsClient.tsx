@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Project } from "@/types";
-import { togglePauseSignups, unrejectSignup } from "../actions";
+import { getWaiverDownloadUrl, togglePauseSignups, unrejectSignup } from "../actions";
+import { getOrganizerSignupsWithWaiverStatus } from "./actions";
 import {
   formatScheduleDisplay,
   formatDateForDisplay,
@@ -286,55 +287,20 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
   // Update Supabase query to join anonymous_signups
   const loadSignups = async () => {
     setRefreshing(true);
-    const supabase = createClient();
+    try {
+      const result = await getOrganizerSignupsWithWaiverStatus(projectId);
 
-    const { data, error } = await supabase
-      .from("project_signups")
-      .select(`
-      id,
-      created_at,
-      status,
-      user_id,
-      anonymous_id, 
-      schedule_id,
-      volunteer_comment,
-      waiver_signature:waiver_signatures!waiver_signatures_signup_id_fkey (
-        id,
-        created_at,
-        signature_type,
-        signature_storage_path,
-        upload_storage_path,
-        signature_text,
-        signed_at,
-        signer_name,
-        signature_payload
-      ),
-      profile:profiles!left (
-        full_name,
-        username,
-        email,
-        phone
-      ),
-      anonymous_signup:anonymous_signups!project_signups_anonymous_id_fkey ( 
-        id,
-        name,
-        email,
-        phone_number,
-        confirmed_at
-      )
-      `)
-      .eq("project_id", projectId)
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      console.error("Error loading signups:", error);
-      console.log(error)
-      toast.error("Failed to load signups");
-    } else {
-      setSignups(data as unknown as Signup[]);
-      if (refreshing) {
-        toast.success("Signups refreshed successfully");
+      if (result && 'error' in result && result.error) {
+        toast.error(result.error);
+      } else {
+        setSignups((result as { signups: unknown[] }).signups as Signup[]);
+        if (refreshing) {
+          toast.success("Signups refreshed successfully");
+        }
       }
+    } catch (error) {
+      console.error("Error loading signups:", error);
+      toast.error("Failed to load signups");
     }
 
     setLoading(false);
@@ -400,14 +366,63 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
     }
   };
 
-  const handleOpenWaiverPreview = (signup: Signup) => {
+  const handleOpenWaiverPreview = async (signup: Signup) => {
     const waiverSignature = Array.isArray(signup.waiver_signature)
       ? signup.waiver_signature[0]
       : signup.waiver_signature;
 
     if (waiverSignature) {
-      setPreviewSignature(waiverSignature);
-      setPreviewOpen(true);
+      try {
+        // Resolve signatureId from server to avoid stale/incorrect embedded IDs.
+        const result = await getWaiverDownloadUrl(signup.id);
+
+        if (result?.error) {
+          toast.error(result.error);
+          return;
+        }
+
+        const resolvedId = result?.signatureId || waiverSignature.id;
+        if (!resolvedId) {
+          toast.error('Signature not found');
+          return;
+        }
+
+        setPreviewSignature({
+          ...waiverSignature,
+          id: resolvedId,
+        });
+        setPreviewOpen(true);
+      } catch (error) {
+        console.error('Error resolving waiver signature:', error);
+        toast.error('Failed to open waiver preview');
+      }
+    }
+  };
+
+  const handleDownloadWaiverForSignup = async (signupId: string) => {
+    try {
+      const result = await getWaiverDownloadUrl(signupId);
+
+      if (result?.error) {
+        toast.error(result.error);
+        return;
+      }
+
+      if (result?.signatureId) {
+        await handleDownloadWaiver(result.signatureId);
+        return;
+      }
+
+      if (result?.url) {
+        // Legacy/offline upload signed URL.
+        window.open(result.url, '_blank', 'noopener,noreferrer');
+        return;
+      }
+
+      toast.error('Signature not found');
+    } catch (error) {
+      console.error('Error downloading waiver:', error);
+      toast.error('Failed to download waiver');
     }
   };
 
@@ -623,7 +638,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
         </Button>
       </div>
 
-      <Card className="min-h-[400px] relative">
+      <Card className="min-h-100 relative">
 
         {loading && (
           <div className="absolute inset-0 flex items-center justify-center z-10">
@@ -785,9 +800,9 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
                           </div>
                         </TableCell>
                         {project?.enable_volunteer_comments && (
-                          <TableCell className="text-sm text-muted-foreground max-w-[200px]">
+                          <TableCell className="text-sm text-muted-foreground max-w-50">
                             {signup.volunteer_comment ? (
-                              <div className="max-h-[60px] overflow-y-auto text-wrap wrap-break-word whitespace-pre-wrap border border-border rounded p-2 bg-muted/20 text-xs leading-relaxed">
+                              <div className="max-h-15 overflow-y-auto text-wrap wrap-break-word whitespace-pre-wrap border border-border rounded p-2 bg-muted/20 text-xs leading-relaxed">
                                 {signup.volunteer_comment}
                               </div>
                             ) : (
@@ -816,8 +831,8 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
                                       <Eye className="mr-2 h-4 w-4" />
                                       View Waiver
                                     </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleDownloadWaiver(waiverSignature.id)} disabled={waiverDownloads[waiverSignature.id]}>
-                                      {waiverDownloads[waiverSignature.id] ? (
+                                    <DropdownMenuItem onClick={() => handleDownloadWaiverForSignup(signup.id)}>
+                                      {waiverSignature?.id && waiverDownloads[waiverSignature.id] ? (
                                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                       ) : (
                                         <Download className="mr-2 h-4 w-4" />
