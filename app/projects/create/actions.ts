@@ -19,6 +19,27 @@ const ALLOWED_DOCUMENT_TYPES = [
   "image/jpg"
 ];
 
+function isMissingWaiverDisableEsignatureColumnError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+
+  const pgError = error as {
+    code?: string;
+    message?: string;
+    details?: string;
+    hint?: string;
+  };
+
+  const combined = `${pgError.message ?? ""} ${pgError.details ?? ""} ${pgError.hint ?? ""}`.toLowerCase();
+  const referencesColumn = combined.includes("waiver_disable_esignature");
+  const schemaCacheLike =
+    combined.includes("schema cache") ||
+    combined.includes("could not find") ||
+    combined.includes("column");
+  const knownCode = pgError.code === "PGRST204" || pgError.code === "42703";
+
+  return referencesColumn && (knownCode || schemaCacheLike);
+}
+
 // Helper function to check if date/time is in the past, using user's local time
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const _isDateTimeInPast = (date: string, time: string, userNow: Date): boolean => {
@@ -172,37 +193,50 @@ export async function createBasicProject(
       weekdays: projectData.recurrence.weekdays || [],
     } : null;
 
+    const baseProjectPayload = {
+      creator_id: user.id,
+      title: projectData.basicInfo.title,
+      location: projectData.basicInfo.location,
+      location_data: projectData.basicInfo.locationData, // Add locationData field
+      description: projectData.basicInfo.description,
+      event_type: projectData.eventType,
+      verification_method: projectData.verificationMethod,
+      require_login: projectData.requireLogin,
+      enable_volunteer_comments: projectData.enableVolunteerComments || false,
+      show_attendees_publicly: projectData.showAttendeesPublicly || false,
+      waiver_required: projectData.waiverRequired || false,
+      waiver_allow_upload: true,
+      schedule: {
+        [projectData.eventType]: projectData.schedule[projectData.eventType],
+      },
+      status: "upcoming",
+      organization_id: organizationId || null, // Save organization_id if provided
+      visibility: projectData.visibility || 'public', // Set visibility (public/unlisted for all, org_only for org projects)
+      published: publishedState, // Add the published state tracking
+      project_timezone: projectData.basicInfo.projectTimezone || 'America/Los_Angeles', // Save project timezone with fallback
+      restrict_to_org_domains: projectData.restrictToOrgDomains || false, // Add domain restriction flag
+      workflow_status: isDraft ? 'draft' : 'published', // Support draft saving
+      recurrence_rule: recurrenceRule, // Support recurring projects
+    };
+
     // Create project in the database
-    const { data: project, error: projectError } = await supabase
+    let { data: project, error: projectError } = await supabase
       .from("projects")
       .insert({
-        creator_id: user.id,
-        title: projectData.basicInfo.title,
-        location: projectData.basicInfo.location,
-        location_data: projectData.basicInfo.locationData, // Add locationData field
-        description: projectData.basicInfo.description,
-        event_type: projectData.eventType,
-        verification_method: projectData.verificationMethod,
-        require_login: projectData.requireLogin,
-        enable_volunteer_comments: projectData.enableVolunteerComments || false,
-        show_attendees_publicly: projectData.showAttendeesPublicly || false,
-        waiver_required: projectData.waiverRequired || false,
-        waiver_allow_upload: true,
+        ...baseProjectPayload,
         waiver_disable_esignature: projectData.waiverDisableEsignature ?? false,
-        schedule: {
-          [projectData.eventType]: projectData.schedule[projectData.eventType],
-        },
-        status: "upcoming",
-        organization_id: organizationId || null, // Save organization_id if provided
-        visibility: projectData.visibility || 'public', // Set visibility (public/unlisted for all, org_only for org projects)
-        published: publishedState, // Add the published state tracking
-        project_timezone: projectData.basicInfo.projectTimezone || 'America/Los_Angeles', // Save project timezone with fallback
-        restrict_to_org_domains: projectData.restrictToOrgDomains || false, // Add domain restriction flag
-        workflow_status: isDraft ? 'draft' : 'published', // Support draft saving
-        recurrence_rule: recurrenceRule, // Support recurring projects
       })
       .select("id")
       .single();
+
+    // Backward compatibility for databases where this column doesn't exist yet.
+    if (projectError && isMissingWaiverDisableEsignatureColumnError(projectError)) {
+      ({ data: project, error: projectError } = await supabase
+        .from("projects")
+        .insert(baseProjectPayload)
+        .select("id")
+        .single());
+    }
 
     if (projectError || !project) {
       console.error("Error creating project:", projectError);
@@ -713,30 +747,41 @@ export async function updateDraft(projectId: string, projectData: Partial<EventF
   } : null;
 
   // Update the draft
-  const { error: updateError } = await supabase
+  const baseUpdatePayload = {
+    title: projectData.basicInfo.title,
+    location: projectData.basicInfo.location,
+    location_data: projectData.basicInfo.locationData,
+    description: projectData.basicInfo.description,
+    event_type: projectData.eventType,
+    verification_method: projectData.verificationMethod,
+    require_login: projectData.requireLogin,
+    enable_volunteer_comments: projectData.enableVolunteerComments || false,
+    show_attendees_publicly: projectData.showAttendeesPublicly || false,
+    waiver_required: projectData.waiverRequired || false,
+    waiver_allow_upload: true,
+    schedule: {
+      [projectData.eventType]: projectData.schedule[projectData.eventType],
+    },
+    visibility: projectData.visibility || 'public',
+    project_timezone: projectData.basicInfo.projectTimezone || 'America/Los_Angeles',
+    restrict_to_org_domains: projectData.restrictToOrgDomains || false,
+    recurrence_rule: recurrenceRule,
+  };
+
+  let { error: updateError } = await supabase
     .from("projects")
     .update({
-      title: projectData.basicInfo.title,
-      location: projectData.basicInfo.location,
-      location_data: projectData.basicInfo.locationData,
-      description: projectData.basicInfo.description,
-      event_type: projectData.eventType,
-      verification_method: projectData.verificationMethod,
-      require_login: projectData.requireLogin,
-      enable_volunteer_comments: projectData.enableVolunteerComments || false,
-      show_attendees_publicly: projectData.showAttendeesPublicly || false,
-      waiver_required: projectData.waiverRequired || false,
-      waiver_allow_upload: true,
+      ...baseUpdatePayload,
       waiver_disable_esignature: projectData.waiverDisableEsignature ?? false,
-      schedule: {
-        [projectData.eventType]: projectData.schedule[projectData.eventType],
-      },
-      visibility: projectData.visibility || 'public',
-      project_timezone: projectData.basicInfo.projectTimezone || 'America/Los_Angeles',
-      restrict_to_org_domains: projectData.restrictToOrgDomains || false,
-      recurrence_rule: recurrenceRule,
     })
     .eq("id", projectId);
+
+  if (updateError && isMissingWaiverDisableEsignatureColumnError(updateError)) {
+    ({ error: updateError } = await supabase
+      .from("projects")
+      .update(baseUpdatePayload)
+      .eq("id", projectId));
+  }
 
   if (updateError) {
     console.error("Error updating draft:", updateError);

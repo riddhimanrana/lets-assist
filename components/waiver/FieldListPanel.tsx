@@ -152,11 +152,11 @@ export function FieldListPanel({
 
         <div className="mt-2 flex items-center gap-1.5 text-xs">
           {isMapped ? (
-            <span className="text-green-600 flex items-center gap-1">
+            <span className="text-success flex items-center gap-1">
               <CheckCircle2 className="h-3 w-3" /> Configured
             </span>
           ) : (
-            <span className="text-amber-600 flex items-center gap-1">
+            <span className="text-warning flex items-center gap-1">
               <AlertCircle className="h-3 w-3" /> Needs assignment
             </span>
           )}
@@ -176,7 +176,7 @@ export function FieldListPanel({
            {requiredFieldsCount} Required Fields
         </Badge>
         {unassignedSignaturesCount > 0 && (
-          <Badge variant="outline" className="text-[10px] whitespace-nowrap h-5 text-amber-600 border-amber-200 bg-amber-50">
+          <Badge variant="outline" className="text-[10px] whitespace-nowrap h-5 text-warning border-warning/40 bg-warning/10">
              {unassignedSignaturesCount} Unassigned
           </Badge>
         )}
@@ -184,7 +184,7 @@ export function FieldListPanel({
 
       {/* Inline Warning Callout */}
       {unassignedSignaturesCount > 0 && (
-        <div className="shrink-0 mb-3 mx-1 p-2 bg-amber-50 border border-amber-200 rounded text-xs text-amber-800 flex items-start gap-2">
+        <div className="shrink-0 mb-3 mx-1 p-2 bg-warning/10 border border-warning/40 rounded text-xs text-warning flex items-start gap-2">
            <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
            <span>
              There are {unassignedSignaturesCount} signature fields not assigned to any role. 

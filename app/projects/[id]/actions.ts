@@ -93,6 +93,21 @@ function isWaiverFieldTypeConstraintError(error: unknown): boolean {
   return joined.includes("field_type") && (joined.includes("check constraint") || joined.includes("violat"));
 }
 
+function isMissingWaiverDisableEsignatureColumnError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+
+  const pgError = error as PostgrestErrorLike;
+  const combined = `${pgError.message ?? ""} ${pgError.details ?? ""} ${pgError.hint ?? ""}`.toLowerCase();
+  const referencesColumn = combined.includes("waiver_disable_esignature");
+  const schemaCacheLike =
+    combined.includes("schema cache") ||
+    combined.includes("could not find") ||
+    combined.includes("column");
+  const knownCode = pgError.code === "PGRST204" || pgError.code === "42703";
+
+  return referencesColumn && (knownCode || schemaCacheLike);
+}
+
 function toLegacyCompatibleWaiverFields(fields: Array<Record<string, unknown>>) {
   let changed = false;
 
@@ -377,11 +392,27 @@ export async function getProjectWaiver(projectId: string) {
     const serviceSupabase = getAdminClient();
 
     // First get the project's waiver config
-    const { data: project, error: projectError } = await serviceSupabase
+    let { data: project, error: projectError } = await serviceSupabase
       .from("projects")
       .select("waiver_required, waiver_allow_upload, waiver_disable_esignature, waiver_pdf_url, waiver_pdf_storage_path, waiver_definition_id")
       .eq("id", projectId)
       .maybeSingle();
+
+    if (projectError && isMissingWaiverDisableEsignatureColumnError(projectError)) {
+      const fallbackResult = await serviceSupabase
+        .from("projects")
+        .select("waiver_required, waiver_allow_upload, waiver_pdf_url, waiver_pdf_storage_path, waiver_definition_id")
+        .eq("id", projectId)
+        .maybeSingle();
+
+      projectError = fallbackResult.error;
+      project = fallbackResult.data
+        ? {
+            ...fallbackResult.data,
+            waiver_disable_esignature: false,
+          }
+        : null;
+    }
 
     if (projectError) {
       console.error("Error fetching project waiver config:", projectError);
@@ -713,11 +744,30 @@ async function persistWaiverSignature(params: {
   const serviceSupabase = getAdminClient();
 
   // Check for project-specific waiver PDF first
-  const { data: project } = await serviceSupabase
+  let { data: project } = await serviceSupabase
     .from("projects")
     .select("waiver_pdf_url, waiver_allow_upload, waiver_disable_esignature")
     .eq("id", params.projectId)
     .maybeSingle();
+
+  if (!project) {
+    const { data: fallbackProject, error: fallbackError } = await serviceSupabase
+      .from("projects")
+      .select("waiver_pdf_url, waiver_allow_upload")
+      .eq("id", params.projectId)
+      .maybeSingle();
+
+    if (fallbackError && !isMissingWaiverDisableEsignatureColumnError(fallbackError)) {
+      console.error("Error fetching project waiver settings:", fallbackError);
+    }
+
+    if (fallbackProject) {
+      project = {
+        ...fallbackProject,
+        waiver_disable_esignature: false,
+      };
+    }
+  }
 
   let templateId: string | null = params.waiverSignature.templateId === "project-pdf" ? null : params.waiverSignature.templateId;
   const waiverPdfUrl = project?.waiver_pdf_url || params.waiverSignature.waiverPdfUrl || null;

@@ -627,9 +627,16 @@ function normalizeSignerRoles(roles: ParsedRole[]): ParsedRole[] {
 
 export async function POST(request: NextRequest) {
   try {
-    const { user } = await getAuthUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // E2E Test Auth Bypass: Only enabled in non-production when ENABLE_E2E_AUTH_BYPASS is set
+    const isE2EBypassEnabled = 
+      process.env.NODE_ENV !== 'production' && 
+      process.env.ENABLE_E2E_AUTH_BYPASS === 'true';
+
+    if (!isE2EBypassEnabled) {
+      const authResult = await getAuthUser();
+      if (!authResult.user) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
     }
 
     const MAX_PDF_BYTES = 20 * 1024 * 1024; // 20MB

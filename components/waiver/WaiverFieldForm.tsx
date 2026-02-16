@@ -4,6 +4,7 @@ import { WaiverDefinitionField } from "@/types/waiver-definitions";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { DatePicker } from "@/components/ui/date-picker";
 import { 
   Select, 
   SelectContent, 
@@ -90,17 +91,20 @@ function FieldRenderer({
             onChange={(e) => onChange(e.target.value)}
             placeholder={field.meta?.placeholder as string || ""}
             className={cn(showError && "border-destructive focus-visible:ring-destructive")}
+            data-testid={`waiver-field-input-${field.field_key}`}
         />
       )}
 
       {field.field_type === 'date' && (
-        <Input 
-            type="date"
+        <DatePicker
             value={stringVal}
-            onChange={(e) => onChange(e.target.value)}
-            min={field.meta?.minDate as string}
-            max={field.meta?.maxDate as string}
-            className={cn(showError && "border-destructive focus-visible:ring-destructive")}
+            onChange={onChange}
+            minDate={field.meta?.minDate as string}
+            maxDate={field.meta?.maxDate as string}
+            placeholder="Pick a date"
+            error={showError}
+            className="w-full"
+            data-testid={`waiver-field-input-${field.field_key}`}
         />
       )}
 
@@ -111,13 +115,14 @@ function FieldRenderer({
                 checked={boolVal}
                 onCheckedChange={(checked) => onChange(checked as boolean)}
                 className={cn(showError && "border-destructive")}
+              data-testid={`waiver-field-checkbox-${field.field_key}`}
             />
-            <label 
+            <Label 
                 htmlFor={`field-${field.id}`} 
                 className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
             >
                 {field.meta?.checkboxLabel as string || "Confirm"}
-            </label>
+            </Label>
         </div>
       )}
 

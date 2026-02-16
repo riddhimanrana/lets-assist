@@ -54,3 +54,4 @@ robots.txt
 .playwright-mcp
 /test-results
 /test-assets
+/playwright-report
