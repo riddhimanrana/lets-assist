@@ -11,6 +11,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import type { Project } from "@/types";
+import { getProjectStatus } from "@/utils/project";
 
 // Map container styles
 const mapContainerStyle = {
@@ -132,7 +133,7 @@ function ProjectMapInfoWindow({ project, onClose }: { project: Project; onClose:
   };
 
   return (
-    <div className="custom-info-window bg-white dark:bg-black p-3 rounded-lg shadow-lg max-w-[300px] border">
+    <div className="custom-info-window bg-white dark:bg-black p-3 rounded-lg shadow-lg max-w-75 border">
       <button 
         className="absolute top-1 right-1 w-6 h-6 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-800" 
         onClick={onClose}
@@ -212,10 +213,15 @@ function MapContent({ initialProjects, projects: externalProjects }: ProjectsMap
     return R * c; // Distance in meters
   };
   
-  // Filter projects by distance
+  // Filter projects by distance AND exclude past events
   const filterProjectsByDistance = useCallback(() => {
     if (!userLocation) {
-      setFilteredProjects(projects);
+      // Even without location, filter out completed events
+      const upcomingProjects = projects.filter(project => {
+        const projectStatus = getProjectStatus(project);
+        return projectStatus === "upcoming" || projectStatus === "in-progress";
+      });
+      setFilteredProjects(upcomingProjects);
       return;
     }
     
@@ -224,7 +230,12 @@ function MapContent({ initialProjects, projects: externalProjects }: ProjectsMap
       if (!position) return false;
       
       const distance = calculateDistance(userLocation, position);
-      return distance <= RADIUS_METERS;
+      
+      // Also check if project is actually upcoming/in-progress based on dates
+      const projectStatus = getProjectStatus(project);
+      const isActuallyUpcoming = projectStatus === "upcoming" || projectStatus === "in-progress";
+      
+      return distance <= RADIUS_METERS && isActuallyUpcoming;
     });
     
     setFilteredProjects(filtered);
@@ -546,7 +557,7 @@ function MapContent({ initialProjects, projects: externalProjects }: ProjectsMap
 
 export function ProjectsMapView({ initialProjects, projects, className }: ProjectsMapViewProps) {
   return (
-    <div className={cn("w-full h-[500px] rounded-md border overflow-hidden relative", className)}>
+    <div className={cn("w-full h-125 rounded-md border overflow-hidden relative", className)}>
       <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ""}>
         <MapContent 
           initialProjects={initialProjects} 

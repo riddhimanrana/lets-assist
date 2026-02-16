@@ -84,31 +84,27 @@ export function checkWaiverAccess(params: AuthCheckParams): AuthCheckResult {
     };
   }
 
-  // Path 3: Anonymous signer access
-  if (!currentUserId && signature.anonymous_id) {
-    // Must provide anonymousSignupId parameter
-    if (!anonymousSignupIdParam) {
-      return {
-        hasPermission: false,
-        reason: 'unauthorized',
-        details: 'Anonymous signature requires anonymousSignupId parameter',
-      };
+  // Path 3: Anonymous signer access (or logged-in user with anonymous link)
+  if (signature.anonymous_id) {
+    // Must provide anonymousSignupId parameter for anonymous signatures
+    if (anonymousSignupIdParam) {
+      if (anonymousSignupIdParam === signature.anonymous_id) {
+        return {
+          hasPermission: true,
+          reason: 'anonymous',
+          details: 'Valid anonymous access (with matching anonymousSignupId)',
+        };
+      } else {
+        return {
+          hasPermission: false,
+          reason: 'unauthorized',
+          details: 'Invalid anonymousSignupId parameter (mismatch)',
+        };
+      }
     }
-
-    // Must match signature's anonymous_id
-    if (anonymousSignupIdParam !== signature.anonymous_id) {
-      return {
-        hasPermission: false,
-        reason: 'unauthorized',
-        details: 'Invalid anonymousSignupId parameter',
-      };
-    }
-
-    return {
-      hasPermission: true,
-      reason: 'anonymous',
-      details: 'Valid anonymous access',
-    };
+    
+    // Fallback: if user is logged in, but signed anonymously, we don't have a 
+    // direct link unless it was explicitly linked later or they have the token.
   }
 
   // No authorization path matched

@@ -293,6 +293,273 @@ function buildFallbackFieldsFromCandidates(
   });
 }
 
+const LABEL_TYPE_TO_FIELD_TYPE: Record<string, typeof FIELD_TYPES[number]> = {
+  signature: 'signature',
+  date: 'date',
+  printed_name: 'name',
+  name: 'name',
+  initials: 'initial',
+  email: 'email',
+  phone: 'phone',
+  address: 'address',
+  parent_guardian: 'signature',
+  witness: 'signature',
+};
+
+const MAX_FIELDS_PER_PAGE_TYPE = 3;
+
+const FIELD_TYPE_TO_LABEL_TYPES: Record<typeof FIELD_TYPES[number], string[]> = {
+  signature: ['signature', 'parent_guardian', 'witness'],
+  date: ['date'],
+  name: ['printed_name', 'name'],
+  initial: ['initials'],
+  email: ['email'],
+  phone: ['phone'],
+  address: ['address'],
+  text: [],
+  checkbox: [],
+  radio: [],
+  dropdown: [],
+};
+
+function buildLabelCountsByPageType(labels: { type: string; pageIndex: number }[], pageCount: number) {
+  const labelCounts = new Map<string, number>();
+
+  for (const label of labels) {
+    const fieldType = LABEL_TYPE_TO_FIELD_TYPE[label.type];
+    if (!fieldType) continue;
+
+    const pageIndex = normalizePageIndex(label.pageIndex, pageCount, false);
+    const key = `${pageIndex}:${fieldType}`;
+    labelCounts.set(key, (labelCounts.get(key) ?? 0) + 1);
+  }
+
+  return labelCounts;
+}
+
+function pruneFieldsByLabelCoverage({
+  fields,
+  labels,
+  selectableCandidates,
+  pageCount,
+}: {
+  fields: ParsedField[];
+  labels: { type: string; pageIndex: number }[];
+  selectableCandidates: SelectableCandidate[];
+  pageCount: number;
+}): ParsedField[] {
+  if (fields.length === 0) return fields;
+
+  const labelCounts = buildLabelCountsByPageType(labels, pageCount);
+  const candidatesByPage = new Map<number, SelectableCandidate[]>();
+
+  for (const candidate of selectableCandidates) {
+    const list = candidatesByPage.get(candidate.pageIndex) ?? [];
+    list.push(candidate);
+    candidatesByPage.set(candidate.pageIndex, list);
+  }
+
+  const grouped = new Map<string, ParsedField[]>();
+
+  for (const field of fields) {
+    const key = `${field.pageIndex}:${field.fieldType}`;
+    const list = grouped.get(key) ?? [];
+    list.push(field);
+    grouped.set(key, list);
+  }
+
+  const pruned: ParsedField[] = [];
+
+  for (const [key, groupFields] of grouped.entries()) {
+    const [pageIndexRaw, fieldTypeRaw] = key.split(':');
+    const pageIndex = Number(pageIndexRaw);
+    const fieldType = fieldTypeRaw as typeof FIELD_TYPES[number];
+    if (!Number.isFinite(pageIndex)) continue;
+
+    const labelCount = labelCounts.get(key) ?? 0;
+    const widgetFields = groupFields.filter((field) =>
+      field.notes?.includes('embedded PDF form widget')
+    );
+
+    let allowedCount = labelCount > 0 ? Math.min(labelCount, MAX_FIELDS_PER_PAGE_TYPE) : 0;
+    if (widgetFields.length > allowedCount) {
+      allowedCount = widgetFields.length;
+    }
+
+    if (allowedCount === 0) {
+      if (widgetFields.length > 0) {
+        pruned.push(...widgetFields);
+      }
+      continue;
+    }
+
+    const candidatesForPage = candidatesByPage.get(pageIndex) ?? [];
+    const labelTypes = FIELD_TYPE_TO_LABEL_TYPES[fieldType] ?? [];
+
+    const scored = groupFields.map((field) => {
+      if (field.notes?.includes('embedded PDF form widget')) {
+        return { field, score: 1000 };
+      }
+
+      let bestScore = 0;
+      let bestIou = 0;
+
+      for (const candidate of candidatesForPage) {
+        const iou = getIou(field.boundingBox, candidate.rect);
+        if (iou <= 0.1) continue;
+
+        const typeMatch = candidate.typeHint === fieldType ? 0.6 : 0;
+        const labelMatch = candidate.nearbyLabelTypes?.some((t) => labelTypes.includes(t)) ? 0.3 : 0;
+        const score = candidate.score + iou + typeMatch + labelMatch;
+
+        if (score > bestScore) {
+          bestScore = score;
+          bestIou = iou;
+        }
+      }
+
+      return { field, score: bestScore + bestIou };
+    });
+
+    scored.sort((a, b) => b.score - a.score);
+    pruned.push(...scored.slice(0, allowedCount).map((entry) => entry.field));
+  }
+
+  return pruned;
+}
+
+function ensurePageCoverageForLabels({
+  labels,
+  selectableCandidates,
+  existingFields,
+  pageDimensions,
+  pageCount,
+  defaultSignerRole,
+  roles,
+}: {
+  labels: { type: string; pageIndex: number }[];
+  selectableCandidates: SelectableCandidate[];
+  existingFields: ParsedField[];
+  pageDimensions: PageDimension[];
+  pageCount: number;
+  defaultSignerRole: string;
+  roles: ParsedRole[];
+}): ParsedField[] {
+  if (pageCount <= 1) return existingFields;
+
+  const labelCounts = new Map<string, number>();
+
+  for (const label of labels) {
+    const fieldType = LABEL_TYPE_TO_FIELD_TYPE[label.type];
+    if (!fieldType) continue;
+
+    const pageIndex = normalizePageIndex(label.pageIndex, pageCount, false);
+    const key = `${pageIndex}:${label.type}`;
+    labelCounts.set(key, (labelCounts.get(key) ?? 0) + 1);
+  }
+
+  const additions: ParsedField[] = [];
+  const usedCandidateIds = new Set<string>();
+
+  const getExistingCount = (pageIndex: number, fieldType: typeof FIELD_TYPES[number]) =>
+    existingFields.filter((field) => field.pageIndex === pageIndex && field.fieldType === fieldType).length +
+    additions.filter((field) => field.pageIndex === pageIndex && field.fieldType === fieldType).length;
+
+  const overlapsExisting = (pageIndex: number, candidate: SelectableCandidate) =>
+    [...existingFields, ...additions].some((field) => {
+      if (field.pageIndex !== pageIndex) return false;
+      return getIou(field.boundingBox, candidate.rect) > 0.35;
+    });
+
+  for (const [key, count] of labelCounts.entries()) {
+    const [pageIndexRaw, labelType] = key.split(':');
+    const pageIndex = Number(pageIndexRaw);
+    const fieldType = LABEL_TYPE_TO_FIELD_TYPE[labelType];
+    if (!fieldType || !Number.isFinite(pageIndex)) continue;
+
+    const targetCount = Math.min(Math.max(count, 1), MAX_FIELDS_PER_PAGE_TYPE);
+    let needed = targetCount - getExistingCount(pageIndex, fieldType);
+    if (needed <= 0) continue;
+
+    const signerRole = getRelevantSignerRole(labelType, roles, defaultSignerRole);
+
+    const candidatesForPage = selectableCandidates
+      .filter((candidate) => candidate.pageIndex === pageIndex)
+      .map((candidate) => {
+        const typeMatch = candidate.typeHint === fieldType ? 1 : 0;
+        const labelMatch = candidate.nearbyLabelTypes?.includes(labelType) ? 1 : 0;
+        const scoreBoost = typeMatch * 0.6 + labelMatch * 0.35;
+        return {
+          candidate,
+          score: candidate.score + scoreBoost,
+        };
+      })
+      .sort((a, b) => b.score - a.score || a.candidate.id.localeCompare(b.candidate.id));
+
+    for (const { candidate } of candidatesForPage) {
+      if (needed <= 0) break;
+      if (usedCandidateIds.has(candidate.id)) continue;
+
+      const typeMatch = candidate.typeHint === fieldType;
+      const labelMatch = candidate.nearbyLabelTypes?.includes(labelType) ?? false;
+
+      if (!typeMatch && !labelMatch) continue;
+      if (overlapsExisting(pageIndex, candidate)) continue;
+
+      additions.push({
+        fieldType,
+        label: candidate.label || defaultLabelForType(fieldType),
+        signerRole,
+        pageIndex: candidate.pageIndex,
+        boundingBox: {
+          x: candidate.rect.x,
+          y: candidate.rect.y,
+          width: candidate.rect.width,
+          height: candidate.rect.height,
+        },
+        required: candidate.required ?? fieldType === 'signature',
+        notes: `Auto-added for ${signerRole} to ensure per-page coverage from labels`,
+      });
+
+      usedCandidateIds.add(candidate.id);
+      needed -= 1;
+    }
+  }
+
+  if (additions.length === 0) return existingFields;
+
+  return normalizeFieldsForOverlay([...existingFields, ...additions], pageDimensions, pageCount);
+}
+
+function getRelevantSignerRole(labelType: string, roles: ParsedRole[], defaultRole: string): string {
+  if (roles.length <= 1) return defaultRole;
+
+  const normalizedType = labelType.toLowerCase();
+  
+  // Parent/Guardian roles
+  const parentTriggers = ['parent', 'guardian', 'father', 'mother', 'representative', 'legal'];
+  const isParentLabel = parentTriggers.some(t => normalizedType.includes(t));
+  
+  if (isParentLabel) {
+    const parentRole = roles.find(r => 
+      parentTriggers.some(t => r.roleKey.toLowerCase().includes(t) || r.label.toLowerCase().includes(t))
+    );
+    if (parentRole) return parentRole.roleKey;
+  }
+  
+  // Witness roles
+  const witnessTriggers = ['witness'];
+  const isWitnessLabel = witnessTriggers.some(t => normalizedType.includes(t));
+  if (isWitnessLabel) {
+    const witnessRole = roles.find(r => 
+        witnessTriggers.some(t => r.roleKey.toLowerCase().includes(t) || r.label.toLowerCase().includes(t))
+    );
+    if (witnessRole) return witnessRole.roleKey;
+  }
+
+  return defaultRole;
+}
+
 export function buildSelectableCandidates(
   candidates: CandidateArea[],
   widgets: DetectedPdfField[]
@@ -958,6 +1225,23 @@ Return only high-confidence fields that you can clearly see in the PDF.`,
         }
       }
     }
+
+    normalizedFields = ensurePageCoverageForLabels({
+      labels,
+      selectableCandidates,
+      existingFields: normalizedFields,
+      pageDimensions,
+      pageCount,
+      defaultSignerRole,
+      roles: normalizedSignerRoles,
+    });
+
+    normalizedFields = pruneFieldsByLabelCoverage({
+      fields: normalizedFields,
+      labels,
+      selectableCandidates,
+      pageCount,
+    });
 
     // Normalize signer roles (computed above)
 

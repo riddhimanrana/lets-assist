@@ -129,7 +129,7 @@ export function PdfViewerWithOverlay({
   return (
     <div className="flex flex-col h-full bg-muted overflow-hidden">
       {/* Toolbar */}
-      <div className="flex items-center justify-between px-3 py-2 bg-background border-b">
+      <div className="flex-none px-4 border-b bg-background/95 backdrop-blur flex items-center justify-between sticky top-0 z-30 h-10 shrink-0">
         <div className="flex items-center gap-1.5">
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={prevPage} disabled={currentPage <= 1}>
             <ChevronLeft className="h-4 w-4" />
@@ -156,7 +156,7 @@ export function PdfViewerWithOverlay({
       <div 
         ref={containerRef}
         className={cn(
-          "flex-1 overflow-auto p-4 flex justify-center relative bg-muted/50", 
+          "flex-1 overflow-auto p-1 sm:p-2 flex justify-center relative bg-muted/20", 
           mode === 'add-signature' ? "cursor-crosshair" : "cursor-default"
         )}
       >
@@ -413,7 +413,7 @@ function PdfPage({
   return (
     <div 
       ref={containerRef}
-      className="relative shadow-lg"
+      className="relative ring-1 ring-border shadow-sm"
       style={{ width: viewport.width, height: viewport.height }}
       onClick={handleCanvasClick}
     >
