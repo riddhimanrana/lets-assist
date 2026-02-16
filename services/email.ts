@@ -4,7 +4,11 @@ import { render } from '@react-email/components';
 import * as React from 'react';
 import { logError, logInfo, logWarn } from '@/lib/logger';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+function getResendClient(): Resend | null {
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey || apiKey.trim().length === 0) return null;
+    return new Resend(apiKey);
+}
 
 export type EmailType = 'project_updates' | 'general' | 'transactional';
 
@@ -96,6 +100,19 @@ export async function sendEmail({ to, subject, html, react, userId, type }: Send
 
     // 2. Send email via Resend
     try {
+        const resend = getResendClient();
+        if (!resend) {
+            if (shouldLog) {
+                logWarn('RESEND_API_KEY not set; skipping email send', {
+                    to: Array.isArray(to) ? to.join(',') : to,
+                    subject,
+                    type,
+                    user_id: userId,
+                });
+            }
+            return { success: false, skipped: true, reason: 'Email service not configured' };
+        }
+
         // Render React component to HTML if provided
         const emailHtml = react ? await render(react) : html!;
 

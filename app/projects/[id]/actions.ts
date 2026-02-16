@@ -622,6 +622,8 @@ export async function removeProjectWaiverPdf(projectId: string) {
       .update({
         waiver_pdf_url: null,
         waiver_pdf_storage_path: null,
+        // Also detach the project waiver definition so we fall back to the global template.
+        waiver_definition_id: null,
       })
       .eq("id", projectId);
 
@@ -769,10 +771,43 @@ async function persistWaiverSignature(params: {
     }
   }
 
-  let templateId: string | null = params.waiverSignature.templateId === "project-pdf" ? null : params.waiverSignature.templateId;
-  const waiverPdfUrl = project?.waiver_pdf_url || params.waiverSignature.waiverPdfUrl || null;
+  const waiverDefinitionId: string | null = params.waiverSignature.definitionId?.trim() || null;
+
+  const rawTemplateId = typeof params.waiverSignature.templateId === "string" ? params.waiverSignature.templateId.trim() : "";
+  let templateId: string | null = rawTemplateId === "project-pdf" ? null : (rawTemplateId || null);
+
+  let waiverPdfUrl: string | null = project?.waiver_pdf_url || params.waiverSignature.waiverPdfUrl || null;
   // Phase 1: Default to true for backward compatibility with projects created before this feature
   const waiverAllowUpload = project?.waiver_disable_esignature ? true : (project?.waiver_allow_upload ?? true);
+
+  // New system: waiver_definitions are a complete waiver source (PDF + placements).
+  // If definitionId is present, we should NOT require / validate legacy waiver_templates.
+  if (waiverDefinitionId) {
+    const { data: definition, error: defError } = await serviceSupabase
+      .from("waiver_definitions")
+      .select("id, pdf_public_url")
+      .eq("id", waiverDefinitionId)
+      .limit(1)
+      .maybeSingle();
+
+    if (defError || !definition) {
+      console.error("Invalid waiver definition in signature payload", {
+        projectId: params.projectId,
+        signupId: params.signupId,
+        waiverDefinitionId,
+        defError,
+      });
+      return { error: "Invalid waiver definition." };
+    }
+
+    // Prefer an explicitly provided waiverPdfUrl, otherwise use the definition's PDF.
+    waiverPdfUrl = waiverPdfUrl || definition.pdf_public_url || null;
+    templateId = null;
+  }
+
+  if (!waiverPdfUrl && waiverDefinitionId) {
+    return { error: "No waiver PDF is available for this waiver definition." };
+  }
 
   // If using project-specific PDF, we don't need a template
   if (waiverPdfUrl) {
@@ -809,7 +844,7 @@ async function persistWaiverSignature(params: {
   let signatureStoragePath: string | null = null;
   let uploadStoragePath: string | null = null;
   let signaturePayload: Record<string, unknown> | null = null;
-  const waiverDefinitionId: string | null = params.waiverSignature.definitionId || null;
+  // waiverDefinitionId resolved above
 
   // Handle Multi-Signer Payload (Phase 4)
   if (params.waiverSignature.signatureType === "multi-signer" && params.waiverSignature.payload) {
@@ -1024,8 +1059,12 @@ export async function signUpForProject(
     }
 
     if (waiverSignature) {
-      if (!waiverSignature.templateId) {
-        return { error: "Waiver template is missing." };
+      const hasTemplateId = typeof waiverSignature.templateId === "string" && waiverSignature.templateId.trim().length > 0;
+      const hasDefinitionId = typeof waiverSignature.definitionId === "string" && waiverSignature.definitionId.trim().length > 0;
+      const hasWaiverPdfUrl = typeof waiverSignature.waiverPdfUrl === "string" && waiverSignature.waiverPdfUrl.trim().length > 0;
+
+      if (!hasTemplateId && !hasDefinitionId && !hasWaiverPdfUrl) {
+        return { error: "Waiver configuration is missing." };
       }
 
       if (
@@ -2256,6 +2295,104 @@ export async function getWaiverDownloadUrl(signupId: string, anonymousSignupId?:
   } catch (error) {
     console.error("Error generating waiver download URL:", error);
     return { error: "Failed to generate waiver URL" };
+  }
+}
+
+export async function getAnonymousWaiverSignatureMeta(signupId: string, anonymousSignupId: string): Promise<
+  | { signatureId: string; signature_type: string | null; signed_at: string | null }
+  | { signatureId: null; signature_type: null; signed_at: null }
+  | { error: string }
+> {
+  const supabase = await createClient();
+
+  try {
+    // Anonymous-only helper: verify the anonymous signup owns this project_signup.
+    const { data: signup, error: signupError } = await supabase
+      .from('project_signups')
+      .select('id, anonymous_id')
+      .eq('id', signupId)
+      .maybeSingle();
+
+    if (signupError || !signup) {
+      return { error: 'Signup not found' };
+    }
+
+    if (!signup.anonymous_id || signup.anonymous_id !== anonymousSignupId) {
+      return { error: 'Unauthorized' };
+    }
+
+    const { data: anonSignup, error: anonError } = await supabase
+      .from('anonymous_signups')
+      .select('id')
+      .eq('id', anonymousSignupId)
+      .maybeSingle();
+
+    if (anonError || !anonSignup) {
+      return { error: 'Unauthorized' };
+    }
+
+    const admin = getAdminClient();
+    const { data: sig, error: sigError } = await admin
+      .from('waiver_signatures')
+      .select('id, signature_type, signed_at')
+      .eq('signup_id', signupId)
+      .order('signed_at', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (sigError) {
+      console.error('Error loading anonymous waiver signature meta:', sigError);
+      return { error: 'Failed to load waiver' };
+    }
+
+    if (!sig) {
+      return { signatureId: null, signature_type: null, signed_at: null };
+    }
+
+    return {
+      signatureId: sig.id,
+      signature_type: sig.signature_type ?? null,
+      signed_at: sig.signed_at ?? null,
+    };
+  } catch (error) {
+    console.error('Error in getAnonymousWaiverSignatureMeta:', error);
+    return { error: 'Failed to load waiver' };
+  }
+}
+
+export async function getMyWaiverSignatures(projectId: string): Promise<
+  | { signatures: Array<{ id: string; signed_at: string | null; created_at: string }> }
+  | { error: string }
+> {
+  try {
+    const { user, error: userError } = await getAuthUser();
+    if (userError || !user) {
+      return { error: 'Not authenticated' };
+    }
+
+    const admin = getAdminClient();
+
+    const { data, error } = await admin
+      .from('waiver_signatures')
+      .select(`
+        id,
+        signed_at,
+        created_at
+      `)
+      .eq('user_id', user.id)
+      .eq('project_id', projectId)
+      .order('signed_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching my waiver signatures:', error);
+      return { error: 'Failed to load waivers' };
+    }
+
+    return { signatures: (data ?? []) as any };
+  } catch (error) {
+    console.error('Error in getMyWaiverSignatures:', error);
+    return { error: 'Failed to load waivers' };
   }
 }
 

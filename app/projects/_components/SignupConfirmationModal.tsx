@@ -39,6 +39,7 @@ interface SignupConfirmationModalProps {
   enableVolunteerComments?: boolean;
   waiverRequired?: boolean;
   waiverAllowUpload?: boolean;
+  waiverDisableEsignature?: boolean;
   waiverTemplate?: WaiverTemplate | null;
   waiverPdfUrl?: string | null;
   waiverDefinition?: WaiverDefinitionFull | null;
@@ -62,6 +63,7 @@ export function SignupConfirmationModal({
   enableVolunteerComments = false,
   waiverRequired = false,
   waiverAllowUpload = true,
+  waiverDisableEsignature = false,
   waiverTemplate = null,
   waiverPdfUrl = null,
   waiverDefinition = null,
@@ -371,12 +373,12 @@ export function SignupConfirmationModal({
                   Sign Waiver
                 </Button>
               ) : (
-                <div className="flex items-center justify-between p-3 bg-green-50/50 border border-green-200 rounded-lg">
+                <div className="flex items-center justify-between p-3 bg-success/10 border border-success/80 rounded-lg">
                   <div className="flex items-center gap-2">
-                    <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center text-green-600">
+                    <div className="h-8 w-8 rounded-full bg-success/20 flex items-center justify-center text-success">
                       <Check className="h-4 w-4" />
                     </div>
-                    <div className="text-sm font-medium text-green-700">
+                    <div className="text-sm font-medium text-success">
                       Waiver Signed
                     </div>
                   </div>
@@ -401,6 +403,7 @@ export function SignupConfirmationModal({
                 defaultSignerName={currentUserProfile?.full_name || ""}
                 defaultSignerEmail={currentUserProfile?.email || ""}
                 allowUpload={waiverAllowUpload}
+                disableEsignature={waiverDisableEsignature}
               />
             </div>
           )}

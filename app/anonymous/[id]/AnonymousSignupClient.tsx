@@ -17,7 +17,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
-import { cancelSignup, getWaiverDownloadUrl } from "@/app/projects/[id]/actions";
+import { cancelSignup, getAnonymousWaiverSignatureMeta, getWaiverDownloadUrl } from "@/app/projects/[id]/actions";
 
 // Helper function to format schedule slot (same as before)
 const formatScheduleSlot = (project: Project, slotId: string) => {
@@ -156,9 +156,8 @@ export default function AnonymousSignupClient({
   const [isCancelling, setIsCancelling] = useState(false);
   const [isDeleted, setIsDeleted] = useState(false);
   const [waiverSignature, setWaiverSignature] = useState<{
-    signature_type: "draw" | "typed" | "upload";
+    signature_type: "draw" | "typed" | "upload" | string;
     signed_at?: string | null;
-    signature_text?: string | null;
   } | null>(null);
   const [waiverLoading, setWaiverLoading] = useState(false);
 
@@ -280,9 +279,9 @@ export default function AnonymousSignupClient({
       }
 
       if (result?.signatureId) {
-        // Multi-signer - use download API with anonymousSignupId for security
-        const downloadUrl = `/api/waivers/${result.signatureId}/download?anonymousSignupId=${id}`;
-        window.open(downloadUrl, "_blank", "noopener,noreferrer");
+        // Multi-signer - use preview API with anonymousSignupId for security
+        const previewUrl = `/api/waivers/${result.signatureId}/preview?anonymousSignupId=${id}`;
+        window.open(previewUrl, "_blank", "noopener,noreferrer");
         return;
       }
 
@@ -372,26 +371,28 @@ export default function AnonymousSignupClient({
   // --- END ADDED ---
 
   useEffect(() => {
-    const supabase = createClient();
     const loadWaiverSignature = async () => {
-      const { data, error } = (await supabase
-        .from("waiver_signatures")
-        .select("signature_type, signed_at, signature_text")
-        .eq("signup_id", project_signup_id)
-        .maybeSingle()) as {
-          data: typeof waiverSignature | null;
-          error: { message?: string } | null;
-        };
+      const result = await getAnonymousWaiverSignatureMeta(project_signup_id, id);
 
-      if (error) {
-        console.error("Error fetching waiver signature:", error);
+      if ('error' in result) {
+        console.error(result.error);
+        setWaiverSignature(null);
         return;
       }
-      setWaiverSignature(data);
+
+      if (!result.signatureId) {
+        setWaiverSignature(null);
+        return;
+      }
+
+      setWaiverSignature({
+        signature_type: (result.signature_type || 'upload') as any,
+        signed_at: result.signed_at,
+      });
     };
 
     void loadWaiverSignature();
-  }, [project_signup_id]);
+  }, [project_signup_id, id]);
 
   // Determine if this is a "missed event" situation (approved but didn't attend)
   // --- MODIFIED: Only count as missed if hours are NOT published ---
@@ -492,7 +493,7 @@ export default function AnonymousSignupClient({
                   {/* Info Section */}
                   <div className="relative pl-6 border-success/30 mt-3 space-y-3">
                     <div className="relative">
-                      <div className="absolute -left-[27px] top-0 w-5 h-5 rounded-full bg-success/20 flex items-center justify-center">
+                      <div className="absolute -left-6.75 top-0 w-5 h-5 rounded-full bg-success/20 flex items-center justify-center">
                         <div className="w-2 h-2 rounded-full bg-success"></div>
                       </div>
                       <p className="text-sm font-medium">Hours Finalized</p>
@@ -567,7 +568,7 @@ export default function AnonymousSignupClient({
                   {/* Processing information with visual timeline */}
                   <div className="relative pl-6 border-warning/30 mt-3 space-y-3">
                     <div className="relative">
-                      <div className="absolute -left-[27px] top-0 w-5 h-5 rounded-full bg-warning/20 flex items-center justify-center">
+                      <div className="absolute -left-6.75 top-0 w-5 h-5 rounded-full bg-warning/20 flex items-center justify-center">
                         <div className="w-2 h-2 rounded-full bg-warning"></div>
                       </div>
                       <p className="text-sm font-medium">Processing Period</p>
@@ -577,7 +578,7 @@ export default function AnonymousSignupClient({
                     </div>
 
                     <div className="relative">
-                      <div className="absolute -left-[27px] top-0 w-5 h-5 rounded-full bg-warning/20 flex items-center justify-center">
+                      <div className="absolute -left-6.75 top-0 w-5 h-5 rounded-full bg-warning/20 flex items-center justify-center">
                         <div className="w-2 h-2 rounded-full bg-warning"></div>
                       </div>
                       <p className="text-sm font-medium">Need Adjustments?</p>
@@ -628,7 +629,7 @@ export default function AnonymousSignupClient({
                   {/* Timeline style info */}
                   <div className="relative pl-6 border-destructive/30 mt-3 space-y-3">
                     <div className="relative">
-                      <div className="absolute -left-[27px] top-0 w-5 h-5 rounded-full bg-destructive/20 flex items-center justify-center">
+                      <div className="absolute -left-6.75 top-0 w-5 h-5 rounded-full bg-destructive/20 flex items-center justify-center">
                         <div className="w-2 h-2 rounded-full bg-destructive"></div>
                       </div>
                       <p className="text-sm font-medium">Think This Is a Mistake?</p>
@@ -656,7 +657,7 @@ export default function AnonymousSignupClient({
 
                       <div className="relative pl-6 border-l-2 border-warning/30 mt-6 space-y-6">
                         <div className="relative">
-                          <div className="absolute -left-[31px] top-0 w-5 h-5 rounded-full bg-warning/20 flex items-center justify-center border-2 border-background">
+                          <div className="absolute -left-7.75 top-0 w-5 h-5 rounded-full bg-warning/20 flex items-center justify-center border-2 border-background">
                             <div className="w-2 h-2 rounded-full bg-warning"></div>
                           </div>
                           <div>
@@ -668,7 +669,7 @@ export default function AnonymousSignupClient({
                         </div>
 
                         <div className="relative">
-                          <div className="absolute -left-[31px] top-0 w-5 h-5 rounded-full bg-warning/20 flex items-center justify-center border-2 border-background">
+                          <div className="absolute -left-7.75 top-0 w-5 h-5 rounded-full bg-warning/20 flex items-center justify-center border-2 border-background">
                             <div className="w-2 h-2 rounded-full bg-warning"></div>
                           </div>
                           <div>
@@ -707,7 +708,7 @@ export default function AnonymousSignupClient({
 
                       <div className="relative pl-6 border-l-2 border-success/30 mt-6 space-y-6">
                         <div className="relative">
-                          <div className="absolute -left-[31px] top-0 w-5 h-5 rounded-full bg-success/20 flex items-center justify-center border-2 border-background">
+                          <div className="absolute -left-7.75 top-0 w-5 h-5 rounded-full bg-success/20 flex items-center justify-center border-2 border-background">
                             <div className="w-2 h-2 rounded-full bg-success"></div>
                           </div>
                           <div>
@@ -719,7 +720,7 @@ export default function AnonymousSignupClient({
                         </div>
 
                         <div className="relative">
-                          <div className="absolute -left-[31px] top-0 w-5 h-5 rounded-full bg-success/20 flex items-center justify-center border-2 border-background">
+                          <div className="absolute -left-7.75 top-0 w-5 h-5 rounded-full bg-success/20 flex items-center justify-center border-2 border-background">
                             <div className="w-2 h-2 rounded-full bg-success"></div>
                           </div>
                           <div>
@@ -752,7 +753,7 @@ export default function AnonymousSignupClient({
                 <CardContent className="space-y-4 pt-2">
                   <div className="relative pl-6 border-destructive/30 mt-3 space-y-3">
                     <div className="relative">
-                      <div className="absolute -left-[27px] top-0 w-5 h-5 rounded-full bg-destructive/20 flex items-center justify-center">
+                      <div className="absolute -left-6.75 top-0 w-5 h-5 rounded-full bg-destructive/20 flex items-center justify-center">
                         <div className="w-2 h-2 rounded-full bg-destructive"></div>
                       </div>
                       <p className="text-sm font-medium">Need More Information?</p>
@@ -849,7 +850,7 @@ export default function AnonymousSignupClient({
                         }
                       }
                       return (
-                        <p className="text-xs text-muted-foreground text-right min-w-[110px]">
+                        <p className="text-xs text-muted-foreground text-right min-w-27.5">
                           {timeRemaining}
                         </p>
                       );
@@ -968,7 +969,7 @@ export default function AnonymousSignupClient({
 
       {/* Cancellation Confirmation Dialog */}
       <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-106.25">
           <DialogHeader>
             <DialogTitle>Cancel Your Signup</DialogTitle>
             <DialogDescription>

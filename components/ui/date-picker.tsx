@@ -28,7 +28,7 @@ export function DatePicker({
   value,
   onChange,
   minDate,
-  maxDate,j
+  maxDate,
   placeholder = "Pick a date",
   disabled = false,
   className,

@@ -52,9 +52,7 @@ export async function GET(
   const { user } = await getAuthUser();
 
   // 1. Load waiver signature record
-  const { data: signature, error: sigError } = await adminClient
-    .from('waiver_signatures')
-    .select(`
+  const selectClause = `
       id,
       user_id,
       anonymous_id,
@@ -66,6 +64,7 @@ export async function GET(
       upload_storage_path,
       waiver_definition_id,
       project_id,
+      signup_id,
       waiver_definition:waiver_definitions (
         id,
         pdf_public_url,
@@ -85,9 +84,29 @@ export async function GET(
           signer_role_key
         )
       )
-    `)
+    `;
+
+  let { data: signature, error: sigError } = await adminClient
+    .from('waiver_signatures')
+    .select(selectClause)
     .eq('id', signatureId)
     .single();
+
+  if (sigError || !signature) {
+    // Compatibility fallback: sometimes clients pass signupId instead of signatureId.
+    // Attempt lookup by signup_id for a smoother UX.
+    const fallback = await adminClient
+      .from('waiver_signatures')
+      .select(selectClause)
+      .eq('signup_id', signatureId)
+      .order('signed_at', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    signature = fallback.data;
+    sigError = fallback.error as any;
+  }
 
   if (sigError || !signature) {
     return NextResponse.json({ error: 'Signature not found' }, { status: 404 });

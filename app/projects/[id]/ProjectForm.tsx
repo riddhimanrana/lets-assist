@@ -60,6 +60,7 @@ interface ProjectFormProps {
   showCommentField?: boolean;
   waiverRequired?: boolean;
   waiverAllowUpload?: boolean;
+  waiverDisableEsignature?: boolean;
   waiverTemplate?: WaiverTemplate | null;
   waiverPdfUrl?: string | null;
   waiverDefinition?: WaiverDefinitionFull | null;
@@ -86,6 +87,7 @@ export function ProjectSignupForm({
   showCommentField = false,
   waiverRequired = false,
   waiverAllowUpload = true,
+  waiverDisableEsignature = false,
   waiverTemplate = null,
   waiverPdfUrl = null,
   waiverDefinition = null,
@@ -266,6 +268,7 @@ export function ProjectSignupForm({
             defaultSignerName={signerName}
             defaultSignerEmail={signerEmail}
             allowUpload={waiverAllowUpload}
+            disableEsignature={waiverDisableEsignature}
           />
         </div>
       )}

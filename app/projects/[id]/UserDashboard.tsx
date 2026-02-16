@@ -19,12 +19,13 @@ import {
   format,
   formatDistanceToNowStrict,
 } from "date-fns";
-import { Clock, CheckCircle, AlertTriangle, Camera, Hourglass, CalendarCheck, Info, TicketCheck, FileText, Award, Download } from "lucide-react";
+import { Clock, CheckCircle, AlertTriangle, Camera, Hourglass, CalendarCheck, Info, TicketCheck, FileText, Award, Download, Eye } from "lucide-react";
 import Link from "next/link";
 import { QRCodeScannerModal } from "@/app/projects/_components/QRCodeScannerModal"; // Import the new component
 import { createClient } from "@/lib/supabase/client";          // 🆕 add supabase client
 import { WaiverSignature } from "@/types/waiver";
 import { toast } from "sonner";
+import { getMyWaiverSignatures } from "./actions";
 import {
   Carousel,
   CarouselContent,
@@ -124,26 +125,25 @@ export default function UserDashboard({ project, user: _user, signups }: Props) 
 
   // 🆕 store map of signup_id → certificate.id
   const [certMap, setCertMap] = useState<Record<string, string>>({});
-  const [waiverSignatures, setWaiverSignatures] = useState<any[]>([]);
+  const [waiverSignatures, setWaiverSignatures] = useState<Array<{ id: string; signed_at: string | null; created_at: string }>>([]);
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
-  // Fetch waivers
+  // Fetch waivers (server-authorized; resilient to RLS)
   useEffect(() => {
-     const fetchWaivers = async () => {
-       const supabase = createClient();
-       const { data } = await supabase
-         .from('waiver_signatures')
-         .select('*, signups(project:projects(*))')
-         .eq('user_id', _user.id)
-         .order('signed_at', { ascending: false });
-       
-       if (data) setWaiverSignatures(data);
-     };
-     fetchWaivers();
-  }, [_user.id]);
+    const fetchWaivers = async () => {
+      const result = await getMyWaiverSignatures(project.id);
+      if ('error' in result) {
+        // Fail soft: leave list empty
+        console.error(result.error);
+        return;
+      }
+      setWaiverSignatures(result.signatures);
+    };
+    void fetchWaivers();
+  }, [project.id]);
 
   const downloadWaiver = async (signatureId: string) => {
     try {
@@ -167,6 +167,10 @@ export default function UserDashboard({ project, user: _user, signups }: Props) 
       console.error('Failed to download waiver:', error);
       toast.error('Failed to download waiver. Please try again.');
     }
+  };
+
+  const viewWaiver = (signatureId: string) => {
+    window.open(`/api/waivers/${signatureId}/preview`, "_blank", "noopener,noreferrer");
   };
 
   // Update 'now' state every minute for countdowns
@@ -974,19 +978,29 @@ export default function UserDashboard({ project, user: _user, signups }: Props) 
               {waiverSignatures.map(sig => (
                 <div key={sig.id} className="flex items-center justify-between p-3 border rounded">
                   <div>
-                    <p className="font-medium">{sig.signups?.project?.title || 'Unknown Project'}</p>
+                    <p className="font-medium">{project.title}</p>
                     <p className="text-sm text-muted-foreground">
-                      Signed {new Date(sig.signed_at).toLocaleDateString()}
+                      Signed {new Date(sig.signed_at || sig.created_at).toLocaleDateString()}
                     </p>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => downloadWaiver(sig.id)}
-                  >
-                    <Download className="h-4 w-4 mr-2" />
-                    Download
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => viewWaiver(sig.id)}
+                    >
+                      <Eye className="h-4 w-4 mr-2" />
+                      View
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => downloadWaiver(sig.id)}
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Download
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
