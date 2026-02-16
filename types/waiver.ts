@@ -55,6 +55,7 @@ export interface WaiverSignatureInput {
 export interface ProjectWaiverConfig {
   waiverRequired: boolean;
   waiverAllowUpload: boolean;
+  waiverDisableEsignature?: boolean;
   waiverPdfUrl?: string | null;
   waiverPdfStoragePath?: string | null;
 }

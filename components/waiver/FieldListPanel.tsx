@@ -54,6 +54,11 @@ export function FieldListPanel({
   const signatureFields = detectedFields.filter(f => f.fieldType === 'signature');
   const otherFields = detectedFields.filter(f => f.fieldType !== 'signature');
 
+  // Computed stats for display
+  const mappedSignaturesCount = signatureFields.filter(f => fieldMappings[f.fieldName]?.signerRoleKey).length;
+  const unassignedSignaturesCount = signatureFields.length - mappedSignaturesCount;
+  const requiredFieldsCount = detectedFields.filter(f => fieldMappings[f.fieldName]?.required ?? f.required).length;
+
   const getFieldMapping = (field: DetectedPdfField): FieldMapping => {
     return fieldMappings[field.fieldName] || {
       fieldKey: field.fieldName,
@@ -91,7 +96,16 @@ export function FieldListPanel({
         className={`p-3 border rounded-md mb-2 transition-colors cursor-pointer ${
           isHighlighted ? 'bg-accent border-primary' : 'hover:bg-muted/50'
         }`}
+        role="button"
+        tabIndex={0}
         onClick={() => onFieldClick(field)}
+        onKeyDown={(event) => {
+          if (event.target !== event.currentTarget) return;
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            onFieldClick(field);
+          }
+        }}
       >
         <div className="flex items-start justify-between mb-2">
           <div className="flex items-center gap-2">
@@ -152,8 +166,36 @@ export function FieldListPanel({
   };
 
   return (
-    <ScrollArea className="h-full pr-4">
+    <div className="flex flex-col h-full overflow-hidden">
+      {/* Top Stats Bar */}
+      <div className="shrink-0 flex items-center gap-2 mb-3 px-1 overflow-x-auto pb-2 scrollbar-none">
+        <Badge variant={unassignedSignaturesCount > 0 ? "destructive" : "secondary"} className="text-[10px] whitespace-nowrap h-5">
+           {mappedSignaturesCount}/{signatureFields.length} Signatures Mapped
+        </Badge>
+        <Badge variant="outline" className="text-[10px] whitespace-nowrap h-5">
+           {requiredFieldsCount} Required Fields
+        </Badge>
+        {unassignedSignaturesCount > 0 && (
+          <Badge variant="outline" className="text-[10px] whitespace-nowrap h-5 text-amber-600 border-amber-200 bg-amber-50">
+             {unassignedSignaturesCount} Unassigned
+          </Badge>
+        )}
+      </div>
+
+      {/* Inline Warning Callout */}
+      {unassignedSignaturesCount > 0 && (
+        <div className="shrink-0 mb-3 mx-1 p-2 bg-amber-50 border border-amber-200 rounded text-xs text-amber-800 flex items-start gap-2">
+           <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+           <span>
+             There are {unassignedSignaturesCount} signature fields not assigned to any role. 
+             Signers might not see where to sign.
+           </span>
+        </div>
+      )}
+
+      <ScrollArea className="flex-1 pr-4">
       <Accordion defaultValue={["signature-fields", "other-fields"]} className="w-full">
+
         <AccordionItem value="signature-fields">
           <AccordionTrigger className="sticky top-0 bg-background z-10 py-2">
             <div className="flex items-center gap-2">
@@ -165,7 +207,7 @@ export function FieldListPanel({
           <AccordionContent className="pt-2">
              {signatureFields.length === 0 ? (
                <div className="text-sm text-muted-foreground p-4 text-center">
-                 No signature fields detected. Use the "Validation" tab to check settings.
+                 No signature fields detected. Use the custom placements section below to add signature boxes.
                </div>
              ) : (
                 signatureFields.map(renderFieldItem)
@@ -193,5 +235,6 @@ export function FieldListPanel({
         </AccordionItem>
       </Accordion>
     </ScrollArea>
+    </div>
   );
 }

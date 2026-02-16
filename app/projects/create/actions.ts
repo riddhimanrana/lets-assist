@@ -187,7 +187,8 @@ export async function createBasicProject(
         enable_volunteer_comments: projectData.enableVolunteerComments || false,
         show_attendees_publicly: projectData.showAttendeesPublicly || false,
         waiver_required: projectData.waiverRequired || false,
-        waiver_allow_upload: projectData.waiverAllowUpload ?? true,
+        waiver_allow_upload: true,
+        waiver_disable_esignature: projectData.waiverDisableEsignature ?? false,
         schedule: {
           [projectData.eventType]: projectData.schedule[projectData.eventType],
         },
@@ -725,7 +726,8 @@ export async function updateDraft(projectId: string, projectData: Partial<EventF
       enable_volunteer_comments: projectData.enableVolunteerComments || false,
       show_attendees_publicly: projectData.showAttendeesPublicly || false,
       waiver_required: projectData.waiverRequired || false,
-      waiver_allow_upload: projectData.waiverAllowUpload ?? true,
+      waiver_allow_upload: true,
+      waiver_disable_esignature: projectData.waiverDisableEsignature ?? false,
       schedule: {
         [projectData.eventType]: projectData.schedule[projectData.eventType],
       },

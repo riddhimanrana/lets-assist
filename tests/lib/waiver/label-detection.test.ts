@@ -270,6 +270,24 @@ describe('findLabels', () => {
     expect(guardianLabel?.type).toBe('parent_guardian');
   });
 
+  it('avoids parent/guardian false positives in sentence text', () => {
+    const textItems: PdfTextItem[] = [
+      { text: 'A parent or guardian must review this policy before volunteering.', x: 50, y: 100, width: 320, height: 12, pageIndex: 0 },
+      { text: 'Parent/Guardian Signature:', x: 50, y: 200, width: 150, height: 12, pageIndex: 0 },
+    ];
+
+    const labels = findLabels(textItems);
+
+    const sentenceLabel = labels.find(
+      (l: DetectedLabel) => l.text.includes('must review') && l.type === 'parent_guardian',
+    );
+    expect(sentenceLabel).toBeUndefined();
+
+    const actualLabel = labels.find((l: DetectedLabel) => l.text === 'Parent/Guardian Signature:');
+    expect(actualLabel).toBeDefined();
+    expect(actualLabel?.type).toBe('parent_guardian');
+  });
+
   it('uses word boundaries for signature detection', () => {
     const textItems: PdfTextItem[] = [
       { text: 'assignment of rights', x: 50, y: 100, width: 120, height: 12, pageIndex: 0 },

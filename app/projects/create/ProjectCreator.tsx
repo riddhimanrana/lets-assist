@@ -95,6 +95,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
     updateShowAttendeesPublicly,
     updateWaiverRequired,
     updateWaiverAllowUpload,
+    updateWaiverDisableEsignature,
     updateWaiverPdfFile,
     updateWaiverPdfValidation,
     updateWaiverDefinition,
@@ -477,6 +478,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
             visibility: state.visibility,
             waiverRequired: state.waiverRequired,
             waiverAllowUpload: state.waiverAllowUpload,
+            waiverDisableEsignature: state.waiverDisableEsignature,
           });
           setVerificationErrors([]);
           return true;
@@ -566,6 +568,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
         showAttendeesPublicly: state.showAttendeesPublicly,
         waiverRequired: state.waiverRequired,
         waiverAllowUpload: state.waiverAllowUpload,
+        waiverDisableEsignature: state.waiverDisableEsignature,
       });
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -810,6 +813,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
             showAttendeesPublicly={state.showAttendeesPublicly}
             waiverRequired={state.waiverRequired}
             waiverAllowUpload={state.waiverAllowUpload}
+            waiverDisableEsignature={state.waiverDisableEsignature}
             waiverPdfFile={state.waiverPdfFile}
             waiverPdfUrl={state.waiverPdfUrl}
             waiverPdfValidation={state.waiverPdfValidation}
@@ -845,6 +849,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
             updateShowAttendeesPubliclyAction={updateShowAttendeesPublicly}
             updateWaiverRequiredAction={updateWaiverRequired}
             updateWaiverAllowUploadAction={updateWaiverAllowUpload}
+            updateWaiverDisableEsignatureAction={updateWaiverDisableEsignature}
             updateWaiverPdfFileAction={updateWaiverPdfFile}
             updateWaiverPdfValidationAction={updateWaiverPdfValidation}
             clearWaiverPdfAction={clearWaiverPdf}
@@ -923,7 +928,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
             variant="outline"
             onClick={prevStep}
             disabled={state.step === 1 || isSubmitting || isSavingDraft}
-            className="w-[120px]"
+            className="w-30"
           >
             <ChevronLeft className="h-4 w-4 mr-2" />
             Back
@@ -992,7 +997,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
             <Button
               onClick={handleSubmit}
               disabled={isSubmitting || isSavingDraft}
-              className="w-[120px]"
+              className="w-30"
             >
               {isSubmitting ? (
                 <Loader2 className="h-4 w-4 animate-spin" />

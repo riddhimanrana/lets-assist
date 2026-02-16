@@ -31,7 +31,7 @@ interface WaiverSigningDialogProps {
   onComplete: (payload: WaiverSignatureInput) => Promise<void>;
   defaultSignerName?: string;
   defaultSignerEmail?: string;
-  allowUpload?: boolean; // Offline upload enabled
+  allowUpload?: boolean; // Print/upload backup enabled
   disableEsignature?: boolean; // Print/upload only mode
 }
 
@@ -55,7 +55,7 @@ export function WaiverSigningDialog({
   onComplete,
   defaultSignerName,
   defaultSignerEmail,
-  allowUpload = false,
+  allowUpload = true,
   disableEsignature = false
 }: WaiverSigningDialogProps) {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);

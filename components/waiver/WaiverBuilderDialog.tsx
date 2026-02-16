@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Save, Sparkles } from "lucide-react";
+import { Loader2, Save, Sparkles, AlertCircle } from "lucide-react";
 import type { DetectedPdfField } from "@/lib/waiver/pdf-field-detect";
 import { PdfViewerWithOverlay, CustomPlacement } from "./PdfViewerWithOverlay";
 import { SignerRolesEditor, WaiverDefinitionSignerInput } from "./SignerRolesEditor";
@@ -376,13 +376,13 @@ export function WaiverBuilderDialog({
                 Define who needs to sign and where.
               </DialogDescription>
             </div>
-            <div className="flex items-center gap-2">
+
             <Button 
               onClick={handleAIScan}
               disabled={isScanning || !pdfFile}
               variant="outline"
               size="sm"
-              className="shrink-0 gap-2"
+              className="gap-2 mr-6"
             >
               {isScanning ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -391,7 +391,7 @@ export function WaiverBuilderDialog({
               )}
               <span className="hidden sm:inline">AI Scan</span>
             </Button>
-            </div>
+
           </div>
         </DialogHeader>
 
@@ -492,6 +492,57 @@ export function WaiverBuilderDialog({
                               {detectedFields.length}
                            </span>
                         </h3>
+                        
+                        {/* Detection Summary Block */}
+                        <div className="bg-muted/30 p-3 rounded-md mb-4 text-xs border">
+                           <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
+                              <div className="flex flex-col">
+                                 <span className="text-muted-foreground">Signer Roles</span>
+                                 <span className="font-medium">{signers.length}</span>
+                              </div>
+                              <div className="flex flex-col">
+                                 <span className="text-muted-foreground">Signature Fields</span>
+                                 <span className="font-medium">{detectedFields.filter(f => f.fieldType === 'signature').length}</span>
+                              </div>
+                              <div className="flex flex-col">
+                                 <span className="text-muted-foreground">Other Fields</span>
+                                 <span className="font-medium">{detectedFields.filter(f => f.fieldType !== 'signature').length}</span>
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="text-muted-foreground">Custom Placements</span>
+                                 <span className="font-medium">{customPlacements.length}</span>
+                              </div>
+                           </div>
+
+                           {/* Warning States */}
+                           {(detectedFields.filter(f => f.fieldType === 'signature').length === 0) && (
+                              <div className="flex items-start gap-2 text-amber-600 bg-amber-50 dark:bg-amber-950/30 p-2 rounded mt-2">
+                                 <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                                 <span>No signature fields detected. Please use "Custom Signature Placements" below.</span>
+                              </div>
+                           )}
+                           
+                           {(detectedFields.filter(f => f.fieldType === 'signature').length > 0 && 
+                             detectedFields.filter(f => f.fieldType === 'signature').length < signers.length) && (
+                              <div className="flex items-start gap-2 text-blue-600 bg-blue-50 dark:bg-blue-950/30 p-2 rounded mt-2">
+                                 <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                                 <span>Fewer signature fields than signer roles. You may need custom placements.</span>
+                              </div>
+                           )}
+
+                           {/* Parent/Guardian heuristic warning */}
+                           {(signers.some(s => s.roleKey.toLowerCase().includes('parent') || s.roleKey.toLowerCase().includes('guardian')) &&
+                             !detectedFields.some(f => 
+                               (f.fieldType === 'text' || f.fieldType === 'unknown') && 
+                               (f.fieldName.toLowerCase().includes('email') || f.fieldName.toLowerCase().includes('phone'))
+                             )) && (
+                              <div className="flex items-start gap-2 text-orange-600 bg-orange-50 dark:bg-orange-950/30 p-2 rounded mt-2">
+                                 <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                                 <span>Guardian role detected but no contact fields found. Ensure you collect email/phone.</span>
+                              </div>
+                           )}
+                        </div>
+
                         <p className="text-xs text-muted-foreground mb-4">
                           These are interactive form fields detected in your PDF. Map signature fields to roles.
                         </p>
