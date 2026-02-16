@@ -368,7 +368,7 @@ export default function EditProjectClient({ project }: Props) {
       enable_volunteer_comments: project.enable_volunteer_comments ?? false,
       show_attendees_publicly: project.show_attendees_publicly ?? false,
       waiver_required: project.waiver_required ?? false,
-      waiver_allow_upload: project.waiver_allow_upload ?? true,
+      waiver_allow_upload: true,
       waiver_disable_esignature: project.waiver_disable_esignature ?? false,
       verification_method: project.verification_method,
       visibility: project.visibility,
@@ -376,6 +376,12 @@ export default function EditProjectClient({ project }: Props) {
   });
 
   const waiverRequired = form.watch("waiver_required");
+
+  useEffect(() => {
+    if (form.getValues("waiver_allow_upload") !== true) {
+      form.setValue("waiver_allow_upload", true, { shouldDirty: false });
+    }
+  }, [form]);
 
   // Schedule update handlers
   const updateOneTimeSchedule = (field: keyof typeof scheduleState.oneTime, value: string | number) => {
@@ -1157,19 +1163,19 @@ export default function EditProjectClient({ project }: Props) {
 
             <Controller
               control={form.control}
-              name="waiver_allow_upload"
+              name="waiver_disable_esignature"
               render={({ field, fieldState }) => (
                 <Field className="flex flex-row items-center justify-between rounded-lg border p-4" data-invalid={fieldState.invalid}>
                   <div className="space-y-0.5">
-                    <FieldLabel htmlFor={field.name}>Allow Print & Upload</FieldLabel>
+                    <FieldLabel htmlFor={field.name}>Enable E-Signatures</FieldLabel>
                     <FieldDescription>
-                      Allow volunteers to upload a signed PDF or image instead of drawing/typing.
+                      Let volunteers draw or type signatures. Print &amp; upload remains available as a backup.
                     </FieldDescription>
                   </div>
                   <Switch
                     id={field.name}
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
+                    checked={!field.value}
+                    onCheckedChange={(checked) => field.onChange(!checked)}
                     disabled={!waiverRequired}
                     aria-invalid={fieldState.invalid}
                   />
@@ -1180,20 +1186,20 @@ export default function EditProjectClient({ project }: Props) {
 
             <Controller
               control={form.control}
-              name="waiver_disable_esignature"
+              name="waiver_allow_upload"
               render={({ field, fieldState }) => (
                 <Field className="flex flex-row items-center justify-between rounded-lg border p-4" data-invalid={fieldState.invalid}>
                   <div className="space-y-0.5">
-                    <FieldLabel htmlFor={field.name}>Disable E-Signatures (Print/Upload Only)</FieldLabel>
+                    <FieldLabel htmlFor={field.name}>Print &amp; Upload (Backup)</FieldLabel>
                     <FieldDescription>
-                      Require volunteers to print, sign, and upload the waiver. Disables drawing/typing signatures.
+                      Print &amp; upload is always available as a backup option for volunteers.
                     </FieldDescription>
                   </div>
                   <Switch
                     id={field.name}
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                    disabled={!waiverRequired}
+                    checked={true}
+                    onCheckedChange={() => field.onChange(true)}
+                    disabled
                     aria-invalid={fieldState.invalid}
                   />
                   {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
@@ -1212,15 +1218,17 @@ export default function EditProjectClient({ project }: Props) {
                   </div>
                   {(waiverPdfUrl || project.waiver_pdf_url) && (
                     <div className="flex flex-wrap gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setWaiverBuilderOpen(true)}
-                      >
-                        <Settings className="h-4 w-4 mr-1" />
-                        Configure
-                      </Button>
+                      {!form.watch('waiver_disable_esignature') && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setWaiverBuilderOpen(true)}
+                        >
+                          <Settings className="h-4 w-4 mr-1" />
+                          Configure
+                        </Button>
+                      )}
                       <Button
                         type="button"
                         variant="outline"
@@ -1791,7 +1799,7 @@ export default function EditProjectClient({ project }: Props) {
                       }
                     />
                     {isInDeletionRestrictionPeriod && (
-                      <TooltipContent className="max-w-[250px] text-center p-2">
+                      <TooltipContent className="max-w-62.5 text-center p-2">
                         <p>Projects cannot be deleted during the 72-hour window around the event</p>
                       </TooltipContent>
                     )}
@@ -1805,7 +1813,7 @@ export default function EditProjectClient({ project }: Props) {
 
       {/* Delete Dialog */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent className="max-w-[95vw] sm:max-w-[425px]">
+        <AlertDialogContent className="max-w-[95vw] sm:max-w-106.25">
           <AlertDialogHeader className="space-y-3">
             <AlertDialogTitle className="text-lg sm:text-xl">Are you sure?</AlertDialogTitle>
             <AlertDialogDescription className="text-sm">

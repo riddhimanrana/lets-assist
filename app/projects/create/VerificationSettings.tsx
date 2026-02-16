@@ -46,6 +46,7 @@ interface VerificationSettingsProps {
   showAttendeesPublicly: boolean;
   waiverRequired: boolean;
   waiverAllowUpload: boolean;
+  waiverDisableEsignature: boolean;
   waiverPdfFile?: File | null;
   waiverPdfUrl?: string | null;
   waiverPdfValidation?: { hasSignatureFields: boolean; warnings: string[] } | null;
@@ -58,6 +59,7 @@ interface VerificationSettingsProps {
   updateShowAttendeesPubliclyAction: (enabled: boolean) => void;
   updateWaiverRequiredAction: (enabled: boolean) => void;
   updateWaiverAllowUploadAction: (enabled: boolean) => void;
+  updateWaiverDisableEsignatureAction: (disabled: boolean) => void;
   updateWaiverPdfFileAction?: (file: File | null) => void;
   updateWaiverPdfValidationAction?: (validation: { hasSignatureFields: boolean; warnings: string[] } | null) => void;
   updateWaiverDefinitionAction?: (definition: WaiverDefinitionInput | null) => void;
@@ -82,6 +84,7 @@ export default function VerificationSettings({
   showAttendeesPublicly,
   waiverRequired,
   waiverAllowUpload,
+  waiverDisableEsignature,
   waiverPdfFile,
   waiverPdfUrl,
   waiverPdfValidation,
@@ -94,6 +97,7 @@ export default function VerificationSettings({
   updateShowAttendeesPubliclyAction,
   updateWaiverRequiredAction,
   updateWaiverAllowUploadAction,
+  updateWaiverDisableEsignatureAction,
   updateWaiverPdfFileAction,
   updateWaiverPdfValidationAction,
   updateWaiverDefinitionAction,
@@ -653,21 +657,25 @@ export default function VerificationSettings({
                                    {waiverDefinition.signers.length} signer role(s) defined.
                                 </p>
                               </div>
-                              <Button variant="outline" size="sm" onClick={() => setShowBuilder(true)}>
-                                 Edit Configuration
-                              </Button>
+                              {!waiverDisableEsignature && (
+                                <Button variant="outline" size="sm" onClick={() => setShowBuilder(true)}>
+                                   Edit Configuration
+                                </Button>
+                              )}
                            </div>
                         ) : (
-                           <Button 
-                             onClick={() => setShowBuilder(true)} 
-                             className="w-full"
-                             variant={waiverDefinition ? "outline" : "default"}
-                           >
-                             <FileSignature className="mr-2 h-4 w-4" />
-                             Configure Waiver Signers & Fields
-                           </Button>
+                           !waiverDisableEsignature && (
+                             <Button 
+                               onClick={() => setShowBuilder(true)} 
+                               className="w-full"
+                               variant={waiverDefinition ? "outline" : "default"}
+                             >
+                               <FileSignature className="mr-2 h-4 w-4" />
+                               Configure Waiver Signers & Fields
+                             </Button>
+                           )
                         )}
-                        {!waiverDefinition && (
+                        {!waiverDefinition && !waiverDisableEsignature && (
                            <p className="text-xs text-muted-foreground mt-2 text-center">
                               You must configure signature placements before continuing.
                            </p>
@@ -703,27 +711,49 @@ export default function VerificationSettings({
                    />
                 )}
 
-                {/* Print & Upload Option */}
+                {/* E-Signature Option */}
                 <div className="flex items-center justify-between space-x-4">
                   <div className="flex items-center space-x-3 flex-1">
-                    <div className={cn("p-2 rounded-md", waiverRequired ? "bg-primary/10" : "bg-muted")}
-                    >
+                    <div className={cn("p-2 rounded-md", waiverRequired ? "bg-primary/10" : "bg-muted")}>
                       <FileSignature className={cn("h-5 w-5", waiverRequired ? "text-primary" : "text-muted-foreground")} />
                     </div>
                     <div className="flex-1">
-                      <Label htmlFor="waiver-allow-upload" className="text-base font-medium cursor-pointer">
-                        Allow print & upload
+                      <Label htmlFor="waiver-enable-esign" className="text-base font-medium cursor-pointer">
+                        Enable e-signatures
                       </Label>
                       <p className="text-sm text-muted-foreground mt-1">
-                        Let volunteers download, print, sign physically, scan, and upload.
+                        Let volunteers draw or type signatures. Print & upload remains available as backup.
+                      </p>
+                    </div>
+                  </div>
+                  <Switch
+                    id="waiver-enable-esign"
+                    checked={!waiverDisableEsignature}
+                    onCheckedChange={(checked) => updateWaiverDisableEsignatureAction(!checked)}
+                    disabled={!waiverRequired}
+                  />
+                </div>
+
+                {/* Print & Upload Backup */}
+                <div className="flex items-center justify-between space-x-4">
+                  <div className="flex items-center space-x-3 flex-1">
+                    <div className={cn("p-2 rounded-md", waiverRequired ? "bg-primary/10" : "bg-muted")}>
+                      <Upload className={cn("h-5 w-5", waiverRequired ? "text-primary" : "text-muted-foreground")} />
+                    </div>
+                    <div className="flex-1">
+                      <Label htmlFor="waiver-allow-upload" className="text-base font-medium">
+                        Print & upload (backup)
+                      </Label>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Always available as a backup option for volunteers.
                       </p>
                     </div>
                   </div>
                   <Switch
                     id="waiver-allow-upload"
-                    checked={waiverAllowUpload}
-                    onCheckedChange={updateWaiverAllowUploadAction}
-                    disabled={!waiverRequired}
+                    checked={true}
+                    onCheckedChange={() => updateWaiverAllowUploadAction(true)}
+                    disabled
                   />
                 </div>
               </>

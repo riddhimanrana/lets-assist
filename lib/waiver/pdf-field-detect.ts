@@ -6,6 +6,36 @@ if (typeof window !== 'undefined') {
   pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/legacy/build/pdf.worker.min.mjs`;
 }
 
+let serverWorkerReadyPromise: Promise<void> | null = null;
+
+async function ensurePdfJsWorkerReady() {
+  if (typeof window !== 'undefined') return;
+
+  const globalWithWorker = globalThis as typeof globalThis & {
+    pdfjsWorker?: { WorkerMessageHandler?: unknown };
+  };
+
+  if (globalWithWorker.pdfjsWorker?.WorkerMessageHandler) {
+    return;
+  }
+
+  if (!serverWorkerReadyPromise) {
+    const workerModulePath = 'pdfjs-dist/legacy/build/pdf.worker.mjs';
+    serverWorkerReadyPromise = import(workerModulePath)
+      .then((workerModule) => {
+        const workerExport = (workerModule as { default?: unknown }).default ?? workerModule;
+        globalWithWorker.pdfjsWorker = workerExport as { WorkerMessageHandler?: unknown };
+      })
+      .catch((error) => {
+        if (process.env.NODE_ENV !== 'test') {
+          console.warn('Failed to preload pdf.js worker module:', error);
+        }
+      });
+  }
+
+  await serverWorkerReadyPromise;
+}
+
 // Type definitions for PDF.js annotation objects
 interface PdfJsAnnotation {
   subtype?: string;
@@ -67,7 +97,12 @@ export async function detectPdfWidgets(
       pdfData = await response.arrayBuffer();
     }
 
-    const loadingTask = pdfjsLib.getDocument({ data: pdfData });
+    await ensurePdfJsWorkerReady();
+
+    const documentParams: Record<string, unknown> = {
+      data: pdfData,
+    };
+    const loadingTask = pdfjsLib.getDocument(documentParams);
     const pdfDocument = await loadingTask.promise;
 
     const pageCount = pdfDocument.numPages;

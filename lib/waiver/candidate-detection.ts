@@ -108,8 +108,10 @@ function detectUnderscoreCandidates(
   const lineGroups = groupItemsByLine(items);
 
   for (const lineItems of lineGroups) {
+    const underscoreAwareItems = expandLineItemsForUnderscoreDetection(lineItems);
+
     // Find consecutive underscore-heavy tokens
-    const underscoreRuns = findUnderscoreRuns(lineItems);
+    const underscoreRuns = findUnderscoreRuns(underscoreAwareItems);
 
     for (const run of underscoreRuns) {
       // Merge the bounding boxes of all tokens in the run
@@ -141,6 +143,65 @@ function detectUnderscoreCandidates(
   }
 
   return candidates;
+}
+
+/**
+ * Expands line items so underscore sequences embedded in mixed text
+ * (e.g. "please initial here: _____") become standalone pseudo-items.
+ */
+function expandLineItemsForUnderscoreDetection(lineItems: PdfTextItem[]): PdfTextItem[] {
+  const expanded: PdfTextItem[] = [];
+
+  for (const item of lineItems) {
+    const text = item.text || '';
+
+    // Preserve explicit underscore/slash tokens as-is
+    if (isUnderscoreToken(text) || /^\s*\/+\s*$/.test(text)) {
+      expanded.push(item);
+      continue;
+    }
+
+    // Extract underscore segments embedded inside longer text
+    const segments = extractUnderscoreSegments(item);
+    if (segments.length > 0) {
+      expanded.push(...segments);
+    }
+  }
+
+  expanded.sort((a, b) => a.x - b.x);
+  return expanded;
+}
+
+function extractUnderscoreSegments(item: PdfTextItem): PdfTextItem[] {
+  const text = item.text || '';
+  if (!text.includes('_') || item.width <= 0 || text.length === 0) return [];
+
+  const matches = Array.from(text.matchAll(/_{2,}(?:\s*\/\s*_{2,})*/g));
+  if (matches.length === 0) return [];
+
+  const segments: PdfTextItem[] = [];
+  for (const match of matches) {
+    const segmentText = match[0];
+    const start = match.index ?? 0;
+    const end = start + segmentText.length;
+
+    const startRatio = Math.max(0, Math.min(1, start / text.length));
+    const endRatio = Math.max(startRatio, Math.min(1, end / text.length));
+
+    const segX = item.x + item.width * startRatio;
+    const segWidth = Math.max(12, item.width * (endRatio - startRatio));
+
+    segments.push({
+      text: segmentText,
+      x: segX,
+      y: item.y,
+      width: segWidth,
+      height: item.height,
+      pageIndex: item.pageIndex,
+    });
+  }
+
+  return segments;
 }
 
 /**
@@ -222,12 +283,14 @@ function isUnderscoreToken(text: string): boolean {
   }
 
   const underscoreCount = (withoutSlashes.match(/_/g) || []).length;
+  const nonUnderscoreChars = withoutSlashes.replace(/_/g, '');
+  const hasWordChars = /[a-z0-9]/i.test(nonUnderscoreChars);
   
   // Consider it an underscore token if:
-  // 1. At least 2 underscores OR
+  // 1. At least 2 underscores and no regular word characters OR
   // 2. Underscores make up at least 60% of the text (after removing slashes)
   return (
-    underscoreCount >= 2 ||
+    (underscoreCount >= 2 && !hasWordChars) ||
     (underscoreCount > 0 && underscoreCount / withoutSlashes.length >= 0.6)
   );
 }
@@ -295,20 +358,23 @@ function createRightOfLabelCandidate(
   // Calculate candidate position: just right of label, same baseline
   const candidateX = label.rect.x + label.rect.width + 5; // 5pt gap
   const candidateY = label.rect.y;
-  const candidateHeight = Math.max(label.rect.height, 16);
+  const candidateHeight = Math.max(Math.min(label.rect.height, 24), 14);
 
   // Estimate width: find the next text item on the same line, or use reasonable default
   const maxPageWidth = estimatePageWidth(pageItems);
-  let candidateWidth = Math.min(150, maxPageWidth - candidateX);
+  let candidateWidth = Math.min(baseCandidateWidthForType(label.type), Math.max(maxPageWidth - candidateX, 0));
 
   // Check for next item on same line to constrain width
   const nextItem = findNextItemOnLine(label, pageItems);
   if (nextItem) {
     const maxWidth = nextItem.x - candidateX - 2; // 2pt gap before next item
-    if (maxWidth > 20) {
+    if (maxWidth > 24) {
       candidateWidth = Math.min(candidateWidth, maxWidth);
     }
   }
+
+  // Ensure we keep a writable minimum
+  candidateWidth = Math.max(candidateWidth, 36);
 
   // Validate candidate dimensions
   if (candidateX < 0 || candidateWidth <= 0) {
@@ -335,7 +401,7 @@ function createRightOfLabelCandidate(
       width: candidateWidth,
       height: candidateHeight,
     },
-    typeHint: label.type,
+    typeHint: inferTypeFromLabels([label]),
     nearbyLabelIds: [label.id],
     nearbyLabelTypes: [label.type],
     score,
@@ -363,10 +429,13 @@ function findNearbyLabels(
       Math.pow(itemCenterX - labelCenterX, 2) +
       Math.pow(itemCenterY - labelCenterY, 2)
     );
+
+    const sameLine = Math.abs(itemCenterY - labelCenterY) < 20;
+    const effectiveDistance = sameLine ? distance * 0.75 : distance;
     
     // Consider labels within 200 points (roughly 2.8 inches)
-    if (distance < 200) {
-      nearby.push({ label, distance });
+    if (effectiveDistance < 260) {
+      nearby.push({ label, distance: effectiveDistance });
     }
   }
 
@@ -383,8 +452,45 @@ function inferTypeFromLabels(labels: DetectedLabel[]): WaiverLabelType {
     return 'other';
   }
 
-  // Use the closest label's type
-  return labels[0].type;
+  const best = labels[0];
+  const text = best.normalizedText || best.text.toLowerCase();
+
+  if (best.type === 'email' || /\be-?mail\b/.test(text)) return 'email';
+  if (best.type === 'phone' || /\b(phone|cell|mobile|telephone)\b/.test(text)) return 'phone';
+  if (best.type === 'initials' || /\binitial/.test(text)) return 'initials';
+  if (best.type === 'date' || /\bdate\b/.test(text)) return 'date';
+
+  // Parent/guardian labels can be name/signature/email/phone context.
+  if (best.type === 'parent_guardian') {
+    if (/\bsignature\b/.test(text)) return 'signature';
+    if (/\bname\b/.test(text)) return 'printed_name';
+    if (/\be-?mail\b/.test(text)) return 'email';
+    if (/\b(phone|cell|mobile|telephone)\b/.test(text)) return 'phone';
+    return 'other';
+  }
+
+  if (best.type === 'witness' && /\bsignature\b/.test(text)) return 'signature';
+
+  return best.type;
+}
+
+function baseCandidateWidthForType(type: WaiverLabelType): number {
+  switch (type) {
+    case 'signature':
+      return 240;
+    case 'printed_name':
+      return 200;
+    case 'date':
+      return 120;
+    case 'email':
+      return 240;
+    case 'phone':
+      return 180;
+    case 'initials':
+      return 90;
+    default:
+      return 150;
+  }
 }
 
 /**
@@ -459,16 +565,18 @@ function estimatePageWidth(items: PdfTextItem[]): number {
     return 612; // Default US Letter width
   }
 
-  let maxX = 0;
-  for (const item of items) {
-    const rightEdge = item.x + item.width;
-    if (rightEdge > maxX) {
-      maxX = rightEdge;
-    }
-  }
+  const rightEdges = items
+    .map((item) => item.x + Math.min(Math.max(item.width, 0), 500))
+    .filter((edge) => Number.isFinite(edge) && edge > 0)
+    .sort((a, b) => a - b);
 
-  // Add some margin and use reasonable max
-  return Math.min(maxX + 50, 800);
+  if (rightEdges.length === 0) return 612;
+
+  const p95Index = Math.floor((rightEdges.length - 1) * 0.95);
+  const p95 = rightEdges[Math.max(0, p95Index)] ?? rightEdges[rightEdges.length - 1];
+
+  // Keep in a sane range for common page sizes
+  return Math.min(Math.max(p95 + 20, 300), 1200);
 }
 
 /**
@@ -499,6 +607,12 @@ function deduplicateCandidates(candidates: CandidateArea[]): CandidateArea[] {
     for (const candidate of sorted) {
       // Check if this candidate overlaps significantly with any kept candidate
       const hasOverlap = kept.some(other => {
+        // Keep cross-source candidates; they provide complementary options
+        // (e.g., precise underscore run + generic right-of-label gap).
+        if (other.source !== candidate.source) {
+          return false;
+        }
+
         const iou = calculateIoU(candidate.rect, other.rect);
         return iou > 0.5; // 50% IoU threshold
       });

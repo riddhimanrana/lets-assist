@@ -379,7 +379,7 @@ export async function getProjectWaiver(projectId: string) {
     // First get the project's waiver config
     const { data: project, error: projectError } = await serviceSupabase
       .from("projects")
-      .select("waiver_required, waiver_allow_upload, waiver_pdf_url, waiver_pdf_storage_path, waiver_definition_id")
+      .select("waiver_required, waiver_allow_upload, waiver_disable_esignature, waiver_pdf_url, waiver_pdf_storage_path, waiver_definition_id")
       .eq("id", projectId)
       .maybeSingle();
 
@@ -408,7 +408,7 @@ export async function getProjectWaiver(projectId: string) {
         return {
           waiverConfig: {
              waiverRequired: project.waiver_required ?? true,
-             waiverAllowUpload: project.waiver_allow_upload ?? true,
+            waiverAllowUpload: project.waiver_disable_esignature ? true : (project.waiver_allow_upload ?? true),
              waiverPdfUrl: definition.pdf_public_url || project.waiver_pdf_url, // Prefer definition PDF
              waiverPdfStoragePath: definition.pdf_storage_path,
              isProjectSpecific: true,
@@ -425,7 +425,7 @@ export async function getProjectWaiver(projectId: string) {
       return {
         waiverConfig: {
           waiverRequired: project.waiver_required ?? false,
-          waiverAllowUpload: project.waiver_allow_upload ?? true,
+          waiverAllowUpload: project.waiver_disable_esignature ? true : (project.waiver_allow_upload ?? true),
           waiverPdfUrl: project.waiver_pdf_url,
           waiverPdfStoragePath: project.waiver_pdf_storage_path,
           isProjectSpecific: true,
@@ -441,7 +441,7 @@ export async function getProjectWaiver(projectId: string) {
         return {
             waiverConfig: {
                 waiverRequired: project.waiver_required ?? true,
-                waiverAllowUpload: project.waiver_allow_upload ?? true,
+                waiverAllowUpload: project.waiver_disable_esignature ? true : (project.waiver_allow_upload ?? true),
                 waiverPdfUrl: activeGlobalTemplate.pdf_public_url,
                 waiverPdfStoragePath: activeGlobalTemplate.pdf_storage_path,
                 isProjectSpecific: false,
@@ -462,7 +462,7 @@ export async function getProjectWaiver(projectId: string) {
     return {
       waiverConfig: {
         waiverRequired: project.waiver_required ?? false,
-        waiverAllowUpload: project.waiver_allow_upload ?? true,
+        waiverAllowUpload: project.waiver_disable_esignature ? true : (project.waiver_allow_upload ?? true),
         waiverPdfUrl: null,
         waiverPdfStoragePath: null,
         isProjectSpecific: false,
@@ -715,14 +715,14 @@ async function persistWaiverSignature(params: {
   // Check for project-specific waiver PDF first
   const { data: project } = await serviceSupabase
     .from("projects")
-    .select("waiver_pdf_url, waiver_allow_upload")
+    .select("waiver_pdf_url, waiver_allow_upload, waiver_disable_esignature")
     .eq("id", params.projectId)
     .maybeSingle();
 
   let templateId: string | null = params.waiverSignature.templateId === "project-pdf" ? null : params.waiverSignature.templateId;
   const waiverPdfUrl = project?.waiver_pdf_url || params.waiverSignature.waiverPdfUrl || null;
   // Phase 1: Default to true for backward compatibility with projects created before this feature
-  const waiverAllowUpload = project?.waiver_allow_upload ?? true;
+  const waiverAllowUpload = project?.waiver_disable_esignature ? true : (project?.waiver_allow_upload ?? true);
 
   // If using project-specific PDF, we don't need a template
   if (waiverPdfUrl) {
@@ -978,7 +978,11 @@ export async function signUpForProject(
         return { error: "Waiver template is missing." };
       }
 
-      if (waiverSignature.signatureType === "upload" && project.waiver_allow_upload === false) {
+      if (
+        waiverSignature.signatureType === "upload" &&
+        project.waiver_allow_upload === false &&
+        project.waiver_disable_esignature !== true
+      ) {
         return { error: "Waiver uploads are not allowed for this project." };
       }
 

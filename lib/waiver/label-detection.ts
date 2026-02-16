@@ -8,6 +8,8 @@ export type WaiverLabelType =
   | 'signature'
   | 'date'
   | 'printed_name'
+  | 'email'
+  | 'phone'
   | 'parent_guardian'
   | 'initials'
   | 'witness'
@@ -106,13 +108,27 @@ function detectLabelType(
   normalized: string,
   original: string
 ): { type: WaiverLabelType; confidence: number } {
+  const compact = normalized.replace(/\s+/g, ' ').trim();
+  const looksLabelLike = isLikelyLabelText(compact);
+
   // Priority order: more specific patterns first
 
   // Parent/Guardian - check before generic signature, use word boundaries
   if (
-    /\b(parent|guardian)\b/.test(normalized)
+    /\b(parent|guardian)\b/.test(normalized) &&
+    (looksLabelLike || /parent\s*\/\s*guardian/.test(normalized))
   ) {
     return { type: 'parent_guardian', confidence: 0.95 };
+  }
+
+  // Email
+  if (/\b(e-?mail|email)\b/.test(normalized) && looksLabelLike) {
+    return { type: 'email', confidence: 0.95 };
+  }
+
+  // Phone / Cell
+  if (/\b(phone|cell|mobile|telephone)\b/.test(normalized) && looksLabelLike) {
+    return { type: 'phone', confidence: 0.93 };
   }
 
   // Witness - use word boundary
@@ -130,19 +146,17 @@ function detectLabelType(
 
   // Signature patterns
   if (
-    /\bsignature\b/.test(normalized) ||
-    /\bsigner\b/.test(normalized) ||
-    (/\bsign\b/.test(normalized) && /\bhere\b/.test(normalized))
+    looksLabelLike && (
+      /\bsignature\b/.test(normalized) ||
+      /\bsigner\b/.test(normalized) ||
+      (/\bsign\b/.test(normalized) && /\bhere\b/.test(normalized))
+    )
   ) {
     return { type: 'signature', confidence: 0.9 };
   }
 
   // Date patterns - check after signature to catch "signed on" properly, use word boundaries
-  if (
-    (/\bdate\b/.test(normalized) && !isDateInSentence(normalized)) ||
-    /\bsigned on\b/.test(normalized) ||
-    (/\bsigned\b/.test(normalized) && /\bdate\b/.test(normalized))
-  ) {
+  if (isDateLabelLike(normalized, compact)) {
     return { type: 'date', confidence: 0.9 };
   }
 
@@ -180,9 +194,45 @@ function isDateInSentence(normalized: string): boolean {
     'date is important',
     'date must',
     'date should',
+    'before the date',
+    'on the date',
+    'of service',
   ];
 
   return sentenceIndicators.some(indicator => normalized.includes(indicator));
+}
+
+function isLikelyLabelText(normalized: string): boolean {
+  // Typical label traits: short phrase and/or colon.
+  if (normalized.includes(':')) return true;
+
+  const words = normalized.split(/\s+/).filter(Boolean);
+  const isShortPhrase = words.length <= 6 && normalized.length <= 42;
+  if (!isShortPhrase) return false;
+
+  // Avoid sentence-like fragments.
+  if (/[.!?]$/.test(normalized)) return false;
+  if (/\b(the|and|or|for|with|before|after|because|which|that)\b/.test(normalized) && words.length > 4) {
+    return false;
+  }
+
+  return true;
+}
+
+function isDateLabelLike(normalized: string, compact: string): boolean {
+  if (/\bsigned on\b/.test(normalized)) return true;
+
+  if (!/\bdate\b/.test(normalized)) return false;
+  if (isDateInSentence(normalized)) return false;
+
+  if (compact.includes(':')) return true;
+
+  // Allow known short label forms without colon.
+  if (/^(date|date signed|signed date|date of birth|dob)$/i.test(compact)) {
+    return true;
+  }
+
+  return false;
 }
 
 /**

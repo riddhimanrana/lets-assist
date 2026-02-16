@@ -4,7 +4,7 @@
  */
 
 import { getAdminClient } from '@/lib/supabase/admin';
-import { generateObject } from 'ai';
+import { generateText, Output } from 'ai';
 import { z } from 'zod';
 
 // Schema for AI moderation response with Chain of Thought
@@ -157,9 +157,9 @@ export async function performAiModerationScan() {
       })),
     };
 
-    const { object: batchResult } = await generateObject({
+    const { output: batchResult } = await generateText({
       model: 'openai/gpt-oss-safeguard-20b',
-      schema: batchModerationSchema,
+      output: Output.object({ schema: batchModerationSchema }),
       prompt: `You are a content moderation AI. Review the following user-generated content and flag any that violate policies (spam, harassment, inappropriate content, violence, hate speech, etc.). Be thorough but fair.
 
 Projects (volunteer initiatives):

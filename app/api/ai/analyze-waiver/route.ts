@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { generateObject } from 'ai';
+import { generateText, Output } from 'ai';
 import { z } from 'zod';
 import { getAuthUser } from '@/lib/supabase/auth-helpers';
 import { PDFDocument } from 'pdf-lib';
@@ -7,6 +7,8 @@ import { extractPdfTextWithPositions } from '@/lib/waiver/pdf-text-extract';
 import { findLabels } from '@/lib/waiver/label-detection';
 import { detectCandidateAreas } from '@/lib/waiver/candidate-detection';
 import { detectPdfWidgets } from '@/lib/waiver/pdf-field-detect';
+import type { CandidateArea } from '@/lib/waiver/candidate-detection';
+import type { DetectedPdfField } from '@/lib/waiver/pdf-field-detect';
 
 const FIELD_TYPES = [
   'signature',
@@ -21,6 +23,8 @@ const FIELD_TYPES = [
   'dropdown',
   'initial',
 ] as const;
+
+const ENABLE_VISION_FALLBACK = true;
 
 // Phase 3: New schema for AI output with candidate selection
 const SelectedFieldSchema = z.object({
@@ -47,6 +51,35 @@ const WaiverClassificationSchema = z.object({
   summary: z.string().describe('Brief summary of what the waiver covers'),
   recommendations: z.array(z.string()).describe('Suggestions for setting up the waiver fields'),
   reasoning: z.string().optional().describe('Overall reasoning about the document structure and field selections'),
+});
+
+const VisionDetectedFieldSchema = z.object({
+  fieldType: z.enum(FIELD_TYPES).describe('Type of form field'),
+  label: z.string().describe('Human-readable label for this field'),
+  signerRole: z.string().describe('Who should fill this field (e.g., volunteer, parent, guardian)'),
+  pageIndex: z.number().int().nonnegative().describe('Page index (prefer 0-based; 1-based accepted and normalized)'),
+  normalizedBoxTopLeft: z.object({
+    x: z.number().min(0),
+    y: z.number().min(0),
+    width: z.number().min(0),
+    height: z.number().min(0),
+  }).describe('Box using TOP-LEFT origin. Values may be normalized (0..1) OR absolute page units.'),
+  required: z.boolean(),
+  reasoning: z.string().optional(),
+});
+
+const VisionFallbackSchema = z.object({
+  fields: z.array(VisionDetectedFieldSchema),
+  signerRoles: z.array(
+    z.object({
+      roleKey: z.string(),
+      label: z.string(),
+      required: z.boolean(),
+      description: z.string().optional(),
+    })
+  ).optional(),
+  summary: z.string().optional(),
+  recommendations: z.array(z.string()).optional(),
 });
 
 interface PageDimension {
@@ -81,6 +114,23 @@ type ParsedRole = z.infer<typeof WaiverClassificationSchema>['signerRoles'][numb
 export type AnalyzeWaiverNormalizedField = ParsedField;
 export type AnalyzeWaiverPageDimension = PageDimension;
 
+export interface SelectableCandidate {
+  id: string;
+  pageIndex: number;
+  rect: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+  typeHint: string;
+  score: number;
+  source: 'widget' | 'underscore' | 'right_of_label';
+  nearbyLabelTypes?: string[];
+  required?: boolean;
+  label?: string;
+}
+
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
@@ -98,6 +148,345 @@ function normalizeRoleKey(raw: string): string {
     .replace(/^_+|_+$/g, '');
 
   return cleaned || 'volunteer';
+}
+
+function getIou(
+  a: { x: number; y: number; width: number; height: number },
+  b: { x: number; y: number; width: number; height: number }
+): number {
+  const x1 = Math.max(a.x, b.x);
+  const y1 = Math.max(a.y, b.y);
+  const x2 = Math.min(a.x + a.width, b.x + b.width);
+  const y2 = Math.min(a.y + a.height, b.y + b.height);
+
+  const interW = Math.max(0, x2 - x1);
+  const interH = Math.max(0, y2 - y1);
+  const interArea = interW * interH;
+
+  if (interArea === 0) return 0;
+
+  const areaA = Math.max(0, a.width) * Math.max(0, a.height);
+  const areaB = Math.max(0, b.width) * Math.max(0, b.height);
+  const unionArea = areaA + areaB - interArea;
+
+  return unionArea > 0 ? interArea / unionArea : 0;
+}
+
+function toFieldTypeHint(raw: string): typeof FIELD_TYPES[number] {
+  const normalized = raw.toLowerCase();
+
+  if (normalized === 'printed_name') return 'name';
+  if (normalized === 'initials') return 'initial';
+  if (normalized === 'parent_guardian' || normalized === 'witness' || normalized === 'other') return 'text';
+
+  if ((FIELD_TYPES as readonly string[]).includes(normalized)) {
+    return normalized as typeof FIELD_TYPES[number];
+  }
+
+  return 'text';
+}
+
+function inferWidgetFieldType(widget: DetectedPdfField): typeof FIELD_TYPES[number] {
+  const base = toFieldTypeHint(widget.fieldType);
+  if (base !== 'text') {
+    return base;
+  }
+
+  const name = (widget.fieldName || '').toLowerCase();
+
+  if (/signature|sign_here|signer_sign|parent_sign|guardian_sign/.test(name)) return 'signature';
+  if (/initial/.test(name)) return 'initial';
+  if (/date|signed_on|dob/.test(name)) return 'date';
+  if (/name|print_name|printed_name/.test(name)) return 'name';
+  if (/email|e_mail/.test(name)) return 'email';
+  if (/phone|mobile|cell/.test(name)) return 'phone';
+
+  return 'text';
+}
+
+function toDefaultFieldLabel(fieldName: string, typeHint: string): string {
+  const cleaned = fieldName
+    .replace(/[_-]+/g, ' ')
+    .trim();
+
+  if (cleaned.length > 0) {
+    return cleaned
+      .split(' ')
+      .filter(Boolean)
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ');
+  }
+
+  return `Field (${typeHint})`;
+}
+
+function defaultLabelForType(fieldType: typeof FIELD_TYPES[number]) {
+  switch (fieldType) {
+    case 'signature':
+      return 'Signature';
+    case 'initial':
+      return 'Initials';
+    case 'date':
+      return 'Date';
+    case 'name':
+      return 'Name';
+    case 'email':
+      return 'Email';
+    case 'phone':
+      return 'Phone';
+    case 'address':
+      return 'Address';
+    default:
+      return 'Text';
+  }
+}
+
+function shouldIncludeFallbackCandidate(candidate: SelectableCandidate) {
+  if (candidate.source === 'widget') return false;
+
+  const allowedTypes = new Set<typeof FIELD_TYPES[number]>([
+    'signature',
+    'initial',
+    'date',
+    'name',
+    'email',
+    'phone',
+    'address',
+  ]);
+
+  if (allowedTypes.has(candidate.typeHint as typeof FIELD_TYPES[number])) {
+    return candidate.score >= 0.25;
+  }
+
+  if (candidate.nearbyLabelTypes?.length) {
+    return candidate.score >= 0.35;
+  }
+
+  return false;
+}
+
+function buildFallbackFieldsFromCandidates(
+  candidates: SelectableCandidate[],
+  signerRoleKey: string
+): ParsedField[] {
+  const filtered = candidates
+    .filter(shouldIncludeFallbackCandidate)
+    .slice(0, 40);
+
+  return filtered.map((candidate) => {
+    const fieldType = toFieldTypeHint(candidate.typeHint);
+
+    return {
+      fieldType,
+      label: candidate.label || defaultLabelForType(fieldType),
+      signerRole: signerRoleKey,
+      pageIndex: candidate.pageIndex,
+      boundingBox: {
+        x: candidate.rect.x,
+        y: candidate.rect.y,
+        width: candidate.rect.width,
+        height: candidate.rect.height,
+      },
+      required: candidate.required ?? fieldType === 'signature',
+      notes: 'Fallback from candidate detection (underscores/boxes)',
+    };
+  });
+}
+
+export function buildSelectableCandidates(
+  candidates: CandidateArea[],
+  widgets: DetectedPdfField[]
+): SelectableCandidate[] {
+  const widgetCandidates: SelectableCandidate[] = widgets
+    .filter((w) => w.fieldType !== 'unknown' && w.fieldType !== 'button')
+    .map((w, index) => ({
+      id: `widget:${w.pageIndex}:${index}:${w.fieldName || 'field'}`,
+      pageIndex: w.pageIndex,
+      rect: {
+        x: w.rect.x,
+        y: w.rect.y,
+        width: w.rect.width,
+        height: w.rect.height,
+      },
+      typeHint: inferWidgetFieldType(w),
+      score: 1,
+      source: 'widget',
+      nearbyLabelTypes: [],
+      required: w.required,
+      label: toDefaultFieldLabel(w.fieldName, w.fieldType),
+    }));
+
+  const lineCandidates: SelectableCandidate[] = candidates.map((c) => ({
+    id: c.id,
+    pageIndex: c.pageIndex,
+    rect: c.rect,
+    typeHint: toFieldTypeHint(c.typeHint),
+    score: c.score,
+    source: c.source,
+    nearbyLabelTypes: c.nearbyLabelTypes,
+  }));
+
+  return [...widgetCandidates, ...lineCandidates].sort((a, b) => {
+    const byScore = b.score - a.score;
+    if (byScore !== 0) return byScore;
+
+    // Phase 5: deterministically prioritize widgets on score ties.
+    if (a.source === 'widget' && b.source !== 'widget') return -1;
+    if (b.source === 'widget' && a.source !== 'widget') return 1;
+
+    return a.id.localeCompare(b.id);
+  });
+}
+
+export function mapSelectionsToFields(
+  selections: z.infer<typeof SelectedFieldSchema>[],
+  selectableCandidates: SelectableCandidate[]
+): ParsedField[] {
+  const shouldLogWarnings = process.env.NODE_ENV !== 'test';
+  const candidateById = new Map(selectableCandidates.map((c) => [c.id, c]));
+
+  const mapped = selections
+    .map((selection) => {
+      const selected = candidateById.get(selection.candidateId);
+      if (!selected) {
+        if (shouldLogWarnings) {
+          console.warn(`Candidate ID not found: ${selection.candidateId}`);
+        }
+        return null;
+      }
+
+      // Phase 6: Validate candidate has finite coordinates (reject NaN/Infinity)
+      // Note: Negative coordinates are allowed here - normalization will fix them
+      const hasValidCoordinates = (
+        Number.isFinite(selected.rect.x) &&
+        Number.isFinite(selected.rect.y) &&
+        Number.isFinite(selected.rect.width) &&
+        Number.isFinite(selected.rect.height)
+      );
+
+      if (!hasValidCoordinates) {
+        if (shouldLogWarnings) {
+          console.warn(`Candidate has invalid coordinates: ${selection.candidateId}`, selected.rect);
+        }
+        return null;
+      }
+
+      const field: ParsedField = {
+        fieldType: selection.fieldType,
+        label: selection.label,
+        signerRole: normalizeRoleKey(selection.signerRole),
+        pageIndex: selected.pageIndex,
+        boundingBox: {
+          x: selected.rect.x,
+          y: selected.rect.y,
+          width: selected.rect.width,
+          height: selected.rect.height,
+        },
+        required: selection.required,
+      };
+
+      if (selection.reasoning) {
+        field.notes = selection.reasoning;
+      }
+
+      return field;
+    });
+
+  return mapped.filter((f): f is ParsedField => f !== null);
+}
+
+export function mapWidgetsToFields(widgets: DetectedPdfField[]): ParsedField[] {
+  return widgets
+    .filter((w) => w.fieldType !== 'unknown' && w.fieldType !== 'button')
+    .map((w) => ({
+      fieldType: inferWidgetFieldType(w),
+      label: toDefaultFieldLabel(w.fieldName, w.fieldType),
+      signerRole: 'volunteer',
+      pageIndex: w.pageIndex,
+      boundingBox: {
+        x: w.rect.x,
+        y: w.rect.y,
+        width: w.rect.width,
+        height: w.rect.height,
+      },
+      required: Boolean(w.required),
+      notes: 'Detected from embedded PDF form widget',
+    }));
+}
+
+export function mapVisionFallbackFields(
+  fields: z.infer<typeof VisionDetectedFieldSchema>[],
+  pageDimensions: PageDimension[],
+  pageCount: number
+): ParsedField[] {
+  const rawIndexes = fields.map((field) => Math.round(safeNumber(field.pageIndex, 0)));
+  const convertFromOneBased = shouldConvertFromOneBased(rawIndexes, pageCount);
+
+  const mapped: ParsedField[] = fields.map((field) => {
+    const rawIndex = Math.round(safeNumber(field.pageIndex, 0));
+    const clampedIndex = normalizePageIndex(rawIndex, pageCount, convertFromOneBased);
+    const page = pageDimensions[clampedIndex] ?? pageDimensions[0];
+
+    const nx = safeNumber(field.normalizedBoxTopLeft.x, 0);
+    const nyTop = safeNumber(field.normalizedBoxTopLeft.y, 0);
+    const nwidth = safeNumber(field.normalizedBoxTopLeft.width, 0);
+    const nheight = safeNumber(field.normalizedBoxTopLeft.height, 0);
+
+    const width = nwidth <= 1 ? nwidth * page.width : nwidth;
+    const height = nheight <= 1 ? nheight * page.height : nheight;
+    const x = nx <= 1 ? nx * page.width : nx;
+    const yTop = nyTop <= 1 ? nyTop * page.height : nyTop;
+    const y = page.height - yTop - height;
+
+    return {
+      fieldType: field.fieldType,
+      label: field.label,
+      signerRole: field.signerRole,
+      pageIndex: clampedIndex,
+      boundingBox: { x, y, width, height },
+      required: field.required,
+      notes: field.reasoning,
+    };
+  });
+
+  return normalizeFieldsForOverlay(mapped, pageDimensions, pageCount, { convertFromOneBased: false });
+}
+
+export function mergeFieldsPreferWidgets(widgetFields: ParsedField[], aiFields: ParsedField[]): ParsedField[] {
+  const merged: ParsedField[] = [...widgetFields];
+
+  for (const aiField of aiFields) {
+    const overlappingWidgetIndex = merged.findIndex((widgetField) => {
+      if (widgetField.pageIndex !== aiField.pageIndex) return false;
+      const iou = getIou(widgetField.boundingBox, aiField.boundingBox);
+      if (iou < 0.5) return false;
+
+      // Widget extraction often returns generic "text" fields for semantically specific inputs.
+      const typeCompatible =
+        widgetField.fieldType === aiField.fieldType ||
+        widgetField.fieldType === 'text' ||
+        aiField.fieldType === 'text';
+
+      return typeCompatible;
+    });
+
+    if (overlappingWidgetIndex >= 0) {
+      // Keep widget geometry (authoritative), but preserve AI semantic metadata.
+      const widgetField = merged[overlappingWidgetIndex];
+      merged[overlappingWidgetIndex] = {
+        ...widgetField,
+        label: aiField.label || widgetField.label,
+        signerRole: aiField.signerRole || widgetField.signerRole,
+        required: aiField.required || widgetField.required,
+        notes: aiField.notes ?? widgetField.notes,
+      };
+      continue;
+    }
+
+    merged.push(aiField);
+  }
+
+  return merged;
 }
 
 function toRoleLabel(roleKey: string): string {
@@ -139,10 +528,13 @@ function normalizePageIndex(rawPageIndex: number, pageCount: number, convertFrom
 export function normalizeFieldsForOverlay(
   fields: ParsedField[],
   pageDimensions: PageDimension[],
-  pageCount: number
+  pageCount: number,
+  options?: {
+    convertFromOneBased?: boolean;
+  }
 ): ParsedField[] {
   const pageIndexes = fields.map((f) => Math.round(safeNumber(f.pageIndex, 0)));
-  const convertFromOneBased = shouldConvertFromOneBased(pageIndexes, pageCount);
+  const convertFromOneBased = options?.convertFromOneBased ?? shouldConvertFromOneBased(pageIndexes, pageCount);
 
   const normalized: ParsedField[] = [];
 
@@ -270,6 +662,7 @@ export async function POST(request: NextRequest) {
     }
 
     const arrayBuffer = await file.arrayBuffer();
+    const pdfBytes = Buffer.from(arrayBuffer);
 
     let pdfDoc: PDFDocument;
     try {
@@ -291,7 +684,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Phase 3: Extract structural data from PDF
-    const pdfData = new Uint8Array(arrayBuffer);
+    const pdfData = new Uint8Array(arrayBuffer.slice(0));
     
     // Step 1: Extract text with coordinates
     const textExtraction = await extractPdfTextWithPositions(pdfData);
@@ -306,6 +699,9 @@ export async function POST(request: NextRequest) {
     // Step 4: Detect AcroForm widgets (if any) - pass File directly
     const widgetDetection = await detectPdfWidgets(file);
     const widgets = widgetDetection.success ? widgetDetection.fields : [];
+
+    // Phase 5: Build unified selectable candidates (widgets first, then inferred line/box candidates)
+    const selectableCandidates = buildSelectableCandidates(candidates, widgets);
 
     // Build structured input payload for AI with text content (capped)
     // Cap text items to prevent payload bloat (max 500 items, ~150 chars each)
@@ -343,11 +739,11 @@ export async function POST(request: NextRequest) {
           height: Math.round(l.rect.height),
         },
       })),
-      candidates: candidates.map(c => ({
+      candidates: selectableCandidates.map(c => ({
         id: c.id,
         pageIndex: c.pageIndex,
         typeHint: c.typeHint,
-        nearbyLabelTypes: c.nearbyLabelTypes,
+        nearbyLabelTypes: c.nearbyLabelTypes ?? [],
         score: c.score,
         source: c.source,
         rectInPoints: {
@@ -365,111 +761,189 @@ export async function POST(request: NextRequest) {
       })),
     }, null, 2);
 
-    const hasStructuralData = textItems.length > 0 || candidates.length > 0 || widgets.length > 0;
-
-    const result = await generateObject({
+    const result = await generateText({
       model: 'google/gemini-2.5-flash-lite',
-      schema: WaiverClassificationSchema,
+      output: Output.object({ schema: WaiverClassificationSchema }),
       messages: [
         {
           role: 'user',
           content: [
             {
               type: 'text',
-              text: hasStructuralData
-                ? `You are analyzing a volunteer waiver/consent PDF with structured data extraction.
+              text: `You are analyzing a volunteer waiver/consent PDF to detect signature and form fields.
 
-**YOUR TASK**: Select appropriate candidate IDs for form fields based on the provided structural data.
+**YOUR TASK**: Look at the PDF visually and select the best candidate IDs for signature fields, dates, names, and other form fields.
+Your output MUST maximize field coverage for all signer sections.
 
 **COORDINATE SYSTEM**: All coordinates are in PDF points with BOTTOM-LEFT origin (y increases upward from page bottom).
 
-**STRUCTURED INPUT DATA**:
+**AVAILABLE CANDIDATES**:
 ${structuredInput}
 
 **INSTRUCTIONS**:
 
-1. **Review the structured data**:
-   - Pages: dimensions and count
-   - Labels: detected field labels with types (signature, date, name, etc.)
-   - Candidates: detected writable areas (underscore runs, right-of-label gaps) with type hints
-   - Widgets: AcroForm fields if present
+1. **Look at the PDF visually** and identify where signatures, dates, names, initials, email, and phone fields should be filled in.
 
-2. **Select candidate IDs**:
-   - For each field you want to include, SELECT a candidateId from the candidates array
-   - Use the candidate's typeHint, nearbyLabelTypes, and score to guide selection
-   - Prioritize candidates with high scores and matching type hints
+2. **For each field you find**:
+   - Look at the candidates array and find the candidateId that best matches the visual location
+   - The candidate should be near the label and in a logical fill-in location
+   - Prefer candidates with higher scores and matching typeHints
+  - If the form has repeated sections (e.g., volunteer + parent/guardian), select candidates for EACH section, not just one
 
-3. **Classify fields**:
-   - Assign appropriate fieldType (signature, date, name, email, etc.)
-   - Assign signerRole (volunteer, parent, guardian, witness, etc.)
-   - Create descriptive labels
-   - Mark fields as required based on waiver language
+3. **Be direct and accurate**:
+   - Select exactly where someone would naturally sign or fill in the field
+   - Don't overthink - if you see "Signature:" followed by a line, select that candidate
+   - If you see "Date:" with a line or underscores, select that candidate
+   - Look for visual cues like lines, underscores, or blank spaces
 
-4. **Detect signer roles**:
-   - Identify all signer roles mentioned in the waiver
-   - Common patterns: volunteer, participant, parent/guardian, witness
-   - Mark roles as required if explicitly stated
+4. **Classify fields correctly**:
+   - signature: Where someone signs their name
+   - date: Where a date goes  
+   - name: Printed name fields
+   - initial: Initial boxes
+  - email: Email input fields
+  - phone: Cell/phone input fields
+   - Assign appropriate signerRole (volunteer, parent, guardian, witness)
 
-5. **DO NOT generate coordinates**:
-   - You select candidate IDs, NOT coordinates
-   - The system will map your selections to bounding boxes automatically
+5. **Signer-role coverage requirements**:
+  - Identify ALL distinct signer roles present in the waiver text
+  - If parent/guardian sections exist, include parent/guardian role(s)
+  - If witness sections exist, include witness role
+  - For each role, include at least one primary field (signature/name/date) when present
+  - Do not collapse multiple signer sections into one generic role
 
-**EDGE CASES**:
-- If no candidates available: return empty selectedFields array
-- If candidate type hint doesn't match field type: you can override with reasoning
-- Multiple candidates for same label: select the highest-scoring one
+6. **If no good candidates exist**:
+   - Return empty selectedFields array
+   - The system will use vision fallback to detect fields directly
 
-**FALLBACK**:
-If structural data is empty or insufficient, you can still analyze the PDF visually, but you won't be able to reference candidate IDs (return empty selectedFields).`
-                : `You are analyzing a volunteer waiver/consent PDF (vision-only fallback - no structural data available).
-
-This PDF has no extractable text or detected candidates. Analyze the visual PDF to:
-1. Identify signer roles
-2. Provide a summary
-3. Return recommendations
-
-Return empty selectedFields array since no candidates are available.`,
+**Key Point**: Trust what you see in the PDF. Select candidates that visually match where fields should be placed and return comprehensive coverage, not minimal coverage.`,
             },
             {
               type: 'file',
-              data: pdfData,
+              data: pdfBytes,
               mediaType: 'application/pdf',
             },
           ],
         },
       ],
-      temperature: 0.1,
+      temperature: 0,
     });
+    const structured = result.output;
 
-    // Map selected candidate IDs to bounding boxes
-    const fieldsFromCandidates = result.object.selectedFields
-      .map(selection => {
-        const candidate = candidates.find(c => c.id === selection.candidateId);
-        if (!candidate) {
-          // Invalid candidateId - skip this field
-          console.warn(`Candidate ID not found: ${selection.candidateId}`);
-          return null;
+    // Phase 5: map AI selections from unified candidates, then merge with deterministic widget extraction.
+    const aiFields = mapSelectionsToFields(structured.selectedFields, selectableCandidates);
+    const widgetFields = mapWidgetsToFields(widgets);
+    const mergedFields = mergeFieldsPreferWidgets(widgetFields, aiFields);
+    let normalizedFields = normalizeFieldsForOverlay(mergedFields, pageDimensions, pageCount);
+    let normalizedSignerRoles = normalizeSignerRoles(structured.signerRoles);
+    const defaultSignerRole = normalizedSignerRoles[0]?.roleKey ?? 'volunteer';
+
+    const hasParentGuardianSignals = labels.some((label) => label.type === 'parent_guardian');
+    const hasContactSignals = labels.some((label) => label.type === 'email' || label.type === 'phone');
+    const targetMinimumFields = Math.min(Math.max(selectableCandidates.length, 3), 10);
+    const underDetected =
+      normalizedFields.length < Math.max(3, Math.floor(targetMinimumFields * 0.5)) ||
+      (hasParentGuardianSignals && normalizedSignerRoles.length < 2) ||
+      (hasContactSignals && !normalizedFields.some((field) => field.fieldType === 'email' || field.fieldType === 'phone'));
+
+    if (normalizedFields.length === 0 && selectableCandidates.length > 0) {
+      const fallbackFields = buildFallbackFieldsFromCandidates(selectableCandidates, defaultSignerRole);
+      if (fallbackFields.length > 0) {
+        normalizedFields = normalizeFieldsForOverlay(fallbackFields, pageDimensions, pageCount);
+      }
+    }
+
+    // Vision fallback: if no fields were produced from structural path, ask model to return boxes directly.
+    if (ENABLE_VISION_FALLBACK && (normalizedFields.length === 0 || underDetected)) {
+      try {
+        const fallback = await generateText({
+          model: 'google/gemini-2.5-flash-lite',
+          output: Output.object({ schema: VisionFallbackSchema }),
+          messages: [
+            {
+              role: 'user',
+              content: [
+                {
+                  type: 'text',
+                  text: `You are analyzing a waiver PDF to detect exactly where signature fields, dates, and other form fields should be placed.
+
+**YOUR TASK**: Look at the PDF and return the bounding boxes for where each field should go.
+
+**IMPORTANT - COORDINATE SYSTEM**:
+- Return boxes in TOP-LEFT coordinates
+- x: distance from left edge (0 = left, increases right)
+- y: distance from TOP edge (0 = top, increases down)  
+- width: box width
+- height: box height
+- Use normalized values between 0 and 1 (e.g., x: 0.1 means 10% from left edge)
+- pageIndex: 0-based (0 = first page, 1 = second page)
+
+**WHERE TO PLACE FIELDS**:
+Look for these visual cues:
+- "Signature:" followed by a line → place signature field ON the line
+- "Date:" with underscores or line → place date field there
+- "Print Name:" with space → place name field there
+- Empty boxes or checkboxes → place checkbox fields there
+
+**BE PRECISE**:
+- Place the bounding box exactly where someone would write/sign
+- If there's a line for signature, the box should cover that line
+- Don't place fields on labels - place them on the writable area
+- Make signature boxes wide enough (at least 0.3 width ratio)
+- Make date boxes appropriate size (around 0.15 width)
+
+**FIELD TYPES TO DETECT**:
+- signature: Where someone signs
+- date: Date fields
+- name: Printed name  
+- initial: Initial boxes
+- checkbox: Check boxes
+- text: Other text input
+
+**SIGNER ROLES**:
+Assign fields to: volunteer, parent, guardian, witness (based on waiver language)
+
+Also return signerRoles with roleKey/label/required. Include all distinct signer sections.
+
+Page dimensions:
+${JSON.stringify(pageDimensions)}
+
+Return only high-confidence fields that you can clearly see in the PDF.`,
+                },
+                {
+                  type: 'file',
+                  data: pdfBytes,
+                  mediaType: 'application/pdf',
+                },
+              ],
+            },
+          ],
+          temperature: 0,
+        });
+
+        const visionFields = mapVisionFallbackFields(fallback.output.fields, pageDimensions, pageCount);
+        if (visionFields.length > 0) {
+          normalizedFields = normalizeFieldsForOverlay(
+            mergeFieldsPreferWidgets(normalizedFields, visionFields),
+            pageDimensions,
+            pageCount,
+          );
         }
 
-        return {
-          fieldType: selection.fieldType,
-          label: selection.label,
-          signerRole: normalizeRoleKey(selection.signerRole),
-          pageIndex: candidate.pageIndex,
-          boundingBox: {
-            x: candidate.rect.x,
-            y: candidate.rect.y,
-            width: candidate.rect.width,
-            height: candidate.rect.height,
-          },
-          required: selection.required,
-          notes: selection.reasoning,
-        };
-      })
-      .filter((f): f is NonNullable<typeof f> => f !== null);
+        if (fallback.output.signerRoles && fallback.output.signerRoles.length > 0) {
+          normalizedSignerRoles = normalizeSignerRoles([
+            ...normalizedSignerRoles,
+            ...fallback.output.signerRoles,
+          ]);
+        }
+      } catch (fallbackError) {
+        if (process.env.NODE_ENV !== 'test') {
+          console.warn('Vision fallback failed, continuing without fallback fields:', fallbackError);
+        }
+      }
+    }
 
-    // Normalize signer roles
-    const normalizedSignerRoles = normalizeSignerRoles(result.object.signerRoles);
+    // Normalize signer roles (computed above)
 
     return NextResponse.json({
       success: true,
@@ -477,9 +951,9 @@ Return empty selectedFields array since no candidates are available.`,
         pageCount,
         pageDimensions,
         signerRoles: normalizedSignerRoles,
-        fields: fieldsFromCandidates,
-        summary: result.object.summary,
-        recommendations: result.object.recommendations,
+        fields: normalizedFields,
+        summary: structured.summary,
+        recommendations: structured.recommendations,
       },
     });
 

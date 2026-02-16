@@ -1,7 +1,19 @@
 import { describe, it, expect } from 'vitest';
 import { z } from 'zod';
-import { normalizeFieldsForOverlay } from '@/app/api/ai/analyze-waiver/route';
-import type { AnalyzeWaiverNormalizedField, AnalyzeWaiverPageDimension } from '@/app/api/ai/analyze-waiver/route';
+import {
+  buildSelectableCandidates,
+  mapVisionFallbackFields,
+  mapSelectionsToFields,
+  mapWidgetsToFields,
+  mergeFieldsPreferWidgets,
+  normalizeFieldsForOverlay,
+} from '@/app/api/ai/analyze-waiver/route';
+import type { 
+  AnalyzeWaiverNormalizedField, 
+  AnalyzeWaiverPageDimension,
+  SelectableCandidate,
+} from '@/app/api/ai/analyze-waiver/route';
+import type { DetectedPdfField } from '@/lib/waiver/pdf-field-detect';
 
 /**
  * Phase 3 Schema Tests: Validate new AI input/output contract
@@ -610,6 +622,183 @@ describe('Phase 3: AI Schema with Candidate Selection', () => {
     });
   });
 
+  describe('Phase 5: Pipeline Integration', () => {
+    it('should build unified selectable candidates with widget priority', () => {
+      const widgets: DetectedPdfField[] = [
+        {
+          fieldName: 'volunteer_signature',
+          fieldType: 'signature',
+          pageIndex: 0,
+          rect: { x: 100, y: 500, width: 200, height: 40 },
+          required: true,
+        },
+      ];
+
+      const inferredCandidates = [
+        {
+          id: 'candidate-line-1',
+          pageIndex: 0,
+          rect: { x: 110, y: 505, width: 190, height: 36 },
+          typeHint: 'signature' as const,
+          nearbyLabelIds: [],
+          nearbyLabelTypes: ['signature' as const],
+          score: 1,
+          source: 'underscore' as const,
+        },
+      ];
+
+      const selectable = buildSelectableCandidates(inferredCandidates, widgets);
+
+      expect(selectable).toHaveLength(2);
+      expect(selectable[0].source).toBe('widget');
+      expect(selectable[0].score).toBe(1);
+      expect(selectable[1].id).toBe('candidate-line-1');
+    });
+
+    it('should map selected IDs to fields and skip invalid selections', () => {
+      const selectable = [
+        {
+          id: 'widget:0:0:volunteer_signature',
+          pageIndex: 0,
+          rect: { x: 100, y: 500, width: 200, height: 40 },
+          typeHint: 'signature',
+          score: 1,
+          source: 'widget' as const,
+        },
+      ];
+
+      const mapped = mapSelectionsToFields(
+        [
+          {
+            candidateId: 'widget:0:0:volunteer_signature',
+            fieldType: 'signature',
+            signerRole: 'volunteer',
+            label: 'Volunteer Signature',
+            required: true,
+          },
+          {
+            candidateId: 'missing-id',
+            fieldType: 'date',
+            signerRole: 'volunteer',
+            label: 'Date',
+            required: false,
+          },
+        ],
+        selectable
+      );
+
+      expect(mapped).toHaveLength(1);
+      expect(mapped[0].boundingBox).toEqual({ x: 100, y: 500, width: 200, height: 40 });
+    });
+
+    it('should map widgets to fields and merge with AI fields preferring widgets', () => {
+      const widgets: DetectedPdfField[] = [
+        {
+          fieldName: 'sig_widget',
+          fieldType: 'signature',
+          pageIndex: 0,
+          rect: { x: 100, y: 500, width: 200, height: 40 },
+          required: true,
+        },
+        {
+          fieldName: 'submit_btn',
+          fieldType: 'button',
+          pageIndex: 0,
+          rect: { x: 10, y: 10, width: 20, height: 10 },
+        },
+      ];
+
+      const widgetFields = mapWidgetsToFields(widgets);
+      expect(widgetFields).toHaveLength(1);
+
+      const aiFields: AnalyzeWaiverNormalizedField[] = [
+        {
+          fieldType: 'signature',
+          label: 'AI Signature',
+          signerRole: 'parent',
+          pageIndex: 0,
+          boundingBox: { x: 105, y: 502, width: 195, height: 38 },
+          required: false,
+          notes: 'AI classified as parent signature',
+        },
+        {
+          fieldType: 'date',
+          label: 'Date',
+          signerRole: 'volunteer',
+          pageIndex: 0,
+          boundingBox: { x: 320, y: 500, width: 100, height: 30 },
+          required: true,
+        },
+      ];
+
+      const merged = mergeFieldsPreferWidgets(widgetFields, aiFields);
+
+      // Overlapping signature from AI should be dropped in favor of widget field.
+      expect(merged.filter((f) => f.fieldType === 'signature')).toHaveLength(1);
+      // Widget geometry should be preserved while AI semantic metadata is retained.
+      const signatureField = merged.find((f) => f.fieldType === 'signature');
+      expect(signatureField?.boundingBox).toEqual({ x: 100, y: 500, width: 200, height: 40 });
+      expect(signatureField?.signerRole).toBe('parent');
+      expect(signatureField?.label).toBe('AI Signature');
+      expect(signatureField?.required).toBe(true); // widget required=true should still prevail
+      expect(signatureField?.notes).toBe('AI classified as parent signature');
+      // Non-overlapping date should be preserved.
+      expect(merged.some((f) => f.fieldType === 'date')).toBe(true);
+    });
+
+    it('should enrich generic widget text fields with AI semantic classifications', () => {
+      const widgetFields: AnalyzeWaiverNormalizedField[] = [
+        {
+          fieldType: 'text',
+          label: 'dob_input',
+          signerRole: 'volunteer',
+          pageIndex: 0,
+          boundingBox: { x: 250, y: 420, width: 120, height: 24 },
+          required: false,
+          notes: 'Detected from embedded PDF form widget',
+        },
+      ];
+
+      const aiFields: AnalyzeWaiverNormalizedField[] = [
+        {
+          fieldType: 'date',
+          label: 'Date of Birth',
+          signerRole: 'participant',
+          pageIndex: 0,
+          boundingBox: { x: 252, y: 421, width: 118, height: 22 },
+          required: true,
+          notes: 'AI inferred semantic date field',
+        },
+      ];
+
+      const merged = mergeFieldsPreferWidgets(widgetFields, aiFields);
+
+      expect(merged).toHaveLength(1);
+      expect(merged[0].fieldType).toBe('text'); // keep widget geometry/type source
+      expect(merged[0].label).toBe('Date of Birth');
+      expect(merged[0].signerRole).toBe('participant');
+      expect(merged[0].required).toBe(true);
+      expect(merged[0].notes).toBe('AI inferred semantic date field');
+      expect(merged[0].boundingBox).toEqual({ x: 250, y: 420, width: 120, height: 24 });
+    });
+
+    it('should infer signature type for text widgets using signature-like field names', () => {
+      const widgets: DetectedPdfField[] = [
+        {
+          fieldName: 'guardian_signature',
+          fieldType: 'text',
+          pageIndex: 0,
+          rect: { x: 120, y: 380, width: 240, height: 32 },
+          required: true,
+        },
+      ];
+
+      const mapped = mapWidgetsToFields(widgets);
+      expect(mapped).toHaveLength(1);
+      expect(mapped[0].fieldType).toBe('signature');
+    });
+  });
+
   describe('Backward Compatibility', () => {
     it('should maintain response structure with boundingBox field', () => {
       const candidates = [
@@ -652,6 +841,705 @@ describe('Phase 3: AI Schema with Candidate Selection', () => {
       expect(outputField).toHaveProperty('boundingBox');
       expect(outputField).toHaveProperty('required');
       expect(outputField.boundingBox).toEqual({ x: 150, y: 450, width: 180, height: 35 });
+    });
+  });
+
+  describe('Phase 6: Accuracy and Robustness Validation', () => {
+    describe('Accuracy Tests: Realistic Waiver Scenarios', () => {
+      it('should accurately map simple single-signer waiver with signature and date', () => {
+        // Simulate a basic volunteer waiver with signature and date fields
+        const inferredCandidates = [
+          {
+            id: 'candidate-sig-1',
+            pageIndex: 0,
+            rect: { x: 150, y: 500, width: 200, height: 40 },
+            typeHint: 'signature' as const,
+            nearbyLabelIds: ['label-sig'],
+            nearbyLabelTypes: ['signature' as const],
+            score: 0.95,
+            source: 'underscore' as const,
+          },
+          {
+            id: 'candidate-date-1',
+            pageIndex: 0,
+            rect: { x: 400, y: 500, width: 100, height: 30 },
+            typeHint: 'date' as const,
+            nearbyLabelIds: ['label-date'],
+            nearbyLabelTypes: ['date' as const],
+            score: 0.90,
+            source: 'right_of_label' as const,
+          },
+        ];
+
+        const widgets: DetectedPdfField[] = [];
+        const selectable = buildSelectableCandidates(inferredCandidates, widgets);
+
+        // AI selects both candidates
+        const aiSelections = [
+          {
+            candidateId: 'candidate-sig-1',
+            fieldType: 'signature' as const,
+            signerRole: 'volunteer',
+            label: 'Volunteer Signature',
+            required: true,
+            confidence: 0.95,
+            reasoning: 'Located below "Signature:" label with underscore field',
+          },
+          {
+            candidateId: 'candidate-date-1',
+            fieldType: 'date' as const,
+            signerRole: 'volunteer',
+            label: 'Date Signed',
+            required: true,
+            confidence: 0.90,
+            reasoning: 'Date field adjacent to signature',
+          },
+        ];
+
+        const mapped = mapSelectionsToFields(aiSelections, selectable);
+
+        // Validate accurate mapping
+        expect(mapped).toHaveLength(2);
+        
+        const sigField = mapped.find(f => f.fieldType === 'signature');
+        expect(sigField).toBeDefined();
+        expect(sigField?.label).toBe('Volunteer Signature');
+        expect(sigField?.signerRole).toBe('volunteer');
+        expect(sigField?.boundingBox).toEqual({ x: 150, y: 500, width: 200, height: 40 });
+        expect(sigField?.required).toBe(true);
+        expect(sigField?.notes).toContain('underscore field');
+
+        const dateField = mapped.find(f => f.fieldType === 'date');
+        expect(dateField).toBeDefined();
+        expect(dateField?.label).toBe('Date Signed');
+        expect(dateField?.signerRole).toBe('volunteer');
+        expect(dateField?.boundingBox).toEqual({ x: 400, y: 500, width: 100, height: 30 });
+        expect(dateField?.required).toBe(true);
+      });
+
+      it('should correctly handle multi-signer waiver with parent/guardian and volunteer', () => {
+        // Simulate waiver requiring both volunteer and parent/guardian signatures
+        const inferredCandidates = [
+          {
+            id: 'candidate-volunteer-sig',
+            pageIndex: 0,
+            rect: { x: 100, y: 400, width: 200, height: 40 },
+            typeHint: 'signature' as const,
+            nearbyLabelIds: ['label-volunteer'],
+            nearbyLabelTypes: ['signature' as const],
+            score: 0.95,
+            source: 'underscore' as const,
+          },
+          {
+            id: 'candidate-volunteer-date',
+            pageIndex: 0,
+            rect: { x: 320, y: 400, width: 100, height: 30 },
+            typeHint: 'date' as const,
+            nearbyLabelIds: ['label-vol-date'],
+            nearbyLabelTypes: ['date' as const],
+            score: 0.90,
+            source: 'right_of_label' as const,
+          },
+          {
+            id: 'candidate-parent-sig',
+            pageIndex: 0,
+            rect: { x: 100, y: 300, width: 200, height: 40 },
+            typeHint: 'signature' as const,
+            nearbyLabelIds: ['label-parent'],
+            nearbyLabelTypes: ['parent_guardian' as const],
+            score: 0.92,
+            source: 'underscore' as const,
+          },
+          {
+            id: 'candidate-parent-date',
+            pageIndex: 0,
+            rect: { x: 320, y: 300, width: 100, height: 30 },
+            typeHint: 'date' as const,
+            nearbyLabelIds: ['label-parent-date'],
+            nearbyLabelTypes: ['date' as const],
+            score: 0.88,
+            source: 'right_of_label' as const,
+          },
+        ];
+
+        const widgets: DetectedPdfField[] = [];
+        const selectable = buildSelectableCandidates(inferredCandidates, widgets);
+
+        // AI identifies separate signer roles
+        const aiSelections = [
+          {
+            candidateId: 'candidate-volunteer-sig',
+            fieldType: 'signature' as const,
+            signerRole: 'volunteer',
+            label: 'Volunteer Signature',
+            required: true,
+          },
+          {
+            candidateId: 'candidate-volunteer-date',
+            fieldType: 'date' as const,
+            signerRole: 'volunteer',
+            label: 'Volunteer Date',
+            required: true,
+          },
+          {
+            candidateId: 'candidate-parent-sig',
+            fieldType: 'signature' as const,
+            signerRole: 'parent_guardian',
+            label: 'Parent/Guardian Signature',
+            required: true,
+          },
+          {
+            candidateId: 'candidate-parent-date',
+            fieldType: 'date' as const,
+            signerRole: 'parent_guardian',
+            label: 'Parent/Guardian Date',
+            required: true,
+          },
+        ];
+
+        const mapped = mapSelectionsToFields(aiSelections, selectable);
+
+        // Validate correct role separation and field mapping
+        expect(mapped).toHaveLength(4);
+
+        const volunteerFields = mapped.filter(f => f.signerRole === 'volunteer');
+        expect(volunteerFields).toHaveLength(2);
+        expect(volunteerFields.some(f => f.fieldType === 'signature')).toBe(true);
+        expect(volunteerFields.some(f => f.fieldType === 'date')).toBe(true);
+
+        const parentFields = mapped.filter(f => f.signerRole === 'parent_guardian');
+        expect(parentFields).toHaveLength(2);
+        expect(parentFields.some(f => f.fieldType === 'signature')).toBe(true);
+        expect(parentFields.some(f => f.fieldType === 'date')).toBe(true);
+
+        // Validate coordinates are preserved correctly
+        const parentSig = parentFields.find(f => f.fieldType === 'signature');
+        expect(parentSig?.boundingBox.y).toBe(300); // Parent section at y=300
+        
+        const volunteerSig = volunteerFields.find(f => f.fieldType === 'signature');
+        expect(volunteerSig?.boundingBox.y).toBe(400); // Volunteer section at y=400
+      });
+
+      it('should handle widget-only waiver with no inferred candidates', () => {
+        // Simulate PDF with AcroForm fields but no visual underscore/label patterns
+        const inferredCandidates = [] as never[];
+        
+        const widgets: DetectedPdfField[] = [
+          {
+            fieldName: 'volunteer_signature',
+            fieldType: 'signature',
+            pageIndex: 0,
+            rect: { x: 100, y: 500, width: 200, height: 40 },
+            required: true,
+          },
+          {
+            fieldName: 'volunteer_date',
+            fieldType: 'text',
+            pageIndex: 0,
+            rect: { x: 320, y: 500, width: 100, height: 30 },
+            required: true,
+          },
+          {
+            fieldName: 'volunteer_name',
+            fieldType: 'text',
+            pageIndex: 0,
+            rect: { x: 100, y: 550, width: 200, height: 30 },
+            required: false,
+          },
+        ];
+
+        const selectable = buildSelectableCandidates(inferredCandidates, widgets);
+
+        // All selectable candidates should come from widgets
+        expect(selectable).toHaveLength(3);
+        expect(selectable.every(c => c.source === 'widget')).toBe(true);
+
+        // AI can select widget candidates
+        const aiSelections = [
+          {
+            candidateId: 'widget:0:0:volunteer_signature',
+            fieldType: 'signature' as const,
+            signerRole: 'volunteer',
+            label: 'Volunteer Signature',
+            required: true,
+          },
+          {
+            candidateId: 'widget:0:1:volunteer_date',
+            fieldType: 'date' as const,
+            signerRole: 'volunteer',
+            label: 'Date Signed',
+            required: true,
+          },
+        ];
+
+        const mapped = mapSelectionsToFields(aiSelections, selectable);
+        
+        // Validate widget fields are correctly mapped
+        expect(mapped).toHaveLength(2);
+        expect(mapped.every(f => f.signerRole === 'volunteer')).toBe(true);
+        
+        const sigField = mapped.find(f => f.fieldType === 'signature');
+        expect(sigField?.boundingBox).toEqual({ x: 100, y: 500, width: 200, height: 40 });
+        expect(sigField?.required).toBe(true);
+
+        // Validate widget coordinates are preserved precisely
+        const dateField = mapped.find(f => f.fieldType === 'date');
+        expect(dateField?.boundingBox).toEqual({ x: 320, y: 500, width: 100, height: 30 });
+      });
+
+      it('should preserve semantic AI classifications when merging with generic widget text fields', () => {
+        // Widget extraction detected a generic "text" field for DOB input
+        const widgetFields: AnalyzeWaiverNormalizedField[] = [
+          {
+            fieldType: 'text',
+            label: 'dob_field',
+            signerRole: 'volunteer',
+            pageIndex: 0,
+            boundingBox: { x: 250, y: 420, width: 120, height: 24 },
+            required: false,
+            notes: 'Detected from embedded PDF form widget',
+          },
+        ];
+
+        // AI correctly identified this as a date field semantically
+        const aiFields: AnalyzeWaiverNormalizedField[] = [
+          {
+            fieldType: 'date',
+            label: 'Date of Birth',
+            signerRole: 'participant',
+            pageIndex: 0,
+            boundingBox: { x: 252, y: 421, width: 118, height: 22 },
+            required: true,
+            notes: 'AI classified as date field for participant DOB',
+          },
+        ];
+
+        const merged = mergeFieldsPreferWidgets(widgetFields, aiFields);
+
+        // Should have one field (merged)
+        expect(merged).toHaveLength(1);
+        
+        // Widget geometry should be preserved (authoritative)
+        expect(merged[0].boundingBox).toEqual({ x: 250, y: 420, width: 120, height: 24 });
+        
+        // But AI semantic classification should be applied
+        expect(merged[0].label).toBe('Date of Birth');
+        expect(merged[0].signerRole).toBe('participant');
+        expect(merged[0].required).toBe(true);
+        expect(merged[0].notes).toContain('AI classified');
+        
+        // Field type remains 'text' (widget type preference) but semantic label is enriched
+        expect(merged[0].fieldType).toBe('text');
+      });
+    });
+
+    describe('Robustness and Fallback Tests', () => {
+      it('should produce stable output contract with minimal/empty structural data', () => {
+        // Simulate PDF with no extractable text or candidates
+        const inferredCandidates = [] as never[];
+        const widgets: DetectedPdfField[] = [];
+        
+        const selectable = buildSelectableCandidates(inferredCandidates, widgets);
+        expect(selectable).toHaveLength(0);
+
+        // AI response with empty selections
+        const aiSelections = [] as never[];
+        
+        const mapped = mapSelectionsToFields(aiSelections, selectable);
+        expect(mapped).toHaveLength(0);
+
+        // Validate response structure is still valid
+        const pageDimensions: AnalyzeWaiverPageDimension[] = [
+          { pageIndex: 0, width: 612, height: 792 },
+        ];
+        
+        const normalized = normalizeFieldsForOverlay(mapped, pageDimensions, 1);
+        expect(normalized).toHaveLength(0);
+
+        // Response contract should be stable
+        const response = {
+          success: true,
+          analysis: {
+            pageCount: 1,
+            pageDimensions,
+            signerRoles: [
+              {
+                roleKey: 'volunteer',
+                label: 'Volunteer',
+                required: true,
+                description: undefined,
+              },
+            ],
+            fields: normalized,
+            summary: 'Unable to extract field structure from PDF',
+            recommendations: ['Consider using a different PDF format', 'Manually configure fields'],
+          },
+        };
+
+        // Validate output contract
+        expect(response.success).toBe(true);
+        expect(response.analysis).toBeDefined();
+        expect(response.analysis.fields).toBeInstanceOf(Array);
+        expect(response.analysis.signerRoles).toBeInstanceOf(Array);
+        expect(response.analysis.pageDimensions).toBeInstanceOf(Array);
+        expect(typeof response.analysis.summary).toBe('string');
+        expect(Array.isArray(response.analysis.recommendations)).toBe(true);
+      });
+
+      it('should gracefully filter malformed candidate selections without crashing', () => {
+        const inferredCandidates = [
+          {
+            id: 'candidate-valid-1',
+            pageIndex: 0,
+            rect: { x: 100, y: 500, width: 200, height: 40 },
+            typeHint: 'signature' as const,
+            nearbyLabelIds: [],
+            nearbyLabelTypes: [],
+            score: 0.9,
+            source: 'underscore' as const,
+          },
+          {
+            id: 'candidate-valid-2',
+            pageIndex: 0,
+            rect: { x: 320, y: 500, width: 100, height: 30 },
+            typeHint: 'date' as const,
+            nearbyLabelIds: [],
+            nearbyLabelTypes: [],
+            score: 0.85,
+            source: 'right_of_label' as const,
+          },
+        ];
+
+        const widgets: DetectedPdfField[] = [];
+        const selectable = buildSelectableCandidates(inferredCandidates, widgets);
+
+        // AI returns mix of valid and invalid candidate IDs (hallucination/error)
+        const aiSelections = [
+          {
+            candidateId: 'candidate-valid-1',
+            fieldType: 'signature' as const,
+            signerRole: 'volunteer',
+            label: 'Valid Signature',
+            required: true,
+          },
+          {
+            candidateId: 'candidate-does-not-exist',
+            fieldType: 'date' as const,
+            signerRole: 'volunteer',
+            label: 'Hallucinated Date Field',
+            required: false,
+          },
+          {
+            candidateId: '', // Empty ID
+            fieldType: 'name' as const,
+            signerRole: 'volunteer',
+            label: 'Empty ID Field',
+            required: false,
+          },
+          {
+            candidateId: 'candidate-valid-2',
+            fieldType: 'date' as const,
+            signerRole: 'volunteer',
+            label: 'Valid Date',
+            required: true,
+          },
+          {
+            candidateId: 'widget:99:99:nonexistent',
+            fieldType: 'text' as const,
+            signerRole: 'volunteer',
+            label: 'Invalid Widget Reference',
+            required: false,
+          },
+        ];
+
+        const mapped = mapSelectionsToFields(aiSelections, selectable);
+
+        // Should only map the 2 valid candidates, filtering out invalid ones
+        expect(mapped).toHaveLength(2);
+        
+        const labels = mapped.map(f => f.label);
+        expect(labels).toContain('Valid Signature');
+        expect(labels).toContain('Valid Date');
+        expect(labels).not.toContain('Hallucinated Date Field');
+        expect(labels).not.toContain('Empty ID Field');
+        expect(labels).not.toContain('Invalid Widget Reference');
+
+        // Validate mapped fields have correct coordinates
+        const sigField = mapped.find(f => f.fieldType === 'signature');
+        expect(sigField?.boundingBox).toEqual({ x: 100, y: 500, width: 200, height: 40 });
+
+        const dateField = mapped.find(f => f.fieldType === 'date');
+        expect(dateField?.boundingBox).toEqual({ x: 320, y: 500, width: 100, height: 30 });
+      });
+
+      it('should handle coordinate boundary violations gracefully with normalization', () => {
+        const inferredCandidates = [
+          {
+            id: 'candidate-1',
+            pageIndex: 0,
+            rect: { x: -10, y: -5, width: 200, height: 40 }, // Negative coordinates
+            typeHint: 'signature' as const,
+            nearbyLabelIds: [],
+            nearbyLabelTypes: [],
+            score: 0.9,
+            source: 'underscore' as const,
+          },
+          {
+            id: 'candidate-2',
+            pageIndex: 0,
+            rect: { x: 600, y: 780, width: 200, height: 50 }, // Exceeds page bounds
+            typeHint: 'date' as const,
+            nearbyLabelIds: [],
+            nearbyLabelTypes: [],
+            score: 0.85,
+            source: 'right_of_label' as const,
+          },
+          {
+            id: 'candidate-3',
+            pageIndex: 0,
+            rect: { x: 100, y: 500, width: -50, height: -20 }, // Negative dimensions
+            typeHint: 'printed_name' as const,
+            nearbyLabelIds: [],
+            nearbyLabelTypes: [],
+            score: 0.8,
+            source: 'underscore' as const,
+          },
+        ];
+
+        const widgets: DetectedPdfField[] = [];
+        const selectable = buildSelectableCandidates(inferredCandidates, widgets);
+
+        const aiSelections = selectable.map((c, i) => ({
+          candidateId: c.id,
+          fieldType: 'text' as const,
+          signerRole: 'volunteer',
+          label: `Field ${i + 1}`,
+          required: true,
+        }));
+
+        const mapped = mapSelectionsToFields(aiSelections, selectable);
+        expect(mapped).toHaveLength(3);
+
+        const pageDimensions: AnalyzeWaiverPageDimension[] = [
+          { pageIndex: 0, width: 612, height: 792 },
+        ];
+
+        // Normalization should fix all boundary issues
+        const normalized = normalizeFieldsForOverlay(mapped, pageDimensions, 1);
+        expect(normalized).toHaveLength(3);
+
+        // All coordinates should be within bounds
+        for (const field of normalized) {
+          expect(field.boundingBox.x).toBeGreaterThanOrEqual(0);
+          expect(field.boundingBox.y).toBeGreaterThanOrEqual(0);
+          expect(field.boundingBox.width).toBeGreaterThan(0);
+          expect(field.boundingBox.height).toBeGreaterThan(0);
+          expect(field.boundingBox.x + field.boundingBox.width).toBeLessThanOrEqual(612);
+          expect(field.boundingBox.y + field.boundingBox.height).toBeLessThanOrEqual(792);
+        }
+      });
+
+      it('should handle extreme data volumes without crashing (stress test)', () => {
+        // Create a large number of candidates
+        const inferredCandidates = Array.from({ length: 500 }, (_, i) => ({
+          id: `candidate-${i}`,
+          pageIndex: i % 10, // Spread across 10 pages
+          rect: { 
+            x: 100 + (i % 5) * 100,
+            y: 100 + (i % 50) * 15,
+            width: 150,
+            height: 30,
+          },
+          typeHint: (['signature', 'date', 'printed_name', 'other'] as const)[i % 4],
+          nearbyLabelIds: [],
+          nearbyLabelTypes: [],
+          score: 0.5 + (i % 50) / 100,
+          source: (['underscore', 'right_of_label'] as const)[i % 2],
+        }));
+
+        const widgets: DetectedPdfField[] = [];
+        const selectable = buildSelectableCandidates(inferredCandidates, widgets);
+
+        expect(selectable.length).toBeGreaterThan(0);
+        expect(selectable.length).toBeLessThanOrEqual(500);
+
+        // AI selects a subset
+        const aiSelections = inferredCandidates.slice(0, 50).map(c => ({
+          candidateId: c.id,
+          fieldType: 'text' as const,
+          signerRole: 'volunteer',
+          label: `Field ${c.id}`,
+          required: true,
+        }));
+
+        const mapped = mapSelectionsToFields(aiSelections, selectable);
+        expect(mapped.length).toBe(50);
+
+        // All mapped fields should be valid
+        for (const field of mapped) {
+          expect(field.boundingBox.x).toBeGreaterThanOrEqual(0);
+          expect(field.boundingBox.width).toBeGreaterThan(0);
+          expect(field.boundingBox.height).toBeGreaterThan(0);
+          expect(field.pageIndex).toBeGreaterThanOrEqual(0);
+        }
+      });
+
+      it('should filter out candidates with NaN or Infinity coordinates', () => {
+        // Create SelectableCandidate objects directly (can have any typeHint string)
+        const selectable: SelectableCandidate[] = [
+          {
+            id: 'candidate-valid',
+            pageIndex: 0,
+            rect: { x: 100, y: 500, width: 200, height: 40 },
+            typeHint: 'signature',
+            score: 0.9,
+            source: 'underscore',
+            nearbyLabelTypes: [],
+          },
+          {
+            id: 'candidate-nan-x',
+            pageIndex: 0,
+            rect: { x: NaN, y: 500, width: 200, height: 40 },
+            typeHint: 'date',
+            score: 0.8,
+            source: 'underscore',
+            nearbyLabelTypes: [],
+          },
+          {
+            id: 'candidate-infinity',
+            pageIndex: 0,
+            rect: { x: 100, y: Infinity, width: 200, height: 40 },
+            typeHint: 'name',
+            score: 0.85,
+            source: 'right_of_label',
+            nearbyLabelTypes: [],
+          },
+          {
+            id: 'candidate-negative-x',
+            pageIndex: 0,
+            rect: { x: -100, y: 500, width: 200, height: 40 },
+            typeHint: 'text',
+            score: 0.7,
+            source: 'underscore',
+            nearbyLabelTypes: [],
+          },
+        ];
+
+        const aiSelections = [
+          {
+            candidateId: 'candidate-valid',
+            fieldType: 'signature' as const,
+            signerRole: 'volunteer',
+            label: 'Valid Field',
+            required: true,
+          },
+          {
+            candidateId: 'candidate-nan-x',
+            fieldType: 'date' as const,
+            signerRole: 'volunteer',
+            label: 'NaN Field',
+            required: true,
+          },
+          {
+            candidateId: 'candidate-infinity',
+            fieldType: 'name' as const,
+            signerRole: 'volunteer',
+            label: 'Infinity Field',
+            required: true,
+          },
+          {
+            candidateId: 'candidate-negative-x',
+            fieldType: 'text' as const,
+            signerRole: 'volunteer',
+            label: 'Negative Field',
+            required: true,
+          },
+        ];
+
+        const mapped = mapSelectionsToFields(aiSelections, selectable);
+
+        // Should filter out NaN and Infinity but allow negative (will be normalized later)
+        expect(mapped.length).toBe(2); // valid and negative-x
+        
+        const mappedIds = mapped.map(f => {
+          const candidate = selectable.find(c => 
+            c.rect.x === f.boundingBox.x && 
+            c.rect.y === f.boundingBox.y
+          );
+          return candidate?.id;
+        });
+
+        // Valid and negative-x should pass validation (negative is valid, just needs normalization)
+        expect(mappedIds).toContain('candidate-valid');
+        expect(mappedIds).toContain('candidate-negative-x');
+        
+        // NaN and Infinity should be filtered
+        expect(mappedIds).not.toContain('candidate-nan-x');
+        expect(mappedIds).not.toContain('candidate-infinity');
+      });
+
+      it('should convert vision fallback normalized top-left boxes to bottom-left PDF coordinates', () => {
+        const pageDimensions: AnalyzeWaiverPageDimension[] = [
+          { pageIndex: 0, width: 1000, height: 1000 },
+        ];
+
+        const mapped = mapVisionFallbackFields(
+          [
+            {
+              fieldType: 'signature',
+              label: 'Fallback Signature',
+              signerRole: 'volunteer',
+              pageIndex: 0,
+              normalizedBoxTopLeft: {
+                x: 0.1,
+                y: 0.2,
+                width: 0.3,
+                height: 0.1,
+              },
+              required: true,
+              reasoning: 'Detected from visual line',
+            },
+          ],
+          pageDimensions,
+          1
+        );
+
+        expect(mapped).toHaveLength(1);
+        expect(mapped[0].boundingBox.x).toBe(100);
+        expect(mapped[0].boundingBox.width).toBe(300);
+        expect(mapped[0].boundingBox.height).toBe(100);
+        expect(mapped[0].boundingBox.y).toBe(700);
+      });
+
+      it('should normalize 1-based page index from vision fallback', () => {
+        const pageDimensions: AnalyzeWaiverPageDimension[] = [
+          { pageIndex: 0, width: 600, height: 800 },
+          { pageIndex: 1, width: 600, height: 800 },
+        ];
+
+        const mapped = mapVisionFallbackFields(
+          [
+            {
+              fieldType: 'date',
+              label: 'Fallback Date',
+              signerRole: 'volunteer',
+              pageIndex: 2,
+              normalizedBoxTopLeft: {
+                x: 0.5,
+                y: 0.5,
+                width: 0.2,
+                height: 0.05,
+              },
+              required: true,
+            },
+          ],
+          pageDimensions,
+          2
+        );
+
+        expect(mapped).toHaveLength(1);
+        expect(mapped[0].pageIndex).toBe(1);
+      });
     });
   });
 });

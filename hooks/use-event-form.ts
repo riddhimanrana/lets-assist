@@ -111,6 +111,7 @@ export interface EventFormState {
   showAttendeesPublicly: boolean;
   waiverRequired: boolean;
   waiverAllowUpload: boolean;
+  waiverDisableEsignature: boolean;
   waiverPdfFile: File | null;
   waiverPdfUrl: string | null;
   waiverPdfValidation: {
@@ -155,6 +156,7 @@ type EventFormAction =
   | { type: 'UPDATE_SHOW_ATTENDEES_PUBLICLY'; payload: boolean }
   | { type: 'UPDATE_WAIVER_REQUIRED'; payload: boolean }
   | { type: 'UPDATE_WAIVER_ALLOW_UPLOAD'; payload: boolean }
+  | { type: 'UPDATE_WAIVER_DISABLE_ESIGNATURE'; payload: boolean }
   | { type: 'UPDATE_WAIVER_PDF_FILE'; payload: File | null }
   | { type: 'UPDATE_WAIVER_PDF_URL'; payload: string | null }
   | { type: 'UPDATE_WAIVER_PDF_VALIDATION'; payload: { hasSignatureFields: boolean; warnings: string[] } | null }
@@ -237,6 +239,7 @@ const initialState: EventFormState = {
   showAttendeesPublicly: false,
   waiverRequired: false,
   waiverAllowUpload: true,
+  waiverDisableEsignature: false,
   waiverPdfFile: null,
   waiverPdfUrl: null,
   waiverPdfValidation: null,
@@ -474,6 +477,12 @@ const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
         waiverAllowUpload: action.payload,
       };
     }
+    case 'UPDATE_WAIVER_DISABLE_ESIGNATURE': {
+      return {
+        ...state,
+        waiverDisableEsignature: action.payload,
+      };
+    }
     case 'UPDATE_WAIVER_PDF_FILE': {
       return {
         ...state,
@@ -685,6 +694,9 @@ export const useEventForm = () => {
   const updateWaiverAllowUpload = (enabled: boolean) =>
     dispatch({ type: 'UPDATE_WAIVER_ALLOW_UPLOAD', payload: enabled });
 
+  const updateWaiverDisableEsignature = (disabled: boolean) =>
+    dispatch({ type: 'UPDATE_WAIVER_DISABLE_ESIGNATURE', payload: disabled });
+
   const updateWaiverPdfFile = (file: File | null) =>
     dispatch({ type: 'UPDATE_WAIVER_PDF_FILE', payload: file });
 
@@ -740,6 +752,7 @@ export const useEventForm = () => {
     updateShowAttendeesPublicly,
     updateWaiverRequired,
     updateWaiverAllowUpload,
+    updateWaiverDisableEsignature,
     updateWaiverPdfFile,
     updateWaiverPdfUrl,
     updateWaiverPdfValidation,

@@ -77,6 +77,10 @@
     --chart-9: hsl(220 21% 89%);
     /* base */
 
+    --mantle:hsl(0 0% 100%);
+
+    --toast-normal-bg: color-mix(in srgb, var(--mantle) 10%, var(--background));
+    --toast-normal-fg: color-mix(in srgb, var(--foreground) 10%, transparent);
     --toast-info-bg: color-mix(in srgb, var(--info) 10%, var(--background));
     --toast-info-fg: color-mix(in srgb, var(--info) 10%, transparent);
     --toast-success-bg: color-mix(in srgb, var(--success) 10%, var(--background));
@@ -157,7 +161,10 @@
     /* lavender */
     --chart-9: hsl(240 23% 9%);
     /* mantle */
+    --mantle: hsl(240 23% 9%);
 
+    --toast-normal-bg: color-mix(in srgb, var(--mantle) 10%, var(--background));
+    --toast-normal-fg: color-mix(in srgb, var(--foreground) 10%, transparent);
     --toast-info-bg: color-mix(in srgb, var(--info) 10%, var(--background));
     --toast-info-fg: color-mix(in srgb, var(--info) 10%, transparent);
     --toast-success-bg: color-mix(in srgb, var(--success) 10%, var(--background));
