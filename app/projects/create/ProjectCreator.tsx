@@ -23,7 +23,7 @@ import { Loader2, ChevronLeft, ChevronRight, AlertCircle, Sparkles, Save } from 
 import { cn } from "@/lib/utils";
 // Replace shadcn toast with Sonner
 import { toast } from "sonner";
-import { createProject, uploadCoverImage, uploadProjectDocument, uploadWaiverPdf, finalizeProject, saveProjectAsNewDraft, autoSaveDraft } from "./actions";
+import { createProject, uploadCoverImage, uploadProjectDocument, uploadWaiverPdf, finalizeProject, saveProjectAsNewDraft, autoSaveDraft, deleteDraft } from "./actions";
 import { saveWaiverDefinition } from "../[id]/actions";
 import { useRouter } from "next/navigation";
 // Import Zod schemas
@@ -677,6 +677,13 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
       finalizeProject(projectId).catch(error => {
         console.error("Error finalizing project:", error);
       });
+
+      // Step 6: Cleanup draft if it exists
+      if (autosaveDraftId) {
+        deleteDraft(autosaveDraftId).catch(err => {
+          console.error("Failed to delete draft after project creation:", err);
+        });
+      }
 
       // Dismiss loading toast and show success
       toast.dismiss(loadingToast);

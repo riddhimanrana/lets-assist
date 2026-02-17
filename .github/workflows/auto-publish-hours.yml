@@ -2,8 +2,8 @@ name: Auto-Publish Hours
 
 on:
   schedule:
-    - cron: '10 3 * * *'  # Daily at 03:10 UTC (primary)
-    - cron: '10 15 * * *' # Daily at 15:10 UTC (second pass for reliability)
+    - cron: '10 3 * * *'   # Auto-publish: 03:10 UTC (primary)
+    - cron: '10 15 * * *'  # Auto-publish: 15:10 UTC (second pass)
   workflow_dispatch:
 
 permissions:
@@ -11,16 +11,29 @@ permissions:
 
 jobs:
   auto-publish:
-    if: github.repository_owner == 'riddhimanrana'
+    if: >-
+      github.repository_owner == 'riddhimanrana' &&
+      (
+        github.event_name == 'workflow_dispatch' ||
+        github.event.schedule == '10 3 * * *' ||
+        github.event.schedule == '10 15 * * *'
+      )
     runs-on: ubuntu-latest
+    concurrency:
+      group: auto-publish-hours
+      cancel-in-progress: false
+    env:
+      CRON_BASE_URL: ${{ secrets.CRON_BASE_URL }}
+      CRON_TOKEN: ${{ secrets.CRON_SECRET }}
     steps:
       - name: Validate configuration
         run: |
-          test -n "${{ secrets.CRON_BASE_URL }}" || { echo "CRON_BASE_URL secret missing"; exit 1; }
-          test -n "${{ secrets.CRON_SECRET }}" || { echo "CRON_SECRET secret missing"; exit 1; }
+          test -n "$CRON_BASE_URL" || { echo "CRON_BASE_URL secret missing"; exit 1; }
+          test -n "$CRON_TOKEN" || { echo "CRON_SECRET secret missing"; exit 1; }
 
       - name: Call Auto-Publish API
         run: |
-          curl -fsSL -X POST \
-            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-            "${{ secrets.CRON_BASE_URL }}/api/auto-publish-hours"
+          set -euo pipefail
+          curl --retry 3 --retry-delay 5 --retry-all-errors -fsSL -X POST \
+            -H "Authorization: Bearer $CRON_TOKEN" \
+            "$CRON_BASE_URL/api/cron/auto-publish-hours"

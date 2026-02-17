@@ -9,18 +9,29 @@ import { Controller } from "react-hook-form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Loader2, PenTool, Check, Clock, Settings2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { DialogFooter } from "@/components/ui/dialog";
-import { useState } from "react"; // Import useState
+import { useEffect, useState, useCallback } from "react";
 import type { WaiverSignatureInput, WaiverTemplate, WaiverDefinitionFull } from "@/types";
 import { WaiverSigningDialog } from '@/components/waiver/WaiverSigningDialog';
-import { PenTool, Check } from 'lucide-react';
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 // Constants for phone validation
 const PHONE_LENGTH = 10; // For raw digits
 const PHONE_REGEX = /^\d{3}-\d{3}-\d{4}$/; // Format XXX-XXX-XXXX
+const ANON_PROFILE_STORAGE_KEY = "letsassist.anonymous-signup-profile.v1";
+const ANON_PROFILE_AUTO_APPLY_KEY = "letsassist.anonymous-signup-auto-apply.v1";
+
+interface SavedAnonymousProfile {
+  name: string;
+  email: string;
+  phone?: string;
+  updatedAt: string;
+}
 
 const formSchema = z.object({
   name: z.string().min(2, { message: "Name is required" }),
@@ -58,6 +69,7 @@ interface ProjectFormProps {
   onCancel: () => void;
   isSubmitting?: boolean;
   showCommentField?: boolean;
+  enableSavedInfoReuse?: boolean;
   waiverRequired?: boolean;
   waiverAllowUpload?: boolean;
   waiverDisableEsignature?: boolean;
@@ -79,12 +91,24 @@ const formatPhoneNumber = (value: string): string => {
   return `${phoneNumber.slice(0, 3)}-${phoneNumber.slice(3, 6)}-${phoneNumber.slice(6, 10)}`;
 };
 
+// Helper function to format relative time
+const formatRelativeTime = (isoString: string): string => {
+  const diff = Date.now() - new Date(isoString).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+};
+
 
 export function ProjectSignupForm({
   onSubmit,
   onCancel: _onCancel,
   isSubmitting,
   showCommentField = false,
+  enableSavedInfoReuse = false,
   waiverRequired = false,
   waiverAllowUpload = true,
   waiverDisableEsignature = false,
@@ -97,6 +121,7 @@ export function ProjectSignupForm({
   const [phoneNumberLength, setPhoneNumberLength] = useState(0); // State for phone number length
   const [waiverSignature, setWaiverSignature] = useState<WaiverSignatureInput | null>(null);
   const [isWaiverDialogOpen, setIsWaiverDialogOpen] = useState(false);
+
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -107,10 +132,110 @@ export function ProjectSignupForm({
     },
   });
 
+  const [savedProfile, setSavedProfile] = useState<SavedAnonymousProfile | null>(null);
+  const [usedSavedProfile, setUsedSavedProfile] = useState(false);
+  const [autoApplyEnabled, setAutoApplyEnabled] = useState(false);
+  const [lastUpdatedDisplay, setLastUpdatedDisplay] = useState<string>("");
+
+  const applySavedProfile = useCallback((profile: SavedAnonymousProfile) => {
+    const formattedPhone = profile.phone ? formatPhoneNumber(profile.phone) : "";
+
+    form.setValue("name", profile.name, { shouldValidate: true, shouldDirty: true });
+    form.setValue("email", profile.email, { shouldValidate: true, shouldDirty: true });
+    form.setValue("phone", formattedPhone, { shouldValidate: true, shouldDirty: true });
+    setPhoneNumberLength(formattedPhone.replace(/-/g, "").length);
+    setUsedSavedProfile(true);
+  }, [form]);
+
+  useEffect(() => {
+    if (!enableSavedInfoReuse || typeof window === "undefined") return;
+
+    try {
+      // Load auto-apply preference
+      const autoApplyStr = window.localStorage.getItem(ANON_PROFILE_AUTO_APPLY_KEY);
+      const isAutoApply = autoApplyStr === "true";
+      setAutoApplyEnabled(isAutoApply);
+
+      const raw = window.localStorage.getItem(ANON_PROFILE_STORAGE_KEY);
+      if (!raw) return;
+
+      const parsed = JSON.parse(raw) as SavedAnonymousProfile;
+      const isValid =
+        parsed &&
+        typeof parsed.name === "string" &&
+        typeof parsed.email === "string" &&
+        parsed.name.trim().length > 1 &&
+        parsed.email.includes("@");
+
+      if (isValid) {
+        setSavedProfile(parsed);
+        setLastUpdatedDisplay(formatRelativeTime(parsed.updatedAt));
+
+        // Auto-apply if preference is enabled
+        if (isAutoApply) {
+          applySavedProfile(parsed);
+        }
+      }
+    } catch {
+      // Ignore parse/storage errors silently.
+    }
+  }, [enableSavedInfoReuse, applySavedProfile]);
+
+  // Update relative time periodically
+  useEffect(() => {
+    if (!savedProfile) return;
+
+    const interval = setInterval(() => {
+      setLastUpdatedDisplay(formatRelativeTime(savedProfile.updatedAt));
+    }, 60000); // Update every minute
+
+    return () => clearInterval(interval);
+  }, [savedProfile]);
+
+  const handleApplyClick = () => {
+    if (savedProfile) {
+      applySavedProfile(savedProfile);
+    }
+  };
+
+  const handleAutoApplyToggle = (enabled: boolean) => {
+    setAutoApplyEnabled(enabled);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(ANON_PROFILE_AUTO_APPLY_KEY, String(enabled));
+    }
+  };
+
+  const forgetSavedProfile = () => {
+    setSavedProfile(null);
+    setUsedSavedProfile(false);
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(ANON_PROFILE_STORAGE_KEY);
+    }
+  };
+
+  const persistProfileLocally = (data: FormValues) => {
+    if (!enableSavedInfoReuse || typeof window === "undefined") return;
+
+    const profile: SavedAnonymousProfile = {
+      name: data.name.trim(),
+      email: data.email.trim().toLowerCase(),
+      phone: data.phone ? formatPhoneNumber(data.phone) : "",
+      updatedAt: new Date().toISOString(),
+    };
+
+    try {
+      window.localStorage.setItem(ANON_PROFILE_STORAGE_KEY, JSON.stringify(profile));
+      setSavedProfile(profile);
+    } catch {
+      // Ignore storage quota/private mode issues silently.
+    }
+  };
+
   // Function to handle form submission, ensuring phone is transformed correctly
   const handleFormSubmit = (data: FormValues) => {
     // The data passed to onSubmit will already have the phone number transformed (digits only or undefined)
     // due to the zod schema's transform function.
+    persistProfileLocally(data);
     onSubmit(data, waiverSignature);
   };
 
@@ -126,6 +251,60 @@ export function ProjectSignupForm({
 
   return (
     <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-4">
+      {enableSavedInfoReuse && savedProfile && (
+        <Alert className="border-primary/20 bg-primary/5 p-4">
+          <AlertDescription className="space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="space-y-1">
+                <p className="text-sm font-medium">
+                  Use saved info for {savedProfile.email}
+                </p>
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Clock className="h-3 w-3" />
+                  <span>Updated {lastUpdatedDisplay}</span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={handleApplyClick} className="h-8">
+                  Use Saved Info
+                </Button>
+                <Button type="button" variant="ghost" size="sm" onClick={forgetSavedProfile} className="h-8">
+                  Forget
+                </Button>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-2 border-t border-primary/10">
+              <div className="flex items-center gap-2">
+                <Settings2 className="h-3.5 w-3.5 text-muted-foreground" />
+                <Label htmlFor="auto-apply" className="text-xs text-muted-foreground cursor-pointer">
+                  Auto-apply for future signups
+                </Label>
+              </div>
+              <Switch 
+                id="auto-apply"
+                checked={autoApplyEnabled}
+                onCheckedChange={handleAutoApplyToggle}
+                className="scale-75 origin-right"
+              />
+            </div>
+
+            {usedSavedProfile && (
+              <p className="text-xs text-success font-medium flex items-center gap-1 animate-in fade-in slide-in-from-top-1">
+                <Check className="h-3 w-3" /> Info applied successfully
+              </p>
+            )}
+
+            {waiverRequired && !usedSavedProfile && (
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                If this email already has a waiver for this project, we&apos;ll reuse it automatically.
+              </p>
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
+
       <Controller
         control={form.control}
         name="name"
@@ -237,12 +416,12 @@ export function ProjectSignupForm({
                Sign Waiver
              </Button>
           ) : (
-             <div className="flex items-center justify-between p-3 bg-green-50/50 border border-green-200 rounded-lg">
+             <div className="flex items-center justify-between p-3 bg-success/10 border border-success rounded-lg">
                 <div className="flex items-center gap-2">
-                   <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center text-green-600">
+                   <div className="h-8 w-8 rounded-full bg-success/20 flex items-center justify-center text-success">
                       <Check className="h-4 w-4" />
                    </div>
-                   <div className="text-sm font-medium text-green-700">
+                   <div className="text-sm font-medium text-success">
                       Signature Captured
                    </div>
                 </div>
@@ -251,7 +430,7 @@ export function ProjectSignupForm({
                    variant="ghost" 
                    size="sm"
                    onClick={() => setIsWaiverDialogOpen(true)}
-                   className="text-muted-foreground hover:text-text"
+                   className="text-muted-foreground hover:text-foreground"
                 >
                    Review
                 </Button>

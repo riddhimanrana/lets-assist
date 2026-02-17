@@ -102,6 +102,12 @@ export function checkWaiverAccess(params: AuthCheckParams): AuthCheckResult {
         };
       }
     }
+
+    return {
+      hasPermission: false,
+      reason: 'unauthorized',
+      details: 'Anonymous signature access requires anonymousSignupId parameter',
+    };
     
     // Fallback: if user is logged in, but signed anonymously, we don't have a 
     // direct link unless it was explicitly linked later or they have the token.

@@ -608,7 +608,7 @@ export default function VerificationSettings({
                               {waiverPdfFile?.name || 'Waiver PDF'}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              {waiverPdfFile
+                              {waiverPdfFile?.size !== undefined
                                 ? `${(waiverPdfFile.size / 1024).toFixed(1)} KB`
                                 : 'Uploaded'}
                             </p>

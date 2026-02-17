@@ -10,6 +10,8 @@ export async function GET(request: Request) {
   const redirectAfterAuth = searchParams.get("redirectAfterAuth");
   const error = searchParams.get("error");
   const error_description = searchParams.get("error_description");
+  const staffToken = searchParams.get("staffToken");
+  const orgUsername = searchParams.get("orgUsername");
 
   // For password reset flow
   if (code && type === "recovery") {
@@ -157,6 +159,16 @@ export async function GET(request: Request) {
               // Don't fail signup if affiliation processing fails
             }
           }
+
+          // Handle staff invite token if present
+          if (staffToken && orgUsername) {
+            try {
+              await handleStaffInvite(user.id, staffToken, orgUsername);
+            } catch (inviteError) {
+              console.error("Error processing staff invite:", inviteError);
+              // Don't fail OAuth login if invite processing fails
+            }
+          }
         } else {
           // Update email in case it changed
           const { error: updateError } = (await supabase
@@ -170,6 +182,16 @@ export async function GET(request: Request) {
           if (updateError) {
             console.error("Profile update error:", updateError);
             throw updateError;
+          }
+
+          // Handle staff invite token for existing users too
+          if (staffToken && orgUsername) {
+            try {
+              await handleStaffInvite(user.id, staffToken, orgUsername);
+            } catch (inviteError) {
+              console.error("Error processing staff invite:", inviteError);
+              // Don't fail OAuth login if invite processing fails
+            }
           }
         }
 
@@ -266,4 +288,88 @@ async function handleEmailDomainAffiliation(userId: string, email: string): Prom
   });
 
   console.log(`User ${userId} auto-affiliated with organization ${org.id} via domain ${domain}`);
+}
+
+/**
+ * Handle staff invite - add user to organization as staff via invite token
+ */
+async function handleStaffInvite(userId: string, token: string, orgUsername: string): Promise<void> {
+  const adminClient = getAdminClient();
+
+  // Validate organization and token
+  const { data: org, error: orgError } = await adminClient
+    .from("organizations")
+    .select("id, staff_join_token, staff_join_token_expires_at")
+    .eq("username", orgUsername)
+    .single();
+
+  if (orgError || !org) {
+    return; // Org not found, skip silently
+  }
+
+  // Validate token match
+  if (org.staff_join_token !== token) {
+    return; // Token mismatch, skip silently
+  }
+
+  // Validate token expiry
+  const expiresAt = org.staff_join_token_expires_at;
+  if (!expiresAt || new Date(expiresAt) < new Date()) {
+    return; // Token expired, skip silently
+  }
+
+  // Add user as staff member
+  const { error: memberError } = (await adminClient
+    .from("organization_members")
+    .insert({
+      organization_id: org.id,
+      user_id: userId,
+      role: "staff",
+    })) as { error: { message?: string; code?: string } | null };
+
+  if (memberError) {
+    // If duplicate membership exists (23505), check existing role before updating
+    if (memberError.code === "23505") {
+      // Query existing membership to check current role
+      const { data: existingMembership, error: queryError } = await adminClient
+        .from("organization_members")
+        .select("role")
+        .eq("organization_id", org.id)
+        .eq("user_id", userId)
+        .single();
+
+      if (queryError || !existingMembership) {
+        console.error(`Error querying existing membership for org ${org.id}:`, queryError);
+        return;
+      }
+
+      // Only upgrade if current role is 'member'
+      // Do NOT downgrade admin or staff roles
+      if (existingMembership.role === "member") {
+        const { error: updateError } = await adminClient
+          .from("organization_members")
+          .update({ role: "staff" })
+          .eq("organization_id", org.id)
+          .eq("user_id", userId);
+
+        if (updateError) {
+          console.error(`Error updating membership role to staff for org ${org.id}:`, updateError);
+          return;
+        }
+
+        console.log(`User ${userId} membership upgraded to staff for organization ${org.id} via invite token`);
+        return;
+      }
+
+      // If already staff or admin, skip update silently
+      console.log(`User ${userId} already has role '${existingMembership.role}' for organization ${org.id}, skipping staff invite`);
+      return;
+    }
+
+    // Log error for other non-duplicate errors
+    console.error(`Error adding staff member to org ${org.id}:`, memberError);
+    return;
+  }
+
+  console.log(`User ${userId} added as staff to organization ${org.id} via invite token`);
 }

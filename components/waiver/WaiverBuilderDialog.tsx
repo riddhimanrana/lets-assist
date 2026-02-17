@@ -20,6 +20,22 @@ import {
   ResizableHandle,
 } from "@/components/ui/resizable";
 
+const SUPPORTED_CUSTOM_FIELD_TYPES: ReadonlyArray<WaiverFieldType> = [
+  'signature',
+  'name',
+  'date',
+  'email',
+  'phone',
+  'checkbox',
+  'text',
+];
+
+function normalizeCustomFieldType(fieldType: string): WaiverFieldType {
+  return SUPPORTED_CUSTOM_FIELD_TYPES.includes(fieldType as WaiverFieldType)
+    ? (fieldType as WaiverFieldType)
+    : 'text';
+}
+
 export interface WaiverDefinitionInput {
   signers: WaiverDefinitionSignerInput[];
   // Map both detected fields and custom placements
@@ -116,7 +132,12 @@ export function WaiverBuilderDialog({
         );
 
         setFieldMappings(existingDraftDefinition.fields?.detected ?? {});
-        setCustomPlacements(existingDraftDefinition.fields?.custom ?? []);
+        setCustomPlacements(
+          (existingDraftDefinition.fields?.custom ?? []).map((placement) => ({
+            ...placement,
+            fieldType: normalizeCustomFieldType(placement.fieldType),
+          }))
+        );
         return;
       }
 
@@ -157,7 +178,7 @@ export function WaiverBuilderDialog({
                    id: f.field_key,
                    label: f.label,
                    signerRoleKey: f.signer_role_key,
-                   fieldType: f.field_type,
+                   fieldType: normalizeCustomFieldType(f.field_type),
                    required: f.required,
                    pageIndex: f.page_index,
                    rect: f.rect
@@ -371,9 +392,7 @@ export function WaiverBuilderDialog({
         id: `ai_${Date.now()}_${index}`,
         label: field.label,
         signerRoleKey: field.signerRole,
-        fieldType: (['signature', 'name', 'date', 'email', 'phone', 'address', 'text', 'checkbox', 'radio', 'dropdown', 'initial'].includes(field.fieldType) 
-          ? field.fieldType 
-          : 'text') as WaiverFieldType,
+        fieldType: normalizeCustomFieldType(field.fieldType),
         required: field.required,
         pageIndex: field.pageIndex, // Already 0-indexed from API
         rect: {

@@ -380,7 +380,8 @@ export default function Finalize({
   };
 
   // Helper function to format file size
-  const formatFileSize = (bytes: number): string => {
+  const formatFileSize = (bytes: number | undefined | null): string => {
+    if (bytes === undefined || bytes === null || isNaN(bytes)) return "0 B";
     if (bytes < 1024) return bytes + " B";
     else if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
     else return (bytes / (1024 * 1024)).toFixed(1) + " MB";

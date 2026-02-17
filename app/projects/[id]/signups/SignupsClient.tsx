@@ -820,12 +820,12 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
                                    ` (${waiverSignature.signature_payload.signers.length})`}
                                 </Badge>
                                 <DropdownMenu>
-                                  <DropdownMenuTrigger>
+                                  <DropdownMenuTrigger render={
                                     <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
                                       <span className="sr-only">Open menu</span>
                                       <MoreVertical className="h-4 w-4" />
                                     </Button>
-                                  </DropdownMenuTrigger>
+                                  } />
                                   <DropdownMenuContent align="end">
                                     <DropdownMenuItem onClick={() => handleOpenWaiverPreview(signup)}>
                                       <Eye className="mr-2 h-4 w-4" />

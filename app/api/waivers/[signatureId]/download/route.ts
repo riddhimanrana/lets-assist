@@ -11,13 +11,14 @@ interface WaiverSignatureRecord {
   anonymous_id: string | null;
   waiver_pdf_url: string | null;
   signature_payload: SignaturePayload | null;
-  signature_file_url: string | null;
+  signature_file_url?: string | null; // DEPRECATED - column may not exist in schema
   signature_storage_path: string | null;
   signed_at: string | null;
   upload_storage_path: string | null;
   signature_text: string | null;
   waiver_definition_id: string | null;
   project_id: string;
+  signup_id?: string | null;
   waiver_definition?: {
     id: string;
     pdf_public_url: string | null;
@@ -44,6 +45,34 @@ interface ProjectForAuth {
   organization_id: string | null;
 }
 
+type PostgrestErrorLike = {
+  code?: string;
+  message?: string;
+  details?: string;
+};
+
+function asLowerErrorText(error: PostgrestErrorLike | null | undefined): string {
+  return `${error?.message ?? ''} ${error?.details ?? ''}`.toLowerCase();
+}
+
+function isMissingColumnSignatureFileUrlError(error: PostgrestErrorLike | null | undefined): boolean {
+  if (!error) return false;
+  const text = asLowerErrorText(error);
+  return (error.code === '42703' || text.includes('does not exist')) && text.includes('signature_file_url');
+}
+
+function isNoRowsError(error: PostgrestErrorLike | null | undefined): boolean {
+  if (!error || error.code !== 'PGRST116') return false;
+  const text = asLowerErrorText(error);
+  return text.includes('0 rows') || text.includes('no rows');
+}
+
+function isInvalidUuidError(error: PostgrestErrorLike | null | undefined): boolean {
+  if (!error) return false;
+  const text = asLowerErrorText(error);
+  return error.code === '22P02' || text.includes('invalid input syntax for type uuid');
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ signatureId: string }> }
@@ -53,13 +82,14 @@ export async function GET(
   const { user } = await getAuthUser();
 
   // 1. Load waiver signature record
-  const selectClause = `
+  // Phase 1: Schema-tolerant query - try with signature_file_url first (for Priority 4 legacy support),
+  // retry without it if column doesn't exist (postgres error 42703)
+  const baseSelectClause = `
       id,
       user_id,
       anonymous_id,
       waiver_pdf_url,
       signature_payload,
-      signature_file_url,
       signature_storage_path,
       signed_at,
       upload_storage_path,
@@ -88,13 +118,31 @@ export async function GET(
       )
     `;
 
+  // Try with signature_file_url first (for schemas that still have it)
+  let selectClause = baseSelectClause.trim() + ',\n      signature_file_url';
+  
   let { data: signature, error: sigError } = await adminClient
     .from('waiver_signatures')
     .select(selectClause)
     .eq('id', signatureId)
     .single();
 
-  if (sigError || !signature) {
+  // If we get a missing column error, retry without signature_file_url
+  if (isMissingColumnSignatureFileUrlError(sigError)) {
+    selectClause = baseSelectClause.trim();
+    const retry = await adminClient
+      .from('waiver_signatures')
+      .select(selectClause)
+      .eq('id', signatureId)
+      .single();
+    signature = retry.data;
+    sigError = retry.error;
+  }
+
+  const shouldAttemptSignupFallback =
+    (!signature && !sigError) || isNoRowsError(sigError) || isInvalidUuidError(sigError);
+
+  if (shouldAttemptSignupFallback) {
     // Compatibility fallback: sometimes clients pass signupId instead of signatureId.
     // Attempt lookup by signup_id for a smoother UX.
     const fallback = await adminClient
@@ -107,21 +155,43 @@ export async function GET(
       .maybeSingle();
 
     signature = fallback.data;
-    sigError = fallback.error as any;
+    sigError = fallback.error;
   }
 
-  if (sigError || !signature) {
+  // Phase 2: Distinguish query errors from truly missing records
+  if (sigError) {
+    if (isNoRowsError(sigError)) {
+      return NextResponse.json({ error: 'Signature not found' }, { status: 404 });
+    }
+    
+    // Other errors are genuine query/database failures - return 500
+    console.error('Database query error in download route:', sigError);
+    return NextResponse.json({ error: 'Database query failed' }, { status: 500 });
+  }
+
+  if (!signature) {
+    // No error, just no data found - truly missing record
     return NextResponse.json({ error: 'Signature not found' }, { status: 404 });
   }
 
   const typedSignature = signature as unknown as WaiverSignatureRecord;
+  const resolvedSignatureId = typedSignature.id || signatureId;
 
   // 2. Check authorization (organizer, signer self-access, or authorized anonymous signer)
-  const { data: project } = await adminClient
+  const { data: project, error: projectError } = await adminClient
     .from('projects')
     .select('creator_id, organization_id')
     .eq('id', typedSignature.project_id)
     .single();
+
+  if (projectError) {
+    if (isNoRowsError(projectError)) {
+      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+    }
+
+    console.error('Database query error while loading project in download route:', projectError);
+    return NextResponse.json({ error: 'Database query failed' }, { status: 500 });
+  }
 
   if (!project) {
     return NextResponse.json({ error: 'Project not found' }, { status: 404 });
@@ -133,12 +203,17 @@ export async function GET(
   // Load org member data if needed
   let orgMember = null;
   if (typedProject.organization_id && user) {
-    const { data } = await adminClient
+    const { data, error: orgMemberError } = await adminClient
       .from('organization_members')
       .select('role')
       .eq('organization_id', typedProject.organization_id)
       .eq('user_id', user.id)
-      .single();
+      .maybeSingle();
+
+    if (orgMemberError) {
+      console.error('Database query error while loading org membership in download route:', orgMemberError);
+      return NextResponse.json({ error: 'Database query failed' }, { status: 500 });
+    }
     
     orgMember = data;
   }
@@ -194,7 +269,7 @@ export async function GET(
       return new NextResponse(data, {
         headers: {
           'Content-Type': contentType,
-          'Content-Disposition': getContentDisposition(false, signatureId),
+          'Content-Disposition': getContentDisposition(false, resolvedSignatureId),
         },
       });
     } catch (error) {
@@ -253,7 +328,7 @@ export async function GET(
       return new NextResponse(new Uint8Array(pdfBuffer), {
         headers: {
           'Content-Type': 'application/pdf',
-          'Content-Disposition': getContentDisposition(false, signatureId),
+          'Content-Disposition': getContentDisposition(false, resolvedSignatureId),
         },
       });
     } catch (error) {
@@ -332,7 +407,7 @@ export async function GET(
       return new NextResponse(new Uint8Array(pdfBuffer), {
         headers: {
           'Content-Type': 'application/pdf',
-          'Content-Disposition': getContentDisposition(false, signatureId),
+          'Content-Disposition': getContentDisposition(false, resolvedSignatureId),
         },
       });
     } catch (error) {
@@ -399,7 +474,7 @@ export async function GET(
       return new NextResponse(new Uint8Array(pdfBuffer), {
         headers: {
           'Content-Type': 'application/pdf',
-          'Content-Disposition': getContentDisposition(false, signatureId),
+          'Content-Disposition': getContentDisposition(false, resolvedSignatureId),
         },
       });
     } catch (error) {
