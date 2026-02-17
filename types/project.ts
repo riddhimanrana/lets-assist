@@ -28,8 +28,8 @@ export interface RecurrenceRule {
   frequency?: RecurrenceFrequency;
   interval?: number;
   end_type?: RecurrenceEndType;
-  end_date?: string;
-  end_occurrences?: number;
+  end_date?: string | null;
+  end_occurrences?: number | null;
   weekdays?: RecurrenceWeekday[];
 }
 
@@ -69,7 +69,7 @@ export interface Project {
   creator_synced_at?: string | null;
   project_timezone?: string;
   workflow_status?: ProjectWorkflowStatus;
-  recurrence_rule?: RecurrenceRule;
+  recurrence_rule?: RecurrenceRule | null;
   recurrence_parent_id?: string;
   recurrence_sequence?: number;
   restrict_to_org_domains?: boolean;

@@ -112,6 +112,7 @@ interface Props {
   initialUser: AuthUser | null;
   // Add prop for full signup data
   userSignupsData: Signup[];
+  allSignups?: any[];
 }
 
 const getFileIcon = (type: string) => {
@@ -147,7 +148,8 @@ export default function ProjectDetails({
   initialIsCreator,
   initialUser,
   // Destructure the new prop
-  userSignupsData
+  userSignupsData,
+  allSignups = [],
 }: Props) {
   const router = useRouter();
   const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
@@ -853,6 +855,8 @@ export default function ProjectDetails({
     );
   };
 
+  const enableSavedAnonymousInfoReuse = project.event_type !== "oneTime";
+
   return (
     <>
       <div className="container mx-auto px-4 py-6 max-w-6xl">
@@ -931,7 +935,7 @@ export default function ProjectDetails({
           </div>
         </div>
 
-        {isCreator && <CreatorDashboard project={project} />}
+        {isCreator && <CreatorDashboard project={project} allSignups={allSignups || []} />}
         {/* Render User Dashboard if user is logged in, NOT creator, and has signups */}
         {user && !isCreator && userSignupsData && userSignupsData.length > 0 && (
           <UserDashboard project={project} user={user} signups={userSignupsData} />
@@ -1259,7 +1263,7 @@ export default function ProjectDetails({
                     <h3 className="text-sm font-medium text-muted-foreground mb-2">
                       Project Image
                     </h3>
-                    <div className="relative mb-4 cursor-pointer max-w-[400px]" onClick={() => openPreview(project.cover_image_url!, project.title, "image/jpeg")}>
+                    <div className="relative mb-4 cursor-pointer max-w-100" onClick={() => openPreview(project.cover_image_url!, project.title, "image/jpeg")}>
                       <div className="overflow-hidden rounded-md border">
                         <Image
                           src={project.cover_image_url}
@@ -1521,7 +1525,7 @@ export default function ProjectDetails({
 
       {/* Authentication Dialog */}
       <Dialog open={authDialogOpen} onOpenChange={setAuthDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-106.25">
           <DialogHeader>
             <DialogTitle>Authentication Required</DialogTitle>
             <DialogDescription>
@@ -1564,6 +1568,7 @@ export default function ProjectDetails({
             onCancel={() => setAnonymousDialogOpen(false)}
             isSubmitting={loadingStates[currentScheduleId]}
             showCommentField={!!project.enable_volunteer_comments}
+            enableSavedInfoReuse={enableSavedAnonymousInfoReuse}
             waiverRequired={!!project.waiver_required}
             waiverAllowUpload={project.waiver_disable_esignature ? true : (project.waiver_allow_upload ?? true)}
             waiverDisableEsignature={project.waiver_disable_esignature ?? false}
@@ -1576,7 +1581,7 @@ export default function ProjectDetails({
 
       {/* Resend Confirmation Email Dialog */}
       <Dialog open={showResendDialog} onOpenChange={setShowResendDialog}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-106.25">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Mail className="h-5 w-5 text-amber-500" />

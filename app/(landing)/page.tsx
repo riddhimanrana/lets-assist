@@ -10,7 +10,6 @@ import { cn } from "@/lib/utils";
 
 import { Hero } from "./_components/Hero";
 import { LandingLazySections } from "./LandingLazySections";
-import SmoothScroll from "./_components/SmoothScroll";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://lets-assist.com";
 
@@ -112,11 +111,9 @@ export default async function HomePage(props: {
   }
 
   return (
-    <SmoothScroll>
-      <main className="flex flex-col min-h-screen overflow-x-hidden">
-        <Hero />
-        <LandingLazySections />
-      </main>
-    </SmoothScroll>
+    <main className="flex flex-col min-h-screen overflow-x-hidden">
+      <Hero />
+      <LandingLazySections />
+    </main>
   );
 }

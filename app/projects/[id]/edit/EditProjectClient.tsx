@@ -93,6 +93,7 @@ import { WaiverBuilderDialog, WaiverDefinitionInput } from "@/components/waiver/
 import { WaiverDefinitionFull } from "@/types/waiver-definitions";
 import { getWaiverDefinition, saveWaiverDefinition } from "../actions";
 import { Settings } from "lucide-react";
+import { buildRecurrenceRuleFromState } from "@/lib/projects/recurrence";
 
 // Constants for character limits
 const TITLE_LIMIT = 125;
@@ -503,17 +504,21 @@ export default function EditProjectClient({ project }: Props) {
         formValues.visibility !== project.visibility;
 
       const initialSchedule = initializeScheduleState(project);
+      const initialRecurrence = initializeRecurrenceState(project);
       const scheduleChanged = JSON.stringify(scheduleState) !== JSON.stringify(initialSchedule);
+      const recurrenceChanged = JSON.stringify(recurrenceState) !== JSON.stringify(initialRecurrence);
 
-      setHasChanges(basicInfoChanged || scheduleChanged);
+      setHasChanges(basicInfoChanged || scheduleChanged || recurrenceChanged);
     });
     return () => subscription.unsubscribe();
-  }, [form, project, scheduleState]);
+  }, [form, project, scheduleState, recurrenceState]);
 
   // Separate effect to track schedule changes independently
   useEffect(() => {
     const initialSchedule = initializeScheduleState(project);
+    const initialRecurrence = initializeRecurrenceState(project);
     const scheduleChanged = JSON.stringify(scheduleState) !== JSON.stringify(initialSchedule);
+    const recurrenceChanged = JSON.stringify(recurrenceState) !== JSON.stringify(initialRecurrence);
 
     const formValues = form.getValues();
     const basicInfoChanged =
@@ -530,8 +535,8 @@ export default function EditProjectClient({ project }: Props) {
       formValues.verification_method !== project.verification_method ||
       formValues.visibility !== project.visibility;
 
-    setHasChanges(basicInfoChanged || scheduleChanged);
-  }, [scheduleState, form, project]);
+    setHasChanges(basicInfoChanged || scheduleChanged || recurrenceChanged);
+  }, [scheduleState, recurrenceState, form, project]);
 
   // Calculate total documents size
   useEffect(() => {
@@ -900,29 +905,26 @@ export default function EditProjectClient({ project }: Props) {
         schedule = { sameDayMultiArea: scheduleState.sameDayMultiArea };
       }
 
-      // Build recurrence rule if enabled
-      const recurrenceRule = recurrenceState.enabled ? {
-        frequency: recurrenceState.frequency,
-        interval: recurrenceState.interval || 1,
-        end_type: recurrenceState.endType,
-        end_date: recurrenceState.endDate || undefined,
-        end_occurrences: recurrenceState.endOccurrences || undefined,
-        weekdays: recurrenceState.weekdays || [],
-      } : null;
-      const normalizedRecurrenceRule = recurrenceRule ?? undefined;
+      // Build recurrence rule payload (null means explicitly disable recurrence)
+      const recurrenceRule = buildRecurrenceRuleFromState(recurrenceState);
 
       // Combine form values with schedule
       const updates: Partial<Project> = {
         ...values,
         schedule,
-        recurrence_rule: normalizedRecurrenceRule,
+        recurrence_rule: recurrenceRule,
       };
 
       const result = await updateProject(project.id, updates);
       if (result.error) {
         toast.error(result.error);
       } else {
-        toast.success("Project updated successfully");
+        if (result.endedRecurringSeries) {
+          const cancelled = typeof result.cancelledOccurrences === "number" ? result.cancelledOccurrences : 0;
+          toast.success(`Recurring series ended. ${cancelled} upcoming occurrence${cancelled === 1 ? "" : "s"} cancelled.`);
+        } else {
+          toast.success("Project updated successfully");
+        }
 
         // Update calendar event if details changed (non-blocking)
         try {

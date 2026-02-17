@@ -111,14 +111,12 @@ export async function GET(request: Request) {
     // Determine which scopes to request based on the connection type
     if (scopeType === "sheets" || isSheetsSync) {
       // Sheets-only connection (for organization reports)
-      console.log("[Calendar OAuth] Requesting sheets scopes for user:", user.id);
       scopes.push(
         "https://www.googleapis.com/auth/spreadsheets",
         "https://www.googleapis.com/auth/drive.file"
       );
     } else if (scopeType === "both") {
       // Both calendar and sheets (rare case)
-      console.log("[Calendar OAuth] Requesting both calendar and sheets scopes for user:", user.id);
       scopes.push(
         "https://www.googleapis.com/auth/calendar",
         "https://www.googleapis.com/auth/spreadsheets",
@@ -126,7 +124,6 @@ export async function GET(request: Request) {
       );
     } else {
       // Default to calendar-only (for organization calendar sync or personal calendar)
-      console.log("[Calendar OAuth] Requesting calendar-only scopes for user:", user.id, "isCalendarSync:", isCalendarSync, "orgId:", orgId);
       scopes.push("https://www.googleapis.com/auth/calendar");
     }
 

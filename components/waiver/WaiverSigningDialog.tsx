@@ -14,7 +14,7 @@ import { WaiverTemplate, WaiverSignatureInput } from "@/types/waiver";
 import { SignatureCapture } from "./SignatureCapture";
 import { WaiverSigningPdfPane } from "./WaiverSigningPdfPane";
 import { PdfViewerWithOverlay, CustomPlacement } from "./PdfViewerWithOverlay";
-import { WaiverFieldForm } from "./WaiverFieldForm";
+import { validateWaiverFieldValue, WaiverFieldForm } from "./WaiverFieldForm";
 import { WaiverConsentStep } from "./WaiverConsentStep";
 import { Loader2, ArrowLeft, ArrowRight, CheckCircle, Upload, PenTool, ExternalLink, Download, Printer } from "lucide-react";
 import { useMediaQuery } from "@/hooks/use-media-query";
@@ -254,16 +254,9 @@ export function WaiverSigningDialog({
            );
         }
 
-        const required = stepFields.filter(f => f.required);
-        
-        // Check if all required fields have values
-        return required.every(f => {
-            const val = fieldValues[f.field_key];
-            // For checkboxes, must be explicitly true
-            if (f.field_type === 'checkbox') {
-               return val === true;
-            }
-            return val !== undefined && val !== "" && val !== null;
+        return stepFields.every((field) => {
+         const value = fieldValues[field.field_key];
+         return validateWaiverFieldValue(field, value).valid;
         });
     }
 

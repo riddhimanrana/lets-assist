@@ -172,7 +172,7 @@ export async function generateSignedWaiverPdf(
     }
   }
 
-  // Phase 3: Stamp non-signature fields (text, date, checkbox, radio, dropdown)
+  // Phase 3: Stamp non-signature fields (text-like fields, date, checkbox, legacy radio/dropdown)
   const nonSignatureFields = definition.fields?.filter(f => f.field_type !== 'signature') || [];
   
   for (const field of nonSignatureFields) {
@@ -188,6 +188,9 @@ export async function generateSignedWaiverPdf(
     
     switch (field.field_type) {
       case 'text':
+      case 'name':
+      case 'email':
+      case 'phone':
       case 'date':
         // Draw text value
         page.drawText(String(value), {

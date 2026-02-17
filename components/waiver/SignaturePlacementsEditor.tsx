@@ -19,6 +19,20 @@ import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 
+const CUSTOM_FIELD_TYPE_OPTIONS: Array<{ value: WaiverFieldType; label: string }> = [
+  { value: 'signature', label: 'Signature' },
+  { value: 'name', label: 'Name' },
+  { value: 'date', label: 'Date' },
+  { value: 'email', label: 'Email' },
+  { value: 'phone', label: 'Phone' },
+  { value: 'text', label: 'Text' },
+  { value: 'checkbox', label: 'Checkbox' },
+];
+
+function isCustomFieldTypeOption(value: string): value is WaiverFieldType {
+  return CUSTOM_FIELD_TYPE_OPTIONS.some((option) => option.value === value);
+}
+
 interface SignaturePlacementsEditorProps {
   placements: CustomPlacement[];
   signers: WaiverDefinitionSignerInput[];
@@ -105,23 +119,18 @@ export function SignaturePlacementsEditor({
                          </div>
                          <div className="w-24 shrink-0">
                             <Select
-                               value={placement.fieldType}
+                               value={isCustomFieldTypeOption(placement.fieldType) ? placement.fieldType : 'text'}
                                onValueChange={(val) => val && handleUpdatePlacement(placement.id, { fieldType: val as WaiverFieldType })}
                              >
                                <SelectTrigger className="h-8 text-[10px] px-2" onClick={(e) => e.stopPropagation()}>
                                  <SelectValue />
                                </SelectTrigger>
                                <SelectContent>
-                                  <SelectItem value="signature" className="text-xs">Signature</SelectItem>
-                                  <SelectItem value="initial" className="text-xs">Initial</SelectItem>
-                                  <SelectItem value="name" className="text-xs">Name</SelectItem>
-                                  <SelectItem value="date" className="text-xs">Date</SelectItem>
-                                  <SelectItem value="email" className="text-xs">Email</SelectItem>
-                                  <SelectItem value="phone" className="text-xs">Phone</SelectItem>
-                                  <SelectItem value="text" className="text-xs">Text</SelectItem>
-                                  <SelectItem value="checkbox" className="text-xs">Checkbox</SelectItem>
-                                  <SelectItem value="radio" className="text-xs">Radio</SelectItem>
-                                  <SelectItem value="dropdown" className="text-xs">Dropdown</SelectItem>
+                                  {CUSTOM_FIELD_TYPE_OPTIONS.map((option) => (
+                                    <SelectItem key={option.value} value={option.value} className="text-xs">
+                                      {option.label}
+                                    </SelectItem>
+                                  ))}
                                </SelectContent>
                              </Select>
                          </div>

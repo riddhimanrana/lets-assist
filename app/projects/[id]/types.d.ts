@@ -21,11 +21,11 @@ declare module '@/types' {
     created_at: string; // TIMESTAMPTZ
     token: string; // UUID
     project_id: string; // UUID, FK to projects.id
-    signup_id: string; // UUID, FK to project_signups.id
     email: string;
     name: string;
     phone_number?: string | null;
     confirmed_at?: string | null; // TIMESTAMPTZ
+    linked_user_id?: string | null; // UUID, FK to auth.users(id)
   }
 
   // Define or extend ProjectSignup type

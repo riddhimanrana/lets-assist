@@ -183,6 +183,32 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
         toast.error(errors.server[0]);
       }
     } else if (result.success && result.email) {
+      // Check if there was a failed invite outcome
+      if (result.inviteOutcome && result.inviteOutcome.status !== 'success') {
+        const { status, orgUsername } = result.inviteOutcome;
+        let warningMessage = 'Could not join organization from invite.';
+        
+        switch (status) {
+          case 'invalid_token':
+            warningMessage = `The invite link for "${orgUsername}" is no longer valid.`;
+            break;
+          case 'expired_token':
+            warningMessage = `The invite link for "${orgUsername}" has expired.`;
+            break;
+          case 'org_not_found':
+            warningMessage = `The organization "${orgUsername}" could not be found.`;
+            break;
+          case 'error':
+            warningMessage = `An error occurred while processing your invite to "${orgUsername}".`;
+            break;
+        }
+        
+        toast.warning('Account created, but invite failed', {
+          description: warningMessage + ' Your account was created successfully.',
+          duration: 5000,
+        });
+      }
+      
       // Redirect to success page
       router.push(`/signup/success?email=${encodeURIComponent(result.email)}`);
       return;
@@ -196,7 +222,13 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
   const handleGoogleSignIn = async () => {
     try {
       setIsGoogleLoading(true);
-      const result = await signInWithGoogle(redirectPath ?? null);
+      
+      // Pass staff invite context if present
+      const inviteContext = (staffToken || orgUsername)
+        ? { staffToken, orgUsername }
+        : null;
+      
+      const result = await signInWithGoogle(redirectPath ?? null, inviteContext);
 
       if (result.error) {
         if (result.error.server?.[0]?.includes("email-password")) {
@@ -221,7 +253,7 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
 
   return (
     <div className="flex items-center justify-center min-h-screen p-4">
-      <Card className="w-full max-w-[400px] mx-auto mb-12 py-0">
+      <Card className="w-full max-w-100 mx-auto mb-12 py-0">
         <CardHeader className="space-y-1 px-6 pt-6 pb-0">
           <CardTitle className="text-2xl font-bold text-left">
             {isStaffInvite ? "Staff Invite" : "Create an account"}
@@ -329,7 +361,7 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
               )}
             />
             <div className="flex justify-center">
-              <div className="relative w-[300px] h-[65px] overflow-hidden bg-muted/30 rounded-lg flex items-center justify-center border border-border/50">
+              <div className="relative w-75 h-16.25 overflow-hidden bg-muted/30 rounded-lg flex items-center justify-center border border-border/50">
                 {!turnstileReady && (
                   <div className="absolute inset-0 z-10 flex items-center justify-center gap-2 rounded-lg bg-background/80 text-[0.7rem] font-semibold uppercase tracking-wide text-muted-foreground">
                     <Shield className="h-4 w-4 text-muted-foreground/80" />
@@ -377,7 +409,7 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-center py-4">
-            <div className="relative w-[300px] h-[65px] overflow-hidden rounded-lg bg-muted/30 border border-border/50 flex items-center justify-center">
+            <div className="relative w-75 h-16.25 overflow-hidden rounded-lg bg-muted/30 border border-border/50 flex items-center justify-center">
               {!resendTurnstileReady && !isTurnstileBypassed && (
                 <div className="absolute inset-0 z-10 flex items-center justify-center gap-2 rounded-lg bg-background/80 text-[0.7rem] font-semibold uppercase tracking-wide text-muted-foreground text-center px-4">
                   <Shield className="h-4 w-4 text-muted-foreground/80 shrink-0" />

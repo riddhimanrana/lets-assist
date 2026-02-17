@@ -1,0 +1,39 @@
+name: Generate Recurring Projects
+
+on:
+  schedule:
+    - cron: '10 1 * * *'   # 01:10 UTC (primary)
+    - cron: '10 13 * * *'  # 13:10 UTC (second pass)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  generate-recurring-projects:
+    if: >-
+      github.repository_owner == 'riddhimanrana' &&
+      (
+        github.event_name == 'workflow_dispatch' ||
+        github.event.schedule == '10 1 * * *' ||
+        github.event.schedule == '10 13 * * *'
+      )
+    runs-on: ubuntu-latest
+    concurrency:
+      group: generate-recurring-projects
+      cancel-in-progress: false
+    env:
+      CRON_BASE_URL: ${{ secrets.CRON_BASE_URL }}
+      CRON_TOKEN: ${{ secrets.CRON_SECRET }}
+    steps:
+      - name: Validate configuration
+        run: |
+          test -n "$CRON_BASE_URL" || { echo "CRON_BASE_URL secret missing"; exit 1; }
+          test -n "$CRON_TOKEN" || { echo "CRON_SECRET secret missing"; exit 1; }
+
+      - name: Call Recurring Projects API
+        run: |
+          set -euo pipefail
+          curl --retry 3 --retry-delay 5 --retry-all-errors -fsSL -X POST \
+            -H "Authorization: Bearer $CRON_TOKEN" \
+            "$CRON_BASE_URL/api/cron/generate-recurring-projects"
