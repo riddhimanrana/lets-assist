@@ -122,8 +122,10 @@ export function SignaturePlacementsEditor({
                                value={isCustomFieldTypeOption(placement.fieldType) ? placement.fieldType : 'text'}
                                onValueChange={(val) => val && handleUpdatePlacement(placement.id, { fieldType: val as WaiverFieldType })}
                              >
-                               <SelectTrigger className="h-8 text-[10px] px-2" onClick={(e) => e.stopPropagation()}>
-                                 <SelectValue />
+                               <SelectTrigger className="h-8 text-[11px] px-2" onClick={(e) => e.stopPropagation()}>
+                                 <SelectValue placeholder="Field Type">
+                                   {CUSTOM_FIELD_TYPE_OPTIONS.find(o => o.value === (isCustomFieldTypeOption(placement.fieldType) ? placement.fieldType : 'text'))?.label}
+                                 </SelectValue>
                                </SelectTrigger>
                                <SelectContent>
                                   {CUSTOM_FIELD_TYPE_OPTIONS.map((option) => (
@@ -145,8 +147,8 @@ export function SignaturePlacementsEditor({
                                value={placement.signerRoleKey}
                                onValueChange={(val) => val && handleUpdatePlacement(placement.id, { signerRoleKey: val })}
                              >
-                               <SelectTrigger className="h-8 text-xs" onClick={(e) => e.stopPropagation()}>
-                                 <SelectValue>
+                               <SelectTrigger className="h-8 text-xs font-normal" onClick={(e) => e.stopPropagation()}>
+                                 <SelectValue placeholder="Assign Role">
                                    {getSignerLabel(placement.signerRoleKey)}
                                  </SelectValue>
                                </SelectTrigger>

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { validateWaiverPayload, validateLegacyWaiverPayload } from './validate-waiver-payload';
+import { validateWaiverPayload } from './validate-waiver-payload';
 import type { SignaturePayload } from '@/types/waiver-definitions';
 
 describe('validateWaiverPayload', () => {
@@ -278,63 +278,3 @@ describe('validateWaiverPayload', () => {
   });
 });
 
-describe('validateLegacyWaiverPayload', () => {
-  it('should pass validation for legacy payload with signature', () => {
-    const payload = {
-      signers: [
-        {
-          role_key: 'volunteer',
-          method: 'draw' as const,
-          data: 'data:image/png;base64,iVBORw0KGgoAAAANS...',
-          timestamp: '2026-02-10T10:00:00Z',
-        },
-      ],
-      fields: {},
-    };
-
-    const result = validateLegacyWaiverPayload(payload);
-
-    expect(result.valid).toBe(true);
-    expect(result.errors).toHaveLength(0);
-  });
-
-  it('should fail validation when no signers provided', () => {
-    const payload = {
-      signers: [],
-      fields: {},
-    };
-
-    const result = validateLegacyWaiverPayload(payload);
-
-    expect(result.valid).toBe(false);
-    expect(result.errors).toContain('No signature provided');
-  });
-
-  it('should fail validation when signature data is empty', () => {
-    const payload = {
-      signers: [
-        {
-          role_key: 'volunteer',
-          method: 'draw' as const,
-          data: '',
-          timestamp: '2026-02-10T10:00:00Z',
-        },
-      ],
-      fields: {},
-    };
-
-    const result = validateLegacyWaiverPayload(payload);
-
-    expect(result.valid).toBe(false);
-    expect(result.errors).toContain('Signature data is empty');
-  });
-
-  it('should handle payload without signers field', () => {
-    const payload = {};
-
-    const result = validateLegacyWaiverPayload(payload);
-
-    expect(result.valid).toBe(false);
-    expect(result.errors).toContain('No signature provided');
-  });
-});

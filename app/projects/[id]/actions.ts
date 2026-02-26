@@ -21,7 +21,7 @@ import * as React from 'react';
 import { NotificationService } from "@/services/notifications";
 import { removeCalendarEventForSignup, removeCalendarEventForProject } from "@/utils/calendar-helpers";
 import { getAdminClient } from "@/lib/supabase/admin";
-import { validateWaiverPayload, validateLegacyWaiverPayload } from "@/lib/waiver/validate-waiver-payload";
+import { validateWaiverPayload } from "@/lib/waiver/validate-waiver-payload";
 import { mapDetectedFieldsForDb, mapCustomPlacementsForDb } from "@/lib/waiver/map-definition-input";
 
 // Define your site URL (replace with environment variable ideally)
@@ -49,49 +49,12 @@ const WAIVER_UPLOAD_BUCKET = "waiver-uploads";
 const MAX_WAIVER_SIGNATURE_BYTES = 2 * 1024 * 1024; // 2MB
 const MAX_WAIVER_UPLOAD_BYTES = 10 * 1024 * 1024; // 10MB
 
-const LEGACY_WAIVER_FIELD_TYPES = new Set([
-  "signature",
-  "text",
-  "checkbox",
-  "radio",
-  "dropdown",
-  "date",
-]);
-
 type PostgrestErrorLike = {
   message?: string;
   details?: string;
   hint?: string;
   code?: string;
 };
-
-function normalizeWaiverFieldTypeForLegacyConstraint(fieldType: unknown): string {
-  const normalized = typeof fieldType === "string" ? fieldType.trim().toLowerCase() : "";
-
-  if (LEGACY_WAIVER_FIELD_TYPES.has(normalized)) {
-    return normalized;
-  }
-
-  switch (normalized) {
-    case "name":
-    case "email":
-    case "phone":
-    case "address":
-    case "initial":
-      return "text";
-    default:
-      return "text";
-  }
-}
-
-function isWaiverFieldTypeConstraintError(error: unknown): boolean {
-  if (!error || typeof error !== "object") return false;
-
-  const pgError = error as PostgrestErrorLike;
-  const joined = `${pgError.message ?? ""} ${pgError.details ?? ""} ${pgError.hint ?? ""}`.toLowerCase();
-
-  return joined.includes("field_type") && (joined.includes("check constraint") || joined.includes("violat"));
-}
 
 function isMissingWaiverDisableEsignatureColumnError(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;
@@ -106,37 +69,6 @@ function isMissingWaiverDisableEsignatureColumnError(error: unknown): boolean {
   const knownCode = pgError.code === "PGRST204" || pgError.code === "42703";
 
   return referencesColumn && (knownCode || schemaCacheLike);
-}
-
-function toLegacyCompatibleWaiverFields(fields: Array<Record<string, unknown>>) {
-  let changed = false;
-
-  const normalizedFields = fields.map((field) => {
-    const originalFieldType = typeof field.field_type === "string" ? field.field_type : "text";
-    const nextFieldType = normalizeWaiverFieldTypeForLegacyConstraint(originalFieldType);
-
-    if (nextFieldType === originalFieldType) {
-      return field;
-    }
-
-    changed = true;
-
-    const currentMeta =
-      field.meta && typeof field.meta === "object" && !Array.isArray(field.meta)
-        ? (field.meta as Record<string, unknown>)
-        : {};
-
-    return {
-      ...field,
-      field_type: nextFieldType,
-      meta: {
-        ...currentMeta,
-        original_field_type: originalFieldType,
-      },
-    };
-  });
-
-  return { normalizedFields, changed };
 }
 
 type ParsedDataUrl = {
@@ -841,8 +773,6 @@ async function persistWaiverSignature(params: {
   }
 
   const { ipAddress, userAgent } = await getRequestMetadata();
-  let signatureStoragePath: string | null = null;
-  let uploadStoragePath: string | null = null;
   let signaturePayload: Record<string, unknown> | null = null;
   // waiverDefinitionId resolved above
 
@@ -902,66 +832,7 @@ async function persistWaiverSignature(params: {
       ...rawPayload,
       signers: processedSigners
     };
-
-    // Also populate legacy fields for primary signer/backward compat if reasonable?
-    // Maybe not. Just set signature_type to 'multi-signer' and let UI handle it.
   }
-
-  // Legacy/Single Signer Handling
-  if (params.waiverSignature.signatureType === "draw") {
-    if (!params.waiverSignature.signatureImageDataUrl) {
-      return { error: "Signature drawing is required." };
-    }
-
-    const fileName = `waiver_${params.signupId}_${Date.now()}.png`;
-    const uploadResult = await uploadWaiverAsset({
-      bucket: WAIVER_SIGNATURE_BUCKET,
-      dataUrl: params.waiverSignature.signatureImageDataUrl,
-      fileName,
-      maxBytes: MAX_WAIVER_SIGNATURE_BYTES,
-      allowedTypes: ["image/png", "image/jpeg"],
-    });
-
-    if (uploadResult.error) {
-      return { error: uploadResult.error };
-    }
-
-    signatureStoragePath = uploadResult.path || null;
-  }
-
-  if (params.waiverSignature.signatureType === "upload") {
-    // Phase 1: Enforce upload permission server-side
-    if (!waiverAllowUpload) {
-      return { error: "Waiver upload is not allowed for this project." };
-    }
-    
-    if (!params.waiverSignature.uploadFileDataUrl || !params.waiverSignature.uploadFileName) {
-      return { error: "Signed waiver upload is required." };
-    }
-
-    const fileExt = params.waiverSignature.uploadFileName.split(".").pop() || "pdf";
-    const fileName = `waiver_${params.signupId}_${Date.now()}.${fileExt}`;
-    const uploadResult = await uploadWaiverAsset({
-      bucket: WAIVER_UPLOAD_BUCKET,
-      dataUrl: params.waiverSignature.uploadFileDataUrl,
-      fileName,
-      maxBytes: MAX_WAIVER_UPLOAD_BYTES,
-      allowedTypes: ["application/pdf", "image/png", "image/jpeg"],
-    });
-
-    if (uploadResult.error) {
-      return { error: uploadResult.error };
-    }
-
-    uploadStoragePath = uploadResult.path || null;
-  }
-
-  const signatureText =
-    params.waiverSignature.signatureType === "typed"
-      ? params.waiverSignature.signatureText?.trim() || params.signerName
-      : params.waiverSignature.signatureType === "draw"
-        ? params.signerName
-        : null;
 
   const { error: insertError } = await serviceSupabase
     .from("waiver_signatures")
@@ -976,9 +847,9 @@ async function persistWaiverSignature(params: {
       signer_name: params.signerName,
       signer_email: params.signerEmail,
       signature_type: params.waiverSignature.signatureType,
-      signature_text: signatureText,
-      signature_storage_path: signatureStoragePath,
-      upload_storage_path: uploadStoragePath,
+      signature_text: params.signerName,
+      signature_storage_path: null,
+      upload_storage_path: null,
       signature_payload: signaturePayload,
       form_data: params.waiverSignature.formData ?? null,
       ip_address: ipAddress,
@@ -1171,15 +1042,6 @@ export async function signUpForProject(
           // Log warnings if any
           if (validationResult.warnings && validationResult.warnings.length > 0) {
             console.warn('Waiver validation warnings:', validationResult.warnings);
-          }
-        } else {
-          // Legacy system: Basic validation
-          const validationResult = validateLegacyWaiverPayload(waiverSignature.payload);
-          
-          if (!validationResult.valid) {
-            return {
-              error: `Waiver validation failed: ${validationResult.errors.join(', ')}`
-            };
           }
         }
       }
@@ -2883,34 +2745,9 @@ export async function saveWaiverDefinition(
 
       // Insert all fields
       if (fieldsToInsert.length > 0) {
-        const { error: initialFieldsError } = await serviceSupabase
+        const { error: fieldsError } = await serviceSupabase
           .from("waiver_definition_fields")
           .insert(fieldsToInsert);
-
-        let fieldsError = initialFieldsError;
-
-        // Backward compatibility: some environments still enforce a narrower
-        // field_type check constraint than the app-level waiver field taxonomy.
-        if (fieldsError && isWaiverFieldTypeConstraintError(fieldsError)) {
-          const { normalizedFields, changed } = toLegacyCompatibleWaiverFields(
-            fieldsToInsert as Array<Record<string, unknown>>
-          );
-
-          if (changed) {
-            const { error: retryFieldsError } = await serviceSupabase
-              .from("waiver_definition_fields")
-              .insert(normalizedFields);
-
-            if (!retryFieldsError) {
-              console.warn("Waiver fields saved with legacy field_type compatibility mapping", {
-                projectId,
-                definitionId,
-              });
-            }
-
-            fieldsError = retryFieldsError;
-          }
-        }
 
         if (fieldsError) {
           console.error("Error inserting waiver fields:", fieldsError);

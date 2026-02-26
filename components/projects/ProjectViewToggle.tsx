@@ -333,7 +333,7 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
     <div>
       {/* Card View - Cleaner with hover cards */}
       {view === "card" && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[repeat(auto-fill,minmax(400px,2fr))] gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[repeat(auto-fill,minmax(376px,2fr))] gap-6">
           {filteredProjects.map((project) => (
             <div key={project.id} className="relative group">
               <Link href={`/projects/${project.id}`}>

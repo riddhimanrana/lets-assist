@@ -577,8 +577,16 @@ function ResizablePlacement({
   const [isResizing, setIsResizing] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [resizeHandle, setResizeHandle] = useState<string | null>(null);
+  const [localRect, setLocalRect] = useState<PdfRect>(placement.rect);
   const startPosRef = useRef<{ x: number; y: number } | null>(null);
   const startRectRef = useRef<PdfRect | null>(null);
+  const latestRectRef = useRef<PdfRect>(placement.rect);
+
+  useEffect(() => {
+    if (isDragging || isResizing) return;
+    setLocalRect(placement.rect);
+    latestRectRef.current = placement.rect;
+  }, [placement.rect, isDragging, isResizing]);
 
   const getStyle = (rect: PdfRect) => {
     const [x1, y1, x2, y2] = viewport.convertToViewportRectangle([
@@ -609,7 +617,7 @@ function ResizablePlacement({
     setIsResizing(true);
     setResizeHandle(handle);
     startPosRef.current = { x: e.clientX, y: e.clientY };
-    startRectRef.current = { ...placement.rect };
+    startRectRef.current = { ...latestRectRef.current };
   };
 
   const handleDragStart = (e: React.MouseEvent) => {
@@ -619,7 +627,7 @@ function ResizablePlacement({
     e.stopPropagation();
     setIsDragging(true);
     startPosRef.current = { x: e.clientX, y: e.clientY };
-    startRectRef.current = { ...placement.rect };
+    startRectRef.current = { ...latestRectRef.current };
   };
 
   useEffect(() => {
@@ -643,7 +651,8 @@ function ResizablePlacement({
           y: startRectRef.current.y + pdfDeltaY
         });
 
-        onPlacementResize(placement.id, newRect);
+        latestRectRef.current = newRect;
+        setLocalRect(newRect);
         return;
       }
 
@@ -692,10 +701,16 @@ function ResizablePlacement({
           break;
       }
 
-      onPlacementResize(placement.id, clampRectToPage(newRect));
+      const clampedRect = clampRectToPage(newRect);
+      latestRectRef.current = clampedRect;
+      setLocalRect(clampedRect);
     };
 
     const handleMouseUp = () => {
+      if (onPlacementResize && (isResizing || isDragging)) {
+        onPlacementResize(placement.id, latestRectRef.current);
+      }
+
       setIsResizing(false);
       setIsDragging(false);
       setResizeHandle(null);
@@ -712,9 +727,12 @@ function ResizablePlacement({
     };
   }, [isResizing, isDragging, resizeHandle, viewport, placement.id, onPlacementResize, clampRectToPage]);
 
-  const style = getStyle(placement.rect);
+  const style = getStyle(localRect);
 
   const isSignature = placement.fieldType === 'signature';
+  const resizeHandleColorClass = isSignature
+    ? "bg-primary border-primary"
+    : "bg-indigo-600 border-indigo-600";
 
   const isEditable = mode === 'edit' && typeof onPlacementResize === 'function';
   
@@ -722,7 +740,7 @@ function ResizablePlacement({
     <div
       style={style}
       className={cn(
-        "border-2 absolute hover:bg-opacity-30 transition-all z-20 select-none rounded-sm",
+        "border-2 absolute hover:bg-opacity-30 transition-colors z-20 select-none rounded-sm",
         isSignature ? "border-primary bg-primary/20" : "border-indigo-500 bg-indigo-500/20",
         isSelected && (isSignature ? "ring-2 ring-primary ring-offset-2 shadow-lg border-primary bg-primary/30" : "ring-2 ring-indigo-500 ring-offset-2 shadow-lg border-indigo-500 bg-indigo-500/30"),
         isResizing && "cursor-crosshair",
@@ -753,37 +771,37 @@ function ResizablePlacement({
         <>
           {/* Corner handles */}
           <div
-            className="resize-handle absolute -top-1 -left-1 w-3 h-3 bg-primary border border-white rounded-full cursor-nw-resize z-30"
+            className={cn("resize-handle absolute -top-1 -left-1 w-3 h-3 border rounded-full cursor-nw-resize z-30", resizeHandleColorClass)}
             onMouseDown={(e) => handleMouseDown(e, 'nw')}
           />
           <div
-            className="resize-handle absolute -top-1 -right-1 w-3 h-3 bg-primary border border-white rounded-full cursor-ne-resize z-30"
+            className={cn("resize-handle absolute -top-1 -right-1 w-3 h-3 border rounded-full cursor-ne-resize z-30", resizeHandleColorClass)}
             onMouseDown={(e) => handleMouseDown(e, 'ne')}
           />
           <div
-            className="resize-handle absolute -bottom-1 -left-1 w-3 h-3 bg-primary border border-white rounded-full cursor-sw-resize z-30"
+            className={cn("resize-handle absolute -bottom-1 -left-1 w-3 h-3 border rounded-full cursor-sw-resize z-30", resizeHandleColorClass)}
             onMouseDown={(e) => handleMouseDown(e, 'sw')}
           />
           <div
-            className="resize-handle absolute -bottom-1 -right-1 w-3 h-3 bg-primary border border-white rounded-full cursor-se-resize z-30"
+            className={cn("resize-handle absolute -bottom-1 -right-1 w-3 h-3 border rounded-full cursor-se-resize z-30", resizeHandleColorClass)}
             onMouseDown={(e) => handleMouseDown(e, 'se')}
           />
           
           {/* Edge handles */}
           <div
-            className="resize-handle absolute -top-1 left-1/2 -translate-x-1/2 w-3 h-2 bg-primary border border-white rounded cursor-n-resize z-30"
+            className={cn("resize-handle absolute -top-1 left-1/2 -translate-x-1/2 w-3 h-2 border rounded cursor-n-resize z-30", resizeHandleColorClass)}
             onMouseDown={(e) => handleMouseDown(e, 'n')}
           />
           <div
-            className="resize-handle absolute -bottom-1 left-1/2 -translate-x-1/2 w-3 h-2 bg-primary border border-white rounded cursor-s-resize z-30"
+            className={cn("resize-handle absolute -bottom-1 left-1/2 -translate-x-1/2 w-3 h-2 border rounded cursor-s-resize z-30", resizeHandleColorClass)}
             onMouseDown={(e) => handleMouseDown(e, 's')}
           />
           <div
-            className="resize-handle absolute -left-1 top-1/2 -translate-y-1/2 w-2 h-3 bg-primary border border-white rounded cursor-w-resize z-30"
+            className={cn("resize-handle absolute -left-1 top-1/2 -translate-y-1/2 w-2 h-3 border rounded cursor-w-resize z-30", resizeHandleColorClass)}
             onMouseDown={(e) => handleMouseDown(e, 'w')}
           />
           <div
-            className="resize-handle absolute -right-1 top-1/2 -translate-y-1/2 w-2 h-3 bg-primary border border-white rounded cursor-e-resize z-30"
+            className={cn("resize-handle absolute -right-1 top-1/2 -translate-y-1/2 w-2 h-3 border rounded cursor-e-resize z-30", resizeHandleColorClass)}
             onMouseDown={(e) => handleMouseDown(e, 'e')}
           />
         </>

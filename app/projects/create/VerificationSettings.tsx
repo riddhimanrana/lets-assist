@@ -52,6 +52,7 @@ interface VerificationSettingsProps {
   waiverPdfValidation?: { hasSignatureFields: boolean; warnings: string[] } | null;
   waiverDefinition?: WaiverDefinitionInput | null;
   detectedFields?: DetectedPdfField[] | null;
+  showWaiverReuploadNotice?: boolean;
   updateVerificationMethodAction: (method: VerificationMethod) => void;
   updateRequireLoginAction: (requireLogin: boolean) => void;
   updateVisibilityAction: (visibility: ProjectVisibility) => void;
@@ -90,6 +91,7 @@ export default function VerificationSettings({
   waiverPdfValidation,
   waiverDefinition,
   detectedFields,
+  showWaiverReuploadNotice = false,
   updateVerificationMethodAction,
   updateRequireLoginAction,
   updateVisibilityAction,
@@ -557,6 +559,16 @@ export default function VerificationSettings({
 
             {waiverRequired && (
               <>
+                {showWaiverReuploadNotice && !hasWaiverPdf && (
+                  <Alert className="bg-warning/10 border-warning">
+                    <AlertTriangle className="h-4 w-4 text-warning" />
+                    <AlertDescription className="text-warning text-sm">
+                      <span className="font-medium">Draft restored:</span> Your waiver signer configuration was saved, but waiver PDFs are not stored in drafts. Please re-upload your waiver PDF to use your saved configuration.
+                      {waiverDefinition?.signers?.length ? ` (${waiverDefinition.signers.length} signer role${waiverDefinition.signers.length !== 1 ? 's' : ''} ready.)` : ''}
+                    </AlertDescription>
+                  </Alert>
+                )}
+
                 {/* PDF Upload Section */}
                 <div className="space-y-3 pt-2">
                   <Label className="text-sm font-medium">Waiver Document (PDF)</Label>

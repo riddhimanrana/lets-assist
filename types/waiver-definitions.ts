@@ -270,13 +270,6 @@ export function isNewWaiverSystem(signature: WaiverSignatureExtended): boolean {
   return signature.waiver_definition_id !== null && signature.signature_payload !== null;
 }
 
-/**
- * Type guard to check if a waiver signature uses the legacy system
- */
-export function isLegacyWaiverSystem(signature: WaiverSignatureExtended): boolean {
-  return signature.waiver_definition_id === null;
-}
-
 // ============================================================================
 // Builder/UI Types
 // ============================================================================

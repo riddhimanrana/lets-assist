@@ -76,7 +76,7 @@ export default function OrganizationCard({ org, memberCount, isUserMember = fals
             )}
           </div>
 
-          <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed break-all">
+          <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed break-all min-h-[2.4rem]">
             {org.description || "No description provided."}
           </p>
         </CardContent>
