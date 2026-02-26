@@ -218,7 +218,6 @@ export function detectPdfSignaturesNaive(
  */
 function normalizeAnnotation(annotation: PdfJsAnnotation, pageIndex: number): DetectedPdfField | null {
   try {
-    const fieldName = annotation.fieldName || annotation.alternativeText || `field_${pageIndex}_${Math.random().toString(36).substr(2, 9)}`;
     const fieldType = mapFieldType(annotation.fieldType);
 
     // Extract rectangle coordinates
@@ -235,6 +234,11 @@ function normalizeAnnotation(annotation: PdfJsAnnotation, pageIndex: number): De
       width: Math.abs(x2 - x1),
       height: Math.abs(y2 - y1),
     };
+
+    const fieldName =
+      annotation.fieldName ||
+      annotation.alternativeText ||
+      buildDeterministicFieldName(pageIndex, fieldType, pdfRect);
 
     // Check if field is required
     // fieldFlags bit 2 indicates required field
@@ -255,6 +259,20 @@ function normalizeAnnotation(annotation: PdfJsAnnotation, pageIndex: number): De
     console.error('Error normalizing annotation:', error);
     return null;
   }
+}
+
+function buildDeterministicFieldName(
+  pageIndex: number,
+  fieldType: DetectedPdfField['fieldType'],
+  rect: PdfRect
+): string {
+  // Some PDFs do not expose a stable field name. Use a deterministic fallback
+  // based on page + normalized geometry so mappings survive draft restore + re-upload.
+  const x = Math.round(rect.x);
+  const y = Math.round(rect.y);
+  const w = Math.round(rect.width);
+  const h = Math.round(rect.height);
+  return `field_${pageIndex}_${fieldType}_${x}_${y}_${w}_${h}`;
 }
 
 /**

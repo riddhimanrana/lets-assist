@@ -76,6 +76,12 @@ export function FieldListPanel({
     onFieldMappingChange(field.fieldName, { ...current, ...updates });
   };
 
+  const getSignerLabel = (roleKey: string | undefined) => {
+    if (!roleKey || roleKey === 'unassigned') return 'Unassigned (Optional)';
+    const signer = signers.find(s => s.roleKey === roleKey);
+    return signer?.label || roleKey;
+  };
+
   const getIcon = (type: string) => {
     switch (type) {
       case 'signature': return <FileSignature className="h-4 w-4" />;
@@ -126,7 +132,9 @@ export function FieldListPanel({
                 onValueChange={(val) => updateMapping(field, { signerRoleKey: val === "unassigned" || !val ? undefined : val })}
               >
                 <SelectTrigger className="h-8">
-                  <SelectValue placeholder="Assign Role" />
+                  <SelectValue placeholder="Assign Role">
+                    {getSignerLabel(mapping.signerRoleKey)}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="unassigned" className="text-muted-foreground">Unassigned (Optional)</SelectItem>

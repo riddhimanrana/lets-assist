@@ -19,6 +19,16 @@ const ALLOWED_DOCUMENT_TYPES = [
   "image/jpg"
 ];
 
+function sanitizeDraftData(projectData: Partial<EventFormState>): Partial<EventFormState> {
+  return {
+    ...projectData,
+    // Persist waiver configuration, but never persist uploaded PDF/file-specific data in drafts.
+    waiverPdfFile: null,
+    waiverPdfUrl: null,
+    waiverPdfValidation: null,
+  };
+}
+
 function isMissingWaiverDisableEsignatureColumnError(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;
 
@@ -516,6 +526,7 @@ export async function createProject(formData: FormData) {
 export async function autoSaveDraft(projectData: Partial<EventFormState>, autosaveDraftId?: string) {
   try {
     const supabase = await createClient();
+    const sanitizedProjectData = sanitizeDraftData(projectData);
 
     // Get current user
     const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -524,7 +535,7 @@ export async function autoSaveDraft(projectData: Partial<EventFormState>, autosa
     }
 
     // Extract title for easy reference
-    const title = projectData.basicInfo?.title || "Untitled Draft";
+    const title = sanitizedProjectData.basicInfo?.title || "Untitled Draft";
 
     // If we have an autosave draft ID, update it; otherwise find or create the autosave draft
     if (autosaveDraftId) {
@@ -533,7 +544,7 @@ export async function autoSaveDraft(projectData: Partial<EventFormState>, autosa
         .from("project_drafts")
         .update({
           title: title,
-          draft_data: projectData,
+          draft_data: sanitizedProjectData,
           updated_at: new Date().toISOString()
         })
         .eq("id", autosaveDraftId)
@@ -554,7 +565,7 @@ export async function autoSaveDraft(projectData: Partial<EventFormState>, autosa
         .insert({
           user_id: user.id,
           title: title,
-          draft_data: projectData
+          draft_data: sanitizedProjectData
         })
         .select()
         .single();
@@ -580,6 +591,7 @@ export async function saveProjectAsNewDraft(formData: FormData) {
     const projectDataStr = formData.get("projectData") as string;
     if (!projectDataStr) return { error: "Missing project data" };
     const projectData = JSON.parse(projectDataStr);
+    const sanitizedProjectData = sanitizeDraftData(projectData);
 
     // Get current user
     const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -588,7 +600,7 @@ export async function saveProjectAsNewDraft(formData: FormData) {
     }
 
     // Extract title for easy reference
-    const title = projectData.basicInfo?.title || "Untitled Draft";
+    const title = sanitizedProjectData.basicInfo?.title || "Untitled Draft";
 
     // Always create a new draft entry
     const { data: draft, error: draftError } = await supabase
@@ -596,7 +608,7 @@ export async function saveProjectAsNewDraft(formData: FormData) {
       .insert({
         user_id: user.id,
         title: title,
-        draft_data: projectData
+        draft_data: sanitizedProjectData
       })
       .select()
       .single();
@@ -622,6 +634,7 @@ export async function saveProjectAsDraft(formData: FormData) {
     const projectDataStr = formData.get("projectData") as string;
     if (!projectDataStr) return { error: "Missing project data" };
     const projectData = JSON.parse(projectDataStr);
+    const sanitizedProjectData = sanitizeDraftData(projectData);
 
     // Get current user
     const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -630,7 +643,7 @@ export async function saveProjectAsDraft(formData: FormData) {
     }
 
     // Extract title for easy reference
-    const title = projectData.basicInfo?.title || "Untitled Draft";
+    const title = sanitizedProjectData.basicInfo?.title || "Untitled Draft";
 
     // Save as JSON in project_drafts table
     const { data: draft, error: draftError } = await supabase
@@ -638,7 +651,7 @@ export async function saveProjectAsDraft(formData: FormData) {
       .insert({
         user_id: user.id,
         title: title,
-        draft_data: projectData
+        draft_data: sanitizedProjectData
       })
       .select()
       .single();

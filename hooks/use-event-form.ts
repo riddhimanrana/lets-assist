@@ -618,6 +618,11 @@ const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
           ...state.recurrence,
           ...(payload.recurrence ?? {}),
         },
+        // Drafts intentionally never restore uploaded waiver files/URLs.
+        // We keep waiver configuration data, but users must re-upload the PDF.
+        waiverPdfFile: null,
+        waiverPdfUrl: null,
+        waiverPdfValidation: null,
       };
     }
     default:

@@ -36,6 +36,94 @@ function normalizeCustomFieldType(fieldType: string): WaiverFieldType {
     : 'text';
 }
 
+function hydrateMappingForDetectedField(
+  detectedField: DetectedPdfField,
+  savedMapping: FieldMapping
+): FieldMapping {
+  return {
+    ...savedMapping,
+    fieldKey: detectedField.fieldName,
+    fieldType: detectedField.fieldType,
+    pageIndex: detectedField.pageIndex,
+    rect: detectedField.rect,
+    pdfFieldName: detectedField.fieldName,
+    required: savedMapping.required ?? detectedField.required ?? false,
+  };
+}
+
+function rectSimilarityScore(a: CustomPlacement['rect'], b: CustomPlacement['rect']): number {
+  return (
+    Math.abs(a.x - b.x) +
+    Math.abs(a.y - b.y) +
+    Math.abs(a.width - b.width) +
+    Math.abs(a.height - b.height)
+  );
+}
+
+function reconcileDetectedMappings(
+  savedMappings: Record<string, FieldMapping>,
+  detected: DetectedPdfField[]
+): Record<string, FieldMapping> {
+  if (!savedMappings || Object.keys(savedMappings).length === 0 || detected.length === 0) {
+    return savedMappings ?? {};
+  }
+
+  const reconciled: Record<string, FieldMapping> = {};
+  const remaining = new Map<string, FieldMapping>(Object.entries(savedMappings));
+  const unmatchedDetected: DetectedPdfField[] = [];
+
+  // Pass 1: direct name-based matches (field key / pdf field name)
+  detected.forEach((field) => {
+    const direct = remaining.get(field.fieldName);
+    if (direct) {
+      reconciled[field.fieldName] = hydrateMappingForDetectedField(field, direct);
+      remaining.delete(field.fieldName);
+      return;
+    }
+
+    const aliasMatch = Array.from(remaining.entries()).find(([, mapping]) => {
+      return mapping.pdfFieldName === field.fieldName || mapping.fieldKey === field.fieldName;
+    });
+
+    if (aliasMatch) {
+      const [matchedKey, matchedMapping] = aliasMatch;
+      reconciled[field.fieldName] = hydrateMappingForDetectedField(field, matchedMapping);
+      remaining.delete(matchedKey);
+      return;
+    }
+
+    unmatchedDetected.push(field);
+  });
+
+  // Pass 2: geometry/page/type-based fallback for legacy random keys
+  unmatchedDetected.forEach((field) => {
+    let bestKey: string | null = null;
+    let bestScore = Number.POSITIVE_INFINITY;
+
+    for (const [savedKey, savedMapping] of remaining.entries()) {
+      if (savedMapping.pageIndex !== field.pageIndex) continue;
+      if (savedMapping.fieldType !== field.fieldType) continue;
+
+      const score = rectSimilarityScore(savedMapping.rect, field.rect);
+      if (score < bestScore) {
+        bestScore = score;
+        bestKey = savedKey;
+      }
+    }
+
+    // Geometry is in PDF points. <= 24 allows slight parser drift while preventing bad matches.
+    if (bestKey && bestScore <= 24) {
+      const bestMapping = remaining.get(bestKey);
+      if (bestMapping) {
+        reconciled[field.fieldName] = hydrateMappingForDetectedField(field, bestMapping);
+        remaining.delete(bestKey);
+      }
+    }
+  });
+
+  return reconciled;
+}
+
 export interface WaiverDefinitionInput {
   signers: WaiverDefinitionSignerInput[];
   // Map both detected fields and custom placements
@@ -70,7 +158,8 @@ export function WaiverBuilderDialog({
   const [activeTab, setActiveTab] = useState("signers");
   const [isSaving, setIsSaving] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
-  const isMobile = useMediaQuery("(max-width: 640px)");
+  const isPhone = useMediaQuery("(max-width: 640px)");
+  const isCompactLayout = useMediaQuery("(max-width: 1024px)");
   
   // State
   const [signers, setSigners] = useState<WaiverDefinitionSignerInput[]>([
@@ -131,7 +220,8 @@ export function WaiverBuilderDialog({
             : [{ roleKey: "volunteer", label: "Volunteer", required: true, orderIndex: 0 }]
         );
 
-        setFieldMappings(existingDraftDefinition.fields?.detected ?? {});
+        const savedDetectedMappings = existingDraftDefinition.fields?.detected ?? {};
+        setFieldMappings(reconcileDetectedMappings(savedDetectedMappings, detectedFields));
         setCustomPlacements(
           (existingDraftDefinition.fields?.custom ?? []).map((placement) => ({
             ...placement,
@@ -191,7 +281,7 @@ export function WaiverBuilderDialog({
          setCustomPlacements(custom);
       }
     }
-  }, [open, existingDefinition, existingDraftDefinition]);
+  }, [open, existingDefinition, existingDraftDefinition, detectedFields]);
 
   // Keyboard shortcut: Delete/Backspace removes the selected custom placement.
   // This makes manual configuration much faster.
@@ -428,38 +518,223 @@ export function WaiverBuilderDialog({
     }
   };
 
-  if (isMobile) {
-    return (
-      <Dialog open={open} onOpenChange={(v) => onOpenChange(v)}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Waiver Builder</DialogTitle>
-            <DialogDescription>
-              For the best experience, please use a desktop or tablet device to configure waivers.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <p className="text-sm">
-              The waiver builder requires a larger screen for proper PDF viewing, field mapping, and signature placement.
-            </p>
-            <Button onClick={() => onOpenChange(false)} className="w-full">
-              Close
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    );
-  }
+  const viewerPanel = (
+    <div className="h-full bg-muted/20 relative flex flex-col">
+      {effectivePdfUrl ? (
+        <PdfViewerWithOverlay
+          pdfUrl={effectivePdfUrl}
+          detectedFields={detectedFields}
+          customPlacements={customPlacements}
+          selectedPlacementId={selectedPlacementId}
+          onPlacementClick={(id) => {
+            setSelectedPlacementId(id);
+            setActiveTab("fields");
+            setHighlightedField(null);
+          }}
+          onDetectedFieldClick={(field) => {
+            setHighlightedField(field);
+            setActiveTab("fields");
+            setSelectedPlacementId(undefined);
+          }}
+          onAddPlacement={handleAddPlacement}
+          onPlacementResize={(placementId, newRect) => {
+            setCustomPlacements(prev =>
+              prev.map(p => p.id === placementId ? { ...p, rect: newRect } : p)
+            );
+          }}
+          mode={viewerMode}
+          highlightedField={highlightedField}
+        />
+      ) : (
+        <div className="flex items-center justify-center h-full">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+      )}
+
+      {viewerMode === 'add-signature' && (
+        <div className="absolute top-3 sm:top-6 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground px-3 sm:px-4 py-2 rounded-full shadow-lg text-[11px] sm:text-sm font-medium animate-in fade-in slide-in-from-top-4 z-30 max-w-[95%] sm:max-w-none">
+          <span className="text-center">Tap/click on document to place signature box</span>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="ml-2 h-6 text-primary-foreground hover:text-primary-foreground/80 hover:bg-primary-foreground/20"
+            onClick={() => setViewerMode('edit')}
+          >
+            Cancel
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+
+  const sidebarPanel = (
+    <div className="h-full flex flex-col bg-background min-h-0">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
+        <TabsList className="w-full justify-start h-auto px-2 py-1.5 sm:p-1 bg-muted/50 rounded-none border-b gap-1">
+          <TabsTrigger
+            value="signers"
+            className="flex-1 data-[state=active]:bg-background data-[state=active]:shadow-sm text-[11px] sm:text-sm py-2 sm:py-2.5"
+          >
+            1. Signers
+          </TabsTrigger>
+          <TabsTrigger
+            value="fields"
+            className="flex-1 data-[state=active]:bg-background data-[state=active]:shadow-sm text-[11px] sm:text-sm py-2 sm:py-2.5"
+          >
+            2. Fields & Signatures
+          </TabsTrigger>
+        </TabsList>
+
+        <div className="flex-1 overflow-hidden min-h-0">
+          <TabsContent value="signers" className="h-full m-0 p-3 sm:p-4 md:p-5 overflow-auto">
+            <div className="text-xs sm:text-sm text-muted-foreground mb-3 pb-3 border-b">
+              Define roles that must sign this waiver (e.g., Volunteer, Parent, Guardian).
+            </div>
+            <SignerRolesEditor
+              signers={signers}
+              onSignersChange={setSigners}
+            />
+            <div className="mt-5 pt-4 border-t">
+              <Button
+                className="w-full"
+                onClick={() => setActiveTab("fields")}
+                variant="outline"
+              >
+                Next: Configure Fields
+              </Button>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="fields" className="h-full m-0 overflow-auto">
+            <div className="p-3 sm:p-4 md:p-5 space-y-5 sm:space-y-6">
+
+              {/* Section 1: Detected Fields */}
+              <div>
+                <h3 className="text-sm font-semibold mb-2 flex items-center gap-2">Detected PDF Fields
+                  <span className="text-xs font-normal text-muted-foreground ml-auto bg-muted px-2 py-0.5 rounded-full">
+                    {detectedFields.length}
+                  </span>
+                </h3>
+
+                {/* Detection Summary Block */}
+                <div className="bg-muted/30 p-3 rounded-md mb-4 text-xs border">
+                  <div className="grid grid-cols-2 gap-2 mb-2">
+                    <div className="flex flex-col">
+                      <span className="text-muted-foreground">Signer Roles</span>
+                      <span className="font-medium" data-testid="waiver-summary-signer-roles">{signers.length}</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-muted-foreground">Signature Fields</span>
+                      <span className="font-medium" data-testid="waiver-summary-signature-fields">{detectedFields.filter(f => f.fieldType === 'signature').length}</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-muted-foreground">Other Fields</span>
+                      <span className="font-medium" data-testid="waiver-summary-other-fields">{detectedFields.filter(f => f.fieldType !== 'signature').length}</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-muted-foreground">Custom Placements</span>
+                      <span className="font-medium" data-testid="waiver-summary-custom-placements">{customPlacements.length}</span>
+                    </div>
+                  </div>
+
+                  {/* Warning States */}
+                  {(detectedFields.filter(f => f.fieldType === 'signature').length === 0) && (
+                    <div className="flex items-start gap-2 text-warning bg-warning/10 border border-warning/40 p-2 rounded mt-2">
+                      <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                      <span>No signature fields detected. Please use "Custom Signature Placements" below.</span>
+                    </div>
+                  )}
+
+                  {(detectedFields.filter(f => f.fieldType === 'signature').length > 0 &&
+                    detectedFields.filter(f => f.fieldType === 'signature').length < signers.length) && (
+                    <div className="flex items-start gap-2 text-info bg-info/10 border border-info/40 p-2 rounded mt-2">
+                      <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                      <span>Fewer signature fields than signer roles. You may need custom placements.</span>
+                    </div>
+                  )}
+
+                  {/* Parent/Guardian heuristic warning */}
+                  {(signers.some(s => s.roleKey.toLowerCase().includes('parent') || s.roleKey.toLowerCase().includes('guardian')) &&
+                    !detectedFields.some(f =>
+                      (f.fieldType === 'text' || f.fieldType === 'unknown') &&
+                      (f.fieldName.toLowerCase().includes('email') || f.fieldName.toLowerCase().includes('phone'))
+                    )) && (
+                      <div className="flex items-start gap-2 text-warning bg-warning/10 border border-warning/40 p-2 rounded mt-2">
+                        <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                        <span>Guardian role detected but no contact fields found. Ensure you collect email/phone.</span>
+                      </div>
+                    )}
+                </div>
+
+                <p className="text-xs text-muted-foreground mb-4">
+                  These are interactive form fields detected in your PDF. Map signature fields to roles.
+                </p>
+
+                {detectedFields.length > 0 ? (
+                  <div className="border rounded-md max-h-88 sm:max-h-96 overflow-auto">
+                    <FieldListPanel
+                      detectedFields={detectedFields}
+                      fieldMappings={fieldMappings}
+                      signers={signers}
+                      onFieldMappingChange={(key, mapping) => setFieldMappings(prev => ({ ...prev, [key]: mapping }))}
+                      onFieldClick={(field) => {
+                        setHighlightedField(field);
+                      }}
+                      highlightedField={highlightedField}
+                    />
+                  </div>
+                ) : (
+                  <div className="text-sm text-muted-foreground border rounded-md p-4 text-center bg-muted/20">
+                    No PDF form fields detected. <br />
+                    Use "Custom Signatures" below.
+                  </div>
+                )}
+              </div>
+
+              <Separator />
+
+              {/* Section 2: Custom Placements */}
+              <div>
+                <h3 className="text-sm font-semibold mb-2 flex items-center gap-2">Custom Signature Placements
+                  <span className="text-xs font-normal text-muted-foreground ml-auto bg-muted px-2 py-0.5 rounded-full">
+                    {customPlacements.length}
+                  </span>
+                </h3>
+                <p className="text-xs text-muted-foreground mb-4">
+                  Draw custom signature boxes where signers should sign.
+                </p>
+
+                <div className="border rounded-md max-h-96 sm:max-h-112 overflow-auto p-2">
+                  <SignaturePlacementsEditor
+                    placements={customPlacements}
+                    signers={signers}
+                    onPlacementsChange={setCustomPlacements}
+                    onAddPlacement={() => setViewerMode('add-signature')}
+                    selectedPlacementId={selectedPlacementId}
+                    onSelectPlacement={(id) => {
+                      setSelectedPlacementId(id);
+                      setHighlightedField(null);
+                    }}
+                    isAddingPlacement={viewerMode === 'add-signature'}
+                  />
+                </div>
+              </div>
+            </div>
+          </TabsContent>
+        </div>
+      </Tabs>
+    </div>
+  );
 
   return (
     <div>
     <Dialog open={open} onOpenChange={(val) => !isSaving && !isScanning && onOpenChange(val)}>
-      <DialogContent className="max-w-[98vw] md:max-w-[96vw] lg:max-w-350 h-[96vh] md:h-[94vh] flex flex-col p-0 gap-0">
-        <DialogHeader className="px-4 md:px-6 py-3 border-b shrink-0">
+      <DialogContent className="w-[calc(100vw-1rem)] sm:w-[96vw] lg:w-[95vw] xl:w-[92vw] max-w-[calc(100vw-1rem)] sm:max-w-[96vw] lg:max-w-[95vw] xl:max-w-[92vw] 2xl:max-w-425 h-dvh sm:h-[94vh] flex flex-col p-0 gap-0 overflow-hidden rounded-lg sm:rounded-xl">
+        <DialogHeader className="px-3 sm:px-5 lg:px-6 py-3 sm:py-4 border-b shrink-0">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
-              <DialogTitle className="text-lg md:text-xl">Configure Waiver</DialogTitle>
-              <DialogDescription className="text-xs md:text-sm mt-1">
+              <DialogTitle className="text-base sm:text-lg lg:text-xl">Configure Waiver</DialogTitle>
+              <DialogDescription className="text-xs sm:text-sm mt-1">
                 Define who needs to sign and where.
               </DialogDescription>
             </div>
@@ -469,7 +744,7 @@ export function WaiverBuilderDialog({
               disabled={isScanning || !pdfFile}
               variant="outline"
               size="sm"
-              className="gap-2 mr-6"
+              className="gap-2 mr-6 shrink-0"
               data-testid="waiver-ai-scan-button"
             >
               {isScanning ? (
@@ -477,7 +752,7 @@ export function WaiverBuilderDialog({
               ) : (
                 <Sparkles className="h-4 w-4" />
               )}
-              <span className="hidden sm:inline">AI Scan</span>
+              <span>{isPhone ? "AI" : "AI Scan"}</span>
             </Button>
 
           </div>
@@ -485,226 +760,37 @@ export function WaiverBuilderDialog({
         </DialogHeader>
 
         <div className="flex-1 overflow-hidden min-h-0">
-          <ResizablePanelGroup orientation="horizontal" className="h-full">
-            {/* Main Area: PDF Viewer (Left/Center) */}
-            <ResizablePanel defaultSize="60%" minSize="40%" maxSize="75%" className="p-0 min-w-0">
-              <div className="h-full bg-muted/20 p-0 relative flex flex-col">
-                {effectivePdfUrl ? (
-                  <PdfViewerWithOverlay
-                    pdfUrl={effectivePdfUrl}
-                    detectedFields={detectedFields}
-                    customPlacements={customPlacements}
-                    selectedPlacementId={selectedPlacementId}
-                    onPlacementClick={(id) => {
-                       setSelectedPlacementId(id);
-                       setActiveTab("fields"); // Switch to fields tab
-                       setHighlightedField(null);
-                    }}
-                    onDetectedFieldClick={(field) => {
-                       setHighlightedField(field);
-                       setActiveTab("fields");
-                       setSelectedPlacementId(undefined);
-                    }}
-                    onAddPlacement={handleAddPlacement}
-                    onPlacementResize={(placementId, newRect) => {
-                      setCustomPlacements(prev => 
-                        prev.map(p => p.id === placementId ? { ...p, rect: newRect } : p)
-                      );
-                    }}
-                    mode={viewerMode}
-                    highlightedField={highlightedField}
-                  />
-                ) : (
-                    <div className="flex items-center justify-center h-full">
-                        <Loader2 className="h-8 w-8 animate-spin" />
-                    </div>
-                )}
-                 
-                 {viewerMode === 'add-signature' && (
-                   <div className="absolute top-20 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground px-4 py-2 rounded-full shadow-lg text-xs md:text-sm font-medium animate-in fade-in slide-in-from-top-4 z-30">
-                     Click on document to place signature box
-                     <Button 
-                       variant="ghost" 
-                       size="sm" 
-                       className="ml-2 h-6 text-primary-foreground hover:text-primary-foreground/80 hover:bg-primary-foreground/20"
-                       onClick={() => setViewerMode('view')}
-                     >
-                       Cancel
-                     </Button>
-                   </div>
-                 )}
+          {isCompactLayout ? (
+            <div className="h-full flex flex-col min-h-0">
+              <div className="min-h-65 h-[44dvh] sm:h-[50dvh] border-b">
+                {viewerPanel}
               </div>
-            </ResizablePanel>
-            
-            <ResizableHandle withHandle />
-            
-            {/* Sidebar: Configuration (Right) */}
-            <ResizablePanel defaultSize="40%" minSize="25%" maxSize="60%" className="p-0 min-w-0">
-              <div className="h-full flex flex-col bg-background">
-                <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
-                  <TabsList className="w-full justify-start h-auto p-1 bg-muted/50 rounded-none border-b">
-                    <TabsTrigger 
-                      value="signers" 
-                      className="flex-1 data-[state=active]:bg-background data-[state=active]:shadow-sm text-xs md:text-sm py-2"
-                    >
-                      1. Signers
-                    </TabsTrigger>
-                    <TabsTrigger 
-                      value="fields" 
-                      className="flex-1 data-[state=active]:bg-background data-[state=active]:shadow-sm text-xs md:text-sm py-2"
-                    >
-                      2. Fields & Signatures
-                    </TabsTrigger>
-                  </TabsList>
-
-                  <div className="flex-1 overflow-hidden">
-                    <TabsContent value="signers" className="h-full m-0 p-4 overflow-auto">
-                      <div className="text-xs md:text-sm text-muted-foreground mb-3 pb-3 border-b">
-                         Define roles that must sign this waiver (e.g., Volunteer, Parent, Guardian).
-                      </div>
-                      <SignerRolesEditor
-                        signers={signers}
-                        onSignersChange={setSigners}
-                      />
-                      <div className="mt-6 pt-4 border-t">
-                         <Button 
-                           className="w-full" 
-                           onClick={() => setActiveTab("fields")}
-                           variant="outline"
-                         >
-                           Next: Configure Fields
-                         </Button>
-                      </div>
-                    </TabsContent>
-
-                    <TabsContent value="fields" className="h-full m-0 overflow-auto">
-                       <div className="p-4 space-y-6">
-                          
-                          {/* Section 1: Detected Fields */}
-                          <div>
-                            <h3 className="text-sm font-semibold mb-2 flex items-center gap-2">Detected PDF Fields
-                               <span className="text-xs font-normal text-muted-foreground ml-auto bg-muted px-2 py-0.5 rounded-full">
-                                  {detectedFields.length}
-                               </span>
-                            </h3>
-                            
-                            {/* Detection Summary Block */}
-                            <div className="bg-muted/30 p-3 rounded-md mb-4 text-xs border">
-                               <div className="grid grid-cols-2 gap-2 mb-2">
-                                  <div className="flex flex-col">
-                                     <span className="text-muted-foreground">Signer Roles</span>
-                                    <span className="font-medium" data-testid="waiver-summary-signer-roles">{signers.length}</span>
-                                  </div>
-                                  <div className="flex flex-col">
-                                     <span className="text-muted-foreground">Signature Fields</span>
-                                    <span className="font-medium" data-testid="waiver-summary-signature-fields">{detectedFields.filter(f => f.fieldType === 'signature').length}</span>
-                                  </div>
-                                  <div className="flex flex-col">
-                                     <span className="text-muted-foreground">Other Fields</span>
-                                    <span className="font-medium" data-testid="waiver-summary-other-fields">{detectedFields.filter(f => f.fieldType !== 'signature').length}</span>
-                                  </div>
-                                  <div className="flex flex-col">
-                                    <span className="text-muted-foreground">Custom Placements</span>
-                                    <span className="font-medium" data-testid="waiver-summary-custom-placements">{customPlacements.length}</span>
-                                  </div>
-                               </div>
-
-                               {/* Warning States */}
-                               {(detectedFields.filter(f => f.fieldType === 'signature').length === 0) && (
-                                <div className="flex items-start gap-2 text-warning bg-warning/10 border border-warning/40 p-2 rounded mt-2">
-                                     <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-                                     <span>No signature fields detected. Please use "Custom Signature Placements" below.</span>
-                                  </div>
-                               )}
-                               
-                               {(detectedFields.filter(f => f.fieldType === 'signature').length > 0 && 
-                                 detectedFields.filter(f => f.fieldType === 'signature').length < signers.length) && (
-                                <div className="flex items-start gap-2 text-info bg-info/10 border border-info/40 p-2 rounded mt-2">
-                                     <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-                                     <span>Fewer signature fields than signer roles. You may need custom placements.</span>
-                                  </div>
-                               )}
-
-                               {/* Parent/Guardian heuristic warning */}
-                               {(signers.some(s => s.roleKey.toLowerCase().includes('parent') || s.roleKey.toLowerCase().includes('guardian')) &&
-                                 !detectedFields.some(f => 
-                                   (f.fieldType === 'text' || f.fieldType === 'unknown') && 
-                                   (f.fieldName.toLowerCase().includes('email') || f.fieldName.toLowerCase().includes('phone'))
-                                 )) && (
-                                <div className="flex items-start gap-2 text-warning bg-warning/10 border border-warning/40 p-2 rounded mt-2">
-                                     <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-                                     <span>Guardian role detected but no contact fields found. Ensure you collect email/phone.</span>
-                                  </div>
-                               )}
-                            </div>
-
-                            <p className="text-xs text-muted-foreground mb-4">
-                              These are interactive form fields detected in your PDF. Map signature fields to roles.
-                            </p>
-                            
-                            {detectedFields.length > 0 ? (
-                              <div className="border rounded-md max-h-75 overflow-auto">
-                                <FieldListPanel
-                                  detectedFields={detectedFields}
-                                  fieldMappings={fieldMappings}
-                                  signers={signers}
-                                  onFieldMappingChange={(key, mapping) => setFieldMappings(prev => ({ ...prev, [key]: mapping }))}
-                                  onFieldClick={(field) => {
-                                    setHighlightedField(field);
-                                  }}
-                                  highlightedField={highlightedField}
-                                />
-                              </div>
-                            ) : (
-                              <div className="text-sm text-muted-foreground border rounded-md p-4 text-center bg-muted/20">
-                                 No PDF form fields detected. <br/>
-                                 Use "Custom Signatures" below.
-                              </div>
-                            )}
-                          </div>
-                          
-                          <Separator />
-                          
-                          {/* Section 2: Custom Placements */}
-                          <div>
-                            <h3 className="text-sm font-semibold mb-2 flex items-center gap-2">Custom Signature Placements
-                               <span className="text-xs font-normal text-muted-foreground ml-auto bg-muted px-2 py-0.5 rounded-full">
-                                  {customPlacements.length}
-                               </span>
-                            </h3>
-                            <p className="text-xs text-muted-foreground mb-4">
-                              Draw custom signature boxes where signers should sign.
-                            </p>
-                            
-                            <div className="border rounded-md max-h-100 overflow-auto p-2">
-                               <SignaturePlacementsEditor
-                                placements={customPlacements}
-                                signers={signers}
-                                onPlacementsChange={setCustomPlacements}
-                                onAddPlacement={() => setViewerMode('add-signature')}
-                                selectedPlacementId={selectedPlacementId}
-                                onSelectPlacement={(id) => {
-                                   setSelectedPlacementId(id);
-                                   setHighlightedField(null);
-                                }}
-                                isAddingPlacement={viewerMode === 'add-signature'}
-                              />
-                            </div>
-                          </div>
-                       </div>
-                    </TabsContent>
-                  </div>
-                </Tabs>
+              <div className="flex-1 min-h-0">
+                {sidebarPanel}
               </div>
-            </ResizablePanel>
-          </ResizablePanelGroup>
+            </div>
+          ) : (
+            <ResizablePanelGroup orientation="horizontal" className="h-full">
+              {/* Main Area: PDF Viewer (Left/Center) */}
+              <ResizablePanel defaultSize="62%" minSize="38%" maxSize="76%" className="p-0 min-w-0">
+                {viewerPanel}
+              </ResizablePanel>
+
+              <ResizableHandle withHandle />
+
+              {/* Sidebar: Configuration (Right) */}
+              <ResizablePanel defaultSize="38%" minSize="24%" maxSize="62%" className="p-0 min-w-0">
+                {sidebarPanel}
+              </ResizablePanel>
+            </ResizablePanelGroup>
+          )}
         </div>
 
-        <DialogFooter className="px-6 py-4 border-t bg-background shrink-0 flex flex-row items-center justify-between gap-3">
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving}>
+        <DialogFooter className="px-3 sm:px-5 lg:px-6 py-3 sm:py-4 border-t bg-background shrink-0 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
+          <Button variant="outline" className="w-full sm:w-auto" onClick={() => onOpenChange(false)} disabled={isSaving}>
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={isSaving}>
+          <Button onClick={handleSave} disabled={isSaving} className="w-full sm:w-auto">
             {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             <Save className="mr-2 h-4 w-4" />
             Save Configuration

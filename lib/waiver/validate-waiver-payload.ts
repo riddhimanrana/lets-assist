@@ -84,29 +84,3 @@ export function validateWaiverPayload(
   };
 }
 
-/**
- * Legacy validation for projects without waiver definitions.
- * Just checks basic payload structure.
- */
-export function validateLegacyWaiverPayload(
-  payload: Partial<SignaturePayload>
-): ValidationResult {
-  const errors: string[] = [];
-
-  if (!payload.signers || payload.signers.length === 0) {
-    errors.push('No signature provided');
-  }
-
-  // Check first signer has data
-  if (payload.signers && payload.signers[0]) {
-    const firstSigner = payload.signers[0];
-    if (!firstSigner.data || firstSigner.data.length === 0) {
-      errors.push('Signature data is empty');
-    }
-  }
-
-  return {
-    valid: errors.length === 0,
-    errors
-  };
-}

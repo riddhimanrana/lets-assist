@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useEventForm } from "@/hooks/use-event-form";
 import type { EventFormState } from "@/hooks/use-event-form";
 import BasicInfo from "./BasicInfo";
@@ -130,6 +130,24 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
   const [showAIAssistant, setShowAIAssistant] = useState(false);
   const [showLocationPointer, setShowLocationPointer] = useState(false);
 
+  const shouldPromptWaiverReuploadFromDraft = useMemo(
+    () =>
+      Boolean(
+        initialDraftData?.waiverRequired &&
+          (
+            initialDraftData?.waiverDefinition ||
+            initialDraftData?.detectedFields ||
+            initialDraftData?.waiverPdfFile ||
+            initialDraftData?.waiverPdfUrl ||
+            initialDraftData?.waiverPdfValidation
+          )
+      ),
+    [initialDraftData]
+  );
+  const [showWaiverReuploadNotice, setShowWaiverReuploadNotice] = useState(
+    shouldPromptWaiverReuploadFromDraft
+  );
+
   // Autosave state - initialize with loaded draft ID if available
   const [autosaveDraftId, setAutosaveDraftId] = useState<string | undefined>(initialDraftId || undefined);
   const [autosaveStatus, setAutosaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
@@ -163,10 +181,38 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
   const stateSnapshot = useMemo(() => JSON.stringify(state), [state]);
   const previousStateRef = useRef<string>("");
 
+  const getDraftSafeState = useCallback(
+    (): Partial<EventFormState> => ({
+      ...state,
+      // Waiver configuration is persisted; uploaded PDF-specific data is intentionally not persisted in drafts.
+      waiverPdfFile: null,
+      waiverPdfUrl: null,
+      waiverPdfValidation: null,
+    }),
+    [state]
+  );
+
+  useEffect(() => {
+    if (shouldPromptWaiverReuploadFromDraft) {
+      setShowWaiverReuploadNotice(true);
+    }
+  }, [shouldPromptWaiverReuploadFromDraft]);
+
+  useEffect(() => {
+    if (state.waiverPdfFile || state.waiverPdfUrl) {
+      setShowWaiverReuploadNotice(false);
+    }
+  }, [state.waiverPdfFile, state.waiverPdfUrl]);
+
   // Autosave to database on state changes (debounced and change-based)
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (!state) return;
+
+    // Don't autosave while submitting/saving to avoid recreating drafts during publish flow
+    if (isSubmitting || isSavingDraft) {
+      return;
+    }
 
     // Skip autosave if there's no title
     if (!state.basicInfo.title || state.basicInfo.title.trim() === '') {
@@ -191,7 +237,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
       try {
         setAutosaveStatus('saving');
 
-        const result = await autoSaveDraft(state, autosaveDraftId);
+        const result = await autoSaveDraft(getDraftSafeState(), autosaveDraftId);
 
         if (result.autosaved && result.id) {
           // Set the draft ID if this is the first autosave
@@ -229,7 +275,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
         clearTimeout(autosaveTimerRef.current);
       }
     };
-  }, [stateSnapshot, state, autosaveDraftId]);
+  }, [stateSnapshot, state, autosaveDraftId, isSubmitting, isSavingDraft, getDraftSafeState]);
 
   // Add handler to update profanity state
   const handleProfanityResult = (hasIssues: boolean) => {
@@ -582,6 +628,12 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
     try {
       setIsSubmitting(true);
 
+      // Prevent any pending autosave from firing during submission
+      if (autosaveTimerRef.current) {
+        clearTimeout(autosaveTimerRef.current);
+        autosaveTimerRef.current = null;
+      }
+
       // Show loading toast
       const loadingToast = toast.loading("Creating your project...");
 
@@ -678,11 +730,19 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
         console.error("Error finalizing project:", error);
       });
 
-      // Step 6: Cleanup draft if it exists
+      // Step 6: Cleanup draft/autosave entry if it exists
       if (autosaveDraftId) {
-        deleteDraft(autosaveDraftId).catch(err => {
-          console.error("Failed to delete draft after project creation:", err);
-        });
+        const draftIdToDelete = autosaveDraftId;
+
+        // Clear local autosave tracking first so we don't attempt further updates
+        setAutosaveDraftId(undefined);
+        setAutosaveStatus('idle');
+        previousStateRef.current = "";
+
+        const deleteResult = await deleteDraft(draftIdToDelete);
+        if (deleteResult && "error" in deleteResult && deleteResult.error) {
+          console.error("Failed to delete draft after project creation:", deleteResult.error);
+        }
       }
 
       // Dismiss loading toast and show success
@@ -725,7 +785,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
       const loadingToast = toast.loading("Saving new draft...");
 
       const formData = new FormData();
-      formData.append("projectData", JSON.stringify(state));
+      formData.append("projectData", JSON.stringify(getDraftSafeState()));
 
       const result = await saveProjectAsNewDraft(formData);
 
@@ -826,6 +886,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
             waiverPdfValidation={state.waiverPdfValidation}
             waiverDefinition={state.waiverDefinition}
             detectedFields={state.detectedFields}
+            showWaiverReuploadNotice={showWaiverReuploadNotice}
             updateWaiverDefinitionAction={updateWaiverDefinition}
             updateDetectedFieldsAction={updateDetectedFields}
             restrictToOrgDomains={state.restrictToOrgDomains}
