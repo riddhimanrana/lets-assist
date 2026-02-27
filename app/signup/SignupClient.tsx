@@ -86,10 +86,19 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
     setIsResending(true);
     try {
       const resendToken = resendTurnstileToken ?? (isTurnstileBypassed ? "turnstile-bypass" : undefined);
-      const resendResult = await resendVerificationEmail(unconfirmedEmailForResend, resendToken);
+      const resendResult = await resendVerificationEmail(
+        unconfirmedEmailForResend,
+        resendToken,
+        redirectPath ?? null,
+      );
       if (resendResult.success) {
         toast.success(resendResult.message || "Verification email sent!");
-        router.push(`/signup/success?email=${encodeURIComponent(unconfirmedEmailForResend)}`);
+        const successUrl = new URL("/signup/success", window.location.origin);
+        successUrl.searchParams.set("email", unconfirmedEmailForResend);
+        if (redirectPath) {
+          successUrl.searchParams.set("redirect", redirectPath);
+        }
+        router.push(`${successUrl.pathname}${successUrl.search}`);
         setIsResendCaptchaOpen(false);
       } else {
         toast.error(resendResult.error || "Failed to resend email");
@@ -210,7 +219,12 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
       }
       
       // Redirect to success page
-      router.push(`/signup/success?email=${encodeURIComponent(result.email)}`);
+      const successUrl = new URL("/signup/success", window.location.origin);
+      successUrl.searchParams.set("email", result.email);
+      if (redirectPath) {
+        successUrl.searchParams.set("redirect", redirectPath);
+      }
+      router.push(`${successUrl.pathname}${successUrl.search}`);
       return;
     }
 

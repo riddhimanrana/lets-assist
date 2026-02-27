@@ -164,8 +164,10 @@ describe('Phase 3: Non-Signature Field Stamping', () => {
 
     const textCall = mockPage.drawText.mock.calls.find(([text]) => text === 'Alice Smith');
     expect(textCall).toBeDefined();
-    expect(textCall?.[1]?.x).toBe(100);
-    expect(textCall?.[1]?.y).toBe(600);
+    expect(textCall?.[1]?.x).toBeGreaterThan(100);
+    expect(textCall?.[1]?.x).toBeLessThan(110);
+    expect(textCall?.[1]?.y).toBeGreaterThan(604);
+    expect(textCall?.[1]?.y).toBeLessThan(607);
   });
 
   it('should stamp checkbox fields when checked', async () => {
@@ -193,10 +195,12 @@ describe('Phase 3: Non-Signature Field Stamping', () => {
     expect(result).toBeInstanceOf(Buffer);
     expect(result.length).toBeGreaterThan(0);
 
-    const checkboxCall = mockPage.drawText.mock.calls.find(([text]) => text === '✓');
+    const checkboxCall = mockPage.drawText.mock.calls.find(([text]) => text === 'X');
     expect(checkboxCall).toBeDefined();
-    expect(checkboxCall?.[1]?.x).toBe(100);
-    expect(checkboxCall?.[1]?.y).toBe(650);
+    expect(checkboxCall?.[1]?.x).toBeGreaterThan(104);
+    expect(checkboxCall?.[1]?.x).toBeLessThan(108);
+    expect(checkboxCall?.[1]?.y).toBeGreaterThan(652);
+    expect(checkboxCall?.[1]?.y).toBeLessThan(656);
   });
 
   it('should stamp date field values onto PDF', async () => {

@@ -174,6 +174,8 @@ function FieldRenderer({
 }) {
   const isRequired = field.required;
   const labelText = field.label || field.field_key;
+  const signingPurpose = typeof field.meta?.signingPurpose === 'string' ? field.meta.signingPurpose.trim() : '';
+  const helpText = typeof field.meta?.helpText === 'string' ? field.meta.helpText.trim() : '';
   
   // Safe helpers for value types
   const stringVal = (typeof value === 'string') ? value : '';
@@ -188,6 +190,19 @@ function FieldRenderer({
       <Label className={cn(shouldShowValidationError && "text-destructive")}>
         {labelText} {isRequired && <span className="text-destructive">*</span>}
       </Label>
+
+      {(signingPurpose || helpText) && (
+        <div className="space-y-1">
+          {signingPurpose && (
+            <p className="text-xs text-muted-foreground">
+              <span className="font-medium">Signing as:</span> {signingPurpose}
+            </p>
+          )}
+          {helpText && (
+            <p className="text-xs text-muted-foreground">{helpText}</p>
+          )}
+        </div>
+      )}
       
       {(field.field_type === 'text' || field.field_type === 'name') && (
         <Input 

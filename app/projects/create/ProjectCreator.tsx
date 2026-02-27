@@ -749,7 +749,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
       toast.dismiss(loadingToast);
       const message = hasErrors
         ? "Project created but some files couldn't be uploaded"
-        : "Project Created Successfully! 🎉";
+        : "Project Created Successfully!";
 
       if (hasErrors) {
         toast.warning(message);

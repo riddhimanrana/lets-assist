@@ -290,16 +290,19 @@ export interface WaiverBuilderFieldMapping {
   pageIndex?: number;
   rect?: FieldRect;
   pdfFieldName?: string;
+  meta?: FieldMeta | null;
 }
 
 export interface WaiverBuilderCustomPlacement {
   id: string;
+  fieldKey?: string;
   label: string;
   fieldType: WaiverFieldType;
   signerRoleKey: string;
   required: boolean;
   pageIndex: number;
   rect: { x: number; y: number; width: number; height: number };
+  meta?: FieldMeta | null;
 }
 
 export interface WaiverBuilderDefinition {

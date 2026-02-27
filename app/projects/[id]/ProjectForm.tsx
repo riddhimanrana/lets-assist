@@ -19,12 +19,14 @@ import { WaiverSigningDialog } from '@/components/waiver/WaiverSigningDialog';
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { checkReusableAnonymousWaiver } from "./actions";
 
 // Constants for phone validation
 const PHONE_LENGTH = 10; // For raw digits
 const PHONE_REGEX = /^\d{3}-\d{3}-\d{4}$/; // Format XXX-XXX-XXXX
 const ANON_PROFILE_STORAGE_KEY = "letsassist.anonymous-signup-profile.v1";
 const ANON_PROFILE_AUTO_APPLY_KEY = "letsassist.anonymous-signup-auto-apply.v1";
+const ANON_WAIVER_CACHE_KEY = "letsassist.anonymous-signup-waiver-cache.v1";
 
 interface SavedAnonymousProfile {
   name: string;
@@ -70,6 +72,7 @@ interface ProjectFormProps {
   isSubmitting?: boolean;
   showCommentField?: boolean;
   enableSavedInfoReuse?: boolean;
+  projectId?: string;
   waiverRequired?: boolean;
   waiverAllowUpload?: boolean;
   waiverDisableEsignature?: boolean;
@@ -109,6 +112,7 @@ export function ProjectSignupForm({
   isSubmitting,
   showCommentField = false,
   enableSavedInfoReuse = false,
+  projectId,
   waiverRequired = false,
   waiverAllowUpload = true,
   waiverDisableEsignature = false,
@@ -136,6 +140,37 @@ export function ProjectSignupForm({
   const [usedSavedProfile, setUsedSavedProfile] = useState(false);
   const [autoApplyEnabled, setAutoApplyEnabled] = useState(false);
   const [lastUpdatedDisplay, setLastUpdatedDisplay] = useState<string>("");
+  const [hasReusableWaiver, setHasReusableWaiver] = useState(false);
+  const [hasLocallyCachedWaiver, setHasLocallyCachedWaiver] = useState(false);
+  const [isCheckingReusableWaiver, setIsCheckingReusableWaiver] = useState(false);
+
+  const watchedEmail = form.watch("email");
+  const normalizedWatchedEmail = watchedEmail?.trim().toLowerCase() || "";
+  const waiverCacheEntryKey = projectId && normalizedWatchedEmail
+    ? `${projectId}:${normalizedWatchedEmail}`
+    : "";
+
+  const markWaiverCachedLocally = useCallback((email: string) => {
+    if (typeof window === "undefined" || !projectId) return;
+
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail || !normalizedEmail.includes("@")) return;
+
+    const key = `${projectId}:${normalizedEmail}`;
+
+    try {
+      const raw = window.localStorage.getItem(ANON_WAIVER_CACHE_KEY);
+      const parsed = raw ? (JSON.parse(raw) as Record<string, string>) : {};
+      parsed[key] = new Date().toISOString();
+      window.localStorage.setItem(ANON_WAIVER_CACHE_KEY, JSON.stringify(parsed));
+
+      if (key === waiverCacheEntryKey) {
+        setHasLocallyCachedWaiver(true);
+      }
+    } catch {
+      // Ignore storage errors silently.
+    }
+  }, [projectId, waiverCacheEntryKey]);
 
   const applySavedProfile = useCallback((profile: SavedAnonymousProfile) => {
     const formattedPhone = profile.phone ? formatPhoneNumber(profile.phone) : "";
@@ -192,6 +227,50 @@ export function ProjectSignupForm({
     return () => clearInterval(interval);
   }, [savedProfile]);
 
+  useEffect(() => {
+    if (!waiverRequired || !waiverCacheEntryKey || typeof window === "undefined") {
+      setHasLocallyCachedWaiver(false);
+      return;
+    }
+
+    try {
+      const raw = window.localStorage.getItem(ANON_WAIVER_CACHE_KEY);
+      const cache = raw ? (JSON.parse(raw) as Record<string, string>) : {};
+      setHasLocallyCachedWaiver(Boolean(cache[waiverCacheEntryKey]));
+    } catch {
+      setHasLocallyCachedWaiver(false);
+    }
+  }, [waiverRequired, waiverCacheEntryKey]);
+
+  useEffect(() => {
+    if (!waiverRequired || !projectId || !normalizedWatchedEmail.includes("@")) {
+      setHasReusableWaiver(false);
+      setIsCheckingReusableWaiver(false);
+      return;
+    }
+
+    let cancelled = false;
+    const timeout = window.setTimeout(async () => {
+      setIsCheckingReusableWaiver(true);
+      const result = await checkReusableAnonymousWaiver(projectId, normalizedWatchedEmail);
+
+      if (cancelled) return;
+
+      const reusable = !!result.hasReusableWaiver;
+      setHasReusableWaiver(reusable);
+      setIsCheckingReusableWaiver(false);
+
+      if (reusable) {
+        markWaiverCachedLocally(normalizedWatchedEmail);
+      }
+    }, 300);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeout);
+    };
+  }, [waiverRequired, projectId, normalizedWatchedEmail, markWaiverCachedLocally]);
+
   const handleApplyClick = () => {
     if (savedProfile) {
       applySavedProfile(savedProfile);
@@ -236,15 +315,25 @@ export function ProjectSignupForm({
     // The data passed to onSubmit will already have the phone number transformed (digits only or undefined)
     // due to the zod schema's transform function.
     persistProfileLocally(data);
+
+    if (waiverRequired && (waiverSignature || hasReusableWaiver)) {
+      markWaiverCachedLocally(data.email);
+    }
+
     onSubmit(data, waiverSignature);
   };
 
   const signerName = form.watch("name");
   const signerEmail = form.watch("email");
-  const waiverSatisfied = !waiverRequired || !!waiverSignature;
+  const hasServerReusableWaiver = hasReusableWaiver;
+  const waiverSatisfied = !waiverRequired || !!waiverSignature || hasServerReusableWaiver;
 
   const handleWaiverComplete = async (input: WaiverSignatureInput) => {
     setWaiverSignature(input);
+    const signerEmail = (input.signerEmail || normalizedWatchedEmail || "").trim().toLowerCase();
+    if (signerEmail) {
+      markWaiverCachedLocally(signerEmail);
+    }
     setIsWaiverDialogOpen(false);
   };
 
@@ -404,6 +493,26 @@ export function ProjectSignupForm({
           <div className="text-sm text-muted-foreground mb-4">
             A signature is required to participate in this event.
           </div>
+
+          {isCheckingReusableWaiver && (
+            <p className="text-xs text-muted-foreground mb-3">Checking for an existing waiver on your anonymous profile...</p>
+          )}
+
+          {!waiverSignature && hasServerReusableWaiver && (
+            <Alert className="mb-3 border-success/30 bg-success/5">
+              <AlertDescription className="text-xs text-success">
+                We found your latest signed waiver for this anonymous profile. You can submit without signing again.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {!waiverSignature && hasLocallyCachedWaiver && !hasServerReusableWaiver && (
+            <Alert className="mb-3 border-primary/30 bg-primary/5">
+              <AlertDescription className="text-xs text-primary">
+                We found a recent waiver on this device, but it isn&apos;t confirmed on the server for this profile yet. Please sign again to continue.
+              </AlertDescription>
+            </Alert>
+          )}
           
           {!waiverSignature ? (
              <Button 
@@ -413,7 +522,7 @@ export function ProjectSignupForm({
                className="w-full sm:w-auto"
              >
                <PenTool className="h-4 w-4 mr-2" />
-               Sign Waiver
+               {hasServerReusableWaiver ? "Review or Re-sign Waiver" : "Sign Waiver"}
              </Button>
           ) : (
              <div className="flex items-center justify-between p-3 bg-success/10 border border-success rounded-lg">

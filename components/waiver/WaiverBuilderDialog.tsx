@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -11,7 +11,7 @@ import { SignerRolesEditor, WaiverDefinitionSignerInput } from "./SignerRolesEdi
 import { FieldListPanel, FieldMapping } from "./FieldListPanel";
 import { SignaturePlacementsEditor } from "./SignaturePlacementsEditor";
 import { toast } from "sonner";
-import { WaiverDefinitionFull, WaiverFieldType } from "@/types/waiver-definitions";
+import { SignerData, WaiverDefinitionFull, WaiverFieldType } from "@/types/waiver-definitions";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -22,13 +22,31 @@ import {
 
 const SUPPORTED_CUSTOM_FIELD_TYPES: ReadonlyArray<WaiverFieldType> = [
   'signature',
+  'initial',
   'name',
   'date',
   'email',
   'phone',
+  'address',
   'checkbox',
   'text',
+  'radio',
+  'dropdown',
 ];
+
+const SAMPLE_FIELD_TEXT: Record<WaiverFieldType, string | boolean> = {
+  signature: 'Alex Johnson',
+  initial: 'AJ',
+  name: 'Alex Johnson',
+  date: new Date().toISOString().slice(0, 10),
+  email: 'alex@example.com',
+  phone: '123-456-7890',
+  address: '123 Main St, Springfield, IL 62701',
+  checkbox: true,
+  text: 'Sample value',
+  radio: 'Option A',
+  dropdown: 'Option A',
+};
 
 function normalizeCustomFieldType(fieldType: string): WaiverFieldType {
   return SUPPORTED_CUSTOM_FIELD_TYPES.includes(fieldType as WaiverFieldType)
@@ -168,6 +186,7 @@ export function WaiverBuilderDialog({
   
   const [fieldMappings, setFieldMappings] = useState<Record<string, FieldMapping>>({});
   const [customPlacements, setCustomPlacements] = useState<CustomPlacement[]>([]);
+  const [showSamplePreview, setShowSamplePreview] = useState(false);
   
   // Selection state
   const [selectedPlacementId, setSelectedPlacementId] = useState<string | undefined>();
@@ -204,6 +223,7 @@ export function WaiverBuilderDialog({
   // Initialize state
   useEffect(() => {
     if (open) {
+      setShowSamplePreview(false);
       if (existingDraftDefinition) {
         const loadedSigners = existingDraftDefinition.signers
           .map((signer) => ({
@@ -225,6 +245,7 @@ export function WaiverBuilderDialog({
         setCustomPlacements(
           (existingDraftDefinition.fields?.custom ?? []).map((placement) => ({
             ...placement,
+            fieldKey: placement.fieldKey || placement.id,
             fieldType: normalizeCustomFieldType(placement.fieldType),
           }))
         );
@@ -261,17 +282,20 @@ export function WaiverBuilderDialog({
                    fieldType: f.field_type,
                    pageIndex: f.page_index,
                    rect: f.rect,
-                   pdfFieldName: f.pdf_field_name
+                   pdfFieldName: f.pdf_field_name,
+                   meta: f.meta ?? null,
                  };
               } else if (f.source === 'custom_overlay' && f.signer_role_key) {
                  custom.push({
                    id: f.field_key,
+                   fieldKey: f.field_key,
                    label: f.label,
                    signerRoleKey: f.signer_role_key,
                    fieldType: normalizeCustomFieldType(f.field_type),
                    required: f.required,
                    pageIndex: f.page_index,
-                   rect: f.rect
+                   rect: f.rect,
+                   meta: f.meta ?? null,
                  });
               }
             });
@@ -358,7 +382,8 @@ export function WaiverBuilderDialog({
           fieldType: field.fieldType,
           pageIndex: field.pageIndex,
           rect: field.rect,
-          pdfFieldName: field.fieldName
+         pdfFieldName: field.fieldName,
+         meta: userMapping?.meta ?? null,
        };
     });
     
@@ -387,14 +412,20 @@ export function WaiverBuilderDialog({
     // Default to first signer
     const defaultSigner = signers[0]?.roleKey || "volunteer";
 
+    const placementId = `custom_${Date.now()}`;
     const newPlacement: CustomPlacement = {
-      id: `custom_${Date.now()}`,
-      label: "Signature",
+      id: placementId,
+      fieldKey: placementId,
+      label: "New Field Label",
       signerRoleKey: defaultSigner,
-      fieldType: 'signature',
-      required: true,
+      fieldType: 'text',
+      required: false,
       pageIndex: placement.pageIndex,
-      rect: placement.rect
+      rect: placement.rect,
+      meta: {
+        helpText: '',
+        signingPurpose: '',
+      },
     };
     
     setCustomPlacements([...customPlacements, newPlacement]);
@@ -478,20 +509,28 @@ export function WaiverBuilderDialog({
         pageIndex: number;
         boundingBox: { x: number; y: number; width: number; height: number };
         required: boolean;
-      }, index: number) => ({
-        id: `ai_${Date.now()}_${index}`,
-        label: field.label,
-        signerRoleKey: field.signerRole,
-        fieldType: normalizeCustomFieldType(field.fieldType),
-        required: field.required,
-        pageIndex: field.pageIndex, // Already 0-indexed from API
-        rect: {
-          x: field.boundingBox.x,
-          y: field.boundingBox.y,
-          width: field.fieldType === 'signature' ? Math.max(field.boundingBox.width, 180) : field.boundingBox.width,
-          height: field.fieldType === 'signature' ? Math.max(field.boundingBox.height, 50) : field.boundingBox.height
-        }
-      }));
+      }, index: number) => {
+        const placementId = `ai_${Date.now()}_${index}`;
+        return {
+          id: placementId,
+          fieldKey: placementId,
+          label: field.label,
+          signerRoleKey: field.signerRole,
+          fieldType: normalizeCustomFieldType(field.fieldType),
+          required: field.required,
+          pageIndex: field.pageIndex, // Already 0-indexed from API
+          rect: {
+            x: field.boundingBox.x,
+            y: field.boundingBox.y,
+            width: field.fieldType === 'signature' ? Math.max(field.boundingBox.width, 180) : field.boundingBox.width,
+            height: field.fieldType === 'signature' ? Math.max(field.boundingBox.height, 50) : field.boundingBox.height
+          },
+          meta: {
+            helpText: '',
+            signingPurpose: '',
+          },
+        };
+      });
 
       setCustomPlacements(aiPlacements);
       setActiveTab("fields");
@@ -518,6 +557,51 @@ export function WaiverBuilderDialog({
     }
   };
 
+  const detectedFieldRoleMap = useMemo<Record<string, string | undefined>>(() => {
+    return Object.fromEntries(
+      Object.entries(fieldMappings).map(([fieldName, mapping]) => [fieldName, mapping?.signerRoleKey])
+    );
+  }, [fieldMappings]);
+
+  const sampleSignatures = useMemo<Record<string, SignerData>>(() => {
+    const timestamp = new Date().toISOString();
+    return signers.reduce<Record<string, SignerData>>((accumulator, signer) => {
+      accumulator[signer.roleKey] = {
+        role_key: signer.roleKey,
+        method: 'typed',
+        data: signer.label || 'Sample Signer',
+        timestamp,
+        signer_name: signer.label || 'Sample Signer',
+      };
+      return accumulator;
+    }, {});
+  }, [signers]);
+
+  const sampleFieldValues = useMemo<Record<string, string | boolean | number | null | undefined>>(() => {
+    const values: Record<string, string | boolean | number | null | undefined> = {};
+
+    detectedFields.forEach((field) => {
+      const fieldType = normalizeCustomFieldType(field.fieldType);
+      if (fieldType === 'signature') return;
+      values[field.fieldName] = SAMPLE_FIELD_TEXT[fieldType];
+    });
+
+    customPlacements.forEach((placement) => {
+      if (placement.fieldType === 'signature') return;
+      const key = placement.fieldKey || placement.id;
+      values[key] = SAMPLE_FIELD_TEXT[placement.fieldType] ?? SAMPLE_FIELD_TEXT.text;
+    });
+
+    return values;
+  }, [detectedFields, customPlacements]);
+
+  const sampleValueLayer = useMemo(() => {
+    return {
+      fieldValues: sampleFieldValues,
+      signatures: sampleSignatures,
+    };
+  }, [sampleFieldValues, sampleSignatures]);
+
   const viewerPanel = (
     <div className="h-full bg-muted/20 relative flex flex-col">
       {effectivePdfUrl ? (
@@ -525,6 +609,7 @@ export function WaiverBuilderDialog({
           pdfUrl={effectivePdfUrl}
           detectedFields={detectedFields}
           customPlacements={customPlacements}
+          detectedFieldRoleMap={showSamplePreview ? detectedFieldRoleMap : undefined}
           selectedPlacementId={selectedPlacementId}
           onPlacementClick={(id) => {
             setSelectedPlacementId(id);
@@ -544,6 +629,7 @@ export function WaiverBuilderDialog({
           }}
           mode={viewerMode}
           highlightedField={highlightedField}
+          valueLayer={showSamplePreview ? sampleValueLayer : undefined}
         />
       ) : (
         <div className="flex items-center justify-center h-full">
@@ -553,7 +639,7 @@ export function WaiverBuilderDialog({
 
       {viewerMode === 'add-signature' && (
         <div className="absolute top-3 sm:top-6 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground px-3 sm:px-4 py-2 rounded-full shadow-lg text-[11px] sm:text-sm font-medium animate-in fade-in slide-in-from-top-4 z-30 max-w-[95%] sm:max-w-none">
-          <span className="text-center">Tap/click on document to place signature box</span>
+          <span className="text-center">Tap/click on document to place a new field label</span>
           <Button
             variant="ghost"
             size="sm"
@@ -641,7 +727,7 @@ export function WaiverBuilderDialog({
                   {(detectedFields.filter(f => f.fieldType === 'signature').length === 0) && (
                     <div className="flex items-start gap-2 text-warning bg-warning/10 border border-warning/40 p-2 rounded mt-2">
                       <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-                      <span>No signature fields detected. Please use "Custom Signature Placements" below.</span>
+                      <span>No signature fields detected. Please use "Custom Field Placements" below.</span>
                     </div>
                   )}
 
@@ -686,7 +772,7 @@ export function WaiverBuilderDialog({
                 ) : (
                   <div className="text-sm text-muted-foreground border rounded-md p-4 text-center bg-muted/20">
                     No PDF form fields detected. <br />
-                    Use "Custom Signatures" below.
+                    Use "Custom Fields" below.
                   </div>
                 )}
               </div>
@@ -695,13 +781,13 @@ export function WaiverBuilderDialog({
 
               {/* Section 2: Custom Placements */}
               <div>
-                <h3 className="text-sm font-semibold mb-2 flex items-center gap-2">Custom Signature Placements
+                <h3 className="text-sm font-semibold mb-2 flex items-center gap-2">Custom Field Placements
                   <span className="text-xs font-normal text-muted-foreground ml-auto bg-muted px-2 py-0.5 rounded-full">
                     {customPlacements.length}
                   </span>
                 </h3>
                 <p className="text-xs text-muted-foreground mb-4">
-                  Draw custom signature boxes where signers should sign.
+                  Place labeled boxes, then choose type, signer, and e-sign details.
                 </p>
 
                 <div className="border rounded-md max-h-96 sm:max-h-112 overflow-auto p-2">
@@ -738,6 +824,16 @@ export function WaiverBuilderDialog({
                 Define who needs to sign and where.
               </DialogDescription>
             </div>
+
+            <Button
+              onClick={() => setShowSamplePreview((previous) => !previous)}
+              variant={showSamplePreview ? "default" : "outline"}
+              size="sm"
+              className="gap-2 shrink-0"
+              disabled={!effectivePdfUrl}
+            >
+              <span>{showSamplePreview ? "Hide Sample Preview" : (isPhone ? "Preview" : "Preview Sample Data")}</span>
+            </Button>
 
             <Button 
               onClick={handleAIScan}

@@ -666,6 +666,60 @@ async function getCurrentSignups(projectId: string, scheduleId: string): Promise
   return count || 0;
 }
 
+export async function checkReusableAnonymousWaiver(projectId: string, email: string): Promise<{
+  hasReusableWaiver: boolean;
+  anonymousSignupId?: string;
+  error?: string;
+}> {
+  const normalizedEmail = email.trim().toLowerCase();
+
+  if (!normalizedEmail || !normalizedEmail.includes("@")) {
+    return { hasReusableWaiver: false };
+  }
+
+  try {
+    const supabase = await createClient();
+    const { data: anonProfile, error: profileError } = await supabase
+      .from("anonymous_signups")
+      .select("id")
+      .eq("project_id", projectId)
+      .ilike("email", normalizedEmail)
+      .maybeSingle();
+
+    if (profileError) {
+      console.error("Error checking anonymous profile for waiver reuse:", profileError);
+      return { hasReusableWaiver: false, error: "Failed to check waiver reuse." };
+    }
+
+    if (!anonProfile) {
+      return { hasReusableWaiver: false };
+    }
+
+    const admin = getAdminClient();
+    const { data: existingWaiver, error: waiverError } = await admin
+      .from("waiver_signatures")
+      .select("id")
+      .eq("project_id", projectId)
+      .eq("anonymous_id", anonProfile.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (waiverError) {
+      console.error("Error checking existing anonymous waiver:", waiverError);
+      return { hasReusableWaiver: false, error: "Failed to check waiver reuse." };
+    }
+
+    return {
+      hasReusableWaiver: !!existingWaiver,
+      anonymousSignupId: anonProfile.id,
+    };
+  } catch (error) {
+    console.error("Unexpected error checking reusable anonymous waiver:", error);
+    return { hasReusableWaiver: false, error: "Failed to check waiver reuse." };
+  }
+}
+
 async function persistWaiverSignature(params: {
   projectId: string;
   signupId: string;
@@ -965,10 +1019,13 @@ export async function signUpForProject(
 ) {
   const supabase = await createClient();
   const isAnonymous = !!anonymousData;
+  const skipAnonymousConfirmationEmail = !!anonymousData?.skipConfirmationEmail;
+  const selectedSlotCount = Math.max(1, Number(anonymousData?.selectedSlotCount ?? 1));
   let createdSignupId: string | undefined = undefined; // Track the created signup ID
   let createdAnonymousSignupId: string | null = null;
   let createdNewAnonymousProfile = false;
   let shouldReuseExistingAnonymousWaiver = false;
+  let anonymousProfileAlreadyConfirmed = false;
 
   try {
     console.log("Starting signup process:", { projectId, scheduleId, isAnonymous });
@@ -1327,7 +1384,8 @@ export async function signUpForProject(
         }
 
         if (project.waiver_required && !waiverSignature) {
-          const { data: existingWaiver, error: existingWaiverError } = await supabase
+          const admin = getAdminClient();
+          const { data: existingWaiver, error: existingWaiverError } = await admin
             .from("waiver_signatures")
             .select("id")
             .eq("project_id", projectId)
@@ -1353,6 +1411,7 @@ export async function signUpForProject(
 
         // Determine status: if profile is already confirmed, auto-approve new slot signups
         const isProfileConfirmed = !!existingAnonProfile.confirmed_at;
+        anonymousProfileAlreadyConfirmed = isProfileConfirmed;
         const newSignupStatus = isProfileConfirmed ? "approved" : "pending";
 
         const projectSignupData: Omit<ProjectSignup, "id" | "created_at"> = {
@@ -1378,13 +1437,15 @@ export async function signUpForProject(
         createdSignupId = insertedProjectSignup.id;
 
         // If profile is already confirmed, send a simple notification about the new slot
-        if (isProfileConfirmed && anonymousData.email) {
+        if (isProfileConfirmed && anonymousData.email && !skipAnonymousConfirmationEmail) {
           const { date, timeRange, slotLabel } = getScheduleDetails(project, scheduleId);
           const anonymousProfileUrl = `${siteUrl}/anonymous/${createdAnonymousSignupId}`;
           try {
             await sendEmail({
               to: anonymousData.email,
-              subject: `You're signed up for another slot in ${project.title}`,
+              subject: selectedSlotCount > 1
+                ? `You're signed up for ${selectedSlotCount} slots in ${project.title}`
+                : `You're signed up for another slot in ${project.title}`,
               react: React.createElement(AnonymousSignupConfirmation, {
                 confirmationUrl: anonymousProfileUrl, // Link to profile, not confirmation
                 projectName: project.title,
@@ -1392,14 +1453,15 @@ export async function signUpForProject(
                 anonymousProfileUrl,
                 projectDate: date,
                 projectTime: timeRange,
-                slotLabel
+                slotLabel,
+                selectedSlotCount,
               }),
               type: 'transactional'
             });
           } catch (error) {
             console.error("Error sending slot addition email:", error);
           }
-        } else if (!isProfileConfirmed && anonymousData.email) {
+        } else if (!isProfileConfirmed && anonymousData.email && !skipAnonymousConfirmationEmail) {
           // Profile not yet confirmed — resend confirmation email with new token
           const newToken = crypto.randomUUID();
           await supabase
@@ -1421,7 +1483,8 @@ export async function signUpForProject(
                 anonymousProfileUrl,
                 projectDate: date,
                 projectTime: timeRange,
-                slotLabel
+                slotLabel,
+                selectedSlotCount,
               }),
               type: 'transactional'
             });
@@ -1483,7 +1546,7 @@ export async function signUpForProject(
         createdSignupId = insertedProjectSignup.id;
 
         // Send confirmation email
-        if (anonymousData.email && confirmationToken && createdAnonymousSignupId) {
+        if (anonymousData.email && confirmationToken && createdAnonymousSignupId && !skipAnonymousConfirmationEmail) {
           const confirmationUrl = `${siteUrl}/anonymous/${createdAnonymousSignupId}/confirm?token=${confirmationToken}`;
           const anonymousProfileUrl = `${siteUrl}/anonymous/${createdAnonymousSignupId}`;
           const { date, timeRange, slotLabel } = getScheduleDetails(project, scheduleId);
@@ -1498,7 +1561,8 @@ export async function signUpForProject(
                 anonymousProfileUrl,
                 projectDate: date,
                 projectTime: timeRange,
-                slotLabel
+                slotLabel,
+                selectedSlotCount,
               }),
               type: 'transactional'
             });
@@ -1606,7 +1670,7 @@ export async function signUpForProject(
     // --- Return success with signup ID for calendar integration ---
     return {
       success: true,
-      needsConfirmation: isAnonymous,
+      needsConfirmation: isAnonymous ? !anonymousProfileAlreadyConfirmed : false,
       signupId: createdSignupId,
       projectId: project.id
     };
@@ -2687,7 +2751,13 @@ export async function saveWaiverDefinition(
 
     // Insert signers
     if (definitionInput.signers && definitionInput.signers.length > 0) {
-      const signersToInsert = definitionInput.signers.map((signer: any, index: number) => ({
+      const signersToInsert = definitionInput.signers.map((signer: {
+        roleKey?: string;
+        label?: string;
+        required?: boolean;
+        orderIndex?: number;
+        rules?: Record<string, unknown> | null;
+      }, index: number) => ({
         waiver_definition_id: definitionId,
         role_key: signer.roleKey,
         label: signer.label,
@@ -2708,20 +2778,35 @@ export async function saveWaiverDefinition(
 
     // Insert fields
     if (definitionInput.fields) {
-      const fieldsToInsert: any[] = [];
+      const fieldsToInsert: Record<string, unknown>[] = [];
 
       // Process detected field mappings
       if (definitionInput.fields.detected) {
-        const detectedFieldMappings = Object.entries(definitionInput.fields.detected).map(([fieldKey, mapping]: [string, any]) => ({
-          fieldKey: mapping.fieldKey || fieldKey,
-          fieldType: mapping.fieldType || "text",
-          pageIndex: mapping.pageIndex,
-          rect: mapping.rect,
-          pdfFieldName: mapping.pdfFieldName || fieldKey,
-          label: mapping.label || fieldKey,
-          required: mapping.required ?? false,
-          signerRoleKey: mapping.signerRoleKey || undefined,
-        }));
+        const detectedFieldMappings = Object.entries(definitionInput.fields.detected).map(([fieldKey, mapping]: [string, unknown]) => {
+          const resolved = (mapping ?? {}) as {
+            fieldKey?: string;
+            fieldType?: string;
+            pageIndex: number;
+            rect: { x: number; y: number; width: number; height: number };
+            pdfFieldName?: string;
+            label?: string;
+            required?: boolean;
+            signerRoleKey?: string;
+            meta?: Record<string, unknown> | null;
+          };
+
+          return {
+            fieldKey: resolved.fieldKey || fieldKey,
+            fieldType: resolved.fieldType || "text",
+            pageIndex: resolved.pageIndex,
+            rect: resolved.rect,
+            pdfFieldName: resolved.pdfFieldName || fieldKey,
+            label: resolved.label || fieldKey,
+            required: resolved.required ?? false,
+            signerRoleKey: resolved.signerRoleKey || undefined,
+            meta: resolved.meta ?? null,
+          };
+        });
         
         const detectedFields = mapDetectedFieldsForDb(definitionId, detectedFieldMappings);
         fieldsToInsert.push(...detectedFields);
@@ -2729,14 +2814,26 @@ export async function saveWaiverDefinition(
 
       // Process custom signature placements
       if (definitionInput.fields.custom && definitionInput.fields.custom.length > 0) {
-        const customPlacements = definitionInput.fields.custom.map((field: any) => ({
+        const customPlacements = definitionInput.fields.custom.map((field: {
+          id?: string;
+          fieldKey?: string;
+          label?: string;
+          fieldType?: string;
+          pageIndex: number;
+          rect: { x: number; y: number; width: number; height: number };
+          signerRoleKey?: string;
+          required?: boolean;
+          meta?: Record<string, unknown> | null;
+        }) => ({
           id: field.id || field.fieldKey,
+          fieldKey: field.fieldKey,
           label: field.label || undefined,
           fieldType: field.fieldType || "signature",
           pageIndex: field.pageIndex,
           rect: field.rect,
           signerRoleKey: field.signerRoleKey || undefined,
           required: field.required ?? undefined,
+          meta: field.meta ?? null,
         }));
         
         const customFields = mapCustomPlacementsForDb(definitionId, customPlacements);

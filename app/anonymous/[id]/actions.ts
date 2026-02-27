@@ -2,6 +2,8 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
+import { requireAuth } from "@/lib/supabase/auth-helpers";
+import { revalidatePath } from "next/cache";
 
 const getSiteUrl = () => {
   return (
@@ -10,6 +12,82 @@ const getSiteUrl = () => {
   );
 };
 
+async function transferAnonymousDataToUser(
+  anonymousId: string,
+  userId: string
+): Promise<{ error?: string }> {
+  const adminClient = getAdminClient();
+
+  const { data: profile, error: profileError } = await adminClient
+    .from("anonymous_signups")
+    .select("id, linked_user_id")
+    .eq("id", anonymousId)
+    .maybeSingle();
+
+  if (profileError || !profile) {
+    return { error: "Anonymous profile not found." };
+  }
+
+  if (profile.linked_user_id && profile.linked_user_id !== userId) {
+    return { error: "This profile is already linked to another account." };
+  }
+
+  const { error: transferSignupsError } = await adminClient
+    .from("project_signups")
+    .update({ user_id: userId })
+    .eq("anonymous_id", anonymousId)
+    .is("user_id", null);
+
+  if (transferSignupsError) {
+    console.error("Error transferring project signups:", transferSignupsError);
+    return { error: "Failed to transfer signups. Please try again." };
+  }
+
+  const { error: transferWaiversError } = await adminClient
+    .from("waiver_signatures")
+    .update({ user_id: userId })
+    .eq("anonymous_id", anonymousId)
+    .is("user_id", null);
+
+  if (transferWaiversError) {
+    console.error("Error transferring waiver signatures:", transferWaiversError);
+    return { error: "Failed to transfer waiver data. Please try again." };
+  }
+
+  if (profile.linked_user_id !== userId) {
+    const { error: linkError } = await adminClient
+      .from("anonymous_signups")
+      .update({ linked_user_id: userId })
+      .eq("id", anonymousId);
+
+    if (linkError) {
+      console.error("Error linking anonymous profile:", linkError);
+      return { error: "Failed to complete account linking. Please try again." };
+    }
+  }
+
+  revalidatePath(`/anonymous/${anonymousId}`);
+  revalidatePath("/dashboard");
+  revalidatePath("/home");
+
+  return {};
+}
+
+/**
+ * Link an anonymous profile to the currently authenticated account.
+ * This is provider-agnostic and works for email/password and OAuth logins.
+ */
+export async function linkAnonymousToAuthenticatedAccount(
+  anonymousId: string
+): Promise<{ error?: string }> {
+  try {
+    const user = await requireAuth();
+    return transferAnonymousDataToUser(anonymousId, user.id);
+  } catch {
+    return { error: "Please log in to link this anonymous profile." };
+  }
+}
+
 /**
  * Link an anonymous profile to an existing Let's Assist account.
  * Verifies credentials, then transfers all project_signups to the authenticated user.
@@ -17,64 +95,30 @@ const getSiteUrl = () => {
 export async function linkAnonymousToExistingAccount(
   anonymousId: string,
   email: string,
-  password: string
+  password: string,
+  captchaToken?: string
 ): Promise<{ error?: string }> {
   const supabase = await createClient();
-
-  // Verify the anonymous profile exists and is not already linked
-  const { data: profile, error: profileError } = await supabase
-    .from("anonymous_signups")
-    .select("id, project_id, linked_user_id")
-    .eq("id", anonymousId)
-    .single();
-
-  if (profileError || !profile) {
-    return { error: "Anonymous profile not found." };
-  }
-
-  if (profile.linked_user_id) {
-    return { error: "This profile is already linked to an account." };
-  }
 
   // Verify the user's credentials by signing in
   const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
     email,
     password,
+    options: captchaToken ? { captchaToken } : undefined,
   });
 
   if (authError || !authData.user) {
+    if (authError?.message?.toLowerCase().includes("captcha")) {
+      return { error: "Security verification failed. Please complete CAPTCHA and try again." };
+    }
+    if (authError?.message?.toLowerCase().includes("provider")) {
+      return { error: "This email uses a different sign-in method. Please use your original provider (for example Google)." };
+    }
     return { error: "Invalid email or password." };
   }
 
   const userId = authData.user.id;
-
-  // Use admin client to transfer signups and update the anonymous profile
-  const adminClient = getAdminClient();
-
-  // Transfer all project_signups from anonymous to the authenticated user
-  const { error: transferError } = await adminClient
-    .from("project_signups")
-    .update({ user_id: userId })
-    .eq("anonymous_id", anonymousId)
-    .is("user_id", null);
-
-  if (transferError) {
-    console.error("Error transferring signups:", transferError);
-    return { error: "Failed to transfer signups. Please try again." };
-  }
-
-  // Mark the anonymous profile as linked
-  const { error: linkError } = await adminClient
-    .from("anonymous_signups")
-    .update({ linked_user_id: userId })
-    .eq("id", anonymousId);
-
-  if (linkError) {
-    console.error("Error linking profile:", linkError);
-    return { error: "Failed to link profile. Your signups were transferred but the profile link failed." };
-  }
-
-  return {};
+  return transferAnonymousDataToUser(anonymousId, userId);
 }
 
 /**
@@ -85,24 +129,10 @@ export async function linkAnonymousToNewAccount(
   anonymousId: string,
   email: string,
   password: string,
-  fullName: string
+  fullName: string,
+  captchaToken?: string
 ): Promise<{ error?: string; requiresEmailVerification?: boolean }> {
   const supabase = await createClient();
-
-  // Verify the anonymous profile exists and is not already linked
-  const { data: profile, error: profileError } = await supabase
-    .from("anonymous_signups")
-    .select("id, project_id, linked_user_id")
-    .eq("id", anonymousId)
-    .single();
-
-  if (profileError || !profile) {
-    return { error: "Anonymous profile not found." };
-  }
-
-  if (profile.linked_user_id) {
-    return { error: "This profile is already linked to an account." };
-  }
 
   // Validate password length
   if (password.length < 8) {
@@ -121,10 +151,14 @@ export async function linkAnonymousToNewAccount(
         full_name: fullName,
       },
       emailRedirectTo: `${origin}/auth/confirm`,
+      captchaToken,
     },
   });
 
   if (signupError) {
+    if (signupError.message?.toLowerCase().includes("captcha")) {
+      return { error: "Security verification failed. Please complete CAPTCHA and try again." };
+    }
     if (signupError.message?.includes("already been registered") || signupError.message?.includes("already exists")) {
       return { error: "An account with this email already exists. Try linking to your existing account instead." };
     }
@@ -138,29 +172,9 @@ export async function linkAnonymousToNewAccount(
 
   const userId = signupData.user.id;
 
-  const adminClient = getAdminClient();
-
-  // Transfer all project_signups from anonymous to the new user
-  const { error: transferError } = await adminClient
-    .from("project_signups")
-    .update({ user_id: userId })
-    .eq("anonymous_id", anonymousId)
-    .is("user_id", null);
-
-  if (transferError) {
-    console.error("Error transferring signups:", transferError);
-    return { error: "Account created but failed to transfer signups. Please contact support." };
-  }
-
-  // Mark the anonymous profile as linked
-  const { error: linkError } = await adminClient
-    .from("anonymous_signups")
-    .update({ linked_user_id: userId })
-    .eq("id", anonymousId);
-
-  if (linkError) {
-    console.error("Error linking profile:", linkError);
-    // Non-critical - signups were already transferred
+  const transferResult = await transferAnonymousDataToUser(anonymousId, userId);
+  if (transferResult.error) {
+    return { error: `Account created but linking failed: ${transferResult.error}` };
   }
 
   return { requiresEmailVerification: !signupData.session };

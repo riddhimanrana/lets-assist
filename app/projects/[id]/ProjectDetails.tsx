@@ -56,13 +56,14 @@ import { formatTimeTo12Hour, formatBytes, copyToClipboard, isMobileDevice } from
 import { createClient } from "@/lib/supabase/client";
 import { isSlotAvailable, isMultiDaySlotPastByScheduleId, isSameDayMultiAreaSlotPast, isOneTimeSlotPast } from "@/utils/project";
 import { getProjectStatus } from "@/utils/project"; // Import the getProjectStatus utility and date utils
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogDescription,
@@ -93,6 +94,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ReportContentButton } from "@/components/feedback/ReportContentButton";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface SlotData {
   remainingSlots: Record<string, number>;
@@ -100,6 +102,12 @@ interface SlotData {
   rejectedSlots: Record<string, boolean>;
   // Add new property to track attended status
   attendedSlots: Record<string, boolean>;
+}
+
+interface AnonymousSlotOption {
+  scheduleId: string;
+  title: string;
+  subtitle: string;
 }
 
 interface Props {
@@ -160,7 +168,9 @@ export default function ProjectDetails({
   const [user] = useState<AuthUser | null>(initialUser);
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [anonymousDialogOpen, setAnonymousDialogOpen] = useState(false);
+  const [anonymousSlotSelectionOpen, setAnonymousSlotSelectionOpen] = useState(false);
   const [currentScheduleId, setCurrentScheduleId] = useState<string>("");
+  const [selectedAnonymousScheduleIds, setSelectedAnonymousScheduleIds] = useState<string[]>([]);
   const [previewDoc, setPreviewDoc] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewDocName, setPreviewDocName] = useState<string>("Document");
@@ -502,6 +512,113 @@ export default function ProjectDetails({
     isUpdatingStatus
   ]); // Remove function dependency
 
+  const isAnonymousSlotSelectable = (scheduleId: string) => {
+    if (isCreator || calculatedStatus === "cancelled") return false;
+    if (hasSignedUp[scheduleId] || rejectedSlots[scheduleId] || attendedSlots[scheduleId]) return false;
+    if ((remainingSlots[scheduleId] ?? 0) === 0) return false;
+
+    if (project.event_type === "multiDay") {
+      return !isMultiDaySlotPastByScheduleId(project, scheduleId);
+    }
+
+    if (project.event_type === "sameDayMultiArea") {
+      return !isSameDayMultiAreaSlotPast(project, scheduleId);
+    }
+
+    return true;
+  };
+
+  const formatScheduleDateLabel = (dateStr: string) => {
+    const [year, month, dayNum] = dateStr.split("-").map(Number);
+    if (!year || !month || !dayNum) return dateStr;
+    const date = new Date(year, month - 1, dayNum);
+    if (isNaN(date.getTime())) return dateStr;
+    return format(date, "EEE, MMM d");
+  };
+
+  const anonymousSlotOptions = useMemo<AnonymousSlotOption[]>(() => {
+    if (project.event_type === "oneTime") {
+      return [];
+    }
+
+    if (project.event_type === "multiDay" && project.schedule.multiDay) {
+      return project.schedule.multiDay.flatMap((day) => {
+        return day.slots
+          .map((slot, idx) => {
+            const scheduleId = `${day.date}-${idx}`;
+            if (!isAnonymousSlotSelectable(scheduleId)) return null;
+
+            const startLabel = slot.startTime ? formatTimeTo12Hour(slot.startTime) : "TBD";
+            const endLabel = slot.endTime ? formatTimeTo12Hour(slot.endTime) : undefined;
+            const timeLabel = endLabel ? `${startLabel} - ${endLabel}` : startLabel;
+
+            return {
+              scheduleId,
+              title: `${formatScheduleDateLabel(day.date)} · Slot ${idx + 1}`,
+              subtitle: `${timeLabel} • ${remainingSlots[scheduleId] ?? slot.volunteers} spot(s) left`,
+            };
+          })
+          .filter((slotOption): slotOption is AnonymousSlotOption => !!slotOption);
+      });
+    }
+
+    if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
+      return project.schedule.sameDayMultiArea.roles
+        .map((role) => {
+          const scheduleId = role.name;
+          if (!isAnonymousSlotSelectable(scheduleId)) return null;
+
+          const startLabel = role.startTime ? formatTimeTo12Hour(role.startTime) : "TBD";
+          const endLabel = role.endTime ? formatTimeTo12Hour(role.endTime) : undefined;
+          const timeLabel = endLabel ? `${startLabel} - ${endLabel}` : startLabel;
+
+          return {
+            scheduleId,
+            title: role.name,
+            subtitle: `${timeLabel} • ${remainingSlots[scheduleId] ?? role.volunteers} spot(s) left`,
+          };
+        })
+        .filter((slotOption): slotOption is AnonymousSlotOption => !!slotOption);
+    }
+
+    return [];
+  }, [
+    project,
+    isCreator,
+    calculatedStatus,
+    hasSignedUp,
+    rejectedSlots,
+    attendedSlots,
+    remainingSlots,
+  ]);
+
+  const closeAnonymousFlows = () => {
+    setAnonymousSlotSelectionOpen(false);
+    setAnonymousDialogOpen(false);
+    setSelectedAnonymousScheduleIds([]);
+    setCurrentScheduleId("");
+  };
+
+  const continueToAnonymousForm = () => {
+    if (selectedAnonymousScheduleIds.length === 0) {
+      toast.error("Select at least one slot to continue.");
+      return;
+    }
+
+    setCurrentScheduleId(selectedAnonymousScheduleIds[0]);
+    setAnonymousSlotSelectionOpen(false);
+    setAnonymousDialogOpen(true);
+  };
+
+  const toggleAnonymousSlotSelection = (scheduleId: string, checked: boolean) => {
+    setSelectedAnonymousScheduleIds((prev) => {
+      if (checked) {
+        return prev.includes(scheduleId) ? prev : [...prev, scheduleId];
+      }
+      return prev.filter((id) => id !== scheduleId);
+    });
+  };
+
   // Handle sign up or cancel click
   const handleSignUpClick = async (scheduleId: string) => {
     // Prevent project creator from signing up
@@ -551,7 +668,20 @@ export default function ProjectDetails({
 
     if (!user && !project.require_login) {
       setCurrentScheduleId(scheduleId);
-      setAnonymousDialogOpen(true);
+
+      if (project.event_type === "oneTime") {
+        setSelectedAnonymousScheduleIds([scheduleId]);
+        setAnonymousDialogOpen(true);
+      } else {
+        const orderedIds = anonymousSlotOptions.map((slot) => slot.scheduleId);
+        const initialSelection = orderedIds.includes(scheduleId)
+          ? [scheduleId]
+          : orderedIds.slice(0, 1);
+
+        setSelectedAnonymousScheduleIds(initialSelection);
+        setAnonymousSlotSelectionOpen(true);
+      }
+
       return;
     }
 
@@ -680,13 +810,129 @@ export default function ProjectDetails({
       toast.error("An unexpected error occurred. Please try again.");
     } finally {
       setLoadingStates(prev => ({ ...prev, [scheduleId]: false }));
-      setAnonymousDialogOpen(false); // Close anonymous dialog regardless of outcome
+      if (anonymousData) {
+        closeAnonymousFlows();
+      } else {
+        setAnonymousDialogOpen(false);
+      }
     }
   };
 
   // Handle anonymous form submit
   const handleAnonymousSubmit = (values: AnonymousSignupData, waiverSignature?: WaiverSignatureInput | null) => {
-    handleSignUp(currentScheduleId, values, values.comment, waiverSignature);
+    const scheduleIds = Array.from(
+      new Set(
+        (selectedAnonymousScheduleIds.length > 0 ? selectedAnonymousScheduleIds : [currentScheduleId])
+          .filter(Boolean)
+      )
+    );
+
+    if (scheduleIds.length <= 1) {
+      const onlyScheduleId = scheduleIds[0] || currentScheduleId;
+      const payload: AnonymousSignupData = {
+        ...values,
+        selectedSlotCount: 1,
+      };
+      handleSignUp(onlyScheduleId, payload, values.comment, waiverSignature);
+      return;
+    }
+
+    void (async () => {
+      setShowConfirmationAlert(false);
+      setLoadingStates((prev) => {
+        const next = { ...prev };
+        scheduleIds.forEach((id) => {
+          next[id] = true;
+        });
+        return next;
+      });
+
+      let successfulSignups = 0;
+      let needsConfirmation = false;
+      const errorMessages: string[] = [];
+
+      try {
+        for (let index = 0; index < scheduleIds.length; index += 1) {
+          const scheduleId = scheduleIds[index];
+          const payload: AnonymousSignupData = {
+            ...values,
+            selectedSlotCount: scheduleIds.length,
+            skipConfirmationEmail: index > 0,
+          };
+
+          const result = await signUpForProject(
+            project.id,
+            scheduleId,
+            payload,
+            values.comment,
+            index === 0 ? waiverSignature : null,
+          );
+
+          if (result.error) {
+            errorMessages.push(result.error);
+            continue;
+          }
+
+          if (result.success) {
+            successfulSignups += 1;
+            needsConfirmation = needsConfirmation || !!result.needsConfirmation;
+
+            if (!result.needsConfirmation) {
+              setHasSignedUp((prev) => ({ ...prev, [scheduleId]: true }));
+              setRemainingSlots((prev) => ({
+                ...prev,
+                [scheduleId]: Math.max(0, (prev[scheduleId] || 0) - 1),
+              }));
+            }
+          }
+        }
+
+        if (successfulSignups > 0) {
+          if (needsConfirmation) {
+            setShowConfirmationAlert(true);
+            toast.success(
+              successfulSignups > 1
+                ? `Signup initiated for ${successfulSignups} slots!`
+                : "Signup initiated!",
+              {
+                description: "Please check your email to confirm your signup.",
+                duration: 5000,
+              }
+            );
+          } else {
+            toast.success(
+              successfulSignups > 1
+                ? `Successfully signed up for ${successfulSignups} slots!`
+                : "Successfully signed up!",
+              {
+                duration: 5000,
+              }
+            );
+
+            await refetchAttendees();
+            router.refresh();
+          }
+        }
+
+        if (errorMessages.length > 0) {
+          const firstError = errorMessages[0];
+          const remaining = errorMessages.length - 1;
+          toast.error(remaining > 0 ? `${firstError} (+${remaining} more issue${remaining > 1 ? "s" : ""})` : firstError);
+        }
+      } catch (error) {
+        console.error("Error processing multi-slot anonymous signup:", error);
+        toast.error("An unexpected error occurred. Please try again.");
+      } finally {
+        setLoadingStates((prev) => {
+          const next = { ...prev };
+          scheduleIds.forEach((id) => {
+            next[id] = false;
+          });
+          return next;
+        });
+        closeAnonymousFlows();
+      }
+    })();
   };
 
   // Handle resending confirmation email
@@ -1554,21 +1800,91 @@ export default function ProjectDetails({
         </DialogContent>
       </Dialog>
 
+      {/* Anonymous Slot Selection Dialog (multi-day / multi-role) */}
+      <Dialog
+        open={anonymousSlotSelectionOpen}
+        onOpenChange={(open) => {
+          setAnonymousSlotSelectionOpen(open);
+          if (!open) {
+            setSelectedAnonymousScheduleIds([]);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Select your slots</DialogTitle>
+            <DialogDescription>
+              Want to sign up for more than one slot? Select all that apply, then continue to quick signup.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2 py-2">
+            {anonymousSlotOptions.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No additional slots are currently available.</p>
+            ) : (
+              anonymousSlotOptions.map((slot) => {
+                const checked = selectedAnonymousScheduleIds.includes(slot.scheduleId);
+
+                return (
+                  <label
+                    key={slot.scheduleId}
+                    className="flex items-start gap-3 rounded-lg border p-3 hover:bg-muted/40 cursor-pointer"
+                  >
+                    <Checkbox
+                      checked={checked}
+                      onCheckedChange={(value) => toggleAnonymousSlotSelection(slot.scheduleId, value === true)}
+                      className="mt-0.5"
+                    />
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium leading-none">{slot.title}</p>
+                      <p className="text-xs text-muted-foreground">{slot.subtitle}</p>
+                    </div>
+                  </label>
+                );
+              })
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={closeAnonymousFlows}>
+              Cancel
+            </Button>
+            <Button
+              onClick={continueToAnonymousForm}
+              disabled={selectedAnonymousScheduleIds.length === 0}
+            >
+              Continue ({selectedAnonymousScheduleIds.length})
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Anonymous Signup Dialog */}
-      <Dialog open={anonymousDialogOpen} onOpenChange={setAnonymousDialogOpen}>
+      <Dialog
+        open={anonymousDialogOpen}
+        onOpenChange={(open) => {
+          setAnonymousDialogOpen(open);
+          if (!open) {
+            closeAnonymousFlows();
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-5xl w-[95vw] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Quick Sign Up</DialogTitle>
             <DialogDescription>
-              Please provide your information to sign up. You&apos;ll receive an email to confirm your spot.
+              {selectedAnonymousScheduleIds.length > 1
+                ? `You selected ${selectedAnonymousScheduleIds.length} slots. Fill this once and we&apos;ll apply it to all selected slots.`
+                : "Please provide your information to sign up. You&apos;ll receive an email to confirm your spot."}
             </DialogDescription>
           </DialogHeader>
           <ProjectSignupForm
             onSubmit={handleAnonymousSubmit}
-            onCancel={() => setAnonymousDialogOpen(false)}
+            onCancel={closeAnonymousFlows}
             isSubmitting={loadingStates[currentScheduleId]}
             showCommentField={!!project.enable_volunteer_comments}
             enableSavedInfoReuse={enableSavedAnonymousInfoReuse}
+            projectId={project.id}
             waiverRequired={!!project.waiver_required}
             waiverAllowUpload={project.waiver_disable_esignature ? true : (project.waiver_allow_upload ?? true)}
             waiverDisableEsignature={project.waiver_disable_esignature ?? false}

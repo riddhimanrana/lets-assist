@@ -185,6 +185,12 @@ export async function generateSignedWaiverPdf(
     if (!page) continue;
     
     const rect = field.rect || { x: 0, y: 0, width: 100, height: 20 };
+    const verticalPadding = Math.max(0, Math.min(2, rect.height * 0.08));
+    const textPaddingX = Math.max(1, Math.min(4, rect.width * 0.06));
+    const textFontSize = Math.max(8, Math.min(12, rect.height * 0.72));
+    const textY = rect.y + Math.max(0, (rect.height - textFontSize) / 2) + verticalPadding;
+    const textX = rect.x + textPaddingX;
+    const textMaxWidth = Math.max(1, rect.width - textPaddingX * 2);
     
     switch (field.field_type) {
       case 'text':
@@ -194,20 +200,27 @@ export async function generateSignedWaiverPdf(
       case 'date':
         // Draw text value
         page.drawText(String(value), {
-          x: rect.x,
-          y: rect.y,
-          size: 10,
+          x: textX,
+          y: textY,
+          size: textFontSize,
+          maxWidth: textMaxWidth,
+          lineHeight: textFontSize,
           color: rgb(0, 0, 0),
         });
         break;
         
       case 'checkbox':
-        // Draw checkmark if checked
+        // Draw check marker if checked.
+        // NOTE: Avoid unicode glyphs like '✓' because default PDF WinAnsi fonts cannot encode them.
         if (value === true || value === 'true' || value === 'yes') {
-          page.drawText('✓', {
-            x: rect.x,
-            y: rect.y,
-            size: 12,
+          const checkboxFontSize = Math.max(8, Math.min(16, Math.min(rect.width, rect.height) * 0.85));
+          const checkboxX = rect.x + Math.max(0, (rect.width - checkboxFontSize * 0.55) / 2);
+          const checkboxY = rect.y + Math.max(0, (rect.height - checkboxFontSize) / 2) + verticalPadding;
+
+          page.drawText('X', {
+            x: checkboxX,
+            y: checkboxY,
+            size: checkboxFontSize,
             color: rgb(0, 0, 0),
           });
         }
@@ -217,9 +230,11 @@ export async function generateSignedWaiverPdf(
       case 'dropdown':
         // Draw selected option
         page.drawText(String(value), {
-          x: rect.x,
-          y: rect.y,
-          size: 10,
+          x: textX,
+          y: textY,
+          size: textFontSize,
+          maxWidth: textMaxWidth,
+          lineHeight: textFontSize,
           color: rgb(0, 0, 0),
         });
         break;
@@ -246,7 +261,7 @@ export async function generateSignedWaiverPdf(
  * Returns true for any multi-signer payload (draw/typed/upload all need stamping).
  * Only returns false for single offline full-waiver upload (handled via upload_storage_path column).
  */
-export function requiresPdfGeneration(payload: SignaturePayload): boolean {
+export function requiresPdfGeneration(_payload: SignaturePayload): boolean {
   // Multi-signer payloads always need PDF generation
   // All signature methods (draw/typed/upload) are images that need stamping
   return true;

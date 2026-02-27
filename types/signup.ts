@@ -7,6 +7,8 @@ export interface AnonymousSignupData {
   email: string;
   phone?: string;
   comment?: string;
+  skipConfirmationEmail?: boolean;
+  selectedSlotCount?: number;
 }
 
 export interface ProjectSignup {

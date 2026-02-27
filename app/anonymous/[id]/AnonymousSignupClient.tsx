@@ -13,14 +13,12 @@ import { Project } from "@/types";
 import { useState, useMemo, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 import { cancelSignup, getAnonymousWaiverSignatureMeta, getWaiverDownloadUrl } from "@/app/projects/[id]/actions";
-import { linkAnonymousToExistingAccount, linkAnonymousToNewAccount } from "./actions";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { linkAnonymousToAuthenticatedAccount } from "./actions";
 
 // Slot data from the server
 interface SlotData {
@@ -199,17 +197,15 @@ export default function AnonymousSignupClient({
   linkedUserId,
 }: AnonymousSignupClientProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const isConfirmed = !!confirmed_at;
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancellingSlotId, setCancellingSlotId] = useState<string | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
   const [removedSlots, setRemovedSlots] = useState<Set<string>>(new Set());
-  const [linkDialogOpen, setLinkDialogOpen] = useState(false);
-  const [linkMode, setLinkMode] = useState<"existing" | "new" | null>(null);
   const [isLinking, setIsLinking] = useState(false);
-  const [linkEmail, setLinkEmail] = useState("");
-  const [linkPassword, setLinkPassword] = useState("");
-  const [linkFullName, setLinkFullName] = useState(name);
+  const [isLinked, setIsLinked] = useState(!!linkedUserId);
+  const [autoLinkAttempted, setAutoLinkAttempted] = useState(false);
   const [waiverSignatures, setWaiverSignatures] = useState<Record<string, { signature_type: string; signed_at?: string | null } | null>>({});
 
   // Computed values
@@ -268,6 +264,75 @@ export default function AnonymousSignupClient({
     };
     void loadCertificates();
   }, [slots]);
+
+  useEffect(() => {
+    setIsLinked(!!linkedUserId);
+  }, [linkedUserId]);
+
+  const shouldAutoLink = searchParams.get("link") === "1";
+  const linkingRedirectPath = `/anonymous/${id}?link=1`;
+
+  useEffect(() => {
+    if (!shouldAutoLink || autoLinkAttempted || isLinked) {
+      return;
+    }
+
+    let isMounted = true;
+    setAutoLinkAttempted(true);
+
+    const autoLink = async () => {
+      try {
+        const supabase = createClient();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
+        if (!user) {
+          return;
+        }
+
+        setIsLinking(true);
+        const result = await linkAnonymousToAuthenticatedAccount(id);
+
+        if (result.error) {
+          toast.error(result.error);
+          return;
+        }
+
+        if (!isMounted) {
+          return;
+        }
+
+        setIsLinked(true);
+        toast.success("Account linked successfully.");
+        router.replace(`/anonymous/${id}`);
+        router.refresh();
+      } catch (error) {
+        console.error("Error auto-linking account:", error);
+        toast.error("Failed to link account. Please try again.");
+      } finally {
+        if (isMounted) {
+          setIsLinking(false);
+        }
+      }
+    };
+
+    void autoLink();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [shouldAutoLink, autoLinkAttempted, isLinked, id, router]);
+
+  const handleGoToLogin = () => {
+    setIsLinking(true);
+    router.push(`/login?redirect=${encodeURIComponent(linkingRedirectPath)}`);
+  };
+
+  const handleGoToSignup = () => {
+    setIsLinking(true);
+    router.push(`/signup?redirect=${encodeURIComponent(linkingRedirectPath)}`);
+  };
 
   const handleCancelSlot = async () => {
     if (!cancellingSlotId) return;
@@ -328,53 +393,6 @@ export default function AnonymousSignupClient({
       toast.error("Unable to load waiver at this time.");
     } catch {
       toast.error("Unable to load waiver at this time.");
-    }
-  };
-
-  const handleLinkAccount = async () => {
-    if (!linkMode) return;
-
-    try {
-      setIsLinking(true);
-
-      if (linkMode === "existing") {
-        if (!linkEmail || !linkPassword) {
-          toast.error("Please enter your email and password.");
-          return;
-        }
-        const result = await linkAnonymousToExistingAccount(id, linkEmail, linkPassword);
-        if (result.error) {
-          toast.error(result.error);
-          return;
-        }
-        toast.success("Account linked successfully! Redirecting...");
-        setTimeout(() => router.push("/dashboard"), 2000);
-      } else {
-        if (!linkEmail || !linkPassword || !linkFullName) {
-          toast.error("Please fill in all fields.");
-          return;
-        }
-        const result = await linkAnonymousToNewAccount(id, linkEmail, linkPassword, linkFullName);
-        if (result.error) {
-          toast.error(result.error);
-          return;
-        }
-
-        if (result.requiresEmailVerification) {
-          toast.success("Account created and linked! Please check your email to verify your account.");
-          setTimeout(() => router.push("/login"), 2000);
-        } else {
-          toast.success("Account created and linked successfully! Redirecting...");
-          setTimeout(() => router.push("/dashboard"), 2000);
-        }
-      }
-
-      setLinkDialogOpen(false);
-    } catch (error) {
-      console.error("Error linking account:", error);
-      toast.error("An unexpected error occurred.");
-    } finally {
-      setIsLinking(false);
     }
   };
 
@@ -455,7 +473,7 @@ export default function AnonymousSignupClient({
 
           {isConfirmed && !isProjectCancelled && (
             <Card className="w-full border-success/30 bg-success/5 overflow-hidden">
-              <CardContent className="p-4">
+              <CardContent className="">
                 <div className="flex items-start gap-3">
                   <div className="bg-success/10 p-2 rounded-full shrink-0">
                     <CheckCircle2 className="h-5 w-5 text-success" />
@@ -561,15 +579,8 @@ export default function AnonymousSignupClient({
 
       {/* Actions */}
       <Card>
-        <CardContent className="pt-6 space-y-4">
+        <CardContent className="space-y-4">
           <h3 className="font-medium text-base">Manage Your Profile</h3>
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Link href={`/projects/${project.id}`} className={cn(buttonVariants({ variant: "outline" }), "flex items-center gap-2")}>
-              <Info className="h-4 w-4" />
-              View Project Details
-            </Link>
-          </div>
 
           <Separator />
 
@@ -577,39 +588,39 @@ export default function AnonymousSignupClient({
             <p className="text-sm text-muted-foreground">
               Link your anonymous profile to a Let&apos;s Assist account to track all your volunteer activities in one place.
             </p>
-            {linkedUserId ? (
+            {isLinked ? (
               <div className="flex items-center gap-2 text-sm text-success">
                 <CheckCircle2 className="h-4 w-4" />
                 Account linked successfully
               </div>
             ) : (
-              <div className="flex flex-col sm:flex-row gap-2">
-                <Button
-                  variant="default"
-                  onClick={() => {
-                    setLinkMode("existing");
-                    setLinkEmail(email);
-                    setLinkDialogOpen(true);
-                  }}
-                  className="flex items-center gap-2"
-                >
-                  <LogIn className="h-4 w-4" />
-                  Link to Existing Account
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setLinkMode("new");
-                    setLinkEmail(email);
-                    setLinkFullName(name);
-                    setLinkDialogOpen(true);
-                  }}
-                  className="flex items-center gap-2"
-                >
-                  <UserPlus className="h-4 w-4" />
-                  Create New Account
-                </Button>
-              </div>
+              <>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Button
+                    variant="default"
+                    onClick={handleGoToLogin}
+                    className="flex items-center gap-2"
+                    disabled={isLinking}
+                  >
+                    {isLinking ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogIn className="h-4 w-4" />}
+                    Link to Existing Account
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handleGoToSignup}
+                    className="flex items-center gap-2"
+                    disabled={isLinking}
+                  >
+                    <UserPlus className="h-4 w-4" />
+                    Create New Account
+                  </Button>
+                </div>
+                {shouldAutoLink && autoLinkAttempted && !isLinked && !isLinking && (
+                  <p className="text-xs text-muted-foreground">
+                    Sign in or create an account to complete linking for this anonymous profile.
+                  </p>
+                )}
+              </>
             )}
           </div>
         </CardContent>
@@ -648,71 +659,6 @@ export default function AnonymousSignupClient({
         </DialogContent>
       </Dialog>
 
-      {/* Account Linking Dialog */}
-      <Dialog open={linkDialogOpen} onOpenChange={setLinkDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>
-              {linkMode === "existing" ? "Link to Existing Account" : "Create New Account"}
-            </DialogTitle>
-            <DialogDescription>
-              {linkMode === "existing"
-                ? "Sign in with your Let's Assist account to link your anonymous volunteer data."
-                : "Create a new Let's Assist account and automatically transfer your volunteer data."
-              }
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            {linkMode === "new" && (
-              <div className="space-y-2">
-                <Label htmlFor="link-name">Full Name</Label>
-                <Input
-                  id="link-name"
-                  value={linkFullName}
-                  onChange={(e) => setLinkFullName(e.target.value)}
-                  placeholder="Your full name"
-                />
-              </div>
-            )}
-            <div className="space-y-2">
-              <Label htmlFor="link-email">Email</Label>
-              <Input
-                id="link-email"
-                type="email"
-                value={linkEmail}
-                onChange={(e) => setLinkEmail(e.target.value)}
-                placeholder="your@email.com"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="link-password">Password</Label>
-              <Input
-                id="link-password"
-                type="password"
-                value={linkPassword}
-                onChange={(e) => setLinkPassword(e.target.value)}
-                placeholder={linkMode === "existing" ? "Your account password" : "Choose a password (min 8 characters)"}
-              />
-            </div>
-
-            <Alert className="bg-muted/50 border-muted">
-              <Info className="h-4 w-4" />
-              <AlertDescription className="text-xs">
-                All your volunteer signups, hours, and certificates from this anonymous profile will be transferred to your account.
-              </AlertDescription>
-            </Alert>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setLinkDialogOpen(false)} disabled={isLinking}>
-              Cancel
-            </Button>
-            <Button onClick={handleLinkAccount} disabled={isLinking} className="flex items-center gap-2">
-              {isLinking && <Loader2 className="h-4 w-4 animate-spin" />}
-              {linkMode === "existing" ? "Link Account" : "Create & Link"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
@@ -788,7 +734,7 @@ function SlotCard({
 
   return (
     <Card className="overflow-hidden">
-      <CardContent className="p-4 space-y-3">
+      <CardContent className="space-y-3">
         {/* Slot header */}
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-2 text-sm min-w-0">
