@@ -34,7 +34,7 @@ async function transferAnonymousDataToUser(
 
   const { error: transferSignupsError } = await adminClient
     .from("project_signups")
-    .update({ user_id: userId })
+    .update({ user_id: userId, anonymous_id: null })
     .eq("anonymous_id", anonymousId)
     .is("user_id", null);
 
@@ -45,7 +45,7 @@ async function transferAnonymousDataToUser(
 
   const { error: transferWaiversError } = await adminClient
     .from("waiver_signatures")
-    .update({ user_id: userId })
+    .update({ user_id: userId, anonymous_id: null })
     .eq("anonymous_id", anonymousId)
     .is("user_id", null);
 

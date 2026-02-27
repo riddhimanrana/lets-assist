@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { CheckCircle2, Clock, User, Mail, Phone, Calendar, Info, Loader2, XCircle, AlertTriangle, Award, Medal, FileText, LogIn, UserPlus } from "lucide-react";
+import { CheckCircle2, Clock, User, Mail, Phone, Calendar, Loader2, XCircle, AlertTriangle, Award, Medal, FileText, LogIn, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { format, addDays, parseISO, differenceInSeconds, differenceInHours, isAfter } from "date-fns";
 import { formatTimeTo12Hour, cn } from "@/lib/utils";
@@ -305,7 +305,7 @@ export default function AnonymousSignupClient({
 
         setIsLinked(true);
         toast.success("Account linked successfully.");
-        router.replace(`/anonymous/${id}`);
+        router.replace("/dashboard");
         router.refresh();
       } catch (error) {
         console.error("Error auto-linking account:", error);

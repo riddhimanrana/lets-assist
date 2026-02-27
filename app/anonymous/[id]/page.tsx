@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { Project } from "@/types";
 import AnonymousSignupClient from "./AnonymousSignupClient";
 
@@ -49,6 +49,9 @@ export default async function AnonymousSignupPage({ params }: PageProps): Promis
   }
 
   if (!projectSignups || projectSignups.length === 0) {
+    if (signupData.linked_user_id) {
+      redirect("/dashboard");
+    }
     console.error("No linked project signups found");
     notFound();
   }
