@@ -166,6 +166,7 @@ export async function createGlobalWaiverTemplate(
     label: string;
     required: boolean;
     signerRoleKey?: string;
+    meta?: Record<string, unknown> | null;
   };
 
   const detectedFieldMappings: DetectedFieldMappingForDb[] = [];
@@ -193,17 +194,20 @@ export async function createGlobalWaiverTemplate(
       label: mapping.label || mapping.fieldKey || fieldKey,
       required: mapping.required ?? false,
       signerRoleKey: mapping.signerRoleKey || undefined,
+      meta: mapping.meta ?? null,
     });
   }
 
   const customPlacements = (builderDefinition.fields.custom || []).map((field) => ({
     id: field.id,
+    fieldKey: field.fieldKey,
     label: field.label,
     fieldType: field.fieldType || 'signature',
     pageIndex: field.pageIndex,
     rect: field.rect,
     signerRoleKey: field.signerRoleKey,
     required: field.required,
+    meta: field.meta ?? null,
   }));
 
   fieldsToInsert.push(...mapDetectedFieldsForDb(definition.id, detectedFieldMappings));

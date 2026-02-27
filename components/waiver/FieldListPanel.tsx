@@ -30,6 +30,7 @@ export interface FieldMapping {
   pageIndex: number;
   rect: { x: number; y: number; width: number; height: number };
   pdfFieldName?: string;
+  meta?: Record<string, unknown> | null;
 }
 
 interface FieldListPanelProps {

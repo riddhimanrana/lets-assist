@@ -4,6 +4,7 @@ import type { SignaturePayload } from '@/types/waiver-definitions';
 
 const mockPage = {
   getHeight: vi.fn(() => 800),
+  getWidth: vi.fn(() => 600),
   drawImage: vi.fn(),
   drawText: vi.fn(),
 };

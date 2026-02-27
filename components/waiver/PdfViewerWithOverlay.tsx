@@ -24,6 +24,7 @@ export interface CustomPlacement {
   required: boolean;
   pageIndex: number;
   rect: PdfRect;
+  meta?: Record<string, unknown> | null;
 }
 
 export type PdfViewerValueLayer = {
@@ -35,6 +36,7 @@ interface PdfViewerWithOverlayProps {
   pdfUrl: string;
   detectedFields: DetectedPdfField[];
   customPlacements: CustomPlacement[];
+  detectedFieldRoleMap?: Record<string, string | undefined>;
   selectedPlacementId?: string;
   onPlacementClick: (placementId: string) => void;
   onDetectedFieldClick?: (field: DetectedPdfField) => void;
@@ -50,6 +52,7 @@ export function PdfViewerWithOverlay({
   pdfUrl,
   detectedFields,
   customPlacements,
+  detectedFieldRoleMap,
   selectedPlacementId,
   onPlacementClick,
   onDetectedFieldClick,
@@ -170,6 +173,7 @@ export function PdfViewerWithOverlay({
             scale={scale}
             detectedFields={detectedFields.filter(f => f.pageIndex === currentPage - 1)}
             customPlacements={customPlacements.filter(p => p.pageIndex === currentPage - 1)}
+            detectedFieldRoleMap={detectedFieldRoleMap}
             selectedPlacementId={selectedPlacementId}
             onPlacementClick={onPlacementClick}
             onDetectedFieldClick={onDetectedFieldClick}
@@ -191,6 +195,7 @@ interface PdfPageProps {
   scale: number;
   detectedFields: DetectedPdfField[];
   customPlacements: CustomPlacement[];
+  detectedFieldRoleMap?: Record<string, string | undefined>;
   selectedPlacementId?: string;
   onPlacementClick: (placementId: string) => void;
   onDetectedFieldClick?: (field: DetectedPdfField) => void;
@@ -207,6 +212,7 @@ function PdfPage({
   scale,
   detectedFields,
   customPlacements,
+  detectedFieldRoleMap,
   selectedPlacementId,
   onPlacementClick,
   onDetectedFieldClick,
@@ -387,6 +393,14 @@ function PdfPage({
 
   if (!viewport) return <div className="w-150 h-200 bg-white animate-pulse" />;
 
+  const toWaiverFieldType = (fieldType: DetectedPdfField['fieldType']): WaiverFieldType => {
+    const knownFieldTypes: WaiverFieldType[] = ['signature', 'text', 'checkbox', 'radio', 'dropdown'];
+    if (knownFieldTypes.includes(fieldType as WaiverFieldType)) {
+      return fieldType as WaiverFieldType;
+    }
+    return 'text';
+  };
+
   // Helper to convert PDF rect to specific canvas style
   const getStyle = (rect: PdfRect) => {
     // PDF coords: x, y, width, height. y is from bottom if it's raw PDF, but PDF.js viewport handles the transform
@@ -423,10 +437,23 @@ function PdfPage({
       {detectedFields.map((field, idx) => {
         const isSignature = field.fieldType === 'signature';
         const isHighlighted = highlightedField?.fieldName === field.fieldName;
+        const signerRoleKey = detectedFieldRoleMap?.[field.fieldName];
+        const fieldValue = valueLayer?.fieldValues?.[field.fieldName];
+        const signature = signerRoleKey ? valueLayer?.signatures?.[signerRoleKey] : undefined;
+        const previewPlacement: CustomPlacement = {
+          id: `detected-preview-${field.fieldName}-${field.pageIndex}`,
+          fieldKey: field.fieldName,
+          label: field.fieldName,
+          signerRoleKey: signerRoleKey ?? 'unassigned',
+          fieldType: toWaiverFieldType(field.fieldType),
+          required: field.required ?? false,
+          pageIndex: field.pageIndex,
+          rect: field.rect,
+        };
         
         return (
           <div
-            key={`detected-${field.fieldName}-${field.pageIndex}`}
+            key={`detected-${field.fieldName}-${field.pageIndex}-${idx}`}
             style={getStyle(field.rect)}
             className={cn(
               "border-2 absolute transition-all cursor-pointer group flex items-center justify-center z-10",
@@ -441,6 +468,14 @@ function PdfPage({
              <span className="opacity-0 group-hover:opacity-100 bg-popover text-popover-foreground text-[10px] px-1.5 py-0.5 rounded absolute -top-6 whitespace-nowrap pointer-events-none shadow-sm border text-center">
               {field.fieldName} ({field.fieldType})
             </span>
+
+            <div className="absolute inset-0 flex items-center justify-center px-1.5 py-1 pointer-events-none">
+              <WaiverPlacementValue
+                placement={previewPlacement}
+                fieldValue={fieldValue}
+                signature={signature}
+              />
+            </div>
           </div>
         );
       })}

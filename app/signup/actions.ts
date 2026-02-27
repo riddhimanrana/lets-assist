@@ -4,6 +4,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { randomUUID } from "crypto";
+import { buildAuthConfirmRedirectUrl, normalizeRedirectPath } from "./redirect-utils";
 
 const signupSchema = z.object({
   fullName: z.string().min(3, "Full name must be at least 3 characters"),
@@ -113,6 +114,7 @@ export async function signup(formData: FormData) {
   const turnstileToken = formData.get("turnstileToken") as string;
   const staffToken = formData.get("staffToken") as string | undefined;
   const orgUsername = formData.get("orgUsername") as string | undefined;
+  const redirectUrl = normalizeRedirectPath(formData.get("redirectUrl")?.toString() ?? null);
 
   const validatedFields = signupSchema.safeParse({
     fullName: formData.get("fullName"),
@@ -181,7 +183,7 @@ export async function signup(formData: FormData) {
           username: `user_${randomUUID().slice(0, 8)}`,
           created_at: new Date().toISOString(),
         },
-        emailRedirectTo: `${origin}/auth/confirm`,
+        emailRedirectTo: buildAuthConfirmRedirectUrl(origin, redirectUrl),
       },
     };
 
@@ -347,13 +349,17 @@ async function handleEmailDomainAffiliation(userId: string, email: string): Prom
   return org.id;
 }
 
-export async function resendVerificationEmail(email: string, turnstileToken?: string) {
+export async function resendVerificationEmail(
+  email: string,
+  turnstileToken?: string,
+  redirectAfterAuth?: string | null,
+) {
   try {
     const supabase = await createClient();
     const origin = getSiteUrl();
     
     const options: Record<string, string> = {
-      emailRedirectTo: `${origin}/auth/confirm`,
+      emailRedirectTo: buildAuthConfirmRedirectUrl(origin, redirectAfterAuth),
     };
 
     if (turnstileToken) {

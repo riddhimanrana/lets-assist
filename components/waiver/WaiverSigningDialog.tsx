@@ -161,7 +161,7 @@ export function WaiverSigningDialog({
 
     // Per-signer steps
     sortedSigners.forEach((signer) => {
-      // Check if this signer has any fields
+      // Check if this signer has any non-signature fields
       const signerFields = effectiveDefinition.fields.filter(f => 
         f.signer_role_key === signer.role_key && f.field_type !== 'signature'
       );
@@ -176,13 +176,24 @@ export function WaiverSigningDialog({
         });
       }
 
-      s.push({
-        id: `sign-${signer.role_key}`,
-        type: 'sign',
-        title: `Sign as ${signer.label}`,
-        description: `Please provide your signature for ${signer.label}.`,
-        signer: signer
-      });
+      // Only add signature step if:
+      // 1. There are actual signature boxes placed for this role
+      // 2. OR this is a legacy-style single signer (volunteer) and definition fields are empty
+      const hasSignatureField = effectiveDefinition.fields.some(f => 
+        f.signer_role_key === signer.role_key && f.field_type === 'signature'
+      );
+      
+      const isLegacyVolunteer = effectiveDefinition.id === 'legacy' && signer.role_key === 'volunteer';
+
+      if (hasSignatureField || isLegacyVolunteer) {
+        s.push({
+          id: `sign-${signer.role_key}`,
+          type: 'sign',
+          title: `Sign as ${signer.label}`,
+          description: `Please provide your signature for ${signer.label}.`,
+          signer: signer
+        });
+      }
     });
 
     if (s.length > 0) {
@@ -194,6 +205,17 @@ export function WaiverSigningDialog({
 
   const currentStep = steps[currentStepIndex];
   const hasPdfDocument = Boolean(waiverPdfUrl);
+
+  const currentSignerSignatureFields = useMemo(() => {
+    if (currentStep?.type !== 'sign' || !currentStep.signer) {
+      return [] as WaiverDefinitionField[];
+    }
+
+    return effectiveDefinition.fields.filter((field) => {
+      return field.signer_role_key === currentStep.signer?.role_key &&
+        (field.field_type === 'signature' || field.field_type === 'initial');
+    });
+  }, [currentStep, effectiveDefinition.fields]);
 
   const generatedWaiverPreview = useMemo(() => {
     const templateContent = waiverTemplate?.content?.trim();
@@ -691,6 +713,32 @@ export function WaiverSigningDialog({
                                      Sign as {currentStep.signer.label}
                                  </h3>
 
+                                   {currentSignerSignatureFields.length > 0 && (
+                                     <div className="mb-4 rounded-md border bg-muted/30 p-3 space-y-2">
+                                       <p className="text-xs font-medium text-muted-foreground">Signature box guidance</p>
+                                       {currentSignerSignatureFields.map((field) => {
+                                         const signingPurpose = typeof field.meta?.signingPurpose === 'string'
+                                           ? field.meta.signingPurpose
+                                           : '';
+                                         const helpText = typeof field.meta?.helpText === 'string'
+                                           ? field.meta.helpText
+                                           : '';
+
+                                         if (!signingPurpose && !helpText) {
+                                           return null;
+                                         }
+
+                                         return (
+                                           <div key={field.id} className="text-xs text-muted-foreground space-y-0.5">
+                                             <p className="font-medium text-foreground">{field.label}</p>
+                                             {signingPurpose && <p>Signing as: {signingPurpose}</p>}
+                                             {helpText && <p>{helpText}</p>}
+                                           </div>
+                                         );
+                                       })}
+                                     </div>
+                                   )}
+
                                  {disableEsignature ? (
                                      <div className="space-y-4">
                                        <div className="p-6 border-2 border-dashed rounded-lg text-center">
@@ -956,6 +1004,32 @@ export function WaiverSigningDialog({
                                 </span>
                                 Sign as {currentStep.signer.label}
                             </h3>
+
+                            {currentSignerSignatureFields.length > 0 && (
+                              <div className="mb-4 rounded-md border bg-muted/30 p-3 space-y-2">
+                                <p className="text-xs font-medium text-muted-foreground">Signature box guidance</p>
+                                {currentSignerSignatureFields.map((field) => {
+                                  const signingPurpose = typeof field.meta?.signingPurpose === 'string'
+                                    ? field.meta.signingPurpose
+                                    : '';
+                                  const helpText = typeof field.meta?.helpText === 'string'
+                                    ? field.meta.helpText
+                                    : '';
+
+                                  if (!signingPurpose && !helpText) {
+                                    return null;
+                                  }
+
+                                  return (
+                                    <div key={field.id} className="text-xs text-muted-foreground space-y-0.5">
+                                      <p className="font-medium text-foreground">{field.label}</p>
+                                      {signingPurpose && <p>Signing as: {signingPurpose}</p>}
+                                      {helpText && <p>{helpText}</p>}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
                             
                             {disableEsignature ? (
                                 <div className="space-y-4">
