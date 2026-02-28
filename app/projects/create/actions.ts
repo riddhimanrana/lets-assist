@@ -215,11 +215,7 @@ export async function createBasicProject(
       enable_volunteer_comments: projectData.enableVolunteerComments || false,
       show_attendees_publicly: projectData.showAttendeesPublicly || false,
       waiver_required: projectData.waiverRequired || false,
-      waiver_allow_upload: true,
-      schedule: {
-        [projectData.eventType]: projectData.schedule[projectData.eventType],
-      },
-      status: "upcoming",
+      waiver_allow_upload: projectData.waiverAllowUpload ?? true,
       organization_id: organizationId || null, // Save organization_id if provided
       visibility: projectData.visibility || 'public', // Set visibility (public/unlisted for all, org_only for org projects)
       published: publishedState, // Add the published state tracking
@@ -771,11 +767,7 @@ export async function updateDraft(projectId: string, projectData: Partial<EventF
     enable_volunteer_comments: projectData.enableVolunteerComments || false,
     show_attendees_publicly: projectData.showAttendeesPublicly || false,
     waiver_required: projectData.waiverRequired || false,
-    waiver_allow_upload: true,
-    schedule: {
-      [projectData.eventType]: projectData.schedule[projectData.eventType],
-    },
-    visibility: projectData.visibility || 'public',
+    waiver_allow_upload: projectData.waiverAllowUpload ?? true,
     project_timezone: projectData.basicInfo.projectTimezone || 'America/Los_Angeles',
     restrict_to_org_domains: projectData.restrictToOrgDomains || false,
     recurrence_rule: recurrenceRule,

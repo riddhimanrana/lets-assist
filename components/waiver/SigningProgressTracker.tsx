@@ -61,7 +61,7 @@ export function SigningProgressTracker({
                 </div>
                 
                 <div className="flex-1 min-w-0">
-                    <p className={cn("text-sm font-medium truncat", isCurrent && "text-primary")}>
+                    <p className={cn("text-sm font-medium truncate", isCurrent && "text-primary")}>
                         {signer.label}
                     </p>
                     <p className="text-xs text-muted-foreground truncate">
