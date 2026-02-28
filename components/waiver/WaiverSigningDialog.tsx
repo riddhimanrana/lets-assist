@@ -35,6 +35,22 @@ interface WaiverSigningDialogProps {
   disableEsignature?: boolean; // Print/upload only mode
 }
 
+const ALLOWED_WAIVER_URL_PROTOCOLS = new Set(["http:", "https:", "blob:"]);
+
+function normalizeWaiverPdfUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+
+  try {
+    const parsed = new URL(url, window.location.origin);
+    if (!ALLOWED_WAIVER_URL_PROTOCOLS.has(parsed.protocol)) {
+      return null;
+    }
+    return parsed.href;
+  } catch {
+    return null;
+  }
+}
+
 type StepType = 'review' | 'fields' | 'sign' | 'confirm';
 
 interface WizardStep {
@@ -66,6 +82,7 @@ export function WaiverSigningDialog({
   const [selectedFieldKey, setSelectedFieldKey] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isDesktop = useMediaQuery("(min-width: 1024px)");
+  const safeWaiverPdfUrl = useMemo(() => normalizeWaiverPdfUrl(waiverPdfUrl), [waiverPdfUrl]);
 
   useEffect(() => {
     if (isOpen) {
@@ -103,7 +120,7 @@ export function WaiverSigningDialog({
       version: 1,
       active: true,
       pdf_storage_path: null,
-      pdf_public_url: waiverPdfUrl || null,
+      pdf_public_url: safeWaiverPdfUrl || null,
       source: "project_pdf",
       created_by: null,
       created_at: "",
@@ -111,7 +128,7 @@ export function WaiverSigningDialog({
       signers: [dummySigner],
       fields: []
     } as WaiverDefinitionFull;
-  }, [waiverDefinition, waiverPdfUrl]);
+  }, [waiverDefinition, safeWaiverPdfUrl]);
 
   // Sort signers ensure correct order
   const sortedSigners = useMemo(() => {
@@ -204,7 +221,7 @@ export function WaiverSigningDialog({
   }, [effectiveDefinition, sortedSigners]);
 
   const currentStep = steps[currentStepIndex];
-  const hasPdfDocument = Boolean(waiverPdfUrl);
+  const hasPdfDocument = Boolean(safeWaiverPdfUrl);
 
   const currentSignerSignatureFields = useMemo(() => {
     if (currentStep?.type !== 'sign' || !currentStep.signer) {
@@ -354,7 +371,7 @@ export function WaiverSigningDialog({
         payload: payload,
         signerName: defaultSignerName,
         signerEmail: defaultSignerEmail,
-        waiverPdfUrl: waiverPdfUrl || undefined
+        waiverPdfUrl: safeWaiverPdfUrl || undefined
       };
 
       await onComplete(input);
@@ -374,19 +391,33 @@ export function WaiverSigningDialog({
     }
   };
   
-  const handleDownload = () => {
-      if (!waiverPdfUrl) return;
-      const link = document.createElement('a');
-      link.href = waiverPdfUrl;
-      link.download = `waiver-document.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+  const handleDownload = async () => {
+      if (!safeWaiverPdfUrl) return;
+
+      try {
+        const response = await fetch(safeWaiverPdfUrl);
+        if (!response.ok) {
+          throw new Error(`Failed to download waiver: ${response.status}`);
+        }
+
+        const blob = await response.blob();
+        const downloadUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = 'waiver-document.pdf';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(downloadUrl);
+      } catch (error) {
+        console.error('Download failed', error);
+        toast.error('Failed to download waiver PDF');
+      }
   };
 
   const handlePrint = () => {
-      if (!waiverPdfUrl) return;
-      window.open(waiverPdfUrl, '_blank');
+      if (!safeWaiverPdfUrl) return;
+      window.open(safeWaiverPdfUrl, '_blank', 'noopener,noreferrer');
   };
 
   // Offline Upload Handling (Phase 4 Requirement)
@@ -416,7 +447,7 @@ export function WaiverSigningDialog({
                   uploadFileDataUrl: dataUrl,
                   uploadFileName: file.name,
                   uploadFileType: file.type,
-                  waiverPdfUrl: waiverPdfUrl || undefined,
+                  waiverPdfUrl: safeWaiverPdfUrl || undefined,
                   signerName: defaultSignerName,
                   signerEmail: defaultSignerEmail,
                 };
@@ -485,7 +516,7 @@ export function WaiverSigningDialog({
                   {hasPdfDocument ? (
                     allPlacements.length > 0 ? (
                       <PdfViewerWithOverlay
-                        pdfUrl={waiverPdfUrl!}
+                        pdfUrl={safeWaiverPdfUrl!}
                         detectedFields={[]}
                         customPlacements={allPlacements}
                         selectedPlacementId={selectedFieldKey || undefined}
@@ -504,7 +535,7 @@ export function WaiverSigningDialog({
                       />
                     ) : (
                       <WaiverSigningPdfPane
-                        pdfUrl={waiverPdfUrl!}
+                        pdfUrl={safeWaiverPdfUrl!}
                         onDownload={handleDownload}
                         onPrint={handlePrint}
                         className="h-full w-full border-none rounded-none"
@@ -563,12 +594,12 @@ export function WaiverSigningDialog({
                                 </div>
 
                                 {/* Always provide explicit PDF actions in the review step */}
-                                {waiverPdfUrl && (
+                                {safeWaiverPdfUrl && (
                                   <div className="grid gap-2 sm:grid-cols-3">
                                     <Button
                                       variant="outline"
                                       className="w-full"
-                                      onClick={() => window.open(waiverPdfUrl, '_blank', 'noopener,noreferrer')}
+                                      onClick={() => window.open(safeWaiverPdfUrl, '_blank', 'noopener,noreferrer')}
                                     >
                                       <ExternalLink className="h-4 w-4 mr-2" />
                                       View PDF
@@ -855,12 +886,12 @@ export function WaiverSigningDialog({
                            )}
                            
                            {/* Always provide explicit PDF actions in the review step */}
-                           {waiverPdfUrl && (
+                           {safeWaiverPdfUrl && (
                              <div className="grid gap-2 sm:grid-cols-3">
                                <Button
                                  variant="outline"
                                  className="w-full"
-                                 onClick={() => window.open(waiverPdfUrl, '_blank', 'noopener,noreferrer')}
+                                 onClick={() => window.open(safeWaiverPdfUrl, '_blank', 'noopener,noreferrer')}
                                >
                                  <ExternalLink className="h-4 w-4 mr-2" />
                                  View PDF
