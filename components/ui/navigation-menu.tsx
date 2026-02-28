@@ -68,7 +68,7 @@ function NavigationMenuTrigger({
     <NavigationMenuPrimitive.Trigger
       data-slot="navigation-menu-trigger"
       className={cn(navigationMenuTriggerStyle(), "group", className)}
-      nativeButton={true}
+      nativeButton={!props.render}
       {...props}
     >
       {children}{" "}

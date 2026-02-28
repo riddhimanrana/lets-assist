@@ -340,7 +340,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
     return sorted;
   }, [filteredProjects, volunteersSort, dateSort, sortByVolunteers, sortByDate]);
 
-  const showInitialSkeleton = isLoading || (!isSuccess && sortedProjects.length === 0);
+  const showInitialSkeleton = isLoading && sortedProjects.length === 0;
 
   // Count active filters
   const activeFilterCount = useMemo(() => [
