@@ -19,10 +19,13 @@ import {
   format,
   formatDistanceToNowStrict,
 } from "date-fns";
-import { Clock, CheckCircle, AlertTriangle, Camera, Hourglass, CalendarCheck, Info, TicketCheck, FileText, Award } from "lucide-react";
+import { Clock, CheckCircle, AlertTriangle, Camera, Hourglass, CalendarCheck, Info, TicketCheck, FileText, Award, Download, Eye } from "lucide-react";
 import Link from "next/link";
 import { QRCodeScannerModal } from "@/app/projects/_components/QRCodeScannerModal"; // Import the new component
 import { createClient } from "@/lib/supabase/client";          // 🆕 add supabase client
+import { WaiverSignature } from "@/types/waiver";
+import { toast } from "sonner";
+import { getMyWaiverSignatures } from "./actions";
 import {
   Carousel,
   CarouselContent,
@@ -122,10 +125,53 @@ export default function UserDashboard({ project, user: _user, signups }: Props) 
 
   // 🆕 store map of signup_id → certificate.id
   const [certMap, setCertMap] = useState<Record<string, string>>({});
+  const [waiverSignatures, setWaiverSignatures] = useState<Array<{ id: string; signed_at: string | null; created_at: string }>>([]);
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  // Fetch waivers (server-authorized; resilient to RLS)
+  useEffect(() => {
+    const fetchWaivers = async () => {
+      const result = await getMyWaiverSignatures(project.id);
+      if ('error' in result) {
+        // Fail soft: leave list empty
+        console.error(result.error);
+        return;
+      }
+      setWaiverSignatures(result.signatures);
+    };
+    void fetchWaivers();
+  }, [project.id]);
+
+  const downloadWaiver = async (signatureId: string) => {
+    try {
+      // Direct download using the actual route
+      const response = await fetch(`/api/waivers/${signatureId}/download`);
+      
+      if (!response.ok) {
+        throw new Error('Download failed');
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `signed-waiver-${signatureId}.pdf`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+      
+      toast.success('Waiver downloaded successfully!');
+    } catch (error) {
+      console.error('Failed to download waiver:', error);
+      toast.error('Failed to download waiver. Please try again.');
+    }
+  };
+
+  const viewWaiver = (signatureId: string) => {
+    window.open(`/api/waivers/${signatureId}/preview`, "_blank", "noopener,noreferrer");
+  };
 
   // Update 'now' state every minute for countdowns
   useEffect(() => {
@@ -418,7 +464,7 @@ export default function UserDashboard({ project, user: _user, signups }: Props) 
                 {/* Info Section */}
                 <div className="relative pl-6 border-success/30 mt-3 space-y-3">
                   <div className="relative">
-                    <div className="absolute -left-[27px] top-0 w-5 h-5 rounded-full bg-success/20 flex items-center justify-center">
+                    <div className="absolute -left-7 top-0 w-5 h-5 rounded-full bg-success/20 flex items-center justify-center">
                       <div className="w-2 h-2 rounded-full bg-success"></div>
                     </div>
                     <p className="text-sm font-medium">View Your Record</p>
@@ -493,7 +539,7 @@ export default function UserDashboard({ project, user: _user, signups }: Props) 
                 {/* Processing information with visual timeline */}
                 <div className="relative pl-6 border-warning/30 mt-3 space-y-3">
                   <div className="relative">
-                    <div className="absolute -left-[27px] top-0 w-5 h-5 rounded-full bg-warning/20 flex items-center justify-center">
+                    <div className="absolute -left-7 top-0 w-5 h-5 rounded-full bg-warning/20 flex items-center justify-center">
                       <div className="w-2 h-2 rounded-full bg-warning"></div>
                     </div>
                     <p className="text-sm font-medium">Processing Period</p>
@@ -503,7 +549,7 @@ export default function UserDashboard({ project, user: _user, signups }: Props) 
                   </div>
 
                   <div className="relative">
-                    <div className="absolute -left-[27px] top-0 w-5 h-5 rounded-full bg-warning/20 flex items-center justify-center">
+                    <div className="absolute -left-7 top-0 w-5 h-5 rounded-full bg-warning/20 flex items-center justify-center">
                       <div className="w-2 h-2 rounded-full bg-warning"></div>
                     </div>
                     <p className="text-sm font-medium">Need Adjustments?</p>
@@ -552,7 +598,7 @@ export default function UserDashboard({ project, user: _user, signups }: Props) 
                 {/* Timeline style info */}
                 <div className="relative pl-6 border-destructive/30 mt-3 space-y-3">
                   <div className="relative">
-                    <div className="absolute -left-[27px] top-0 w-5 h-5 rounded-full bg-destructive/20 flex items-center justify-center">
+                    <div className="absolute -left-7 top-0 w-5 h-5 rounded-full bg-destructive/20 flex items-center justify-center">
                       <div className="w-2 h-2 rounded-full bg-destructive"></div>
                     </div>
                     <p className="text-sm font-medium">Think This Is a Mistake?</p>
@@ -917,6 +963,54 @@ export default function UserDashboard({ project, user: _user, signups }: Props) 
           expectedScheduleId={selectedScheduleForScan}
         />
       )}
+
+      {/* Signed Waivers Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle>My Signed Waivers</CardTitle>
+          <CardDescription>
+            Download copies of waivers you&apos;ve signed
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {waiverSignatures.length > 0 ? (
+            <div className="space-y-2">
+              {waiverSignatures.map(sig => (
+                <div key={sig.id} className="flex items-center justify-between p-3 border rounded">
+                  <div>
+                    <p className="font-medium">{project.title}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Signed {new Date(sig.signed_at || sig.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => viewWaiver(sig.id)}
+                    >
+                      <Eye className="h-4 w-4 mr-2" />
+                      View
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => downloadWaiver(sig.id)}
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Download
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              No signed waivers found.
+            </p>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

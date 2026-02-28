@@ -47,33 +47,30 @@ export async function updateSession(request: NextRequest) {
         }
     )
 
+    // IMPORTANT: Always call getClaims() immediately after creating the Supabase client.
+    // This refreshes the user's session tokens and writes updated cookies to the response.
+    // Do NOT run any code between createServerClient and getClaims().
+    // Per Supabase docs: "If you remove getClaims() and you use server-side rendering
+    // with the Supabase client, your users may be randomly logged out."
+    // @see https://github.com/supabase/supabase/issues/40985
+    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims();
+    
+    // If getClaims() fails (e.g., invalid/expired tokens that can't be refreshed),
+    // treat the user as not authenticated. The error is expected for anonymous users
+    // or users with completely invalid session state.
+    if (claimsError && process.env.NODE_ENV === 'development') {
+        // Only log in development to avoid noise in production
+        console.log('[Proxy] getClaims error (user will be treated as not authenticated):', claimsError.message);
+    }
+    
+    // Extract user from claims if available
+    let user = null;
+    if (claimsData?.claims) {
+        user = { id: claimsData.claims.sub, ...claimsData.claims };
+    }
+
     const currentPath = request.nextUrl.pathname;
     const creatorRouteInfo = isProjectCreatorPath(currentPath);
-    const mustEvaluateAuth =
-        isProtectedPath(currentPath) ||
-        RESTRICTED_PATHS_FOR_LOGGED_IN_USERS.includes(currentPath) ||
-        currentPath.startsWith("/admin") ||
-        currentPath.startsWith("/reset-password") ||
-        creatorRouteInfo.isCreatorPath;
-
-    const hasAuthCookies =
-        request.cookies.has("sb-access-token") ||
-        request.cookies.has("sb-refresh-token") ||
-        // Also check for legacy cookie format
-        request.cookies.getAll().some(cookie =>
-            cookie.name.startsWith("sb-") && cookie.name.includes("auth-token")
-        );
-
-    let user = null;
-    if (mustEvaluateAuth || hasAuthCookies) {
-        // Use getClaims() for lighter validation - validates JWT locally without API call
-        // This is the recommended approach per Supabase Issue #40985
-        // @see https://github.com/supabase/supabase/issues/40985
-        const { data: claimsData } = await supabase.auth.getClaims();
-        if (claimsData?.claims) {
-            user = { id: claimsData.claims.sub, ...claimsData.claims };
-        }
-    }
 
     // Check for ?noRedirect=1 query parameter
     const searchParams = request.nextUrl.searchParams;

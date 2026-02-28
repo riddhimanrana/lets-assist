@@ -38,11 +38,17 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-#supabase
-/supabase
+# supabase
+/supabase/*
+!/supabase/migrations/
+/supabase/migrations/*
+!/supabase/migrations/20260216123000_add_recurring_occurrence_date_guard.sql
+!/supabase/migrations/20260217040000_fix_anonymous_cleanup_function.sql
 
 # github/vscode settings
-/.github
+/.github/*
+!/.github/workflows/
+!/.github/workflows/**
 /.vscode
 
 # roo code
@@ -54,3 +60,4 @@ robots.txt
 .playwright-mcp
 /test-results
 /test-assets
+/playwright-report

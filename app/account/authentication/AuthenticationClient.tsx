@@ -24,7 +24,12 @@ function AuthenticationContent() {
   const [linkedGoogleEmail, setLinkedGoogleEmail] = useState<string | null>(
     null,
   );
+  const [mounted, setMounted] = useState(false);
   const supabase = createClient();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Unified function to check connection status using the most reliable source
   const checkGoogleConnection = async () => {
@@ -57,6 +62,8 @@ function AuthenticationContent() {
   };
 
   useEffect(() => {
+    if (!mounted) return;
+
     const error = searchParams.get("error");
     const success = searchParams.get("success");
 
@@ -69,7 +76,7 @@ function AuthenticationContent() {
       checkGoogleConnection();
       router.replace("/account/authentication");
     }
-  }, [searchParams, router]);
+  }, [searchParams, router, mounted]);
 
   useEffect(() => {
     if (user) {

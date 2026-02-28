@@ -3,6 +3,7 @@ import ProjectCreator from "./ProjectCreator";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import type { EventFormState } from "@/hooks/use-event-form";
+import { headers } from "next/headers";
 
 // Define a type for the combobox options
 interface OrganizationOption {
@@ -47,6 +48,13 @@ export default async function CreateProjectPage({
 }: {
   searchParams: Promise<{ org?: string; draft?: string }>
 }) {
+  // Defensive: if this route is accidentally served on the Supabase API custom domain,
+  // redirect back to the primary site domain where Next routes are hosted.
+  const host = (await headers()).get("host") || "";
+  if (host === "api.lets-assist.com" || host.endsWith(".api.lets-assist.com")) {
+    return redirect("https://lets-assist.com/projects/create");
+  }
+
   if (process.env.E2E_TEST_MODE === "true") {
     const date = new Date();
     date.setDate(date.getDate() + 2);

@@ -20,23 +20,19 @@ type OgFont = {
 };
 
 const palette = {
-  background: "hsl(0, 0%, 100%)",
-  text: "hsl(240, 10%, 3.9%)",
-  mutedText: "hsl(240, 3.8%, 46.1%)",
-  border: "hsl(240, 5.9%, 90%)",
-  surface: "hsl(240, 4.8%, 95.9%)",
-  accent: "hsl(142.1, 76.2%, 36.3%)",
-  accentText: "hsl(355.7, 100%, 97.3%)",
+  background: "#ffffff",
+  text: "#09090b",
+  primary: "#22c55e",
+  subtext: "#3d3d3d",
+  primaryDark: "#16a34a",
+  overlayGreen: "rgba(34, 197, 94, 0.15)",
+  overlayLine: "rgba(0, 0, 0, 0.05)",
+  mutedText: "#71717a",
 };
 
 async function loadFont(fileName: string) {
   try {
-    const fontPath = path.join(
-      process.cwd(),
-      "public",
-      "fonts",
-      fileName,
-    );
+    const fontPath = path.join(process.cwd(), "public/fonts", fileName);
     const fontBuffer = await readFile(fontPath);
     return fontBuffer.buffer.slice(
       fontBuffer.byteOffset,
@@ -60,20 +56,31 @@ async function getLogoDataUri(): Promise<string | null> {
   }
 }
 
-export default async function Image({
-  searchParams: _searchParams,
-}: {
-  searchParams?: { theme?: string };
-} = {}) {
-  const [interRegular, interBold, logoSrc] = await Promise.all([
-    loadFont("Inter-Regular.ttf"),
-    loadFont("Inter-Bold.ttf"),    getLogoDataUri(),  ]);
+export default async function Image() {
+  const [groteskExtraBold, groteskBold, logoSrc] = await Promise.all([
+    loadFont("OverusedGrotesk-ExtraBold.ttf"),
+    loadFont("OverusedGrotesk-Bold.ttf"),
+    getLogoDataUri(),
+  ]);
+
   const fonts: OgFont[] = [];
-  if (interRegular) {
-    fonts.push({ name: "Inter", data: interRegular, weight: 400, style: "normal" });
+
+  if (groteskExtraBold) {
+    fonts.push({
+      name: "Overused Grotesk",
+      data: groteskExtraBold,
+      weight: 900,
+      style: "normal",
+    });
   }
-  if (interBold) {
-    fonts.push({ name: "Inter", data: interBold, weight: 700, style: "normal" });
+
+  if (groteskBold) {
+    fonts.push({
+      name: "Overused Grotesk",
+      data: groteskBold,
+      weight: 700,
+      style: "normal",
+    });
   }
 
   return new ImageResponse(
@@ -83,98 +90,95 @@ export default async function Image({
           width: "100%",
           height: "100%",
           display: "flex",
-          gap: "48px",
-          padding: "64px",
-          backgroundColor: palette.background,
-          fontFamily: "Inter, ui-sans-serif, system-ui",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: "#ffffff",
+          backgroundImage:
+            "radial-gradient(ellipse at 50% -5%, rgba(34, 197, 94, 0.4) 0%, transparent 100%)",
+          fontFamily: 'Overused Grotesk, "sans-serif"',
           color: palette.text,
-          boxSizing: "border-box",
+          textAlign: "center",
         }}
       >
+        {/* Branding Section */}
         <div
           style={{
             display: "flex",
-            flexDirection: "column",
-            flex: 1,
-            gap: "20px",
-            justifyContent: "center",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-            {logoSrc ? (
-              <img
-                src={logoSrc}
-                alt="Let's Assist"
-                width={42}
-                height={42}
-                style={{ width: "42px", height: "42px", objectFit: "contain" }}
-              />
-            ) : null}
-            <div style={{ fontSize: "32px", fontWeight: 700, display: "flex" }}>
-              Let's Assist
-            </div>
-          </div>
-
-          <div style={{ fontSize: "56px", fontWeight: 700, lineHeight: 1.1, display: "flex", flexDirection: "column" }}>
-            <span>Volunteer together.</span>
-            <span>Make impact.</span>
-          </div>
-
-          <div
-            style={{
-              fontSize: "24px",
-              color: palette.mutedText,
-              maxWidth: "680px",
-              lineHeight: 1.4,
-              display: "flex",
-            }}
-          >
-            Discover volunteer opportunities, connect with trusted
-            organizations, and track every hour of impact.
-          </div>
-        </div>
-
-        <div
-          style={{
-            width: "360px",
-            height: "360px",
-            borderRadius: "28px",
-            backgroundColor: palette.surface,
-            border: `1px solid ${palette.border}`,
-            display: "flex",
+            position: "absolute",
+            top: 100,
             alignItems: "center",
             justifyContent: "center",
+            gap: 16,
           }}
         >
           {logoSrc ? (
             <img
               src={logoSrc}
-              alt="Let's Assist logo"
-              width={180}
-              height={180}
-              style={{ width: "180px", height: "180px", objectFit: "contain" }}
+              alt="Logo"
+              width={54}
+              height={54}
+              style={{ borderRadius: 12 }}
             />
-          ) : (
-            <div
-              style={{
-                width: "180px",
-                height: "180px",
-                borderRadius: "32px",
-                backgroundColor: palette.accent,
-                color: palette.accentText,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: "56px",
-                fontWeight: 700,
-              }}
-            >
-              LA
+          ) : null}
+          <div
+            style={{
+              fontSize: 34,
+              fontWeight: 700,
+              letterSpacing: "-0.03em",
+              color: palette.subtext,
+            }}
+          >
+            Let's Assist
+          </div>
+        </div>
+
+        {/* Main Content Stack */}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            width: "100%",
+          }}
+        >
+          {/* Huge Headline */}
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              fontSize: 106,
+              fontWeight: 900,
+              lineHeight: 1.0,
+              letterSpacing: "-0.04em",
+              maxWidth: 1100,
+            }}
+          >
+            <div style={{ display: "flex" }}>Give back to your</div>
+            <div style={{ display: "flex", gap: 16 }}>
+              <div
+                style={{
+                  backgroundImage: "linear-gradient(to right, #4ed247, #1AA54A)",
+                  backgroundClip: "text",
+                  // @ts-ignore
+                  "-webkit-background-clip": "text",
+                  color: "transparent",
+                  display: "flex",
+                }}
+              >
+                community
+              </div>
+              <div style={{ display: "flex" }}>your way</div>
             </div>
-          )}
+          </div>
         </div>
       </div>
     ),
-    { ...size, fonts: fonts.length ? fonts : undefined },
+    {
+      ...size,
+      fonts: fonts.length ? fonts : undefined,
+    },
   );
 }

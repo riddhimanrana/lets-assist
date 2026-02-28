@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useInView } from "react-intersection-observer";
 import { ProjectViewToggle } from "./ProjectViewToggle";
+import { ProjectCardSkeleton } from "./ProjectCardSkeleton";
 import { useInfiniteQuery, type SupabaseQueryHandler } from "@/hooks/use-infinite-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
@@ -51,6 +52,7 @@ import { format, parseISO } from "date-fns";
 import Link from "next/link";
 import { ProjectsMapView } from "./ProjectsMapView";
 import type { Project } from "@/types";
+import { getProjectStatus } from "@/utils/project";
 
 
 
@@ -111,6 +113,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
 
   const {
     data: projectsData,
+    isSuccess,
     isLoading,
     isFetching: isValidating,
     hasMore,
@@ -314,7 +317,12 @@ export const ProjectsInfiniteScroll: React.FC = () => {
     // Only filter for remaining spots - server is already filtering for status
     const hasRemainingSpots = getRemainingSpots(project) > 0;
 
-    return matchesDateRange && hasRemainingSpots;
+    // CRITICAL: Filter out completed events based on actual event dates
+    // The database status field may not be updated, so we use getProjectStatus()
+    const projectStatus = getProjectStatus(project);
+    const isActuallyUpcoming = projectStatus === "upcoming" || projectStatus === "in-progress";
+
+    return matchesDateRange && hasRemainingSpots && isActuallyUpcoming;
   });
 
   // Apply sorting if needed
@@ -331,6 +339,8 @@ export const ProjectsInfiniteScroll: React.FC = () => {
 
     return sorted;
   }, [filteredProjects, volunteersSort, dateSort, sortByVolunteers, sortByDate]);
+
+  const showInitialSkeleton = isLoading && sortedProjects.length === 0;
 
   // Count active filters
   const activeFilterCount = useMemo(() => [
@@ -351,7 +361,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
   };
 
   // Loading skeletons
-  if (isLoading) {
+  if (showInitialSkeleton) {
     return (
       <div className="space-y-6">
         <div className="flex flex-col md:flex-row gap-4 mb-6">
@@ -365,20 +375,9 @@ export const ProjectsInfiniteScroll: React.FC = () => {
 
         <Skeleton className="h-10 w-48 mb-8" />
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="flex flex-col gap-4 border rounded-lg p-5 animate-pulse">
-              <Skeleton className="h-6 w-3/4" />
-              <Skeleton className="h-4 w-1/2" />
-              <Skeleton className="h-20 w-full" />
-              <div className="flex gap-2">
-                <Skeleton className="h-10 w-10 rounded-full" />
-                <div className="flex flex-col gap-2">
-                  <Skeleton className="h-4 w-20" />
-                  <Skeleton className="h-3 w-16" />
-                </div>
-              </div>
-            </div>
+            <ProjectCardSkeleton key={`project-skeleton-${i}`} />
           ))}
         </div>
       </div>
@@ -389,7 +388,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
   /* if (error) { ... } */
 
   // Empty state when no projects match filters
-  if (sortedProjects.length === 0) {
+  if (isSuccess && sortedProjects.length === 0) {
     return (
       <>
         <div className="mb-8">

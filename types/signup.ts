@@ -7,6 +7,8 @@ export interface AnonymousSignupData {
   email: string;
   phone?: string;
   comment?: string;
+  skipConfirmationEmail?: boolean;
+  selectedSlotCount?: number;
 }
 
 export interface ProjectSignup {
@@ -39,15 +41,6 @@ export interface ProjectSignup {
   check_out_time?: string | null;
 }
 
-export interface ExistingAnonymousSignupQueryResult {
-  id: string;
-  signup_id: string | null;
-  signup: {
-    status: SignupStatus;
-    schedule_id: string;
-  }
-}
-
 export interface AnonymousSignup {
   id: string;
   project_id: string;
@@ -57,7 +50,7 @@ export interface AnonymousSignup {
   token: string;
   confirmed_at?: string | null;
   created_at: string;
-  signup_id: string | null;
+  linked_user_id?: string | null;
 }
 
 export interface Signup {

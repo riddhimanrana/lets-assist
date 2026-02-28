@@ -159,6 +159,17 @@ export default async function ProjectPage({
   // Pass supabase client and project id to the updated function
   const slotCapacities = await getSlotCapacities(project, supabase, id);
 
+  // If creator, fetch all signups for the dashboard logic
+  let allSignups: any[] = [];
+  if (isCreator) {
+    const { data: signups } = await supabase
+      .from("project_signups")
+      .select("id, schedule_id, status, check_in_time")
+      .eq("project_id", project.id)
+      .in("status", ["approved", "attended"]);
+    allSignups = signups || [];
+  }
+
   // Get user's existing signups (approved and checked-in)
   const userSignups: Record<string, boolean> = {};
   const attendedSlots: Record<string, boolean> = {};
@@ -233,6 +244,7 @@ export default async function ProjectPage({
       initialUser={user}
       // Pass the full signup data
       userSignupsData={userSignupsData}
+      allSignups={allSignups}
     />
   );
 }

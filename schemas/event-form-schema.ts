@@ -224,6 +224,7 @@ export const verificationSettingsSchema = z.object({
   showAttendeesPublicly: z.boolean().optional(),
   waiverRequired: z.boolean().optional(),
   waiverAllowUpload: z.boolean().optional(),
+  waiverDisableEsignature: z.boolean().optional(),
 });
 
 // Event Form Schema

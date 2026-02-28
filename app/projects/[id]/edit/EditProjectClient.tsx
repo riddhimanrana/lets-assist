@@ -88,6 +88,12 @@ import { AspectRatio } from "@/components/ui/aspect-ratio";
 import Image from "next/image";
 import { formatBytes } from "@/lib/utils";
 import FilePreview from "@/app/projects/_components/FilePreview";
+import { detectPdfWidgets, DetectedPdfField } from "@/lib/waiver/pdf-field-detect";
+import { WaiverBuilderDialog, WaiverDefinitionInput } from "@/components/waiver/WaiverBuilderDialog";
+import { WaiverDefinitionFull } from "@/types/waiver-definitions";
+import { getWaiverDefinition, saveWaiverDefinition } from "../actions";
+import { Settings } from "lucide-react";
+import { buildRecurrenceRuleFromState } from "@/lib/projects/recurrence";
 
 // Constants for character limits
 const TITLE_LIMIT = 125;
@@ -150,6 +156,7 @@ const formSchema = z.object({
   show_attendees_publicly: z.boolean(),
   waiver_required: z.boolean(),
   waiver_allow_upload: z.boolean(),
+  waiver_disable_esignature: z.boolean(),
   verification_method: z.enum(["qr-code", "manual", "auto", "signup-only"]),
   visibility: z.enum(["public", "unlisted", "organization_only"]),
 });
@@ -274,6 +281,53 @@ export default function EditProjectClient({ project }: Props) {
   const [waiverPdfValidation, setWaiverPdfValidation] = useState<{ hasSignatureFields: boolean; warnings: string[] } | null>(null);
   const waiverPdfInputRef = useRef<HTMLInputElement | null>(null);
 
+  // Waiver Builder State
+  const [waiverBuilderOpen, setWaiverBuilderOpen] = useState(false);
+  const [waiverDefinition, setWaiverDefinition] = useState<WaiverDefinitionFull | null>(null);
+  const [lastDetectedFields, setLastDetectedFields] = useState<DetectedPdfField[]>([]);
+  const [waiverPdfUrl, setWaiverPdfUrl] = useState<string | null>(project.waiver_pdf_url ?? null);
+
+  // Fetch waiver definition if exists
+  useEffect(() => {
+    async function fetchDefinition() {
+      if (waiverPdfUrl) {
+        try {
+          const result = await getWaiverDefinition(project.id);
+          if (result.success && result.definition) {
+            setWaiverDefinition(result.definition);
+          }
+        } catch (error) {
+          console.error("Error fetching waiver definition:", error);
+        }
+      }
+    }
+    fetchDefinition();
+  }, [project.id, waiverPdfUrl]);
+
+  // Handler for saving waiver definition
+  const handleWaiverSave = async (definition: WaiverDefinitionInput) => {
+    const loadingToast = toast.loading("Saving waiver configuration...");
+    try {
+      const result = await saveWaiverDefinition(project.id, definition);
+      if (result.success) {
+        // Fetch the saved definition to update local state
+        const updatedResult = await getWaiverDefinition(project.id);
+        if (updatedResult.success && updatedResult.definition) {
+          setWaiverDefinition(updatedResult.definition);
+        }
+        setWaiverBuilderOpen(false);
+        toast.dismiss(loadingToast);
+        toast.success("Waiver configuration saved successfully");
+      } else {
+        throw new Error(result.error || "Failed to save waiver configuration");
+      }
+    } catch (error) {
+      console.error("Error saving waiver definition:", error);
+      toast.dismiss(loadingToast);
+      toast.error("Failed to save waiver configuration");
+    }
+  };
+
   const getCounterColor = (current: number, max: number) => {
     const percentage = (current / max) * 100;
     if (percentage >= 90) return "text-destructive";
@@ -315,13 +369,20 @@ export default function EditProjectClient({ project }: Props) {
       enable_volunteer_comments: project.enable_volunteer_comments ?? false,
       show_attendees_publicly: project.show_attendees_publicly ?? false,
       waiver_required: project.waiver_required ?? false,
-      waiver_allow_upload: project.waiver_allow_upload ?? true,
+      waiver_allow_upload: true,
+      waiver_disable_esignature: project.waiver_disable_esignature ?? false,
       verification_method: project.verification_method,
       visibility: project.visibility,
     },
   });
 
   const waiverRequired = form.watch("waiver_required");
+
+  useEffect(() => {
+    if (form.getValues("waiver_allow_upload") !== true) {
+      form.setValue("waiver_allow_upload", true, { shouldDirty: false });
+    }
+  }, [form]);
 
   // Schedule update handlers
   const updateOneTimeSchedule = (field: keyof typeof scheduleState.oneTime, value: string | number) => {
@@ -438,21 +499,26 @@ export default function EditProjectClient({ project }: Props) {
         formValues.show_attendees_publicly !== (project.show_attendees_publicly ?? false) ||
         formValues.waiver_required !== (project.waiver_required ?? false) ||
         formValues.waiver_allow_upload !== (project.waiver_allow_upload ?? true) ||
+        formValues.waiver_disable_esignature !== (project.waiver_disable_esignature ?? false) ||
         formValues.verification_method !== project.verification_method ||
         formValues.visibility !== project.visibility;
 
       const initialSchedule = initializeScheduleState(project);
+      const initialRecurrence = initializeRecurrenceState(project);
       const scheduleChanged = JSON.stringify(scheduleState) !== JSON.stringify(initialSchedule);
+      const recurrenceChanged = JSON.stringify(recurrenceState) !== JSON.stringify(initialRecurrence);
 
-      setHasChanges(basicInfoChanged || scheduleChanged);
+      setHasChanges(basicInfoChanged || scheduleChanged || recurrenceChanged);
     });
     return () => subscription.unsubscribe();
-  }, [form, project, scheduleState]);
+  }, [form, project, scheduleState, recurrenceState]);
 
   // Separate effect to track schedule changes independently
   useEffect(() => {
     const initialSchedule = initializeScheduleState(project);
+    const initialRecurrence = initializeRecurrenceState(project);
     const scheduleChanged = JSON.stringify(scheduleState) !== JSON.stringify(initialSchedule);
+    const recurrenceChanged = JSON.stringify(recurrenceState) !== JSON.stringify(initialRecurrence);
 
     const formValues = form.getValues();
     const basicInfoChanged =
@@ -465,11 +531,12 @@ export default function EditProjectClient({ project }: Props) {
       formValues.show_attendees_publicly !== (project.show_attendees_publicly ?? false) ||
       formValues.waiver_required !== (project.waiver_required ?? false) ||
       formValues.waiver_allow_upload !== (project.waiver_allow_upload ?? true) ||
+      formValues.waiver_disable_esignature !== (project.waiver_disable_esignature ?? false) ||
       formValues.verification_method !== project.verification_method ||
       formValues.visibility !== project.visibility;
 
-    setHasChanges(basicInfoChanged || scheduleChanged);
-  }, [scheduleState, form, project]);
+    setHasChanges(basicInfoChanged || scheduleChanged || recurrenceChanged);
+  }, [scheduleState, recurrenceState, form, project]);
 
   // Calculate total documents size
   useEffect(() => {
@@ -530,20 +597,34 @@ export default function EditProjectClient({ project }: Props) {
         return null;
       }
 
-      const pdfText = new TextDecoder("latin1").decode(bytes);
-      const hasSignatureFields =
-        pdfText.includes("/Sig") ||
-        pdfText.includes("/AcroForm") ||
-        pdfText.includes("/SigFlags") ||
-        pdfText.includes("signature") ||
-        pdfText.includes("/Widget");
-
-      const warnings: string[] = [];
-      if (!hasSignatureFields) {
-        warnings.push("No signature fields detected. Volunteers will sign electronically alongside the PDF.");
+      // Use PDF.js-based widget detection
+      const detectionResult = await detectPdfWidgets(file);
+      
+      // Store detected fields for builder
+      if (detectionResult.success) {
+        setLastDetectedFields(detectionResult.fields);
+      } else {
+        setLastDetectedFields([]);
       }
 
-      const validation = { hasSignatureFields, warnings };
+      const warnings: string[] = [];
+      
+      if (!detectionResult.success) {
+        // PDF.js failed, but we have fallback detection result
+        warnings.push('Could not fully analyze PDF structure.');
+        if (detectionResult.errors) {
+          warnings.push(...detectionResult.errors);
+        }
+      }
+
+      if (!detectionResult.hasSignatureFields) {
+        warnings.push("No signature fields detected. Volunteers will sign electronically alongside the PDF.");
+      } else if (detectionResult.success && detectionResult.fields.length > 0) {
+        const sigFields = detectionResult.fields.filter(f => f.fieldType === 'signature');
+        warnings.push(`Detected ${sigFields.length} signature field(s) and ${detectionResult.fields.length - sigFields.length} other form field(s) across ${detectionResult.pageCount} page(s).`);
+      }
+
+      const validation = { hasSignatureFields: detectionResult.hasSignatureFields, warnings };
       setWaiverPdfValidation(validation);
       return validation;
     } catch (error) {
@@ -720,6 +801,12 @@ export default function EditProjectClient({ project }: Props) {
         throw new Error(result.error);
       }
 
+      if (result.waiverPdfUrl) {
+        setWaiverPdfUrl(result.waiverPdfUrl);
+        // Automatically open builder after upload
+        setWaiverBuilderOpen(true);
+      }
+
       toast.dismiss(loadingToast);
       toast.success("Waiver PDF uploaded successfully");
       router.refresh();
@@ -744,6 +831,10 @@ export default function EditProjectClient({ project }: Props) {
       if (result.error) {
         throw new Error(result.error);
       }
+
+      setWaiverPdfUrl(null);
+      setWaiverDefinition(null);
+      setLastDetectedFields([]);
 
       toast.dismiss(loadingToast);
       toast.success("Waiver PDF removed");
@@ -814,29 +905,26 @@ export default function EditProjectClient({ project }: Props) {
         schedule = { sameDayMultiArea: scheduleState.sameDayMultiArea };
       }
 
-      // Build recurrence rule if enabled
-      const recurrenceRule = recurrenceState.enabled ? {
-        frequency: recurrenceState.frequency,
-        interval: recurrenceState.interval || 1,
-        end_type: recurrenceState.endType,
-        end_date: recurrenceState.endDate || undefined,
-        end_occurrences: recurrenceState.endOccurrences || undefined,
-        weekdays: recurrenceState.weekdays || [],
-      } : null;
-      const normalizedRecurrenceRule = recurrenceRule ?? undefined;
+      // Build recurrence rule payload (null means explicitly disable recurrence)
+      const recurrenceRule = buildRecurrenceRuleFromState(recurrenceState);
 
       // Combine form values with schedule
       const updates: Partial<Project> = {
         ...values,
         schedule,
-        recurrence_rule: normalizedRecurrenceRule,
+        recurrence_rule: recurrenceRule,
       };
 
       const result = await updateProject(project.id, updates);
       if (result.error) {
         toast.error(result.error);
       } else {
-        toast.success("Project updated successfully");
+        if (result.endedRecurringSeries) {
+          const cancelled = typeof result.cancelledOccurrences === "number" ? result.cancelledOccurrences : 0;
+          toast.success(`Recurring series ended. ${cancelled} upcoming occurrence${cancelled === 1 ? "" : "s"} cancelled.`);
+        } else {
+          toast.success("Project updated successfully");
+        }
 
         // Update calendar event if details changed (non-blocking)
         try {
@@ -1035,10 +1123,10 @@ export default function EditProjectClient({ project }: Props) {
               control={form.control}
               name="require_login"
               render={({ field, fieldState }) => (
-                <Field className="flex flex-row items-center justify-between rounded-lg border p-4" data-invalid={fieldState.invalid}>
-                  <div className="space-y-0.5">
+                <Field className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-lg border p-4" data-invalid={fieldState.invalid}>
+                  <div className="space-y-0.5 min-w-0">
                     <FieldLabel htmlFor={field.name}>Require Account</FieldLabel>
-                    <FieldDescription>
+                    <FieldDescription className="break-words">
                       Require volunteers to create an account to sign up
                     </FieldDescription>
                   </div>
@@ -1057,10 +1145,10 @@ export default function EditProjectClient({ project }: Props) {
               control={form.control}
               name="waiver_required"
               render={({ field, fieldState }) => (
-                <Field className="flex flex-row items-center justify-between rounded-lg border p-4" data-invalid={fieldState.invalid}>
-                  <div className="space-y-0.5">
+                <Field className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-lg border p-4" data-invalid={fieldState.invalid}>
+                  <div className="space-y-0.5 min-w-0">
                     <FieldLabel htmlFor={field.name}>Require Waiver Signature</FieldLabel>
-                    <FieldDescription>
+                    <FieldDescription className="break-words">
                       Volunteers must sign your waiver PDF or the global template before signing up.
                     </FieldDescription>
                   </div>
@@ -1077,20 +1165,43 @@ export default function EditProjectClient({ project }: Props) {
 
             <Controller
               control={form.control}
-              name="waiver_allow_upload"
+              name="waiver_disable_esignature"
               render={({ field, fieldState }) => (
-                <Field className="flex flex-row items-center justify-between rounded-lg border p-4" data-invalid={fieldState.invalid}>
-                  <div className="space-y-0.5">
-                    <FieldLabel htmlFor={field.name}>Allow Print & Upload</FieldLabel>
-                    <FieldDescription>
-                      Allow volunteers to upload a signed PDF or image instead of drawing/typing.
+                <Field className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-lg border p-4" data-invalid={fieldState.invalid}>
+                  <div className="space-y-0.5 min-w-0">
+                    <FieldLabel htmlFor={field.name}>Enable E-Signatures</FieldLabel>
+                    <FieldDescription className="break-words">
+                      Let volunteers draw or type signatures. Print &amp; upload remains available as a backup.
                     </FieldDescription>
                   </div>
                   <Switch
                     id={field.name}
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
+                    checked={!field.value}
+                    onCheckedChange={(checked) => field.onChange(!checked)}
                     disabled={!waiverRequired}
+                    aria-invalid={fieldState.invalid}
+                  />
+                  {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                </Field>
+              )}
+            />
+
+            <Controller
+              control={form.control}
+              name="waiver_allow_upload"
+              render={({ field, fieldState }) => (
+                <Field className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-lg border p-4" data-invalid={fieldState.invalid}>
+                  <div className="space-y-0.5 min-w-0">
+                    <FieldLabel htmlFor={field.name}>Print &amp; Upload (Backup)</FieldLabel>
+                    <FieldDescription className="break-words">
+                      Print &amp; upload is always available as a backup option for volunteers.
+                    </FieldDescription>
+                  </div>
+                  <Switch
+                    id={field.name}
+                    checked={true}
+                    onCheckedChange={() => field.onChange(true)}
+                    disabled
                     aria-invalid={fieldState.invalid}
                   />
                   {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
@@ -1107,19 +1218,30 @@ export default function EditProjectClient({ project }: Props) {
                       Upload a PDF waiver to show volunteers during signup.
                     </CardDescription>
                   </div>
-                  {project.waiver_pdf_url && (
+                  {(waiverPdfUrl || project.waiver_pdf_url) && (
                     <div className="flex flex-wrap gap-2">
+                      {!form.watch('waiver_disable_esignature') && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setWaiverBuilderOpen(true)}
+                        >
+                          <Settings className="h-4 w-4 mr-1" />
+                          Configure
+                        </Button>
+                      )}
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => openPreview(project.waiver_pdf_url!, "Waiver PDF", "application/pdf")}
+                        onClick={() => openPreview((waiverPdfUrl || project.waiver_pdf_url)!, "Waiver PDF", "application/pdf")}
                       >
                         <Eye className="h-4 w-4 mr-1" />
                         Preview
                       </Button>
                       <a
-                        href={project.waiver_pdf_url}
+                        href={waiverPdfUrl || project.waiver_pdf_url || "#"}
                         download
                         className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
                       >
@@ -1148,7 +1270,7 @@ export default function EditProjectClient({ project }: Props) {
                   disabled={waiverPdfUploading}
                 />
 
-                {!project.waiver_pdf_url ? (
+                {!(waiverPdfUrl || project.waiver_pdf_url) ? (
                   <div
                     className={cn(
                       "border-2 border-dashed rounded-lg p-4 text-center cursor-pointer hover:border-primary/50 transition-colors",
@@ -1201,9 +1323,9 @@ export default function EditProjectClient({ project }: Props) {
                   </Alert>
                 )}
 
-                {!project.waiver_pdf_url && (
-                  <Alert className="bg-blue-50 border-blue-200 dark:bg-blue-950/20 dark:border-blue-900">
-                    <AlertDescription className="text-xs text-blue-700 dark:text-blue-400">
+                {!(waiverPdfUrl || project.waiver_pdf_url) && (
+                  <Alert className="bg-info/20 border-info">
+                    <AlertDescription className="text-xs text-info">
                       If you don&apos;t upload a custom waiver, the global platform waiver template will be used instead.
                     </AlertDescription>
                   </Alert>
@@ -1215,10 +1337,10 @@ export default function EditProjectClient({ project }: Props) {
               control={form.control}
               name="enable_volunteer_comments"
               render={({ field, fieldState }) => (
-                <Field className="flex flex-row items-center justify-between rounded-lg border p-4" data-invalid={fieldState.invalid}>
-                  <div className="space-y-0.5">
+                <Field className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-lg border p-4" data-invalid={fieldState.invalid}>
+                  <div className="space-y-0.5 min-w-0">
                     <FieldLabel htmlFor={field.name}>Enable Volunteer Comments</FieldLabel>
-                    <FieldDescription>
+                    <FieldDescription className="break-words">
                       Allow volunteers to include a short note when signing up
                     </FieldDescription>
                   </div>
@@ -1237,10 +1359,10 @@ export default function EditProjectClient({ project }: Props) {
               control={form.control}
               name="show_attendees_publicly"
               render={({ field, fieldState }) => (
-                <Field className="flex flex-row items-center justify-between rounded-lg border p-4" data-invalid={fieldState.invalid}>
-                  <div className="space-y-0.5">
+                <Field className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-lg border p-4" data-invalid={fieldState.invalid}>
+                  <div className="space-y-0.5 min-w-0">
                     <FieldLabel htmlFor={field.name}>Show Attendees Publicly</FieldLabel>
-                    <FieldDescription>
+                    <FieldDescription className="break-words">
                       Display attendee count on the public project page
                     </FieldDescription>
                   </div>
@@ -1679,7 +1801,7 @@ export default function EditProjectClient({ project }: Props) {
                       }
                     />
                     {isInDeletionRestrictionPeriod && (
-                      <TooltipContent className="max-w-[250px] text-center p-2">
+                      <TooltipContent className="max-w-62.5 text-center p-2">
                         <p>Projects cannot be deleted during the 72-hour window around the event</p>
                       </TooltipContent>
                     )}
@@ -1693,7 +1815,7 @@ export default function EditProjectClient({ project }: Props) {
 
       {/* Delete Dialog */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent className="max-w-[95vw] sm:max-w-[425px]">
+        <AlertDialogContent className="max-w-[95vw] sm:max-w-106.25">
           <AlertDialogHeader className="space-y-3">
             <AlertDialogTitle className="text-lg sm:text-xl">Are you sure?</AlertDialogTitle>
             <AlertDialogDescription className="text-sm">
@@ -1737,6 +1859,19 @@ export default function EditProjectClient({ project }: Props) {
         fileName={previewDocName}
         fileType={previewDocType}
       />
+
+      {/* Waiver Builder Dialog */}
+      {(waiverPdfUrl || project.waiver_pdf_url) && (
+        <WaiverBuilderDialog
+          open={waiverBuilderOpen}
+          onOpenChange={setWaiverBuilderOpen}
+          pdfFile={null}
+          pdfUrl={(waiverPdfUrl || project.waiver_pdf_url)!}
+          existingDefinition={waiverDefinition ?? undefined}
+          detectedFields={lastDetectedFields}
+          onSave={handleWaiverSave}
+        />
+      )}
     </div>
   );
 }

@@ -21,6 +21,7 @@ interface Props {
   initialUser: AuthUser | null;
   // Add prop for full signup data
   userSignupsData: Signup[]; 
+  allSignups?: any[];
 }
 
 export default function ProjectClient({
@@ -32,6 +33,7 @@ export default function ProjectClient({
   initialUser,
   // Destructure the new prop
   userSignupsData, 
+  allSignups = [],
 }: Props) {
   return (
     <ProjectDetails
@@ -43,6 +45,7 @@ export default function ProjectClient({
       initialUser={initialUser}
       // Pass the signup data down
       userSignupsData={userSignupsData} 
+      allSignups={allSignups}
     />
   );
 }

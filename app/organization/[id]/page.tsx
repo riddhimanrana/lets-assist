@@ -234,6 +234,7 @@ export default async function OrganizationPage({
             userRole={userRole}
             currentUserId={user?.id}
             reportSummary={reportSummary}
+            organizationSlug={organization.username || organization.id}
           />
         </div>
       </div>

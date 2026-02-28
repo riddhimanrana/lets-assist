@@ -13,6 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { normalizeRedirectPath } from "@/app/signup/redirect-utils";
 
 function VerificationContent() {
   const searchParams = useSearchParams();
@@ -21,8 +22,22 @@ function VerificationContent() {
 
   const type = searchParams.get("type") || "";
   const email = searchParams.get("email");
+  const redirectAfterAuth = normalizeRedirectPath(searchParams.get("redirectAfterAuth"));
   const errorParam = searchParams.get("error");
   const errorDescriptionParam = searchParams.get("error_description");
+
+  const buildLoginLink = (targetEmail?: string | null) => {
+    const params = new URLSearchParams();
+    if (targetEmail) {
+      params.set("email", targetEmail);
+    }
+    if (redirectAfterAuth) {
+      params.set("redirect", redirectAfterAuth);
+    }
+
+    const query = params.toString();
+    return query ? `/login?${query}` : "/login";
+  };
 
   useEffect(() => {
     // Check for errors in the URL hash (fragment) which Supabase often uses
@@ -108,7 +123,7 @@ function VerificationContent() {
       : "Your email has been confirmed.";
     message = "Your account is now active. Please log in to complete your profile and start exploring volunteering opportunities.";
     buttonText = "Go to Login";
-    buttonLink = email ? `/login?email=${encodeURIComponent(email)}` : '/login';
+    buttonLink = buildLoginLink(email);
   } else if (type === "email_change") {
     title = "Email Change Confirmed";
     description = email
@@ -116,7 +131,7 @@ function VerificationContent() {
       : "Your new email has been confirmed.";
     message = "Sign in again using the updated email to continue.";
     buttonText = "Go to Login";
-    buttonLink = email ? `/login?email=${encodeURIComponent(email)}` : "/login";
+    buttonLink = buildLoginLink(email);
   }
 
   return (

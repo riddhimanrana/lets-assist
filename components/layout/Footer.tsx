@@ -111,7 +111,8 @@ export function Footer() {
               height={32}
             />
             <p className="text-sm text-muted-foreground">
-              © 2026 Riddhiman Rana. All rights reserved.
+              © 2026 Riddhiman Rana
+              <span className="hidden xl:inline">. All rights reserved.</span>
             </p>
           </div>
 

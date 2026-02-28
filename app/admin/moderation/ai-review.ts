@@ -1,4 +1,4 @@
-import { generateObject } from 'ai';
+import { generateText, Output } from 'ai';
 import { z } from 'zod';
 
 type ReportStatus = 'pending' | 'under_review' | 'resolved' | 'dismissed';
@@ -157,9 +157,9 @@ function buildProjectFlagDetails(decision: DetailedProjectDecision) {
 }
 
 async function analyzeReportWithAi(report: ReportInput, contentDetails: string) {
-  const { object: decision } = await generateObject({
+  const { output: decision } = await generateText({
     model: 'openai/gpt-oss-safeguard-20b',
-    schema: detailedReportModerationSchema,
+    output: Output.object({ schema: detailedReportModerationSchema }),
     prompt: `You are an expert content moderation AI for a volunteer platform. Analyze this user report with detailed step-by-step reasoning.
 
 ## Report Details
@@ -199,9 +199,9 @@ Include "toolsUsed" with conceptual tools like: "content_analysis", "policy_chec
 }
 
 async function analyzeProjectWithAi(project: ProjectInput) {
-  const { object: decision } = await generateObject({
+  const { output: decision } = await generateText({
     model: 'openai/gpt-oss-safeguard-20b',
-    schema: detailedProjectModerationSchema,
+    output: Output.object({ schema: detailedProjectModerationSchema }),
     prompt: `You are an expert content moderation AI for a volunteer platform. Analyze this project with detailed step-by-step reasoning.
 
 ## Project Details

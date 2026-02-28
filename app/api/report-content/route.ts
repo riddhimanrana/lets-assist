@@ -2,6 +2,8 @@ import { createClient } from '@/lib/supabase/server';
 import { getAuthUser } from '@/lib/supabase/auth-helpers';
 import { notifyAdminsBatched } from '@/services/admin-notifications';
 import { NextResponse } from 'next/server';
+import { after } from 'next/server';
+import { logError, logInfo, flushLogs } from '@/lib/logger';
 
 export async function POST(request: Request) {
   try {
@@ -113,7 +115,17 @@ export async function POST(request: Request) {
       .single();
     
     if (error) {
-      console.error('Error inserting content report:', error);
+      logError('Failed to insert content report', error, {
+        reporter_id: user?.id,
+        content_type: contentType,
+        content_id: contentId,
+        reason,
+      });
+      
+      after(async () => {
+        await flushLogs();
+      });
+      
       return NextResponse.json(
         { error: 'Failed to submit report' },
         { status: 500 }
@@ -129,9 +141,26 @@ export async function POST(request: Request) {
         priority,
       });
     } catch (notifError) {
-      console.error('Error sending admin notification:', notifError);
+      logError('Failed to send admin notification for content report', notifError, {
+        report_id: data.id,
+        content_type: contentType,
+        reason,
+      });
       // Don't fail the request if notification fails
     }
+    
+    logInfo('Content report submitted successfully', {
+      report_id: data.id,
+      reporter_id: user?.id,
+      content_type: contentType,
+      content_id: contentId,
+      reason,
+      priority,
+    });
+    
+    after(async () => {
+      await flushLogs();
+    });
     
     return NextResponse.json({
       success: true,
@@ -140,7 +169,12 @@ export async function POST(request: Request) {
     });
     
   } catch (error) {
-    console.error('Error in report-content API:', error);
+    logError('Unexpected error in report-content API', error);
+    
+    after(async () => {
+      await flushLogs();
+    });
+    
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

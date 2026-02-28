@@ -1,13 +1,12 @@
 "use client";
 import { Shield } from "lucide-react";
-import { useMemo, useState, useRef } from "react";
+import { useState, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { login, signInWithGoogle } from "./actions";
+import { signInWithGoogle } from "./actions";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -25,6 +24,7 @@ import {
 import { Controller } from "react-hook-form";
 import { toast } from "sonner";
 import { TurnstileComponent, TurnstileRef } from "@/components/ui/turnstile";
+import { createClient } from "@/lib/supabase/client";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -46,7 +46,6 @@ export default function LoginClient({ redirectPath }: LoginClientProps) {
   const turnstileRef = useRef<TurnstileRef>(null);
   const [turnstileReady, setTurnstileReady] = useState(false);
   const router = useRouter();
-  const supabase = useMemo(() => createClient(), []);
 
   const form = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
@@ -65,93 +64,63 @@ export default function LoginClient({ redirectPath }: LoginClientProps) {
     const turnstileToken = turnstileRef.current?.getResponse();
 
     setIsLoading(true);
-    const formData = new FormData();
-    Object.entries(data).forEach(([key, value]) => formData.append(key, value));
 
-    if (turnstileToken) {
-      formData.append("turnstileToken", turnstileToken);
-    }
-
-    const result = await login(formData);
-
-    if (result.error) {
-      const errors = result.error;
-      Object.keys(errors).forEach((key) => {
-        if (key in errors && key in loginSchema.shape) {
-          form.setError(key as keyof LoginValues, {
-            type: "server",
-            message: errors[key as keyof typeof errors]?.[0],
-          });
-        }
+    try {
+      // Use browser Supabase client for login
+      // This triggers onAuthStateChange and updates UI automatically
+      const supabase = createClient();
+      
+      const { data: authData, error } = await supabase.auth.signInWithPassword({
+        email: data.email,
+        password: data.password,
+        options: turnstileToken ? { captchaToken: turnstileToken } : undefined,
       });
 
-      if ("server" in errors && errors.server?.[0]?.includes("captcha verification process failed")) {
-        toast.error("Security verification failed. Please complete the captcha again.");
+      if (error) {
+        // Handle specific error cases
+        if (error.message.includes("captcha verification process failed")) {
+          toast.error("Security verification failed. Please complete the captcha again.");
+          turnstileRef.current?.reset();
+          setTurnstileVerified(false);
+        } else if (error.message.includes("provider")) {
+          toast.error(
+            "This email is registered with a different provider. Please sign in with that method.",
+          );
+        } else if (error.message.includes("Invalid login credentials")) {
+          toast.error("Incorrect email or password.");
+        } else {
+          toast.error(error.message || "Login failed. Please try again.");
+        }
+        setIsLoading(false);
         turnstileRef.current?.reset();
         setTurnstileVerified(false);
-      } else if ("server" in errors && errors.server?.[0]?.includes("provider")) {
-        toast.error(
-          "This email is registered with password. Please sign in with email and password.",
-        );
-      } else {
-        toast.error("Incorrect email or password.");
-      }
-      setIsLoading(false);
-    } else if (result.success) {
-      // Login successful
-      console.log('[LoginClient] Login successful, session established');
-
-      // The server action returns the session directly - use it immediately
-      if (result.session?.user) {
-        console.log('[LoginClient] Session received from server:', result.session.user.email);
-
-        // Persist session in the browser so refreshes stay logged in
-        if (result.session.access_token && result.session.refresh_token) {
-          const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
-            access_token: result.session.access_token,
-            refresh_token: result.session.refresh_token,
-          });
-
-          if (sessionError) {
-            console.error('[LoginClient] Failed to persist session:', sessionError);
-            toast.error('Failed to establish session. Please try again.');
-            setIsLoading(false);
-            return;
-          }
-
-          const persistedUser = sessionData?.user ?? result.session.user;
-          console.log('[LoginClient] Session persisted:', persistedUser.email);
-
-          // Wait a brief moment for cookies to be written before redirect
-          // This ensures middleware can read the session cookies
-          await new Promise(resolve => setTimeout(resolve, 100));
-        } else {
-          // Fallback: even if tokens are missing (shouldn't happen)
-          console.log('[LoginClient] Session established:', result.session.user.email);
-
-          // Wait a brief moment for state to synchronize
-          await new Promise(resolve => setTimeout(resolve, 100));
-        }
+        return;
       }
 
-      // Navigate immediately - don't wait for profile fetch
+      // Login successful - onAuthStateChange will update the navbar automatically
+      console.log('[LoginClient] Login successful, user:', authData.user?.email);
+
+      // Navigate to the destination
       const redirectUrl = redirectPath ? decodeURIComponent(redirectPath) : "/home";
 
       if (isVerified) {
         router.push("/home?confirmed=true");
       } else {
-        // Use replace for immediate transition without adding to history
         router.replace(redirectUrl);
       }
 
-      // Don't clear loading state - keep the loading spinner visible
+      // Refresh server components to ensure they see the new session
+      router.refresh();
+      
+      // Don't clear loading state - keep the loading spinner visible during navigation
       return;
+    } catch (error) {
+      console.error('[LoginClient] Login error:', error);
+      toast.error("An error occurred. Please try again.");
+      setIsLoading(false);
+      turnstileRef.current?.reset();
+      setTurnstileVerified(false);
     }
-
-    setIsLoading(false);
-    // Reset Turnstile after submission
-    turnstileRef.current?.reset();
-    setTurnstileVerified(false);
   }
 
   const handleGoogleSignIn = async () => {

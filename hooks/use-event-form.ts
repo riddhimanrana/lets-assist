@@ -10,6 +10,8 @@ import {
   RecurrenceWeekday,
   LocationData,
 } from '@/types';
+import { DetectedPdfField } from '@/lib/waiver/pdf-field-detect';
+import { WaiverDefinitionInput } from '@/components/waiver/WaiverBuilderDialog';
 
 // --- Helper Functions --- 
 
@@ -109,12 +111,15 @@ export interface EventFormState {
   showAttendeesPublicly: boolean;
   waiverRequired: boolean;
   waiverAllowUpload: boolean;
+  waiverDisableEsignature: boolean;
   waiverPdfFile: File | null;
   waiverPdfUrl: string | null;
   waiverPdfValidation: {
     hasSignatureFields: boolean;
     warnings: string[];
   } | null;
+  waiverDefinition: WaiverDefinitionInput | null;
+  detectedFields: DetectedPdfField[] | null;
   recurrence: {
     enabled: boolean;
     frequency: RecurrenceFrequency;
@@ -151,9 +156,12 @@ type EventFormAction =
   | { type: 'UPDATE_SHOW_ATTENDEES_PUBLICLY'; payload: boolean }
   | { type: 'UPDATE_WAIVER_REQUIRED'; payload: boolean }
   | { type: 'UPDATE_WAIVER_ALLOW_UPLOAD'; payload: boolean }
+  | { type: 'UPDATE_WAIVER_DISABLE_ESIGNATURE'; payload: boolean }
   | { type: 'UPDATE_WAIVER_PDF_FILE'; payload: File | null }
   | { type: 'UPDATE_WAIVER_PDF_URL'; payload: string | null }
   | { type: 'UPDATE_WAIVER_PDF_VALIDATION'; payload: { hasSignatureFields: boolean; warnings: string[] } | null }
+  | { type: 'UPDATE_WAIVER_DEFINITION'; payload: WaiverDefinitionInput | null }
+  | { type: 'UPDATE_DETECTED_FIELDS'; payload: DetectedPdfField[] | null }
   | { type: 'CLEAR_WAIVER_PDF' }
   | {
       type: 'UPDATE_RECURRENCE';
@@ -231,9 +239,12 @@ const initialState: EventFormState = {
   showAttendeesPublicly: false,
   waiverRequired: false,
   waiverAllowUpload: true,
+  waiverDisableEsignature: false,
   waiverPdfFile: null,
   waiverPdfUrl: null,
   waiverPdfValidation: null,
+  waiverDefinition: null,
+  detectedFields: null,
   recurrence: {
     enabled: false,
     frequency: 'weekly',
@@ -295,9 +306,18 @@ const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
       // Deep clone to avoid mutation
       const updatedDay = { ...updatedMultiDay[dayIndex] };
 
+      // Ensure slots is always an array
+      if (!Array.isArray(updatedDay.slots)) {
+        updatedDay.slots = [{ ...defaultMultiDaySlot }];
+      }
+
       if (slotIndex !== undefined) {
         // Update a slot field
         const updatedSlots = [...updatedDay.slots];
+        // Ensure the slot exists
+        if (!updatedSlots[slotIndex]) {
+          updatedSlots[slotIndex] = { ...defaultMultiDaySlot };
+        }
         updatedSlots[slotIndex] = {
           ...updatedSlots[slotIndex],
           [field]: value,
@@ -457,6 +477,12 @@ const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
         waiverAllowUpload: action.payload,
       };
     }
+    case 'UPDATE_WAIVER_DISABLE_ESIGNATURE': {
+      return {
+        ...state,
+        waiverDisableEsignature: action.payload,
+      };
+    }
     case 'UPDATE_WAIVER_PDF_FILE': {
       return {
         ...state,
@@ -475,12 +501,26 @@ const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
         waiverPdfValidation: action.payload,
       };
     }
+    case 'UPDATE_WAIVER_DEFINITION': {
+      return {
+        ...state,
+        waiverDefinition: action.payload,
+      };
+    }
+    case 'UPDATE_DETECTED_FIELDS': {
+      return {
+        ...state,
+        detectedFields: action.payload,
+      };
+    }
     case 'CLEAR_WAIVER_PDF': {
       return {
         ...state,
         waiverPdfFile: null,
         waiverPdfUrl: null,
         waiverPdfValidation: null,
+        waiverDefinition: null,
+        detectedFields: null,
       };
     }
     case 'UPDATE_RECURRENCE': {
@@ -578,6 +618,11 @@ const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
           ...state.recurrence,
           ...(payload.recurrence ?? {}),
         },
+        // Drafts intentionally never restore uploaded waiver files/URLs.
+        // We keep waiver configuration data, but users must re-upload the PDF.
+        waiverPdfFile: null,
+        waiverPdfUrl: null,
+        waiverPdfValidation: null,
       };
     }
     default:
@@ -654,6 +699,9 @@ export const useEventForm = () => {
   const updateWaiverAllowUpload = (enabled: boolean) =>
     dispatch({ type: 'UPDATE_WAIVER_ALLOW_UPLOAD', payload: enabled });
 
+  const updateWaiverDisableEsignature = (disabled: boolean) =>
+    dispatch({ type: 'UPDATE_WAIVER_DISABLE_ESIGNATURE', payload: disabled });
+
   const updateWaiverPdfFile = (file: File | null) =>
     dispatch({ type: 'UPDATE_WAIVER_PDF_FILE', payload: file });
 
@@ -662,6 +710,12 @@ export const useEventForm = () => {
 
   const updateWaiverPdfValidation = (validation: { hasSignatureFields: boolean; warnings: string[] } | null) =>
     dispatch({ type: 'UPDATE_WAIVER_PDF_VALIDATION', payload: validation });
+
+  const updateWaiverDefinition = (definition: WaiverDefinitionInput | null) =>
+    dispatch({ type: 'UPDATE_WAIVER_DEFINITION', payload: definition });
+
+  const updateDetectedFields = (fields: DetectedPdfField[] | null) =>
+    dispatch({ type: 'UPDATE_DETECTED_FIELDS', payload: fields });
 
   const clearWaiverPdf = () =>
     dispatch({ type: 'CLEAR_WAIVER_PDF' });
@@ -703,9 +757,12 @@ export const useEventForm = () => {
     updateShowAttendeesPublicly,
     updateWaiverRequired,
     updateWaiverAllowUpload,
+    updateWaiverDisableEsignature,
     updateWaiverPdfFile,
     updateWaiverPdfUrl,
     updateWaiverPdfValidation,
+    updateWaiverDefinition,
+    updateDetectedFields,
     clearWaiverPdf,
     updateRecurrence,
     removeDay,

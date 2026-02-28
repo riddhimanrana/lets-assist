@@ -27,7 +27,7 @@ interface OrganizationCardProps {
 export default function OrganizationCard({ org, memberCount, isUserMember = false, userRole }: OrganizationCardProps) {
   return (
     <Link href={`/organization/${org.username}`} className="block h-full group">
-      <Card className={`h-full flex flex-col hover:shadow-lg transition-all duration-300 ${isUserMember ? 'border-primary/30 bg-primary/5' : 'hover:border-primary/20'}`}>
+      <Card className={`h-full flex flex-col hover:shadow-lg transition-all duration-300  ${isUserMember ? 'border-primary/30 bg-primary/5' : 'hover:border-primary/20'}`}>
         <CardHeader className="flex flex-row items-start gap-4 space-y-0 px-4 pt-2">
           <Avatar className="h-12 w-12 border border-border shrink-0">
             <AvatarImage src={org.logo_url || undefined} alt={org.name} />
@@ -76,7 +76,7 @@ export default function OrganizationCard({ org, memberCount, isUserMember = fals
             )}
           </div>
 
-          <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed break-all">
+          <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed break-all min-h-[2.4rem]">
             {org.description || "No description provided."}
           </p>
         </CardContent>

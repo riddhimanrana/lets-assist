@@ -56,39 +56,40 @@ async function performConfirmation(anonymousSignupId: string, token: string): Pr
       return { status: "error", message: "Database error confirming signup." };
     }
 
-    // 4. Find the corresponding project_signup using anonymous_id
-    const { data: projectSignup, error: findProjectSignupError } = (await supabase
+    // 4. Find ALL corresponding pending project_signups using anonymous_id
+    const { data: pendingSignups, error: findProjectSignupError } = (await supabase
       .from("project_signups")
       .select("id")
       .eq("anonymous_id", anonymousSignupId)
-      .eq("status", "pending")
-      .maybeSingle()) as {
-      data: { id: string } | null;
+      .eq("status", "pending")) as {
+      data: { id: string }[] | null;
       error: { message?: string } | null;
     };
 
     if (findProjectSignupError) {
-        console.error("Error finding project signup record:", findProjectSignupError);
-        return { status: "error", message: "Database error finding project signup." };
+        console.error("Error finding project signup records:", findProjectSignupError);
+        return { status: "error", message: "Database error finding project signups." };
     }
 
-    if (!projectSignup) {
-        console.error("Confirmation failed: Could not find matching pending project signup for anonymous ID:", anonymousSignupId);
-        return { status: "error", message: "Could not find matching pending project signup." };
+    if (!pendingSignups || pendingSignups.length === 0) {
+        console.warn("No pending project signups found for anonymous ID:", anonymousSignupId);
+        // Still return success since the profile is confirmed
+        return { status: "success" };
     }
 
-    // 5. Update project_signups: set status to 'approved'
+    // 5. Update ALL pending project_signups to 'approved'
+    const signupIds = pendingSignups.map(s => s.id);
     const { error: statusError } = (await supabase
       .from("project_signups")
       .update({ status: "approved" })
-      .eq("id", projectSignup.id)) as { error: { message?: string } | null };
+      .in("id", signupIds)) as { error: { message?: string } | null };
 
     if (statusError) {
-      console.error("Error updating project signup status:", statusError);
+      console.error("Error updating project signup statuses:", statusError);
       return { status: "error", message: "Database error updating project status." };
     }
 
-    console.log("Successfully confirmed signup:", anonymousSignupId, "and updated project signup:", projectSignup.id);
+    console.log("Successfully confirmed signup:", anonymousSignupId, "and approved", signupIds.length, "project signup(s):", signupIds);
 
     // Revalidate relevant paths
     try {

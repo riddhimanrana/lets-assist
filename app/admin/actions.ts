@@ -270,7 +270,7 @@ export async function updateTrustedMemberStatus(userId: string, status: boolean)
   if (status === true) {
     await createServerNotification(
       userId,
-      "Trusted Member Application Approved! 🎉",
+      "Trusted Member Application Approved!",
       "Congratulations! Your trusted member application has been approved. You can now create projects and organizations.",
       "success",
       "/trusted-member"

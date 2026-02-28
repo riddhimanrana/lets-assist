@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, Suspense } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { toast } from "sonner";
 
@@ -8,8 +8,15 @@ function QueryMessageToastContent() {
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const router = useRouter();
+  const [mounted, setMounted] = React.useState(false);
 
-  useEffect(() => {
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  React.useEffect(() => {
+    if (!mounted) return;
+
     const deleted = searchParams.get("deleted");
     if (deleted === "true") {
       toast.success("Account successfully deleted", {
@@ -25,7 +32,7 @@ function QueryMessageToastContent() {
       const newQuery = params.toString() ? `?${params.toString()}` : "";
       router.replace(`${pathname}${newQuery}`, { scroll: false });
     }
-  }, [searchParams, router, pathname]);
+  }, [mounted, searchParams, router, pathname]);
 
   return null;
 }

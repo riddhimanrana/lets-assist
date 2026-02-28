@@ -6,7 +6,7 @@ import { canCancelProject, isProjectVisible } from "@/utils/project";
 import { revalidatePath } from "next/cache";
 import { ProjectStatus } from "@/types";
 // Make sure AnonymousSignup is imported from the correct types definition
-import { type Project, type AnonymousSignupData, type ProjectSignup, type SignupStatus, type AnonymousSignup, type WaiverSignatureInput } from "@/types";
+import { type Project, type AnonymousSignupData, type ProjectSignup, type SignupStatus, type WaiverSignatureInput } from "@/types";
 import { headers } from "next/headers";
 import crypto from 'crypto';
 // Import centralized email service
@@ -21,6 +21,8 @@ import * as React from 'react';
 import { NotificationService } from "@/services/notifications";
 import { removeCalendarEventForSignup, removeCalendarEventForProject } from "@/utils/calendar-helpers";
 import { getAdminClient } from "@/lib/supabase/admin";
+import { validateWaiverPayload } from "@/lib/waiver/validate-waiver-payload";
+import { mapDetectedFieldsForDb, mapCustomPlacementsForDb } from "@/lib/waiver/map-definition-input";
 
 // Define your site URL (replace with environment variable ideally)
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
@@ -46,6 +48,28 @@ const WAIVER_SIGNATURE_BUCKET = "waiver-signatures";
 const WAIVER_UPLOAD_BUCKET = "waiver-uploads";
 const MAX_WAIVER_SIGNATURE_BYTES = 2 * 1024 * 1024; // 2MB
 const MAX_WAIVER_UPLOAD_BYTES = 10 * 1024 * 1024; // 10MB
+
+type PostgrestErrorLike = {
+  message?: string;
+  details?: string;
+  hint?: string;
+  code?: string;
+};
+
+function isMissingWaiverDisableEsignatureColumnError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+
+  const pgError = error as PostgrestErrorLike;
+  const combined = `${pgError.message ?? ""} ${pgError.details ?? ""} ${pgError.hint ?? ""}`.toLowerCase();
+  const referencesColumn = combined.includes("waiver_disable_esignature");
+  const schemaCacheLike =
+    combined.includes("schema cache") ||
+    combined.includes("could not find") ||
+    combined.includes("column");
+  const knownCode = pgError.code === "PGRST204" || pgError.code === "42703";
+
+  return referencesColumn && (knownCode || schemaCacheLike);
+}
 
 type ParsedDataUrl = {
   contentType: string;
@@ -292,17 +316,35 @@ export async function getActiveWaiverTemplate() {
   }
 }
 
+import { getActiveGlobalTemplate } from '@/app/admin/waivers/actions';
+
 // Get project-specific waiver or fall back to global template
 export async function getProjectWaiver(projectId: string) {
   try {
     const serviceSupabase = getAdminClient();
 
     // First get the project's waiver config
-    const { data: project, error: projectError } = await serviceSupabase
+    let { data: project, error: projectError } = await serviceSupabase
       .from("projects")
-      .select("waiver_required, waiver_allow_upload, waiver_pdf_url, waiver_pdf_storage_path")
+      .select("waiver_required, waiver_allow_upload, waiver_disable_esignature, waiver_pdf_url, waiver_pdf_storage_path, waiver_definition_id")
       .eq("id", projectId)
       .maybeSingle();
+
+    if (projectError && isMissingWaiverDisableEsignatureColumnError(projectError)) {
+      const fallbackResult = await serviceSupabase
+        .from("projects")
+        .select("waiver_required, waiver_allow_upload, waiver_pdf_url, waiver_pdf_storage_path, waiver_definition_id")
+        .eq("id", projectId)
+        .maybeSingle();
+
+      projectError = fallbackResult.error;
+      project = fallbackResult.data
+        ? {
+            ...fallbackResult.data,
+            waiver_disable_esignature: false,
+          }
+        : null;
+    }
 
     if (projectError) {
       console.error("Error fetching project waiver config:", projectError);
@@ -313,12 +355,40 @@ export async function getProjectWaiver(projectId: string) {
       return { error: "Project not found" };
     }
 
+    // Phase 4: Check for Waiver Definition (New System)
+    if (project.waiver_definition_id) {
+      const { data: definition, error: defError } = await serviceSupabase
+        .from("waiver_definitions")
+        .select(`
+          *,
+          signers:waiver_definition_signers(*),
+          fields:waiver_definition_fields(*)
+        `)
+        .eq("id", project.waiver_definition_id)
+        .single();
+
+      if (!defError && definition) {
+        return {
+          waiverConfig: {
+             waiverRequired: project.waiver_required ?? true,
+            waiverAllowUpload: project.waiver_disable_esignature ? true : (project.waiver_allow_upload ?? true),
+             waiverPdfUrl: definition.pdf_public_url || project.waiver_pdf_url, // Prefer definition PDF
+             waiverPdfStoragePath: definition.pdf_storage_path,
+             isProjectSpecific: true,
+             isWaiverDefinition: true,
+          },
+          definition,
+          template: null
+        };
+      }
+    }
+
     // If project has a custom waiver PDF, use that
     if (project.waiver_pdf_url) {
       return {
         waiverConfig: {
           waiverRequired: project.waiver_required ?? false,
-          waiverAllowUpload: project.waiver_allow_upload ?? true,
+          waiverAllowUpload: project.waiver_disable_esignature ? true : (project.waiver_allow_upload ?? true),
           waiverPdfUrl: project.waiver_pdf_url,
           waiverPdfStoragePath: project.waiver_pdf_storage_path,
           isProjectSpecific: true,
@@ -327,7 +397,25 @@ export async function getProjectWaiver(projectId: string) {
       };
     }
 
-    // Fall back to global template
+    // Fall back to active global template (Phase 6)
+    const activeGlobalTemplate = await getActiveGlobalTemplate();
+    
+    if (activeGlobalTemplate) {
+        return {
+            waiverConfig: {
+                waiverRequired: project.waiver_required ?? true,
+                waiverAllowUpload: project.waiver_disable_esignature ? true : (project.waiver_allow_upload ?? true),
+                waiverPdfUrl: activeGlobalTemplate.pdf_public_url,
+                waiverPdfStoragePath: activeGlobalTemplate.pdf_storage_path,
+                isProjectSpecific: false,
+                isWaiverDefinition: true,
+            },
+            definition: activeGlobalTemplate,
+            template: null
+        };
+    }
+
+    // Fall back to legacy global template if no new definition
     const { template, error: templateError } = await getActiveWaiverTemplate();
 
     if (templateError) {
@@ -337,7 +425,7 @@ export async function getProjectWaiver(projectId: string) {
     return {
       waiverConfig: {
         waiverRequired: project.waiver_required ?? false,
-        waiverAllowUpload: project.waiver_allow_upload ?? true,
+        waiverAllowUpload: project.waiver_disable_esignature ? true : (project.waiver_allow_upload ?? true),
         waiverPdfUrl: null,
         waiverPdfStoragePath: null,
         isProjectSpecific: false,
@@ -466,6 +554,8 @@ export async function removeProjectWaiverPdf(projectId: string) {
       .update({
         waiver_pdf_url: null,
         waiver_pdf_storage_path: null,
+        // Also detach the project waiver definition so we fall back to the global template.
+        waiver_definition_id: null,
       })
       .eq("id", projectId);
 
@@ -576,6 +666,60 @@ async function getCurrentSignups(projectId: string, scheduleId: string): Promise
   return count || 0;
 }
 
+export async function checkReusableAnonymousWaiver(projectId: string, email: string): Promise<{
+  hasReusableWaiver: boolean;
+  anonymousSignupId?: string;
+  error?: string;
+}> {
+  const normalizedEmail = email.trim().toLowerCase();
+
+  if (!normalizedEmail || !normalizedEmail.includes("@")) {
+    return { hasReusableWaiver: false };
+  }
+
+  try {
+    const supabase = await createClient();
+    const { data: anonProfile, error: profileError } = await supabase
+      .from("anonymous_signups")
+      .select("id")
+      .eq("project_id", projectId)
+      .ilike("email", normalizedEmail)
+      .maybeSingle();
+
+    if (profileError) {
+      console.error("Error checking anonymous profile for waiver reuse:", profileError);
+      return { hasReusableWaiver: false, error: "Failed to check waiver reuse." };
+    }
+
+    if (!anonProfile) {
+      return { hasReusableWaiver: false };
+    }
+
+    const admin = getAdminClient();
+    const { data: existingWaiver, error: waiverError } = await admin
+      .from("waiver_signatures")
+      .select("id")
+      .eq("project_id", projectId)
+      .eq("anonymous_id", anonProfile.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (waiverError) {
+      console.error("Error checking existing anonymous waiver:", waiverError);
+      return { hasReusableWaiver: false, error: "Failed to check waiver reuse." };
+    }
+
+    return {
+      hasReusableWaiver: !!existingWaiver,
+      anonymousSignupId: anonProfile.id,
+    };
+  } catch (error) {
+    console.error("Unexpected error checking reusable anonymous waiver:", error);
+    return { hasReusableWaiver: false, error: "Failed to check waiver reuse." };
+  }
+}
+
 async function persistWaiverSignature(params: {
   projectId: string;
   signupId: string;
@@ -588,14 +732,68 @@ async function persistWaiverSignature(params: {
   const serviceSupabase = getAdminClient();
 
   // Check for project-specific waiver PDF first
-  const { data: project } = await serviceSupabase
+  let { data: project } = await serviceSupabase
     .from("projects")
-    .select("waiver_pdf_url")
+    .select("waiver_pdf_url, waiver_allow_upload, waiver_disable_esignature")
     .eq("id", params.projectId)
     .maybeSingle();
 
-  let templateId: string | null = params.waiverSignature.templateId === "project-pdf" ? null : params.waiverSignature.templateId;
-  const waiverPdfUrl = project?.waiver_pdf_url || params.waiverSignature.waiverPdfUrl || null;
+  if (!project) {
+    const { data: fallbackProject, error: fallbackError } = await serviceSupabase
+      .from("projects")
+      .select("waiver_pdf_url, waiver_allow_upload")
+      .eq("id", params.projectId)
+      .maybeSingle();
+
+    if (fallbackError && !isMissingWaiverDisableEsignatureColumnError(fallbackError)) {
+      console.error("Error fetching project waiver settings:", fallbackError);
+    }
+
+    if (fallbackProject) {
+      project = {
+        ...fallbackProject,
+        waiver_disable_esignature: false,
+      };
+    }
+  }
+
+  const waiverDefinitionId: string | null = params.waiverSignature.definitionId?.trim() || null;
+
+  const rawTemplateId = typeof params.waiverSignature.templateId === "string" ? params.waiverSignature.templateId.trim() : "";
+  let templateId: string | null = rawTemplateId === "project-pdf" ? null : (rawTemplateId || null);
+
+  let waiverPdfUrl: string | null = project?.waiver_pdf_url || params.waiverSignature.waiverPdfUrl || null;
+  // Phase 1: Default to true for backward compatibility with projects created before this feature
+  const waiverAllowUpload = project?.waiver_disable_esignature ? true : (project?.waiver_allow_upload ?? true);
+
+  // New system: waiver_definitions are a complete waiver source (PDF + placements).
+  // If definitionId is present, we should NOT require / validate legacy waiver_templates.
+  if (waiverDefinitionId) {
+    const { data: definition, error: defError } = await serviceSupabase
+      .from("waiver_definitions")
+      .select("id, pdf_public_url")
+      .eq("id", waiverDefinitionId)
+      .limit(1)
+      .maybeSingle();
+
+    if (defError || !definition) {
+      console.error("Invalid waiver definition in signature payload", {
+        projectId: params.projectId,
+        signupId: params.signupId,
+        waiverDefinitionId,
+        defError,
+      });
+      return { error: "Invalid waiver definition." };
+    }
+
+    // Prefer an explicitly provided waiverPdfUrl, otherwise use the definition's PDF.
+    waiverPdfUrl = waiverPdfUrl || definition.pdf_public_url || null;
+    templateId = null;
+  }
+
+  if (!waiverPdfUrl && waiverDefinitionId) {
+    return { error: "No waiver PDF is available for this waiver definition." };
+  }
 
   // If using project-specific PDF, we don't need a template
   if (waiverPdfUrl) {
@@ -629,63 +827,72 @@ async function persistWaiverSignature(params: {
   }
 
   const { ipAddress, userAgent } = await getRequestMetadata();
-  let signatureStoragePath: string | null = null;
-  let uploadStoragePath: string | null = null;
+  let signaturePayload: Record<string, unknown> | null = null;
+  // waiverDefinitionId resolved above
 
-  if (params.waiverSignature.signatureType === "draw") {
-    if (!params.waiverSignature.signatureImageDataUrl) {
-      return { error: "Signature drawing is required." };
+  // Handle Multi-Signer Payload (Phase 4)
+  if (params.waiverSignature.signatureType === "multi-signer" && params.waiverSignature.payload) {
+    const rawPayload = params.waiverSignature.payload;
+    const processedSigners = [];
+    
+    // Phase 1: Validate upload permissions for multi-signer flow
+    for (const signer of rawPayload.signers) {
+      if (signer.method === "upload" && !waiverAllowUpload) {
+        return { error: "Signature upload is not allowed for this project." };
+      }
+    }
+    
+    // Process each signer (upload assets)
+    for (const signer of rawPayload.signers) {
+      const processedSigner = { ...signer };
+      
+      if (signer.data && (signer.method === "draw" || signer.method === "upload")) {
+        // Phase 1: Multi-signer signatures are ONLY images, never full PDFs
+        // The "upload" method here refers to uploading a signature image, not a full waiver PDF
+        const bucket = WAIVER_SIGNATURE_BUCKET; // Always use signature bucket for multi-signer assets
+        const maxBytes = MAX_WAIVER_SIGNATURE_BYTES;
+        const allowedTypes = ["image/png", "image/jpeg", "image/jpg"]; // Images only
+        
+        // Detect file extension from data URL for proper storage
+        const parsed = parseDataUrl(signer.data);
+        let fileExt = "png"; // default
+        if (parsed?.contentType === "image/jpeg" || parsed?.contentType === "image/jpg") {
+          fileExt = "jpg";
+        }
+        
+        const fileName = `waiver_${params.signupId}_${signer.role_key}_${Date.now()}.${fileExt}`;
+
+        // Upload asset
+        const uploadResult = await uploadWaiverAsset({
+          bucket,
+          dataUrl: signer.data,
+          fileName,
+          maxBytes,
+          allowedTypes,
+        });
+
+        if (uploadResult.error) {
+           console.error(`Error uploading signer asset (${signer.role_key}):`, uploadResult.error);
+           return { error: `Failed to upload signature for ${signer.role_key}: ${uploadResult.error}` };
+        }
+
+        // Replace data with storage path
+        processedSigner.data = uploadResult.path || "";
+      }
+      processedSigners.push(processedSigner);
     }
 
-    const fileName = `waiver_${params.signupId}_${Date.now()}.png`;
-    const uploadResult = await uploadWaiverAsset({
-      bucket: WAIVER_SIGNATURE_BUCKET,
-      dataUrl: params.waiverSignature.signatureImageDataUrl,
-      fileName,
-      maxBytes: MAX_WAIVER_SIGNATURE_BYTES,
-      allowedTypes: ["image/png", "image/jpeg"],
-    });
-
-    if (uploadResult.error) {
-      return { error: uploadResult.error };
-    }
-
-    signatureStoragePath = uploadResult.path || null;
+    signaturePayload = {
+      ...rawPayload,
+      signers: processedSigners
+    };
   }
-
-  if (params.waiverSignature.signatureType === "upload") {
-    if (!params.waiverSignature.uploadFileDataUrl || !params.waiverSignature.uploadFileName) {
-      return { error: "Signed waiver upload is required." };
-    }
-
-    const fileExt = params.waiverSignature.uploadFileName.split(".").pop() || "pdf";
-    const fileName = `waiver_${params.signupId}_${Date.now()}.${fileExt}`;
-    const uploadResult = await uploadWaiverAsset({
-      bucket: WAIVER_UPLOAD_BUCKET,
-      dataUrl: params.waiverSignature.uploadFileDataUrl,
-      fileName,
-      maxBytes: MAX_WAIVER_UPLOAD_BYTES,
-      allowedTypes: ["application/pdf", "image/png", "image/jpeg"],
-    });
-
-    if (uploadResult.error) {
-      return { error: uploadResult.error };
-    }
-
-    uploadStoragePath = uploadResult.path || null;
-  }
-
-  const signatureText =
-    params.waiverSignature.signatureType === "typed"
-      ? params.waiverSignature.signatureText?.trim() || params.signerName
-      : params.waiverSignature.signatureType === "draw"
-        ? params.signerName
-        : null;
 
   const { error: insertError } = await serviceSupabase
     .from("waiver_signatures")
     .insert({
       waiver_template_id: templateId,
+      waiver_definition_id: waiverDefinitionId,
       waiver_pdf_url: waiverPdfUrl,
       project_id: params.projectId,
       signup_id: params.signupId,
@@ -694,9 +901,10 @@ async function persistWaiverSignature(params: {
       signer_name: params.signerName,
       signer_email: params.signerEmail,
       signature_type: params.waiverSignature.signatureType,
-      signature_text: signatureText,
-      signature_storage_path: signatureStoragePath,
-      upload_storage_path: uploadStoragePath,
+      signature_text: params.signerName,
+      signature_storage_path: null,
+      upload_storage_path: null,
+      signature_payload: signaturePayload,
       form_data: params.waiverSignature.formData ?? null,
       ip_address: ipAddress,
       user_agent: userAgent,
@@ -705,6 +913,65 @@ async function persistWaiverSignature(params: {
   if (insertError) {
     console.error("Error saving waiver signature:", insertError);
     return { error: "Failed to store waiver signature." };
+  }
+
+  return { success: true };
+}
+
+async function cloneAnonymousWaiverSignatureToSignup(params: {
+  projectId: string;
+  anonymousId: string;
+  signupId: string;
+}) {
+  const serviceSupabase = getAdminClient();
+
+  const { data: latestSignature, error: fetchError } = await serviceSupabase
+    .from("waiver_signatures")
+    .select(`
+      waiver_template_id,
+      waiver_definition_id,
+      waiver_pdf_url,
+      signer_name,
+      signer_email,
+      signature_type,
+      signature_text,
+      signature_storage_path,
+      upload_storage_path,
+      signature_payload,
+      form_data
+    `)
+    .eq("project_id", params.projectId)
+    .eq("anonymous_id", params.anonymousId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (fetchError) {
+    console.error("Error fetching reusable anonymous waiver signature:", fetchError);
+    return { error: "Failed to reuse existing waiver signature." };
+  }
+
+  if (!latestSignature) {
+    return { error: "No existing waiver signature found for this anonymous profile." };
+  }
+
+  const { ipAddress, userAgent } = await getRequestMetadata();
+
+  const { error: insertError } = await serviceSupabase
+    .from("waiver_signatures")
+    .insert({
+      ...latestSignature,
+      project_id: params.projectId,
+      signup_id: params.signupId,
+      user_id: null,
+      anonymous_id: params.anonymousId,
+      ip_address: ipAddress,
+      user_agent: userAgent,
+    });
+
+  if (insertError) {
+    console.error("Error cloning anonymous waiver signature:", insertError);
+    return { error: "Failed to attach existing waiver signature to this signup." };
   }
 
   return { success: true };
@@ -752,8 +1019,13 @@ export async function signUpForProject(
 ) {
   const supabase = await createClient();
   const isAnonymous = !!anonymousData;
+  const skipAnonymousConfirmationEmail = !!anonymousData?.skipConfirmationEmail;
+  const selectedSlotCount = Math.max(1, Number(anonymousData?.selectedSlotCount ?? 1));
   let createdSignupId: string | undefined = undefined; // Track the created signup ID
   let createdAnonymousSignupId: string | null = null;
+  let createdNewAnonymousProfile = false;
+  let shouldReuseExistingAnonymousWaiver = false;
+  let anonymousProfileAlreadyConfirmed = false;
 
   try {
     console.log("Starting signup process:", { projectId, scheduleId, isAnonymous });
@@ -769,18 +1041,24 @@ export async function signUpForProject(
     const normalizedComment = rawComment.length > 0 ? rawComment.slice(0, 1000) : null;
     const volunteerCommentToSave = project.enable_volunteer_comments ? normalizedComment : null;
 
-    if (project.waiver_required) {
-      if (!waiverSignature) {
-        return { error: "This project requires a waiver signature before signing up." };
-      }
+    if (project.waiver_required && !waiverSignature && !isAnonymous) {
+      return { error: "This project requires a waiver signature before signing up." };
     }
 
     if (waiverSignature) {
-      if (!waiverSignature.templateId) {
-        return { error: "Waiver template is missing." };
+      const hasTemplateId = typeof waiverSignature.templateId === "string" && waiverSignature.templateId.trim().length > 0;
+      const hasDefinitionId = typeof waiverSignature.definitionId === "string" && waiverSignature.definitionId.trim().length > 0;
+      const hasWaiverPdfUrl = typeof waiverSignature.waiverPdfUrl === "string" && waiverSignature.waiverPdfUrl.trim().length > 0;
+
+      if (!hasTemplateId && !hasDefinitionId && !hasWaiverPdfUrl) {
+        return { error: "Waiver configuration is missing." };
       }
 
-      if (waiverSignature.signatureType === "upload" && project.waiver_allow_upload === false) {
+      if (
+        waiverSignature.signatureType === "upload" &&
+        project.waiver_allow_upload === false &&
+        project.waiver_disable_esignature !== true
+      ) {
         return { error: "Waiver uploads are not allowed for this project." };
       }
 
@@ -794,6 +1072,35 @@ export async function signUpForProject(
 
       if (waiverSignature.signatureType === "upload" && !waiverSignature.uploadFileDataUrl) {
         return { error: "Please upload a signed waiver to continue." };
+      }
+
+      // Phase 5: Validate waiver payload against definition
+      if (waiverSignature.signatureType === "multi-signer" && waiverSignature.payload) {
+        // Check if project has a waiver definition
+        const waiverInfo = await getProjectWaiver(projectId);
+        
+        if ('error' in waiverInfo) {
+          return { error: "Failed to load waiver configuration" };
+        }
+
+        const { definition } = waiverInfo;
+
+        if (definition) {
+          // Validate against waiver definition
+          // Phase 4: Enable strict field validation as UI now collects fields
+          const validationResult = validateWaiverPayload(waiverSignature.payload, definition, true);
+          
+          if (!validationResult.valid) {
+            return {
+              error: `Waiver validation failed: ${validationResult.errors.join(', ')}`
+            };
+          }
+
+          // Log warnings if any
+          if (validationResult.warnings && validationResult.warnings.length > 0) {
+            console.warn('Waiver validation warnings:', validationResult.warnings);
+          }
+        }
       }
     }
 
@@ -1032,30 +1339,27 @@ export async function signUpForProject(
         return { error: "This email is associated with an existing Let's Assist account. Please log in to sign up for this project." };
       }
 
-      // FIXED: Check for existing anonymous signup for THIS SPECIFIC SLOT
-      // For multi-day projects, same email can sign up for different slots, so we need to check per-slot
-      // Query all anonymous_signups for this email + project, then check if any has a signup for this schedule
-      const { data: existingAnonRecords, error: anonLookupError } = await supabase
+      // Check if an anonymous profile already exists for this email + project
+      const { data: existingAnonProfile, error: anonLookupError } = await supabase
         .from('anonymous_signups')
-        .select('id')
+        .select('id, confirmed_at, token')
         .eq('project_id', projectId)
-        .eq('email', emailToCheck);
+        .ilike('email', emailToCheck)
+        .maybeSingle();
 
       if (anonLookupError) {
         console.error("Error checking for existing anonymous signup:", anonLookupError);
         return { error: "An error occurred while checking signup status." };
       }
 
-      // Step 2: If any anonymous records exist for this email+project, check if there's a signup for THIS specific schedule
-      if (existingAnonRecords && existingAnonRecords.length > 0) {
-        const anonIds = existingAnonRecords.map(r => r.id);
-
+      // If profile exists, check if THIS specific slot already has a signup
+      if (existingAnonProfile) {
         const { data: existingSlotSignup, error: slotError } = await supabase
           .from('project_signups')
-          .select('id, status, anonymous_id')
+          .select('id, status')
           .eq('project_id', projectId)
           .eq('schedule_id', scheduleId)
-          .in('anonymous_id', anonIds)
+          .eq('anonymous_id', existingAnonProfile.id)
           .maybeSingle();
 
         if (slotError) {
@@ -1067,11 +1371,10 @@ export async function signUpForProject(
           const signupStatus = existingSlotSignup.status;
 
           if (signupStatus === "pending") {
-            // Return structured response so frontend can offer resend option
             return {
               error: "You've already signed up for this slot but haven't confirmed your email yet.",
               canResend: true,
-              anonymousSignupId: existingSlotSignup.anonymous_id
+              anonymousSignupId: existingAnonProfile.id
             };
           } else if (signupStatus === "approved") {
             return { error: "This email has already signed up and confirmed for this slot." };
@@ -1079,110 +1382,200 @@ export async function signUpForProject(
             return { error: "This email has been rejected by the project coordinator. Contact them for more details." };
           }
         }
-        // If no signup for THIS slot exists, allow signup for a different slot (multi-day project)
-      }
 
-      // Proceed to create new anonymous signup records
-      let confirmationToken: string | null = null;
+        if (project.waiver_required && !waiverSignature) {
+          const admin = getAdminClient();
+          const { data: existingWaiver, error: existingWaiverError } = await admin
+            .from("waiver_signatures")
+            .select("id")
+            .eq("project_id", projectId)
+            .eq("anonymous_id", existingAnonProfile.id)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
 
-      confirmationToken = crypto.randomUUID();
-      const anonSignupData: Omit<AnonymousSignup, "id" | "created_at" | "signup_id" | "confirmed_at"> = {
-        project_id: projectId,
-        email: anonymousData.email ?? "",
-        name: anonymousData.name,
-        phone_number: anonymousData.phone || null,
-        token: confirmationToken,
-      };
-
-      console.log("Inserting anonSignupData:", anonSignupData);
-      const { data: insertedAnonSignup, error: anonInsertError } = await supabase
-        .from("anonymous_signups")
-        .insert(anonSignupData)
-        .select("id")
-        .single();
-
-      if (anonInsertError || !insertedAnonSignup) {
-        console.error("Error creating anonymous signup record:", anonInsertError);
-        return { error: "Failed to initiate anonymous signup. Please try again." };
-      }
-      createdAnonymousSignupId = insertedAnonSignup.id;
-      console.log("Anonymous Signup ID:", createdAnonymousSignupId);
-
-      const projectSignupData: Omit<ProjectSignup, "id" | "created_at"> = {
-        project_id: projectId,
-        schedule_id: scheduleId,
-        user_id: null,
-        status: "pending", // Anonymous signups start as pending
-        anonymous_id: createdAnonymousSignupId,
-        volunteer_comment: volunteerCommentToSave,
-      };
-
-      const { data: insertedProjectSignup, error: projectSignupInsertError } = await supabase
-        .from("project_signups")
-        .insert(projectSignupData)
-        .select("id")
-        .single();
-
-      if (projectSignupInsertError || !insertedProjectSignup) {
-        console.error("Error creating project signup record for anonymous:", projectSignupInsertError);
-        await supabase.from("anonymous_signups").delete().eq("id", createdAnonymousSignupId);
-        return { error: "Failed to complete signup. Please try again." };
-      }
-
-      // Store the signup ID for anonymous users too
-      createdSignupId = insertedProjectSignup.id;
-
-      const { error: anonUpdateError } = await supabase
-        .from("anonymous_signups")
-        .update({ signup_id: insertedProjectSignup.id })
-        .eq("id", createdAnonymousSignupId);
-
-      if (anonUpdateError) {
-        console.error("Failed to update anonymous signup with project signup ID:", anonUpdateError);
-        return { error: "Signup partially completed, but encountered an issue. Please contact support." };
-      }
-
-      const { data: verifyUpdate, error: verifyError } = await supabase
-        .from("anonymous_signups")
-        .select("id, signup_id")
-        .eq("id", createdAnonymousSignupId)
-        .single();
-
-      if (verifyError || !verifyUpdate || verifyUpdate.signup_id !== insertedProjectSignup.id) {
-        console.error("Failed to verify anonymous signup update");
-        return { error: "Signup partially completed, but encountered an issue. Please contact support." };
-      }
-
-      if (anonymousData.email && confirmationToken && createdAnonymousSignupId) {
-        const confirmationUrl = `${siteUrl}/anonymous/${createdAnonymousSignupId}/confirm?token=${confirmationToken}`;
-        const anonymousProfileUrl = `${siteUrl}/anonymous/${createdAnonymousSignupId}`;
-        const { date, timeRange, slotLabel } = getScheduleDetails(project, scheduleId);
-        try {
-          const { data, error: emailError } = await sendEmail({
-            to: anonymousData.email,
-            subject: `Confirm your signup for ${project.title}`,
-            react: React.createElement(AnonymousSignupConfirmation, {
-              confirmationUrl,
-              projectName: project.title,
-              userName: anonymousData.name,
-              anonymousProfileUrl,
-              projectDate: date,
-              projectTime: timeRange,
-              slotLabel
-            }),
-            type: 'transactional'
-          });
-
-          if (emailError) {
-            console.error("Resend error:", emailError);
-          } else {
-            console.log("Confirmation email sent successfully:", data);
+          if (existingWaiverError) {
+            console.error("Error checking existing anonymous waiver signature:", existingWaiverError);
+            return { error: "Unable to verify existing waiver signature. Please try again." };
           }
-        } catch (error) {
-          console.error("Error sending confirmation email:", error);
+
+          if (!existingWaiver) {
+            return { error: "This project requires a waiver signature before signing up." };
+          }
+
+          shouldReuseExistingAnonymousWaiver = true;
+        }
+
+        // Reuse the existing anonymous profile for a new slot signup
+        createdAnonymousSignupId = existingAnonProfile.id;
+
+        // Determine status: if profile is already confirmed, auto-approve new slot signups
+        const isProfileConfirmed = !!existingAnonProfile.confirmed_at;
+        anonymousProfileAlreadyConfirmed = isProfileConfirmed;
+        const newSignupStatus = isProfileConfirmed ? "approved" : "pending";
+
+        const projectSignupData: Omit<ProjectSignup, "id" | "created_at"> = {
+          project_id: projectId,
+          schedule_id: scheduleId,
+          user_id: null,
+          status: newSignupStatus,
+          anonymous_id: createdAnonymousSignupId,
+          volunteer_comment: volunteerCommentToSave,
+        };
+
+        const { data: insertedProjectSignup, error: projectSignupInsertError } = await supabase
+          .from("project_signups")
+          .insert(projectSignupData)
+          .select("id")
+          .single();
+
+        if (projectSignupInsertError || !insertedProjectSignup) {
+          console.error("Error creating project signup for existing anon profile:", projectSignupInsertError);
+          return { error: "Failed to complete signup. Please try again." };
+        }
+
+        createdSignupId = insertedProjectSignup.id;
+
+        // If profile is already confirmed, send a simple notification about the new slot
+        if (isProfileConfirmed && anonymousData.email && !skipAnonymousConfirmationEmail) {
+          const { date, timeRange, slotLabel } = getScheduleDetails(project, scheduleId);
+          const anonymousProfileUrl = `${siteUrl}/anonymous/${createdAnonymousSignupId}`;
+          try {
+            await sendEmail({
+              to: anonymousData.email,
+              subject: selectedSlotCount > 1
+                ? `You're signed up for ${selectedSlotCount} slots in ${project.title}`
+                : `You're signed up for another slot in ${project.title}`,
+              react: React.createElement(AnonymousSignupConfirmation, {
+                confirmationUrl: anonymousProfileUrl, // Link to profile, not confirmation
+                projectName: project.title,
+                userName: anonymousData.name,
+                anonymousProfileUrl,
+                projectDate: date,
+                projectTime: timeRange,
+                slotLabel,
+                selectedSlotCount,
+              }),
+              type: 'transactional'
+            });
+          } catch (error) {
+            console.error("Error sending slot addition email:", error);
+          }
+        } else if (!isProfileConfirmed && anonymousData.email && !skipAnonymousConfirmationEmail) {
+          // Profile not yet confirmed — resend confirmation email with new token
+          const newToken = crypto.randomUUID();
+          await supabase
+            .from("anonymous_signups")
+            .update({ token: newToken })
+            .eq("id", createdAnonymousSignupId);
+
+          const confirmationUrl = `${siteUrl}/anonymous/${createdAnonymousSignupId}/confirm?token=${newToken}`;
+          const anonymousProfileUrl = `${siteUrl}/anonymous/${createdAnonymousSignupId}`;
+          const { date, timeRange, slotLabel } = getScheduleDetails(project, scheduleId);
+          try {
+            await sendEmail({
+              to: anonymousData.email,
+              subject: `Confirm your signup for ${project.title}`,
+              react: React.createElement(AnonymousSignupConfirmation, {
+                confirmationUrl,
+                projectName: project.title,
+                userName: anonymousData.name,
+                anonymousProfileUrl,
+                projectDate: date,
+                projectTime: timeRange,
+                slotLabel,
+                selectedSlotCount,
+              }),
+              type: 'transactional'
+            });
+          } catch (error) {
+            console.error("Error sending confirmation email:", error);
+          }
         }
       } else {
-        console.warn("Could not send confirmation email: Missing email, token, or anonymousSignupId.");
+        if (project.waiver_required && !waiverSignature) {
+          return { error: "This project requires a waiver signature before signing up." };
+        }
+
+        // No existing profile — create a new anonymous profile + project signup
+        const confirmationToken = crypto.randomUUID();
+        const anonSignupData = {
+          project_id: projectId,
+          email: anonymousData.email ?? "",
+          name: anonymousData.name,
+          phone_number: anonymousData.phone || null,
+          token: confirmationToken,
+        };
+
+        console.log("Inserting anonSignupData:", anonSignupData);
+        const { data: insertedAnonSignup, error: anonInsertError } = await supabase
+          .from("anonymous_signups")
+          .insert(anonSignupData)
+          .select("id")
+          .single();
+
+        if (anonInsertError || !insertedAnonSignup) {
+          console.error("Error creating anonymous signup record:", anonInsertError);
+          return { error: "Failed to initiate anonymous signup. Please try again." };
+        }
+        createdAnonymousSignupId = insertedAnonSignup.id;
+        createdNewAnonymousProfile = true;
+        console.log("Anonymous Signup ID:", createdAnonymousSignupId);
+
+        const projectSignupData: Omit<ProjectSignup, "id" | "created_at"> = {
+          project_id: projectId,
+          schedule_id: scheduleId,
+          user_id: null,
+          status: "pending", // New anonymous signups start as pending
+          anonymous_id: createdAnonymousSignupId,
+          volunteer_comment: volunteerCommentToSave,
+        };
+
+        const { data: insertedProjectSignup, error: projectSignupInsertError } = await supabase
+          .from("project_signups")
+          .insert(projectSignupData)
+          .select("id")
+          .single();
+
+        if (projectSignupInsertError || !insertedProjectSignup) {
+          console.error("Error creating project signup record for anonymous:", projectSignupInsertError);
+          await supabase.from("anonymous_signups").delete().eq("id", createdAnonymousSignupId);
+          return { error: "Failed to complete signup. Please try again." };
+        }
+
+        createdSignupId = insertedProjectSignup.id;
+
+        // Send confirmation email
+        if (anonymousData.email && confirmationToken && createdAnonymousSignupId && !skipAnonymousConfirmationEmail) {
+          const confirmationUrl = `${siteUrl}/anonymous/${createdAnonymousSignupId}/confirm?token=${confirmationToken}`;
+          const anonymousProfileUrl = `${siteUrl}/anonymous/${createdAnonymousSignupId}`;
+          const { date, timeRange, slotLabel } = getScheduleDetails(project, scheduleId);
+          try {
+            const { data, error: emailError } = await sendEmail({
+              to: anonymousData.email,
+              subject: `Confirm your signup for ${project.title}`,
+              react: React.createElement(AnonymousSignupConfirmation, {
+                confirmationUrl,
+                projectName: project.title,
+                userName: anonymousData.name,
+                anonymousProfileUrl,
+                projectDate: date,
+                projectTime: timeRange,
+                slotLabel,
+                selectedSlotCount,
+              }),
+              type: 'transactional'
+            });
+
+            if (emailError) {
+              console.error("Resend error:", emailError);
+            } else {
+              console.log("Confirmation email sent successfully:", data);
+            }
+          } catch (error) {
+            console.error("Error sending confirmation email:", error);
+          }
+        }
       }
     } else if (user) {
       // Create project signup record for logged-in user (status 'approved')
@@ -1208,43 +1601,59 @@ export async function signUpForProject(
     }
 
     if ((project.waiver_required || waiverSignature) && createdSignupId) {
-      if (!waiverSignature) {
-        return { error: "Waiver signature is required before completing signup." };
-      }
+      if (waiverSignature) {
+        const userMetadata = user?.user_metadata as { full_name?: string } | undefined;
+        const signerName =
+          (waiverSignature.signerName || "").trim() ||
+          (anonymousData?.name || "").trim() ||
+          userMetadata?.full_name ||
+          "Volunteer";
+        const signerEmail =
+          (user?.email || "").trim() ||
+          (waiverSignature.signerEmail || "").trim() ||
+          (anonymousData?.email || "").trim();
 
-      const userMetadata = user?.user_metadata as { full_name?: string } | undefined;
-      const signerName =
-        (waiverSignature.signerName || "").trim() ||
-        (anonymousData?.name || "").trim() ||
-        userMetadata?.full_name ||
-        "Volunteer";
-      const signerEmail =
-        (user?.email || "").trim() ||
-        (waiverSignature.signerEmail || "").trim() ||
-        (anonymousData?.email || "").trim();
-
-      if (!signerEmail) {
-        return { error: "Signer email is required for the waiver." };
-      }
-
-      const persistResult = await persistWaiverSignature({
-        projectId: project.id,
-        signupId: createdSignupId,
-        userId: user?.id ?? null,
-        anonymousId: createdAnonymousSignupId ?? null,
-        signerName,
-        signerEmail,
-        waiverSignature,
-      });
-
-      if (persistResult?.error) {
-        const serviceSupabase = getAdminClient();
-        await serviceSupabase.from("project_signups").delete().eq("id", createdSignupId);
-        if (createdAnonymousSignupId) {
-          await serviceSupabase.from("anonymous_signups").delete().eq("id", createdAnonymousSignupId);
+        if (!signerEmail) {
+          return { error: "Signer email is required for the waiver." };
         }
 
-        return { error: persistResult.error };
+        const persistResult = await persistWaiverSignature({
+          projectId: project.id,
+          signupId: createdSignupId,
+          userId: user?.id ?? null,
+          anonymousId: createdAnonymousSignupId ?? null,
+          signerName,
+          signerEmail,
+          waiverSignature,
+        });
+
+        if (persistResult?.error) {
+          const serviceSupabase = getAdminClient();
+          await serviceSupabase.from("project_signups").delete().eq("id", createdSignupId);
+          if (createdAnonymousSignupId && createdNewAnonymousProfile) {
+            await serviceSupabase.from("anonymous_signups").delete().eq("id", createdAnonymousSignupId);
+          }
+
+          return { error: persistResult.error };
+        }
+      } else if (project.waiver_required && shouldReuseExistingAnonymousWaiver && createdAnonymousSignupId) {
+        const cloneResult = await cloneAnonymousWaiverSignatureToSignup({
+          projectId: project.id,
+          anonymousId: createdAnonymousSignupId,
+          signupId: createdSignupId,
+        });
+
+        if (cloneResult?.error) {
+          const serviceSupabase = getAdminClient();
+          await serviceSupabase.from("project_signups").delete().eq("id", createdSignupId);
+          if (createdAnonymousSignupId && createdNewAnonymousProfile) {
+            await serviceSupabase.from("anonymous_signups").delete().eq("id", createdAnonymousSignupId);
+          }
+
+          return { error: cloneResult.error };
+        }
+      } else if (project.waiver_required) {
+        return { error: "Waiver signature is required before completing signup." };
       }
     }
 
@@ -1261,7 +1670,7 @@ export async function signUpForProject(
     // --- Return success with signup ID for calendar integration ---
     return {
       success: true,
-      needsConfirmation: isAnonymous,
+      needsConfirmation: isAnonymous ? !anonymousProfileAlreadyConfirmed : false,
       signupId: createdSignupId,
       projectId: project.id
     };
@@ -1745,13 +2154,18 @@ export async function updateProject(projectId: string, updates: Partial<Project>
     // Verify project ownership
     const { data: project } = await supabase
       .from("projects")
-      .select("creator_id")
+      .select("creator_id, recurrence_parent_id, recurrence_rule")
       .eq("id", projectId)
       .single();
 
     if (!project || project.creator_id !== user.id) {
       return { error: "Unauthorized" };
     }
+
+    const disablesRecurrence =
+      Object.prototype.hasOwnProperty.call(updates, "recurrence_rule") &&
+      updates.recurrence_rule === null;
+    const isRecurringParent = !project.recurrence_parent_id && !!project.recurrence_rule;
 
     // Update the project
     const { error: updateError } = await supabase
@@ -1761,7 +2175,33 @@ export async function updateProject(projectId: string, updates: Partial<Project>
 
     if (updateError) throw updateError;
 
-    return { success: true };
+    let cancelledOccurrences = 0;
+
+    if (disablesRecurrence && isRecurringParent) {
+      const nowIso = new Date().toISOString();
+      const { data: cancelledRows, error: cancelError } = await supabase
+        .from("projects")
+        .update({
+          status: "cancelled",
+          cancelled_at: nowIso,
+          cancellation_reason: "Recurring series ended by organizer",
+        })
+        .eq("recurrence_parent_id", projectId)
+        .eq("status", "upcoming")
+        .select("id");
+
+      if (cancelError) {
+        console.error("Error cancelling recurring occurrences:", cancelError);
+      } else {
+        cancelledOccurrences = cancelledRows?.length ?? 0;
+      }
+    }
+
+    return {
+      success: true,
+      endedRecurringSeries: disablesRecurrence && isRecurringParent,
+      cancelledOccurrences,
+    };
   } catch (error) {
     console.error("Error updating project:", error);
     return { error: "Failed to update project" };
@@ -1918,7 +2358,7 @@ export async function getWaiverDownloadUrl(signupId: string, anonymousSignupId?:
     const serviceSupabase = getAdminClient();
     const { data: waiverSignature, error: waiverError } = await serviceSupabase
       .from("waiver_signatures")
-      .select("signature_type, signature_storage_path, upload_storage_path, signature_text, signed_at, signer_name")
+      .select("id, signature_type, signature_storage_path, upload_storage_path, signature_payload, signature_text, signed_at, signer_name")
       .eq("signup_id", signupId)
       .maybeSingle();
 
@@ -1926,24 +2366,147 @@ export async function getWaiverDownloadUrl(signupId: string, anonymousSignupId?:
       return { error: "Waiver signature not found" };
     }
 
-    const storagePath = waiverSignature.signature_storage_path || waiverSignature.upload_storage_path || null;
-    if (!storagePath) {
-      return { signature: waiverSignature };
+    // Priority 1: Offline upload (direct file)
+    if (waiverSignature.upload_storage_path) {
+      const { data: signedUrl, error: urlError } = await serviceSupabase.storage
+        .from(WAIVER_UPLOAD_BUCKET)
+        .createSignedUrl(waiverSignature.upload_storage_path, 3600);
+
+      if (!urlError && signedUrl?.signedUrl) {
+        return { url: signedUrl.signedUrl, signatureId: waiverSignature.id };
+      }
     }
 
-    const bucket = waiverSignature.signature_type === "upload" ? WAIVER_UPLOAD_BUCKET : WAIVER_SIGNATURE_BUCKET;
-    const { data: signedUrl, error: urlError } = await serviceSupabase.storage
-      .from(bucket)
-      .createSignedUrl(storagePath, 60);
+    // Priority 2: Legacy signature (single image/file)
+    if (waiverSignature.signature_storage_path) {
+      const { data: signedUrl, error: urlError } = await serviceSupabase.storage
+        .from(WAIVER_SIGNATURE_BUCKET)
+        .createSignedUrl(waiverSignature.signature_storage_path, 3600);
 
-    if (urlError || !signedUrl?.signedUrl) {
-      return { error: "Failed to generate waiver URL" };
+      if (!urlError && signedUrl?.signedUrl) {
+        return { url: signedUrl.signedUrl, signatureId: waiverSignature.id };
+      }
     }
 
-    return { url: signedUrl.signedUrl, signature: waiverSignature };
+    // Priority 3: Multi-signer payload (needs on-demand generation)
+    if (waiverSignature.signature_payload) {
+      // Return the signature ID so client can use download API
+      return {
+        signatureId: waiverSignature.id,
+        // No direct URL - client will use /api/waivers/[signatureId]/download
+      };
+    }
+
+    // Fallback for typed signatures
+    if (waiverSignature.signature_text || waiverSignature.signature_type === 'typed') {
+      return { 
+        signatureId: waiverSignature.id,
+        signature: waiverSignature 
+      };
+    }
+
+    return { error: "No waiver data available" };
   } catch (error) {
     console.error("Error generating waiver download URL:", error);
     return { error: "Failed to generate waiver URL" };
+  }
+}
+
+export async function getAnonymousWaiverSignatureMeta(signupId: string, anonymousSignupId: string): Promise<
+  | { signatureId: string; signature_type: string | null; signed_at: string | null }
+  | { signatureId: null; signature_type: null; signed_at: null }
+  | { error: string }
+> {
+  const supabase = await createClient();
+
+  try {
+    // Anonymous-only helper: verify the anonymous signup owns this project_signup.
+    const { data: signup, error: signupError } = await supabase
+      .from('project_signups')
+      .select('id, anonymous_id')
+      .eq('id', signupId)
+      .maybeSingle();
+
+    if (signupError || !signup) {
+      return { error: 'Signup not found' };
+    }
+
+    if (!signup.anonymous_id || signup.anonymous_id !== anonymousSignupId) {
+      return { error: 'Unauthorized' };
+    }
+
+    const { data: anonSignup, error: anonError } = await supabase
+      .from('anonymous_signups')
+      .select('id')
+      .eq('id', anonymousSignupId)
+      .maybeSingle();
+
+    if (anonError || !anonSignup) {
+      return { error: 'Unauthorized' };
+    }
+
+    const admin = getAdminClient();
+    const { data: sig, error: sigError } = await admin
+      .from('waiver_signatures')
+      .select('id, signature_type, signed_at')
+      .eq('signup_id', signupId)
+      .order('signed_at', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (sigError) {
+      console.error('Error loading anonymous waiver signature meta:', sigError);
+      return { error: 'Failed to load waiver' };
+    }
+
+    if (!sig) {
+      return { signatureId: null, signature_type: null, signed_at: null };
+    }
+
+    return {
+      signatureId: sig.id,
+      signature_type: sig.signature_type ?? null,
+      signed_at: sig.signed_at ?? null,
+    };
+  } catch (error) {
+    console.error('Error in getAnonymousWaiverSignatureMeta:', error);
+    return { error: 'Failed to load waiver' };
+  }
+}
+
+export async function getMyWaiverSignatures(projectId: string): Promise<
+  | { signatures: Array<{ id: string; signed_at: string | null; created_at: string }> }
+  | { error: string }
+> {
+  try {
+    const { user, error: userError } = await getAuthUser();
+    if (userError || !user) {
+      return { error: 'Not authenticated' };
+    }
+
+    const admin = getAdminClient();
+
+    const { data, error } = await admin
+      .from('waiver_signatures')
+      .select(`
+        id,
+        signed_at,
+        created_at
+      `)
+      .eq('user_id', user.id)
+      .eq('project_id', projectId)
+      .order('signed_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching my waiver signatures:', error);
+      return { error: 'Failed to load waivers' };
+    }
+
+    return { signatures: (data ?? []) as any };
+  } catch (error) {
+    console.error('Error in getMyWaiverSignatures:', error);
+    return { error: 'Failed to load waivers' };
   }
 }
 
@@ -2044,6 +2607,259 @@ export async function resendAnonymousConfirmationEmail(anonymousSignupId: string
   } catch (error) {
     console.error("Error in resendAnonymousConfirmationEmail:", error);
     return { error: "An unexpected error occurred." };
+  }
+}
+
+// Get waiver definition for a project
+export async function getWaiverDefinition(projectId: string): Promise<{
+  success: boolean;
+  definition?: any;
+  error?: string;
+}> {
+  try {
+    const supabase = await createClient();
+    const { user } = await getAuthUser();
+
+    if (!user) {
+      return { success: false, error: "Unauthorized" };
+    }
+
+    // Get project to check waiver_definition_id
+    const { data: project } = await supabase
+      .from("projects")
+      .select("waiver_definition_id")
+      .eq("id", projectId)
+      .single();
+
+    if (!project?.waiver_definition_id) {
+      return { success: true, definition: null };
+    }
+
+    // Fetch the definition with related data
+    const { data: definition, error } = await supabase
+      .from("waiver_definitions")
+      .select(`
+        *,
+        signers:waiver_definition_signers(*),
+        fields:waiver_definition_fields(*)
+      `)
+      .eq("id", project.waiver_definition_id)
+      .single();
+
+    if (error) {
+      console.error("Error fetching waiver definition:", error);
+      return { success: false, error: "Failed to fetch waiver definition" };
+    }
+
+    return { success: true, definition };
+  } catch (error) {
+    console.error("Error in getWaiverDefinition:", error);
+    return { success: false, error: "An unexpected error occurred" };
+  }
+}
+
+// Save waiver definition for a project
+export async function saveWaiverDefinition(
+  projectId: string,
+  definitionInput: any
+): Promise<{ success: boolean; definitionId?: string; error?: string }> {
+  try {
+    const supabase = await createClient();
+    const { user } = await getAuthUser();
+
+    if (!user) {
+      return { success: false, error: "Unauthorized" };
+    }
+
+    // Check if user is project creator
+    const creator = await isProjectCreator(projectId);
+    if (!creator) {
+      return { success: false, error: "Only project creator can configure waivers" };
+    }
+
+    // Get project info
+    const { data: project } = await supabase
+      .from("projects")
+      .select("waiver_definition_id, waiver_pdf_url, waiver_pdf_storage_path")
+      .eq("id", projectId)
+      .single();
+
+    if (!project) {
+      return { success: false, error: "Project not found" };
+    }
+
+    const serviceSupabase = getAdminClient();
+    let definitionId = project.waiver_definition_id;
+
+    // If definition exists, update it; otherwise create new
+    if (definitionId) {
+      // Update existing definition
+      const { error: updateError } = await serviceSupabase
+        .from("waiver_definitions")
+        .update({
+          title: definitionInput.title || "Project Waiver",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", definitionId);
+
+      if (updateError) {
+        console.error("Error updating waiver definition:", updateError);
+        return { success: false, error: "Failed to update waiver definition" };
+      }
+
+      // Delete existing signers and fields
+      await serviceSupabase
+        .from("waiver_definition_signers")
+        .delete()
+        .eq("waiver_definition_id", definitionId);
+
+      await serviceSupabase
+        .from("waiver_definition_fields")
+        .delete()
+        .eq("waiver_definition_id", definitionId);
+    } else {
+      // Create new definition
+      const { data: newDef, error: createError } = await serviceSupabase
+        .from("waiver_definitions")
+        .insert({
+          scope: "project",
+          project_id: projectId,
+          title: definitionInput.title || "Project Waiver",
+          version: 1,
+          active: true,
+          pdf_storage_path: project.waiver_pdf_storage_path,
+          pdf_public_url: project.waiver_pdf_url,
+          source: "project_pdf",
+          created_by: user.id,
+        })
+        .select("id")
+        .single();
+
+      if (createError) {
+        console.error("Error creating waiver definition:", createError);
+        return { success: false, error: "Failed to create waiver definition" };
+      }
+
+      definitionId = newDef.id;
+
+      // Link project to definition
+      await supabase
+        .from("projects")
+        .update({ waiver_definition_id: definitionId })
+        .eq("id", projectId);
+    }
+
+    // Insert signers
+    if (definitionInput.signers && definitionInput.signers.length > 0) {
+      const signersToInsert = definitionInput.signers.map((signer: {
+        roleKey?: string;
+        label?: string;
+        required?: boolean;
+        orderIndex?: number;
+        rules?: Record<string, unknown> | null;
+      }, index: number) => ({
+        waiver_definition_id: definitionId,
+        role_key: signer.roleKey,
+        label: signer.label,
+        required: signer.required ?? true,
+        order_index: signer.orderIndex ?? index,
+        rules: signer.rules || null,
+      }));
+
+      const { error: signersError } = await serviceSupabase
+        .from("waiver_definition_signers")
+        .insert(signersToInsert);
+
+      if (signersError) {
+        console.error("Error inserting waiver signers:", signersError);
+        return { success: false, error: "Failed to save signer configuration" };
+      }
+    }
+
+    // Insert fields
+    if (definitionInput.fields) {
+      const fieldsToInsert: Record<string, unknown>[] = [];
+
+      // Process detected field mappings
+      if (definitionInput.fields.detected) {
+        const detectedFieldMappings = Object.entries(definitionInput.fields.detected).map(([fieldKey, mapping]: [string, unknown]) => {
+          const resolved = (mapping ?? {}) as {
+            fieldKey?: string;
+            fieldType?: string;
+            pageIndex: number;
+            rect: { x: number; y: number; width: number; height: number };
+            pdfFieldName?: string;
+            label?: string;
+            required?: boolean;
+            signerRoleKey?: string;
+            meta?: Record<string, unknown> | null;
+          };
+
+          return {
+            fieldKey: resolved.fieldKey || fieldKey,
+            fieldType: resolved.fieldType || "text",
+            pageIndex: resolved.pageIndex,
+            rect: resolved.rect,
+            pdfFieldName: resolved.pdfFieldName || fieldKey,
+            label: resolved.label || fieldKey,
+            required: resolved.required ?? false,
+            signerRoleKey: resolved.signerRoleKey || undefined,
+            meta: resolved.meta ?? null,
+          };
+        });
+        
+        const detectedFields = mapDetectedFieldsForDb(definitionId, detectedFieldMappings);
+        fieldsToInsert.push(...detectedFields);
+      }
+
+      // Process custom signature placements
+      if (definitionInput.fields.custom && definitionInput.fields.custom.length > 0) {
+        const customPlacements = definitionInput.fields.custom.map((field: {
+          id?: string;
+          fieldKey?: string;
+          label?: string;
+          fieldType?: string;
+          pageIndex: number;
+          rect: { x: number; y: number; width: number; height: number };
+          signerRoleKey?: string;
+          required?: boolean;
+          meta?: Record<string, unknown> | null;
+        }) => ({
+          id: field.id || field.fieldKey,
+          fieldKey: field.fieldKey,
+          label: field.label || undefined,
+          fieldType: field.fieldType || "signature",
+          pageIndex: field.pageIndex,
+          rect: field.rect,
+          signerRoleKey: field.signerRoleKey || undefined,
+          required: field.required ?? undefined,
+          meta: field.meta ?? null,
+        }));
+        
+        const customFields = mapCustomPlacementsForDb(definitionId, customPlacements);
+        fieldsToInsert.push(...customFields);
+      }
+
+      // Insert all fields
+      if (fieldsToInsert.length > 0) {
+        const { error: fieldsError } = await serviceSupabase
+          .from("waiver_definition_fields")
+          .insert(fieldsToInsert);
+
+        if (fieldsError) {
+          console.error("Error inserting waiver fields:", fieldsError);
+          return { success: false, error: "Failed to save field configuration" };
+        }
+      }
+    }
+
+    revalidatePath(`/projects/${projectId}`);
+    revalidatePath(`/projects/${projectId}/edit`);
+
+    return { success: true, definitionId };
+  } catch (error) {
+    console.error("Error in saveWaiverDefinition:", error);
+    return { success: false, error: "An unexpected error occurred" };
   }
 }
 
