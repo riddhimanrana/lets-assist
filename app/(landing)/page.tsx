@@ -70,7 +70,12 @@ export default async function HomePage(props: {
   }
 
   if (error && errorDescription) {
-    const decodedDescription = decodeURIComponent(errorDescription);
+    let decodedDescription = errorDescription;
+    try {
+      decodedDescription = decodeURIComponent(errorDescription);
+    } catch {
+      // If decoding fails (malformed percent-encoding), fall back to raw string
+    }
     let message = decodedDescription;
 
     if (errorCode === "otp_expired") {
