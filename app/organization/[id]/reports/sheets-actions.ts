@@ -54,6 +54,26 @@ export type SheetSyncStatus = {
 const DEFAULT_TAB_NAME = "Member Hours";
 const DEFAULT_SYNC_INTERVAL_MINUTES = 1440;
 const DEFAULT_RANGE_A1 = "A1";
+const MIN_SYNC_INTERVAL_MINUTES = 60;
+
+function hasConfiguredSheetDestination(
+  syncConfig:
+    | {
+        sheet_id?: string | null;
+        sheet_url?: string | null;
+        tab_name?: string | null;
+        report_type?: string | null;
+      }
+    | null
+    | undefined
+) {
+  return Boolean(
+    syncConfig?.sheet_id?.trim() &&
+      syncConfig?.sheet_url?.trim() &&
+      syncConfig?.tab_name?.trim() &&
+      syncConfig?.report_type?.trim()
+  );
+}
 
 async function assertOrgAccess(organizationId: string) {
   const supabase = await createClient();
@@ -106,6 +126,7 @@ export async function getSheetSyncStatus(
   const viewerIsOwner = syncConfig?.created_by
     ? syncConfig.created_by === access.userId
     : false;
+  const destinationConfigured = hasConfiguredSheetDestination(syncConfig);
 
   if (syncConfig?.created_by) {
     const { data: ownerConnection } = await serviceSupabase
@@ -156,6 +177,7 @@ export async function getSheetSyncStatus(
     connectedBy,
     viewerIsOwner,
     syncConfig: syncConfig
+      ? destinationConfigured
       ? {
           sheetId: syncConfig.sheet_id,
           sheetUrl: syncConfig.sheet_url,
@@ -168,6 +190,7 @@ export async function getSheetSyncStatus(
           syncIntervalMinutes: syncConfig.sync_interval_minutes,
           lastSyncedAt: syncConfig.last_synced_at,
         }
+      : null
       : null,
   };
 }
@@ -259,7 +282,14 @@ export async function createSheetSync(
     return { success: false, error: "Failed to save sheet configuration" };
   }
 
-  await syncSheetNow(organizationId);
+  const syncResult = await syncSheetNow(organizationId);
+  if (!syncResult.success) {
+    return {
+      success: false,
+      error: syncResult.error || "Sheet created, but initial sync failed. Please reconnect and try syncing again.",
+      sheetUrl: sheet.sheetUrl,
+    };
+  }
 
   return { success: true, sheetUrl: sheet.sheetUrl };
 }
@@ -283,6 +313,13 @@ export async function syncSheetNow(
 
   if (syncError || !syncConfig) {
     return { success: false, error: "Sheet sync not configured" };
+  }
+
+  if (!hasConfiguredSheetDestination(syncConfig)) {
+    return {
+      success: false,
+      error: "No sheet destination is configured yet. Complete setup below.",
+    };
   }
 
   if (!syncConfig.created_by) {
@@ -380,14 +417,50 @@ export async function updateSheetSyncSettings(
     return { success: false, error: "Admin access required" };
   }
 
+  if (updates.syncIntervalMinutes !== undefined) {
+    if (!Number.isInteger(updates.syncIntervalMinutes)) {
+      return { success: false, error: "Sync interval must be a whole number of minutes" };
+    }
+
+    if (updates.syncIntervalMinutes < MIN_SYNC_INTERVAL_MINUTES) {
+      return {
+        success: false,
+        error: `Sync interval must be at least ${MIN_SYNC_INTERVAL_MINUTES} minutes`,
+      };
+    }
+  }
+
   const serviceSupabase = getAdminClient();
+
+  const { data: existingSync } = await serviceSupabase
+    .from("organization_sheet_syncs")
+    .select("organization_id")
+    .eq("organization_id", organizationId)
+    .maybeSingle();
+
+  if (!existingSync) {
+    return { success: false, error: "Sheet sync not configured" };
+  }
+
+  const updatePayload: {
+    auto_sync?: boolean;
+    sync_interval_minutes?: number;
+    updated_at: string;
+  } = {
+    updated_at: new Date().toISOString(),
+  };
+
+  if (typeof updates.autoSync === "boolean") {
+    updatePayload.auto_sync = updates.autoSync;
+  }
+
+  if (updates.syncIntervalMinutes !== undefined) {
+    updatePayload.sync_interval_minutes = updates.syncIntervalMinutes;
+  }
+
   const { error: updateError } = await serviceSupabase
     .from("organization_sheet_syncs")
-    .update({
-      auto_sync: updates.autoSync,
-      sync_interval_minutes: updates.syncIntervalMinutes,
-      updated_at: new Date().toISOString(),
-    })
+    .update(updatePayload)
     .eq("organization_id", organizationId);
 
   if (updateError) {
@@ -416,6 +489,17 @@ export async function updateSheetSyncConfig(
     return { success: false, error: "Admin access required" };
   }
 
+  const serviceSupabase = getAdminClient();
+  const { data: existingSync } = await serviceSupabase
+    .from("organization_sheet_syncs")
+    .select("organization_id")
+    .eq("organization_id", organizationId)
+    .maybeSingle();
+
+  if (!existingSync) {
+    return { success: false, error: "Sheet sync not configured" };
+  }
+
   // Validate layout if provided
   if (updates.layoutConfig) {
     if (updates.reportType && updates.layoutConfig.reportType !== updates.reportType) {
@@ -433,7 +517,6 @@ export async function updateSheetSyncConfig(
     }
   }
 
-  const serviceSupabase = getAdminClient();
   const { error: updateError } = await serviceSupabase
     .from("organization_sheet_syncs")
     .update({
@@ -471,12 +554,18 @@ export async function getSheetsAccessTokenForPicker(
   }
 
   if (!hasGoogleSheetsScopes(connection.granted_scopes)) {
-    return { success: false, error: "Sheets permissions missing" };
+    return {
+      success: false,
+      error: "Sheets permissions are missing. Reconnect with Sheets access to continue.",
+    };
   }
 
   const accessToken = await getGoogleAccessTokenForSheets(access.userId);
   if (!accessToken) {
-    return { success: false, error: "Sheets permissions missing" };
+    return {
+      success: false,
+      error: "Sheets permissions are missing. Reconnect with Sheets access to continue.",
+    };
   }
 
   return { success: true, accessToken };
@@ -597,7 +686,13 @@ export async function connectExistingSheet(
     return { success: false, error: "Failed to save sheet configuration" };
   }
 
-  await syncSheetNow(organizationId);
+  const syncResult = await syncSheetNow(organizationId);
+  if (!syncResult.success) {
+    return {
+      success: false,
+      error: syncResult.error || "Sheet connected, but initial sync failed. Please reconnect and try syncing again.",
+    };
+  }
 
   return { success: true };
 }

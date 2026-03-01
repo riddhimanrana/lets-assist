@@ -12,6 +12,10 @@ import {
   analyzeReportWithAi,
   buildProjectFlagDetails,
 } from "./ai-review";
+import {
+  matchesReportStatusFilter,
+  normalizeReportStatus,
+} from './report-status';
 
 /**
  * Get all flagged content for admin review
@@ -269,6 +273,10 @@ export async function getModerationStats() {
   const { count: totalReportsCount } = await supabase
     .from('content_reports')
     .select('*', { count: 'exact', head: true });
+
+  const { data: reportStatuses } = await supabase
+    .from('content_reports')
+    .select('status');
   
   const { count: pendingFlagsCount } = await supabase
     .from('content_flags')
@@ -276,10 +284,9 @@ export async function getModerationStats() {
     .eq('status', 'pending');
   
   // Also count pending content_reports
-  const { count: pendingReportsCount } = await supabase
-    .from('content_reports')
-    .select('*', { count: 'exact', head: true })
-    .eq('status', 'pending');
+  const pendingReportsCount = (reportStatuses || []).filter((report) =>
+    matchesReportStatusFilter(report.status, 'pending'),
+  ).length;
   
   const { count: blockedCount } = await supabase
     .from('content_flags')
@@ -367,35 +374,37 @@ export async function getContentReports(status?: 'pending' | 'under_review' | 'r
     return { error: "Unauthorized - Admin access required" };
   }
   
-  let query = supabase
+  const { data: rawReports, error } = await supabase
     .from('content_reports')
     .select('*')
     .order('priority', { ascending: false })
     .order('created_at', { ascending: false });
   
-  if (status) {
-    query = query.eq('status', status);
-  }
-  
-  const { data, error } = await query;
-  
-  console.log(`[getContentReports] Fetched ${data?.length || 0} reports with status: ${status || 'any'}`);
-  if (data?.length) {
-    console.log(`[getContentReports] Report IDs:`, data.map(r => r.id));
-  }
-  
   if (error) {
     console.error('Error fetching content reports:', error);
     return { error: error.message };
   }
+
+  const normalizedReports = (rawReports || []).map((report) => ({
+    ...report,
+    status: normalizeReportStatus(report.status),
+  }));
+
+  const reports = normalizedReports.filter((report) =>
+    matchesReportStatusFilter(report.status, status),
+  );
+
+  if (reports.length === 0) {
+    return { data: [] };
+  }
   
   // Manually fetch reporter and reviewer profiles
-  if (data) {
-    const reporterIds = data
+  if (reports) {
+    const reporterIds = reports
       .map(r => r.reporter_id)
       .filter((id): id is string => id !== null);
     
-    const reviewerIds = data
+    const reviewerIds = reports
       .map(r => r.reviewed_by)
       .filter((id): id is string => id !== null);
     
@@ -410,8 +419,8 @@ export async function getContentReports(status?: 'pending' | 'under_review' | 'r
       const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
       
       // Fetch content details based on type
-      const projectIds = data.filter(r => r.content_type === 'project').map(r => r.content_id);
-      const profileIds = data.filter(r => r.content_type === 'profile').map(r => r.content_id);
+      const projectIds = reports.filter(r => r.content_type === 'project').map(r => r.content_id);
+      const profileIds = reports.filter(r => r.content_type === 'profile').map(r => r.content_id);
       
       let projects: ProjectSummary[] = [];
       if (projectIds.length > 0) {
@@ -445,7 +454,7 @@ export async function getContentReports(status?: 'pending' | 'under_review' | 'r
       const projectCreatorMap = new Map(projectCreators.map(p => [p.id, p]));
 
       // Enhance data with profile info and content details
-      const enhancedData = data.map(report => {
+      const enhancedData = reports.map(report => {
         let contentDetails = null;
         let creatorDetails = null;
 
@@ -474,7 +483,7 @@ export async function getContentReports(status?: 'pending' | 'under_review' | 'r
     }
   }
   
-  return { data };
+  return { data: reports };
 }
 
 /**
@@ -625,16 +634,18 @@ export async function getContentReportsStats() {
   const { count: totalReports } = await supabase
     .from('content_reports')
     .select('*', { count: 'exact', head: true });
-  
-  const { count: pendingCount } = await supabase
+
+  const { data: reportStatuses } = await supabase
     .from('content_reports')
-    .select('*', { count: 'exact', head: true })
-    .eq('status', 'pending');
+    .select('status');
   
-  const { count: resolvedCount } = await supabase
-    .from('content_reports')
-    .select('*', { count: 'exact', head: true })
-    .eq('status', 'resolved');
+  const pendingCount = (reportStatuses || []).filter((report) =>
+    matchesReportStatusFilter(report.status, 'pending'),
+  ).length;
+
+  const resolvedCount = (reportStatuses || []).filter((report) =>
+    matchesReportStatusFilter(report.status, 'resolved'),
+  ).length;
   
   const { count: highPriorityCount } = await supabase
     .from('content_reports')

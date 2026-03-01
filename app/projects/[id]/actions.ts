@@ -2154,12 +2154,39 @@ export async function updateProject(projectId: string, updates: Partial<Project>
     // Verify project ownership
     const { data: project } = await supabase
       .from("projects")
-      .select("creator_id, recurrence_parent_id, recurrence_rule")
+      .select("creator_id, recurrence_parent_id, recurrence_rule, visibility")
       .eq("id", projectId)
       .single();
 
     if (!project || project.creator_id !== user.id) {
       return { error: "Unauthorized" };
+    }
+
+    const requestsPublicVisibility =
+      Object.prototype.hasOwnProperty.call(updates, "visibility") &&
+      updates.visibility === "public";
+
+    if (requestsPublicVisibility) {
+      const { data: tmProfile } = await supabase
+        .from("profiles")
+        .select("trusted_member")
+        .eq("id", user.id)
+        .single();
+
+      if (!tmProfile?.trusted_member) {
+        const { data: tmApp } = await supabase
+          .from("trusted_member")
+          .select("status")
+          .or(`id.eq.${user.id},user_id.eq.${user.id}`)
+          .maybeSingle();
+
+        if (tmApp?.status !== true) {
+          return {
+            error:
+              "Only Trusted Members can set project visibility to Public. Keep the project Unlisted or Organization-only, or apply at /trusted-member.",
+          };
+        }
+      }
     }
 
     const disablesRecurrence =

@@ -52,6 +52,21 @@ type OrganizationSheetsSettingsProps = {
   organizationName: string;
 };
 
+const syncIntervalOptions = [
+  { value: "360", label: "Every 6 hours" },
+  { value: "720", label: "Every 12 hours" },
+  { value: "1440", label: "Daily" },
+  { value: "4320", label: "Every 3 days" },
+] as const;
+
+const getSyncIntervalLabel = (value: string | number | null | undefined) => {
+  const normalized = String(value ?? "");
+  return (
+    syncIntervalOptions.find((option) => option.value === normalized)?.label ||
+    (normalized ? `Every ${normalized} minutes` : "Interval")
+  );
+};
+
 export default function OrganizationSheetsSettings({
   organizationId,
   organizationSlug,
@@ -78,7 +93,7 @@ export default function OrganizationSheetsSettings({
 
   const connectUrl = useMemo(
     () =>
-      `/api/calendar/google/connect?sheets_sync=1&org_id=${organizationId}&return_to=${encodeURIComponent(
+      `/api/calendar/google/connect?scopes=sheets&sheets_sync=1&force=1&org_id=${organizationId}&return_to=${encodeURIComponent(
         `/organization/${organizationSlug}/settings?section=sheets`
       )}`,
     [organizationId, organizationSlug]
@@ -159,7 +174,7 @@ export default function OrganizationSheetsSettings({
     if (!interval) return;
     setUpdatingSettings(true);
     const result = await updateSheetSyncSettings(organizationId, { 
-      syncIntervalMinutes: parseInt(interval) 
+      syncIntervalMinutes: parseInt(interval, 10) 
     });
     if (!result.success) {
       toast.error(result.error || "Failed to update interval");
@@ -336,14 +351,17 @@ export default function OrganizationSheetsSettings({
                   disabled={updatingSettings || (status.connected && !status.scopesOk)}
                 >
                   <SelectTrigger className="w-35 h-8 text-xs">
-                    <SelectValue placeholder="Interval" />
+                    <SelectValue placeholder="Interval">
+                      {getSyncIntervalLabel(status.syncConfig.syncIntervalMinutes)}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectGroup>
-                      <SelectItem value="360">Every 6 hours</SelectItem>
-                      <SelectItem value="720">Every 12 hours</SelectItem>
-                      <SelectItem value="1440">Daily</SelectItem>
-                      <SelectItem value="4320">Every 3 days</SelectItem>
+                      {syncIntervalOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
                     </SelectGroup>
                   </SelectContent>
                 </Select>

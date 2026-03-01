@@ -4,7 +4,6 @@ import { CustomPlacement } from "./PdfViewerWithOverlay";
 import { WaiverDefinitionSignerInput } from "./SignerRolesEditor";
 import { WaiverFieldType } from "@/types/waiver-definitions";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
@@ -58,13 +57,6 @@ export function SignaturePlacementsEditor({
   isAddingPlacement
 }: SignaturePlacementsEditorProps) {
 
-  const getPlacementMeta = (placement: CustomPlacement): Record<string, unknown> => {
-    if (!placement.meta || typeof placement.meta !== 'object') {
-      return {};
-    }
-    return placement.meta;
-  };
-
   const handleUpdatePlacement = (id: string, updates: Partial<CustomPlacement>) => {
     const newPlacements = placements.map(p => 
       p.id === id ? { ...p, ...updates } : p
@@ -74,25 +66,6 @@ export function SignaturePlacementsEditor({
 
   const handleRemovePlacement = (id: string) => {
     onPlacementsChange(placements.filter(p => p.id !== id));
-  };
-
-  const handleMetaUpdate = (placement: CustomPlacement, key: string, value: unknown) => {
-    const currentMeta = getPlacementMeta(placement);
-    handleUpdatePlacement(placement.id, {
-      meta: {
-        ...currentMeta,
-        [key]: value,
-      },
-    });
-  };
-
-  const handleOptionsUpdate = (placement: CustomPlacement, rawValue: string) => {
-    const options = rawValue
-      .split(',')
-      .map((value) => value.trim())
-      .filter(Boolean);
-
-    handleMetaUpdate(placement, 'options', options);
   };
 
   // Helper to get signer label from roleKey
@@ -203,93 +176,6 @@ export function SignaturePlacementsEditor({
                              />
                              <Label className="text-xs cursor-pointer" htmlFor={`req-${placement.id}`}>Required</Label>
                           </div>
-                       </div>
-
-                       <div className="mt-2 space-y-2 rounded-md border bg-muted/20 p-2">
-                         <p className="text-[11px] font-medium text-muted-foreground">Field guidance & e-sign details</p>
-
-                         <Input
-                           className="h-8 text-xs"
-                           placeholder="What are they signing as? (e.g. Parent/Guardian Authorization)"
-                           value={String(getPlacementMeta(placement).signingPurpose ?? '')}
-                           onChange={(event) => handleMetaUpdate(placement, 'signingPurpose', event.target.value)}
-                           onClick={(event) => event.stopPropagation()}
-                         />
-
-                         <Input
-                           className="h-8 text-xs"
-                           placeholder="Signer-facing explanation/help text"
-                           value={String(getPlacementMeta(placement).helpText ?? '')}
-                           onChange={(event) => handleMetaUpdate(placement, 'helpText', event.target.value)}
-                           onClick={(event) => event.stopPropagation()}
-                         />
-
-                         {['text', 'name', 'email', 'phone', 'address', 'date'].includes(placement.fieldType) && (
-                           <Input
-                             className="h-8 text-xs"
-                             placeholder="Placeholder text"
-                             value={String(getPlacementMeta(placement).placeholder ?? '')}
-                             onChange={(event) => handleMetaUpdate(placement, 'placeholder', event.target.value)}
-                             onClick={(event) => event.stopPropagation()}
-                           />
-                         )}
-
-                         {['radio', 'dropdown'].includes(placement.fieldType) && (
-                           <Input
-                             className="h-8 text-xs"
-                             placeholder="Options (comma separated)"
-                             value={Array.isArray(getPlacementMeta(placement).options)
-                               ? (getPlacementMeta(placement).options as string[]).join(', ')
-                               : ''}
-                             onChange={(event) => handleOptionsUpdate(placement, event.target.value)}
-                             onClick={(event) => event.stopPropagation()}
-                           />
-                         )}
-
-                         {(placement.fieldType === 'signature' || placement.fieldType === 'initial') && (
-                           <div className="grid grid-cols-2 gap-2 pt-1">
-                             <div className="flex items-center gap-1.5">
-                               <Switch
-                                 id={`collect-name-${placement.id}`}
-                                 checked={Boolean(getPlacementMeta(placement).collectSignerName)}
-                                 onCheckedChange={(checked) => handleMetaUpdate(placement, 'collectSignerName', checked)}
-                                 className="scale-90"
-                                 onClick={(event: React.MouseEvent) => event.stopPropagation()}
-                               />
-                               <Label className="text-[11px] cursor-pointer" htmlFor={`collect-name-${placement.id}`}>Collect name</Label>
-                             </div>
-                             <div className="flex items-center gap-1.5">
-                               <Switch
-                                 id={`collect-email-${placement.id}`}
-                                 checked={Boolean(getPlacementMeta(placement).collectSignerEmail)}
-                                 onCheckedChange={(checked) => handleMetaUpdate(placement, 'collectSignerEmail', checked)}
-                                 className="scale-90"
-                                 onClick={(event: React.MouseEvent) => event.stopPropagation()}
-                               />
-                               <Label className="text-[11px] cursor-pointer" htmlFor={`collect-email-${placement.id}`}>Collect email</Label>
-                             </div>
-                             <div className="flex items-center gap-1.5">
-                               <Switch
-                                 id={`collect-phone-${placement.id}`}
-                                 checked={Boolean(getPlacementMeta(placement).collectSignerPhone)}
-                                 onCheckedChange={(checked) => handleMetaUpdate(placement, 'collectSignerPhone', checked)}
-                                 className="scale-90"
-                                 onClick={(event: React.MouseEvent) => event.stopPropagation()}
-                               />
-                               <Label className="text-[11px] cursor-pointer" htmlFor={`collect-phone-${placement.id}`}>Collect phone</Label>
-                             </div>
-                             <div className="flex items-center gap-1.5">
-                               <Switch
-                                 id={`collect-title-${placement.id}`}
-                                 checked={Boolean(getPlacementMeta(placement).collectSignerTitle)}
-                                 onCheckedChange={(checked) => handleMetaUpdate(placement, 'collectSignerTitle', checked)}
-                                 className="scale-90"
-                                 onClick={(event: React.MouseEvent) => event.stopPropagation()}
-                               />
-                               <Label className="text-[11px] cursor-pointer" htmlFor={`collect-title-${placement.id}`}>Collect signer title</Label>
-                             </div>
-                           </div>
-                         )}
                        </div>
                      </div>
                      

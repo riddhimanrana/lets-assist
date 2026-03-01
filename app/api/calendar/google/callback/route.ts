@@ -143,6 +143,8 @@ export async function GET(request: Request) {
       .eq("user_id", userId)
       .eq("provider", "google")
       .eq("is_active", true)
+      .order("updated_at", { ascending: false })
+      .limit(1)
       .maybeSingle()) as {
       data:
         | {
@@ -289,40 +291,29 @@ export async function GET(request: Request) {
           );
       }
       
-      // Handle organization sheets sync separately (no calendar creation)
-      // The sheets sync configuration is handled in the sheets-actions.ts file
+      // Handle organization sheets sync ownership separately.
+      // Destination/configuration is created in sheets-actions.ts, not in OAuth callback.
       if (stateData.isSheetsSync && stateData.orgId) {
-        // Automatically make the connecting admin the owner of the sync
-        // if they are connecting specifically for this organization.
-        
-        // Check if sync already exists
-        const { data: existingSync } = await serviceSupabase
+        const { data: existingSync, error: existingSyncError } = await serviceSupabase
           .from("organization_sheet_syncs")
-          .select("organization_id")
+          .select("id")
           .eq("organization_id", stateData.orgId)
           .maybeSingle();
 
-        if (existingSync) {
-          // If it exists, only update the owner and timestamp
-          await serviceSupabase
+        if (existingSyncError) {
+          console.error("Failed to look up organization sheet sync during OAuth callback:", existingSyncError);
+        } else if (existingSync) {
+          const { error: ownerUpdateError } = await serviceSupabase
             .from("organization_sheet_syncs")
-            .update({ 
-               created_by: userId, 
-               updated_at: new Date().toISOString() 
+            .update({
+              created_by: userId,
+              updated_at: new Date().toISOString(),
             })
             .eq("organization_id", stateData.orgId);
-        } else {
-          // If it doesn't exist, create it with defaults
-          await serviceSupabase
-            .from("organization_sheet_syncs")
-            .insert({
-               organization_id: stateData.orgId,
-               created_by: userId,
-               report_type: 'member-hours',
-               auto_sync: false,
-               sync_interval_minutes: 1440,
-               updated_at: new Date().toISOString() 
-            });
+
+          if (ownerUpdateError) {
+            console.error("Failed to update organization sheet sync owner during OAuth callback:", ownerUpdateError);
+          }
         }
       }
     }

@@ -108,24 +108,30 @@ export async function createBasicProject(
     return { error: "You must be logged in to create a project" };
   }
 
-  // Trusted member gating (no bypass by org roles)
-  const { data: tmProfile } = await supabase
-    .from("profiles")
-    .select("trusted_member")
-    .eq("id", user.id)
-    .single();
-  if (!tmProfile?.trusted_member) {
-    // If profile flag isn't set, allow if application is accepted
-    const { data: tmApp } = await supabase
-      .from("trusted_member")
-      .select("status")
+  const requestedVisibility = projectData.visibility || "unlisted";
+
+  // Trusted member gating only for projects that appear in public feed.
+  if (requestedVisibility === "public") {
+    const { data: tmProfile } = await supabase
+      .from("profiles")
+      .select("trusted_member")
       .eq("id", user.id)
-      .maybeSingle();
-    if (tmApp?.status !== true) {
-      return {
-        error:
-          "Only Trusted Members can create projects. Please visit /trusted-member to apply, and once accepted you can create projects.",
-      };
+      .single();
+
+    if (!tmProfile?.trusted_member) {
+      // If profile flag isn't set, allow if application is accepted.
+      const { data: tmApp } = await supabase
+        .from("trusted_member")
+        .select("status")
+        .or(`id.eq.${user.id},user_id.eq.${user.id}`)
+        .maybeSingle();
+
+      if (tmApp?.status !== true) {
+        return {
+          error:
+            "Only Trusted Members can create Public projects. You can still create Unlisted or Organization-only projects. Visit /trusted-member to apply for Public visibility.",
+        };
+      }
     }
   }
 
@@ -210,6 +216,8 @@ export async function createBasicProject(
       location_data: projectData.basicInfo.locationData, // Add locationData field
       description: projectData.basicInfo.description,
       event_type: projectData.eventType,
+      schedule: projectData.schedule,
+      status: 'upcoming',
       verification_method: projectData.verificationMethod,
       require_login: projectData.requireLogin,
       enable_volunteer_comments: projectData.enableVolunteerComments || false,
@@ -217,7 +225,7 @@ export async function createBasicProject(
       waiver_required: projectData.waiverRequired || false,
       waiver_allow_upload: projectData.waiverAllowUpload ?? true,
       organization_id: organizationId || null, // Save organization_id if provided
-      visibility: projectData.visibility || 'public', // Set visibility (public/unlisted for all, org_only for org projects)
+      visibility: requestedVisibility, // Public requires Trusted Member. Unlisted / org-only do not.
       published: publishedState, // Add the published state tracking
       project_timezone: projectData.basicInfo.projectTimezone || 'America/Los_Angeles', // Save project timezone with fallback
       restrict_to_org_domains: projectData.restrictToOrgDomains || false, // Add domain restriction flag
@@ -725,7 +733,7 @@ export async function updateDraft(projectId: string, projectData: Partial<EventF
   // Verify the user owns this draft
   const { data: project, error: projectError } = await supabase
     .from("projects")
-    .select("id, creator_id, workflow_status")
+    .select("id, creator_id, workflow_status, visibility")
     .eq("id", projectId)
     .single();
 
@@ -745,6 +753,31 @@ export async function updateDraft(projectId: string, projectData: Partial<EventF
     return { error: "Incomplete project data for draft update" };
   }
 
+  const targetVisibility = projectData.visibility || project.visibility || "unlisted";
+
+  if (targetVisibility === "public") {
+    const { data: tmProfile } = await supabase
+      .from("profiles")
+      .select("trusted_member")
+      .eq("id", user.id)
+      .single();
+
+    if (!tmProfile?.trusted_member) {
+      const { data: tmApp } = await supabase
+        .from("trusted_member")
+        .select("status")
+        .or(`id.eq.${user.id},user_id.eq.${user.id}`)
+        .maybeSingle();
+
+      if (tmApp?.status !== true) {
+        return {
+          error:
+            "Only Trusted Members can set project visibility to Public. Keep this draft Unlisted or Organization-only, or apply at /trusted-member.",
+        };
+      }
+    }
+  }
+
   // Build recurrence rule if enabled
   const recurrenceRule = projectData.recurrence?.enabled ? {
     frequency: projectData.recurrence.frequency,
@@ -762,12 +795,14 @@ export async function updateDraft(projectId: string, projectData: Partial<EventF
     location_data: projectData.basicInfo.locationData,
     description: projectData.basicInfo.description,
     event_type: projectData.eventType,
+    schedule: projectData.schedule,
     verification_method: projectData.verificationMethod,
     require_login: projectData.requireLogin,
     enable_volunteer_comments: projectData.enableVolunteerComments || false,
     show_attendees_publicly: projectData.showAttendeesPublicly || false,
     waiver_required: projectData.waiverRequired || false,
     waiver_allow_upload: projectData.waiverAllowUpload ?? true,
+    visibility: targetVisibility,
     project_timezone: projectData.basicInfo.projectTimezone || 'America/Los_Angeles',
     restrict_to_org_domains: projectData.restrictToOrgDomains || false,
     recurrence_rule: recurrenceRule,
@@ -880,7 +915,6 @@ export async function checkProfanity(content: { [key: string]: string }) {
         }
 
         const result = await response.json();
-        console.log(result)
 
         results[field] = {
           isProfanity: !!result.isProfanity,

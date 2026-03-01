@@ -6,6 +6,7 @@
 import { getAdminClient } from '@/lib/supabase/admin';
 import { generateText, Output } from 'ai';
 import { z } from 'zod';
+import { isPendingReportStatus } from './report-status';
 
 // Schema for AI moderation response with Chain of Thought
 const moderationSchema = z.object({
@@ -114,16 +115,19 @@ export async function performAiModerationScan() {
       (project) => project.description?.trim() && !flaggedIds.has(project.id)
     );
 
-    const { data: pendingReports, error: reportsError } = await supabase
+    const { data: reportsData, error: reportsError } = await supabase
       .from('content_reports')
       .select('*')
-      .eq('status', 'pending')
       .order('created_at', { ascending: true })
-      .limit(25);
+      .limit(200);
 
     if (reportsError) throw reportsError;
 
-    const reportCandidates = ((pendingReports ?? []) as RawContentReport[]).filter((report) => {
+    const pendingReports = ((reportsData ?? []) as RawContentReport[])
+      .filter((report) => isPendingReportStatus(report.status))
+      .slice(0, 25);
+
+    const reportCandidates = pendingReports.filter((report) => {
       if (!report.description?.trim()) {
         return false;
       }

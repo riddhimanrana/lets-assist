@@ -3,6 +3,8 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/supabase/auth-helpers";
+import { applyStaffInviteForUser } from "@/lib/organization/staff-invite";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -10,16 +12,31 @@ const loginSchema = z.object({
   turnstileToken: z.string().nullish(),
 });
 
-export async function signInWithGoogle(redirectAfterAuth?: string | null) {
+export async function signInWithGoogle(
+  redirectAfterAuth?: string | null,
+  inviteContext?: { staffToken?: string; orgUsername?: string } | null,
+) {
   const origin = process.env.NEXT_PUBLIC_SITE_URL || "";
   const supabase = await createClient();
   
-  // Store the redirect URL in the session storage via a search parameter
-  // This will be picked up in the auth callback and stored in session storage
   let redirectTo = `${origin}/auth/callback`;
+  const params = new URLSearchParams();
   
   if (redirectAfterAuth) {
-    redirectTo += `?redirectAfterAuth=${encodeURIComponent(redirectAfterAuth)}`;
+    params.set("redirectAfterAuth", redirectAfterAuth);
+  }
+
+  if (inviteContext?.staffToken) {
+    params.set("staffToken", inviteContext.staffToken);
+  }
+
+  if (inviteContext?.orgUsername) {
+    params.set("orgUsername", inviteContext.orgUsername);
+  }
+
+  const queryString = params.toString();
+  if (queryString) {
+    redirectTo += `?${queryString}`;
   }
 
   const {
@@ -43,6 +60,31 @@ export async function signInWithGoogle(redirectAfterAuth?: string | null) {
   }
   
   return { url };
+}
+
+export async function applyStaffInviteForCurrentUser(
+  staffToken?: string | null,
+  orgUsername?: string | null,
+) {
+  if (!staffToken || !orgUsername) {
+    return { inviteOutcome: null };
+  }
+
+  const { user, error } = await getAuthUser();
+  if (error || !user) {
+    return {
+      inviteOutcome: { status: "error" as const, orgUsername },
+      error: error?.message ?? "Not authenticated",
+    };
+  }
+
+  const inviteOutcome = await applyStaffInviteForUser({
+    userId: user.id,
+    staffToken,
+    orgUsername,
+  });
+
+  return { inviteOutcome };
 }
 
 export async function login(formData: FormData) {
