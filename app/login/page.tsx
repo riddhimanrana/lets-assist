@@ -8,11 +8,17 @@ export const metadata: Metadata = {
 };
 
 interface LoginPageProps {
-  searchParams: Promise<{ redirect?: string }>;
+  searchParams: Promise<{ redirect?: string; staff_token?: string; org?: string }>;
 }
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
-  const { redirect } = await searchParams;
+  const { redirect, staff_token, org } = await searchParams;
   const redirectPath = redirect ?? "";
-  return <LoginClient redirectPath={redirectPath} />;
+  return (
+    <LoginClient
+      redirectPath={redirectPath}
+      staffToken={staff_token}
+      orgUsername={org}
+    />
+  );
 }

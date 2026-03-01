@@ -5,6 +5,10 @@ import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { randomUUID } from "crypto";
 import { buildAuthConfirmRedirectUrl, normalizeRedirectPath } from "./redirect-utils";
+import {
+  applyStaffInviteForUser,
+  type StaffInviteOutcome,
+} from "@/lib/organization/staff-invite";
 
 const signupSchema = z.object({
   fullName: z.string().min(3, "Full name must be at least 3 characters"),
@@ -28,13 +32,6 @@ type SignupStatus =
   | { type: 'confirmed'; message: string }
   | { type: 'unconfirmed'; message: string }
   | { type: 'new'; message: string };
-
-type StaffInviteOutcome = 
-  | { status: 'success'; orgUsername: string }
-  | { status: 'invalid_token'; orgUsername: string }
-  | { status: 'expired_token'; orgUsername: string }
-  | { status: 'org_not_found'; orgUsername: string }
-  | { status: 'error'; orgUsername: string };
 
 export async function checkEmailStatus(email: string): Promise<SignupStatus> {
   if (process.env.E2E_TEST_MODE === "true") {
@@ -213,7 +210,11 @@ export async function signup(formData: FormData) {
     // Handle staff token - add user to organization as staff
     let inviteOutcome: StaffInviteOutcome | undefined;
     if (staffToken && orgUsername) {
-      inviteOutcome = await handleStaffTokenSignup(user.id, staffToken, orgUsername);
+      inviteOutcome = await applyStaffInviteForUser({
+        userId: user.id,
+        staffToken,
+        orgUsername,
+      });
     } else {
       // Check for auto-affiliation based on email domain
       try {
@@ -232,68 +233,6 @@ export async function signup(formData: FormData) {
     };
   } catch (error) {
     return { error: { server: [(error as Error).message] } };
-  }
-}
-
-/**
- * Handle staff token signup - add user to organization as staff
- * Returns structured outcome for client-side handling
- */
-async function handleStaffTokenSignup(
-  userId: string, 
-  staffToken: string, 
-  orgUsername: string
-): Promise<StaffInviteOutcome> {
-  try {
-    const adminClient = getAdminClient();
-    
-    // Find the organization by username and verify the staff token
-    const { data: org, error: orgError } = await adminClient
-      .from("organizations")
-      .select("id, staff_join_token, staff_join_token_expires_at")
-      .eq("username", orgUsername)
-      .single();
-
-    if (orgError || !org) {
-      console.error("Organization not found for staff token:", orgUsername);
-      return { status: 'org_not_found', orgUsername };
-    }
-
-    // Verify the token matches and hasn't expired
-    if (org.staff_join_token !== staffToken) {
-      console.error("Staff token mismatch");
-      return { status: 'invalid_token', orgUsername };
-    }
-
-    if (org.staff_join_token_expires_at && new Date(org.staff_join_token_expires_at) < new Date()) {
-      console.error("Staff token expired");
-      return { status: 'expired_token', orgUsername };
-    }
-
-    // Add user to organization as staff
-    const { error: memberError } = await adminClient
-      .from("organization_members")
-      .insert({
-        organization_id: org.id,
-        user_id: userId,
-        role: "staff",
-        joined_at: new Date().toISOString(),
-      });
-
-    if (memberError) {
-      // Check if it's a duplicate - user might already be a member
-      if (memberError.code === "23505") {
-        console.log("User already a member of organization");
-        return { status: 'success', orgUsername };
-      }
-      throw memberError;
-    }
-
-    console.log(`User ${userId} added as staff to organization ${org.id}`);
-    return { status: 'success', orgUsername };
-  } catch (error) {
-    console.error("Error processing staff token:", error);
-    return { status: 'error', orgUsername };
   }
 }
 

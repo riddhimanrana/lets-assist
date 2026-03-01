@@ -94,9 +94,17 @@ export async function GET(request: Request) {
       .eq("provider", "google")
       .eq("is_active", true)
       .in("connection_type", connectionTypesToCheck)
+      .order("updated_at", { ascending: false })
+      .limit(1)
       .maybeSingle();
 
     const shouldPromptConsent = forceConsent || !existingConnection?.refresh_token;
+
+    const sheetsScopes = [
+      "https://www.googleapis.com/auth/spreadsheets",
+      "https://www.googleapis.com/auth/drive.file",
+      "https://www.googleapis.com/auth/drive.metadata.readonly",
+    ];
 
     // Build Google OAuth URL
     // IMPORTANT: redirect_uri must exactly match what's configured in Google Cloud Console
@@ -111,16 +119,12 @@ export async function GET(request: Request) {
     // Determine which scopes to request based on the connection type
     if (scopeType === "sheets" || isSheetsSync) {
       // Sheets-only connection (for organization reports)
-      scopes.push(
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/drive.file"
-      );
+      scopes.push(...sheetsScopes);
     } else if (scopeType === "both") {
       // Both calendar and sheets (rare case)
       scopes.push(
         "https://www.googleapis.com/auth/calendar",
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/drive.file"
+        ...sheetsScopes
       );
     } else {
       // Default to calendar-only (for organization calendar sync or personal calendar)

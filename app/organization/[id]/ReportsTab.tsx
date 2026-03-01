@@ -145,6 +145,21 @@ const rangeModeLabels: Record<"full" | "custom", string> = {
   custom: "Custom range",
 };
 
+const syncIntervalOptions = [
+  { value: "360", label: "Every 6 hours" },
+  { value: "720", label: "Every 12 hours" },
+  { value: "1440", label: "Daily" },
+  { value: "4320", label: "Every 3 days" },
+] as const;
+
+const getSyncIntervalLabel = (value: string | number | null | undefined) => {
+  const normalized = String(value ?? "");
+  return (
+    syncIntervalOptions.find((option) => option.value === normalized)?.label ||
+    (normalized ? `Every ${normalized} minutes` : "Interval")
+  );
+};
+
 const buildExclusiveRange = (from: Date, toInclusive: Date) => ({
   from,
   to: addDays(toInclusive, 1),
@@ -385,12 +400,44 @@ export default function ReportsTab({
     }
   }, [organizationId, handleLoadSheetStatus]);
 
+  const handleConfirmUnlinkSheet = useCallback(async () => {
+    setUnlinkingSheet(true);
+
+    const result = await unlinkSheetSync(organizationId);
+    if (!result.success) {
+      toast.error(result.error || "Failed to unlink sheet");
+      setUnlinkingSheet(false);
+      return;
+    }
+
+    toast.success(
+      unlinkIntent === "switch"
+        ? "Current sheet unlinked. Set up a new destination below."
+        : "Spreadsheet disconnected"
+    );
+
+    setSetupError(null);
+    setSheetMetadata(null);
+    await handleLoadSheetStatus();
+
+    if (unlinkIntent === "switch") {
+      setSheetConfigSections(["destination"]);
+      requestAnimationFrame(() => {
+        sheetConfigRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
+
+    setUnlinkingSheet(false);
+    setShowUnlinkDialog(false);
+  }, [organizationId, unlinkIntent, handleLoadSheetStatus]);
+
   const handleLoadSheetMetadata = useCallback(async () => {
     if (!sheetInput.trim()) return;
     setPickerLoading(true);
     const result = await getSpreadsheetSetupMetadata(organizationId, sheetInput.trim());
-    if (result.error) {
-      setSetupError(result.error);
+    if (!result.success || result.error) {
+      setSheetMetadata(null);
+      setSetupError(result.error ?? null);
     } else if (result.metadata) {
       setSheetMetadata(result.metadata);
       setSetupError(null);
@@ -477,51 +524,75 @@ export default function ReportsTab({
     setPickerLoading(true);
     setSetupError(null);
 
-    const tokenResult = await getSheetsAccessTokenForPicker(organizationId);
-    if (tokenResult.error || !tokenResult.accessToken) {
-      setSetupError(tokenResult.error || "Unable to open Google Picker. Please ensure your Google account is connected.");
-      setPickerLoading(false);
-      return;
-    }
+    try {
+      const tokenResult = await getSheetsAccessTokenForPicker(organizationId);
+      if (!tokenResult.success || tokenResult.error || !tokenResult.accessToken) {
+        setSetupError(
+          tokenResult.error ||
+            "Unable to open Google Picker. Please reconnect with Sheets access and try again."
+        );
+        return;
+      }
 
-    if (!(await initPicker())) {
-      setSetupError("Unable to load Google Picker library.");
-      setPickerLoading(false);
-      return;
-    }
+      if (!pickerApiKey) {
+        setSetupError("Google Picker is not configured. Missing NEXT_PUBLIC_GOOGLE_PICKER_API_KEY.");
+        return;
+      }
 
-    const win = window as any as GoogleApiWindow;
-    const google = win.google;
-    if (!google?.picker) {
-      setSetupError("Google Picker is not available.");
-      setPickerLoading(false);
-      return;
-    }
+      if (!(await initPicker())) {
+        setSetupError("Unable to load Google Picker library.");
+        return;
+      }
 
-    const view = new google.picker.DocsView(google.picker.ViewId.SPREADSHEETS);
-    view.setMimeTypes("application/vnd.google-apps.spreadsheet");
-    
-    const picker = new google.picker.PickerBuilder()
-      .setTitle("Select a Google Sheet")
-      .addView(view)
-      .setOAuthToken(tokenResult.accessToken)
-      .setDeveloperKey(process.env.NEXT_PUBLIC_GOOGLE_PICKER_API_KEY || "")
-      .setCallback((data: any) => {
-        if (data.action === google.picker.Action.PICKED) {
-          const doc = data.docs?.[0];
-          if (doc?.id) {
-            setSheetInput(doc.id);
-            getSpreadsheetSetupMetadata(organizationId, doc.id).then(res => {
-              if (res.metadata) setSheetMetadata(res.metadata);
-            });
+      const win = window as any as GoogleApiWindow;
+      const google = win.google;
+      if (!google?.picker) {
+        setSetupError("Google Picker is not available.");
+        return;
+      }
+
+      const view = new google.picker.DocsView(google.picker.ViewId.SPREADSHEETS);
+      view.setMimeTypes("application/vnd.google-apps.spreadsheet");
+
+      const picker = new google.picker.PickerBuilder()
+        .setTitle("Select a Google Sheet")
+        .addView(view)
+        .setOAuthToken(tokenResult.accessToken)
+        .setDeveloperKey(pickerApiKey)
+        .setCallback(async (data: PickerCallbackData) => {
+          if (data.action !== google.picker.Action.PICKED) {
+            return;
           }
-        }
-      })
-      .build();
 
-    picker.setVisible(true);
-    setPickerLoading(false);
-  }, [organizationId, initPicker]);
+          const doc = data.docs?.[0];
+          if (!doc?.id) {
+            return;
+          }
+
+          setSheetInput(doc.id);
+
+          try {
+            const metadataResult = await getSpreadsheetSetupMetadata(organizationId, doc.id);
+            if (!metadataResult.success || metadataResult.error || !metadataResult.metadata) {
+              setSheetMetadata(null);
+              setSetupError(metadataResult.error || "Unable to load selected spreadsheet metadata.");
+              return;
+            }
+
+            setSetupError(null);
+            setSheetMetadata(metadataResult.metadata);
+          } catch {
+            setSheetMetadata(null);
+            setSetupError("Unable to load selected spreadsheet metadata.");
+          }
+        })
+        .build();
+
+      picker.setVisible(true);
+    } finally {
+      setPickerLoading(false);
+    }
+  }, [organizationId, initPicker, pickerApiKey]);
 
   useEffect(() => {
     loadReport();
@@ -799,6 +870,7 @@ export default function ReportsTab({
                           <Button
                             variant="destructive"
                             size="sm"
+                            disabled={unlinkingSheet}
                             onClick={() => {
                               setUnlinkIntent("unlink");
                               setShowUnlinkDialog(true);
@@ -1053,14 +1125,17 @@ export default function ReportsTab({
                                   onValueChange={(val) => val && handleIntervalChange(val)}
                                 >
                                   <SelectTrigger className="w-[140px]">
-                                    <SelectValue placeholder="Interval" />
+                                    <SelectValue placeholder="Interval">
+                                      {getSyncIntervalLabel(sheetStatus.syncConfig.syncIntervalMinutes)}
+                                    </SelectValue>
                                   </SelectTrigger>
                                   <SelectContent>
                                     <SelectGroup>
-                                      <SelectItem value="360">Every 6 hours</SelectItem>
-                                      <SelectItem value="720">Every 12 hours</SelectItem>
-                                      <SelectItem value="1440">Daily</SelectItem>
-                                      <SelectItem value="4320">Every 3 days</SelectItem>
+                                      {syncIntervalOptions.map((option) => (
+                                        <SelectItem key={option.value} value={option.value}>
+                                          {option.label}
+                                        </SelectItem>
+                                      ))}
                                     </SelectGroup>
                                   </SelectContent>
                                 </Select>
@@ -1070,6 +1145,7 @@ export default function ReportsTab({
                                 <Button
                                   variant="outline"
                                   size="sm"
+                                  disabled={unlinkingSheet}
                                   onClick={() => {
                                     setUnlinkIntent("switch");
                                     setShowUnlinkDialog(true);
@@ -1080,6 +1156,7 @@ export default function ReportsTab({
                                 <Button
                                   variant="destructive"
                                   size="sm"
+                                  disabled={unlinkingSheet}
                                   onClick={() => {
                                     setUnlinkIntent("unlink");
                                     setShowUnlinkDialog(true);
@@ -1462,6 +1539,38 @@ export default function ReportsTab({
             )}
           </CardContent>
         </Card>
+
+        <AlertDialog open={showUnlinkDialog} onOpenChange={setShowUnlinkDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                {unlinkIntent === "switch" ? "Switch spreadsheet destination?" : "Disconnect spreadsheet sync?"}
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                {unlinkIntent === "switch"
+                  ? "This will unlink the current sheet destination while keeping your Google account connected. You can choose a new destination right after."
+                  : "This will unlink the current sheet destination and stop all automatic sheet sync jobs for this organization."}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={unlinkingSheet}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={(event) => {
+                  event.preventDefault();
+                  void handleConfirmUnlinkSheet();
+                }}
+                disabled={unlinkingSheet}
+              >
+                {unlinkingSheet
+                  ? "Processing..."
+                  : unlinkIntent === "switch"
+                    ? "Unlink & switch"
+                    : "Disconnect"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
       <Card>
         <CardHeader>

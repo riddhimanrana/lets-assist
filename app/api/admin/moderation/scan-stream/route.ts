@@ -10,6 +10,7 @@ import {
   analyzeReportWithAi,
   buildProjectFlagDetails,
 } from '@/app/admin/moderation/ai-review';
+import { isPendingReportStatus } from '@/app/admin/moderation/report-status';
 import { NextRequest } from 'next/server';
 import { cookies } from 'next/headers';
 
@@ -89,19 +90,22 @@ export async function GET(_request: NextRequest) {
       try {
         const supabase = getAdminClient();
 
-        // Fetch pending reports
-        const { data: pendingReports, error: reportsError } = await supabase
+        // Fetch report backlog and derive pending candidates (including legacy/null pending states)
+        const { data: reportsData, error: reportsError } = await supabase
           .from('content_reports')
           .select('*')
-          .eq('status', 'pending')
           .order('created_at', { ascending: true })
-          .limit(25);
+          .limit(200);
 
         if (reportsError) {
           sendEvent(controller, { type: 'error', data: { message: reportsError.message } });
           controller.close();
           return;
         }
+
+        const pendingReports = (reportsData ?? [])
+          .filter((report) => isPendingReportStatus(report.status))
+          .slice(0, 25);
 
         // Manually fetch reporter profiles
         const reporterIds = (pendingReports ?? [])

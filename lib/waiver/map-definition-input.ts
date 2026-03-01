@@ -32,6 +32,22 @@ function normalizeSignatureRect(rect: { x: number; y: number; width: number; hei
   };
 }
 
+function sanitizeFieldMeta(meta: Record<string, unknown> | null | undefined) {
+  if (!meta || typeof meta !== 'object') return null;
+
+  const {
+    signingPurpose: _signingPurpose,
+    helpText: _helpText,
+    collectSignerName: _collectSignerName,
+    collectSignerEmail: _collectSignerEmail,
+    collectSignerPhone: _collectSignerPhone,
+    collectSignerTitle: _collectSignerTitle,
+    ...remaining
+  } = meta;
+
+  return Object.keys(remaining).length > 0 ? remaining : null;
+}
+
 export function mapDetectedFieldsForDb(
   definitionId: string,
   mappings: DetectedFieldInput[]
@@ -47,7 +63,7 @@ export function mapDetectedFieldsForDb(
     pdf_field_name: mapping.pdfFieldName || mapping.fieldKey,
     required: mapping.required ?? false,
     signer_role_key: mapping.signerRoleKey || null,
-    meta: mapping.meta ?? null,
+    meta: sanitizeFieldMeta(mapping.meta),
   }));
 }
 
@@ -68,6 +84,6 @@ export function mapCustomPlacementsForDb(
     required: placement.required ?? true,
     signer_role_key: placement.signerRoleKey || null,
     pdf_field_name: null,
-    meta: placement.meta ?? null,
+    meta: sanitizeFieldMeta(placement.meta),
   }));
 }

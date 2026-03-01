@@ -1,11 +1,11 @@
 "use client";
 import { Shield } from "lucide-react";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { signInWithGoogle } from "./actions";
+import { applyStaffInviteForCurrentUser, signInWithGoogle } from "./actions";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,6 +25,7 @@ import { Controller } from "react-hook-form";
 import { toast } from "sonner";
 import { TurnstileComponent, TurnstileRef } from "@/components/ui/turnstile";
 import { createClient } from "@/lib/supabase/client";
+import { getAccountAccessErrorCode, isAccountBlockedStatus, readAccountAccessFromMetadata } from "@/lib/auth/account-access";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -36,9 +37,49 @@ type LoginValues = z.infer<typeof loginSchema>;
 
 interface LoginClientProps {
   redirectPath?: string;
+  staffToken?: string;
+  orgUsername?: string;
 }
 
-export default function LoginClient({ redirectPath }: LoginClientProps) {
+type InviteOutcomeStatus =
+  | "success"
+  | "invalid_token"
+  | "expired_token"
+  | "org_not_found"
+  | "error";
+
+function getInviteOutcomeMessage(status: InviteOutcomeStatus, orgUsername: string) {
+  switch (status) {
+    case "success":
+      return {
+        title: "Staff invite applied",
+        description: `You were added to "${orgUsername}" as staff.`,
+      };
+    case "invalid_token":
+      return {
+        title: "Invite could not be applied",
+        description: `The invite link for "${orgUsername}" is no longer valid.`,
+      };
+    case "expired_token":
+      return {
+        title: "Invite expired",
+        description: `The staff invite for "${orgUsername}" has expired.`,
+      };
+    case "org_not_found":
+      return {
+        title: "Invite could not be applied",
+        description: `The organization "${orgUsername}" could not be found.`,
+      };
+    case "error":
+    default:
+      return {
+        title: "Invite processing issue",
+        description: `Your login succeeded, but we could not process the staff invite for "${orgUsername}".`,
+      };
+  }
+}
+
+export default function LoginClient({ redirectPath, staffToken, orgUsername }: LoginClientProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -58,6 +99,28 @@ export default function LoginClient({ redirectPath }: LoginClientProps) {
 
   const searchParams = useSearchParams();
   const isVerified = searchParams.get('verified') === 'true';
+  const authError = searchParams.get("error");
+  const authReason = searchParams.get("reason");
+
+  useEffect(() => {
+    if (authError === "network-timeout") {
+      toast.error("Connection issue while finishing sign-in. Please try again.");
+      return;
+    }
+
+    if (authError === "account-banned") {
+      toast.error("Your account has been banned.", {
+        description: authReason || "If you think this is a mistake, contact support.",
+      });
+      return;
+    }
+
+    if (authError === "account-restricted") {
+      toast.error("Your account is currently restricted.", {
+        description: authReason || "Please contact support for assistance.",
+      });
+    }
+  }, [authError, authReason]);
 
 
   async function onSubmit(data: LoginValues) {
@@ -97,8 +160,48 @@ export default function LoginClient({ redirectPath }: LoginClientProps) {
         return;
       }
 
+      const accessState = readAccountAccessFromMetadata(authData.user?.app_metadata ?? null);
+      if (isAccountBlockedStatus(accessState.status)) {
+        await supabase.auth.signOut();
+
+        const errorCode = getAccountAccessErrorCode(accessState.status);
+        if (errorCode === "account-banned") {
+          toast.error("Your account has been banned.", {
+            description: accessState.reason || "If you think this is a mistake, contact support.",
+          });
+        } else {
+          toast.error("Your account is currently restricted.", {
+            description: accessState.reason || "Please contact support for assistance.",
+          });
+        }
+
+        turnstileRef.current?.reset();
+        setTurnstileVerified(false);
+        setIsLoading(false);
+        return;
+      }
+
       // Login successful - onAuthStateChange will update the navbar automatically
       console.log('[LoginClient] Login successful, user:', authData.user?.email);
+
+      if (staffToken && orgUsername) {
+        const inviteResult = await applyStaffInviteForCurrentUser(staffToken, orgUsername);
+        const inviteOutcome = inviteResult.inviteOutcome;
+
+        if (inviteOutcome) {
+          const inviteMessage = getInviteOutcomeMessage(inviteOutcome.status, inviteOutcome.orgUsername);
+
+          if (inviteOutcome.status === "success") {
+            toast.success(inviteMessage.title, {
+              description: inviteMessage.description,
+            });
+          } else {
+            toast.warning(inviteMessage.title, {
+              description: inviteMessage.description,
+            });
+          }
+        }
+      }
 
       // Navigate to the destination
       const redirectUrl = redirectPath ? decodeURIComponent(redirectPath) : "/home";
@@ -127,7 +230,14 @@ export default function LoginClient({ redirectPath }: LoginClientProps) {
     try {
       setIsGoogleLoading(true);
 
-      const result = await signInWithGoogle(redirectPath ? decodeURIComponent(redirectPath) : null);
+      const inviteContext = (staffToken || orgUsername)
+        ? { staffToken, orgUsername }
+        : null;
+
+      const result = await signInWithGoogle(
+        redirectPath ? decodeURIComponent(redirectPath) : null,
+        inviteContext,
+      );
 
       if (result.error) {
         if (result.error.server?.[0]?.includes("email-password")) {
@@ -268,7 +378,24 @@ export default function LoginClient({ redirectPath }: LoginClientProps) {
             <div className="mt-2 text-center text-sm text-muted-foreground">
               Don&apos;t have an account?{" "}
               <Link
-                href={redirectPath ? `/signup?redirect=${redirectPath}` : "/signup"}
+                href={(() => {
+                  const params = new URLSearchParams();
+
+                  if (redirectPath) {
+                    params.set("redirect", redirectPath);
+                  }
+
+                  if (staffToken) {
+                    params.set("staff_token", staffToken);
+                  }
+
+                  if (orgUsername) {
+                    params.set("org", orgUsername);
+                  }
+
+                  const query = params.toString();
+                  return query ? `/signup?${query}` : "/signup";
+                })()}
                 className="underline text-primary hover:text-primary/80"
               >
                 Sign up

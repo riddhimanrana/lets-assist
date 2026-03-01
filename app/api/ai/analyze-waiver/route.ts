@@ -25,6 +25,13 @@ const FIELD_TYPES = [
 ] as const;
 
 const ENABLE_VISION_FALLBACK = true;
+const DEFAULT_STRICT_HALLUCINATION_GUARD = true;
+const DEFAULT_AI_MODEL = 'google/gemini-2.5-flash-lite';
+const ALLOWED_AI_MODELS = new Set([
+  'google/gemini-2.5-flash-lite',
+  'google/gemini-2.5-flash',
+  'google/gemini-3-flash',
+]);
 
 // Phase 3: New schema for AI output with candidate selection
 const SelectedFieldSchema = z.object({
@@ -65,6 +72,7 @@ const VisionDetectedFieldSchema = z.object({
     height: z.number().min(0),
   }).describe('Box using TOP-LEFT origin. Values may be normalized (0..1) OR absolute page units.'),
   required: z.boolean(),
+  confidence: z.number().min(0).max(1).optional().describe('Confidence score for this placement (0-1)'),
   reasoning: z.string().optional(),
 });
 
@@ -138,6 +146,13 @@ function clamp(value: number, min: number, max: number): number {
 function safeNumber(value: unknown, fallback = 0): number {
   const n = Number(value);
   return Number.isFinite(n) ? n : fallback;
+}
+
+function appendFieldNote(existing: string | undefined, addition: string): string {
+  const trimmedExisting = existing?.trim();
+  if (!trimmedExisting) return addition;
+  if (trimmedExisting.includes(addition)) return trimmedExisting;
+  return `${trimmedExisting} | ${addition}`;
 }
 
 function normalizeRoleKey(raw: string): string {
@@ -321,6 +336,203 @@ const FIELD_TYPE_TO_LABEL_TYPES: Record<typeof FIELD_TYPES[number], string[]> = 
   radio: [],
   dropdown: [],
 };
+
+interface VisionStabilizationStats {
+  inputCount: number;
+  anchoredCount: number;
+  rejectedCount: number;
+  keptUnanchoredCount: number;
+  rejectedLowSignalCount: number;
+  rejectedOversizeCount: number;
+}
+
+function getNormalizedCenterDistance(
+  a: { x: number; y: number; width: number; height: number },
+  b: { x: number; y: number; width: number; height: number },
+  page: PageDimension
+): number {
+  const aCenterX = a.x + a.width / 2;
+  const aCenterY = a.y + a.height / 2;
+  const bCenterX = b.x + b.width / 2;
+  const bCenterY = b.y + b.height / 2;
+
+  const distance = Math.hypot(aCenterX - bCenterX, aCenterY - bCenterY);
+  const diagonal = Math.max(Math.hypot(page.width, page.height), 1);
+  return distance / diagonal;
+}
+
+function getMaxVisionWidthRatio(fieldType: typeof FIELD_TYPES[number]): number {
+  switch (fieldType) {
+    case 'signature':
+      return 0.82;
+    case 'name':
+    case 'email':
+    case 'address':
+      return 0.72;
+    case 'phone':
+      return 0.55;
+    case 'date':
+      return 0.42;
+    case 'initial':
+    case 'checkbox':
+      return 0.25;
+    default:
+      return 0.8;
+  }
+}
+
+function getMaxVisionAreaRatio(fieldType: typeof FIELD_TYPES[number]): number {
+  switch (fieldType) {
+    case 'signature':
+      return 0.16;
+    case 'name':
+    case 'email':
+    case 'address':
+      return 0.12;
+    case 'phone':
+      return 0.08;
+    case 'date':
+      return 0.06;
+    case 'initial':
+      return 0.03;
+    case 'checkbox':
+      return 0.02;
+    default:
+      return 0.2;
+  }
+}
+
+export function stabilizeVisionFallbackFields(
+  fields: ParsedField[],
+  selectableCandidates: SelectableCandidate[],
+  pageDimensions: PageDimension[],
+  options?: {
+    strict?: boolean;
+    minAnchorScore?: number;
+  }
+): {
+  fields: ParsedField[];
+  stats: VisionStabilizationStats;
+} {
+  const strict = options?.strict ?? DEFAULT_STRICT_HALLUCINATION_GUARD;
+  const minAnchorScore = options?.minAnchorScore ?? 1.1;
+
+  const stats: VisionStabilizationStats = {
+    inputCount: fields.length,
+    anchoredCount: 0,
+    rejectedCount: 0,
+    keptUnanchoredCount: 0,
+    rejectedLowSignalCount: 0,
+    rejectedOversizeCount: 0,
+  };
+
+  if (fields.length === 0) {
+    return { fields: [], stats };
+  }
+
+  const candidatesByPage = new Map<number, SelectableCandidate[]>();
+  for (const candidate of selectableCandidates) {
+    const list = candidatesByPage.get(candidate.pageIndex) ?? [];
+    list.push(candidate);
+    candidatesByPage.set(candidate.pageIndex, list);
+  }
+
+  const stabilized: ParsedField[] = [];
+
+  for (const field of fields) {
+    const page = pageDimensions[field.pageIndex] ?? pageDimensions[0];
+    if (!page) continue;
+
+    const candidatesForPage = candidatesByPage.get(field.pageIndex) ?? [];
+    const labelTypes = FIELD_TYPE_TO_LABEL_TYPES[field.fieldType] ?? [];
+
+    let bestCandidate: SelectableCandidate | null = null;
+    let bestScore = Number.NEGATIVE_INFINITY;
+    let bestIou = 0;
+    let bestTypeMatch = false;
+    let bestLabelMatch = false;
+
+    for (const candidate of candidatesForPage) {
+      const iou = getIou(field.boundingBox, candidate.rect);
+      const normalizedDistance = getNormalizedCenterDistance(field.boundingBox, candidate.rect, page);
+      const typeMatch = candidate.typeHint === field.fieldType;
+      const labelMatch = candidate.nearbyLabelTypes?.some((t) => labelTypes.includes(t)) ?? false;
+      const sourceBoost =
+        candidate.source === 'widget' ? 0.45 : candidate.source === 'underscore' ? 0.2 : 0.12;
+
+      const score =
+        iou * 1.55 +
+        (typeMatch ? 0.75 : 0) +
+        (labelMatch ? 0.45 : 0) +
+        candidate.score * 0.5 +
+        sourceBoost -
+        normalizedDistance * 0.35;
+
+      if (score > bestScore) {
+        bestCandidate = candidate;
+        bestScore = score;
+        bestIou = iou;
+        bestTypeMatch = typeMatch;
+        bestLabelMatch = labelMatch;
+      }
+    }
+
+    if (
+      bestCandidate &&
+      (bestScore >= minAnchorScore || (bestIou >= 0.22 && (bestTypeMatch || bestLabelMatch || bestCandidate.source === 'widget')))
+    ) {
+      stabilized.push({
+        ...field,
+        boundingBox: {
+          x: bestCandidate.rect.x,
+          y: bestCandidate.rect.y,
+          width: bestCandidate.rect.width,
+          height: bestCandidate.rect.height,
+        },
+        notes: appendFieldNote(field.notes, `Snapped to structural candidate ${bestCandidate.id}`),
+      });
+      stats.anchoredCount += 1;
+      continue;
+    }
+
+    const widthRatio = page.width > 0 ? field.boundingBox.width / page.width : 1;
+    const areaRatio =
+      page.width > 0 && page.height > 0
+        ? (field.boundingBox.width * field.boundingBox.height) / (page.width * page.height)
+        : 1;
+
+    const maxWidthRatio = getMaxVisionWidthRatio(field.fieldType);
+    const maxAreaRatio = getMaxVisionAreaRatio(field.fieldType);
+    const oversize = widthRatio > maxWidthRatio || areaRatio > maxAreaRatio;
+
+    const hasLocalSignal = candidatesForPage.some((candidate) => {
+      const normalizedDistance = getNormalizedCenterDistance(field.boundingBox, candidate.rect, page);
+      if (normalizedDistance > 0.2) return false;
+
+      const typeMatch = candidate.typeHint === field.fieldType;
+      const labelMatch = candidate.nearbyLabelTypes?.some((t) => labelTypes.includes(t)) ?? false;
+      return typeMatch || labelMatch || candidate.score >= 0.7;
+    });
+
+    if (strict && (oversize || !hasLocalSignal)) {
+      stats.rejectedCount += 1;
+      if (oversize) stats.rejectedOversizeCount += 1;
+      if (!hasLocalSignal) stats.rejectedLowSignalCount += 1;
+      continue;
+    }
+
+    stabilized.push({
+      ...field,
+      notes: appendFieldNote(field.notes, 'Unanchored vision fallback placement (review recommended)'),
+    });
+    stats.keptUnanchoredCount += 1;
+  }
+
+  return {
+    fields: stabilized,
+    stats,
+  };
+}
 
 function buildLabelCountsByPageType(labels: { type: string; pageIndex: number }[], pageCount: number) {
   const labelCounts = new Map<string, number>();
@@ -712,7 +924,7 @@ export function mapVisionFallbackFields(
       pageIndex: clampedIndex,
       boundingBox: { x, y, width, height },
       required: field.required,
-      notes: field.reasoning,
+      notes: appendFieldNote(field.reasoning, 'Vision fallback placement'),
     };
   });
 
@@ -910,6 +1122,18 @@ export async function POST(request: NextRequest) {
 
     const formData = await request.formData();
     const fileValue = formData.get('file');
+    const includeDiagnostics = formData.get('includeDiagnostics') === 'true';
+    const strictHallucinationGuardRaw = formData.get('strictHallucinationGuard');
+    const requestedModelRaw = formData.get('model');
+    const requestedModel = typeof requestedModelRaw === 'string' ? requestedModelRaw.trim() : '';
+    const selectedModel = ALLOWED_AI_MODELS.has(requestedModel)
+      ? requestedModel
+      : DEFAULT_AI_MODEL;
+    const isLiteModel = selectedModel.includes('flash-lite');
+    const strictHallucinationGuard =
+      strictHallucinationGuardRaw === null
+        ? DEFAULT_STRICT_HALLUCINATION_GUARD
+        : String(strictHallucinationGuardRaw).toLowerCase() !== 'false';
 
     if (!(fileValue instanceof File)) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
@@ -977,6 +1201,30 @@ export async function POST(request: NextRequest) {
     // Phase 5: Build unified selectable candidates (widgets first, then inferred line/box candidates)
     const selectableCandidates = buildSelectableCandidates(candidates, widgets);
 
+    const diagnostics = {
+      includeDiagnostics,
+      strictHallucinationGuard,
+      modelRequested: requestedModel || DEFAULT_AI_MODEL,
+      modelUsed: selectedModel,
+      modelRequestedAccepted: ALLOWED_AI_MODELS.has(requestedModel),
+      pageCount,
+      textItemsCount: textItems.length,
+      labelCount: labels.length,
+      candidateCount: selectableCandidates.length,
+      widgetCount: widgets.length,
+      aiSelectedFieldCount: 0,
+      aiMappedFieldCount: 0,
+      visionFallbackTriggered: false,
+      visionFieldsRaw: 0,
+      visionFieldsAfterConfidence: 0,
+      visionFieldsAnchored: 0,
+      visionFieldsRejected: 0,
+      visionFieldsRejectedLowSignal: 0,
+      visionFieldsRejectedOversize: 0,
+      visionFieldsKeptUnanchored: 0,
+      finalFieldCount: 0,
+    };
+
     // Build structured input payload for AI with text content (capped)
     // Cap text items to prevent payload bloat (max 500 items, ~150 chars each)
     const MAX_TEXT_ITEMS = 500;
@@ -1036,7 +1284,7 @@ export async function POST(request: NextRequest) {
     }, null, 2);
 
     const result = await generateText({
-      model: 'google/gemini-2.5-flash-lite',
+      model: selectedModel,
       output: Output.object({ schema: WaiverClassificationSchema }),
       messages: [
         {
@@ -1110,6 +1358,8 @@ ${structuredInput}
     // Phase 5: map AI selections from unified candidates, then merge with deterministic widget extraction.
     const aiFields = mapSelectionsToFields(structured.selectedFields, selectableCandidates);
     const widgetFields = mapWidgetsToFields(widgets);
+    diagnostics.aiSelectedFieldCount = structured.selectedFields.length;
+    diagnostics.aiMappedFieldCount = aiFields.length;
     const mergedFields = mergeFieldsPreferWidgets(widgetFields, aiFields);
     let normalizedFields = normalizeFieldsForOverlay(mergedFields, pageDimensions, pageCount);
     let normalizedSignerRoles = normalizeSignerRoles(structured.signerRoles);
@@ -1133,8 +1383,37 @@ ${structuredInput}
     // Vision fallback: if no fields were produced from structural path, ask model to return boxes directly.
     if (ENABLE_VISION_FALLBACK && (normalizedFields.length === 0 || underDetected)) {
       try {
+        diagnostics.visionFallbackTriggered = true;
+
+        const visionSupportData = JSON.stringify({
+          labels: labels.slice(0, 120).map((label) => ({
+            type: label.type,
+            pageIndex: label.pageIndex,
+            rectInPoints: {
+              x: Math.round(label.rect.x),
+              y: Math.round(label.rect.y),
+              width: Math.round(label.rect.width),
+              height: Math.round(label.rect.height),
+            },
+          })),
+          candidates: selectableCandidates.slice(0, 180).map((candidate) => ({
+            id: candidate.id,
+            pageIndex: candidate.pageIndex,
+            typeHint: candidate.typeHint,
+            source: candidate.source,
+            score: Number(candidate.score.toFixed(3)),
+            nearbyLabelTypes: candidate.nearbyLabelTypes ?? [],
+            rectInPoints: {
+              x: Math.round(candidate.rect.x),
+              y: Math.round(candidate.rect.y),
+              width: Math.round(candidate.rect.width),
+              height: Math.round(candidate.rect.height),
+            },
+          })),
+        }, null, 2);
+
         const fallback = await generateText({
-          model: 'google/gemini-2.5-flash-lite',
+          model: selectedModel,
           output: Output.object({ schema: VisionFallbackSchema }),
           messages: [
             {
@@ -1161,6 +1440,14 @@ Look for these visual cues:
 - "Date:" with underscores or line → place date field there
 - "Print Name:" with space → place name field there
 - Empty boxes or checkboxes → place checkbox fields there
+
+**ANTI-HALLUCINATION CONSTRAINTS (CRITICAL)**:
+- Only place a field if you can clearly see a writable target (line, underscore run, empty box, or obvious blank input area)
+- Do NOT invent fields for narrative/body text
+- If unsure, omit the field entirely
+- Prefer placements that align with these extracted structural signals:
+${visionSupportData}
+- Return confidence (0..1) for each field and keep only high-confidence placements
 
 **BE PRECISE**:
 - Place the bounding box exactly where someone would write/sign
@@ -1204,7 +1491,39 @@ Return only high-confidence fields that you can clearly see in the PDF.`,
           temperature: 0,
         });
 
-        const visionFields = mapVisionFallbackFields(fallback.output.fields, pageDimensions, pageCount);
+        const minVisionConfidence = strictHallucinationGuard
+          ? (isLiteModel ? 0.55 : 0.5)
+          : 0.3;
+        diagnostics.visionFieldsRaw = fallback.output.fields.length;
+        const confidenceFilteredVisionFields = fallback.output.fields.filter((field) => {
+          const confidence = safeNumber(field.confidence, 1);
+          return confidence >= minVisionConfidence;
+        });
+        diagnostics.visionFieldsAfterConfidence = confidenceFilteredVisionFields.length;
+
+        const mappedVisionFields = mapVisionFallbackFields(
+          confidenceFilteredVisionFields,
+          pageDimensions,
+          pageCount,
+        );
+
+        const stabilizedVision = stabilizeVisionFallbackFields(
+          mappedVisionFields,
+          selectableCandidates,
+          pageDimensions,
+          {
+            strict: strictHallucinationGuard,
+            minAnchorScore: isLiteModel ? 0.95 : 1.1,
+          }
+        );
+
+        diagnostics.visionFieldsAnchored = stabilizedVision.stats.anchoredCount;
+        diagnostics.visionFieldsRejected = stabilizedVision.stats.rejectedCount;
+        diagnostics.visionFieldsRejectedLowSignal = stabilizedVision.stats.rejectedLowSignalCount;
+        diagnostics.visionFieldsRejectedOversize = stabilizedVision.stats.rejectedOversizeCount;
+        diagnostics.visionFieldsKeptUnanchored = stabilizedVision.stats.keptUnanchoredCount;
+
+        const visionFields = stabilizedVision.fields;
         if (visionFields.length > 0) {
           normalizedFields = normalizeFieldsForOverlay(
             mergeFieldsPreferWidgets(normalizedFields, visionFields),
@@ -1245,6 +1564,11 @@ Return only high-confidence fields that you can clearly see in the PDF.`,
 
     // Normalize signer roles (computed above)
 
+    diagnostics.finalFieldCount = normalizedFields.length;
+
+    const shouldIncludeDiagnostics =
+      includeDiagnostics && process.env.NODE_ENV !== 'production';
+
     return NextResponse.json({
       success: true,
       analysis: {
@@ -1254,6 +1578,7 @@ Return only high-confidence fields that you can clearly see in the PDF.`,
         fields: normalizedFields,
         summary: structured.summary,
         recommendations: structured.recommendations,
+        ...(shouldIncludeDiagnostics ? { diagnostics } : {}),
       },
     });
 

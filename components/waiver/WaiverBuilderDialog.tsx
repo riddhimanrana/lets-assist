@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -142,6 +142,70 @@ function reconcileDetectedMappings(
   return reconciled;
 }
 
+function buildDetectedMappingsForSave(
+  detectedFields: DetectedPdfField[],
+  fieldMappings: Record<string, FieldMapping>
+): Record<string, FieldMapping> {
+  if (!detectedFields.length) {
+    return { ...fieldMappings };
+  }
+
+  const completeDetectedMappings: Record<string, FieldMapping> = {};
+  const matchedSavedKeys = new Set<string>();
+
+  detectedFields.forEach((field) => {
+    const directMapping = fieldMappings[field.fieldName];
+    const aliasEntry = !directMapping
+      ? Object.entries(fieldMappings).find(([, mapping]) => {
+          return mapping.pdfFieldName === field.fieldName || mapping.fieldKey === field.fieldName;
+        })
+      : undefined;
+
+    const userMapping = directMapping ?? aliasEntry?.[1];
+    const matchedKey = directMapping ? field.fieldName : aliasEntry?.[0];
+    if (matchedKey) {
+      matchedSavedKeys.add(matchedKey);
+    }
+
+    completeDetectedMappings[field.fieldName] = {
+      fieldKey: field.fieldName,
+      signerRoleKey: userMapping?.signerRoleKey || undefined,
+      required: userMapping?.required ?? field.required ?? false,
+      label: userMapping?.label || field.fieldName,
+      fieldType: field.fieldType,
+      pageIndex: field.pageIndex,
+      rect: field.rect,
+      pdfFieldName: field.fieldName,
+      meta: userMapping?.meta ?? null,
+    };
+  });
+
+  // Preserve unmatched legacy mappings so prior draft data isn't lost.
+  Object.entries(fieldMappings).forEach(([key, mapping]) => {
+    if (completeDetectedMappings[key] || matchedSavedKeys.has(key)) {
+      return;
+    }
+    completeDetectedMappings[key] = mapping;
+  });
+
+  return completeDetectedMappings;
+}
+
+function buildDefinitionPayload(
+  signers: WaiverDefinitionSignerInput[],
+  fieldMappings: Record<string, FieldMapping>,
+  customPlacements: CustomPlacement[],
+  detectedFields: DetectedPdfField[]
+): WaiverDefinitionInput {
+  return {
+    signers,
+    fields: {
+      detected: buildDetectedMappingsForSave(detectedFields, fieldMappings),
+      custom: customPlacements,
+    },
+  };
+}
+
 export interface WaiverDefinitionInput {
   signers: WaiverDefinitionSignerInput[];
   // Map both detected fields and custom placements
@@ -161,6 +225,7 @@ interface WaiverBuilderDialogProps {
   onSave: (definition: WaiverDefinitionInput) => Promise<void>;
   existingDefinition?: WaiverDefinitionFull;
   existingDraftDefinition?: WaiverDefinitionInput | null;
+  autoSaveDraft?: boolean;
 }
 
 export function WaiverBuilderDialog({
@@ -172,9 +237,11 @@ export function WaiverBuilderDialog({
   onSave,
   existingDefinition,
   existingDraftDefinition,
+  autoSaveDraft = false,
 }: WaiverBuilderDialogProps) {
   const [activeTab, setActiveTab] = useState("signers");
   const [isSaving, setIsSaving] = useState(false);
+  const [isAutoSaving, setIsAutoSaving] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const isPhone = useMediaQuery("(max-width: 640px)");
   const isCompactLayout = useMediaQuery("(max-width: 1024px)");
@@ -198,6 +265,8 @@ export function WaiverBuilderDialog({
 
   // Handle PDF URL and load existing definition PDF (Task 3)
   const [effectivePdfUrl, setEffectivePdfUrl] = useState<string | null>(null);
+  const lastSavedSnapshotRef = useRef<string>("");
+  const hasInitializedForOpenRef = useRef(false);
 
   useEffect(() => {
     if (pdfUrl) {
@@ -220,91 +289,172 @@ export function WaiverBuilderDialog({
     }
   }, [pdfUrl, pdfFile, existingDefinition]);
 
-  // Initialize state
-  useEffect(() => {
-    if (open) {
-      setShowSamplePreview(false);
-      if (existingDraftDefinition) {
-        const loadedSigners = existingDraftDefinition.signers
-          .map((signer) => ({
-            roleKey: signer.roleKey,
-            label: signer.label,
-            required: signer.required,
-            orderIndex: signer.orderIndex,
-          }))
-          .sort((a, b) => a.orderIndex - b.orderIndex);
+  const getCurrentDefinition = useCallback((): WaiverDefinitionInput => {
+    return buildDefinitionPayload(signers, fieldMappings, customPlacements, detectedFields);
+  }, [signers, fieldMappings, customPlacements, detectedFields]);
 
-        setSigners(
-          loadedSigners.length > 0
-            ? loadedSigners
-            : [{ roleKey: "volunteer", label: "Volunteer", required: true, orderIndex: 0 }]
-        );
+  const persistDefinition = useCallback(
+    async (mode: 'manual' | 'auto', closeAfterSave: boolean = false) => {
+      const currentDefinition = getCurrentDefinition();
+      const snapshot = JSON.stringify(currentDefinition);
 
-        const savedDetectedMappings = existingDraftDefinition.fields?.detected ?? {};
-        setFieldMappings(reconcileDetectedMappings(savedDetectedMappings, detectedFields));
-        setCustomPlacements(
-          (existingDraftDefinition.fields?.custom ?? []).map((placement) => ({
-            ...placement,
-            fieldKey: placement.fieldKey || placement.id,
-            fieldType: normalizeCustomFieldType(placement.fieldType),
-          }))
-        );
+      if (mode === 'auto' && snapshot === lastSavedSnapshotRef.current) {
+        if (closeAfterSave) {
+          onOpenChange(false);
+        }
         return;
       }
 
-      // If we have an existing definition, load it
-      if (!existingDefinition) {
-         setSigners([{ roleKey: "volunteer", label: "Volunteer", required: true, orderIndex: 0 }]);
-         setFieldMappings({});
-         setCustomPlacements([]);
+      if (mode === 'manual') {
+        if (signers.length === 0) {
+          toast.error("At least one signer role is required.");
+          return;
+        }
+        setIsSaving(true);
       } else {
-         // Load signers
-         const loadedSigners = existingDefinition.signers.map(s => ({
-            roleKey: s.role_key,
-            label: s.label,
-            required: s.required,
-            orderIndex: s.order_index
-         })).sort((a, b) => a.orderIndex - b.orderIndex);
-         
-         setSigners(loadedSigners.length > 0 ? loadedSigners : [{ roleKey: "volunteer", label: "Volunteer", required: true, orderIndex: 0 }]);
-         
-         // Load fields
-         const mappings: Record<string, FieldMapping> = {};
-         const custom: CustomPlacement[] = [];
-         
-         if (existingDefinition.fields && Array.isArray(existingDefinition.fields)) {
-            existingDefinition.fields.forEach(f => {
-              if (f.source === 'pdf_widget' && f.pdf_field_name) {
-                 mappings[f.pdf_field_name] = {
-                   fieldKey: f.pdf_field_name,
-                   signerRoleKey: f.signer_role_key || undefined,
-                   required: f.required,
-                   fieldType: f.field_type,
-                   pageIndex: f.page_index,
-                   rect: f.rect,
-                   pdfFieldName: f.pdf_field_name,
-                   meta: f.meta ?? null,
-                 };
-              } else if (f.source === 'custom_overlay' && f.signer_role_key) {
-                 custom.push({
-                   id: f.field_key,
-                   fieldKey: f.field_key,
-                   label: f.label,
-                   signerRoleKey: f.signer_role_key,
-                   fieldType: normalizeCustomFieldType(f.field_type),
-                   required: f.required,
-                   pageIndex: f.page_index,
-                   rect: f.rect,
-                   meta: f.meta ?? null,
-                 });
-              }
-            });
-         }
-         
-         setFieldMappings(mappings);
-         setCustomPlacements(custom);
+        setIsAutoSaving(true);
       }
+
+      try {
+        await onSave(currentDefinition);
+        lastSavedSnapshotRef.current = snapshot;
+
+        if (mode === 'auto' && closeAfterSave) {
+          onOpenChange(false);
+        }
+
+        if (mode === 'manual') {
+          toast.success("Waiver configuration saved!");
+        } else {
+          toast.success("Waiver configuration auto-saved", {
+            id: "waiver-builder-autosave",
+          });
+        }
+
+        if (closeAfterSave && mode === 'manual') {
+          onOpenChange(false);
+        }
+      } catch (error) {
+        console.error(error);
+        if (mode === 'manual') {
+          toast.error("Failed to save waiver configuration.");
+        } else {
+          if (closeAfterSave) {
+            onOpenChange(false);
+          }
+          toast.error("Auto-save failed. Please check your connection.", {
+            id: "waiver-builder-autosave",
+          });
+        }
+      } finally {
+        if (mode === 'manual') {
+          setIsSaving(false);
+        } else {
+          setIsAutoSaving(false);
+        }
+      }
+    },
+    [getCurrentDefinition, onSave, onOpenChange, signers.length]
+  );
+
+  // Initialize state once per open cycle.
+  useEffect(() => {
+    if (!open) {
+      hasInitializedForOpenRef.current = false;
+      return;
     }
+
+    if (hasInitializedForOpenRef.current) {
+      return;
+    }
+
+    hasInitializedForOpenRef.current = true;
+    setShowSamplePreview(false);
+
+    let initialSigners: WaiverDefinitionSignerInput[] = [
+      { roleKey: "volunteer", label: "Volunteer", required: true, orderIndex: 0 },
+    ];
+    let initialMappings: Record<string, FieldMapping> = {};
+    let initialCustomPlacements: CustomPlacement[] = [];
+
+    if (existingDraftDefinition) {
+      const loadedSigners = existingDraftDefinition.signers
+        .map((signer) => ({
+          roleKey: signer.roleKey,
+          label: signer.label,
+          required: signer.required,
+          orderIndex: signer.orderIndex,
+        }))
+        .sort((a, b) => a.orderIndex - b.orderIndex);
+
+      initialSigners =
+        loadedSigners.length > 0
+          ? loadedSigners
+          : [{ roleKey: "volunteer", label: "Volunteer", required: true, orderIndex: 0 }];
+      initialMappings = reconcileDetectedMappings(existingDraftDefinition.fields?.detected ?? {}, detectedFields);
+      initialCustomPlacements = (existingDraftDefinition.fields?.custom ?? []).map((placement) => ({
+        ...placement,
+        fieldKey: placement.fieldKey || placement.id,
+        fieldType: normalizeCustomFieldType(placement.fieldType),
+      }));
+    } else if (existingDefinition) {
+      const loadedSigners = existingDefinition.signers
+        .map((s) => ({
+          roleKey: s.role_key,
+          label: s.label,
+          required: s.required,
+          orderIndex: s.order_index,
+        }))
+        .sort((a, b) => a.orderIndex - b.orderIndex);
+
+      initialSigners =
+        loadedSigners.length > 0
+          ? loadedSigners
+          : [{ roleKey: "volunteer", label: "Volunteer", required: true, orderIndex: 0 }];
+
+      const mappings: Record<string, FieldMapping> = {};
+      const custom: CustomPlacement[] = [];
+
+      if (existingDefinition.fields && Array.isArray(existingDefinition.fields)) {
+        existingDefinition.fields.forEach((f) => {
+          if (f.source === 'pdf_widget' && f.pdf_field_name) {
+            mappings[f.pdf_field_name] = {
+              fieldKey: f.pdf_field_name,
+              signerRoleKey: f.signer_role_key || undefined,
+              required: f.required,
+              fieldType: f.field_type,
+              pageIndex: f.page_index,
+              rect: f.rect,
+              pdfFieldName: f.pdf_field_name,
+              meta: f.meta ?? null,
+            };
+          } else if (f.source === 'custom_overlay' && f.signer_role_key) {
+            custom.push({
+              id: f.field_key,
+              fieldKey: f.field_key,
+              label: f.label,
+              signerRoleKey: f.signer_role_key,
+              fieldType: normalizeCustomFieldType(f.field_type),
+              required: f.required,
+              pageIndex: f.page_index,
+              rect: f.rect,
+              meta: f.meta ?? null,
+            });
+          }
+        });
+      }
+
+      initialMappings = mappings;
+      initialCustomPlacements = custom;
+    }
+
+    setSigners(initialSigners);
+    setFieldMappings(initialMappings);
+    setCustomPlacements(initialCustomPlacements);
+
+    lastSavedSnapshotRef.current = JSON.stringify(
+      buildDefinitionPayload(initialSigners, initialMappings, initialCustomPlacements, detectedFields)
+    );
   }, [open, existingDefinition, existingDraftDefinition, detectedFields]);
 
   // Keyboard shortcut: Delete/Backspace removes the selected custom placement.
@@ -340,70 +490,26 @@ export function WaiverBuilderDialog({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [open, selectedPlacementId, viewerMode, customPlacements]);
 
-  const handleSave = async () => {
-    // Validate
-    if (signers.length === 0) {
-      toast.error("At least one signer role is required.");
+  const handleRequestClose = useCallback((nextOpen: boolean) => {
+    if (nextOpen) {
+      onOpenChange(true);
       return;
     }
 
-    // Check if signers are used
-    const usedSigners = new Set<string>();
-    
-    // Check detected signature fields assignments
-    detectedFields.forEach(f => {
-      if (f.fieldType === 'signature') {
-        const mapping = fieldMappings[f.fieldName];
-        if (mapping?.signerRoleKey) {
-          usedSigners.add(mapping.signerRoleKey);
-        }
-      }
-    });
-
-    // Check custom placements assignments
-    customPlacements.forEach(p => {
-      if (p.signerRoleKey) {
-        usedSigners.add(p.signerRoleKey);
-      }
-    });
-
-    // Validating Task 2: Ensure complete data persistence
-    // We construct the payload, ensuring detected fields carry their metadata (rect, pageIndex)
-    
-    const completeDetectedMappings: Record<string, FieldMapping> = {};
-    
-    detectedFields.forEach(field => {
-       const userMapping = fieldMappings[field.fieldName];
-       completeDetectedMappings[field.fieldName] = {
-          fieldKey: field.fieldName,
-          signerRoleKey: userMapping?.signerRoleKey || undefined,
-          required: userMapping?.required ?? field.required ?? false,
-          label: userMapping?.label || field.fieldName,
-          fieldType: field.fieldType,
-          pageIndex: field.pageIndex,
-          rect: field.rect,
-         pdfFieldName: field.fieldName,
-         meta: userMapping?.meta ?? null,
-       };
-    });
-    
-    setIsSaving(true);
-    try {
-      await onSave({
-        signers,
-        fields: {
-          detected: completeDetectedMappings,
-          custom: customPlacements
-        }
-      });
-      onOpenChange(false);
-      toast.success("Waiver configuration saved!");
-    } catch (error) {
-      console.error(error);
-      toast.error("Failed to save waiver configuration.");
-    } finally {
-      setIsSaving(false);
+    if (isSaving || isScanning || isAutoSaving) {
+      return;
     }
+
+    if (!autoSaveDraft) {
+      onOpenChange(false);
+      return;
+    }
+
+    void persistDefinition('auto', true);
+  }, [autoSaveDraft, isSaving, isScanning, isAutoSaving, onOpenChange, persistDefinition]);
+
+  const handleSave = async () => {
+    await persistDefinition('manual', true);
   };
 
   const handleAddPlacement = (placement: Partial<CustomPlacement>) => {
@@ -814,7 +920,7 @@ export function WaiverBuilderDialog({
 
   return (
     <div>
-    <Dialog open={open} onOpenChange={(val) => !isSaving && !isScanning && onOpenChange(val)}>
+    <Dialog open={open} onOpenChange={handleRequestClose}>
       <DialogContent className="w-[calc(100vw-1rem)] sm:w-[96vw] lg:w-[95vw] xl:w-[92vw] max-w-[calc(100vw-1rem)] sm:max-w-[96vw] lg:max-w-[95vw] xl:max-w-[92vw] 2xl:max-w-425 h-dvh sm:h-[94vh] flex flex-col p-0 gap-0 overflow-hidden rounded-lg sm:rounded-xl">
         <DialogHeader className="px-3 sm:px-5 lg:px-6 py-3 sm:py-4 border-b shrink-0">
           <div className="flex items-start justify-between gap-3">
@@ -883,12 +989,12 @@ export function WaiverBuilderDialog({
         </div>
 
         <DialogFooter className="px-3 sm:px-5 lg:px-6 py-3 sm:py-4 border-t bg-background shrink-0 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
-          <Button variant="outline" className="w-full sm:w-auto" onClick={() => onOpenChange(false)} disabled={isSaving}>
+          <Button variant="outline" className="w-full sm:w-auto" onClick={() => handleRequestClose(false)} disabled={isSaving || isAutoSaving}>
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={isSaving} className="w-full sm:w-auto">
+          <Button onClick={handleSave} disabled={isSaving || isAutoSaving} className="w-full sm:w-auto">
             {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            <Save className="mr-2 h-4 w-4" />
+            <Save className="h-4 w-4" />
             Save Configuration
           </Button>
         </DialogFooter>

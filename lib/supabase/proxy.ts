@@ -1,5 +1,10 @@
 import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
+import {
+    getAccountAccessErrorCode,
+    isAccountBlockedStatus,
+    readAccountAccessFromMetadata,
+} from "@/lib/auth/account-access";
 
 // Paths that require authentication
 const PROTECTED_PATHS = ["/home", "/projects/create", "/account"];
@@ -67,6 +72,31 @@ export async function updateSession(request: NextRequest) {
     let user = null;
     if (claimsData?.claims) {
         user = { id: claimsData.claims.sub, ...claimsData.claims };
+    }
+
+    if (user) {
+        const userWithMetadata = user as { app_metadata?: Record<string, unknown> | null };
+        const accountAccess = readAccountAccessFromMetadata(userWithMetadata.app_metadata ?? null);
+
+        if (isAccountBlockedStatus(accountAccess.status)) {
+            await supabase.auth.signOut();
+
+            const loginUrl = new URL('/login', request.url);
+            const errorCode = getAccountAccessErrorCode(accountAccess.status);
+
+            if (errorCode) {
+                loginUrl.searchParams.set('error', errorCode);
+            }
+
+            if (accountAccess.reason) {
+                loginUrl.searchParams.set('reason', accountAccess.reason);
+            }
+
+            const response = NextResponse.redirect(loginUrl);
+            response.cookies.delete('sb-access-token');
+            response.cookies.delete('sb-refresh-token');
+            return response;
+        }
     }
 
     const currentPath = request.nextUrl.pathname;

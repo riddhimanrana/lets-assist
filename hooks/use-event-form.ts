@@ -233,7 +233,7 @@ const initialState: EventFormState = {
   },
   verificationMethod: 'qr-code',
   requireLogin: true,
-  visibility: 'public',
+  visibility: 'unlisted',
   restrictToOrgDomains: false,
   enableVolunteerComments: false,
   showAttendeesPublicly: false,
