@@ -44,6 +44,7 @@ next-env.d.ts
 /supabase/migrations/*
 !/supabase/migrations/20260216123000_add_recurring_occurrence_date_guard.sql
 !/supabase/migrations/20260217040000_fix_anonymous_cleanup_function.sql
+!/supabase/migrations/20260228153000_fix_notification_settings_rls_and_backfill.sql
 
 # github/vscode settings
 /.github/*

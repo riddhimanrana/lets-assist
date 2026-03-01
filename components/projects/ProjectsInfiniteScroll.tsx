@@ -588,17 +588,15 @@ export const ProjectsInfiniteScroll: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex items-center gap-1 w-full md:w-auto justify-end">
-                <div className="w-60">
+              <div className="ml-auto flex items-center gap-2">
+                <div className="flex items-center gap-1">
                   <DateRangePicker
                     value={dateFilter}
                     onChange={setDateFilter}
                     align="end"
                     placeholder="Select date range"
-                    className="w-full"
+                    className="w-full pr-3"
                   />
-                </div>
-                <div className="flex items-center gap-1 mr-2">
                   <Button
                     variant="ghost"
                     size="icon"
@@ -607,6 +605,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
                   >
                     <LayoutGrid className="h-4 w-4" />
                   </Button>
+                  
                   <Button
                     variant="ghost"
                     size="icon"
@@ -1079,7 +1078,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
           </div>
 
           {/* Desktop layout */}
-          <div className="hidden md:flex md:flex-row justify-between items-start md:items-center gap-4 w-full">
+            <div className="hidden md:flex md:items-center gap-4 w-full">
             <div className="flex items-center gap-3 w-full md:w-auto">
               <div className="relative w-full md:w-70">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -1092,15 +1091,17 @@ export const ProjectsInfiniteScroll: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex items-center gap-1 w-full md:w-auto justify-end">
-              <div className="flex items-center gap-1 mr-2">
+            <div className="ml-auto flex items-center gap-2">
+              <div className="w-60 shrink-0">
                 <DateRangePicker
                   value={dateFilter}
                   onChange={setDateFilter}
                   align="end"
                   placeholder="Select date range"
-                  className="w-full mr-2"
+                  className="w-full"
                 />
+              </div>
+              <div className="flex items-center gap-1 pr-1">
                 <Button
                   variant="ghost"
                   size="icon"
