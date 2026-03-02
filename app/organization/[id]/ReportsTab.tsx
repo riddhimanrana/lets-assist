@@ -273,6 +273,9 @@ export default function ReportsTab({
     : viewerNeedsSheets
       ? "Sheets permissions are missing. Reconnect with Sheets access to continue."
       : null;
+  const managedByAnotherAdmin = Boolean(
+    sheetStatus?.syncConfig && hasSheetOwner && !sheetStatus?.viewerIsOwner
+  );
 
   const columnOptions = useMemo(
     () => Array.from({ length: 26 }, (_, index) => String.fromCharCode(65 + index)),
@@ -823,6 +826,11 @@ export default function ReportsTab({
                         {sheetStatus.syncConfig && connectedByLabel && (
                           <p className="text-[11px] text-muted-foreground">Connected by {connectedByLabel}</p>
                         )}
+                        {managedByAnotherAdmin && (
+                          <p className="text-[11px] text-muted-foreground">
+                            This sync is managed by another admin. Ask them to disconnect it, or connect your Google account with Sheets access to take over.
+                          </p>
+                        )}
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
                         {sheetStatus.syncConfig?.sheetUrl && (
@@ -850,6 +858,21 @@ export default function ReportsTab({
                             {syncingSheet ? "Syncing..." : "Sync now"}
                           </Button>
                         )}
+                        {managedByAnotherAdmin && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              window.location.href = connectUrl;
+                            }}
+                          >
+                            {viewerConnected && viewerScopesOk
+                              ? "Take over with my Google account"
+                              : viewerMissingConnection
+                                ? "Connect & Take Over Sync"
+                                : "Reconnect & Take Over Sync"}
+                          </Button>
+                        )}
                         {sheetStatus.syncConfig && (
                           <Button
                             size="sm"
@@ -870,7 +893,7 @@ export default function ReportsTab({
                           <Button
                             variant="destructive"
                             size="sm"
-                            disabled={unlinkingSheet}
+                            disabled={unlinkingSheet || !sheetStatus.viewerIsOwner}
                             onClick={() => {
                               setUnlinkIntent("unlink");
                               setShowUnlinkDialog(true);
@@ -1142,28 +1165,51 @@ export default function ReportsTab({
                               </div>
 
                               <div className="flex flex-col gap-2 sm:flex-row">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  disabled={unlinkingSheet}
-                                  onClick={() => {
-                                    setUnlinkIntent("switch");
-                                    setShowUnlinkDialog(true);
-                                  }}
-                                >
-                                  Switch sheet
-                                </Button>
-                                <Button
-                                  variant="destructive"
-                                  size="sm"
-                                  disabled={unlinkingSheet}
-                                  onClick={() => {
-                                    setUnlinkIntent("unlink");
-                                    setShowUnlinkDialog(true);
-                                  }}
-                                >
-                                  Unlink sheet
-                                </Button>
+                                {sheetStatus.viewerIsOwner ? (
+                                  <>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      disabled={unlinkingSheet}
+                                      onClick={() => {
+                                        setUnlinkIntent("switch");
+                                        setShowUnlinkDialog(true);
+                                      }}
+                                    >
+                                      Switch sheet
+                                    </Button>
+                                    <Button
+                                      variant="destructive"
+                                      size="sm"
+                                      disabled={unlinkingSheet}
+                                      onClick={() => {
+                                        setUnlinkIntent("unlink");
+                                        setShowUnlinkDialog(true);
+                                      }}
+                                    >
+                                      Unlink sheet
+                                    </Button>
+                                  </>
+                                ) : (
+                                  <>
+                                    <p className="text-xs text-muted-foreground">
+                                      Only the connected owner can disconnect this sync directly.
+                                    </p>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => {
+                                        window.location.href = connectUrl;
+                                      }}
+                                    >
+                                      {viewerConnected && viewerScopesOk
+                                        ? "Take over with my Google account"
+                                        : viewerMissingConnection
+                                          ? "Connect & Take Over Sync"
+                                          : "Reconnect & Take Over Sync"}
+                                    </Button>
+                                  </>
+                                )}
                               </div>
                             </AccordionContent>
                           </AccordionItem>
