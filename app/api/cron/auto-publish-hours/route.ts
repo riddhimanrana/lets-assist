@@ -14,9 +14,16 @@ import { sendEmail } from '@/services/email';
 
 // Create a Supabase client for server-side operations without cookies
 function createServiceClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_SECRET_KEY;
+
+  if (!supabaseUrl || !supabaseKey) {
+    throw new Error("Supabase service credentials are required.");
+  }
+
   return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
+    supabaseUrl,
+    supabaseKey
   );
 }
 

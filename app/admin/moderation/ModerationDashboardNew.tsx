@@ -9,7 +9,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Progress } from '@/components/ui/progress';
 import {
-  AlertTriangle,
   ShieldAlert,
   Clock,
   CheckCircle,
@@ -21,7 +20,7 @@ import {
   ChevronRight,
   Sparkles,
   Loader2,
-  Filter,
+  CheckCheck,
 } from 'lucide-react';
 import {
   Dialog,
@@ -75,7 +74,7 @@ type AiMetadata = {
   confidenceBreakdown?: AiConfidenceBreakdown;
   priority?: string | null;
   suggestedStatus?: string | null;
-  recommendedAction?: string;
+  recommendedAction?: string | null;
   actionJustification?: string;
   tags?: string[];
   toolsUsed?: string[];
@@ -144,6 +143,13 @@ type ReportsFilter = 'pending' | 'under_review' | 'resolved' | 'dismissed';
 type ModerationStats = {
   total: number;
   pending: number;
+  pendingFlags: number;
+  pendingReports: number;
+  resolved: number;
+  aiApproved: number;
+  automationLast24h: number;
+  automationTotal: number;
+  lastAutomationAt?: string | null;
   blocked: number;
   critical: number;
   recentWeek: number;
@@ -231,6 +237,10 @@ export default function ModerationDashboard({
     error?: string;
   }>>([]);
   const eventSourceRef = useRef<EventSource | null>(null);
+
+  const automationLastRunLabel = stats.lastAutomationAt
+    ? formatSafeDate(stats.lastAutomationAt, 'PPP p')
+    : 'No automation run recorded yet';
 
   // Cleanup on unmount
   useEffect(() => {
@@ -521,14 +531,10 @@ export default function ModerationDashboard({
             <div>
               <h1 className="text-3xl font-bold tracking-tight">Content Moderation</h1>
               <p className="text-muted-foreground mt-1">
-                Unified control center for AI insights, user reports, and content safety.
+                Clear review workflow for queue triage, AI approvals, and automated moderation runs.
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" className="hidden sm:flex" disabled>
-                <Filter className="mr-2 h-4 w-4" />
-                Waitlist
-              </Button>
               <Button
                 onClick={handleRunAiScan}
                 disabled={isScanActive}
@@ -539,51 +545,60 @@ export default function ModerationDashboard({
                 ) : (
                   <Sparkles className="mr-2 h-4 w-4" />
                 )}
-                {isScanActive ? 'Scanning...' : 'Run Operations Scan'}
+                {isScanActive ? 'Scanning...' : 'Run AI Scan Now'}
               </Button>
             </div>
           </div>
 
-          {/* Stats Overview Grid */}
+          <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="outline">Auto-run: every 24 hours</Badge>
+              <span className="text-muted-foreground">Last automation run: {automationLastRunLabel}</span>
+            </div>
+          </div>
+
+          {/* Operations Snapshot */}
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card className="shadow-sm">
+            <Card className="shadow-sm border-l-4 border-l-amber-500">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Flagged Items</CardTitle>
-                <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.total}</div>
-                <p className="text-xs text-muted-foreground">Total flags requiring review</p>
-              </CardContent>
-            </Card>
-            <Card className="shadow-sm">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Pending Review</CardTitle>
+                <CardTitle className="text-sm font-medium">Needs Review</CardTitle>
                 <Clock className="h-4 w-4 text-amber-500" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{stats.pending}</div>
-                <p className="text-xs text-muted-foreground">Awaiting moderator action</p>
-              </CardContent>
-            </Card>
-            <Card className="shadow-sm border-l-4 border-l-destructive">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Critical Issues</CardTitle>
-                <ShieldAlert className="h-4 w-4 text-destructive" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.critical}</div>
-                <p className="text-xs text-muted-foreground">High priority violations</p>
+                <p className="text-xs text-muted-foreground">
+                  {stats.pendingReports} reports · {stats.pendingFlags} AI flags · {stats.critical} critical
+                </p>
               </CardContent>
             </Card>
             <Card className="shadow-sm">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Recent Activity</CardTitle>
+                <CardTitle className="text-sm font-medium">Resolved Cases</CardTitle>
+                <CheckCircle className="h-4 w-4 text-emerald-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.resolved}</div>
+                <p className="text-xs text-muted-foreground">Reports and flags closed by moderation decisions</p>
+              </CardContent>
+            </Card>
+            <Card className="shadow-sm">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">AI Approved Actions</CardTitle>
+                <CheckCheck className="h-4 w-4 text-primary" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.aiApproved}</div>
+                <p className="text-xs text-muted-foreground">Times moderators accepted AI recommendations</p>
+              </CardContent>
+            </Card>
+            <Card className="shadow-sm">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Automation Output (24h)</CardTitle>
                 <Calendar className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stats.recentWeek}</div>
-                <p className="text-xs text-muted-foreground">New items this week</p>
+                <div className="text-2xl font-bold">{stats.automationLast24h}</div>
+                <p className="text-xs text-muted-foreground">AI-generated triage/flags ({stats.automationTotal} all time)</p>
               </CardContent>
             </Card>
           </div>
@@ -665,7 +680,7 @@ export default function ModerationDashboard({
                             {statusLabel}
                           </Badge>
                           {verdict && (
-                            <span className="ml-auto truncate max-w-[150px]">{verdict}</span>
+                            <span className="ml-auto max-w-37.5 truncate">{verdict}</span>
                           )}
                         </div>
                       );
@@ -682,11 +697,11 @@ export default function ModerationDashboard({
           <TabsList className="flex h-auto w-full flex-wrap justify-start gap-2">
             <TabsTrigger value="reports" className="gap-2">
               <User className="h-4 w-4" />
-              User Reports ({reportsStats.pending})
+              Reports Queue ({stats.pendingReports})
             </TabsTrigger>
             <TabsTrigger value="flagged" className="gap-2">
               <ShieldAlert className="h-4 w-4" />
-              AI Flagged ({stats.pending})
+              AI Flags Queue ({stats.pendingFlags})
             </TabsTrigger>
           </TabsList>
 
@@ -697,7 +712,9 @@ export default function ModerationDashboard({
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle className="text-lg">User Reports</CardTitle>
-                    <CardDescription>Manual reports with AI analysis and recommendations</CardDescription>
+                    <CardDescription>
+                      Manual reports with AI analysis. {reportsStats.resolved} reports resolved so far.
+                    </CardDescription>
                   </div>
                 </div>
               </CardHeader>
@@ -711,7 +728,7 @@ export default function ModerationDashboard({
                   }}
                 >
                   <TabsList className="mb-4 flex h-auto w-full flex-wrap justify-start gap-2">
-                    <TabsTrigger value="pending">Pending ({reportsStats.pending})</TabsTrigger>
+                    <TabsTrigger value="pending">Pending ({stats.pendingReports})</TabsTrigger>
                     <TabsTrigger value="under_review">In Review</TabsTrigger>
                     <TabsTrigger value="resolved">Resolved</TabsTrigger>
                     <TabsTrigger value="dismissed">Dismissed</TabsTrigger>
@@ -763,7 +780,7 @@ export default function ModerationDashboard({
                   }}
                 >
                   <TabsList className="mb-4 flex h-auto w-full flex-wrap justify-start gap-2">
-                    <TabsTrigger value="pending">Pending ({stats.pending})</TabsTrigger>
+                    <TabsTrigger value="pending">Pending ({stats.pendingFlags})</TabsTrigger>
                     <TabsTrigger value="blocked">Blocked</TabsTrigger>
                     <TabsTrigger value="confirmed">Confirmed</TabsTrigger>
                     <TabsTrigger value="dismissed">Dismissed</TabsTrigger>

@@ -1,6 +1,6 @@
-export type AccountAccessStatus = "active" | "restricted" | "banned";
+export type AccountAccessStatus = "active" | "banned";
 
-export type AccountAccessErrorCode = "account-restricted" | "account-banned";
+export type AccountAccessErrorCode = "account-banned";
 
 export type AccountAccessState = {
   status: AccountAccessStatus;
@@ -41,9 +41,10 @@ function parseStatus(value: unknown): AccountAccessStatus | null {
   }
 
   const normalized = value.trim().toLowerCase();
-  if (normalized === "active" || normalized === "restricted" || normalized === "banned") {
-    return normalized;
-  }
+  if (normalized === "active") return "active";
+  if (normalized === "banned") return "banned";
+  // Legacy "restricted" is treated as banned to ensure access is blocked.
+  if (normalized === "restricted") return "banned";
 
   return null;
 }
@@ -86,7 +87,8 @@ export function readAccountAccessFromMetadata(metadata: unknown): AccountAccessS
 
   if (metadataObject.is_restricted === true) {
     return {
-      status: "restricted",
+      // Legacy restricted → treat as banned so existing blocked users stay blocked.
+      status: "banned",
       reason: asString(metadataObject.restriction_reason),
       updatedAt: null,
       updatedBy: null,
@@ -107,11 +109,10 @@ export function readAccountAccessFromMetadata(metadata: unknown): AccountAccessS
 }
 
 export function isAccountBlockedStatus(status: AccountAccessStatus): boolean {
-  return status === "restricted" || status === "banned";
+  return status === "banned";
 }
 
 export function getAccountAccessErrorCode(status: AccountAccessStatus): AccountAccessErrorCode | null {
   if (status === "banned") return "account-banned";
-  if (status === "restricted") return "account-restricted";
   return null;
 }

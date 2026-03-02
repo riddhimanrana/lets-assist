@@ -2,7 +2,7 @@ name: AI Moderation Scan
 
 on:
   schedule:
-    - cron: '17 */3 * * *' # Every 3 hours
+    - cron: '0 0 * * *' # Every 24 hours at 00:00 UTC
   workflow_dispatch:
 
 permissions:
@@ -12,6 +12,7 @@ jobs:
   ai-moderation:
     if: github.repository_owner == 'riddhimanrana'
     runs-on: ubuntu-latest
+    environment: production
     timeout-minutes: 15
     concurrency:
       group: cron-ai-moderation

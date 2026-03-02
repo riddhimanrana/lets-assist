@@ -22,45 +22,6 @@ This project is built using the following technologies:
 - [Cloudflare](https://www.cloudflare.com/): Security, domain and performance optimization.
 And many other libraries...
 
-## Monitoring (Better Stack)
-
-Let's Assist exposes a status endpoint and sends heartbeat signals from each scheduled GitHub Action.
-
-### Status Endpoint (Connected Source)
-
-- Endpoint: `GET /api/status`
-- Deep check: `GET /api/status?deep=1`
-- Response includes top-level status (`operational`, `degraded`, `outage`) and component-level details.
-
-Use this endpoint in Better Stack as an HTTP monitor / status page source.
-
-### Cron Heartbeat Monitors
-
-Each cron workflow now sends:
-
-- **Success ping** to the heartbeat URL
-- **Failure ping** to `heartbeat-url/fail`
-
-Configure these GitHub repository secrets:
-
-- `BETTERSTACK_HEARTBEAT_AUTO_PUBLISH_HOURS_URL`
-- `BETTERSTACK_HEARTBEAT_GENERATE_RECURRING_PROJECTS_URL`
-- `BETTERSTACK_HEARTBEAT_AI_MODERATION_URL`
-- `BETTERSTACK_HEARTBEAT_ORGANIZATION_CALENDAR_SYNC_URL`
-- `BETTERSTACK_HEARTBEAT_ORGANIZATION_SHEET_SYNC_URL`
-- `BETTERSTACK_HEARTBEAT_PROJECT_CANCELLATIONS_URL`
-- `BETTERSTACK_HEARTBEAT_WAIVER_CLEANUP_URL`
-
-Optional fallback (used when a per-workflow secret is not set):
-
-- `BETTERSTACK_HEARTBEAT_URL`
-
-### Verification
-
-1. Trigger each workflow once with `workflow_dispatch`.
-2. Confirm workflow logs contain heartbeat steps for success/failure notification.
-3. Confirm Better Stack shows fresh heartbeat check-ins for each monitor.
-
 ## FAQ
 
 <details>

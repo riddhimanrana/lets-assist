@@ -263,71 +263,134 @@ export async function getModerationStats() {
   if (!isAdmin) {
     return { error: "Unauthorized - Admin access required" };
   }
-  
-  // Get total counts from content_flags
-  const { count: totalFlagged } = await supabase
-    .from('content_flags')
-    .select('*', { count: 'exact', head: true });
-  
-  // Get total count from content_reports (ALL reports, not just pending)
-  const { count: totalReportsCount } = await supabase
-    .from('content_reports')
-    .select('*', { count: 'exact', head: true });
 
-  const { data: reportStatuses } = await supabase
-    .from('content_reports')
-    .select('status');
+  const now = new Date();
+  const sevenDaysAgo = new Date(now);
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const oneDayAgo = new Date(now);
+  oneDayAgo.setDate(oneDayAgo.getDate() - 1);
   
-  const { count: pendingFlagsCount } = await supabase
-    .from('content_flags')
-    .select('*', { count: 'exact', head: true })
-    .eq('status', 'pending');
-  
-  // Also count pending content_reports
+  const [
+    { count: totalFlagged },
+    { count: totalReportsCount },
+    { data: flagStatuses },
+    { data: reportStatuses },
+    { count: criticalFlagsCount },
+    { count: criticalReportsCount },
+    { count: recentFlagsCount },
+    { count: recentReportsCount },
+    { count: aiApprovedReportsCount },
+    { count: aiFlagsLast24hCount },
+    { count: aiReportsLast24hCount },
+    { count: aiFlagsTotalCount },
+    { count: aiReportsTotalCount },
+    { data: latestAiFlagRows },
+    { data: latestAiReportRows },
+  ] = await Promise.all([
+    supabase.from('content_flags').select('*', { count: 'exact', head: true }),
+    supabase.from('content_reports').select('*', { count: 'exact', head: true }),
+    supabase.from('content_flags').select('status'),
+    supabase.from('content_reports').select('status'),
+    supabase.from('content_flags').select('*', { count: 'exact', head: true }).gte('confidence_score', 0.8),
+    supabase.from('content_reports').select('*', { count: 'exact', head: true }).in('priority', ['high', 'critical']),
+    supabase.from('content_flags').select('*', { count: 'exact', head: true }).gte('created_at', sevenDaysAgo.toISOString()),
+    supabase.from('content_reports').select('*', { count: 'exact', head: true }).gte('created_at', sevenDaysAgo.toISOString()),
+    supabase
+      .from('content_reports')
+      .select('*', { count: 'exact', head: true })
+      .ilike('resolution_notes', '%Approved AI recommendation%'),
+    supabase
+      .from('content_flags')
+      .select('*', { count: 'exact', head: true })
+      .eq('flag_source', 'ai')
+      .gte('created_at', oneDayAgo.toISOString()),
+    supabase
+      .from('content_reports')
+      .select('*', { count: 'exact', head: true })
+      .not('ai_metadata', 'is', null)
+      .gte('updated_at', oneDayAgo.toISOString()),
+    supabase
+      .from('content_flags')
+      .select('*', { count: 'exact', head: true })
+      .eq('flag_source', 'ai'),
+    supabase
+      .from('content_reports')
+      .select('*', { count: 'exact', head: true })
+      .not('ai_metadata', 'is', null),
+    supabase
+      .from('content_flags')
+      .select('created_at')
+      .eq('flag_source', 'ai')
+      .order('created_at', { ascending: false })
+      .limit(1),
+    supabase
+      .from('content_reports')
+      .select('updated_at')
+      .not('ai_metadata', 'is', null)
+      .order('updated_at', { ascending: false })
+      .limit(1),
+  ]);
+
+  const flagStatusCounts = {
+    pending: 0,
+    blocked: 0,
+    confirmed: 0,
+    dismissed: 0,
+  };
+
+  for (const flag of flagStatuses || []) {
+    const key = (flag.status || 'pending') as keyof typeof flagStatusCounts;
+    if (key in flagStatusCounts) {
+      flagStatusCounts[key] += 1;
+    }
+  }
+
   const pendingReportsCount = (reportStatuses || []).filter((report) =>
     matchesReportStatusFilter(report.status, 'pending'),
   ).length;
-  
-  const { count: blockedCount } = await supabase
-    .from('content_flags')
-    .select('*', { count: 'exact', head: true })
-    .eq('status', 'blocked');
-  
-  // Get critical count - high priority reports + high confidence flags
-  const { count: criticalFlagsCount } = await supabase
-    .from('content_flags')
-    .select('*', { count: 'exact', head: true })
-    .gte('confidence_score', 0.8);
-  
-  const { count: criticalReportsCount } = await supabase
-    .from('content_reports')
-    .select('*', { count: 'exact', head: true })
-    .in('priority', ['high', 'critical']);
-  
-  // Get recent violations (last 7 days) from both tables
-  const sevenDaysAgo = new Date();
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-  
-  const { count: recentFlagsCount } = await supabase
-    .from('content_flags')
-    .select('*', { count: 'exact', head: true })
-    .gte('created_at', sevenDaysAgo.toISOString());
-  
-  const { count: recentReportsCount } = await supabase
-    .from('content_reports')
-    .select('*', { count: 'exact', head: true })
-    .gte('created_at', sevenDaysAgo.toISOString());
-  
+
+  const resolvedReportsCount = (reportStatuses || []).filter((report) =>
+    matchesReportStatusFilter(report.status, 'resolved') ||
+    matchesReportStatusFilter(report.status, 'dismissed'),
+  ).length;
+
+  const resolvedFlagsCount =
+    flagStatusCounts.confirmed +
+    flagStatusCounts.blocked +
+    flagStatusCounts.dismissed;
+
+  const latestCandidates = [
+    latestAiFlagRows?.[0]?.created_at,
+    latestAiReportRows?.[0]?.updated_at,
+  ]
+    .filter((value): value is string => Boolean(value))
+    .map((value) => new Date(value))
+    .filter((value) => !Number.isNaN(value.getTime()));
+
+  const lastAutomationAt = latestCandidates.length
+    ? latestCandidates.sort((a, b) => b.getTime() - a.getTime())[0].toISOString()
+    : null;
+
   // Combine stats from both tables
-  const totalPending = (pendingFlagsCount || 0) + (pendingReportsCount || 0);
+  const totalPending = flagStatusCounts.pending + pendingReportsCount;
   const totalCritical = (criticalFlagsCount || 0) + (criticalReportsCount || 0);
   const totalRecent = (recentFlagsCount || 0) + (recentReportsCount || 0);
+  const totalResolved = resolvedFlagsCount + resolvedReportsCount;
+  const automationLast24h = (aiFlagsLast24hCount || 0) + (aiReportsLast24hCount || 0);
+  const automationTotal = (aiFlagsTotalCount || 0) + (aiReportsTotalCount || 0);
   
   return {
     data: {
       total: (totalFlagged || 0) + (totalReportsCount || 0),
       pending: totalPending,
-      blocked: blockedCount || 0,
+      pendingFlags: flagStatusCounts.pending,
+      pendingReports: pendingReportsCount,
+      resolved: totalResolved,
+      aiApproved: aiApprovedReportsCount || 0,
+      automationLast24h,
+      automationTotal,
+      lastAutomationAt,
+      blocked: flagStatusCounts.blocked,
       critical: totalCritical,
       recentWeek: totalRecent,
       monthlyActivity: 0,

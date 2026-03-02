@@ -156,7 +156,22 @@ export async function signup(formData: FormData) {
         email: validatedFields.data.email
       };
     }
-    
+
+    // Check if this email is blacklisted
+    const adminClient = getAdminClient();
+    const normalizedSignupEmail = validatedFields.data.email.trim().toLowerCase();
+    const { data: blacklisted } = await adminClient
+      .from("banned_emails")
+      .select("email")
+      .eq("email", normalizedSignupEmail)
+      .maybeSingle();
+
+    if (blacklisted) {
+      return {
+        error: { server: ["This email address is not eligible for registration."] },
+      };
+    }
+
     // Pass the CAPTCHA token to Supabase - it will handle verification
     const signUpOptions: {
       email: string;

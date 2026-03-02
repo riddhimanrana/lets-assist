@@ -128,6 +128,21 @@ export async function GET(request: Request) {
           return NextResponse.redirect(loginUrl.toString());
         }
 
+        // Check if this email is blacklisted (catches OAuth signups with a banned email)
+        if (user.email) {
+          const adminClient = getAdminClient();
+          const { data: blacklisted } = await adminClient
+            .from("banned_emails")
+            .select("email")
+            .eq("email", user.email.trim().toLowerCase())
+            .maybeSingle();
+
+          if (blacklisted) {
+            await supabase.auth.signOut();
+            return NextResponse.redirect(`${origin}/login?error=account-banned`);
+          }
+        }
+
         let inviteOutcome: StaffInviteOutcome | null = null;
 
         // Handle account linking redirection for authentication page
