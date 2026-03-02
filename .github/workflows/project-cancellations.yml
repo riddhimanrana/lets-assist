@@ -20,6 +20,7 @@ jobs:
     env:
       CRON_BASE_URL: ${{ secrets.CRON_BASE_URL }}
       CRON_TOKEN: ${{ secrets.CRON_SECRET }}
+      VERCEL_BYPASS_SECRET: ${{ secrets.VERCEL_BYPASS_SECRET }}
       BETTERSTACK_HEARTBEAT_URL: ${{ secrets['BETTERSTACK_HEARTBEAT_PROJECT_CANCELLATIONS_URL'] || secrets['BETTERSTACK_HEARTBEAT_URL'] }}
       ENDPOINT_PATH: /api/cron/project-cancellations
       HTTP_METHOD: POST
@@ -28,6 +29,7 @@ jobs:
         run: |
           test -n "$CRON_BASE_URL" || { echo "CRON_BASE_URL secret missing"; exit 1; }
           test -n "$CRON_TOKEN" || { echo "CRON_SECRET secret missing"; exit 1; }
+          test -n "$VERCEL_BYPASS_SECRET" || { echo "VERCEL_BYPASS_SECRET secret missing"; exit 1; }
 
       - name: Call project cancellations endpoint with retries
         run: |
@@ -47,6 +49,7 @@ jobs:
                 -H "Authorization: Bearer $CRON_TOKEN" \
                 -H "Accept: application/json" \
                 -H "User-Agent: lets-assist-cron/${GITHUB_WORKFLOW}" \
+                -H "x-vercel-protection-bypass: $VERCEL_BYPASS_SECRET" \
                 -D "$headers_file" \
                 -o "$body_file" \
                 -w "%{http_code}" \
@@ -94,15 +97,13 @@ jobs:
             exit 1
           done
 
-      - name: Notify Better Stack heartbeat (success)
-        if: ${{ success() && env.BETTERSTACK_HEARTBEAT_URL != '' }}
+      - name: Notify Better Stack heartbeat
+        if: ${{ always() && env.BETTERSTACK_HEARTBEAT_URL != '' }}
         run: |
           set -euo pipefail
-          curl -fsS --retry 3 --retry-delay 2 --max-time 20 "$BETTERSTACK_HEARTBEAT_URL"
-
-      - name: Notify Better Stack heartbeat (failure)
-        if: ${{ failure() && env.BETTERSTACK_HEARTBEAT_URL != '' }}
-        run: |
-          set -euo pipefail
-          fail_url="${BETTERSTACK_HEARTBEAT_URL%/}/fail"
-          curl -fsS --retry 3 --retry-delay 2 --max-time 20 "$fail_url" || true
+          if [[ "${{ job.status }}" == "success" ]]; then
+            curl -fsS --retry 3 --retry-delay 2 --max-time 20 "$BETTERSTACK_HEARTBEAT_URL"
+          else
+            fail_url="${BETTERSTACK_HEARTBEAT_URL%/}/fail"
+            curl -fsS --retry 3 --retry-delay 2 --max-time 20 "$fail_url" || true
+          fi
