@@ -38,6 +38,7 @@ import { motion } from "framer-motion";
 import {
   deleteAccount,
   emailDataExport,
+  getDataExportJobs,
   setPasswordAction,
   updateEmailAction,
   updatePasswordAction,
@@ -97,6 +98,26 @@ export default function SecurityClient() {
   const [isPasswordLoading, setIsPasswordLoading] = useState(false);
   const [isEmailLoading, setIsEmailLoading] = useState(false);
   const [isExportEmailing, setIsExportEmailing] = useState(false);
+  const [exportJobs, setExportJobs] = useState<any[]>([]);
+  const [isExportJobsLoading, setIsExportJobsLoading] = useState(true);
+
+  // Poll for export jobs
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+
+    const fetchJobs = async () => {
+      const result = await getDataExportJobs();
+      if (result.success) {
+        setExportJobs(result.jobs);
+      }
+      setIsExportJobsLoading(false);
+    };
+
+    fetchJobs();
+    interval = setInterval(fetchJobs, 10000); // Poll every 10s
+
+    return () => clearInterval(interval);
+  }, []);
 
   // OAuth detection state
   const [hasPassword, setHasPassword] = useState<boolean | null>(null);
@@ -624,7 +645,69 @@ export default function SecurityClient() {
               Exports include categorized files for profile data, certificates and hours,
               notifications, trust/safety history, auth details, and internal export logs.
               Large exports are delivered via secure signed link to avoid attachment limits.
+              <b> Note: Background exports are processed every 20 minutes; you will receive your email within 24 hours.</b>
             </p>
+
+            {exportJobs.length > 0 && (
+              <div className="space-y-3 pt-2">
+                <Label className="text-sm font-medium">Recent Export Requests</Label>
+                <div className="grid grid-cols-1 gap-2">
+                  {exportJobs.map((job) => (
+                    <div
+                      key={job.id}
+                      className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg border bg-muted/30 text-xs sm:text-sm gap-2"
+                    >
+                      <div className="flex flex-col gap-0.5">
+                        <span className="font-medium flex items-center gap-2">
+                          {new Date(job.requested_at).toLocaleString()}
+                          {job.status === "pending" && (
+                            <span className="px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 text-[10px] font-bold uppercase animate-pulse">
+                              Pending
+                            </span>
+                          )}
+                          {job.status === "processing" && (
+                            <span className="px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 text-[10px] font-bold uppercase animate-pulse">
+                              Processing
+                            </span>
+                          )}
+                          {job.status === "completed" && (
+                            <span className="px-1.5 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 text-[10px] font-bold uppercase">
+                              Sent
+                            </span>
+                          )}
+                          {job.status === "failed" && (
+                            <span className="px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 text-[10px] font-bold uppercase">
+                              Failed
+                            </span>
+                          )}
+                        </span>
+                        <span className="text-muted-foreground truncate">
+                          To: {job.delivery_email}
+                          {job.zip_size_bytes && ` • ${(job.zip_size_bytes / 1024 / 1024).toFixed(2)} MB`}
+                        </span>
+                      </div>
+                      {job.status === "completed" && job.signed_url && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 text-xs shrink-0"
+                          asChild
+                        >
+                          <a href={job.signed_url} target="_blank" rel="noopener noreferrer">
+                            Download Now
+                          </a>
+                        </Button>
+                      )}
+                      {job.status === "failed" && job.error_message && (
+                        <span className="text-destructive truncate max-w-50" title={job.error_message}>
+                          {job.error_message}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="flex flex-col sm:flex-row gap-3">
               <Button
