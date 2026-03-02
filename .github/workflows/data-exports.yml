@@ -20,6 +20,8 @@ jobs:
     env:
       CRON_BASE_URL: ${{ secrets.CRON_BASE_URL }}
       CRON_TOKEN: ${{ secrets.CRON_SECRET }}
+      VERCEL_BYPASS_SECRET: ${{ secrets.VERCEL_BYPASS_SECRET }}
+      BETTERSTACK_HEARTBEAT_URL: ${{ secrets['BETTERSTACK_HEARTBEAT_DATA_EXPORTS_URL'] || secrets['BETTERSTACK_HEARTBEAT_URL'] }}
       ENDPOINT_PATH: /api/cron/data-exports
       HTTP_METHOD: POST
     steps:
@@ -46,6 +48,7 @@ jobs:
                 -H "Authorization: Bearer $CRON_TOKEN" \
                 -H "Accept: application/json" \
                 -H "User-Agent: lets-assist-cron/${GITHUB_WORKFLOW}" \
+                -H "x-vercel-protection-bypass: $VERCEL_BYPASS_SECRET" \
                 -D "$headers_file" \
                 -o "$body_file" \
                 -w "%{http_code}" \
@@ -92,3 +95,14 @@ jobs:
             echo "Non-retryable response (${status_code}). Failing."
             exit 1
           done
+
+      - name: Notify Better Stack heartbeat
+        if: ${{ always() && env.BETTERSTACK_HEARTBEAT_URL != '' }}
+        run: |
+          set -euo pipefail
+          if [[ "${{ job.status }}" == "success" ]]; then
+            curl -fsS --retry 3 --retry-delay 2 --max-time 20 "$BETTERSTACK_HEARTBEAT_URL"
+          else
+            fail_url="${BETTERSTACK_HEARTBEAT_URL%/}/fail"
+            curl -fsS --retry 3 --retry-delay 2 --max-time 20 "$fail_url" || true
+          fi
