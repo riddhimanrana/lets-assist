@@ -29,6 +29,7 @@ jobs:
         run: |
           test -n "$CRON_BASE_URL" || { echo "CRON_BASE_URL secret missing"; exit 1; }
           test -n "$CRON_TOKEN" || { echo "CRON_SECRET secret missing"; exit 1; }
+          test -n "$VERCEL_BYPASS_SECRET" || { echo "VERCEL_BYPASS_SECRET secret missing"; exit 1; }
 
       - name: Call anonymous cleanup endpoint with retries
         run: |
