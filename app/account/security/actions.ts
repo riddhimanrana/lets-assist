@@ -188,6 +188,71 @@ export async function updateEmailAction(formData: FormData) {
   };
 }
 
+export async function emailDataExport() {
+  try {
+    const { user, error: authError } = await getAuthUser({ sensitive: true });
+
+    if (authError || !user || !user.email) {
+      return { success: false, error: "Not authenticated" };
+    }
+
+    const userMetadata = (user.user_metadata as Record<string, unknown> | null) ?? null;
+    const supabase = await createClient();
+
+    const { data: createdJob, error: insertError } = await supabase
+      .from("account_data_export_jobs")
+      .insert({
+        user_id: user.id,
+        requested_by: user.id,
+        status: "pending",
+        delivery_method: "email",
+        delivery_email: user.email,
+        request_metadata: {
+          full_name:
+            (typeof userMetadata?.full_name === "string" && userMetadata.full_name) || null,
+          name: (typeof userMetadata?.name === "string" && userMetadata.name) || null,
+          requested_from: "account_security",
+        },
+      })
+      .select("id, requested_at")
+      .single();
+
+    if (insertError || !createdJob) {
+      return {
+        success: false,
+        error: insertError?.message || "Failed to queue data export",
+      };
+    }
+
+    // Best-effort audit write via service role.
+    const adminClient = getAdminClient();
+    await adminClient.from("account_data_export_audit_logs").insert({
+      job_id: createdJob.id,
+      user_id: user.id,
+      event_type: "requested",
+      status: "info",
+      source: "account-security",
+      details: {
+        delivery_email: user.email,
+      },
+    });
+
+    return {
+      success: true,
+      queued: true,
+      email: user.email,
+      jobId: createdJob.id,
+      requestedAt: createdJob.requested_at,
+    };
+  } catch (error) {
+    console.error("emailDataExport error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to queue your data export",
+    };
+  }
+}
+
 export async function deleteAccount() {
   try {
     // Use getAuthUser with sensitive: true for account deletion

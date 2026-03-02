@@ -1,0 +1,108 @@
+name: Organization Calendar Sync
+
+on:
+  schedule:
+    - cron: '12 * * * *' # Every hour
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  organization-calendar-sync:
+    if: github.repository_owner == 'riddhimanrana'
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 15
+    concurrency:
+      group: cron-organization-calendar-sync
+      cancel-in-progress: false
+    env:
+      CRON_BASE_URL: ${{ secrets.CRON_BASE_URL }}
+      CRON_TOKEN: ${{ secrets.CRON_SECRET }}
+      BETTERSTACK_HEARTBEAT_URL: ${{ secrets['BETTERSTACK_HEARTBEAT_ORGANIZATION_CALENDAR_SYNC_URL'] || secrets['BETTERSTACK_HEARTBEAT_URL'] }}
+      ENDPOINT_PATH: /api/cron/organization-calendar-sync
+      HTTP_METHOD: POST
+    steps:
+      - name: Validate configuration
+        run: |
+          test -n "$CRON_BASE_URL" || { echo "CRON_BASE_URL secret missing"; exit 1; }
+          test -n "$CRON_TOKEN" || { echo "CRON_SECRET secret missing"; exit 1; }
+
+      - name: Call organization calendar sync endpoint with retries
+        run: |
+          set -euo pipefail
+
+          endpoint="${CRON_BASE_URL%/}${ENDPOINT_PATH}"
+          max_attempts=5
+
+          for attempt in $(seq 1 "$max_attempts"); do
+            echo "Attempt ${attempt}/${max_attempts}: ${HTTP_METHOD} ${endpoint}"
+
+            headers_file="$(mktemp)"
+            body_file="$(mktemp)"
+
+            status_code="$({
+              curl -sS -X "$HTTP_METHOD" \
+                -H "Authorization: Bearer $CRON_TOKEN" \
+                -H "Accept: application/json" \
+                -H "User-Agent: lets-assist-cron/${GITHUB_WORKFLOW}" \
+                -D "$headers_file" \
+                -o "$body_file" \
+                -w "%{http_code}" \
+                --connect-timeout 10 \
+                --max-time 300 \
+                "$endpoint" || true
+            })"
+
+            echo "HTTP status: ${status_code}"
+            if [[ -s "$body_file" ]]; then
+              echo "Response body:"
+              cat "$body_file"
+            fi
+
+            if [[ "$status_code" =~ ^2[0-9][0-9]$ ]]; then
+              rm -f "$headers_file" "$body_file"
+              echo "Cron endpoint succeeded."
+              exit 0
+            fi
+
+            retry_after="$(awk 'BEGIN{IGNORECASE=1} /^retry-after:[[:space:]]*/ {gsub("\r", "", $2); print $2}' "$headers_file" | tail -n 1)"
+
+            rm -f "$headers_file" "$body_file"
+
+            if [[ "$attempt" -ge "$max_attempts" ]]; then
+              echo "Cron endpoint failed after ${max_attempts} attempts."
+              exit 1
+            fi
+
+            if [[ "$status_code" == "429" ]]; then
+              sleep_seconds="${retry_after:-$((attempt * 20))}"
+              echo "Rate limited (429). Sleeping ${sleep_seconds}s before retry..."
+              sleep "$sleep_seconds"
+              continue
+            fi
+
+            if [[ "$status_code" =~ ^5[0-9][0-9]$ || "$status_code" == "000" ]]; then
+              sleep_seconds=$((attempt * 10))
+              echo "Transient server/network error (${status_code}). Sleeping ${sleep_seconds}s..."
+              sleep "$sleep_seconds"
+              continue
+            fi
+
+            echo "Non-retryable response (${status_code}). Failing."
+            exit 1
+          done
+
+      - name: Notify Better Stack heartbeat (success)
+        if: ${{ success() && env.BETTERSTACK_HEARTBEAT_URL != '' }}
+        run: |
+          set -euo pipefail
+          curl -fsS --retry 3 --retry-delay 2 --max-time 20 "$BETTERSTACK_HEARTBEAT_URL"
+
+      - name: Notify Better Stack heartbeat (failure)
+        if: ${{ failure() && env.BETTERSTACK_HEARTBEAT_URL != '' }}
+        run: |
+          set -euo pipefail
+          fail_url="${BETTERSTACK_HEARTBEAT_URL%/}/fail"
+          curl -fsS --retry 3 --retry-delay 2 --max-time 20 "$fail_url" || true

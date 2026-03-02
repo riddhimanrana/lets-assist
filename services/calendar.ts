@@ -19,7 +19,6 @@ const GOOGLE_REVOKE_URL = "https://oauth2.googleapis.com/revoke";
 export const GOOGLE_SHEETS_SCOPES = [
   "https://www.googleapis.com/auth/spreadsheets",
   "https://www.googleapis.com/auth/drive.file",
-  "https://www.googleapis.com/auth/drive.metadata.readonly",
 ] as const;
 
 type ScopeInput = string | string[] | null | undefined;
@@ -913,42 +912,67 @@ export async function getGoogleAccessTokenForUser(
   }
   // If no specific type is requested, get any active connection
 
-  const { data: connection, error } = await query.single();
+  const { data: connections, error } = await query
+    .order("updated_at", { ascending: false })
+    .order("connected_at", { ascending: false });
 
-  if (error || !connection) {
+  if (error || !connections || connections.length === 0) {
     return null;
   }
 
   const requiredScopes = options?.requiredScopes?.filter(Boolean) ?? [];
-  if (!hasRequiredScopes(connection.granted_scopes, requiredScopes)) {
+
+  const rankConnection = (connectionType: string | null | undefined) => {
+    const normalized = (connectionType || "").toLowerCase();
+    const preferred = options?.connectionType;
+
+    if (!preferred) return 0;
+    if (preferred === "both") {
+      return normalized === "both" ? 0 : 1;
+    }
+
+    if (normalized === preferred) return 0;
+    if (normalized === "both") return 1;
+    return 2;
+  };
+
+  const candidateConnections = [...connections]
+    .sort((a, b) => rankConnection(a.connection_type) - rankConnection(b.connection_type))
+    .filter((connection) => hasRequiredScopes(connection.granted_scopes, requiredScopes));
+
+  if (!candidateConnections.length) {
     return null;
   }
 
-  if (!isTokenExpired(connection.token_expires_at)) {
-    return decrypt(connection.access_token);
-  }
+  for (const connection of candidateConnections) {
+    if (!isTokenExpired(connection.token_expires_at)) {
+      return decrypt(connection.access_token);
+    }
 
-  const decryptedRefreshToken = decrypt(connection.refresh_token);
-  const refreshed = await refreshAccessToken(decryptedRefreshToken);
+    const decryptedRefreshToken = decrypt(connection.refresh_token);
+    const refreshed = await refreshAccessToken(decryptedRefreshToken);
 
-  if (!refreshed) {
+    if (!refreshed) {
+      await supabase
+        .from("user_calendar_connections")
+        .update({ is_active: false })
+        .eq("id", connection.id);
+      continue;
+    }
+
+    const newExpiresAt = new Date(Date.now() + refreshed.expiresIn * 1000);
+    const encryptedAccessToken = encrypt(refreshed.accessToken);
+
     await supabase
       .from("user_calendar_connections")
-      .update({ is_active: false })
+      .update({
+        access_token: encryptedAccessToken,
+        token_expires_at: newExpiresAt.toISOString(),
+      })
       .eq("id", connection.id);
-    return null;
+
+    return refreshed.accessToken;
   }
 
-  const newExpiresAt = new Date(Date.now() + refreshed.expiresIn * 1000);
-  const encryptedAccessToken = encrypt(refreshed.accessToken);
-
-  await supabase
-    .from("user_calendar_connections")
-    .update({
-      access_token: encryptedAccessToken,
-      token_expires_at: newExpiresAt.toISOString(),
-    })
-    .eq("id", connection.id);
-
-  return refreshed.accessToken;
+  return null;
 }

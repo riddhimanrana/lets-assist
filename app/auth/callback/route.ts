@@ -1,6 +1,20 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
+import {
+  applyStaffInviteForUser,
+  type StaffInviteOutcome,
+} from "@/lib/organization/staff-invite";
+import {
+  isRetryableAuthError,
+  withRetryableAuthOperation,
+} from "@/lib/supabase/retry-auth";
+import { normalizeRedirectPath } from "@/app/signup/redirect-utils";
+import {
+  getAccountAccessErrorCode,
+  isAccountBlockedStatus,
+  readAccountAccessFromMetadata,
+} from "@/lib/auth/account-access";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -42,14 +56,94 @@ export async function GET(request: Request) {
     // For OAuth, we want to create a session and profile
     
     // Try to exchange the code for session info (without storing session)
+    let exchangeResult: Awaited<ReturnType<typeof supabase.auth.exchangeCodeForSession>>;
+
+    try {
+      exchangeResult = await withRetryableAuthOperation(async () => {
+        const result = await supabase.auth.exchangeCodeForSession(code || "");
+
+        // Retry only transient network/auth fetch failures.
+        if (result.error && isRetryableAuthError(result.error)) {
+          throw result.error;
+        }
+
+        return result;
+      });
+    } catch (retryError) {
+      console.error("Session exchange retry exhausted:", retryError);
+
+      if (!isRetryableAuthError(retryError)) {
+        return NextResponse.redirect(`${origin}/error`);
+      }
+
+      if (from === "authentication") {
+        return NextResponse.redirect(
+          `${origin}/account/authentication?error=linking_failed`
+        );
+      }
+
+      const loginUrl = new URL(`${origin}/login`);
+      loginUrl.searchParams.set("error", "network-timeout");
+
+      const normalizedRedirect = normalizeRedirectPath(redirectAfterAuth);
+      if (normalizedRedirect) {
+        loginUrl.searchParams.set("redirect", normalizedRedirect);
+      }
+
+      if (staffToken) {
+        loginUrl.searchParams.set("staff_token", staffToken);
+      }
+
+      if (orgUsername) {
+        loginUrl.searchParams.set("org", orgUsername);
+      }
+
+      return NextResponse.redirect(loginUrl.toString());
+    }
+
     const {
       data: { session },
       error: exchangeError,
-    } = await supabase.auth.exchangeCodeForSession(code || '');
+    } = exchangeResult;
 
     if (!exchangeError && session) {
       try {
         const { user } = session;
+        const accountAccess = readAccountAccessFromMetadata(user.app_metadata ?? null);
+
+        if (isAccountBlockedStatus(accountAccess.status)) {
+          await supabase.auth.signOut();
+
+          const loginUrl = new URL(`${origin}/login`);
+          const errorCode = getAccountAccessErrorCode(accountAccess.status);
+
+          if (errorCode) {
+            loginUrl.searchParams.set("error", errorCode);
+          }
+
+          if (accountAccess.reason) {
+            loginUrl.searchParams.set("reason", accountAccess.reason);
+          }
+
+          return NextResponse.redirect(loginUrl.toString());
+        }
+
+        // Check if this email is blacklisted (catches OAuth signups with a banned email)
+        if (user.email) {
+          const adminClient = getAdminClient();
+          const { data: blacklisted } = await adminClient
+            .from("banned_emails")
+            .select("email")
+            .eq("email", user.email.trim().toLowerCase())
+            .maybeSingle();
+
+          if (blacklisted) {
+            await supabase.auth.signOut();
+            return NextResponse.redirect(`${origin}/login?error=account-banned`);
+          }
+        }
+
+        let inviteOutcome: StaffInviteOutcome | null = null;
 
         // Handle account linking redirection for authentication page
         if (from === "authentication") {
@@ -162,12 +256,11 @@ export async function GET(request: Request) {
 
           // Handle staff invite token if present
           if (staffToken && orgUsername) {
-            try {
-              await handleStaffInvite(user.id, staffToken, orgUsername);
-            } catch (inviteError) {
-              console.error("Error processing staff invite:", inviteError);
-              // Don't fail OAuth login if invite processing fails
-            }
+            inviteOutcome = await applyStaffInviteForUser({
+              userId: user.id,
+              staffToken,
+              orgUsername,
+            });
           }
         } else {
           // Update email in case it changed
@@ -186,12 +279,11 @@ export async function GET(request: Request) {
 
           // Handle staff invite token for existing users too
           if (staffToken && orgUsername) {
-            try {
-              await handleStaffInvite(user.id, staffToken, orgUsername);
-            } catch (inviteError) {
-              console.error("Error processing staff invite:", inviteError);
-              // Don't fail OAuth login if invite processing fails
-            }
+            inviteOutcome = await applyStaffInviteForUser({
+              userId: user.id,
+              staffToken,
+              orgUsername,
+            });
           }
         }
 
@@ -210,15 +302,23 @@ export async function GET(request: Request) {
             })()
           : "/home";
 
+        const redirectUrl = new URL(redirectTo, origin);
+        if (inviteOutcome) {
+          redirectUrl.searchParams.set("invite_status", inviteOutcome.status);
+          redirectUrl.searchParams.set("invite_org", inviteOutcome.orgUsername);
+        }
+
+        const finalRedirectTo = `${redirectUrl.pathname}${redirectUrl.search}`;
+
         const forwardedHost = request.headers.get("x-forwarded-host");
         
         // Handle redirect based on environment
         if (process.env.NODE_ENV === "development") {
-          return NextResponse.redirect(`${origin}${redirectTo}`);
+          return NextResponse.redirect(`${origin}${finalRedirectTo}`);
         } else if (forwardedHost) {
-          return NextResponse.redirect(`https://${forwardedHost}${redirectTo}`);
+          return NextResponse.redirect(`https://${forwardedHost}${finalRedirectTo}`);
         } else {
-          return NextResponse.redirect(`${origin}${redirectTo}`);
+          return NextResponse.redirect(`${origin}${finalRedirectTo}`);
         }
       } catch (error) {
         console.error("Error in callback:", error);
@@ -290,86 +390,3 @@ async function handleEmailDomainAffiliation(userId: string, email: string): Prom
   console.log(`User ${userId} auto-affiliated with organization ${org.id} via domain ${domain}`);
 }
 
-/**
- * Handle staff invite - add user to organization as staff via invite token
- */
-async function handleStaffInvite(userId: string, token: string, orgUsername: string): Promise<void> {
-  const adminClient = getAdminClient();
-
-  // Validate organization and token
-  const { data: org, error: orgError } = await adminClient
-    .from("organizations")
-    .select("id, staff_join_token, staff_join_token_expires_at")
-    .eq("username", orgUsername)
-    .single();
-
-  if (orgError || !org) {
-    return; // Org not found, skip silently
-  }
-
-  // Validate token match
-  if (org.staff_join_token !== token) {
-    return; // Token mismatch, skip silently
-  }
-
-  // Validate token expiry
-  const expiresAt = org.staff_join_token_expires_at;
-  if (!expiresAt || new Date(expiresAt) < new Date()) {
-    return; // Token expired, skip silently
-  }
-
-  // Add user as staff member
-  const { error: memberError } = (await adminClient
-    .from("organization_members")
-    .insert({
-      organization_id: org.id,
-      user_id: userId,
-      role: "staff",
-    })) as { error: { message?: string; code?: string } | null };
-
-  if (memberError) {
-    // If duplicate membership exists (23505), check existing role before updating
-    if (memberError.code === "23505") {
-      // Query existing membership to check current role
-      const { data: existingMembership, error: queryError } = await adminClient
-        .from("organization_members")
-        .select("role")
-        .eq("organization_id", org.id)
-        .eq("user_id", userId)
-        .single();
-
-      if (queryError || !existingMembership) {
-        console.error(`Error querying existing membership for org ${org.id}:`, queryError);
-        return;
-      }
-
-      // Only upgrade if current role is 'member'
-      // Do NOT downgrade admin or staff roles
-      if (existingMembership.role === "member") {
-        const { error: updateError } = await adminClient
-          .from("organization_members")
-          .update({ role: "staff" })
-          .eq("organization_id", org.id)
-          .eq("user_id", userId);
-
-        if (updateError) {
-          console.error(`Error updating membership role to staff for org ${org.id}:`, updateError);
-          return;
-        }
-
-        console.log(`User ${userId} membership upgraded to staff for organization ${org.id} via invite token`);
-        return;
-      }
-
-      // If already staff or admin, skip update silently
-      console.log(`User ${userId} already has role '${existingMembership.role}' for organization ${org.id}, skipping staff invite`);
-      return;
-    }
-
-    // Log error for other non-duplicate errors
-    console.error(`Error adding staff member to org ${org.id}:`, memberError);
-    return;
-  }
-
-  console.log(`User ${userId} added as staff to organization ${org.id} via invite token`);
-}

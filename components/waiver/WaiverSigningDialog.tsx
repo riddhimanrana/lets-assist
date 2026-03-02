@@ -223,17 +223,6 @@ export function WaiverSigningDialog({
   const currentStep = steps[currentStepIndex];
   const hasPdfDocument = Boolean(safeWaiverPdfUrl);
 
-  const currentSignerSignatureFields = useMemo(() => {
-    if (currentStep?.type !== 'sign' || !currentStep.signer) {
-      return [] as WaiverDefinitionField[];
-    }
-
-    return effectiveDefinition.fields.filter((field) => {
-      return field.signer_role_key === currentStep.signer?.role_key &&
-        (field.field_type === 'signature' || field.field_type === 'initial');
-    });
-  }, [currentStep, effectiveDefinition.fields]);
-
   const generatedWaiverPreview = useMemo(() => {
     const templateContent = waiverTemplate?.content?.trim();
     if (templateContent) return templateContent;
@@ -744,32 +733,6 @@ export function WaiverSigningDialog({
                                      Sign as {currentStep.signer.label}
                                  </h3>
 
-                                   {currentSignerSignatureFields.length > 0 && (
-                                     <div className="mb-4 rounded-md border bg-muted/30 p-3 space-y-2">
-                                       <p className="text-xs font-medium text-muted-foreground">Signature box guidance</p>
-                                       {currentSignerSignatureFields.map((field) => {
-                                         const signingPurpose = typeof field.meta?.signingPurpose === 'string'
-                                           ? field.meta.signingPurpose
-                                           : '';
-                                         const helpText = typeof field.meta?.helpText === 'string'
-                                           ? field.meta.helpText
-                                           : '';
-
-                                         if (!signingPurpose && !helpText) {
-                                           return null;
-                                         }
-
-                                         return (
-                                           <div key={field.id} className="text-xs text-muted-foreground space-y-0.5">
-                                             <p className="font-medium text-foreground">{field.label}</p>
-                                             {signingPurpose && <p>Signing as: {signingPurpose}</p>}
-                                             {helpText && <p>{helpText}</p>}
-                                           </div>
-                                         );
-                                       })}
-                                     </div>
-                                   )}
-
                                  {disableEsignature ? (
                                      <div className="space-y-4">
                                        <div className="p-6 border-2 border-dashed rounded-lg text-center">
@@ -1036,32 +999,6 @@ export function WaiverSigningDialog({
                                 Sign as {currentStep.signer.label}
                             </h3>
 
-                            {currentSignerSignatureFields.length > 0 && (
-                              <div className="mb-4 rounded-md border bg-muted/30 p-3 space-y-2">
-                                <p className="text-xs font-medium text-muted-foreground">Signature box guidance</p>
-                                {currentSignerSignatureFields.map((field) => {
-                                  const signingPurpose = typeof field.meta?.signingPurpose === 'string'
-                                    ? field.meta.signingPurpose
-                                    : '';
-                                  const helpText = typeof field.meta?.helpText === 'string'
-                                    ? field.meta.helpText
-                                    : '';
-
-                                  if (!signingPurpose && !helpText) {
-                                    return null;
-                                  }
-
-                                  return (
-                                    <div key={field.id} className="text-xs text-muted-foreground space-y-0.5">
-                                      <p className="font-medium text-foreground">{field.label}</p>
-                                      {signingPurpose && <p>Signing as: {signingPurpose}</p>}
-                                      {helpText && <p>{helpText}</p>}
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            )}
-                            
                             {disableEsignature ? (
                                 <div className="space-y-4">
                                   <div className="p-6 border-2 border-dashed rounded-lg text-center">

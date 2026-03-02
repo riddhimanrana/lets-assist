@@ -403,7 +403,24 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
             <div className="mt-2 text-center text-sm">
               Already have an account?{" "}
               <Link
-                href={redirectPath ? `/login?redirect=${encodeURIComponent(redirectPath)}` : "/login"}
+                href={(() => {
+                  const params = new URLSearchParams();
+
+                  if (redirectPath) {
+                    params.set("redirect", redirectPath);
+                  }
+
+                  if (staffToken) {
+                    params.set("staff_token", staffToken);
+                  }
+
+                  if (orgUsername) {
+                    params.set("org", orgUsername);
+                  }
+
+                  const query = params.toString();
+                  return query ? `/login?${query}` : "/login";
+                })()}
                 className="underline"
               >
                 Login

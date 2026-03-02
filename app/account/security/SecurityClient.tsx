@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { AlertCircle, CheckCircle2, Trash2Icon } from "lucide-react";
+import { AlertCircle, CheckCircle2, Mail, Trash2Icon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -35,7 +35,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-import { deleteAccount, updatePasswordAction, updateEmailAction, setPasswordAction } from "./actions";
+import {
+  deleteAccount,
+  emailDataExport,
+  setPasswordAction,
+  updateEmailAction,
+  updatePasswordAction,
+} from "./actions";
 import { useAuth } from "@/hooks/useAuth";
 import { createClient } from "@/lib/supabase/client";
 
@@ -90,6 +96,7 @@ export default function SecurityClient() {
   const [currentEmail, setCurrentEmail] = useState("");
   const [isPasswordLoading, setIsPasswordLoading] = useState(false);
   const [isEmailLoading, setIsEmailLoading] = useState(false);
+  const [isExportEmailing, setIsExportEmailing] = useState(false);
 
   // OAuth detection state
   const [hasPassword, setHasPassword] = useState<boolean | null>(null);
@@ -337,6 +344,30 @@ export default function SecurityClient() {
     setShowDeleteDialog(false);
   };
 
+  const handleEmailDataExport = async () => {
+    try {
+      setIsExportEmailing(true);
+      const result = await emailDataExport();
+
+      if (!result.success) {
+        toast.error(result.error || "Failed to send export email");
+        return;
+      }
+
+      toast.success(
+        result.email
+          ? `Export queued. We'll email ${result.email} when it's ready.`
+          : "Export queued. We'll email you when it's ready.",
+      );
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to email data export",
+      );
+    } finally {
+      setIsExportEmailing(false);
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -581,6 +612,34 @@ export default function SecurityClient() {
             </CardContent>
           </Card>
         </div>
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle className="text-xl">Export Your Data</CardTitle>
+            <CardDescription>
+              Queue a background ZIP export and receive it via email.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Exports include categorized files for profile data, certificates and hours,
+              notifications, trust/safety history, auth details, and internal export logs.
+              Large exports are delivered via secure signed link to avoid attachment limits.
+            </p>
+
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button
+                type="button"
+                onClick={handleEmailDataExport}
+                disabled={isExportEmailing}
+                className="w-full sm:w-auto"
+              >
+                <Mail className="h-4 w-4 mr-2" />
+                {isExportEmailing ? "Queueing Export..." : "Email My Zipped Data"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
         <Card className="border-destructive mt-6">
           <CardHeader className="">
             <CardTitle className="text-destructive">Delete Account</CardTitle>

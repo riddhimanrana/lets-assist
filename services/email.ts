@@ -12,6 +12,11 @@ function getResendClient(): Resend | null {
 
 export type EmailType = 'project_updates' | 'general' | 'transactional';
 
+interface EmailAttachment {
+    filename: string;
+    content: string;
+}
+
 interface SendEmailParams {
     to: string | string[];
     subject: string;
@@ -19,9 +24,10 @@ interface SendEmailParams {
     react?: React.ReactElement;
     userId?: string; // Optional: if provided, checks user preferences
     type: EmailType;
+    attachments?: EmailAttachment[];
 }
 
-export async function sendEmail({ to, subject, html, react, userId, type }: SendEmailParams) {
+export async function sendEmail({ to, subject, html, react, userId, type, attachments }: SendEmailParams) {
     const shouldLog = process.env.NODE_ENV !== "test";
 
     // Validate that either html or react is provided
@@ -121,6 +127,7 @@ export async function sendEmail({ to, subject, html, react, userId, type }: Send
             to,
             subject,
             html: emailHtml,
+            attachments,
         });
 
         if (error) {

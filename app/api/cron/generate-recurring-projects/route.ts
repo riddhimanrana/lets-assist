@@ -3,9 +3,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { addDays, addWeeks, addMonths, addYears, format, isAfter, isBefore, parseISO } from "date-fns";
 
 function createServiceClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_SECRET_KEY;
+
+  if (!supabaseUrl || !supabaseKey) {
+    throw new Error("Supabase service credentials are required.");
+  }
+
   return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
+    supabaseUrl,
+    supabaseKey
   );
 }
 
@@ -340,7 +347,16 @@ async function processRecurringProjects(): Promise<{
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
+  const MAX_PARENTS = 20; // Limit parents per run
+  let parentsProcessed = 0;
+
   for (const parent of parentProjects as Project[]) {
+    if (parentsProcessed >= MAX_PARENTS) {
+      console.log(`Reached limit of ${MAX_PARENTS} parent projects per run. Skipping remaining.`);
+      break;
+    }
+    parentsProcessed++;
+
     try {
       const rule = parent.recurrence_rule;
       if (!rule) continue;
@@ -439,11 +455,16 @@ async function processRecurringProjects(): Promise<{
               createdOccurrences++;
             }
           }
+          // Small delay after each check/insert inside a parent to stay under rate limits
+          await new Promise(resolve => setTimeout(resolve, 100));
         }
 
         currentSequence++;
         nextDate = calculateNextDate(nextDate, rule);
       }
+      
+      // Delay between different parent projects
+      await new Promise(resolve => setTimeout(resolve, 500));
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
       errors.push(`Error processing ${parent.title}: ${errorMessage}`);
@@ -451,7 +472,7 @@ async function processRecurringProjects(): Promise<{
   }
 
   return {
-    processedProjects: parentProjects.length,
+    processedProjects: parentsProcessed,
     createdOccurrences,
     errors,
   };

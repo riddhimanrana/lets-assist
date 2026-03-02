@@ -42,6 +42,7 @@ interface VerificationSettingsProps {
   requireLogin: boolean;
   isOrganization: boolean; // Add this to detect if creating for an organization
   visibility: ProjectVisibility; // Project visibility setting
+  canUsePublicVisibility: boolean;
   enableVolunteerComments: boolean;
   showAttendeesPublicly: boolean;
   waiverRequired: boolean;
@@ -81,10 +82,11 @@ export default function VerificationSettings({
   requireLogin,
   isOrganization,
   visibility,
+  canUsePublicVisibility,
   enableVolunteerComments,
   showAttendeesPublicly,
   waiverRequired,
-  waiverAllowUpload,
+  waiverAllowUpload: _waiverAllowUpload,
   waiverDisableEsignature,
   waiverPdfFile,
   waiverPdfUrl,
@@ -116,6 +118,7 @@ export default function VerificationSettings({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const MAX_PDF_SIZE = 10 * 1024 * 1024; // 10MB
+  const isPublicVisibilityDisabled = !canUsePublicVisibility;
 
   const validatePdfFile = useCallback(async (file: File) => {
     setIsValidatingPdf(true);
@@ -717,10 +720,10 @@ export default function VerificationSettings({
                      detectedFields={detectedFields || []}
                      onSave={async (def) => {
                         updateWaiverDefinitionAction?.(def);
-                        setShowBuilder(false);
                      }}
                     existingDefinition={undefined} // No existing DB definition yet
                     existingDraftDefinition={waiverDefinition ?? null}
+                    autoSaveDraft
                    />
                 )}
 
@@ -814,20 +817,44 @@ export default function VerificationSettings({
             <label
               htmlFor="visibility-public"
               className={cn(
-                "flex flex-col items-start space-y-3 rounded-lg border p-4 hover:bg-accent cursor-pointer transition-colors",
+                "flex flex-col items-start space-y-3 rounded-lg border p-4 transition-colors",
                 visibility === "public" && "border-primary bg-accent",
+                !isPublicVisibilityDisabled && "hover:bg-accent cursor-pointer",
+                isPublicVisibilityDisabled && "cursor-not-allowed opacity-60",
                 errors.visibility && "border-destructive",
               )}
             >
               <div className="flex w-full justify-between space-x-3">
                 <div className="flex items-center space-x-3">
-                  <RadioGroupItem value="public" id="visibility-public" />
+                  <RadioGroupItem
+                    value="public"
+                    id="visibility-public"
+                    disabled={isPublicVisibilityDisabled}
+                  />
                   <div className="flex items-center space-x-2">
                     <Eye className="h-5 w-5" />
                     <span className="font-medium">Public (Everyone)</span>
                   </div>
                 </div>
-                <Badge variant="default">Recommended</Badge>
+                <div className="flex items-center gap-2">
+                  {isPublicVisibilityDisabled && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger render={
+                          <span className="inline-flex items-center text-muted-foreground" aria-label="Public visibility disabled">
+                            <Lock className="h-4 w-4" />
+                          </span>
+                        } />
+                        <TooltipContent className="text-xs font-normal max-w-xs">
+                          Public feed visibility requires Trusted Member approval.
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
+                  <Badge variant={isPublicVisibilityDisabled ? "secondary" : "default"}>
+                    {isPublicVisibilityDisabled ? "Trusted Members" : "Recommended"}
+                  </Badge>
+                </div>
               </div>
               <p className="text-sm text-muted-foreground ml-6">
                 Your project appears on the home feed and in search results. Anyone on the platform can find and sign up for it.
@@ -890,6 +917,19 @@ export default function VerificationSettings({
               <AlertTriangle className="h-4 w-4" />
               {errors.visibility}
             </div>
+          )}
+
+          {isPublicVisibilityDisabled && (
+            <Alert className="mt-4 bg-warning/10 border-warning/40">
+              <AlertTriangle className="h-4 w-4 text-warning" />
+              <AlertDescription className="text-sm">
+                Public visibility is available to Trusted Members only. You can still create this project as a{' '}
+                <span className="font-medium">Regular Member</span>
+                {isOrganization ? ' inside your organization' : ''}.{' '}
+                <a href="/trusted-member" className="underline text-primary">Apply here</a>
+                {' '}to enable Public feed posting.
+              </AlertDescription>
+            </Alert>
           )}
         </CardContent>
       </Card>

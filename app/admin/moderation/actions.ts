@@ -7,11 +7,16 @@ import { NotificationService } from "@/services/notifications";
 import { notifyAdminsBatched } from "@/services/admin-notifications";
 import { sendEmail } from "@/services/email";
 import ContentModerationActionEmail from "@/emails/content-moderation-action";
+import ReportStatusUpdateEmail from "@/emails/report-status-update";
 import {
   analyzeProjectWithAi,
   analyzeReportWithAi,
   buildProjectFlagDetails,
 } from "./ai-review";
+import {
+  matchesReportStatusFilter,
+  normalizeReportStatus,
+} from './report-status';
 
 /**
  * Get all flagged content for admin review
@@ -259,68 +264,134 @@ export async function getModerationStats() {
   if (!isAdmin) {
     return { error: "Unauthorized - Admin access required" };
   }
-  
-  // Get total counts from content_flags
-  const { count: totalFlagged } = await supabase
-    .from('content_flags')
-    .select('*', { count: 'exact', head: true });
-  
-  // Get total count from content_reports (ALL reports, not just pending)
-  const { count: totalReportsCount } = await supabase
-    .from('content_reports')
-    .select('*', { count: 'exact', head: true });
-  
-  const { count: pendingFlagsCount } = await supabase
-    .from('content_flags')
-    .select('*', { count: 'exact', head: true })
-    .eq('status', 'pending');
-  
-  // Also count pending content_reports
-  const { count: pendingReportsCount } = await supabase
-    .from('content_reports')
-    .select('*', { count: 'exact', head: true })
-    .eq('status', 'pending');
-  
-  const { count: blockedCount } = await supabase
-    .from('content_flags')
-    .select('*', { count: 'exact', head: true })
-    .eq('status', 'blocked');
-  
-  // Get critical count - high priority reports + high confidence flags
-  const { count: criticalFlagsCount } = await supabase
-    .from('content_flags')
-    .select('*', { count: 'exact', head: true })
-    .gte('confidence_score', 0.8);
-  
-  const { count: criticalReportsCount } = await supabase
-    .from('content_reports')
-    .select('*', { count: 'exact', head: true })
-    .in('priority', ['high', 'critical']);
-  
-  // Get recent violations (last 7 days) from both tables
-  const sevenDaysAgo = new Date();
+
+  const now = new Date();
+  const sevenDaysAgo = new Date(now);
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const oneDayAgo = new Date(now);
+  oneDayAgo.setDate(oneDayAgo.getDate() - 1);
   
-  const { count: recentFlagsCount } = await supabase
-    .from('content_flags')
-    .select('*', { count: 'exact', head: true })
-    .gte('created_at', sevenDaysAgo.toISOString());
-  
-  const { count: recentReportsCount } = await supabase
-    .from('content_reports')
-    .select('*', { count: 'exact', head: true })
-    .gte('created_at', sevenDaysAgo.toISOString());
-  
+  const [
+    { count: totalFlagged },
+    { count: totalReportsCount },
+    { data: flagStatuses },
+    { data: reportStatuses },
+    { count: criticalFlagsCount },
+    { count: criticalReportsCount },
+    { count: recentFlagsCount },
+    { count: recentReportsCount },
+    { count: aiApprovedReportsCount },
+    { count: aiFlagsLast24hCount },
+    { count: aiReportsLast24hCount },
+    { count: aiFlagsTotalCount },
+    { count: aiReportsTotalCount },
+    { data: latestAiFlagRows },
+    { data: latestAiReportRows },
+  ] = await Promise.all([
+    supabase.from('content_flags').select('*', { count: 'exact', head: true }),
+    supabase.from('content_reports').select('*', { count: 'exact', head: true }),
+    supabase.from('content_flags').select('status'),
+    supabase.from('content_reports').select('status'),
+    supabase.from('content_flags').select('*', { count: 'exact', head: true }).gte('confidence_score', 0.8),
+    supabase.from('content_reports').select('*', { count: 'exact', head: true }).in('priority', ['high', 'critical']),
+    supabase.from('content_flags').select('*', { count: 'exact', head: true }).gte('created_at', sevenDaysAgo.toISOString()),
+    supabase.from('content_reports').select('*', { count: 'exact', head: true }).gte('created_at', sevenDaysAgo.toISOString()),
+    supabase
+      .from('content_reports')
+      .select('*', { count: 'exact', head: true })
+      .ilike('resolution_notes', '%Approved AI recommendation%'),
+    supabase
+      .from('content_flags')
+      .select('*', { count: 'exact', head: true })
+      .eq('flag_source', 'ai')
+      .gte('created_at', oneDayAgo.toISOString()),
+    supabase
+      .from('content_reports')
+      .select('*', { count: 'exact', head: true })
+      .not('ai_metadata', 'is', null)
+      .gte('updated_at', oneDayAgo.toISOString()),
+    supabase
+      .from('content_flags')
+      .select('*', { count: 'exact', head: true })
+      .eq('flag_source', 'ai'),
+    supabase
+      .from('content_reports')
+      .select('*', { count: 'exact', head: true })
+      .not('ai_metadata', 'is', null),
+    supabase
+      .from('content_flags')
+      .select('created_at')
+      .eq('flag_source', 'ai')
+      .order('created_at', { ascending: false })
+      .limit(1),
+    supabase
+      .from('content_reports')
+      .select('updated_at')
+      .not('ai_metadata', 'is', null)
+      .order('updated_at', { ascending: false })
+      .limit(1),
+  ]);
+
+  const flagStatusCounts = {
+    pending: 0,
+    blocked: 0,
+    confirmed: 0,
+    dismissed: 0,
+  };
+
+  for (const flag of flagStatuses || []) {
+    const key = (flag.status || 'pending') as keyof typeof flagStatusCounts;
+    if (key in flagStatusCounts) {
+      flagStatusCounts[key] += 1;
+    }
+  }
+
+  const pendingReportsCount = (reportStatuses || []).filter((report) =>
+    matchesReportStatusFilter(report.status, 'pending'),
+  ).length;
+
+  const resolvedReportsCount = (reportStatuses || []).filter((report) =>
+    matchesReportStatusFilter(report.status, 'resolved') ||
+    matchesReportStatusFilter(report.status, 'dismissed'),
+  ).length;
+
+  const resolvedFlagsCount =
+    flagStatusCounts.confirmed +
+    flagStatusCounts.blocked +
+    flagStatusCounts.dismissed;
+
+  const latestCandidates = [
+    latestAiFlagRows?.[0]?.created_at,
+    latestAiReportRows?.[0]?.updated_at,
+  ]
+    .filter((value): value is string => Boolean(value))
+    .map((value) => new Date(value))
+    .filter((value) => !Number.isNaN(value.getTime()));
+
+  const lastAutomationAt = latestCandidates.length
+    ? latestCandidates.sort((a, b) => b.getTime() - a.getTime())[0].toISOString()
+    : null;
+
   // Combine stats from both tables
-  const totalPending = (pendingFlagsCount || 0) + (pendingReportsCount || 0);
+  const totalPending = flagStatusCounts.pending + pendingReportsCount;
   const totalCritical = (criticalFlagsCount || 0) + (criticalReportsCount || 0);
   const totalRecent = (recentFlagsCount || 0) + (recentReportsCount || 0);
+  const totalResolved = resolvedFlagsCount + resolvedReportsCount;
+  const automationLast24h = (aiFlagsLast24hCount || 0) + (aiReportsLast24hCount || 0);
+  const automationTotal = (aiFlagsTotalCount || 0) + (aiReportsTotalCount || 0);
   
   return {
     data: {
       total: (totalFlagged || 0) + (totalReportsCount || 0),
       pending: totalPending,
-      blocked: blockedCount || 0,
+      pendingFlags: flagStatusCounts.pending,
+      pendingReports: pendingReportsCount,
+      resolved: totalResolved,
+      aiApproved: aiApprovedReportsCount || 0,
+      automationLast24h,
+      automationTotal,
+      lastAutomationAt,
+      blocked: flagStatusCounts.blocked,
       critical: totalCritical,
       recentWeek: totalRecent,
       monthlyActivity: 0,
@@ -367,35 +438,37 @@ export async function getContentReports(status?: 'pending' | 'under_review' | 'r
     return { error: "Unauthorized - Admin access required" };
   }
   
-  let query = supabase
+  const { data: rawReports, error } = await supabase
     .from('content_reports')
     .select('*')
     .order('priority', { ascending: false })
     .order('created_at', { ascending: false });
   
-  if (status) {
-    query = query.eq('status', status);
-  }
-  
-  const { data, error } = await query;
-  
-  console.log(`[getContentReports] Fetched ${data?.length || 0} reports with status: ${status || 'any'}`);
-  if (data?.length) {
-    console.log(`[getContentReports] Report IDs:`, data.map(r => r.id));
-  }
-  
   if (error) {
     console.error('Error fetching content reports:', error);
     return { error: error.message };
   }
+
+  const normalizedReports = (rawReports || []).map((report) => ({
+    ...report,
+    status: normalizeReportStatus(report.status),
+  }));
+
+  const reports = normalizedReports.filter((report) =>
+    matchesReportStatusFilter(report.status, status),
+  );
+
+  if (reports.length === 0) {
+    return { data: [] };
+  }
   
   // Manually fetch reporter and reviewer profiles
-  if (data) {
-    const reporterIds = data
+  if (reports) {
+    const reporterIds = reports
       .map(r => r.reporter_id)
       .filter((id): id is string => id !== null);
     
-    const reviewerIds = data
+    const reviewerIds = reports
       .map(r => r.reviewed_by)
       .filter((id): id is string => id !== null);
     
@@ -410,8 +483,8 @@ export async function getContentReports(status?: 'pending' | 'under_review' | 'r
       const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
       
       // Fetch content details based on type
-      const projectIds = data.filter(r => r.content_type === 'project').map(r => r.content_id);
-      const profileIds = data.filter(r => r.content_type === 'profile').map(r => r.content_id);
+      const projectIds = reports.filter(r => r.content_type === 'project').map(r => r.content_id);
+      const profileIds = reports.filter(r => r.content_type === 'profile').map(r => r.content_id);
       
       let projects: ProjectSummary[] = [];
       if (projectIds.length > 0) {
@@ -445,7 +518,7 @@ export async function getContentReports(status?: 'pending' | 'under_review' | 'r
       const projectCreatorMap = new Map(projectCreators.map(p => [p.id, p]));
 
       // Enhance data with profile info and content details
-      const enhancedData = data.map(report => {
+      const enhancedData = reports.map(report => {
         let contentDetails = null;
         let creatorDetails = null;
 
@@ -474,7 +547,7 @@ export async function getContentReports(status?: 'pending' | 'under_review' | 'r
     }
   }
   
-  return { data };
+  return { data: reports };
 }
 
 /**
@@ -498,7 +571,7 @@ export async function updateContentReportStatus(
   // First check if the report exists (using service role)
   const { data: existingReports, error: checkError } = await supabase
     .from('content_reports')
-    .select('id')
+    .select('id, reporter_id, reason, content_type, content_id')
     .eq('id', id);
   
   if (checkError) {
@@ -533,7 +606,26 @@ export async function updateContentReportStatus(
     return { error: "Failed to update report" };
   }
   
-  return { data: data[0] };
+  const updatedReport = data[0];
+
+  if ((status === 'resolved' || status === 'dismissed') && updatedReport?.reporter_id) {
+    await notifyReporterOfReportUpdate({
+      supabase,
+      report: updatedReport,
+      status,
+      resolutionNotes,
+    });
+  }
+
+  return {
+    data: updatedReport,
+    message:
+      status === 'resolved'
+        ? 'Case resolved. Reporter was notified.'
+        : status === 'dismissed'
+          ? 'Case dismissed. Reporter was notified.'
+          : 'Report updated',
+  };
 }
 
 /**
@@ -625,16 +717,18 @@ export async function getContentReportsStats() {
   const { count: totalReports } = await supabase
     .from('content_reports')
     .select('*', { count: 'exact', head: true });
-  
-  const { count: pendingCount } = await supabase
+
+  const { data: reportStatuses } = await supabase
     .from('content_reports')
-    .select('*', { count: 'exact', head: true })
-    .eq('status', 'pending');
+    .select('status');
   
-  const { count: resolvedCount } = await supabase
-    .from('content_reports')
-    .select('*', { count: 'exact', head: true })
-    .eq('status', 'resolved');
+  const pendingCount = (reportStatuses || []).filter((report) =>
+    matchesReportStatusFilter(report.status, 'pending'),
+  ).length;
+
+  const resolvedCount = (reportStatuses || []).filter((report) =>
+    matchesReportStatusFilter(report.status, 'resolved'),
+  ).length;
   
   const { count: highPriorityCount } = await supabase
     .from('content_reports')
@@ -1583,6 +1677,149 @@ async function notifyContentOwnerOfModeration({
       }),
       userId: owner.userId,
       type: 'transactional',
+    });
+  }
+}
+
+async function resolveReportContentSummary(
+  supabase: ReturnType<typeof getAdminClient>,
+  contentType: string,
+  contentId: string
+) {
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://lets-assist.com';
+
+  if (contentType === 'project') {
+    const { data: project } = await supabase
+      .from('projects')
+      .select('id, title')
+      .eq('id', contentId)
+      .maybeSingle();
+
+    return {
+      title: project?.title || 'Reported project',
+      url: `${baseUrl}/projects/${contentId}`,
+      contentTypeLabel: 'project',
+    };
+  }
+
+  if (contentType === 'profile') {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('id, full_name, username')
+      .eq('id', contentId)
+      .maybeSingle();
+
+    const profileSlug = profile?.username || contentId;
+
+    return {
+      title: profile?.full_name || profile?.username || 'Reported profile',
+      url: `${baseUrl}/profile/${profileSlug}`,
+      contentTypeLabel: 'profile',
+    };
+  }
+
+  if (contentType === 'organization') {
+    const { data: organization } = await supabase
+      .from('organizations')
+      .select('id, name, username')
+      .eq('id', contentId)
+      .maybeSingle();
+
+    const orgSlug = organization?.username || contentId;
+
+    return {
+      title: organization?.name || 'Reported organization',
+      url: `${baseUrl}/organization/${orgSlug}`,
+      contentTypeLabel: 'organization',
+    };
+  }
+
+  return {
+    title: 'Reported content',
+    url: `${baseUrl}`,
+    contentTypeLabel: formatContentTypeLabel(contentType),
+  };
+}
+
+async function notifyReporterOfReportUpdate({
+  supabase,
+  report,
+  status,
+  resolutionNotes,
+}: {
+  supabase: ReturnType<typeof getAdminClient>;
+  report: {
+    id: string;
+    reporter_id?: string | null;
+    reason?: string | null;
+    content_type?: string | null;
+    content_id?: string | null;
+  };
+  status: 'resolved' | 'dismissed';
+  resolutionNotes?: string;
+}) {
+  const reporterId = report.reporter_id;
+  if (!reporterId) return;
+
+  const { data: reporter } = await supabase
+    .from('profiles')
+    .select('id, full_name, username, email')
+    .eq('id', reporterId)
+    .maybeSingle();
+
+  const reporterName = reporter?.full_name || reporter?.username || 'there';
+  const reporterEmail = reporter?.email || (await fetchAuthUserEmail(supabase, reporterId));
+
+  const resolvedStatusLabel = status === 'resolved' ? 'resolved' : 'dismissed';
+  const contentSummary = await resolveReportContentSummary(
+    supabase,
+    report.content_type || 'content',
+    report.content_id || ''
+  );
+
+  const notificationBody =
+    status === 'resolved'
+      ? `Your report about ${contentSummary.contentTypeLabel} “${contentSummary.title}” has been resolved.`
+      : `Your report about ${contentSummary.contentTypeLabel} “${contentSummary.title}” was dismissed after review.`;
+
+  await NotificationService.createNotification(
+    {
+      title: 'Update on your report',
+      body: notificationBody,
+      type: 'general',
+      severity: 'info',
+      actionUrl: contentSummary.url,
+      data: {
+        kind: 'moderation_report_update',
+        reportId: report.id,
+        status: resolvedStatusLabel,
+        reason: report.reason,
+        notes: resolutionNotes,
+      },
+    },
+    reporterId
+  );
+
+  if (reporterEmail) {
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://lets-assist.com';
+    await sendEmail({
+      to: reporterEmail,
+      subject:
+        status === 'resolved'
+          ? 'Your report has been resolved'
+          : 'Update on your submitted report',
+      react: ReportStatusUpdateEmail({
+        userName: reporterName,
+        reportStatus: resolvedStatusLabel,
+        reportReason: report.reason || 'No reason provided',
+        moderationNotes: resolutionNotes,
+        contentTitle: contentSummary.title,
+        contentTypeLabel: contentSummary.contentTypeLabel,
+        contentUrl: contentSummary.url,
+        supportUrl: `${baseUrl}/help`,
+      }),
+      userId: reporterId,
+      type: 'general',
     });
   }
 }

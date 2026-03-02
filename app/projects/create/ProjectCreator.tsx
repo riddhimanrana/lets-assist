@@ -23,7 +23,7 @@ import { Loader2, ChevronLeft, ChevronRight, AlertCircle, Sparkles, Save } from 
 import { cn } from "@/lib/utils";
 // Replace shadcn toast with Sonner
 import { toast } from "sonner";
-import { createProject, uploadCoverImage, uploadProjectDocument, uploadWaiverPdf, finalizeProject, saveProjectAsNewDraft, autoSaveDraft, deleteDraft } from "./actions";
+import { createProject, uploadCoverImage, uploadProjectDocument, uploadWaiverPdf, finalizeProject, saveProjectAsNewDraft, autoSaveDraft, deleteDraft, checkProfanity } from "./actions";
 import { saveWaiverDefinition } from "../[id]/actions";
 import { useRouter } from "next/navigation";
 // Import Zod schemas
@@ -64,12 +64,13 @@ interface ProjectCreatorProps {
     role: string;
     allowed_email_domains?: string[] | null;
   }[];
+  canUsePublicVisibility?: boolean;
   drafts?: Draft[];
   initialDraftData?: Partial<EventFormState>;
   initialDraftId?: string | null;
 }
 
-export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts = [], initialDraftData, initialDraftId }: ProjectCreatorProps) {
+export default function ProjectCreator({ initialOrgId, initialOrgOptions, canUsePublicVisibility = true, drafts = [], initialDraftData, initialDraftId }: ProjectCreatorProps) {
   const {
     state,
     nextStep,
@@ -204,6 +205,14 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
     }
   }, [state.waiverPdfFile, state.waiverPdfUrl]);
 
+  // Keep UI state aligned with trust policy: non-trusted users cannot keep
+  // public visibility selected in the editor.
+  useEffect(() => {
+    if (!canUsePublicVisibility && state.visibility === "public") {
+      updateVisibility("unlisted");
+    }
+  }, [canUsePublicVisibility, state.visibility, updateVisibility]);
+
   // Autosave to database on state changes (debounced and change-based)
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -276,11 +285,6 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
       }
     };
   }, [stateSnapshot, state, autosaveDraftId, isSubmitting, isSavingDraft, getDraftSafeState]);
-
-  // Add handler to update profanity state
-  const handleProfanityResult = (hasIssues: boolean) => {
-    setHasProfanity(hasIssues);
-  };
 
   // Handle AI-generated data
   const handleApplyAIData = (data: AIParseResult) => {
@@ -588,12 +592,6 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
       return;
     }
 
-    // Check for profanity before allowing submission
-    if (hasProfanity) {
-      toast.error("Please fix the flagged content before creating your project");
-      return;
-    }
-
     // Final validation of all steps before submission
     try {
       basicInfoSchema.parse(state.basicInfo);
@@ -627,6 +625,23 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
 
     try {
       setIsSubmitting(true);
+
+      const profanityToast = toast.loading("Checking content for inappropriate language...");
+      const profanityCheck = await checkProfanity({
+        title: state.basicInfo.title || "",
+        location: state.basicInfo.location || "",
+        description: state.basicInfo.description || "",
+      });
+      toast.dismiss(profanityToast);
+
+      if (profanityCheck?.hasProfanity) {
+        setHasProfanity(true);
+        toast.error("Please fix the flagged content before creating your project");
+        setIsSubmitting(false);
+        return;
+      }
+
+      setHasProfanity(false);
 
       // Prevent any pending autosave from firing during submission
       if (autosaveTimerRef.current) {
@@ -797,7 +812,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
       }
 
       toast.dismiss(loadingToast);
-      toast.success("New draft saved! Refreshing...");
+      toast.success("New draft saved!");
 
       // Refresh the page to update the drafts list
       router.refresh();
@@ -876,6 +891,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
             requireLogin={state.requireLogin}
             isOrganization={isOrganizationProject()}
             visibility={state.visibility}
+            canUsePublicVisibility={canUsePublicVisibility}
             enableVolunteerComments={state.enableVolunteerComments}
             showAttendeesPublicly={state.showAttendeesPublicly}
             waiverRequired={state.waiverRequired}
@@ -933,7 +949,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
             state={state}
             setCoverImageAction={setCoverImage} // Updated prop name
             setDocumentsAction={setDocuments}   // Updated prop name
-            onProfanityChange={handleProfanityResult}
+            hasProfanity={hasProfanity}
           />
         );
       default:

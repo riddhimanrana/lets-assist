@@ -65,6 +65,7 @@ type CertificateRow = {
   volunteer_name?: string | null;
   volunteer_email?: string | null;
   is_certified: boolean;
+  type?: string | null;
   issued_at: string;
   project_id?: string | null;
   project_title?: string | null;
@@ -191,7 +192,7 @@ async function buildReportDataForOrg(
     let certificatesQuery = supabase
       .from("certificates")
       .select(
-        "id, user_id, volunteer_name, volunteer_email, is_certified, issued_at, project_id, project_title, event_start, event_end, signup_id"
+        "id, user_id, volunteer_name, volunteer_email, is_certified, type, issued_at, project_id, project_title, event_start, event_end, signup_id"
       )
       .in("project_id", projectIds);
 
@@ -319,7 +320,8 @@ async function buildReportDataForOrg(
 
       const projectForCert = cert.project_id ? projectById.get(cert.project_id) : null;
       const isProjectPublished = projectForCert?.workflow_status === "published";
-      const isVerifiedCertificate = cert.is_certified || isProjectPublished;
+      const isVerifiedCertificate =
+        cert.type !== "self-reported" && (Boolean(cert.project_id) || cert.is_certified || isProjectPublished);
 
       volunteer.totalHours += hours;
       if (isVerifiedCertificate) {
