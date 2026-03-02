@@ -30,6 +30,7 @@ export type ContentReport = {
         verdict?: string;
         confidence?: number;
         suggestedStatus?: string | null;
+        recommendedAction?: string | null;
         suggestedAction?: string | null;
     } | null;
 };
@@ -111,7 +112,10 @@ export const getReportColumns = (
                 const ai = row.original.ai_metadata;
                 if (!ai) return <span className="text-xs text-muted-foreground italic">Pending...</span>;
 
-                const action = ai.suggestedAction || 'Review required';
+                const recommendedAction = ai.recommendedAction || ai.suggestedAction;
+                const action = recommendedAction && recommendedAction !== 'none'
+                    ? recommendedAction.replace(/_/g, ' ')
+                    : (ai.suggestedStatus ? `Set ${ai.suggestedStatus.replace(/_/g, ' ')}` : 'Review required');
 
                 return (
                     <div className="flex items-center gap-2">

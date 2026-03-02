@@ -20,6 +20,7 @@ interface AccountAccessUpdateEmailProps {
   userName?: string;
   status: AccountAccessStatus;
   reason?: string | null;
+  banDuration?: string | null;
   supportUrl?: string;
 }
 
@@ -33,18 +34,6 @@ function getCopy(status: AccountAccessStatus) {
       color: "#7f1d1d",
       boxBackground: "#fef2f2",
       boxBorder: "1px solid #fecaca",
-    };
-  }
-
-  if (status === "restricted") {
-    return {
-      heading: "Your account has been restricted",
-      preview: "Your Let's Assist account has been restricted",
-      intro:
-        "Your account access has been temporarily restricted while we review recent activity.",
-      color: "#78350f",
-      boxBackground: "#fffbeb",
-      boxBorder: "1px solid #fde68a",
     };
   }
 
@@ -62,6 +51,7 @@ export default function AccountAccessUpdateEmail({
   userName = "there",
   status,
   reason,
+  banDuration,
   supportUrl = "https://lets-assist.com/help",
 }: AccountAccessUpdateEmailProps) {
   const copy = getCopy(status);
@@ -89,8 +79,15 @@ export default function AccountAccessUpdateEmail({
               >
                 <Text style={label}>Status</Text>
                 <Text style={{ ...statusValue, color: copy.color }}>
-                  {status.charAt(0).toUpperCase() + status.slice(1)}
+                  {status === "banned" ? "Banned" : "Active"}
                 </Text>
+
+                {status === "banned" && banDuration ? (
+                  <>
+                    <Text style={{ ...label, marginTop: 12 }}>Duration</Text>
+                    <Text style={reasonText}>{banDuration}</Text>
+                  </>
+                ) : null}
 
                 {reason ? (
                   <>

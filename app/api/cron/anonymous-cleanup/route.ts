@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminClient } from "@/lib/supabase/admin";
 
-const BATCH_SIZE = 250;
-const SIGNATURE_BUCKET = "waiver-signatures";
-const UPLOAD_BUCKET = "waiver-uploads";
+/**
+ * Anonymous Cleanup Cron
+ * Deletes anonymous profiles and their signups 30 days after the associated project's last event.
+ */
+
+const BATCH_SIZE = 100;
 
 type CleanupProject = {
   status?: string | null;
@@ -98,18 +101,16 @@ function authorizeCronRequest(request: NextRequest) {
   return { ok: true } as const;
 }
 
-async function cleanupExpiredWaivers() {
+async function cleanupAnonymousProfiles() {
   const supabase = getAdminClient();
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - 30);
 
-  // Fetch a wider candidate window and apply precise finish-time filtering in code.
-  const { data: signatures, error } = await supabase
-    .from("waiver_signatures")
+  // Fetch a wider candidate window and then apply precise finish-time filtering in code.
+  const { data: candidates, error: candidatesError } = await supabase
+    .from("anonymous_signups")
     .select(`
       id,
-      signature_storage_path,
-      upload_storage_path,
       projects!inner (
         status,
         cancelled_at,
@@ -120,66 +121,40 @@ async function cleanupExpiredWaivers() {
     .or("status.eq.completed,status.eq.cancelled", { foreignTable: "projects" })
     .limit(BATCH_SIZE * 5);
 
-  if (error) {
-    console.error("Error fetching expired waivers:", error);
-    return { error: "Failed to load expired waivers" };
+  if (candidatesError) {
+    console.error("Error fetching candidates for anonymous cleanup:", candidatesError);
+    return { error: "Failed to fetch candidates" };
   }
 
-  if (!signatures || signatures.length === 0) {
+  if (!candidates || candidates.length === 0) {
     return { deleted: 0 };
   }
 
-  const eligibleSignatures = signatures
-    .filter((signature) => {
-      const project = Array.isArray(signature.projects)
-        ? signature.projects[0]
-        : signature.projects;
+  const idsToDelete = candidates
+    .filter((candidate) => {
+      const project = Array.isArray(candidate.projects)
+        ? candidate.projects[0]
+        : candidate.projects;
       const finishedAt = getProjectFinishedAt(project as CleanupProject);
       return !!finishedAt && finishedAt.getTime() <= cutoffDate.getTime();
     })
-    .slice(0, BATCH_SIZE);
+    .slice(0, BATCH_SIZE)
+    .map((candidate) => candidate.id);
 
-  if (eligibleSignatures.length === 0) {
+  if (idsToDelete.length === 0) {
     return { deleted: 0 };
   }
 
-  const signaturePaths = eligibleSignatures
-    .map((item) => item.signature_storage_path)
-    .filter((path): path is string => Boolean(path));
-
-  const uploadPaths = eligibleSignatures
-    .map((item) => item.upload_storage_path)
-    .filter((path): path is string => Boolean(path));
-
-  if (signaturePaths.length > 0) {
-    const { error: signatureDeleteError } = await supabase.storage
-      .from(SIGNATURE_BUCKET)
-      .remove(signaturePaths);
-
-    if (signatureDeleteError) {
-      console.error("Error deleting waiver signatures from storage:", signatureDeleteError);
-    }
-  }
-
-  if (uploadPaths.length > 0) {
-    const { error: uploadDeleteError } = await supabase.storage
-      .from(UPLOAD_BUCKET)
-      .remove(uploadPaths);
-
-    if (uploadDeleteError) {
-      console.error("Error deleting waiver uploads from storage:", uploadDeleteError);
-    }
-  }
-
-  const idsToDelete = eligibleSignatures.map((item) => item.id);
+  // 2. Delete the profiles (cascading deletes for project_signups and waiver_signatures 
+  // handle the rest if foreign keys are set up with ON DELETE CASCADE)
   const { error: deleteError } = await supabase
-    .from("waiver_signatures")
+    .from("anonymous_signups")
     .delete()
     .in("id", idsToDelete);
 
   if (deleteError) {
-    console.error("Error deleting waiver records:", deleteError);
-    return { error: "Failed to delete waiver records" };
+    console.error("Error deleting anonymous profiles:", deleteError);
+    return { error: "Failed to delete profiles" };
   }
 
   return { deleted: idsToDelete.length };
@@ -190,13 +165,13 @@ export async function GET(request: NextRequest) {
   if (!auth.ok) return auth.response;
 
   try {
-    const result = await cleanupExpiredWaivers();
+    const result = await cleanupAnonymousProfiles();
     if ("error" in result) {
       return NextResponse.json(result, { status: 500 });
     }
     return NextResponse.json(result);
   } catch (error) {
-    console.error("Waiver cleanup cron failed:", error);
+    console.error("Anonymous cleanup cron failed:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
