@@ -3,6 +3,11 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   cacheComponents: false,
 
+  // pdfjs-dist uses browser-only APIs (DOMMatrix, Path2D, ImageData) that are unavailable
+  // in the serverless bundle. Marking it external makes Next.js load it at runtime via
+  // require() instead of bundling it, so instrumentation.ts polyfills apply first.
+  serverExternalPackages: ['pdfjs-dist'],
+
   experimental: {
     serverActions: {
       bodySizeLimit: '15mb',

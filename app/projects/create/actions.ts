@@ -148,7 +148,7 @@ export async function createBasicProject(
     // Decide if you want to block creation or allow if count fails. For now, allowing.
   }
 
-  if (projectsCount !== null && projectsCount >= 10) {
+  if (projectsCount !== null && projectsCount >= 50) {
     return { error: "You have created too many projects recently. Please try again in 24 hours." };
   }
 

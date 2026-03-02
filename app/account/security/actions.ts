@@ -253,6 +253,37 @@ export async function emailDataExport() {
   }
 }
 
+export async function getDataExportJobs() {
+  try {
+    const { user, error: authError } = await getAuthUser({ sensitive: false });
+    if (authError || !user) {
+      return { success: false, error: "Not authenticated", jobs: [] };
+    }
+
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("account_data_export_jobs")
+      .select(
+        "id, status, delivery_email, requested_at, started_at, completed_at, failed_at, error_message, zip_size_bytes, record_count, signed_url, signed_url_expires_at"
+      )
+      .eq("user_id", user.id)
+      .order("requested_at", { ascending: false })
+      .limit(5);
+
+    if (error) {
+      return { success: false, error: error.message, jobs: [] };
+    }
+
+    return { success: true, jobs: data ?? [] };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to fetch export jobs",
+      jobs: [],
+    };
+  }
+}
+
 export async function deleteAccount() {
   try {
     // Use getAuthUser with sensitive: true for account deletion
