@@ -96,6 +96,7 @@ export default function SecurityClient() {
   const [countdownInterval, setCountdownInterval] = useState<NodeJS.Timeout | null>(null);
   const [currentEmail, setCurrentEmail] = useState("");
   const [isPasswordLoading, setIsPasswordLoading] = useState(false);
+  const [isEmailLoading, setIsEmailLoading] = useState(false);
   const [isExportEmailing, setIsExportEmailing] = useState(false);
   const [exportJobs, setExportJobs] = useState<any[]>([]);
   const [isExportJobsLoading, setIsExportJobsLoading] = useState(true);
