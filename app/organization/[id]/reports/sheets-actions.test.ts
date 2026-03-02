@@ -42,7 +42,7 @@ vi.mock("./report-layouts", () => ({
   validateLayout: vi.fn(() => ({ valid: true, errors: [] })),
 }));
 
-import { getSheetSyncStatus, updateSheetSyncSettings } from "./sheets-actions";
+import { getSheetSyncStatus, unlinkSheetSync, updateSheetSyncSettings } from "./sheets-actions";
 
 function createMembershipClient(role: "admin" | "staff" | "member" = "admin") {
   const membershipQuery = {
@@ -84,6 +84,21 @@ function createMaybeSingleQuery(result: unknown) {
   query.select.mockImplementation(() => query);
   query.eq.mockImplementation(() => query);
   query.maybeSingle.mockResolvedValue({ data: result, error: null });
+
+  return query;
+}
+
+function createDeleteQuery(resultError: unknown = null) {
+  const query = {
+    delete: vi.fn(),
+    eq: vi.fn(),
+  } as {
+    delete: ReturnType<typeof vi.fn>;
+    eq: ReturnType<typeof vi.fn>;
+  };
+
+  query.delete.mockImplementation(() => query);
+  query.eq.mockResolvedValue({ error: resultError });
 
   return query;
 }
@@ -188,5 +203,59 @@ describe("sheets actions regression", () => {
       success: false,
       error: "Sheet sync not configured",
     });
+  });
+
+  it("prevents non-owner admins from unlinking sheets sync", async () => {
+    mocks.createClient.mockResolvedValue(createMembershipClient("admin"));
+
+    const sheetOwnerQuery = createMaybeSingleQuery({
+      organization_id: "org-1",
+      created_by: "owner-1",
+    });
+
+    const ownerProfileQuery = createMaybeSingleQuery({
+      full_name: "Owner Name",
+      username: "owner",
+      email: "owner@example.com",
+    });
+
+    mocks.getAdminClient.mockReturnValue({
+      from: vi.fn().mockImplementation((table: string) => {
+        if (table === "organization_sheet_syncs") return sheetOwnerQuery;
+        if (table === "profiles") return ownerProfileQuery;
+        throw new Error(`Unexpected table in admin client: ${table}`);
+      }),
+    });
+
+    const result = await unlinkSheetSync("org-1");
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("managed by Owner Name");
+  });
+
+  it("allows owner admin to unlink sheets sync", async () => {
+    mocks.createClient.mockResolvedValue(createMembershipClient("admin"));
+
+    const sheetOwnerQuery = createMaybeSingleQuery({
+      organization_id: "org-1",
+      created_by: "viewer-1",
+    });
+
+    const unlinkQuery = createDeleteQuery(null);
+
+    let sheetSyncFromCount = 0;
+    mocks.getAdminClient.mockReturnValue({
+      from: vi.fn().mockImplementation((table: string) => {
+        if (table === "organization_sheet_syncs") {
+          sheetSyncFromCount += 1;
+          return sheetSyncFromCount === 1 ? sheetOwnerQuery : unlinkQuery;
+        }
+        throw new Error(`Unexpected table in admin client: ${table}`);
+      }),
+    });
+
+    const result = await unlinkSheetSync("org-1");
+
+    expect(result).toEqual({ success: true });
   });
 });

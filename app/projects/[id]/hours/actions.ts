@@ -158,6 +158,7 @@ export async function publishVolunteerHours(
       creator_name: creatorName, // Use fetched creator name
       is_certified: isOrganizationVerified, // Use org verified status
       creator_id: user.id, // Added creator_id
+      type: 'verified' as const,
       // --- END UPDATED FIELDS ---
       check_in_method: project.verification_method,
       schedule_id: sessionId, // Store the session identifier, sessionId renamed to scheduleId

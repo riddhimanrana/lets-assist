@@ -294,6 +294,7 @@ async function processSessionSignups(
       creator_name: creatorName,
       is_certified: isOrganizationVerified,
       creator_id: project.creator_id,
+      type: 'verified' as const,
       check_in_method: project.verification_method,
       schedule_id: sessionId,
     }));

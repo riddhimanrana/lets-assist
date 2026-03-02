@@ -751,6 +751,40 @@ export async function unlinkSheetSync(
   }
 
   const serviceSupabase = getAdminClient();
+  const { data: existingSync, error: existingSyncError } = await serviceSupabase
+    .from("organization_sheet_syncs")
+    .select("organization_id, created_by")
+    .eq("organization_id", organizationId)
+    .maybeSingle();
+
+  if (existingSyncError) {
+    console.error("Failed to load sheet sync before unlink:", existingSyncError);
+    return { success: false, error: "Failed to verify sheet owner" };
+  }
+
+  if (!existingSync) {
+    return { success: false, error: "Sheet sync not configured" };
+  }
+
+  if (existingSync.created_by && existingSync.created_by !== access.userId) {
+    const { data: ownerProfile } = await serviceSupabase
+      .from("profiles")
+      .select("full_name, username, email")
+      .eq("id", existingSync.created_by)
+      .maybeSingle();
+
+    const ownerLabel =
+      ownerProfile?.full_name ||
+      ownerProfile?.username ||
+      ownerProfile?.email ||
+      "the connected admin";
+
+    return {
+      success: false,
+      error: `Sheets sync is currently managed by ${ownerLabel}. Ask them to disconnect it, or connect your Google account with Sheets access and take over first.`,
+    };
+  }
+
   const { error } = await serviceSupabase
     .from("organization_sheet_syncs")
     .delete()
