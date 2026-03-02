@@ -7,6 +7,7 @@ import { NotificationService } from "@/services/notifications";
 import { notifyAdminsBatched } from "@/services/admin-notifications";
 import { sendEmail } from "@/services/email";
 import ContentModerationActionEmail from "@/emails/content-moderation-action";
+import ReportStatusUpdateEmail from "@/emails/report-status-update";
 import {
   analyzeProjectWithAi,
   analyzeReportWithAi,
@@ -570,7 +571,7 @@ export async function updateContentReportStatus(
   // First check if the report exists (using service role)
   const { data: existingReports, error: checkError } = await supabase
     .from('content_reports')
-    .select('id')
+    .select('id, reporter_id, reason, content_type, content_id')
     .eq('id', id);
   
   if (checkError) {
@@ -605,7 +606,26 @@ export async function updateContentReportStatus(
     return { error: "Failed to update report" };
   }
   
-  return { data: data[0] };
+  const updatedReport = data[0];
+
+  if ((status === 'resolved' || status === 'dismissed') && updatedReport?.reporter_id) {
+    await notifyReporterOfReportUpdate({
+      supabase,
+      report: updatedReport,
+      status,
+      resolutionNotes,
+    });
+  }
+
+  return {
+    data: updatedReport,
+    message:
+      status === 'resolved'
+        ? 'Case resolved. Reporter was notified.'
+        : status === 'dismissed'
+          ? 'Case dismissed. Reporter was notified.'
+          : 'Report updated',
+  };
 }
 
 /**
@@ -1657,6 +1677,149 @@ async function notifyContentOwnerOfModeration({
       }),
       userId: owner.userId,
       type: 'transactional',
+    });
+  }
+}
+
+async function resolveReportContentSummary(
+  supabase: ReturnType<typeof getAdminClient>,
+  contentType: string,
+  contentId: string
+) {
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://lets-assist.com';
+
+  if (contentType === 'project') {
+    const { data: project } = await supabase
+      .from('projects')
+      .select('id, title')
+      .eq('id', contentId)
+      .maybeSingle();
+
+    return {
+      title: project?.title || 'Reported project',
+      url: `${baseUrl}/projects/${contentId}`,
+      contentTypeLabel: 'project',
+    };
+  }
+
+  if (contentType === 'profile') {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('id, full_name, username')
+      .eq('id', contentId)
+      .maybeSingle();
+
+    const profileSlug = profile?.username || contentId;
+
+    return {
+      title: profile?.full_name || profile?.username || 'Reported profile',
+      url: `${baseUrl}/profile/${profileSlug}`,
+      contentTypeLabel: 'profile',
+    };
+  }
+
+  if (contentType === 'organization') {
+    const { data: organization } = await supabase
+      .from('organizations')
+      .select('id, name, username')
+      .eq('id', contentId)
+      .maybeSingle();
+
+    const orgSlug = organization?.username || contentId;
+
+    return {
+      title: organization?.name || 'Reported organization',
+      url: `${baseUrl}/organization/${orgSlug}`,
+      contentTypeLabel: 'organization',
+    };
+  }
+
+  return {
+    title: 'Reported content',
+    url: `${baseUrl}`,
+    contentTypeLabel: formatContentTypeLabel(contentType),
+  };
+}
+
+async function notifyReporterOfReportUpdate({
+  supabase,
+  report,
+  status,
+  resolutionNotes,
+}: {
+  supabase: ReturnType<typeof getAdminClient>;
+  report: {
+    id: string;
+    reporter_id?: string | null;
+    reason?: string | null;
+    content_type?: string | null;
+    content_id?: string | null;
+  };
+  status: 'resolved' | 'dismissed';
+  resolutionNotes?: string;
+}) {
+  const reporterId = report.reporter_id;
+  if (!reporterId) return;
+
+  const { data: reporter } = await supabase
+    .from('profiles')
+    .select('id, full_name, username, email')
+    .eq('id', reporterId)
+    .maybeSingle();
+
+  const reporterName = reporter?.full_name || reporter?.username || 'there';
+  const reporterEmail = reporter?.email || (await fetchAuthUserEmail(supabase, reporterId));
+
+  const resolvedStatusLabel = status === 'resolved' ? 'resolved' : 'dismissed';
+  const contentSummary = await resolveReportContentSummary(
+    supabase,
+    report.content_type || 'content',
+    report.content_id || ''
+  );
+
+  const notificationBody =
+    status === 'resolved'
+      ? `Your report about ${contentSummary.contentTypeLabel} “${contentSummary.title}” has been resolved.`
+      : `Your report about ${contentSummary.contentTypeLabel} “${contentSummary.title}” was dismissed after review.`;
+
+  await NotificationService.createNotification(
+    {
+      title: 'Update on your report',
+      body: notificationBody,
+      type: 'general',
+      severity: 'info',
+      actionUrl: contentSummary.url,
+      data: {
+        kind: 'moderation_report_update',
+        reportId: report.id,
+        status: resolvedStatusLabel,
+        reason: report.reason,
+        notes: resolutionNotes,
+      },
+    },
+    reporterId
+  );
+
+  if (reporterEmail) {
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://lets-assist.com';
+    await sendEmail({
+      to: reporterEmail,
+      subject:
+        status === 'resolved'
+          ? 'Your report has been resolved'
+          : 'Update on your submitted report',
+      react: ReportStatusUpdateEmail({
+        userName: reporterName,
+        reportStatus: resolvedStatusLabel,
+        reportReason: report.reason || 'No reason provided',
+        moderationNotes: resolutionNotes,
+        contentTitle: contentSummary.title,
+        contentTypeLabel: contentSummary.contentTypeLabel,
+        contentUrl: contentSummary.url,
+        supportUrl: `${baseUrl}/help`,
+      }),
+      userId: reporterId,
+      type: 'general',
     });
   }
 }
