@@ -595,7 +595,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
                     onChange={setDateFilter}
                     align="end"
                     placeholder="Select date range"
-                    className="w-full pr-3"
+                    className="w-auto shrink-0"
                   />
                   <Button
                     variant="ghost"
@@ -1092,15 +1092,13 @@ export const ProjectsInfiniteScroll: React.FC = () => {
             </div>
 
             <div className="ml-auto flex items-center gap-2">
-              <div className="w-60 shrink-0">
-                <DateRangePicker
-                  value={dateFilter}
-                  onChange={setDateFilter}
-                  align="end"
-                  placeholder="Select date range"
-                  className="w-full"
-                />
-              </div>
+              <DateRangePicker
+                value={dateFilter}
+                onChange={setDateFilter}
+                align="end"
+                placeholder="Select date range"
+                className="w-auto shrink-0"
+              />
               <div className="flex items-center gap-1 pr-1">
                 <Button
                   variant="ghost"
