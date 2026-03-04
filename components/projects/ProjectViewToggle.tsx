@@ -517,7 +517,7 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                           </ProfileHoverCard>
                         )}
                         {project.organization_id && isOrganizationVerified(project) && (
-                          <BadgeCheck className="h-4 w-4 shrink-0" fill="hsl(var(--primary))" stroke="hsl(var(--popover))" strokeWidth={2.5} />
+                          <BadgeCheck className="h-4 w-4 shrink-0 text-success" />
                         )}
                       </div>
                     </div>
@@ -659,7 +659,7 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                               {getProjectCreator(project)}
                             </span>
                             {isOrganizationVerified(project) && (
-                              <BadgeCheck className="h-4 w-4 shrink-0" fill="hsl(var(--primary))" stroke="hsl(var(--popover))" strokeWidth={2.5} />
+                              <BadgeCheck className="h-4 w-4 shrink-0 text-success" />
                             )}
                           </div>
                         </div>
