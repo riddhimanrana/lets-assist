@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { getAdminClient } from "@/lib/supabase/admin";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { getProject, getCreatorProfile } from "./actions";
 import { notFound } from "next/navigation";
@@ -157,7 +158,7 @@ export default async function ProjectPage({
 
   // Get remaining slots for each schedule
   // Pass supabase client and project id to the updated function
-  const slotCapacities = await getSlotCapacities(project, supabase, id);
+  const slotCapacities = await getSlotCapacities(project, getAdminClient(), id);
 
   // If creator, fetch all signups for the dashboard logic
   let allSignups: any[] = [];

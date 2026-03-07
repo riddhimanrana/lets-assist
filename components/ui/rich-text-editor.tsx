@@ -4,6 +4,10 @@ import StarterKit from '@tiptap/starter-kit';
 import { Placeholder, CharacterCount } from '@tiptap/extensions';
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Bold, Italic, Underline as UnderlineIcon, Link as LinkIcon } from "lucide-react";
+import { toast } from "sonner";
+
+import { sanitizeRichTextHtml } from "@/lib/security/html.client";
+import { normalizeRichTextLinkUrl } from "@/lib/security/html";
 import { cn } from "@/lib/utils";
 import { useState, useEffect, useCallback } from 'react';
 import {
@@ -37,19 +41,10 @@ export function RichTextEditor({
     const [mounted, setMounted] = useState(false);
     const [linkDialogOpen, setLinkDialogOpen] = useState(false);
     const [linkUrl, setLinkUrl] = useState('');
-
-    // Function to sanitize HTML content - preserves internal spacing but trims trailing empty paragraphs
-    const sanitizeContent = (html: string): string => {
-        // Remove only trailing empty paragraphs (empty or containing only br/whitespace)
-        // This preserves intentional blank lines within the content
-        let sanitized = html;
-
-        // Pattern to match trailing empty paragraphs at the very end, written to avoid backtracking issues
-        const trailingEmptyPattern = /(?:<p>(?:\s*<br\s*\/?>\s*|\s*)<\/p>\s*)+$/gi;
-        sanitized = sanitized.replace(trailingEmptyPattern, '');
-
-        return sanitized;
-    };
+    const sanitizeEditorContent = useCallback(
+        (html: string): string => sanitizeRichTextHtml(html),
+        []
+    );
 
     const extensions = [
         StarterKit.configure({
@@ -88,11 +83,15 @@ export function RichTextEditor({
 
     const editor = useEditor({
         extensions,
-        content: content,
+        content: sanitizeEditorContent(content),
         onUpdate: ({ editor }) => {
             const html = editor.getHTML();
-            // Sanitize to remove trailing empty paragraphs while preserving internal spacing
-            const sanitizedHtml = sanitizeContent(html);
+            const sanitizedHtml = sanitizeEditorContent(html);
+
+            if (sanitizedHtml !== html) {
+                editor.commands.setContent(sanitizedHtml, { emitUpdate: false });
+            }
+
             onChange(sanitizedHtml);
         },
         immediatelyRender: false,
@@ -125,10 +124,19 @@ export function RichTextEditor({
     const handleLinkSubmit = useCallback(() => {
         if (!editor) return;
 
-        if (linkUrl === '') {
+        const trimmedLink = linkUrl.trim();
+
+        if (trimmedLink === '') {
             editor.chain().focus().unsetLink().run();
         } else {
-            editor.chain().focus().setLink({ href: linkUrl }).run();
+            const normalizedUrl = normalizeRichTextLinkUrl(trimmedLink);
+
+            if (!normalizedUrl) {
+                toast.error("Please enter a safe link using https://, http://, mailto:, tel:, or a relative path.");
+                return;
+            }
+
+            editor.chain().focus().setLink({ href: normalizedUrl }).run();
         }
 
         setLinkDialogOpen(false);
@@ -148,9 +156,12 @@ export function RichTextEditor({
 
     useEffect(() => {
         if (editor && content !== editor.getHTML()) {
-            editor.commands.setContent(content);
+            const sanitizedContent = sanitizeEditorContent(content);
+            if (sanitizedContent !== editor.getHTML()) {
+                editor.commands.setContent(sanitizedContent, { emitUpdate: false });
+            }
         }
-    }, [editor, content]);
+    }, [editor, content, sanitizeEditorContent]);
 
     const getCounterColor = (current: number, max: number | undefined) => {
         if (!max) return "text-muted-foreground";

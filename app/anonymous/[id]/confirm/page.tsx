@@ -1,27 +1,27 @@
-import { createClient } from "@/lib/supabase/server";
+import { getAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { SuccessMessage } from "./SuccessMessage";
 import { ErrorMessage } from "./ErrorMessage";
 import { Loader2 } from "lucide-react";
+import { getAnonymousSignupAccessRecord } from "@/lib/anonymous-signup-access";
 
 // Define possible confirmation statuses
 type ConfirmationStatus = "success" | "error" | "invalid" | "already_confirmed" | "processing";
 
 // Helper function to perform the confirmation logic
 async function performConfirmation(anonymousSignupId: string, token: string): Promise<{ status: ConfirmationStatus; message?: string }> {
-  const supabase = await createClient();
+  const admin = getAdminClient();
 
   try {
-    // 1. Find the anonymous signup record using token and ID
-    const { data: anonSignup, error: findError } = (await supabase
-      .from("anonymous_signups")
-      .select("id, confirmed_at, project_id")
-      .eq("id", anonymousSignupId)
-      .eq("token", token)
-      .maybeSingle()) as {
-      data: { id: string; confirmed_at: string | null; project_id: string | null } | null;
-      error: { message?: string } | null;
-    };
+    const { data: anonSignup, error: findError } = await getAnonymousSignupAccessRecord<{
+      id: string;
+      confirmed_at: string | null;
+      project_id: string | null;
+    }>({
+      anonymousSignupId,
+      token,
+      columns: "id, confirmed_at, project_id",
+    });
 
     if (findError) {
       console.error("Error finding anonymous signup:", findError);
@@ -44,7 +44,7 @@ async function performConfirmation(anonymousSignupId: string, token: string): Pr
     const timestamp = new Date().toISOString(); // Store timestamp
     console.log(`Attempting to update confirmed_at for anonymous_signup ID: ${anonymousSignupId} with timestamp: ${timestamp}`); // Log before update
 
-    const { error: confirmError } = (await supabase
+    const { error: confirmError } = (await admin
       .from("anonymous_signups")
       .update({ confirmed_at: timestamp }) // Use stored timestamp
       .eq("id", anonymousSignupId)) as { error: { message?: string } | null };
@@ -57,7 +57,7 @@ async function performConfirmation(anonymousSignupId: string, token: string): Pr
     }
 
     // 4. Find ALL corresponding pending project_signups using anonymous_id
-    const { data: pendingSignups, error: findProjectSignupError } = (await supabase
+    const { data: pendingSignups, error: findProjectSignupError } = (await admin
       .from("project_signups")
       .select("id")
       .eq("anonymous_id", anonymousSignupId)
@@ -79,7 +79,7 @@ async function performConfirmation(anonymousSignupId: string, token: string): Pr
 
     // 5. Update ALL pending project_signups to 'approved'
     const signupIds = pendingSignups.map(s => s.id);
-    const { error: statusError } = (await supabase
+    const { error: statusError } = (await admin
       .from("project_signups")
       .update({ status: "approved" })
       .in("id", signupIds)) as { error: { message?: string } | null };
@@ -135,7 +135,7 @@ export default async function ConfirmationPage({ params, searchParams }: PagePro
   switch (confirmationResult.status) {
     case "success":
     case "already_confirmed": // Treat already confirmed as success for UI
-      return <SuccessMessage anonymousSignupId={anonymousSignupId} />;
+      return <SuccessMessage anonymousSignupId={anonymousSignupId} anonymousAccessToken={token || ""} />;
     case "invalid":
       return <ErrorMessage message="The confirmation link is invalid or missing required information." />;
     case "error":

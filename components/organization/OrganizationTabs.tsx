@@ -16,7 +16,6 @@ import {
   LogOut,
   BarChart3
 } from "lucide-react";
-import { format } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
@@ -66,6 +65,7 @@ interface OrganizationTabsProps {
     pendingHours: number;
   } | null;
   organizationSlug?: string;
+  organizationCreatedLabel: string;
 }
 
 function LeaveOrganizationDialog({
@@ -161,6 +161,7 @@ export default function OrganizationTabs({
   currentUserId,
   reportSummary,
   organizationSlug,
+  organizationCreatedLabel,
 }: OrganizationTabsProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -303,9 +304,7 @@ export default function OrganizationTabs({
                   <div className="min-w-0 flex-1">
                     <h4 className="text-xs font-medium">Created</h4>
                     <p className="text-muted-foreground truncate">
-                      {organization.created_at
-                        ? format(new Date(organization.created_at), "MMMM d, yyyy")
-                        : "N/A"}
+                      {organizationCreatedLabel}
                     </p>
                   </div>
                 </div>

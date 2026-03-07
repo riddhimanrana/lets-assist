@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/supabase/auth-helpers';
 import { getAdminClient } from '@/lib/supabase/admin';
+import { getAnonymousSignupAccessRecord } from '@/lib/anonymous-signup-access';
 import { generateSignedWaiverPdf, requiresPdfGeneration } from '@/lib/waiver/generate-signed-waiver-pdf';
 import { checkWaiverAccess, getContentDisposition } from '@/lib/waiver/preview-auth-helpers';
 import type { SignaturePayload } from '@/types/waiver-definitions';
@@ -220,6 +221,14 @@ export async function GET(
 
   const url = new URL(request.url);
   const anonymousSignupIdParam = url.searchParams.get('anonymousSignupId');
+  const anonymousTokenParam = url.searchParams.get('token');
+  const { data: validatedAnonymousSignup } = anonymousSignupIdParam
+    ? await getAnonymousSignupAccessRecord({
+        anonymousSignupId: anonymousSignupIdParam,
+        token: anonymousTokenParam,
+        columns: 'id',
+      })
+    : { data: null };
 
   const authResult = checkWaiverAccess({
     currentUserId: user?.id ?? null,
@@ -233,6 +242,7 @@ export async function GET(
     },
     orgMember,
     anonymousSignupIdParam,
+    anonymousAccessValidated: !!validatedAnonymousSignup,
   });
 
   if (!authResult.hasPermission) {

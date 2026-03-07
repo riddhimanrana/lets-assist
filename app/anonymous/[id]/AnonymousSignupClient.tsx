@@ -173,6 +173,7 @@ const getStatusBadge = (status: string) => {
 
 interface AnonymousSignupClientProps {
   id: string;
+  accessToken: string;
   name: string;
   email: string;
   phone_number: string | null;
@@ -182,10 +183,12 @@ interface AnonymousSignupClientProps {
   isProjectCancelled: boolean;
   slots: SlotData[];
   linkedUserId: string | null;
+  certificateIds: Record<string, string>;
 }
 
 export default function AnonymousSignupClient({
   id,
+  accessToken,
   name,
   email,
   phone_number,
@@ -195,6 +198,7 @@ export default function AnonymousSignupClient({
   isProjectCancelled,
   slots,
   linkedUserId,
+  certificateIds,
 }: AnonymousSignupClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -222,7 +226,11 @@ export default function AnonymousSignupClient({
       const results: Record<string, { signature_type: string; signed_at?: string | null } | null> = {};
       for (const slot of slots) {
         try {
-          const result = await getAnonymousWaiverSignatureMeta(slot.project_signup_id, id);
+          const result = await getAnonymousWaiverSignatureMeta(
+            slot.project_signup_id,
+            id,
+            accessToken,
+          );
           if ('error' in result) {
             results[slot.project_signup_id] = null;
           } else if (result.signatureId) {
@@ -240,37 +248,14 @@ export default function AnonymousSignupClient({
       setWaiverSignatures(results);
     };
     void loadWaivers();
-  }, [slots, id, project.waiver_required]);
-
-  // Load certificates for all slots
-  const [certMap, setCertMap] = useState<Record<string, string>>({});
-  useEffect(() => {
-    const supabase = createClient();
-    const loadCertificates = async () => {
-      const signupIds = slots.map(s => s.project_signup_id);
-      if (signupIds.length === 0) return;
-      const { data, error } = (await supabase
-        .from("certificates")
-        .select("id, signup_id")
-        .in("signup_id", signupIds)) as {
-          data: { id: string; signup_id: string }[] | null;
-          error: { message?: string } | null;
-        };
-      if (!error && data) {
-        const map: Record<string, string> = {};
-        data.forEach((cert) => { map[cert.signup_id] = cert.id; });
-        setCertMap(map);
-      }
-    };
-    void loadCertificates();
-  }, [slots]);
+  }, [slots, id, accessToken, project.waiver_required]);
 
   useEffect(() => {
     setIsLinked(!!linkedUserId);
   }, [linkedUserId]);
 
   const shouldAutoLink = searchParams.get("link") === "1";
-  const linkingRedirectPath = `/anonymous/${id}?link=1`;
+  const linkingRedirectPath = `/anonymous/${id}?token=${encodeURIComponent(accessToken)}&link=1`;
 
   useEffect(() => {
     if (!shouldAutoLink || autoLinkAttempted || isLinked) {
@@ -292,7 +277,7 @@ export default function AnonymousSignupClient({
         }
 
         setIsLinking(true);
-        const result = await linkAnonymousToAuthenticatedAccount(id);
+        const result = await linkAnonymousToAuthenticatedAccount(id, accessToken);
 
         if (result.error) {
           toast.error(result.error);
@@ -322,7 +307,7 @@ export default function AnonymousSignupClient({
     return () => {
       isMounted = false;
     };
-  }, [shouldAutoLink, autoLinkAttempted, isLinked, id, router]);
+  }, [shouldAutoLink, autoLinkAttempted, isLinked, id, accessToken, router]);
 
   const handleGoToLogin = () => {
     setIsLinking(true);
@@ -339,7 +324,7 @@ export default function AnonymousSignupClient({
 
     try {
       setIsCancelling(true);
-      const result = await cancelSignup(cancellingSlotId, id);
+      const result = await cancelSignup(cancellingSlotId, id, accessToken);
 
       if (result.error) {
         toast.error(result.error);
@@ -347,11 +332,8 @@ export default function AnonymousSignupClient({
         return;
       }
 
-      // If this was the last active slot, also delete the anonymous profile
       const remainingSlots = activeSlots.filter(s => s.project_signup_id !== cancellingSlotId);
       if (remainingSlots.length === 0) {
-        const supabase = createClient();
-        await supabase.from("anonymous_signups").delete().eq("id", id);
         toast.success("All signups cancelled successfully");
         setTimeout(() => router.push("/projects"), 2000);
       } else {
@@ -371,14 +353,14 @@ export default function AnonymousSignupClient({
 
   const handleViewWaiver = async (projectSignupId: string) => {
     try {
-      const result = await getWaiverDownloadUrl(projectSignupId, id);
+      const result = await getWaiverDownloadUrl(projectSignupId, id, accessToken);
 
       if (result?.url) {
         window.open(result.url, "_blank", "noopener,noreferrer");
         return;
       }
       if (result?.signatureId) {
-        const previewUrl = `/api/waivers/${result.signatureId}/preview?anonymousSignupId=${id}`;
+        const previewUrl = `/api/waivers/${result.signatureId}/preview?anonymousSignupId=${id}&token=${encodeURIComponent(accessToken)}`;
         window.open(previewUrl, "_blank", "noopener,noreferrer");
         return;
       }
@@ -556,7 +538,7 @@ export default function AnonymousSignupClient({
             isProjectCancelled={isProjectCancelled}
             isConfirmed={isConfirmed}
             waiverSignature={waiverSignatures[slot.project_signup_id]}
-            certificateId={certMap[slot.project_signup_id]}
+            certificateId={certificateIds[slot.project_signup_id]}
             onCancel={() => {
               setCancellingSlotId(slot.project_signup_id);
               setCancelDialogOpen(true);

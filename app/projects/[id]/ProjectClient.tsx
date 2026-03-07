@@ -2,14 +2,15 @@
 
 import ProjectDetails from './ProjectDetails';
 // Import Signup type along with others if needed
-import { Project, Profile, Organization, Signup } from '@/types'; 
+import { Project, Organization, Signup } from '@/types'; 
 import { AuthUser } from '@/lib/supabase/types';
+import type { ProjectCreatorProfileRecord } from '@/lib/profile/public';
 
 // Define Props interface
 interface Props {
   project: Project;
   // Use specific types if available
-  creator: Profile | null; 
+  creator: ProjectCreatorProfileRecord | null; 
   organization: Organization | null;
   initialSlotData: {
     remainingSlots: Record<string, number>;

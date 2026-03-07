@@ -108,9 +108,10 @@ describe("sheets actions regression", () => {
     vi.clearAllMocks();
     mocks.hasGoogleSheetsScopes.mockImplementation((grantedScopes: string | null) => {
       if (!grantedScopes) return false;
+      const scopes = grantedScopes.split(/\s+/).map((scope) => scope.trim()).filter(Boolean);
       return (
-        grantedScopes.includes("https://www.googleapis.com/auth/spreadsheets") &&
-        grantedScopes.includes("https://www.googleapis.com/auth/drive.file")
+        scopes.includes("https://www.googleapis.com/auth/spreadsheets") &&
+        scopes.includes("https://www.googleapis.com/auth/drive.file")
       );
     });
   });
