@@ -27,6 +27,8 @@ export interface AuthCheckParams {
   } | null;
   /** For anonymous access, the anonymousSignupId from query params */
   anonymousSignupIdParam?: string | null;
+  /** Whether the anonymous token was validated server-side for the provided anonymousSignupId */
+  anonymousAccessValidated?: boolean;
 }
 
 export interface AuthCheckResult {
@@ -53,6 +55,7 @@ export function checkWaiverAccess(params: AuthCheckParams): AuthCheckResult {
     project,
     orgMember,
     anonymousSignupIdParam,
+    anonymousAccessValidated,
   } = params;
 
   // Path 1: Organizer access (project creator)
@@ -89,10 +92,18 @@ export function checkWaiverAccess(params: AuthCheckParams): AuthCheckResult {
     // Must provide anonymousSignupId parameter for anonymous signatures
     if (anonymousSignupIdParam) {
       if (anonymousSignupIdParam === signature.anonymous_id) {
+        if (!anonymousAccessValidated) {
+          return {
+            hasPermission: false,
+            reason: 'unauthorized',
+            details: 'Anonymous signature access requires a valid anonymous access token',
+          };
+        }
+
         return {
           hasPermission: true,
           reason: 'anonymous',
-          details: 'Valid anonymous access (with matching anonymousSignupId)',
+          details: 'Valid anonymous access (with matching anonymousSignupId and token)',
         };
       } else {
         return {

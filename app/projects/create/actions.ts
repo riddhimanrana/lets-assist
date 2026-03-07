@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { sanitizeRichTextHtml } from "@/lib/security/html.server";
 import { revalidatePath } from "next/cache";
 import { v4 as uuidv4 } from "uuid";
 import type { EventFormState } from "@/hooks/use-event-form";
@@ -20,8 +21,21 @@ const ALLOWED_DOCUMENT_TYPES = [
 ];
 
 function sanitizeDraftData(projectData: Partial<EventFormState>): Partial<EventFormState> {
+  const sanitizedDescription =
+    typeof projectData.basicInfo?.description === "string"
+      ? sanitizeRichTextHtml(projectData.basicInfo.description)
+      : projectData.basicInfo?.description;
+
   return {
     ...projectData,
+    basicInfo: projectData.basicInfo
+      ? {
+          ...projectData.basicInfo,
+          ...(typeof sanitizedDescription === "string"
+            ? { description: sanitizedDescription }
+            : {}),
+        }
+      : projectData.basicInfo,
     // Persist waiver configuration, but never persist uploaded PDF/file-specific data in drafts.
     waiverPdfFile: null,
     waiverPdfUrl: null,
@@ -214,7 +228,7 @@ export async function createBasicProject(
       title: projectData.basicInfo.title,
       location: projectData.basicInfo.location,
       location_data: projectData.basicInfo.locationData, // Add locationData field
-      description: projectData.basicInfo.description,
+      description: sanitizeRichTextHtml(projectData.basicInfo.description),
       event_type: projectData.eventType,
       schedule: projectData.schedule,
       status: 'upcoming',
@@ -793,7 +807,7 @@ export async function updateDraft(projectId: string, projectData: Partial<EventF
     title: projectData.basicInfo.title,
     location: projectData.basicInfo.location,
     location_data: projectData.basicInfo.locationData,
-    description: projectData.basicInfo.description,
+    description: sanitizeRichTextHtml(projectData.basicInfo.description),
     event_type: projectData.eventType,
     schedule: projectData.schedule,
     verification_method: projectData.verificationMethod,

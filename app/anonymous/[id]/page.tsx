@@ -1,28 +1,38 @@
 import { createClient } from "@/lib/supabase/server";
+import { getAdminClient } from "@/lib/supabase/admin";
 import { notFound, redirect } from "next/navigation";
 import { Project } from "@/types";
 import AnonymousSignupClient from "./AnonymousSignupClient";
+import {
+  getAnonymousSignupAccessRecord,
+  normalizeAnonymousSignupToken,
+} from "@/lib/anonymous-signup-access";
 
 interface PageProps {
-  params: Promise<{ id: string}>
+  params: Promise<{ id: string}>;
+  searchParams: Promise<{ token?: string }>;
 }
 
-export default async function AnonymousSignupPage({ params }: PageProps): Promise<React.ReactElement> {
+export default async function AnonymousSignupPage({
+  params,
+  searchParams,
+}: PageProps): Promise<React.ReactElement> {
   const param = await params;
+  const resolvedSearchParams = await searchParams;
   const signupId = param.id;
+  const accessToken = normalizeAnonymousSignupToken(resolvedSearchParams.token);
   
-  if (!signupId) {
+  if (!signupId || !accessToken) {
     notFound();
   }
   
   const supabase = await createClient();
+  const admin = getAdminClient();
 
-  // Fetch anonymous signup profile
-  const { data: signupData, error } = await supabase
-    .from("anonymous_signups")
-    .select("*")
-    .eq("id", signupId)
-    .maybeSingle();
+  const { data: signupData, error } = await getAnonymousSignupAccessRecord({
+    anonymousSignupId: signupId,
+    token: accessToken,
+  });
 
   if (error || !signupData) {
     console.error("Error fetching anonymous signup:", error);
@@ -30,7 +40,7 @@ export default async function AnonymousSignupPage({ params }: PageProps): Promis
   }
 
   // Fetch ALL project_signups linked to this anonymous profile (1:many)
-  const { data: projectSignups, error: signupsError } = await supabase
+  const { data: projectSignups, error: signupsError } = await admin
     .from("project_signups")
     .select(`
       id,
@@ -81,9 +91,30 @@ export default async function AnonymousSignupPage({ params }: PageProps): Promis
     check_out_time: ps.check_out_time,
   }));
 
+  let certificateIds: Record<string, string> = {};
+  const signupIds = slots.map((slot) => slot.project_signup_id);
+  if (signupIds.length > 0) {
+    const { data: certificates, error: certificatesError } = await admin
+      .from("certificates")
+      .select("id, signup_id")
+      .in("signup_id", signupIds);
+
+    if (certificatesError) {
+      console.error("Error fetching anonymous certificates:", certificatesError);
+    } else if (certificates) {
+      certificateIds = certificates.reduce<Record<string, string>>((acc, cert) => {
+        if (cert.signup_id) {
+          acc[cert.signup_id] = cert.id;
+        }
+        return acc;
+      }, {});
+    }
+  }
+
   return (
     <AnonymousSignupClient
       id={signupId}
+      accessToken={accessToken}
       name={name}
       email={email}
       phone_number={phone_number}
@@ -93,6 +124,7 @@ export default async function AnonymousSignupPage({ params }: PageProps): Promis
       isProjectCancelled={isProjectCancelled}
       slots={slots}
       linkedUserId={linked_user_id}
+      certificateIds={certificateIds}
     />
   );
 }

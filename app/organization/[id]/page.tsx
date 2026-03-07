@@ -1,6 +1,8 @@
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
+import { formatUtcCalendarDateLabel } from "@/lib/date-format";
+import { getPublicProfilesByIds } from "@/lib/profile/public";
 import { Metadata } from "next";
 import OrganizationHeader from "@/components/organization/OrganizationHeader";
 import OrganizationTabs from "@/components/organization/OrganizationTabs";
@@ -170,13 +172,11 @@ export default async function OrganizationPage({
   // No need to query profiles if there are no members
   let profilesData: ProfileRow[] = [];
   if (userIds.length > 0) {
-    // Then fetch profile data for those users
-    const { data: profiles, error: profilesError } = (await supabase
-      .from("profiles")
-      .select("id, username, full_name, avatar_url")
-      .in("id", userIds)) as {
+    const { data: profiles, error: profilesError } = (await getPublicProfilesByIds(
+      userIds,
+    )) as {
       data: ProfileRow[] | null;
-      error: { message: string } | null;
+      error: { message?: string } | null;
     };
 
     if (profilesError) {
@@ -215,6 +215,10 @@ export default async function OrganizationPage({
     reportSummary = reportResult.data?.metrics ?? null;
   }
 
+  const organizationCreatedLabel = formatUtcCalendarDateLabel(
+    organization.created_at,
+  );
+
   return (
     <div className="flex flex-col w-full">
       <div className="w-full absolute bg-linear-to-br from-primary/15 via-primary/5 to-background/0 min-h-72 before:content-[''] before:absolute before:inset-0 before:bg-linear-to-b before:from-transparent before:to-background" />
@@ -235,6 +239,7 @@ export default async function OrganizationPage({
             currentUserId={user?.id}
             reportSummary={reportSummary}
             organizationSlug={organization.username || organization.id}
+            organizationCreatedLabel={organizationCreatedLabel}
           />
         </div>
       </div>

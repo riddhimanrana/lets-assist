@@ -1,5 +1,5 @@
 import { Metadata } from "next";
-import { createClient } from "@/lib/supabase/server";
+import { getAdminClient } from "@/lib/supabase/admin";
 import { notFound } from "next/navigation";
 import { differenceInMinutes, parseISO, isValid } from "date-fns";
 
@@ -84,7 +84,7 @@ interface CertificatePageProps {
 export async function generateMetadata({
   params,
 }: CertificatePageProps): Promise<Metadata> {
-  const supabase = await createClient();
+  const supabase = getAdminClient();
   const { id } = await params;
   const { data: record } = await supabase
     .from("certificates")
@@ -103,7 +103,7 @@ export async function generateMetadata({
 export default async function VolunteerRecordPage({
   params,
 }: CertificatePageProps): Promise<React.ReactElement> {
-  const supabase = await createClient();
+  const supabase = getAdminClient();
   const { id: recordId } = await params;
 
   // Fetch certificate data directly from the 'certificates' table
@@ -156,6 +156,7 @@ export default async function VolunteerRecordPage({
   // Prepare the certificate data for the print component
   const certificateData = {
     ...data,
+    volunteer_email: null,
     durationText,
     creator_username: data.creator_profile?.username || null, // Adjusted to access single profile object
   };
@@ -303,11 +304,6 @@ export default async function VolunteerRecordPage({
                     <p className="text-base font-semibold bg-linear-to-r from-foreground to-foreground/90 bg-clip-text">
                       {data.volunteer_name || "Unnamed Volunteer"}
                     </p>
-                    {data.volunteer_email && (
-                      <p className="text-sm text-muted-foreground">
-                        {data.volunteer_email}
-                      </p>
-                    )}
                   </div>
                 </CardItem>
 

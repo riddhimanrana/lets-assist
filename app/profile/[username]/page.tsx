@@ -1,6 +1,8 @@
 import React from "react";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
+import { getAdminClient } from "@/lib/supabase/admin";
+import { getPublicProfileByUsername } from "@/lib/profile/public";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { format, parseISO, differenceInMinutes, isBefore } from "date-fns";
@@ -25,6 +27,7 @@ interface Profile {
   volunteer_hours?: number;
   verified_hours?: number;
   trusted_member?: boolean;
+  profile_visibility?: string | null;
 }
 
 interface Project {
@@ -66,13 +69,7 @@ export async function generateMetadata(
   params: Props,
 ): Promise<Metadata> {
   const { username } = await params.params;
-  const supabase = await createClient();
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("username", username)
-    .single<Profile>();
+  const { data: profile } = await getPublicProfileByUsername(username);
 
   const baseUrl = new URL(
     process.env.NEXT_PUBLIC_SITE_URL ??
@@ -86,11 +83,7 @@ export async function generateMetadata(
     baseUrl,
   );
   const displayName = profile?.full_name || username;
-  const isPublic = (profile as { profile_visibility?: string | null })
-    ?.profile_visibility
-    ? (profile as { profile_visibility?: string | null }).profile_visibility ===
-    "public"
-    : false;
+  const isPublic = profile?.profile_visibility === "public";
   const description = isPublic
     ? `Profile page for ${displayName}`
     : "Profile on Let's Assist.";
@@ -146,21 +139,24 @@ export default async function ProfilePage(
   params: Props,
 ): Promise<React.ReactElement> {
   const supabase = await createClient();
+  const admin = getAdminClient();
   const { username } = await params.params;
 
-  // Fetch user profile data including visibility
-  const { data: profile, error } = (await supabase
-    .from("profiles")
-    .select("*, profile_visibility")
-    .eq("username", username)
-    .single()) as {
-      data: (Profile & { profile_visibility?: string | null }) | null;
-      error: { message: string } | null;
-    };
+  const { data: rawProfile, error } = await getPublicProfileByUsername(username);
 
-  if (error || !profile) {
+  if (error || !rawProfile) {
     notFound();
   }
+
+  const profile: Profile = {
+    id: rawProfile.id,
+    username: rawProfile.username || username,
+    full_name: rawProfile.full_name || rawProfile.username || username,
+    avatar_url: rawProfile.avatar_url,
+    created_at: rawProfile.created_at || new Date(0).toISOString(),
+    trusted_member: rawProfile.trusted_member ?? false,
+    profile_visibility: rawProfile.profile_visibility,
+  };
 
   // Get current user using getClaims() for better performance
   const { user } = await getAuthUser();
@@ -233,7 +229,7 @@ export default async function ProfilePage(
     .eq("workflow_status", "published")
     .order("created_at", { ascending: false });
 
-  const { data: attendedProjectIds } = await supabase
+  const { data: attendedProjectIds } = await admin
     .from('project_signups')
     .select('project_id')
     .eq('user_id', profile.id);
@@ -270,7 +266,7 @@ export default async function ProfilePage(
       error: { message: string } | null;
     };
 
-  const { data: certificates, error: certificatesError } = await supabase
+  const { data: certificates, error: certificatesError } = await admin
     .from("certificates")
     .select("*")
     .eq("user_id", profile.id)

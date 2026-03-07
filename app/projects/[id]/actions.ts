@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { sanitizeRichTextHtml } from "@/lib/security/html.server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { canCancelProject, isProjectVisible } from "@/utils/project";
 import { revalidatePath } from "next/cache";
@@ -21,6 +22,8 @@ import * as React from 'react';
 import { NotificationService } from "@/services/notifications";
 import { removeCalendarEventForSignup, removeCalendarEventForProject } from "@/utils/calendar-helpers";
 import { getAdminClient } from "@/lib/supabase/admin";
+import { getAnonymousSignupAccessRecord } from "@/lib/anonymous-signup-access";
+import { getProjectCreatorProfileById } from "@/lib/profile/public";
 import { validateWaiverPayload } from "@/lib/waiver/validate-waiver-payload";
 import { mapDetectedFieldsForDb, mapCustomPlacementsForDb } from "@/lib/waiver/map-definition-input";
 
@@ -277,13 +280,7 @@ export async function getProject(projectId: string) {
 }
 
 export async function getCreatorProfile(userId: string) {
-  const supabase = await createClient();
-
-  const { data: profile, error } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", userId)
-    .single();
+  const { data: profile, error } = await getProjectCreatorProfileById(userId);
 
   if (error) {
     console.error("Error fetching creator profile:", error);
@@ -678,8 +675,8 @@ export async function checkReusableAnonymousWaiver(projectId: string, email: str
   }
 
   try {
-    const supabase = await createClient();
-    const { data: anonProfile, error: profileError } = await supabase
+    const admin = getAdminClient();
+    const { data: anonProfile, error: profileError } = await admin
       .from("anonymous_signups")
       .select("id")
       .eq("project_id", projectId)
@@ -695,7 +692,6 @@ export async function checkReusableAnonymousWaiver(projectId: string, email: str
       return { hasReusableWaiver: false };
     }
 
-    const admin = getAdminClient();
     const { data: existingWaiver, error: waiverError } = await admin
       .from("waiver_signatures")
       .select("id")
@@ -872,8 +868,11 @@ async function persistWaiverSignature(params: {
         });
 
         if (uploadResult.error) {
-           console.error(`Error uploading signer asset (${signer.role_key}):`, uploadResult.error);
-           return { error: `Failed to upload signature for ${signer.role_key}: ${uploadResult.error}` };
+            console.error("Error uploading signer asset", {
+             signerRoleKey: signer.role_key,
+             uploadError: uploadResult.error,
+            });
+            return { error: "Failed to upload one of the required signature assets." };
         }
 
         // Replace data with storage path
@@ -1018,6 +1017,7 @@ export async function signUpForProject(
   waiverSignature?: WaiverSignatureInput | null
 ) {
   const supabase = await createClient();
+  const serviceSupabase = getAdminClient();
   const isAnonymous = !!anonymousData;
   const skipAnonymousConfirmationEmail = !!anonymousData?.skipConfirmationEmail;
   const selectedSlotCount = Math.max(1, Number(anonymousData?.selectedSlotCount ?? 1));
@@ -1340,7 +1340,7 @@ export async function signUpForProject(
       }
 
       // Check if an anonymous profile already exists for this email + project
-      const { data: existingAnonProfile, error: anonLookupError } = await supabase
+      const { data: existingAnonProfile, error: anonLookupError } = await serviceSupabase
         .from('anonymous_signups')
         .select('id, confirmed_at, token')
         .eq('project_id', projectId)
@@ -1354,7 +1354,7 @@ export async function signUpForProject(
 
       // If profile exists, check if THIS specific slot already has a signup
       if (existingAnonProfile) {
-        const { data: existingSlotSignup, error: slotError } = await supabase
+        const { data: existingSlotSignup, error: slotError } = await serviceSupabase
           .from('project_signups')
           .select('id, status')
           .eq('project_id', projectId)
@@ -1384,8 +1384,7 @@ export async function signUpForProject(
         }
 
         if (project.waiver_required && !waiverSignature) {
-          const admin = getAdminClient();
-          const { data: existingWaiver, error: existingWaiverError } = await admin
+          const { data: existingWaiver, error: existingWaiverError } = await serviceSupabase
             .from("waiver_signatures")
             .select("id")
             .eq("project_id", projectId)
@@ -1423,7 +1422,7 @@ export async function signUpForProject(
           volunteer_comment: volunteerCommentToSave,
         };
 
-        const { data: insertedProjectSignup, error: projectSignupInsertError } = await supabase
+        const { data: insertedProjectSignup, error: projectSignupInsertError } = await serviceSupabase
           .from("project_signups")
           .insert(projectSignupData)
           .select("id")
@@ -1439,7 +1438,7 @@ export async function signUpForProject(
         // If profile is already confirmed, send a simple notification about the new slot
         if (isProfileConfirmed && anonymousData.email && !skipAnonymousConfirmationEmail) {
           const { date, timeRange, slotLabel } = getScheduleDetails(project, scheduleId);
-          const anonymousProfileUrl = `${siteUrl}/anonymous/${createdAnonymousSignupId}`;
+          const anonymousProfileUrl = `${siteUrl}/anonymous/${createdAnonymousSignupId}?token=${existingAnonProfile.token}`;
           try {
             await sendEmail({
               to: anonymousData.email,
@@ -1464,13 +1463,13 @@ export async function signUpForProject(
         } else if (!isProfileConfirmed && anonymousData.email && !skipAnonymousConfirmationEmail) {
           // Profile not yet confirmed — resend confirmation email with new token
           const newToken = crypto.randomUUID();
-          await supabase
+          await serviceSupabase
             .from("anonymous_signups")
             .update({ token: newToken })
             .eq("id", createdAnonymousSignupId);
 
           const confirmationUrl = `${siteUrl}/anonymous/${createdAnonymousSignupId}/confirm?token=${newToken}`;
-          const anonymousProfileUrl = `${siteUrl}/anonymous/${createdAnonymousSignupId}`;
+          const anonymousProfileUrl = `${siteUrl}/anonymous/${createdAnonymousSignupId}?token=${newToken}`;
           const { date, timeRange, slotLabel } = getScheduleDetails(project, scheduleId);
           try {
             await sendEmail({
@@ -1508,7 +1507,7 @@ export async function signUpForProject(
         };
 
         console.log("Inserting anonSignupData:", anonSignupData);
-        const { data: insertedAnonSignup, error: anonInsertError } = await supabase
+        const { data: insertedAnonSignup, error: anonInsertError } = await serviceSupabase
           .from("anonymous_signups")
           .insert(anonSignupData)
           .select("id")
@@ -1531,7 +1530,7 @@ export async function signUpForProject(
           volunteer_comment: volunteerCommentToSave,
         };
 
-        const { data: insertedProjectSignup, error: projectSignupInsertError } = await supabase
+        const { data: insertedProjectSignup, error: projectSignupInsertError } = await serviceSupabase
           .from("project_signups")
           .insert(projectSignupData)
           .select("id")
@@ -1539,7 +1538,7 @@ export async function signUpForProject(
 
         if (projectSignupInsertError || !insertedProjectSignup) {
           console.error("Error creating project signup record for anonymous:", projectSignupInsertError);
-          await supabase.from("anonymous_signups").delete().eq("id", createdAnonymousSignupId);
+          await serviceSupabase.from("anonymous_signups").delete().eq("id", createdAnonymousSignupId);
           return { error: "Failed to complete signup. Please try again." };
         }
 
@@ -1548,7 +1547,7 @@ export async function signUpForProject(
         // Send confirmation email
         if (anonymousData.email && confirmationToken && createdAnonymousSignupId && !skipAnonymousConfirmationEmail) {
           const confirmationUrl = `${siteUrl}/anonymous/${createdAnonymousSignupId}/confirm?token=${confirmationToken}`;
-          const anonymousProfileUrl = `${siteUrl}/anonymous/${createdAnonymousSignupId}`;
+          const anonymousProfileUrl = `${siteUrl}/anonymous/${createdAnonymousSignupId}?token=${confirmationToken}`;
           const { date, timeRange, slotLabel } = getScheduleDetails(project, scheduleId);
           try {
             const { data, error: emailError } = await sendEmail({
@@ -1628,7 +1627,6 @@ export async function signUpForProject(
         });
 
         if (persistResult?.error) {
-          const serviceSupabase = getAdminClient();
           await serviceSupabase.from("project_signups").delete().eq("id", createdSignupId);
           if (createdAnonymousSignupId && createdNewAnonymousProfile) {
             await serviceSupabase.from("anonymous_signups").delete().eq("id", createdAnonymousSignupId);
@@ -1644,7 +1642,6 @@ export async function signUpForProject(
         });
 
         if (cloneResult?.error) {
-          const serviceSupabase = getAdminClient();
           await serviceSupabase.from("project_signups").delete().eq("id", createdSignupId);
           if (createdAnonymousSignupId && createdNewAnonymousProfile) {
             await serviceSupabase.from("anonymous_signups").delete().eq("id", createdAnonymousSignupId);
@@ -1786,7 +1783,11 @@ export async function createRejectionNotification(
   }
 }
 
-export async function cancelSignup(signupId: string, anonymousSignupId?: string) {
+export async function cancelSignup(
+  signupId: string,
+  anonymousSignupId?: string,
+  anonymousSignupToken?: string,
+) {
   const supabase = await createClient();
 
   try {
@@ -1810,14 +1811,14 @@ export async function cancelSignup(signupId: string, anonymousSignupId?: string)
 
     // Check if this is an anonymous cancellation with valid anonymousSignupId
     if (anonymousSignupId && signup.anonymous_id === anonymousSignupId) {
-      // Verify the anonymous signup exists and matches
-      const { data: anonSignup, error: anonError } = await supabase
-        .from("anonymous_signups")
-        .select("id")
-        .eq("id", anonymousSignupId)
-        .maybeSingle();
+      const { data: anonSignup, error: anonAccessError } =
+        await getAnonymousSignupAccessRecord({
+          anonymousSignupId,
+          token: anonymousSignupToken,
+          columns: "id",
+        });
 
-      if (!anonError && anonSignup) {
+      if (!anonAccessError && anonSignup) {
         hasPermission = true;
       }
     }
@@ -1876,14 +1877,36 @@ export async function cancelSignup(signupId: string, anonymousSignupId?: string)
       console.log("Signup record deleted successfully.");
     }
 
-    // Optional: If it was an anonymous signup, maybe update the anonymous_signups table too?
-    // e.g., mark it as cancelled? Depends on desired behavior.
+    let removedAnonymousProfile = false;
+
+    if (!deleteError && anonymousSignupId && signup.anonymous_id === anonymousSignupId) {
+      const serviceSupabase = getAdminClient();
+      const { count, error: remainingError } = await serviceSupabase
+        .from("project_signups")
+        .select("id", { count: "exact", head: true })
+        .eq("anonymous_id", anonymousSignupId);
+
+      if (remainingError) {
+        console.error("Error checking remaining anonymous signups:", remainingError);
+      } else if ((count ?? 0) === 0) {
+        const { error: removeAnonymousError } = await serviceSupabase
+          .from("anonymous_signups")
+          .delete()
+          .eq("id", anonymousSignupId);
+
+        if (removeAnonymousError) {
+          console.error("Error deleting empty anonymous signup profile:", removeAnonymousError);
+        } else {
+          removedAnonymousProfile = true;
+        }
+      }
+    }
 
     // Revalidate paths
     revalidatePath(`/projects/${signup.project_id}`);
     revalidatePath(`/projects/${signup.project_id}/signups`);
 
-    return { success: true };
+    return { success: true, removedAnonymousProfile };
   } catch (error) {
     console.error("Error cancelling signup:", error);
     return { error: "Failed to cancel signup" };
@@ -2144,6 +2167,12 @@ export async function deleteProject(projectId: string) {
 export async function updateProject(projectId: string, updates: Partial<Project>) {
   try {
     const supabase = await createClient();
+    const sanitizedUpdates: Partial<Project> = {
+      ...updates,
+      ...(typeof updates.description === "string"
+        ? { description: sanitizeRichTextHtml(updates.description) }
+        : {}),
+    };
 
     // Get current user using getClaims() for better performance
     const { user, error: userError } = await getAuthUser();
@@ -2163,8 +2192,8 @@ export async function updateProject(projectId: string, updates: Partial<Project>
     }
 
     const requestsPublicVisibility =
-      Object.prototype.hasOwnProperty.call(updates, "visibility") &&
-      updates.visibility === "public";
+      Object.prototype.hasOwnProperty.call(sanitizedUpdates, "visibility") &&
+      sanitizedUpdates.visibility === "public";
 
     if (requestsPublicVisibility) {
       const { data: tmProfile } = await supabase
@@ -2190,14 +2219,14 @@ export async function updateProject(projectId: string, updates: Partial<Project>
     }
 
     const disablesRecurrence =
-      Object.prototype.hasOwnProperty.call(updates, "recurrence_rule") &&
-      updates.recurrence_rule === null;
+      Object.prototype.hasOwnProperty.call(sanitizedUpdates, "recurrence_rule") &&
+      sanitizedUpdates.recurrence_rule === null;
     const isRecurringParent = !project.recurrence_parent_id && !!project.recurrence_rule;
 
     // Update the project
     const { error: updateError } = await supabase
       .from("projects")
-      .update(updates)
+      .update(sanitizedUpdates)
       .eq("id", projectId);
 
     if (updateError) throw updateError;
@@ -2320,8 +2349,13 @@ export async function getUserProfile() {
   }
 }
 
-export async function getWaiverDownloadUrl(signupId: string, anonymousSignupId?: string) {
+export async function getWaiverDownloadUrl(
+  signupId: string,
+  anonymousSignupId?: string,
+  anonymousSignupToken?: string,
+) {
   const supabase = await createClient();
+  const serviceSupabase = getAdminClient();
 
   try {
     // Get current user using getClaims() for better performance
@@ -2337,7 +2371,7 @@ export async function getWaiverDownloadUrl(signupId: string, anonymousSignupId?:
       } | null;
     };
 
-    const { data: signup, error: signupError } = await supabase
+    const { data: signup, error: signupError } = await serviceSupabase
       .from("project_signups")
       .select("id, user_id, anonymous_id, project:projects(creator_id, organization_id)")
       .eq("id", signupId)
@@ -2367,13 +2401,14 @@ export async function getWaiverDownloadUrl(signupId: string, anonymousSignupId?:
         }
       }
     } else if (anonymousSignupId && signup.anonymous_id === anonymousSignupId) {
-      const { data: anonSignup, error: anonError } = await supabase
-        .from("anonymous_signups")
-        .select("id")
-        .eq("id", anonymousSignupId)
-        .maybeSingle();
+      const { data: anonSignup, error: anonAccessError } =
+        await getAnonymousSignupAccessRecord({
+          anonymousSignupId,
+          token: anonymousSignupToken,
+          columns: "id",
+        });
 
-      if (!anonError && anonSignup) {
+      if (!anonAccessError && anonSignup) {
         hasPermission = true;
       }
     }
@@ -2382,7 +2417,6 @@ export async function getWaiverDownloadUrl(signupId: string, anonymousSignupId?:
       return { error: "Unauthorized" };
     }
 
-    const serviceSupabase = getAdminClient();
     const { data: waiverSignature, error: waiverError } = await serviceSupabase
       .from("waiver_signatures")
       .select("id, signature_type, signature_storage_path, upload_storage_path, signature_payload, signature_text, signed_at, signer_name")
@@ -2439,16 +2473,31 @@ export async function getWaiverDownloadUrl(signupId: string, anonymousSignupId?:
   }
 }
 
-export async function getAnonymousWaiverSignatureMeta(signupId: string, anonymousSignupId: string): Promise<
+export async function getAnonymousWaiverSignatureMeta(
+  signupId: string,
+  anonymousSignupId: string,
+  anonymousSignupToken?: string,
+): Promise<
   | { signatureId: string; signature_type: string | null; signed_at: string | null }
   | { signatureId: null; signature_type: null; signed_at: null }
   | { error: string }
 > {
-  const supabase = await createClient();
+  const admin = getAdminClient();
 
   try {
+    const { data: anonSignup, error: anonAccessError } =
+      await getAnonymousSignupAccessRecord({
+        anonymousSignupId,
+        token: anonymousSignupToken,
+        columns: "id",
+      });
+
+    if (anonAccessError || !anonSignup) {
+      return { error: 'Unauthorized' };
+    }
+
     // Anonymous-only helper: verify the anonymous signup owns this project_signup.
-    const { data: signup, error: signupError } = await supabase
+    const { data: signup, error: signupError } = await admin
       .from('project_signups')
       .select('id, anonymous_id')
       .eq('id', signupId)
@@ -2461,18 +2510,6 @@ export async function getAnonymousWaiverSignatureMeta(signupId: string, anonymou
     if (!signup.anonymous_id || signup.anonymous_id !== anonymousSignupId) {
       return { error: 'Unauthorized' };
     }
-
-    const { data: anonSignup, error: anonError } = await supabase
-      .from('anonymous_signups')
-      .select('id')
-      .eq('id', anonymousSignupId)
-      .maybeSingle();
-
-    if (anonError || !anonSignup) {
-      return { error: 'Unauthorized' };
-    }
-
-    const admin = getAdminClient();
     const { data: sig, error: sigError } = await admin
       .from('waiver_signatures')
       .select('id, signature_type, signed_at')

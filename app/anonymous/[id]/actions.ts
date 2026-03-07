@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
+import { getAnonymousSignupAccessRecord } from "@/lib/anonymous-signup-access";
 import { requireAuth } from "@/lib/supabase/auth-helpers";
 import { revalidatePath } from "next/cache";
 
@@ -14,18 +15,22 @@ const getSiteUrl = () => {
 
 async function transferAnonymousDataToUser(
   anonymousId: string,
-  userId: string
+  userId: string,
+  anonymousToken?: string,
 ): Promise<{ error?: string }> {
   const adminClient = getAdminClient();
 
-  const { data: profile, error: profileError } = await adminClient
-    .from("anonymous_signups")
-    .select("id, linked_user_id")
-    .eq("id", anonymousId)
-    .maybeSingle();
+  const { data: profile, error: profileError } = await getAnonymousSignupAccessRecord<{
+    id: string;
+    linked_user_id: string | null;
+  }>({
+    anonymousSignupId: anonymousId,
+    token: anonymousToken,
+    columns: "id, linked_user_id",
+  });
 
   if (profileError || !profile) {
-    return { error: "Anonymous profile not found." };
+    return { error: "Anonymous profile not found or access denied." };
   }
 
   if (profile.linked_user_id && profile.linked_user_id !== userId) {
@@ -78,11 +83,12 @@ async function transferAnonymousDataToUser(
  * This is provider-agnostic and works for email/password and OAuth logins.
  */
 export async function linkAnonymousToAuthenticatedAccount(
-  anonymousId: string
+  anonymousId: string,
+  anonymousToken?: string,
 ): Promise<{ error?: string }> {
   try {
     const user = await requireAuth();
-    return transferAnonymousDataToUser(anonymousId, user.id);
+    return transferAnonymousDataToUser(anonymousId, user.id, anonymousToken);
   } catch {
     return { error: "Please log in to link this anonymous profile." };
   }
@@ -94,6 +100,7 @@ export async function linkAnonymousToAuthenticatedAccount(
  */
 export async function linkAnonymousToExistingAccount(
   anonymousId: string,
+  anonymousToken: string,
   email: string,
   password: string,
   captchaToken?: string
@@ -118,7 +125,7 @@ export async function linkAnonymousToExistingAccount(
   }
 
   const userId = authData.user.id;
-  return transferAnonymousDataToUser(anonymousId, userId);
+  return transferAnonymousDataToUser(anonymousId, userId, anonymousToken);
 }
 
 /**
@@ -127,6 +134,7 @@ export async function linkAnonymousToExistingAccount(
  */
 export async function linkAnonymousToNewAccount(
   anonymousId: string,
+  anonymousToken: string,
   email: string,
   password: string,
   fullName: string,
@@ -172,7 +180,11 @@ export async function linkAnonymousToNewAccount(
 
   const userId = signupData.user.id;
 
-  const transferResult = await transferAnonymousDataToUser(anonymousId, userId);
+  const transferResult = await transferAnonymousDataToUser(
+    anonymousId,
+    userId,
+    anonymousToken,
+  );
   if (transferResult.error) {
     return { error: `Account created but linking failed: ${transferResult.error}` };
   }

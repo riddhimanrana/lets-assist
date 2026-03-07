@@ -24,16 +24,76 @@ import { checkReusableAnonymousWaiver } from "./actions";
 // Constants for phone validation
 const PHONE_LENGTH = 10; // For raw digits
 const PHONE_REGEX = /^\d{3}-\d{3}-\d{4}$/; // Format XXX-XXX-XXXX
-const ANON_PROFILE_STORAGE_KEY = "letsassist.anonymous-signup-profile.v1";
+const ANON_PROFILE_STORAGE_KEY = "letsassist.anonymous-signup-profile.v2";
+const LEGACY_ANON_PROFILE_STORAGE_KEYS = ["letsassist.anonymous-signup-profile.v1"] as const;
 const ANON_PROFILE_AUTO_APPLY_KEY = "letsassist.anonymous-signup-auto-apply.v1";
 const ANON_WAIVER_CACHE_KEY = "letsassist.anonymous-signup-waiver-cache.v1";
 
 interface SavedAnonymousProfile {
   name: string;
   email: string;
-  phone?: string;
   updatedAt: string;
 }
+
+type LegacySavedAnonymousProfile = SavedAnonymousProfile & {
+  phone?: string;
+};
+
+const sanitizeSavedAnonymousProfile = (value: unknown): SavedAnonymousProfile | null => {
+  if (!value || typeof value !== "object") return null;
+
+  const candidate = value as Partial<LegacySavedAnonymousProfile>;
+  const name = typeof candidate.name === "string" ? candidate.name.trim() : "";
+  const email = typeof candidate.email === "string" ? candidate.email.trim().toLowerCase() : "";
+  const updatedAt =
+    typeof candidate.updatedAt === "string" && candidate.updatedAt.length > 0
+      ? candidate.updatedAt
+      : new Date().toISOString();
+
+  if (name.length < 2 || !email.includes("@")) {
+    return null;
+  }
+
+  return {
+    name,
+    email,
+    updatedAt,
+  };
+};
+
+const loadSavedAnonymousProfile = (): SavedAnonymousProfile | null => {
+  if (typeof window === "undefined") return null;
+
+  const storageKeys = [ANON_PROFILE_STORAGE_KEY, ...LEGACY_ANON_PROFILE_STORAGE_KEYS];
+
+  for (const storageKey of storageKeys) {
+    const raw = window.localStorage.getItem(storageKey);
+    if (!raw) continue;
+
+    try {
+      const sanitizedProfile = sanitizeSavedAnonymousProfile(JSON.parse(raw));
+      if (!sanitizedProfile) {
+        window.localStorage.removeItem(storageKey);
+        continue;
+      }
+
+      const serializedProfile = JSON.stringify(sanitizedProfile);
+      if (storageKey !== ANON_PROFILE_STORAGE_KEY || raw !== serializedProfile) {
+        window.localStorage.setItem(ANON_PROFILE_STORAGE_KEY, serializedProfile);
+      }
+
+      if (storageKey !== ANON_PROFILE_STORAGE_KEY) {
+        window.localStorage.removeItem(storageKey);
+      }
+
+      return sanitizedProfile;
+    } catch {
+      window.localStorage.removeItem(storageKey);
+    }
+  }
+
+  return null;
+};
 
 const formSchema = z.object({
   name: z.string().min(2, { message: "Name is required" }),
@@ -173,12 +233,8 @@ export function ProjectSignupForm({
   }, [projectId, waiverCacheEntryKey]);
 
   const applySavedProfile = useCallback((profile: SavedAnonymousProfile) => {
-    const formattedPhone = profile.phone ? formatPhoneNumber(profile.phone) : "";
-
     form.setValue("name", profile.name, { shouldValidate: true, shouldDirty: true });
     form.setValue("email", profile.email, { shouldValidate: true, shouldDirty: true });
-    form.setValue("phone", formattedPhone, { shouldValidate: true, shouldDirty: true });
-    setPhoneNumberLength(formattedPhone.replace(/-/g, "").length);
     setUsedSavedProfile(true);
   }, [form]);
 
@@ -191,25 +247,15 @@ export function ProjectSignupForm({
       const isAutoApply = autoApplyStr === "true";
       setAutoApplyEnabled(isAutoApply);
 
-      const raw = window.localStorage.getItem(ANON_PROFILE_STORAGE_KEY);
-      if (!raw) return;
+      const parsed = loadSavedAnonymousProfile();
+      if (!parsed) return;
 
-      const parsed = JSON.parse(raw) as SavedAnonymousProfile;
-      const isValid =
-        parsed &&
-        typeof parsed.name === "string" &&
-        typeof parsed.email === "string" &&
-        parsed.name.trim().length > 1 &&
-        parsed.email.includes("@");
+      setSavedProfile(parsed);
+      setLastUpdatedDisplay(formatRelativeTime(parsed.updatedAt));
 
-      if (isValid) {
-        setSavedProfile(parsed);
-        setLastUpdatedDisplay(formatRelativeTime(parsed.updatedAt));
-
-        // Auto-apply if preference is enabled
-        if (isAutoApply) {
-          applySavedProfile(parsed);
-        }
+      // Auto-apply if preference is enabled
+      if (isAutoApply) {
+        applySavedProfile(parsed);
       }
     } catch {
       // Ignore parse/storage errors silently.
@@ -289,6 +335,9 @@ export function ProjectSignupForm({
     setUsedSavedProfile(false);
     if (typeof window !== "undefined") {
       window.localStorage.removeItem(ANON_PROFILE_STORAGE_KEY);
+      LEGACY_ANON_PROFILE_STORAGE_KEYS.forEach((storageKey) => {
+        window.localStorage.removeItem(storageKey);
+      });
     }
   };
 
@@ -298,7 +347,6 @@ export function ProjectSignupForm({
     const profile: SavedAnonymousProfile = {
       name: data.name.trim(),
       email: data.email.trim().toLowerCase(),
-      phone: data.phone ? formatPhoneNumber(data.phone) : "",
       updatedAt: new Date().toISOString(),
     };
 

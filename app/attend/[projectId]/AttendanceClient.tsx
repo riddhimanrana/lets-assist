@@ -107,6 +107,7 @@ export default function AttendanceClient({
   const [checkedInAnonymously, setCheckedInAnonymously] = useState(false);
   const [displayEmail, setDisplayEmail] = useState(user?.email || ""); // Email to show on success screen
   const [anonSignupId, setAnonSignupId] = useState<string>(""); // State for anonymous signup ID
+  const [anonAccessToken, setAnonAccessToken] = useState<string>("");
 
   // Add state for progress and remaining time
   const [progressPercentage, setProgressPercentage] = useState(0);
@@ -334,6 +335,7 @@ export default function AttendanceClient({
         setCheckedInAnonymously(true); // Mark as anonymous
         setDisplayEmail(anonCheckinEmail); // Set display email to the one used
         setAnonSignupId(result.anonSignupId || ""); // Save anonymous signup ID
+        setAnonAccessToken(result.anonAccessToken || "");
         toast.success("Successfully checked in!");
         setShowAnonInputSection(false); // Hide the input section on success
       } else {
@@ -538,7 +540,10 @@ export default function AttendanceClient({
                 </Button>
                 {checkedInAnonymously && (
                   <Button variant="outline" className="w-full">
-                    <Link href={`/anonymous/${anonSignupId}`} className="flex items-center gap-2">
+                    <Link
+                      href={`/anonymous/${anonSignupId}?token=${encodeURIComponent(anonAccessToken)}`}
+                      className="flex items-center gap-2"
+                    >
                       <User className="h-4 w-4" />
                       Your Anonymous Profile
                     </Link>

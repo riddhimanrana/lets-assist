@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { escapeHtml } from "@/lib/security/html";
 import Link from "next/link";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
@@ -197,6 +198,16 @@ export function CertificatesList({ certificates, user }: CertificatesListProps) 
     // Calculate total hours on filtered results
     const totalHours = filteredCertificates.reduce((sum, cert) => sum + cert.hours, 0);
     const totalDuration = formatTotalDuration(totalHours);
+    const printedAt = `${new Date().toLocaleString()} ${(() => {
+      try {
+        return new Intl.DateTimeFormat('en-US', {
+          timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          timeZoneName: 'short'
+        }).formatToParts(new Date()).find(part => part.type === 'timeZoneName')?.value || '';
+      } catch {
+        return '';
+      }
+    })()}`.trim();
     // prepare container
     let container = document.getElementById("print-container");
     if (!container) {
@@ -220,19 +231,10 @@ export function CertificatesList({ certificates, user }: CertificatesListProps) 
 
     const content = `
       ${style}
-      <h1>All Certificates for ${user.name}</h1>
-      <div>Email: ${user.email}</div>
-      <div>Printed: ${new Date().toLocaleString()} ${(() => {
-        try {
-          return new Intl.DateTimeFormat('en-US', {
-            timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-            timeZoneName: 'short'
-          }).formatToParts(new Date()).find(part => part.type === 'timeZoneName')?.value || '';
-        } catch {
-          return '';
-        }
-      })()}</div>
-      <div><strong>Total Hours: ${totalDuration}</strong></div>
+      <h1>All Certificates for ${escapeHtml(user.name)}</h1>
+      <div>Email: ${escapeHtml(user.email)}</div>
+      <div>Printed: ${escapeHtml(printedAt)}</div>
+      <div><strong>Total Hours: ${escapeHtml(totalDuration)}</strong></div>
       <table>
         <thead>
           <tr>
@@ -272,9 +274,9 @@ export function CertificatesList({ certificates, user }: CertificatesListProps) 
         })
         .map(cert => `
               <tr>
-                <td>${cert.project_title}</td>
-                <td>${cert.organization_name || cert.creator_name || "-"}</td>
-                <td>${format(parseISO(cert.issued_at), "MMM d, yyyy")} ${(() => {
+                <td>${escapeHtml(cert.project_title)}</td>
+                <td>${escapeHtml(cert.organization_name || cert.creator_name || "-")}</td>
+                <td>${escapeHtml(`${format(parseISO(cert.issued_at), "MMM d, yyyy")} ${(() => {
             const date = parseISO(cert.issued_at);
             const timezone = cert.projects?.project_timezone || 'America/Los_Angeles';
             try {
@@ -285,9 +287,9 @@ export function CertificatesList({ certificates, user }: CertificatesListProps) 
             } catch {
               return '';
             }
-          })()}</td>
-                <td>${formatTotalDuration(calculateDecimalHours(cert.event_start, cert.event_end))}</td>
-                <td>${cert.is_certified ? "Yes" : "No"}</td>
+          })()}`)}</td>
+                <td>${escapeHtml(formatTotalDuration(calculateDecimalHours(cert.event_start, cert.event_end)))}</td>
+                <td>${escapeHtml(cert.is_certified ? "Yes" : "No")}</td>
               </tr>
             `)
         .join("")}

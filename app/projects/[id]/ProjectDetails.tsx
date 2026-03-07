@@ -4,7 +4,6 @@ import {
   Project,
   MultiDayScheduleDay,
   SameDayMultiAreaRole,
-  Profile,
   Organization,
   ProjectStatus,
   ProjectDocument,
@@ -14,6 +13,7 @@ import {
   WaiverTemplate,
 } from "@/types";
 import { AuthUser } from '@/lib/supabase/types';
+import type { ProjectCreatorProfileRecord } from '@/lib/profile/public';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -112,7 +112,7 @@ interface AnonymousSlotOption {
 
 interface Props {
   project: Project;
-  creator: Profile | null;
+  creator: ProjectCreatorProfileRecord | null;
   organization?: Organization | null;
   initialSlotData: SlotData;
   initialIsCreator: boolean;

@@ -201,6 +201,7 @@ export default function OrgToolingSection() {
                   projects={mockProjects}
                   userRole={null}
                   currentUserId={undefined}
+                  organizationCreatedLabel="January 1, 2024"
                 />
               </div>
             </div>
