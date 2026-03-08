@@ -1,9 +1,8 @@
 "use client";
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useInView } from "react-intersection-observer";
 import { ProjectViewToggle } from "./ProjectViewToggle";
 import { ProjectCardSkeleton } from "./ProjectCardSkeleton";
-import { useInfiniteQuery, type SupabaseQueryHandler } from "@/hooks/use-infinite-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -46,12 +45,16 @@ import {
   PopoverDescription,
 } from "@/components/ui/popover";
 import { DateRange } from "react-day-picker";
-import { DateRangePicker } from "@/components/ui/date-range-picker";
+import { DateRangePicker, formatDateRangeLabel } from "@/components/ui/date-range-picker";
 import { cn } from "@/lib/utils";
-import { format, parseISO } from "date-fns";
+import { parseISO } from "date-fns";
 import Link from "next/link";
 import { ProjectsMapView } from "./ProjectsMapView";
 import type { Project } from "@/types";
+import {
+  getProjectRemainingSpots,
+  getProjectVolunteerCapacity,
+} from "@/lib/projects/availability";
 import { getProjectStatus } from "@/utils/project";
 
 
@@ -59,6 +62,7 @@ import { getProjectStatus } from "@/utils/project";
 type ProjectWithSignups = Project & {
   signups?: Array<{ status?: string }>;
   slots_filled?: number;
+  total_confirmed?: number;
   registrations?: unknown[];
   [key: string]: unknown;
 };
@@ -73,6 +77,13 @@ export const ProjectsInfiniteScroll: React.FC = () => {
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [isClientReady, setIsClientReady] = useState(false);
   const [view, setView] = useState<"card" | "list" | "table" | "map">("card");
+  const [projectsData, setProjectsData] = useState<ProjectWithSignups[]>([]);
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isValidating, setIsValidating] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const latestRequestIdRef = useRef(0);
 
   // Debug local storage issue with hydration
   useEffect(() => {
@@ -88,42 +99,84 @@ export const ProjectsInfiniteScroll: React.FC = () => {
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
-  const projectsQueryHandler = useCallback<SupabaseQueryHandler<"projects">>(
-    (query) => {
-      // Basic filters: status=upcoming and visibility=public
-      let q = query
-        .eq("status", "upcoming")
-        .eq("visibility", "public")
-        .order("created_at", { ascending: false });
+  const fetchProjectsPage = useCallback(
+    async (offset: number, mode: "replace" | "append" = "append") => {
+      const requestId = ++latestRequestIdRef.current;
 
-      // Search term filter if provided
+      if (mode === "replace") {
+        setIsLoading(true);
+        setHasMore(true);
+        setIsSuccess(false);
+      }
+
+      setIsValidating(true);
+      setError(null);
+
+      const params = new URLSearchParams({
+        limit: String(limit),
+        offset: String(offset),
+        status: "upcoming",
+      });
+
       if (debouncedSearchTerm) {
-        q = q.or(`title.ilike.%${debouncedSearchTerm}%,description.ilike.%${debouncedSearchTerm}%`);
+        params.set("search", debouncedSearchTerm);
       }
 
-      // Event type filter if provided
       if (eventTypeFilter && eventTypeFilter !== "all") {
-        q = q.eq("event_type", eventTypeFilter);
+        params.set("eventType", eventTypeFilter);
       }
 
-      return q;
+      try {
+        const response = await fetch(`/api/projects?${params.toString()}`, {
+          cache: "no-store",
+          credentials: "same-origin",
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to load projects (${response.status})`);
+        }
+
+        const nextProjects = (await response.json()) as ProjectWithSignups[];
+
+        if (requestId !== latestRequestIdRef.current) {
+          return;
+        }
+
+        setProjectsData((currentProjects) =>
+          mode === "replace" ? nextProjects : [...currentProjects, ...nextProjects],
+        );
+        setHasMore(nextProjects.length === limit);
+        setIsSuccess(true);
+      } catch (fetchError) {
+        if (requestId !== latestRequestIdRef.current) {
+          return;
+        }
+
+        console.error("Error loading project feed:", fetchError);
+        setError(
+          fetchError instanceof Error
+            ? fetchError.message
+            : "Failed to load projects",
+        );
+
+        if (mode === "replace") {
+          setProjectsData([]);
+          setHasMore(false);
+        }
+      } finally {
+        if (requestId === latestRequestIdRef.current) {
+          setIsLoading(false);
+          setIsValidating(false);
+        }
+      }
     },
-    [debouncedSearchTerm, eventTypeFilter]
+    [debouncedSearchTerm, eventTypeFilter, limit],
   );
 
-  const {
-    data: projectsData,
-    isSuccess,
-    isLoading,
-    isFetching: isValidating,
-    hasMore,
-    fetchNextPage,
-  } = useInfiniteQuery<ProjectWithSignups, "projects">({
-    tableName: "projects",
-    columns: "*, profiles!projects_creator_id_fkey1(id, avatar_url, full_name, username, created_at), organization:organizations(id, name, username, logo_url, verified, type), signups:project_signups(project_id, schedule_id, status)",
-    pageSize: limit,
-    trailingQuery: projectsQueryHandler,
-  });
+  useEffect(() => {
+    setProjectsData([]);
+    void fetchProjectsPage(0, "replace");
+  }, [fetchProjectsPage]);
 
   const { ref, inView } = useInView({
     threshold: 0.1,
@@ -133,9 +186,9 @@ export const ProjectsInfiniteScroll: React.FC = () => {
   // Load more trigger
   useEffect(() => {
     if (inView && hasMore && !isValidating && !isLoading) {
-      fetchNextPage();
+      void fetchProjectsPage(projectsData.length);
     }
-  }, [inView, hasMore, isValidating, isLoading, fetchNextPage]);
+  }, [inView, hasMore, isValidating, isLoading, fetchProjectsPage, projectsData.length]);
 
   // Helper function to check if a project is within the date range
   const isProjectInDateRange = (project: ProjectWithSignups, dateRange: DateRange | undefined) => {
@@ -191,38 +244,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
 
   // Get volunteer count from a project
   const getVolunteerCount = (project: ProjectWithSignups): number => {
-    if (!project.event_type || !project.schedule) return 0;
-
-    switch (project.event_type) {
-      case "oneTime":
-        return project.schedule.oneTime?.volunteers || 0;
-      case "multiDay": {
-        let total = 0;  // Initialize total here
-        // Sum all volunteers across all days and slots
-        if (project.schedule.multiDay) {
-          project.schedule.multiDay.forEach((day) => {
-            if (day.slots) {
-              day.slots.forEach((slot) => {
-                total += slot.volunteers || 0;
-              });
-            }
-          });
-        }
-        return total;
-      }
-      case "sameDayMultiArea": {
-        // Sum all volunteers across all roles
-        let total = 0;
-        if (project.schedule.sameDayMultiArea?.roles) {
-          project.schedule.sameDayMultiArea.roles.forEach((role) => {
-            total += role.volunteers || 0;
-          });
-        }
-        return total;
-      }
-      default:
-        return 0;
-    }
+    return getProjectVolunteerCapacity(project);
   };
 
   // Sort projects by volunteer count
@@ -282,30 +304,10 @@ export const ProjectsInfiniteScroll: React.FC = () => {
 
   // New function to get remaining spots
   const getRemainingSpots = (project: ProjectWithSignups): number => {
-    // Get total spots
-    const totalSpots = getVolunteerCount(project);
-
-    // Calculate filled spots based on project type
-    let filledSpots = 0;
-
-    if (project.signups && Array.isArray(project.signups)) {
-      // Count confirmed and pending signups to avoid overestimating availability
-      filledSpots = project.signups.filter((signup) =>
-        signup.status === "approved" || signup.status === "pending"
-      ).length;
-    } else if (project.slots_filled) {
-      // If project has a direct slots_filled count
-      filledSpots = project.slots_filled;
-    } else if (project.registrations && Array.isArray(project.registrations)) {
-      // Alternative signup structure
-      filledSpots = project.registrations.length;
-    }
-
-    return Math.max(0, totalSpots - filledSpots);
+    return getProjectRemainingSpots(project);
   };
 
-  // Get all projects - useInfiniteQuery already provides the flattened data
-  const allProjects = projectsData || [];
+  const allProjects = projectsData;
 
   const filteredProjects = allProjects.filter((project) => {
     // Search and Event Type filtering are now handled by the hook/server where possible,
@@ -351,6 +353,10 @@ export const ProjectsInfiniteScroll: React.FC = () => {
     dateSort ? 1 : 0,
   ].reduce((a, b) => a + b, 0), [debouncedSearchTerm, eventTypeFilter, dateFilter, volunteersSort, dateSort]);
 
+  const dateFilterLabel = formatDateRangeLabel(dateFilter, {
+    singleDatePrefix: "From",
+  });
+
   // Clear all filters function
   const clearAllFilters = () => {
     setSearchTerm("");
@@ -384,8 +390,20 @@ export const ProjectsInfiniteScroll: React.FC = () => {
     );
   }
 
-  // Error state (handled by hook)
-  /* if (error) { ... } */
+  if (error && !isLoading && allProjects.length === 0) {
+    return (
+      <Card className="bg-muted/40 border-dashed">
+        <CardContent className="flex flex-col items-center justify-center py-16">
+          <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center mb-6">
+            <PackageX className="h-10 w-10 text-muted-foreground opacity-80" />
+          </div>
+          <h3 className="text-xl font-medium mb-2">Couldn&apos;t load projects</h3>
+          <p className="text-muted-foreground text-center max-w-md mb-8">{error}</p>
+          <Button onClick={() => void fetchProjectsPage(0, "replace")}>Try again</Button>
+        </CardContent>
+      </Card>
+    );
+  }
 
   // Empty state when no projects match filters
   if (isSuccess && sortedProjects.length === 0) {
@@ -797,10 +815,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
               {dateFilter?.from && (
                 <Badge variant="outline" className="gap-1">
                   <Calendar className="h-3 w-3" />
-                  {dateFilter.to
-                    ? `${format(dateFilter.from, "MMM d")} - ${format(dateFilter.to, "MMM d")}`
-                    : `From ${format(dateFilter.from, "MMM d")}`
-                  }
+                  {dateFilterLabel}
                   <Button
                     variant="ghost"
                     size="icon"
@@ -1299,10 +1314,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
             {dateFilter?.from && (
               <Badge variant="outline" className="gap-1">
                 <Calendar className="h-3 w-3" />
-                {dateFilter.to
-                  ? `${format(dateFilter.from, "MMM d")} - ${format(new Date(dateFilter.to.getTime() - 24 * 60 * 60 * 1000), "MMM d")}`
-                  : `From ${format(dateFilter.from, "MMM d")}`
-                }
+                {dateFilterLabel}
                 <Button
                   variant="ghost"
                   size="icon"

@@ -38,11 +38,15 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { Project as BaseProject, Organization, Signup } from "@/types";
+import {
+  getProjectRemainingSpots,
+} from "@/lib/projects/availability";
 import { getProjectStatus as getProjectStatusUtil } from "@/utils/project";
 
 type ProjectWithExtras = BaseProject & {
   organizations?: Organization;
   total_confirmed?: number;
+  slots_filled?: number;
   signups?: { status?: string }[] | Signup[];
 };
 
@@ -198,56 +202,9 @@ const getEventScheduleSummary = (project: ProjectWithExtras) => {
   }
 };
 
-// Get volunteer count from project (total spots)
-const getVolunteerCount = (project: ProjectWithExtras) => {
-  if (!project.event_type || !project.schedule) return 0;
-
-  switch (project.event_type) {
-    case "oneTime":
-      return project.schedule.oneTime?.volunteers || 0;
-    case "multiDay": {
-      // Sum all volunteers across all days and slots
-      let total = 0;
-      if (project.schedule.multiDay) {
-        project.schedule.multiDay.forEach((day) => {
-          if (day.slots) {
-            day.slots.forEach((slot) => {
-              total += slot.volunteers || 0;
-            });
-          }
-        });
-      }
-      return total;
-    }
-    case "sameDayMultiArea": {
-      // Sum all volunteers across all roles
-      let total = 0;
-      if (project.schedule.sameDayMultiArea?.roles) {
-        project.schedule.sameDayMultiArea.roles.forEach((role) => {
-          total += role.volunteers || 0;
-        });
-      }
-      return total;
-    }
-    default:
-      return 0;
-  }
-};
-
 // New function to get remaining spots
 const getRemainingSpots = (project: ProjectWithExtras) => {
-  const totalSpots = getVolunteerCount(project);
-
-  // Use confirmed_signups from server or count manually if signups array exists
-  let filledSpots = 0;
-  if (project.signups && Array.isArray(project.signups)) {
-    // Include both approved and pending to avoid overestimating availability
-    filledSpots = project.signups.filter(s => s.status === 'approved' || s.status === 'pending').length;
-  } else {
-    filledSpots = project.total_confirmed || 0;
-  }
-
-  return Math.max(0, totalSpots - filledSpots);
+  return getProjectRemainingSpots(project);
 };
 
 // Function to check if project has upcoming status

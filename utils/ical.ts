@@ -211,6 +211,7 @@ function generateMultiDayEventICal(
   project.schedule.multiDay.forEach((day, _dayIndex) => {
     day.slots.forEach((slot, slotIndex) => {
       const scheduleIdentifier = `${day.date}-${slotIndex}`;
+      const slotName = slot.name?.trim();
       
       // Only create event for the requested schedule ID or create all if no specific ID
       if (!scheduleId || scheduleId === scheduleIdentifier) {
@@ -218,7 +219,7 @@ function generateMultiDayEventICal(
         const endTime = parseDateTime(day.date, slot.endTime);
 
         const eventData: ICalEventData = {
-          title: project.title,
+          title: slotName ? `${project.title} - ${slotName}` : project.title,
           description: project.description,
           location: project.location,
           startTime,

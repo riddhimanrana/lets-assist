@@ -95,6 +95,42 @@ export async function linkAnonymousToAuthenticatedAccount(
 }
 
 /**
+ * Start a Google OAuth flow, then return to the anonymous profile page to finish linking.
+ */
+export async function startAnonymousGoogleLink(
+  anonymousId: string,
+  anonymousToken: string,
+): Promise<{ url?: string; error?: string }> {
+  const supabase = await createClient();
+  const origin = getSiteUrl();
+
+  const redirectAfterAuth = `/anonymous/${anonymousId}?token=${encodeURIComponent(anonymousToken)}&link=1`;
+  const redirectTo = `${origin}/auth/callback?redirectAfterAuth=${encodeURIComponent(redirectAfterAuth)}`;
+
+  const {
+    data: { url },
+    error,
+  } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      queryParams: {
+        access_type: "offline",
+        prompt: "consent",
+        scope: "openid email profile",
+      },
+      redirectTo,
+    },
+  });
+
+  if (error) {
+    console.error("Error starting anonymous Google linking:", error);
+    return { error: "Failed to connect with Google. Please try again." };
+  }
+
+  return { url: url ?? undefined };
+}
+
+/**
  * Link an anonymous profile to an existing Let's Assist account.
  * Verifies credentials, then transfers all project_signups to the authenticated user.
  */

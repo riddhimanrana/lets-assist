@@ -3,11 +3,11 @@
 import { createClient } from "@/lib/supabase/server";
 import { sanitizeRichTextHtml } from "@/lib/security/html.server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
-import { canCancelProject, isProjectVisible } from "@/utils/project";
+import { canCancelProject, getMultiDaySlotByScheduleId, getMultiDaySlotDisplayName, isProjectVisible } from "@/utils/project";
 import { revalidatePath } from "next/cache";
 import { ProjectStatus } from "@/types";
 // Make sure AnonymousSignup is imported from the correct types definition
-import { type Project, type AnonymousSignupData, type ProjectSignup, type SignupStatus, type WaiverSignatureInput } from "@/types";
+import { type Project, type AnonymousSignupData, type ProjectSignup, type SignupStatus, type WaiverSignatureInput, type WaiverTemplate } from "@/types";
 import { headers } from "next/headers";
 import crypto from 'crypto';
 // Import centralized email service
@@ -23,7 +23,9 @@ import { NotificationService } from "@/services/notifications";
 import { removeCalendarEventForSignup, removeCalendarEventForProject } from "@/utils/calendar-helpers";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { getAnonymousSignupAccessRecord } from "@/lib/anonymous-signup-access";
+import { shouldRequireAnonymousSignupCaptcha } from "@/lib/anonymous-signup-security";
 import { getProjectCreatorProfileById } from "@/lib/profile/public";
+import { isTurnstileEnabled, verifyTurnstileToken } from "@/lib/turnstile";
 import { validateWaiverPayload } from "@/lib/waiver/validate-waiver-payload";
 import { mapDetectedFieldsForDb, mapCustomPlacementsForDb } from "@/lib/waiver/map-definition-input";
 
@@ -47,10 +49,51 @@ function formatTimeTo12Hour(timeStr: string | undefined): string {
   }
 }
 
+function parseLocalDate(dateStr: string): Date {
+  // Parse date string "YYYY-MM-DD" as a local date, not UTC
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day);
+}
+
+function formatDateWithWeekday(dateStr: string): string {
+  const date = parseLocalDate(dateStr);
+  return date.toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+}
+
 const WAIVER_SIGNATURE_BUCKET = "waiver-signatures";
 const WAIVER_UPLOAD_BUCKET = "waiver-uploads";
 const MAX_WAIVER_SIGNATURE_BYTES = 2 * 1024 * 1024; // 2MB
 const MAX_WAIVER_UPLOAD_BYTES = 10 * 1024 * 1024; // 10MB
+const PLATFORM_DEFAULT_WAIVER_TEMPLATE_ID = "platform-default-waiver-template-v1";
+
+function buildDefaultPlatformWaiverTemplate(): WaiverTemplate {
+  const now = new Date().toISOString();
+
+  return {
+    id: PLATFORM_DEFAULT_WAIVER_TEMPLATE_ID,
+    title: "Lets Assist Platform Waiver",
+    content: [
+      "WAIVER & RELEASE OF LIABILITY",
+      "",
+      "By participating in this activity, I acknowledge and agree that participation may involve risks, including possible injury, loss, or damage.",
+      "",
+      "I voluntarily assume all such risks and release the organizer, host venue, and affiliated staff/volunteers from claims arising from my participation, except where prohibited by law.",
+      "",
+      "I confirm that I have read this waiver, understand its contents, and agree that my electronic signature is legally binding.",
+      "",
+      "Signed electronically via Lets Assist.",
+    ].join("\n"),
+    version: 1,
+    active: true,
+    created_at: now,
+    updated_at: now,
+  };
+}
 
 type PostgrestErrorLike = {
   message?: string;
@@ -99,18 +142,35 @@ async function getRequestMetadata() {
   return { ipAddress, userAgent };
 }
 
+async function validateAnonymousSignupCaptcha(
+  captchaToken?: string | null,
+): Promise<{ success: true } | { error: string }> {
+  if (!isTurnstileEnabled()) {
+    return { success: true };
+  }
+
+  const normalizedToken = captchaToken?.trim();
+
+  if (!normalizedToken) {
+    return { error: "Please complete the security verification challenge." };
+  }
+
+  const isValid = await verifyTurnstileToken(normalizedToken);
+
+  if (!isValid) {
+    return { error: "Security verification failed. Please refresh the challenge and try again." };
+  }
+
+  return { success: true };
+}
+
 // Function to extract schedule details for email notifications
 function getScheduleDetails(project: Project, scheduleId: string) {
   if (project.event_type === "oneTime") {
     const schedule = project.schedule.oneTime;
     if (!schedule) return { date: "TBD", time: "TBD", timeRange: "TBD", slotLabel: "TBD" };
 
-    const date = new Date(schedule.date).toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
+    const date = formatDateWithWeekday(schedule.date);
 
     const start12 = formatTimeTo12Hour(schedule.startTime);
     const end12 = formatTimeTo12Hour(schedule.endTime);
@@ -125,24 +185,10 @@ function getScheduleDetails(project: Project, scheduleId: string) {
       slotLabel: "Slot 1"
     };
   } else if (project.event_type === "multiDay") {
-    const parts = scheduleId.split("-");
-    if (parts.length >= 2) {
-      const slotIndexStr = parts.pop();
-      const dateStr = parts.join("-");
-
-      const day = project.schedule.multiDay?.find(d => d.date === dateStr);
-      if (!day) return { date: "TBD", time: "TBD", timeRange: "TBD", slotLabel: "TBD" };
-
-      const slotIndex = parseInt(slotIndexStr!, 10);
-      const slot = day.slots[slotIndex];
-      if (!slot) return { date: "TBD", time: "TBD", timeRange: "TBD", slotLabel: "TBD" };
-
-      const date = new Date(dateStr).toLocaleDateString('en-US', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      });
+    const slotData = getMultiDaySlotByScheduleId(project, scheduleId);
+    if (slotData) {
+      const { day, slot, slotIndex } = slotData;
+      const date = formatDateWithWeekday(day.date);
 
       const start12 = formatTimeTo12Hour(slot.startTime);
       const end12 = formatTimeTo12Hour(slot.endTime);
@@ -154,19 +200,14 @@ function getScheduleDetails(project: Project, scheduleId: string) {
         date,
         time: start12,
         timeRange,
-        slotLabel: `Slot ${slotIndex + 1}`
+        slotLabel: getMultiDaySlotDisplayName(slot, slotIndex)
       };
     }
   } else if (project.event_type === "sameDayMultiArea") {
     const schedule = project.schedule.sameDayMultiArea;
     if (!schedule) return { date: "TBD", time: "TBD", timeRange: "TBD", slotLabel: "TBD" };
 
-    const date = new Date(schedule.date).toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
+    const date = formatDateWithWeekday(schedule.date);
 
     const role = schedule.roles.find(r => r.name === scheduleId);
 
@@ -211,6 +252,111 @@ export async function isProjectCreator(projectId: string) {
   }
 }
 
+type ManageableProjectRecord = {
+  creator_id?: string | null;
+  organization_id?: string | null;
+  organization?: { id?: string | null } | null;
+};
+
+type CurrentUserProjectPermissions = {
+  userId: string | null;
+  isCreator: boolean;
+  isOrgAdmin: boolean;
+  canManageProject: boolean;
+};
+
+const getManageableProjectOrganizationId = (project?: ManageableProjectRecord | null) =>
+  project?.organization_id ?? project?.organization?.id ?? null;
+
+async function isUserOrganizationAdmin(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  organizationId: string | null | undefined,
+  userId: string,
+) {
+  if (!organizationId) return false;
+
+  const { data: membership } = await supabase
+    .from("organization_members")
+    .select("role")
+    .eq("organization_id", organizationId)
+    .eq("user_id", userId)
+    .single();
+
+  return membership?.role === "admin";
+}
+
+async function canUserManageProject(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  project: ManageableProjectRecord | null | undefined,
+  userId: string,
+) {
+  if (!project) return false;
+  if (project.creator_id === userId) return true;
+
+  return isUserOrganizationAdmin(
+    supabase,
+    getManageableProjectOrganizationId(project),
+    userId,
+  );
+}
+
+export async function getCurrentUserProjectPermissions(
+  projectId: string,
+): Promise<CurrentUserProjectPermissions> {
+  try {
+    const supabase = await createClient();
+    const { user, error: userError } = await getAuthUser();
+
+    if (userError || !user) {
+      return {
+        userId: null,
+        isCreator: false,
+        isOrgAdmin: false,
+        canManageProject: false,
+      };
+    }
+
+    const { data: project } = await supabase
+      .from("projects")
+      .select("creator_id, organization_id")
+      .eq("id", projectId)
+      .maybeSingle();
+
+    if (!project) {
+      return {
+        userId: user.id,
+        isCreator: false,
+        isOrgAdmin: false,
+        canManageProject: false,
+      };
+    }
+
+    const isCreator = project.creator_id === user.id;
+    const isOrgAdmin = !isCreator
+      ? await isUserOrganizationAdmin(supabase, project.organization_id, user.id)
+      : false;
+
+    return {
+      userId: user.id,
+      isCreator,
+      isOrgAdmin,
+      canManageProject: isCreator || isOrgAdmin,
+    };
+  } catch {
+    return {
+      userId: null,
+      isCreator: false,
+      isOrgAdmin: false,
+      canManageProject: false,
+    };
+  }
+}
+
+export async function canCurrentUserManageProject(projectId: string) {
+  const permissions = await getCurrentUserProjectPermissions(projectId);
+  return permissions.canManageProject;
+}
+
 export async function getProject(projectId: string) {
   const supabase = await createClient();
 
@@ -246,8 +392,15 @@ export async function getProject(projectId: string) {
   // Calculate and update the project status
   if (project) {
 
-    if (project.workflow_status === "draft" && (!user || project.creator_id !== user.id)) {
-      return { error: "unauthorized", project: null };
+    if (project.workflow_status === "draft") {
+      if (!user) {
+        return { error: "unauthorized", project: null };
+      }
+
+      const canManageDraft = await canUserManageProject(supabase, project, user.id);
+      if (!canManageDraft) {
+        return { error: "unauthorized", project: null };
+      }
     }
 
 
@@ -306,7 +459,25 @@ export async function getActiveWaiverTemplate() {
       return { error: "Failed to load waiver template" };
     }
 
-    return { template: data };
+    if (data) {
+      return { template: data };
+    }
+
+    // Be resilient if no row is explicitly active yet.
+    const { data: latestTemplate, error: latestTemplateError } = await serviceSupabase
+      .from("waiver_templates")
+      .select("*")
+      .order("version", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (latestTemplateError) {
+      console.error("Error fetching latest waiver template:", latestTemplateError);
+      return { error: "Failed to load waiver template" };
+    }
+
+    return { template: latestTemplate };
   } catch (error) {
     console.error("Error fetching waiver template:", error);
     return { error: "Failed to load waiver template" };
@@ -419,6 +590,8 @@ export async function getProjectWaiver(projectId: string) {
       return { error: templateError };
     }
 
+    const resolvedTemplate = template ?? buildDefaultPlatformWaiverTemplate();
+
     return {
       waiverConfig: {
         waiverRequired: project.waiver_required ?? false,
@@ -427,7 +600,7 @@ export async function getProjectWaiver(projectId: string) {
         waiverPdfStoragePath: null,
         isProjectSpecific: false,
       },
-      template,
+      template: resolvedTemplate,
     };
   } catch (error) {
     console.error("Error fetching project waiver:", error);
@@ -441,7 +614,7 @@ export async function uploadProjectWaiverPdf(projectId: string, pdfDataUrl: stri
     const supabase = await createClient();
 
     // Check if user has permission
-    const isAllowed = await isProjectCreator(projectId);
+    const isAllowed = await canCurrentUserManageProject(projectId);
     if (!isAllowed) {
       return { error: "You don't have permission to modify this project" };
     }
@@ -520,7 +693,7 @@ export async function removeProjectWaiverPdf(projectId: string) {
     const supabase = await createClient();
 
     // Check if user has permission
-    const isAllowed = await isProjectCreator(projectId);
+    const isAllowed = await canCurrentUserManageProject(projectId);
     if (!isAllowed) {
       return { error: "You don't have permission to modify this project" };
     }
@@ -795,15 +968,20 @@ async function persistWaiverSignature(params: {
   if (waiverPdfUrl) {
     templateId = null; // Set to null when using project PDF
   } else if (templateId && templateId !== "project-pdf") {
-    // Validate template if provided and not using project PDF
-    const { data: template, error: templateError } = await serviceSupabase
-      .from("waiver_templates")
-      .select("id")
-      .eq("id", templateId)
-      .maybeSingle();
+    if (templateId === PLATFORM_DEFAULT_WAIVER_TEMPLATE_ID) {
+      // Built-in fallback template is not persisted in DB.
+      templateId = null;
+    } else {
+      // Validate template if provided and not using project PDF
+      const { data: template, error: templateError } = await serviceSupabase
+        .from("waiver_templates")
+        .select("id")
+        .eq("id", templateId)
+        .maybeSingle();
 
-    if (templateError || !template) {
-      return { error: "Invalid waiver template." };
+      if (templateError || !template) {
+        return { error: "Invalid waiver template." };
+      }
     }
   } else {
     // If no PDF and no valid template, get the active global template
@@ -817,8 +995,6 @@ async function persistWaiverSignature(params: {
 
     if (activeTemplate) {
       templateId = activeTemplate.id;
-    } else {
-      return { error: "No waiver source available. Please contact support." };
     }
   }
 
@@ -981,7 +1157,7 @@ export async function togglePauseSignups(projectId: string, pauseState: boolean)
 
   try {
     // Check if user has permission
-    const isAllowed = await isProjectCreator(projectId);
+    const isAllowed = await canCurrentUserManageProject(projectId);
 
     if (!isAllowed) {
       return { error: "You don't have permission to modify this project" };
@@ -1326,19 +1502,6 @@ export async function signUpForProject(
       const emailToCheck = (anonymousData.email ?? "").toLowerCase();
       console.log("Checking anonymous signup for email:", emailToCheck);
 
-      // First, check if a registered Let's Assist account exists with this email using efficient RPC
-      const { data: emailExists, error: rpcError } = await supabase
-        .rpc('check_email_exists', { email_to_check: emailToCheck });
-
-      if (rpcError) {
-        console.error("Error checking for existing account:", rpcError);
-        return { error: "An error occurred while checking email availability." };
-      }
-
-      if (emailExists) {
-        return { error: "This email is associated with an existing Let's Assist account. Please log in to sign up for this project." };
-      }
-
       // Check if an anonymous profile already exists for this email + project
       const { data: existingAnonProfile, error: anonLookupError } = await serviceSupabase
         .from('anonymous_signups')
@@ -1350,6 +1513,24 @@ export async function signUpForProject(
       if (anonLookupError) {
         console.error("Error checking for existing anonymous signup:", anonLookupError);
         return { error: "An error occurred while checking signup status." };
+      }
+
+      const requiresCaptchaVerification = shouldRequireAnonymousSignupCaptcha({
+        hasExistingAnonymousProfile: !!existingAnonProfile,
+        skipConfirmationEmail: skipAnonymousConfirmationEmail,
+      });
+
+      // First, check if a registered Let's Assist account exists with this email using efficient RPC
+      const { data: emailExists, error: rpcError } = await supabase
+        .rpc('check_email_exists', { email_to_check: emailToCheck });
+
+      if (rpcError) {
+        console.error("Error checking for existing account:", rpcError);
+        return { error: "An error occurred while checking email availability." };
+      }
+
+      if (emailExists) {
+        return { error: "This email is associated with an existing Let's Assist account. Please log in to sign up for this project." };
       }
 
       // If profile exists, check if THIS specific slot already has a signup
@@ -1403,6 +1584,14 @@ export async function signUpForProject(
           }
 
           shouldReuseExistingAnonymousWaiver = true;
+        }
+
+        if (requiresCaptchaVerification) {
+          const captchaValidation = await validateAnonymousSignupCaptcha(anonymousData.captchaToken);
+
+          if ("error" in captchaValidation) {
+            return { error: captchaValidation.error };
+          }
         }
 
         // Reuse the existing anonymous profile for a new slot signup
@@ -1494,6 +1683,14 @@ export async function signUpForProject(
       } else {
         if (project.waiver_required && !waiverSignature) {
           return { error: "This project requires a waiver signature before signing up." };
+        }
+
+        if (requiresCaptchaVerification) {
+          const captchaValidation = await validateAnonymousSignupCaptcha(anonymousData.captchaToken);
+
+          if ("error" in captchaValidation) {
+            return { error: captchaValidation.error };
+          }
         }
 
         // No existing profile — create a new anonymous profile + project signup
@@ -2183,11 +2380,11 @@ export async function updateProject(projectId: string, updates: Partial<Project>
     // Verify project ownership
     const { data: project } = await supabase
       .from("projects")
-      .select("creator_id, recurrence_parent_id, recurrence_rule, visibility")
+      .select("creator_id, organization_id, recurrence_parent_id, recurrence_rule, visibility")
       .eq("id", projectId)
       .single();
 
-    if (!project || project.creator_id !== user.id) {
+    if (!project || !(await canUserManageProject(supabase, project, user.id))) {
       return { error: "Unauthorized" };
     }
 
@@ -2579,7 +2776,10 @@ export async function getMyWaiverSignatures(projectId: string): Promise<
  * @param anonymousSignupId - The ID of the anonymous signup record
  * @returns Object with success or error message
  */
-export async function resendAnonymousConfirmationEmail(anonymousSignupId: string): Promise<{ success?: boolean; error?: string }> {
+export async function resendAnonymousConfirmationEmail(
+  anonymousSignupId: string,
+  captchaToken?: string,
+): Promise<{ success?: boolean; error?: string }> {
   const supabase = await createClient();
 
   try {
@@ -2603,6 +2803,12 @@ export async function resendAnonymousConfirmationEmail(anonymousSignupId: string
     // Check if already confirmed
     if (anonSignup.confirmed_at) {
       return { error: "This signup has already been confirmed." };
+    }
+
+    const captchaValidation = await validateAnonymousSignupCaptcha(captchaToken);
+
+    if ("error" in captchaValidation) {
+      return { error: captchaValidation.error };
     }
 
     // Get project title for the email
@@ -2735,10 +2941,10 @@ export async function saveWaiverDefinition(
       return { success: false, error: "Unauthorized" };
     }
 
-    // Check if user is project creator
-    const creator = await isProjectCreator(projectId);
-    if (!creator) {
-      return { success: false, error: "Only project creator can configure waivers" };
+    // Check if user can manage the project
+    const canManageProject = await canCurrentUserManageProject(projectId);
+    if (!canManageProject) {
+      return { success: false, error: "Only project managers can configure waivers" };
     }
 
     // Get project info

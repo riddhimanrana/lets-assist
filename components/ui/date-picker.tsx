@@ -96,6 +96,23 @@ export function DatePicker({
         }
       />
       <PopoverContent className="w-auto p-0" align="start">
+        {/* Quick action: Today button */}
+        <div className="border-b p-2 bg-muted/50">
+          <Button
+            size="sm"
+            variant="ghost"
+            className="w-full justify-start text-xs"
+            onClick={() => {
+              const today = new Date();
+              // Check if today is within the valid date range
+              if (!disabledDateMatcher(today)) {
+                handleSelect(today);
+              }
+            }}
+          >
+            Today
+          </Button>
+        </div>
         <Calendar
           mode="single"
           selected={selectedDate}

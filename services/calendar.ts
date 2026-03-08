@@ -278,6 +278,7 @@ function formatProjectToCalendarEvent(
     project.schedule.multiDay.forEach((day, _dayIndex) => {
       day.slots.forEach((slot, slotIndex) => {
         const currentScheduleId = `${day.date}-${slotIndex}`;
+        const slotName = slot.name?.trim();
         
         // If scheduleId is provided, only create event for that specific slot
         if (scheduleId && scheduleId !== currentScheduleId) {
@@ -286,6 +287,7 @@ function formatProjectToCalendarEvent(
 
         events.push({
           ...baseEvent,
+          summary: slotName ? `${project.title} - ${slotName}` : baseEvent.summary,
           start: {
             dateTime: parseDateTime(day.date, slot.startTime, projectTimezone),
             timeZone: projectTimezone,

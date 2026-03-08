@@ -13,6 +13,11 @@ interface PageProps {
   searchParams: Promise<{ token?: string }>;
 }
 
+type LinkedAccountSnapshot = {
+  email: string | null;
+  isVerified: boolean;
+};
+
 export default async function AnonymousSignupPage({
   params,
   searchParams,
@@ -82,6 +87,22 @@ export default async function AnonymousSignupPage({
 
   const { name, email, phone_number, confirmed_at, created_at, linked_user_id } = signupData;
 
+  let linkedAccountSnapshot: LinkedAccountSnapshot | null = null;
+
+  if (linked_user_id) {
+    const { data: linkedUserData, error: linkedUserError } = await admin.auth.admin.getUserById(linked_user_id);
+
+    if (linkedUserError) {
+      console.error("Error fetching linked account details:", linkedUserError);
+    } else if (linkedUserData?.user) {
+      const linkedUser = linkedUserData.user;
+      linkedAccountSnapshot = {
+        email: linkedUser.email ?? null,
+        isVerified: Boolean(linkedUser.email_confirmed_at || linkedUser.phone_confirmed_at),
+      };
+    }
+  }
+
   // Map signup data for the client component
   const slots = projectSignups.map((ps: { id: string; status: string; schedule_id: string; check_in_time: string | null; check_out_time: string | null; volunteer_comment: string | null }) => ({
     project_signup_id: ps.id,
@@ -124,6 +145,8 @@ export default async function AnonymousSignupPage({
       isProjectCancelled={isProjectCancelled}
       slots={slots}
       linkedUserId={linked_user_id}
+      linkedAccountEmail={linkedAccountSnapshot?.email ?? null}
+      linkedAccountVerified={linkedAccountSnapshot?.isVerified ?? false}
       certificateIds={certificateIds}
     />
   );

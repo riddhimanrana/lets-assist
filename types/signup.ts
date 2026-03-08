@@ -7,6 +7,7 @@ export interface AnonymousSignupData {
   email: string;
   phone?: string;
   comment?: string;
+  captchaToken?: string;
   skipConfirmationEmail?: boolean;
   selectedSlotCount?: number;
 }

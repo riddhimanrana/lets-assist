@@ -155,7 +155,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, canUse
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [_lastAutosaveTime, setLastAutosaveTime] = useState<Date | null>(null);
 
-  type AIScheduleSlot = { startTime: string; endTime: string; volunteers: number };
+  type AIScheduleSlot = { name?: string; startTime: string; endTime: string; volunteers: number };
   type AIScheduleDay = { date: string; slots?: AIScheduleSlot[] };
   type AIScheduleRole = { name: string; startTime: string; endTime: string; volunteers: number };
   type AIScheduleSameDay = { date: string; overallStart?: string; overallEnd?: string; roles?: AIScheduleRole[] };
@@ -327,11 +327,13 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, canUse
             if (Array.isArray(day.slots)) {
               day.slots.forEach((slot, slotIndex) => {
                 if (slotIndex === 0) {
+                  handleMultiDayScheduleUpdate(0, 'name', slot.name || '', 0);
                   handleMultiDayScheduleUpdate(0, 'startTime', slot.startTime, 0);
                   handleMultiDayScheduleUpdate(0, 'endTime', slot.endTime, 0);
                   handleMultiDayScheduleUpdate(0, 'volunteers', slot.volunteers, 0);
                 } else {
                   addMultiDaySlot(0);
+                  handleMultiDayScheduleUpdate(0, 'name', slot.name || '', slotIndex);
                   handleMultiDayScheduleUpdate(0, 'startTime', slot.startTime, slotIndex);
                   handleMultiDayScheduleUpdate(0, 'endTime', slot.endTime, slotIndex);
                   handleMultiDayScheduleUpdate(0, 'volunteers', slot.volunteers, slotIndex);
@@ -344,11 +346,13 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, canUse
             if (Array.isArray(day.slots)) {
               day.slots.forEach((slot, slotIndex) => {
                 if (slotIndex === 0) {
+                  handleMultiDayScheduleUpdate(dayIndex, 'name', slot.name || '', 0);
                   handleMultiDayScheduleUpdate(dayIndex, 'startTime', slot.startTime, 0);
                   handleMultiDayScheduleUpdate(dayIndex, 'endTime', slot.endTime, 0);
                   handleMultiDayScheduleUpdate(dayIndex, 'volunteers', slot.volunteers, 0);
                 } else {
                   addMultiDaySlot(dayIndex);
+                  handleMultiDayScheduleUpdate(dayIndex, 'name', slot.name || '', slotIndex);
                   handleMultiDayScheduleUpdate(dayIndex, 'startTime', slot.startTime, slotIndex);
                   handleMultiDayScheduleUpdate(dayIndex, 'endTime', slot.endTime, slotIndex);
                   handleMultiDayScheduleUpdate(dayIndex, 'volunteers', slot.volunteers, slotIndex);

@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { getActiveProjects } from "../../home/actions";
-import { createClient } from "@/lib/supabase/server";
-import type { ProjectStatus } from "@/types";
+import type { Project, ProjectStatus } from "@/types";
 
 // export const runtime = "edge"; // run on edge runtime - incompatible with cacheComponents
 
@@ -10,12 +9,13 @@ export async function GET(request: Request) {
   const limit = parseInt(searchParams.get("limit") || "20", 10);
   const offset = parseInt(searchParams.get("offset") || "0", 10);
   const status = (searchParams.get("status") || "upcoming") as ProjectStatus; // Default to upcoming projects
+  const searchTerm = searchParams.get("search")?.trim() || undefined;
+  const eventType = searchParams.get("eventType")?.trim() || undefined;
 
-  // Get current user to check permissions
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const projects = await getActiveProjects(limit, offset, status, undefined, undefined, {
+    searchTerm,
+    eventType: eventType as Project["event_type"] | undefined,
+  });
 
-  // Pass user and status parameters to getActiveProjects function
-  const projects = await getActiveProjects(limit, offset, status, undefined, user?.id);
   return NextResponse.json(projects);
 }

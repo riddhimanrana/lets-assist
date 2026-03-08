@@ -6,6 +6,11 @@ import { Project, Organization, Signup } from '@/types';
 import { AuthUser } from '@/lib/supabase/types';
 import type { ProjectCreatorProfileRecord } from '@/lib/profile/public';
 
+type CreatorDashboardSignupSummary = Pick<
+  Signup,
+  "id" | "schedule_id" | "status" | "check_in_time"
+>;
+
 // Define Props interface
 interface Props {
   project: Project;
@@ -17,12 +22,14 @@ interface Props {
     userSignups: Record<string, boolean>;
     rejectedSlots: Record<string, boolean>;
     attendedSlots: Record<string, boolean>; // Add the missing attendedSlots property
+    pendingSlots: Record<string, boolean>;
   };
   initialIsCreator: boolean;
+  initialCanManageProject: boolean;
   initialUser: AuthUser | null;
   // Add prop for full signup data
   userSignupsData: Signup[]; 
-  allSignups?: any[];
+  allSignups?: CreatorDashboardSignupSummary[];
 }
 
 export default function ProjectClient({
@@ -31,6 +38,7 @@ export default function ProjectClient({
   organization,
   initialSlotData,
   initialIsCreator,
+  initialCanManageProject,
   initialUser,
   // Destructure the new prop
   userSignupsData, 
@@ -43,6 +51,7 @@ export default function ProjectClient({
       organization={organization}
       initialSlotData={initialSlotData}
       initialIsCreator={initialIsCreator}
+      initialCanManageProject={initialCanManageProject}
       initialUser={initialUser}
       // Pass the signup data down
       userSignupsData={userSignupsData} 

@@ -1,11 +1,7 @@
 import { getAdminClient } from "@/lib/supabase/admin";
+import { type StaffInviteOutcome } from "@/lib/organization/staff-invite-outcome";
 
-export type StaffInviteOutcome =
-  | { status: "success"; orgUsername: string }
-  | { status: "invalid_token"; orgUsername: string }
-  | { status: "expired_token"; orgUsername: string }
-  | { status: "org_not_found"; orgUsername: string }
-  | { status: "error"; orgUsername: string };
+export type { StaffInviteOutcome } from "@/lib/organization/staff-invite-outcome";
 
 type AdminClient = ReturnType<typeof getAdminClient>;
 
@@ -31,7 +27,7 @@ export async function applyStaffInviteForUser(
   try {
     const { data: org, error: orgError } = await adminClient
       .from("organizations")
-      .select("id, staff_join_token, staff_join_token_expires_at")
+      .select("id, name, username, staff_join_token, staff_join_token_expires_at")
       .eq("username", orgUsername)
       .single();
 
@@ -40,12 +36,20 @@ export async function applyStaffInviteForUser(
     }
 
     if (org.staff_join_token !== staffToken) {
-      return { status: "invalid_token", orgUsername };
+      return {
+        status: "invalid_token",
+        orgUsername: org.username,
+        orgName: org.name,
+      };
     }
 
     const expiresAt = org.staff_join_token_expires_at;
     if (!expiresAt || new Date(expiresAt).getTime() < now.getTime()) {
-      return { status: "expired_token", orgUsername };
+      return {
+        status: "expired_token",
+        orgUsername: org.username,
+        orgName: org.name,
+      };
     }
 
     const { error: memberError } = await adminClient
@@ -58,12 +62,20 @@ export async function applyStaffInviteForUser(
       });
 
     if (!memberError) {
-      return { status: "success", orgUsername };
+      return {
+        status: "success",
+        orgUsername: org.username,
+        orgName: org.name,
+      };
     }
 
     if (memberError.code !== "23505") {
       console.error(`Error adding staff member to org ${org.id}:`, memberError);
-      return { status: "error", orgUsername };
+      return {
+        status: "error",
+        orgUsername: org.username,
+        orgName: org.name,
+      };
     }
 
     // Duplicate membership exists: upgrade member -> staff, but never downgrade admin/staff
@@ -76,7 +88,11 @@ export async function applyStaffInviteForUser(
 
     if (queryError || !existingMembership) {
       console.error(`Error querying existing membership for org ${org.id}:`, queryError);
-      return { status: "error", orgUsername };
+      return {
+        status: "error",
+        orgUsername: org.username,
+        orgName: org.name,
+      };
     }
 
     if (existingMembership.role === "member") {
@@ -88,11 +104,19 @@ export async function applyStaffInviteForUser(
 
       if (updateError) {
         console.error(`Error updating membership role to staff for org ${org.id}:`, updateError);
-        return { status: "error", orgUsername };
+        return {
+          status: "error",
+          orgUsername: org.username,
+          orgName: org.name,
+        };
       }
     }
 
-    return { status: "success", orgUsername };
+    return {
+      status: "success",
+      orgUsername: org.username,
+      orgName: org.name,
+    };
   } catch (error) {
     console.error("Error processing staff invite:", error);
     return { status: "error", orgUsername };

@@ -175,7 +175,7 @@ function initializeScheduleState(project: Project) {
         endTime: project.schedule.oneTime.endTime,
         volunteers: project.schedule.oneTime.volunteers,
       },
-      multiDay: [{ date: "", slots: [{ startTime: "", endTime: "", volunteers: 0 }] }],
+      multiDay: [{ date: "", slots: [{ name: "", startTime: "", endTime: "", volunteers: 0 }] }],
       sameDayMultiArea: {
         date: "",
         overallStart: "",
@@ -189,6 +189,7 @@ function initializeScheduleState(project: Project) {
       multiDay: project.schedule.multiDay.map(day => ({
         date: day.date,
         slots: day.slots.map(slot => ({
+          name: slot.name || "",
           startTime: slot.startTime,
           endTime: slot.endTime,
           volunteers: slot.volunteers,
@@ -204,7 +205,7 @@ function initializeScheduleState(project: Project) {
   } else if (eventType === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
     return {
       oneTime: { date: "", startTime: "", endTime: "", volunteers: 0 },
-      multiDay: [{ date: "", slots: [{ startTime: "", endTime: "", volunteers: 0 }] }],
+      multiDay: [{ date: "", slots: [{ name: "", startTime: "", endTime: "", volunteers: 0 }] }],
       sameDayMultiArea: {
         date: project.schedule.sameDayMultiArea.date,
         overallStart: project.schedule.sameDayMultiArea.overallStart,
@@ -221,7 +222,7 @@ function initializeScheduleState(project: Project) {
 
   return {
     oneTime: { date: "", startTime: "", endTime: "", volunteers: 0 },
-    multiDay: [{ date: "", slots: [{ startTime: "", endTime: "", volunteers: 0 }] }],
+    multiDay: [{ date: "", slots: [{ name: "", startTime: "", endTime: "", volunteers: 0 }] }],
     sameDayMultiArea: {
       date: "",
       overallStart: "",
@@ -428,7 +429,7 @@ export default function EditProjectClient({ project }: Props) {
   const addMultiDaySlot = (dayIndex: number) => {
     setScheduleState(prev => {
       const newMultiDay = [...prev.multiDay];
-      newMultiDay[dayIndex].slots.push({ startTime: "", endTime: "", volunteers: 0 });
+      newMultiDay[dayIndex].slots.push({ name: "", startTime: "", endTime: "", volunteers: 0 });
       return { ...prev, multiDay: newMultiDay };
     });
   };
@@ -436,7 +437,7 @@ export default function EditProjectClient({ project }: Props) {
   const addMultiDayEvent = () => {
     setScheduleState(prev => ({
       ...prev,
-      multiDay: [...prev.multiDay, { date: "", slots: [{ startTime: "", endTime: "", volunteers: 0 }] }]
+      multiDay: [...prev.multiDay, { date: "", slots: [{ name: "", startTime: "", endTime: "", volunteers: 0 }] }]
     }));
   };
 
@@ -1126,7 +1127,7 @@ export default function EditProjectClient({ project }: Props) {
                 <Field className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-lg border p-4" data-invalid={fieldState.invalid}>
                   <div className="space-y-0.5 min-w-0">
                     <FieldLabel htmlFor={field.name}>Require Account</FieldLabel>
-                    <FieldDescription className="break-words">
+                    <FieldDescription className="wrap-break-word">
                       Require volunteers to create an account to sign up
                     </FieldDescription>
                   </div>
@@ -1148,7 +1149,7 @@ export default function EditProjectClient({ project }: Props) {
                 <Field className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-lg border p-4" data-invalid={fieldState.invalid}>
                   <div className="space-y-0.5 min-w-0">
                     <FieldLabel htmlFor={field.name}>Require Waiver Signature</FieldLabel>
-                    <FieldDescription className="break-words">
+                    <FieldDescription className="wrap-break-word">
                       Volunteers must sign your waiver PDF or the global template before signing up.
                     </FieldDescription>
                   </div>
@@ -1170,7 +1171,7 @@ export default function EditProjectClient({ project }: Props) {
                 <Field className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-lg border p-4" data-invalid={fieldState.invalid}>
                   <div className="space-y-0.5 min-w-0">
                     <FieldLabel htmlFor={field.name}>Enable E-Signatures</FieldLabel>
-                    <FieldDescription className="break-words">
+                    <FieldDescription className="wrap-break-word">
                       Let volunteers draw or type signatures. Print &amp; upload remains available as a backup.
                     </FieldDescription>
                   </div>
@@ -1193,7 +1194,7 @@ export default function EditProjectClient({ project }: Props) {
                 <Field className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-lg border p-4" data-invalid={fieldState.invalid}>
                   <div className="space-y-0.5 min-w-0">
                     <FieldLabel htmlFor={field.name}>Print &amp; Upload (Backup)</FieldLabel>
-                    <FieldDescription className="break-words">
+                    <FieldDescription className="wrap-break-word">
                       Print &amp; upload is always available as a backup option for volunteers.
                     </FieldDescription>
                   </div>
@@ -1326,7 +1327,7 @@ export default function EditProjectClient({ project }: Props) {
                 {!(waiverPdfUrl || project.waiver_pdf_url) && (
                   <Alert className="bg-info/20 border-info">
                     <AlertDescription className="text-xs text-info">
-                      If you don&apos;t upload a custom waiver, the global platform waiver template will be used instead.
+                      If you don&apos;t upload a custom waiver, we&apos;ll use the active global platform waiver template (or the default Let&apos;s Assist waiver if none is configured yet).
                     </AlertDescription>
                   </Alert>
                 )}
@@ -1340,7 +1341,7 @@ export default function EditProjectClient({ project }: Props) {
                 <Field className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-lg border p-4" data-invalid={fieldState.invalid}>
                   <div className="space-y-0.5 min-w-0">
                     <FieldLabel htmlFor={field.name}>Enable Volunteer Comments</FieldLabel>
-                    <FieldDescription className="break-words">
+                    <FieldDescription className="wrap-break-word">
                       Allow volunteers to include a short note when signing up
                     </FieldDescription>
                   </div>
@@ -1362,7 +1363,7 @@ export default function EditProjectClient({ project }: Props) {
                 <Field className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-lg border p-4" data-invalid={fieldState.invalid}>
                   <div className="space-y-0.5 min-w-0">
                     <FieldLabel htmlFor={field.name}>Show Attendees Publicly</FieldLabel>
-                    <FieldDescription className="break-words">
+                    <FieldDescription className="wrap-break-word">
                       Display attendee count on the public project page
                     </FieldDescription>
                   </div>

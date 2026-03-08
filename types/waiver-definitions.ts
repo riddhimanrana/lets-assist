@@ -189,6 +189,25 @@ export interface SignerData {
   signer_email?: string;
 }
 
+/**
+ * Lightweight signer summary for list/detail UIs.
+ *
+ * This intentionally excludes raw signature `data`, which is only needed for
+ * PDF generation and should not be fetched for every organizer signup row.
+ */
+export interface SignaturePreviewSigner {
+  role_key: string;
+  method: SignerData['method'];
+  timestamp: string;
+  signer_name?: string;
+  signer_email?: string;
+}
+
+export interface SignaturePreviewSummary {
+  signerCount: number;
+  signers: SignaturePreviewSigner[];
+}
+
 // ============================================================================
 // API/Form Types
 // ============================================================================

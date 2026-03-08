@@ -35,6 +35,7 @@ interface ProjectCardProps {
     topLeftBadge?: React.ReactNode;
     className?: string;
     footerContent?: React.ReactNode;
+    showIdentity?: boolean;
 }
 
 export function ProjectCard({
@@ -45,6 +46,7 @@ export function ProjectCard({
     topLeftBadge,
     className,
     footerContent,
+    showIdentity = true,
 }: ProjectCardProps) {
     const dateDisplay = formatDateDisplay(project as unknown as Project);
 
@@ -53,7 +55,7 @@ export function ProjectCard({
         <Card className={cn("overflow-hidden flex flex-col h-full py-0 gap-0 dark:ring-0 dark:shadow-md ", className)}>
             <CardHeader className="p-4 pb-2 space-y-3">
                 <div className="flex justify-between items-start gap-2">
-                    <div className="flex-shrink-0">
+                    <div className="shrink-0">
                         {topLeftBadge}
                     </div>
                     <Badge variant="outline" className="text-xs whitespace-nowrap z-10 shrink-0">
@@ -65,29 +67,31 @@ export function ProjectCard({
                 </h3>
             </CardHeader>
 
-            <CardContent className="p-4 pt-2 flex-grow space-y-4">
+            <CardContent className="p-4 pt-2 grow space-y-4">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <MapPin className="h-3.5 w-3.5 shrink-0" />
                     <span className="truncate">{project.location}</span>
                 </div>
 
-                <div className="flex items-center gap-2 pt-1">
-                    <Avatar className="h-6 w-6 ring-1 ring-border/50">
-                        <AvatarImage
-                            src={project.organization?.logo_url || project.creator?.avatar_url || ""}
-                            alt={project.organization?.name || project.creator?.full_name || ""}
-                        />
-                        <AvatarFallback>
-                            <NoAvatar
-                                className="text-[10px]"
-                                fullName={project.organization?.name || project.creator?.full_name || ""}
+                {showIdentity && (
+                    <div className="flex items-center gap-2 pt-1">
+                        <Avatar className="h-6 w-6 ring-1 ring-border/50">
+                            <AvatarImage
+                                src={project.organization?.logo_url || project.creator?.avatar_url || ""}
+                                alt={project.organization?.name || project.creator?.full_name || ""}
                             />
-                        </AvatarFallback>
-                    </Avatar>
-                    <span className="text-xs font-medium truncate text-muted-foreground">
-                        {project.organization?.name || project.creator?.full_name || "Anonymous"}
-                    </span>
-                </div>
+                            <AvatarFallback>
+                                <NoAvatar
+                                    className="text-[10px]"
+                                    fullName={project.organization?.name || project.creator?.full_name || ""}
+                                />
+                            </AvatarFallback>
+                        </Avatar>
+                        <span className="text-xs font-medium truncate text-muted-foreground">
+                            {project.organization?.name || project.creator?.full_name || "Anonymous"}
+                        </span>
+                    </div>
+                )}
 
                 {footerContent}
             </CardContent>

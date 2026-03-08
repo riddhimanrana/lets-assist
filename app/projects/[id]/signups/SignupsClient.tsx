@@ -13,6 +13,7 @@ import {
   formatDateForDisplay,
   ProjectScheduleTime
 } from "@/utils/timezone";
+import { getMultiDaySlotDisplayName } from "@/utils/project";
 import Link from "next/link";
 import {
   Card,
@@ -140,7 +141,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
       <style>
         @media print {
         body > *:not(#print-container) { display: none !important; }
-        #print-container { display: block !important; font-family: Arial, sans-serif; margin: 10px; color: black !important; }
+        #print-container { display: block !important; font-family: Arial, sans-serif; margin: 10px; }
         h1 { font-size: 18px; margin-bottom: 5px; }
         h2 { font-size: 14px; margin: 10px 0 5px; }
         table { width: 100%; border-collapse: collapse; margin: 5px 0; }
@@ -560,8 +561,9 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
 
             const dateDisplay = formatDateForDisplay(scheduleTime.date);
             const timeDisplay = formatScheduleDisplay(scheduleTime, projectTimezone, undefined, true);
+            const slotLabel = getMultiDaySlotDisplayName(slot, slotIdx);
 
-            return `${dateDisplay} from ${timeDisplay}`;
+            return `${dateDisplay} - ${slotLabel} (${timeDisplay})`;
           }
         }
       }
@@ -779,6 +781,10 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
                     const waiverSignature = Array.isArray(signup.waiver_signature)
                       ? signup.waiver_signature[0]
                       : signup.waiver_signature;
+                    const multiSignerCount =
+                      waiverSignature?.signature_summary?.signerCount ??
+                      waiverSignature?.signature_payload?.signers?.length ??
+                      0;
 
                     return (
                       <TableRow key={signup.id}>
@@ -827,8 +833,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
                               <div className="flex items-center gap-2">
                                 <Badge variant="outline" className="text-xs">
                                   Signed
-                                  {waiverSignature.signature_payload?.signers && waiverSignature.signature_payload.signers.length > 1 && 
-                                   ` (${waiverSignature.signature_payload.signers.length})`}
+                                  {multiSignerCount > 1 && ` (${multiSignerCount})`}
                                 </Badge>
                                 <DropdownMenu>
                                   <DropdownMenuTrigger render={

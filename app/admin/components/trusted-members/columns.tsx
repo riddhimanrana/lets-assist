@@ -1,10 +1,10 @@
 "use client";
 
 import { ColumnDef } from "@tanstack/react-table";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Check, X } from "lucide-react";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { NoAvatar } from "@/components/shared/NoAvatar";
 import { ProfileHoverCard } from "@/components/shared/ProfileHoverCard";
 import { format } from "date-fns";
@@ -54,25 +54,13 @@ export const columns: ColumnDef<TrustedMember>[] = [
                 >
                     <div className="flex items-center gap-3 py-1 cursor-pointer">
                         <Avatar className="h-10 w-10">
-                            {member.profiles?.avatar_url ? (
-                                <>
-                                    <AvatarImage src={member.profiles.avatar_url} />
-                                    <AvatarFallback>
-                                        {member.profiles?.full_name
-                                            ? member.profiles.full_name
-                                                  .split(" ")
-                                                  .map((n) => n[0])
-                                                  .slice(0, 2)
-                                                  .join("")
-                                                  .toUpperCase()
-                                            : (member.name || member.email || "")[0]?.toUpperCase()}
-                                    </AvatarFallback>
-                                </>
-                            ) : (
-                                <AvatarFallback>
-                                    <NoAvatar fullName={member.profiles?.full_name || member.name || member.email.split("@")[0]} />
-                                </AvatarFallback>
-                            )}
+                          <AvatarImage
+                            src={member.profiles?.avatar_url || undefined}
+                            alt={member.profiles?.full_name || member.name}
+                          />
+                          <AvatarFallback>
+                            <NoAvatar fullName={member.profiles?.full_name || member.name || member.email.split("@")[0]} />
+                          </AvatarFallback>
                         </Avatar>
                         <div className="min-w-0">
                             <div className="font-semibold truncate">

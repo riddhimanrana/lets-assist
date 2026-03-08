@@ -4,7 +4,8 @@ import * as React from "react";
 import { Check, ChevronsUpDown, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { NoAvatar } from "@/components/shared/NoAvatar";
 import {
     Command,
     CommandEmpty,
@@ -83,8 +84,13 @@ export function UserSearch({ onSelect, selectedUserId, className }: UserSearchPr
                         <>
                             {selectedAvatar && (
                                 <Avatar className="h-6 w-6">
-                                    <AvatarImage src={selectedAvatar} />
-                                    <AvatarFallback>{selectedLabel?.charAt(0)}</AvatarFallback>
+                                    <AvatarImage
+                                        src={selectedAvatar}
+                                        alt={selectedLabel || "Selected User"}
+                                    />
+                                    <AvatarFallback>
+                                        <NoAvatar fullName={selectedLabel} />
+                                    </AvatarFallback>
                                 </Avatar>
                             )}
                             <div className="flex flex-col">
@@ -133,8 +139,13 @@ export function UserSearch({ onSelect, selectedUserId, className }: UserSearchPr
                                             />
                                             <div className="flex items-center gap-2 w-full">
                                                 <Avatar className="h-8 w-8">
-                                                    <AvatarImage src={item.avatar_url} />
-                                                    <AvatarFallback>{item.label.charAt(0)}</AvatarFallback>
+                                                    <AvatarImage
+                                                        src={item.avatar_url}
+                                                        alt={item.label}
+                                                    />
+                                                    <AvatarFallback>
+                                                        <NoAvatar fullName={item.label} />
+                                                    </AvatarFallback>
                                                 </Avatar>
                                                 <div className="flex flex-col">
                                                     <span>{item.label}</span>

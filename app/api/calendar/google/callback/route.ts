@@ -8,6 +8,10 @@ import { NextResponse } from "next/server";
 import { encrypt } from "@/lib/encryption";
 import { ensureOrganizationCalendar } from "@/services/calendar";
 import { getAdminClient } from "@/lib/supabase/admin";
+import {
+  pickBestExistingGoogleConnection,
+  type ExistingGoogleConnection,
+} from "./connection-selection";
 
 export async function GET(request: Request) {
   try {
@@ -110,7 +114,12 @@ export async function GET(request: Request) {
     // Determine connection type based on granted scopes
     const hasSheetsScopes = grantedScopes && grantedScopes.includes("spreadsheets");
     const hasCalendarScopes = grantedScopes && grantedScopes.includes("calendar");
-    const connectionType = hasSheetsScopes && hasCalendarScopes ? "both" : hasSheetsScopes ? "sheets" : "calendar";
+    const connectionType: "calendar" | "sheets" | "both" =
+      hasSheetsScopes && hasCalendarScopes
+        ? "both"
+        : hasSheetsScopes
+          ? "sheets"
+          : "calendar";
 
     // Get user's email from Google
     const userInfoResponse = await fetch(
@@ -136,24 +145,23 @@ export async function GET(request: Request) {
     // Calculate token expiry
     const expiresAt = new Date(Date.now() + tokens.expires_in * 1000);
 
-    // Check if user already has any active Google connection
-    const { data: existingConnection } = (await supabase
+    // Check if user already has any Google connection, including inactive rows.
+    // This preserves stored preferences (e.g., volunteering_calendar_id)
+    // when users disconnect and later reconnect.
+    const { data: existingConnections } = (await supabase
       .from("user_calendar_connections")
-      .select("id, refresh_token, connection_type")
+      .select("id, refresh_token, connection_type, updated_at, connected_at")
       .eq("user_id", userId)
       .eq("provider", "google")
-      .eq("is_active", true)
       .order("updated_at", { ascending: false })
-      .limit(1)
-      .maybeSingle()) as {
-      data:
-        | {
-            id: string;
-            refresh_token: string | null;
-            connection_type: string;
-          }
-        | null;
+      .order("connected_at", { ascending: false })) as {
+      data: ExistingGoogleConnection[] | null;
     };
+
+    const existingConnection = pickBestExistingGoogleConnection(
+      existingConnections,
+      connectionType
+    );
 
     const encryptedAccessToken = encrypt(tokens.access_token);
     const encryptedRefreshToken = tokens.refresh_token
