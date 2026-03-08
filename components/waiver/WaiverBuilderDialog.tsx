@@ -10,6 +10,11 @@ import { PdfViewerWithOverlay, CustomPlacement } from "./PdfViewerWithOverlay";
 import { SignerRolesEditor, WaiverDefinitionSignerInput } from "./SignerRolesEditor";
 import { FieldListPanel, FieldMapping } from "./FieldListPanel";
 import { SignaturePlacementsEditor } from "./SignaturePlacementsEditor";
+import {
+  ensureRectMeetsFieldMinimums,
+  normalizeCustomPlacementFieldType,
+  resizeRectToFieldType,
+} from "@/lib/waiver/custom-field-config";
 import { toast } from "sonner";
 import { SignerData, WaiverDefinitionFull, WaiverFieldType } from "@/types/waiver-definitions";
 import { useMediaQuery } from "@/hooks/use-media-query";
@@ -19,20 +24,6 @@ import {
   ResizablePanel,
   ResizableHandle,
 } from "@/components/ui/resizable";
-
-const SUPPORTED_CUSTOM_FIELD_TYPES: ReadonlyArray<WaiverFieldType> = [
-  'signature',
-  'initial',
-  'name',
-  'date',
-  'email',
-  'phone',
-  'address',
-  'checkbox',
-  'text',
-  'radio',
-  'dropdown',
-];
 
 const SAMPLE_FIELD_TEXT: Record<WaiverFieldType, string | boolean> = {
   signature: 'Alex Johnson',
@@ -47,12 +38,6 @@ const SAMPLE_FIELD_TEXT: Record<WaiverFieldType, string | boolean> = {
   radio: 'Option A',
   dropdown: 'Option A',
 };
-
-function normalizeCustomFieldType(fieldType: string): WaiverFieldType {
-  return SUPPORTED_CUSTOM_FIELD_TYPES.includes(fieldType as WaiverFieldType)
-    ? (fieldType as WaiverFieldType)
-    : 'text';
-}
 
 function hydrateMappingForDetectedField(
   detectedField: DetectedPdfField,
@@ -395,7 +380,7 @@ export function WaiverBuilderDialog({
       initialCustomPlacements = (existingDraftDefinition.fields?.custom ?? []).map((placement) => ({
         ...placement,
         fieldKey: placement.fieldKey || placement.id,
-        fieldType: normalizeCustomFieldType(placement.fieldType),
+        fieldType: normalizeCustomPlacementFieldType(placement.fieldType),
       }));
     } else if (existingDefinition) {
       const loadedSigners = existingDefinition.signers
@@ -434,7 +419,7 @@ export function WaiverBuilderDialog({
               fieldKey: f.field_key,
               label: f.label,
               signerRoleKey: f.signer_role_key,
-              fieldType: normalizeCustomFieldType(f.field_type),
+              fieldType: normalizeCustomPlacementFieldType(f.field_type),
               required: f.required,
               pageIndex: f.page_index,
               rect: f.rect,
@@ -527,7 +512,7 @@ export function WaiverBuilderDialog({
       fieldType: 'text',
       required: false,
       pageIndex: placement.pageIndex,
-      rect: placement.rect,
+      rect: resizeRectToFieldType(placement.rect, 'text'),
       meta: {
         helpText: '',
         signingPurpose: '',
@@ -622,15 +607,18 @@ export function WaiverBuilderDialog({
           fieldKey: placementId,
           label: field.label,
           signerRoleKey: field.signerRole,
-          fieldType: normalizeCustomFieldType(field.fieldType),
+          fieldType: normalizeCustomPlacementFieldType(field.fieldType),
           required: field.required,
           pageIndex: field.pageIndex, // Already 0-indexed from API
-          rect: {
-            x: field.boundingBox.x,
-            y: field.boundingBox.y,
-            width: field.fieldType === 'signature' ? Math.max(field.boundingBox.width, 180) : field.boundingBox.width,
-            height: field.fieldType === 'signature' ? Math.max(field.boundingBox.height, 50) : field.boundingBox.height
-          },
+          rect: ensureRectMeetsFieldMinimums(
+            {
+              x: field.boundingBox.x,
+              y: field.boundingBox.y,
+              width: field.boundingBox.width,
+              height: field.boundingBox.height,
+            },
+            normalizeCustomPlacementFieldType(field.fieldType),
+          ),
           meta: {
             helpText: '',
             signingPurpose: '',
@@ -687,7 +675,7 @@ export function WaiverBuilderDialog({
     const values: Record<string, string | boolean | number | null | undefined> = {};
 
     detectedFields.forEach((field) => {
-      const fieldType = normalizeCustomFieldType(field.fieldType);
+      const fieldType = normalizeCustomPlacementFieldType(field.fieldType);
       if (fieldType === 'signature') return;
       values[field.fieldName] = SAMPLE_FIELD_TEXT[fieldType];
     });

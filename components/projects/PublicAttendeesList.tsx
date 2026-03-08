@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { ChevronDown, ChevronUp, Users } from "lucide-react";
 import { ProfileHoverCard } from "@/components/shared/ProfileHoverCard";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { NoAvatar } from "@/components/shared/NoAvatar";
 import { cn } from "@/lib/utils";
 
@@ -97,11 +97,12 @@ export function PublicAttendeesList({
                       !attendee.is_anonymous && "cursor-pointer hover:opacity-80"
                     )}>
                       <Avatar className="h-9 w-9">
-                        {attendee.avatar_url && !attendee.is_anonymous ? (
-                          <AvatarImage src={attendee.avatar_url} alt={displayName} />
-                        ) : null}
+                        <AvatarImage
+                          src={attendee.is_anonymous ? undefined : attendee.avatar_url}
+                          alt={displayName}
+                        />
                         <AvatarFallback>
-                          <NoAvatar fullName={displayName} className="text-sm" />
+                          <NoAvatar fullName={displayName} />
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">

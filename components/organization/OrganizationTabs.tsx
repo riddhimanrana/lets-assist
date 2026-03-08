@@ -9,6 +9,9 @@ import {
   Users,
   Folders,
   Calendar,
+  Clock3,
+  CalendarClock,
+  CheckCircle2,
   Building2,
   Globe,
   MapPin,
@@ -61,11 +64,10 @@ interface OrganizationTabsProps {
   currentUserId: string | undefined;
   reportSummary?: {
     totalHours: number;
-    verifiedHours: number;
-    pendingHours: number;
   } | null;
   organizationSlug?: string;
   organizationCreatedLabel: string;
+  canViewMembers?: boolean;
 }
 
 function LeaveOrganizationDialog({
@@ -162,6 +164,7 @@ export default function OrganizationTabs({
   reportSummary,
   organizationSlug,
   organizationCreatedLabel,
+  canViewMembers = true,
 }: OrganizationTabsProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -229,6 +232,50 @@ export default function OrganizationTabs({
   const upcomingProjects = projects.filter(p => getProjectStatus(p) === "upcoming").length;
   const completedProjects = projects.filter(p => getProjectStatus(p) === "completed").length;
   const canViewReports = userRole === "admin" || userRole === "staff";
+  const totalHours = reportSummary?.totalHours ?? 0;
+
+  const quickStats = [
+    {
+      label: "Members",
+      value: members.length.toLocaleString(),
+      helper: "Organization members",
+      icon: Users,
+      iconColor: "var(--info)",
+      borderGradient: "180deg, hsl(220 91% 54% / 0.8) 0%, hsl(220 91% 54% / 0.4) 100%",
+    },
+    {
+      label: "Total Hours",
+      value: `${totalHours.toFixed(1)}h`,
+      helper: "Verified + pending",
+      icon: Clock3,
+      iconColor: "var(--chart-8)",
+      borderGradient: "180deg, hsl(231 97% 72% / 0.8) 0%, hsl(231 97% 72% / 0.4) 100%",
+    },
+    {
+      label: "Total Projects",
+      value: projects.length.toLocaleString(),
+      helper: "All-time projects",
+      icon: Folders,
+      iconColor: "var(--chart-2)",
+      borderGradient: "180deg, hsl(173 58% 39% / 0.8) 0%, hsl(173 58% 39% / 0.4) 100%",
+    },
+    {
+      label: "Upcoming Projects",
+      value: upcomingProjects.toLocaleString(),
+      helper: "Scheduled next",
+      icon: CalendarClock,
+      iconColor: "var(--chart-6)",
+      borderGradient: "180deg, hsl(22 99% 52% / 0.8) 0%, hsl(22 99% 52% / 0.4) 100%",
+    },
+    {
+      label: "Completed Projects",
+      value: completedProjects.toLocaleString(),
+      helper: "Finished initiatives",
+      icon: CheckCircle2,
+      iconColor: "var(--success)",
+      borderGradient: "180deg, hsl(142.1 76.2% 36.3% / 0.8) 0%, hsl(142.1 76.2% 36.3% / 0.4) 100%",
+    },
+  ] as const;
 
   return (
     <Tabs
@@ -242,10 +289,12 @@ export default function OrganizationTabs({
           <LayoutDashboard className="h-4 w-4 shrink-0" />
           <span className="truncate">Overview</span>
         </TabsTrigger>
-        <TabsTrigger value="members" className="flex-1 sm:flex-none min-w-0 gap-2 px-3">
-          <Users className="h-4 w-4 shrink-0" />
-          <span className="truncate">Members</span>
-        </TabsTrigger>
+        {canViewMembers && (
+          <TabsTrigger value="members" className="flex-1 sm:flex-none min-w-0 gap-2 px-3">
+            <Users className="h-4 w-4 shrink-0" />
+            <span className="truncate">Members</span>
+          </TabsTrigger>
+        )}
         <TabsTrigger value="projects" className="flex-1 sm:flex-none min-w-0 gap-2 px-3">
           <Folders className="h-4 w-4 shrink-0" />
           <span className="truncate">Projects</span>
@@ -318,29 +367,33 @@ export default function OrganizationTabs({
               <CardTitle className="text-xl! font-bold tracking-tight">Quick Stats</CardTitle>
             </CardHeader>
             <CardContent className="text-sm">
-              <div className="grid grid-cols-2 gap-2 sm:gap-3 mb-4">
-                <div className="rounded-md border bg-muted/30 p-2.5 sm:p-3 flex flex-col items-center justify-center min-w-0">
-                  <p className="text-base sm:text-lg font-semibold leading-none truncate w-full text-center">{members.length}</p>
-                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 text-center truncate w-full">Members</p>
-                </div>
-                <div className="rounded-md border bg-muted/30 p-2.5 sm:p-3 flex flex-col items-center justify-center min-w-0">
-                  <p className="text-base sm:text-lg font-semibold leading-none truncate w-full text-center">
-                    {reportSummary?.totalHours != null ? reportSummary.totalHours.toFixed(1) : "0.0"}
-                  </p>
-                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 text-center truncate w-full">Hours</p>
-                </div>
-                <div className="rounded-md border bg-muted/30 p-2.5 sm:p-3 flex flex-col items-center justify-center min-w-0">
-                  <p className="text-base sm:text-lg font-semibold leading-none truncate w-full text-center">{upcomingProjects}</p>
-                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 text-center truncate w-full">Upcoming</p>
-                </div>
-                <div className="rounded-md border bg-muted/30 p-2.5 sm:p-3 flex flex-col items-center justify-center min-w-0">
-                  <p className="text-base sm:text-lg font-semibold leading-none truncate w-full text-center">{completedProjects}</p>
-                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 text-center truncate w-full">Completed</p>
-                </div>
-                <div className="col-span-2 rounded-md bg-primary/10 p-4 flex flex-col items-center justify-center min-w-0">
-                  <p className="text-xl sm:text-2xl font-bold text-primary leading-none truncate w-full text-center">{projects.length}</p>
-                  <p className="text-[11px] sm:text-sm font-medium text-primary mt-1 text-center truncate w-full">Total Projects</p>
-                </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-3 mb-4">
+                {quickStats.map((stat) => (
+                  <div
+                    key={stat.label}
+                    className="relative overflow-hidden rounded-lg border bg-muted/20 p-2.5 sm:p-3 transition-all hover:border-primary/40 hover:bg-muted/40"
+                  >
+                    <div 
+                      style={{ background: `linear-gradient(${stat.borderGradient})` }}
+                      className="absolute inset-x-0 top-0 h-1" 
+                    />
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-[10px] sm:text-xs font-medium text-muted-foreground leading-tight">
+                        {stat.label}
+                      </p>
+                      <stat.icon 
+                        style={{ color: stat.iconColor }}
+                        className="h-4 w-4 shrink-0" 
+                      />
+                    </div>
+                    <p className="mt-1.5 sm:mt-2 text-lg sm:text-2xl font-semibold leading-none tracking-tight">
+                      {stat.value}
+                    </p>
+                    <p className="mt-0.5 sm:mt-1 text-[9px] sm:text-xs text-muted-foreground leading-tight">
+                      {stat.helper}
+                    </p>
+                  </div>
+                ))}
               </div>
               {projects.length > 0 && (
                 <div className="mt-4 sm:mt-auto">
@@ -566,6 +619,7 @@ export default function OrganizationTabs({
           userRole={userRole}
           organizationId={organization.id}
           currentUserId={currentUserId}
+          canViewMembers={canViewMembers}
         />
       </TabsContent>
 

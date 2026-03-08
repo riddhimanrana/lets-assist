@@ -5,6 +5,7 @@ import {
   applyStaffInviteForUser,
   type StaffInviteOutcome,
 } from "@/lib/organization/staff-invite";
+import { buildStaffInviteRedirectPath } from "@/lib/organization/staff-invite-outcome";
 import {
   isRetryableAuthError,
   withRetryableAuthOperation,
@@ -15,6 +16,13 @@ import {
   isAccountBlockedStatus,
   readAccountAccessFromMetadata,
 } from "@/lib/auth/account-access";
+import {
+  buildMfaRedirectPath,
+  deriveAuthenticatorAssurance,
+  resolvePostAuthRedirectPath,
+  shouldPromptForMfaChallenge,
+  type MfaListFactorsLike,
+} from "@/lib/auth/mfa";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -101,14 +109,30 @@ export async function GET(request: Request) {
       return NextResponse.redirect(loginUrl.toString());
     }
 
-    const {
-      data: { session },
-      error: exchangeError,
-    } = exchangeResult;
+    const { error: exchangeError } = exchangeResult;
 
-    if (!exchangeError && session) {
+    if (!exchangeError) {
       try {
-        const { user } = session;
+        const {
+          data: { user },
+          error: userError,
+        } = await supabase.auth.getUser();
+
+        if (userError || !user) {
+          console.error(
+            "Authenticated user lookup failed after code exchange:",
+            userError,
+          );
+
+          if (from === "authentication") {
+            return NextResponse.redirect(
+              `${origin}/account/authentication?error=linking_failed`
+            );
+          }
+
+          return NextResponse.redirect(`${origin}/error`);
+        }
+
         const accountAccess = readAccountAccessFromMetadata(user.app_metadata ?? null);
 
         if (isAccountBlockedStatus(accountAccess.status)) {
@@ -144,6 +168,7 @@ export async function GET(request: Request) {
         }
 
         let inviteOutcome: StaffInviteOutcome | null = null;
+  let isNewAccount = false;
 
         // Handle account linking redirection for authentication page
         if (from === "authentication") {
@@ -193,6 +218,8 @@ export async function GET(request: Request) {
           .single()) as { data: Record<string, unknown> | null };
 
         if (!existingProfile) {
+          isNewAccount = true;
+
           // Get user's full name and avatar from identity data, then fallback to metadata
           const identities = (user as { identities?: Array<{ identity_data?: Record<string, unknown> }> })
             .identities;
@@ -288,37 +315,55 @@ export async function GET(request: Request) {
         }
 
         // Determine redirect path for OAuth or other flows
-        const redirectTo = redirectAfterAuth
-          ? (() => {
-              const decoded = decodeURIComponent(redirectAfterAuth);
-              try {
-                // Parse as full URL to extract pathname and search params
-                const url = new URL(decoded);
-                return url.pathname + url.search; // Include both path and query params
-              } catch {
-                // If URL parsing fails, assume it's just a path and return as-is
-                return decoded;
-              }
-            })()
-          : "/home";
+        const finalRedirectTo = inviteOutcome
+          ? buildStaffInviteRedirectPath(inviteOutcome, {
+              fallbackPath: resolvePostAuthRedirectPath(redirectAfterAuth),
+              toastPosition: isNewAccount ? "bottom-center" : undefined,
+            })
+          : resolvePostAuthRedirectPath(redirectAfterAuth);
 
-        const redirectUrl = new URL(redirectTo, origin);
-        if (inviteOutcome) {
-          redirectUrl.searchParams.set("invite_status", inviteOutcome.status);
-          redirectUrl.searchParams.set("invite_org", inviteOutcome.orgUsername);
+        const accessToken = exchangeResult.data.session?.access_token;
+
+        const [
+          { data: claimsData, error: claimsError },
+          { data: factorsData, error: factorsError },
+        ] = await Promise.all([
+          accessToken
+            ? supabase.auth.getClaims(accessToken)
+            : Promise.resolve({ data: null, error: null }),
+          supabase.auth.mfa.listFactors(),
+        ]);
+
+        if (claimsError) {
+          console.error("Claims lookup failed during auth callback:", claimsError);
         }
 
-        const finalRedirectTo = `${redirectUrl.pathname}${redirectUrl.search}`;
+        if (factorsError) {
+          console.error("MFA factor lookup failed during auth callback:", factorsError);
+        }
+
+        const factorData = (factorsData as MfaListFactorsLike | null) ?? null;
+        const assuranceData = deriveAuthenticatorAssurance(
+          typeof claimsData?.claims?.aal === "string" ? claimsData.claims.aal : null,
+          factorData,
+        );
+
+        const destinationPath = shouldPromptForMfaChallenge(
+          assuranceData,
+          factorData,
+        )
+          ? buildMfaRedirectPath(finalRedirectTo)
+          : finalRedirectTo;
 
         const forwardedHost = request.headers.get("x-forwarded-host");
         
         // Handle redirect based on environment
         if (process.env.NODE_ENV === "development") {
-          return NextResponse.redirect(`${origin}${finalRedirectTo}`);
+          return NextResponse.redirect(`${origin}${destinationPath}`);
         } else if (forwardedHost) {
-          return NextResponse.redirect(`https://${forwardedHost}${finalRedirectTo}`);
+          return NextResponse.redirect(`https://${forwardedHost}${destinationPath}`);
         } else {
-          return NextResponse.redirect(`${origin}${finalRedirectTo}`);
+          return NextResponse.redirect(`${origin}${destinationPath}`);
         }
       } catch (error) {
         console.error("Error in callback:", error);

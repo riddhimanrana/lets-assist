@@ -4,6 +4,10 @@ import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { getProject, getCreatorProfile } from "./actions";
 import { notFound } from "next/navigation";
 import { getSlotCapacities } from "@/utils/project";
+import {
+  buildVolunteerDashboardSlotState,
+  VOLUNTEER_DASHBOARD_SIGNUP_STATUSES,
+} from "@/lib/projects/volunteer-dashboard-state";
 import ProjectUnauthorized from "./ProjectUnauthorized";
 import { Signup } from "@/types";
 import VolunteerStatusCard from "@/app/projects/_components/VolunteerStatusCard";
@@ -90,6 +94,13 @@ type RejectionRow = {
   schedule_id: string;
 };
 
+type ManagerSignupRow = {
+  id: string;
+  schedule_id: string;
+  status: Signup["status"];
+  check_in_time: string | null;
+};
+
 export default async function ProjectPage({
   params,
   searchParams,
@@ -127,6 +138,18 @@ export default async function ProjectPage({
   // Get current user using getClaims() for better performance
   const { user } = await getAuthUser();
   const isCreator = user?.id === project.creator_id;
+  let canManageProject = isCreator;
+
+  if (user && project.organization_id && !canManageProject) {
+    const { data: membership } = await supabase
+      .from("organization_members")
+      .select("role")
+      .eq("organization_id", project.organization_id)
+      .eq("user_id", user.id)
+      .single();
+
+    canManageProject = membership?.role === "admin";
+  }
 
   // If redirected after check-in, render the status card
   if (checkedIn === "true" && schedule && user) {
@@ -160,9 +183,9 @@ export default async function ProjectPage({
   // Pass supabase client and project id to the updated function
   const slotCapacities = await getSlotCapacities(project, getAdminClient(), id);
 
-  // If creator, fetch all signups for the dashboard logic
-  let allSignups: any[] = [];
-  if (isCreator) {
+  // If the current user can manage the project, fetch all signups for the dashboard logic
+  let allSignups: ManagerSignupRow[] = [];
+  if (canManageProject) {
     const { data: signups } = await supabase
       .from("project_signups")
       .select("id, schedule_id, status, check_in_time")
@@ -171,38 +194,35 @@ export default async function ProjectPage({
     allSignups = signups || [];
   }
 
-  // Get user's existing signups (approved and checked-in)
+  // Get user's existing signups for dashboard + button state.
   const userSignups: Record<string, boolean> = {};
   const attendedSlots: Record<string, boolean> = {};
+  const pendingSlots: Record<string, boolean> = {};
   // Fetch full signup data for the UserDashboard
   let userSignupsData: Signup[] = [];
   if (user) {
-    // Fetch approved signups first
-    const { data: approvedSignups, error: approvedError } = (await supabase
+    const { data: relevantSignups, error: relevantSignupsError } = (await supabase
       .from("project_signups")
-      // Select all necessary fields for UserDashboard
       .select(
         "id, schedule_id, status, check_in_time, check_out_time, created_at",
       )
       .eq("project_id", project.id)
       .eq("user_id", user.id)
-      .in("status", ["approved", "attended"])) as {
+      .in("status", [...VOLUNTEER_DASHBOARD_SIGNUP_STATUSES])
+      .order("created_at", { ascending: true })) as {
       data: ApprovedSignupRow[] | null;
       error: { message: string } | null;
-    }; // Fetch both approved and attended signups
+    };
 
-    if (approvedError) {
-      console.error("Error fetching user approved signups:", approvedError);
-    } else if (approvedSignups) {
-      userSignupsData = approvedSignups as Signup[]; // Store full data
-      approvedSignups.forEach(
-        (signup: { schedule_id: string; check_in_time: string | null }) => {
-          userSignups[signup.schedule_id] = true; // Keep this for the signup button logic
-          if (signup.check_in_time) {
-            attendedSlots[signup.schedule_id] = true; // Mark attended slots
-          }
-        },
-      );
+    if (relevantSignupsError) {
+      console.error("Error fetching user dashboard signups:", relevantSignupsError);
+    } else if (relevantSignups) {
+      userSignupsData = relevantSignups as Signup[];
+
+      const dashboardState = buildVolunteerDashboardSlotState(userSignupsData);
+      Object.assign(userSignups, dashboardState.userSignups);
+      Object.assign(attendedSlots, dashboardState.attendedSlots);
+      Object.assign(pendingSlots, dashboardState.pendingSlots);
     }
   }
 
@@ -232,6 +252,7 @@ export default async function ProjectPage({
     userSignups: userSignups, // Boolean map for button state
     rejectedSlots: rejectedSlots,
     attendedSlots: attendedSlots, // Add attendedSlots to initial data
+    pendingSlots: pendingSlots,
   };
 
   // Render the Client Component, passing all necessary data as props
@@ -242,6 +263,7 @@ export default async function ProjectPage({
       organization={organization}
       initialSlotData={initialSlotData}
       initialIsCreator={isCreator}
+      initialCanManageProject={canManageProject}
       initialUser={user}
       // Pass the full signup data
       userSignupsData={userSignupsData}

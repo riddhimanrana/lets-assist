@@ -59,14 +59,24 @@ import { ProjectQRCodeModal } from "./ProjectQRCodeModal";
 import CalendarOptionsModal from "@/app/projects/_components/CalendarOptionsModal";
 import { Signup } from "@/types/signup";
 
+type CreatorDashboardSignupSummary = Pick<
+  Signup,
+  "id" | "schedule_id" | "status" | "check_in_time"
+>;
+
 interface Props {
   project: Project;
-  allSignups?: Signup[];
+  allSignups?: CreatorDashboardSignupSummary[];
+  canSyncProjectCalendar?: boolean;
 }
 
 import ProjectInstructionsModal from "./ProjectInstructionsModalWrapper";
 
-export default function CreatorDashboard({ project, allSignups = [] }: Props) {
+export default function CreatorDashboard({
+  project,
+  allSignups = [],
+  canSyncProjectCalendar = true,
+}: Props) {
   const router = useRouter();
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -81,6 +91,8 @@ export default function CreatorDashboard({ project, allSignups = [] }: Props) {
   // Auto-sync calendar on page load if user is connected and project isn't synced
   useEffect(() => {
     const autoSyncCalendar = async () => {
+      if (!canSyncProjectCalendar) return;
+
       // Only sync if not already synced
       if (isCalendarSynced) return;
 
@@ -108,7 +120,7 @@ export default function CreatorDashboard({ project, allSignups = [] }: Props) {
     };
 
     autoSyncCalendar();
-  }, [project.id, isCalendarSynced]);
+  }, [project.id, isCalendarSynced, canSyncProjectCalendar]);
 
   const handleCancelProject = async (reason: string) => {
     try {
@@ -411,7 +423,7 @@ export default function CreatorDashboard({ project, allSignups = [] }: Props) {
         <CardHeader className="pb-3">
           <div className="space-y-1">
             <div className="flex items-center justify-between gap-3">
-              <CardTitle className="text-xl sm:text-2xl">Creator Dashboard</CardTitle>
+              <CardTitle className="text-xl sm:text-2xl">Project Dashboard</CardTitle>
               <div className={cn("inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold shrink-0", statusTone)}>
                 {statusLabel}
               </div>
@@ -527,39 +539,41 @@ export default function CreatorDashboard({ project, allSignups = [] }: Props) {
                     buttonClassName="h-10 w-full justify-between px-2"
                   />
                 </div>
-                <div>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger render={
-                        <span className="w-full">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-10 w-full justify-between px-2"
-                            onClick={() => setShowCalendarModal(true)}
-                          >
-                            <span className="flex items-center gap-2">
-                              {isCalendarSynced ? (
-                                <CalendarCheck className="h-4 w-4 text-success" />
-                              ) : (
-                                <Calendar className="h-4 w-4" />
-                              )}
-                              {isCalendarSynced ? "Synced to Calendar" : "Add to Calendar"}
-                            </span>
-                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                          </Button>
-                        </span>
-                      } />
-                      <TooltipContent className="max-w-70 p-2">
-                        <p>
-                          {isCalendarSynced
-                            ? "This project is synced to your calendar. Click to manage or remove."
-                            : "Add this project to your Google Calendar or download an iCal file"}
-                        </p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
+                {canSyncProjectCalendar && (
+                  <div>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger render={
+                          <span className="w-full">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-10 w-full justify-between px-2"
+                              onClick={() => setShowCalendarModal(true)}
+                            >
+                              <span className="flex items-center gap-2">
+                                {isCalendarSynced ? (
+                                  <CalendarCheck className="h-4 w-4 text-success" />
+                                ) : (
+                                  <Calendar className="h-4 w-4" />
+                                )}
+                                {isCalendarSynced ? "Synced to Calendar" : "Add to Calendar"}
+                              </span>
+                              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                            </Button>
+                          </span>
+                        } />
+                        <TooltipContent className="max-w-70 p-2">
+                          <p>
+                            {isCalendarSynced
+                              ? "This project is synced to your calendar. Click to manage or remove."
+                              : "Add this project to your Google Calendar or download an iCal file"}
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                )}
                 {hasActiveUnpublishedSessions && project.verification_method !== 'auto' && (
                   <div>
                     <TooltipProvider>
@@ -658,39 +672,41 @@ export default function CreatorDashboard({ project, allSignups = [] }: Props) {
                 showChevron
               />
 
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger render={
-                    <span className="w-full">
-                      <Button
-                        variant="outline"
-                        className={`h-10 w-full justify-between gap-2 bg-background/60 shadow-none ${isCalendarSynced
-                          ? "bg-success/10 hover:bg-success/20 border-success/80"
-                          : ""
-                          }`}
-                        onClick={() => setShowCalendarModal(true)}
-                      >
-                        <span className="flex items-center gap-2">
-                          {isCalendarSynced ? (
-                            <CalendarCheck className="h-4 w-4 text-success" />
-                          ) : (
-                            <Calendar className="h-4 w-4" />
-                          )}
-                          {isCalendarSynced ? "Synced to Calendar" : "Add to Calendar"}
-                        </span>
-                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                      </Button>
-                    </span>
-                  } />
-                  <TooltipContent className="max-w-70 p-2">
-                    <p>
-                      {isCalendarSynced
-                        ? "This project is synced to your calendar. Click to manage or remove."
-                        : "Add this project to your Google Calendar or download an iCal file"}
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              {canSyncProjectCalendar && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger render={
+                      <span className="w-full">
+                        <Button
+                          variant="outline"
+                          className={`h-10 w-full justify-between gap-2 bg-background/60 shadow-none ${isCalendarSynced
+                            ? "bg-success/10 hover:bg-success/20 border-success/80"
+                            : ""
+                            }`}
+                          onClick={() => setShowCalendarModal(true)}
+                        >
+                          <span className="flex items-center gap-2">
+                            {isCalendarSynced ? (
+                              <CalendarCheck className="h-4 w-4 text-success" />
+                            ) : (
+                              <Calendar className="h-4 w-4" />
+                            )}
+                            {isCalendarSynced ? "Synced to Calendar" : "Add to Calendar"}
+                          </span>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        </Button>
+                      </span>
+                    } />
+                    <TooltipContent className="max-w-70 p-2">
+                      <p>
+                        {isCalendarSynced
+                          ? "This project is synced to your calendar. Click to manage or remove."
+                          : "Add this project to your Google Calendar or download an iCal file"}
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
 
               {hasActiveUnpublishedSessions && project.verification_method !== 'auto' && (
                 <TooltipProvider>
@@ -1094,13 +1110,15 @@ export default function CreatorDashboard({ project, allSignups = [] }: Props) {
       )}
 
       {/* Calendar Sync Modal */}
-      <CalendarOptionsModal
-        open={showCalendarModal}
-        onOpenChange={setShowCalendarModal}
-        project={project}
-        mode="creator"
-        onSyncSuccess={() => setIsCalendarSynced(true)}
-      />
+      {canSyncProjectCalendar && (
+        <CalendarOptionsModal
+          open={showCalendarModal}
+          onOpenChange={setShowCalendarModal}
+          project={project}
+          mode="creator"
+          onSyncSuccess={() => setIsCalendarSynced(true)}
+        />
+      )}
     </div>
   );
 }

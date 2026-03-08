@@ -74,6 +74,7 @@ describe("login actions", () => {
     mocks.applyStaffInviteForUser.mockResolvedValue({
       status: "success",
       orgUsername: "troop941",
+      orgName: "Troop 941",
     });
 
     const result = await applyStaffInviteForCurrentUser("abc-token", "troop941");
@@ -85,7 +86,11 @@ describe("login actions", () => {
       orgUsername: "troop941",
     });
     expect(result).toEqual({
-      inviteOutcome: { status: "success", orgUsername: "troop941" },
+      inviteOutcome: {
+        status: "success",
+        orgUsername: "troop941",
+        orgName: "Troop 941",
+      },
     });
   });
 });

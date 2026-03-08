@@ -3,7 +3,7 @@ import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { notFound, redirect } from "next/navigation";
 import { Metadata } from "next";
 import { differenceInHours, isAfter, format, parseISO } from "date-fns";
-import { getProjectEndDateTime } from "@/utils/project";
+import { getMultiDaySlotDisplayName, getProjectEndDateTime } from "@/utils/project";
 import { Project, ProjectSignup } from "@/types";
 import { HoursClient } from "./HoursClient";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -96,7 +96,7 @@ function getSessionsInEditingWindow(project: Project): ProjectSession[] {
           const sessionId = `day-${dayIndex}-slot-${slotIndex}`;
           result.push({
             id: sessionId,
-            name: `${format(dayDate, "MMMM d")} (${formatTime12h(slot.startTime)} - ${formatTime12h(slot.endTime)})`,
+            name: `${format(dayDate, "MMMM d")} - ${getMultiDaySlotDisplayName(slot, slotIndex)} (${formatTime12h(slot.startTime)} - ${formatTime12h(slot.endTime)})`,
             endDateTime: slotEndTime,
             hoursRemaining: 48 - hoursSinceEnd
           });

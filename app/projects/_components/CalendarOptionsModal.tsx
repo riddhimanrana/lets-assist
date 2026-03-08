@@ -259,15 +259,16 @@ export default function CalendarOptionsModal({
               <p className="text-xs text-muted-foreground flex items-start gap-1">
                 <CalendarIcon className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                 <span className="wrap-break-word">
-                  {new Date(project.schedule.oneTime.date).toLocaleDateString(
-                    "en-US",
-                    {
-                      weekday: "long",
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                    },
-                  )}
+                  {(() => {
+                    const [year, month, day] = project.schedule.oneTime.date.split('-').map(Number);
+                    const date = new Date(year, month - 1, day);
+                    return date.toLocaleDateString('en-US', {
+                      weekday: 'long',
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                    });
+                  })()}
                 </span>
               </p>
             )}

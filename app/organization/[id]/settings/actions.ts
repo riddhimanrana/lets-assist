@@ -24,6 +24,7 @@ type OrganizationUpdateData = {
   type: 'nonprofit' | 'school' | 'company' | 'government' | 'other';
   logoUrl: string | null | undefined;
   autoJoinDomain?: string | null;
+  showMembersPublicly?: boolean;
 };
 
 /**
@@ -223,6 +224,7 @@ export async function updateOrganization(data: OrganizationUpdateData) {
         type: data.type,
         logo_url: logoUrl,
         auto_join_domain: data.autoJoinDomain || null,
+        show_members_publicly: data.showMembersPublicly !== false,
       })
       .eq("id", data.id);
 

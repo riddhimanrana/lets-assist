@@ -704,7 +704,7 @@ export default function VerificationSettings({
 
                       <AlertDescription className="text-info text-xs flex gap-2">
                         <Info className="h-4 w-4 text-info text-xs" />
-                        If you don&apos;t upload a custom waiver, the global platform waiver template will be used instead.
+                        If you don&apos;t upload a custom waiver, we&apos;ll use the active global platform waiver template (or the default Let&apos;s Assist waiver if none is configured yet).
                       </AlertDescription>
                     </Alert>
                   )}

@@ -5,12 +5,13 @@ import { APIProvider, Map, AdvancedMarker, useApiIsLoaded, ColorScheme, Renderin
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Users, MapPin, Loader2, AlertCircle } from "lucide-react";
+import { Calendar, Users, MapPin, Loader2, AlertCircle, Sliders } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import type { Project } from "@/types";
+import { getProjectRemainingSpots } from "@/lib/projects/availability";
 import { getProjectStatus } from "@/utils/project";
 
 // Map container styles
@@ -28,17 +29,25 @@ const defaultCenter = {
 // Map ID for styling
 const mapId = "e54dd2f307297bcd";
 
-// Radius for filtering projects (25 miles in meters)
-const RADIUS_MILES = 25;
-const RADIUS_METERS = RADIUS_MILES * 1609.34; // Convert miles to meters
+// Default radius for filtering projects (25 miles in meters)
+const DEFAULT_RADIUS_MILES = 25;
+const MAX_RADIUS_MILES = 100;
+const MIN_RADIUS_MILES = 1;
 
 interface ProjectsMapViewProps {
   className?: string;
-  initialProjects?: Project[];
-  projects?: Project[]; // Add projects prop
+  initialProjects?: ProjectWithAvailability[];
+  projects?: ProjectWithAvailability[];
 }
 
-function ProjectMapInfoWindow({ project, onClose }: { project: Project; onClose: () => void }) {
+type ProjectWithAvailability = Project & {
+  signups?: Array<{ status?: string }>;
+  slots_filled?: number;
+  total_confirmed?: number;
+  registrations?: unknown[];
+};
+
+function ProjectMapInfoWindow({ project, onClose }: { project: ProjectWithAvailability; onClose: () => void }) {
   // Format date display for projects
   const formatDateDisplay = (project: Project) => {
     if (!project.event_type || !project.schedule) return "";
@@ -95,41 +104,7 @@ function ProjectMapInfoWindow({ project, onClose }: { project: Project; onClose:
 
   // Format volunteer spots
   const formatSpots = (count: number) => {
-    return `${count} ${count === 1 ? 'spot' : 'spots'}`;
-  };
-
-  // Get volunteer count from a project
-  const getVolunteerCount = (project: Project): number => {
-    if (!project.event_type || !project.schedule) return 0;
-
-    switch (project.event_type) {
-      case "oneTime":
-        return project.schedule.oneTime?.volunteers || 0;
-      case "multiDay": {
-        let total = 0;
-        if (project.schedule.multiDay) {
-          project.schedule.multiDay.forEach((day) => {
-            if (day.slots) {
-              day.slots.forEach((slot) => {
-                total += slot.volunteers || 0;
-              });
-            }
-          });
-        }
-        return total;
-      }
-      case "sameDayMultiArea": {
-        let total = 0;
-        if (project.schedule.sameDayMultiArea?.roles) {
-          project.schedule.sameDayMultiArea.roles.forEach((role) => {
-            total += role.volunteers || 0;
-          });
-        }
-        return total;
-      }
-      default:
-        return 0;
-    }
+    return `${count} ${count === 1 ? 'spot' : 'spots'} left`;
   };
 
   return (
@@ -154,7 +129,7 @@ function ProjectMapInfoWindow({ project, onClose }: { project: Project; onClose:
           </Badge>
           <Badge variant="outline" className="gap-1 text-xs text-black dark:text-white">
         <Users className="h-3 w-3" />
-        {formatSpots(getVolunteerCount(project))}
+        {formatSpots(getProjectRemainingSpots(project))}
           </Badge>
         </div>
         <Link href={`/projects/${project.id}`}>
@@ -168,9 +143,11 @@ function ProjectMapInfoWindow({ project, onClose }: { project: Project; onClose:
 function MapContent({ initialProjects, projects: externalProjects }: ProjectsMapViewProps) {
   const { resolvedTheme } = useTheme();
   const [userLocation, setUserLocation] = useState<google.maps.LatLngLiteral | null>(null);
-  const [projects, setProjects] = useState<Project[]>(initialProjects ?? externalProjects ?? []);
-  const [filteredProjects, setFilteredProjects] = useState<Project[]>([]);
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [radiusMiles, setRadiusMiles] = useState(DEFAULT_RADIUS_MILES);
+  const [showRadiusControl, setShowRadiusControl] = useState(false);
+  const [projects, setProjects] = useState<ProjectWithAvailability[]>(initialProjects ?? externalProjects ?? []);
+  const [filteredProjects, setFilteredProjects] = useState<ProjectWithAvailability[]>([]);
+  const [selectedProject, setSelectedProject] = useState<ProjectWithAvailability | null>(null);
   const [isLoading, setIsLoading] = useState(!initialProjects);
   const [error, setError] = useState<string | null>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
@@ -179,6 +156,9 @@ function MapContent({ initialProjects, projects: externalProjects }: ProjectsMap
   const initialLoadRef = useRef(true);
   // Add ref to track if component is mounted
   const isMountedRef = useRef(false);
+  
+  // Convert current radius to meters
+  const radiusMeters = radiusMiles * 1609.34;
   
   // Define the map color scheme based on theme
   const mapColorScheme = resolvedTheme === 'dark' ? ColorScheme.DARK : ColorScheme.LIGHT;
@@ -235,11 +215,11 @@ function MapContent({ initialProjects, projects: externalProjects }: ProjectsMap
       const projectStatus = getProjectStatus(project);
       const isActuallyUpcoming = projectStatus === "upcoming" || projectStatus === "in-progress";
       
-      return distance <= RADIUS_METERS && isActuallyUpcoming;
+      return distance <= radiusMeters && isActuallyUpcoming;
     });
     
     setFilteredProjects(filtered);
-  }, [userLocation, projects]);
+  }, [userLocation, projects, radiusMeters]);
   
   // Fetch projects from API
   const fetchProjects = useCallback(async () => {
@@ -252,7 +232,7 @@ function MapContent({ initialProjects, projects: externalProjects }: ProjectsMap
         throw new Error(`Error fetching projects: ${response.status}`);
       }
       
-      const data = (await response.json()) as Project[];
+      const data = (await response.json()) as ProjectWithAvailability[];
       setProjects(data);
     } catch (err) {
       console.error('Error fetching projects:', err);
@@ -343,7 +323,7 @@ function MapContent({ initialProjects, projects: externalProjects }: ProjectsMap
       // Create new circle
       circleRef.current = new google.maps.Circle({
         center: userLocation,
-        radius: RADIUS_METERS,
+        radius: radiusMeters,
         strokeColor: '#3B82F6',
         strokeOpacity: 0.6,
         strokeWeight: 1,
@@ -352,7 +332,7 @@ function MapContent({ initialProjects, projects: externalProjects }: ProjectsMap
         map: mapRef.current
       });
     }
-  }, [userLocation]);
+  }, [userLocation, radiusMeters]);
 
   // Handle map render - make sure we store the map reference properly
   const handleMapLoad = useCallback((map: google.maps.Map) => {
@@ -507,29 +487,56 @@ function MapContent({ initialProjects, projects: externalProjects }: ProjectsMap
       {userLocation && (
         <div className="hidden sm:inline absolute top-2 left-1/2 transform -translate-x-1/2 bg-background/90 backdrop-blur-xs px-3 py-1.5 rounded-full shadow-xs border">
           <span className="text-xs text-center font-medium">
-            Showing projects within {RADIUS_MILES} miles
+            Showing projects within {radiusMiles} miles
           </span>
         </div>
       )}
       
-      {/* Locate me button with clear intent */}
-      {/* <Button 
-        onClick={getUserLocation}
-        disabled={isLocating}
-        className="absolute bottom-4 left-4 gap-2 shadow-md bg-gray-800 hover:bg-gray-700 text-white"
-      >
-        {isLocating ? (
-          <>
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Locating...
-          </>
-        ) : (
-          <>
-            <Locate className="h-4 w-4" />
-            {userLocation ? "Return to My Location" : "Show My Location"}
-          </>
-        )}
-      </Button> */}
+      {/* Radius control */}
+      {userLocation && (
+        <>
+          <Button
+            onClick={() => setShowRadiusControl(!showRadiusControl)}
+            size="sm"
+            variant="outline"
+            className="absolute bottom-16 left-4 gap-2 shadow-md"
+          >
+            <Sliders className="h-4 w-4" />
+            <span className="hidden sm:inline">Adjust Distance</span>
+          </Button>
+          
+          {showRadiusControl && (
+            <div className="absolute bottom-28 left-4 bg-background/95 backdrop-blur-xs p-4 rounded-lg shadow-md border w-56">
+              <div className="space-y-3">
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <label htmlFor="radius-slider" className="text-sm font-medium">
+                      Search Radius
+                    </label>
+                    <span className="text-sm font-semibold text-blue-600">{radiusMiles} mi</span>
+                  </div>
+                  <input
+                    id="radius-slider"
+                    type="range"
+                    min={MIN_RADIUS_MILES}
+                    max={MAX_RADIUS_MILES}
+                    value={radiusMiles}
+                    onChange={(e) => setRadiusMiles(Number(e.target.value))}
+                    className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                  />
+                  <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                    <span>{MIN_RADIUS_MILES} mi</span>
+                    <span>{MAX_RADIUS_MILES} mi</span>
+                  </div>
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {projectsWithCoordinates.length} project{projectsWithCoordinates.length !== 1 ? 's' : ''} within range
+                </div>
+              </div>
+            </div>
+          )}
+        </>
+      )}
       
       {/* Project count badge */}
       {projectsWithCoordinates.length > 0 && (
@@ -557,7 +564,9 @@ function MapContent({ initialProjects, projects: externalProjects }: ProjectsMap
 
 export function ProjectsMapView({ initialProjects, projects, className }: ProjectsMapViewProps) {
   return (
-    <div className={cn("w-full h-125 rounded-md border overflow-hidden relative", className)}>
+    <div className={cn("w-full rounded-md border overflow-hidden relative", 
+      "h-96 sm:h-125 lg:h-150 xl:h-[70vh] 2xl:h-[75vh]",
+      className)}>
       <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ""}>
         <MapContent 
           initialProjects={initialProjects} 

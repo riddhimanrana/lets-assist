@@ -90,7 +90,7 @@ const ImageCropper = ({
             min={1}
             max={3}
             step={0.01} // Smaller step value for smoother zoom
-            className="w-full"
+            className="w-full mt-2"
           />
         </div>
 

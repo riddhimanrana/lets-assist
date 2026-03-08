@@ -3,10 +3,61 @@
 import { createClient } from '@/lib/supabase/server';
 import { getAuthUser } from '@/lib/supabase/auth-helpers';
 import { getAdminClient } from '@/lib/supabase/admin';
+import { buildSignaturePreviewSummary } from '@/lib/waiver/signature-preview';
+import type { SignaturePayload, SignaturePreviewSummary } from '@/types/waiver-definitions';
 
 type OrganizerSignupsResult<T> =
   | { signups: T[]; error?: undefined }
   | { signups?: undefined; error: string };
+
+type OrganizerWaiverSignatureRow = {
+  id: string;
+  created_at: string;
+  signature_type: string;
+  signature_storage_path: string | null;
+  upload_storage_path: string | null;
+  signature_text: string | null;
+  signed_at: string | null;
+  signer_name: string | null;
+  signature_payload: SignaturePayload | null;
+};
+
+type OrganizerWaiverSignatureSummaryRow = Omit<
+  OrganizerWaiverSignatureRow,
+  'signature_payload'
+> & {
+  signature_payload: null;
+  signature_summary: SignaturePreviewSummary | null;
+};
+
+type OrganizerSignupRow = {
+  waiver_signature?: OrganizerWaiverSignatureRow[] | OrganizerWaiverSignatureRow | null;
+  [key: string]: unknown;
+};
+
+function summarizeWaiverSignature(
+  signature: OrganizerWaiverSignatureRow,
+): OrganizerWaiverSignatureSummaryRow {
+  return {
+    ...signature,
+    signature_payload: null,
+    signature_summary: buildSignaturePreviewSummary(signature.signature_payload),
+  };
+}
+
+function summarizeNestedWaiverSignature(
+  waiverSignature: OrganizerWaiverSignatureRow[] | OrganizerWaiverSignatureRow | null | undefined,
+) {
+  if (Array.isArray(waiverSignature)) {
+    return waiverSignature.map(summarizeWaiverSignature);
+  }
+
+  if (!waiverSignature) {
+    return waiverSignature ?? null;
+  }
+
+  return summarizeWaiverSignature(waiverSignature);
+}
 
 /**
  * Organizer-only signup fetch that is resilient to RLS.
@@ -105,5 +156,10 @@ export async function getOrganizerSignupsWithWaiverStatus(
     return { error: 'Failed to load signups' };
   }
 
-  return { signups: data ?? [] };
+  const summarizedSignups = ((data as OrganizerSignupRow[] | null) ?? []).map((signup) => ({
+    ...signup,
+    waiver_signature: summarizeNestedWaiverSignature(signup.waiver_signature),
+  }));
+
+  return { signups: summarizedSignups };
 }

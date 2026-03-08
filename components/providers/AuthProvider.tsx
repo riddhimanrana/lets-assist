@@ -20,9 +20,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
   useEffect(() => {
     // Set up global auth state listener for debugging/logging
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      (event) => {
         if (process.env.NODE_ENV === 'development') {
-          console.log('[AuthProvider] Auth state changed:', event, session?.user?.email);
+          console.log('[AuthProvider] Auth state changed:', event);
         }
       }
     );

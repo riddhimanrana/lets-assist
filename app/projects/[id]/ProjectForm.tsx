@@ -9,12 +9,14 @@ import { Controller } from "react-hook-form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Loader2, PenTool, Check, Clock, Settings2 } from "lucide-react";
+import { TurnstileComponent, TurnstileRef } from "@/components/ui/turnstile";
+import { shouldRenderTurnstileWidget } from "@/lib/anonymous-signup-security";
+import { Loader2, PenTool, Check, Clock, Settings2, Shield } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { DialogFooter } from "@/components/ui/dialog";
-import { useEffect, useState, useCallback } from "react";
-import type { WaiverSignatureInput, WaiverTemplate, WaiverDefinitionFull } from "@/types";
+import { useEffect, useState, useCallback, useRef } from "react";
+import type { AnonymousSignupData, WaiverSignatureInput, WaiverTemplate, WaiverDefinitionFull } from "@/types";
 import { WaiverSigningDialog } from '@/components/waiver/WaiverSigningDialog';
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Switch } from "@/components/ui/switch";
@@ -127,7 +129,7 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 interface ProjectFormProps {
-  onSubmit: (data: FormValues, waiverSignature?: WaiverSignatureInput | null) => void;
+  onSubmit: (data: AnonymousSignupData, waiverSignature?: WaiverSignatureInput | null) => void;
   onCancel: () => void;
   isSubmitting?: boolean;
   showCommentField?: boolean;
@@ -185,6 +187,15 @@ export function ProjectSignupForm({
   const [phoneNumberLength, setPhoneNumberLength] = useState(0); // State for phone number length
   const [waiverSignature, setWaiverSignature] = useState<WaiverSignatureInput | null>(null);
   const [isWaiverDialogOpen, setIsWaiverDialogOpen] = useState(false);
+  const turnstileRef = useRef<TurnstileRef>(null);
+  const [turnstileReady, setTurnstileReady] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [turnstileError, setTurnstileError] = useState<string | null>(null);
+
+  const showTurnstileWidget = shouldRenderTurnstileWidget({
+    siteKey: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
+    bypass: process.env.NEXT_PUBLIC_TURNSTILE_BYPASS,
+  });
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -364,11 +375,16 @@ export function ProjectSignupForm({
     // due to the zod schema's transform function.
     persistProfileLocally(data);
 
+    const payload: AnonymousSignupData = {
+      ...data,
+      captchaToken: turnstileToken ?? undefined,
+    };
+
     if (waiverRequired && (waiverSignature || hasReusableWaiver)) {
       markWaiverCachedLocally(data.email);
     }
 
-    onSubmit(data, waiverSignature);
+    onSubmit(payload, waiverSignature);
   };
 
   const signerName = form.watch("name");
@@ -609,10 +625,61 @@ export function ProjectSignupForm({
         </div>
       )}
 
+      {showTurnstileWidget && (
+        <div className="space-y-2 rounded-lg border border-border/60 bg-muted/20 p-4">
+          <div className="flex items-start gap-2 text-sm text-muted-foreground">
+            <Shield className="mt-0.5 h-4 w-4 shrink-0" />
+            <div>
+              <p className="font-medium text-foreground">Security check</p>
+              <p className="text-xs text-muted-foreground">
+                Complete bot verification before submitting your anonymous signup.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex justify-center">
+            <div className="relative flex h-16.25 w-75 items-center justify-center overflow-hidden rounded-lg border border-border/50 bg-background/80">
+              {!turnstileReady && (
+                <div className="absolute inset-0 z-10 flex items-center justify-center gap-2 rounded-lg bg-background/80 text-[0.7rem] font-semibold uppercase tracking-wide text-muted-foreground">
+                  <Shield className="h-4 w-4 text-muted-foreground/80" />
+                  <span className="text-[0.7rem] font-semibold normal-case tracking-wide">
+                    Bot verification loading…
+                  </span>
+                </div>
+              )}
+
+              <TurnstileComponent
+                ref={turnstileRef}
+                onLoad={() => setTurnstileReady(true)}
+                onVerify={(token) => {
+                  setTurnstileError(null);
+                  setTurnstileToken(token);
+                }}
+                onError={() => {
+                  turnstileRef.current?.reset();
+                  setTurnstileError("Security verification failed. Please try again.");
+                  setTurnstileToken(null);
+                }}
+                onExpire={() => {
+                  setTurnstileError("Security verification expired. Please complete it again.");
+                  setTurnstileToken(null);
+                }}
+              />
+            </div>
+          </div>
+
+          {turnstileError && (
+            <p className="text-xs text-destructive" role="alert">
+              {turnstileError}
+            </p>
+          )}
+        </div>
+      )}
+
       <DialogFooter>
         <Button
           type="submit"
-          disabled={isSubmitting || !waiverSatisfied}
+          disabled={isSubmitting || !waiverSatisfied || (showTurnstileWidget && !turnstileToken)}
         >
           {isSubmitting && (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />

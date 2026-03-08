@@ -9,6 +9,7 @@ import {
   ProjectDocument,
   AnonymousSignupData,
   Signup,
+  WaiverDefinitionFull,
   WaiverSignatureInput,
   WaiverTemplate,
 } from "@/types";
@@ -48,13 +49,14 @@ import {
   MailCheck,
   MoreVertical,
   Flag,
+  Shield,
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { signUpForProject, resendAnonymousConfirmationEmail, getProjectWaiver } from "./actions";
 import { formatTimeTo12Hour, formatBytes, copyToClipboard, isMobileDevice } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
-import { isSlotAvailable, isMultiDaySlotPastByScheduleId, isSameDayMultiAreaSlotPast, isOneTimeSlotPast } from "@/utils/project";
+import { getMultiDaySlotDisplayName, isSlotAvailable, isMultiDaySlotPastByScheduleId, isSameDayMultiAreaSlotPast, isOneTimeSlotPast } from "@/utils/project";
 import { getProjectStatus } from "@/utils/project"; // Import the getProjectStatus utility and date utils
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
@@ -87,6 +89,7 @@ import { SignupConfirmationModal } from "@/app/projects/_components/SignupConfir
 import { CancelSignupModal } from "@/app/projects/_components/CancelSignupModal";
 import CalendarOptionsModal from "@/app/projects/_components/CalendarOptionsModal";
 import { TimezoneBadge } from "@/components/shared/TimezoneBadge";
+import { TurnstileComponent, type TurnstileRef } from "@/components/ui/turnstile";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -95,6 +98,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ReportContentButton } from "@/components/feedback/ReportContentButton";
 import { Checkbox } from "@/components/ui/checkbox";
+import { shouldRenderTurnstileWidget } from "@/lib/anonymous-signup-security";
 
 interface SlotData {
   remainingSlots: Record<string, number>;
@@ -102,6 +106,7 @@ interface SlotData {
   rejectedSlots: Record<string, boolean>;
   // Add new property to track attended status
   attendedSlots: Record<string, boolean>;
+  pendingSlots: Record<string, boolean>;
 }
 
 interface AnonymousSlotOption {
@@ -116,11 +121,12 @@ interface Props {
   organization?: Organization | null;
   initialSlotData: SlotData;
   initialIsCreator: boolean;
+  initialCanManageProject: boolean;
   // Use the specific AuthUser type
   initialUser: AuthUser | null;
   // Add prop for full signup data
   userSignupsData: Signup[];
-  allSignups?: any[];
+  allSignups?: Array<Pick<Signup, "id" | "schedule_id" | "status" | "check_in_time">>;
 }
 
 const getFileIcon = (type: string) => {
@@ -154,6 +160,7 @@ export default function ProjectDetails({
   organization,
   initialSlotData,
   initialIsCreator,
+  initialCanManageProject,
   initialUser,
   // Destructure the new prop
   userSignupsData,
@@ -162,6 +169,7 @@ export default function ProjectDetails({
   const router = useRouter();
   const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
   const [isCreator] = useState(initialIsCreator);
+  const [canManageProject] = useState(initialCanManageProject);
   const [remainingSlots, setRemainingSlots] = useState<Record<string, number>>(initialSlotData.remainingSlots);
   const [hasSignedUp, setHasSignedUp] = useState<Record<string, boolean>>(initialSlotData.userSignups);
   // Use the specific AuthUser type
@@ -182,6 +190,7 @@ export default function ProjectDetails({
 
   // Add state for attended slots
   const [attendedSlots, setAttendedSlots] = useState<Record<string, boolean>>(initialSlotData.attendedSlots || {});
+  const [pendingSlots, setPendingSlots] = useState<Record<string, boolean>>(initialSlotData.pendingSlots || {});
 
   // Add state for the confirmation alert
   const [showConfirmationAlert, setShowConfirmationAlert] = useState(false);
@@ -193,7 +202,7 @@ export default function ProjectDetails({
   const [pendingScheduleId, setPendingScheduleId] = useState<string>("");
   const [publicAttendees, setPublicAttendees] = useState<SlotAttendee[]>([]);
   const [waiverTemplate, setWaiverTemplate] = useState<WaiverTemplate | null>(null);
-  const [waiverDefinition, setWaiverDefinition] = useState<any | null>(null); // Use 'any' or import full type
+  const [waiverDefinition, setWaiverDefinition] = useState<WaiverDefinitionFull | null>(null);
 
   // Add state to track calculated status
   // Initialize with project.status to avoid hydration mismatch, then update on client
@@ -268,6 +277,14 @@ export default function ProjectDetails({
   const [showResendDialog, setShowResendDialog] = useState(false);
   const [resendAnonymousId, setResendAnonymousId] = useState<string | null>(null);
   const [isResending, setIsResending] = useState(false);
+  const resendTurnstileRef = useRef<TurnstileRef>(null);
+  const [resendTurnstileToken, setResendTurnstileToken] = useState<string | null>(null);
+  const [resendTurnstileReady, setResendTurnstileReady] = useState(false);
+
+  const showResendTurnstile = shouldRenderTurnstileWidget({
+    siteKey: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
+    bypass: process.env.NEXT_PUBLIC_TURNSTILE_BYPASS,
+  });
 
   type SignupStatusRow = { id: string; schedule_id: string };
 
@@ -339,6 +356,7 @@ export default function ProjectDetails({
         // Clear rejected and attended slots if user logs out
         setRejectedSlots({});
         setAttendedSlots({});
+        setPendingSlots({});
       }
     }
 
@@ -397,7 +415,7 @@ export default function ProjectDetails({
         }
 
         if (result.definition) {
-             setWaiverDefinition(result.definition);
+             setWaiverDefinition(result.definition as WaiverDefinitionFull);
         }
         
         if (result.template) {
@@ -461,9 +479,9 @@ export default function ProjectDetails({
       return prevStatus;
     });
 
-    // Only update DB if we're the creator, status differs, and not already handled
+    // Only update DB if the current user can manage the project, status differs, and it has not already been handled
     if (
-      isCreator &&
+      canManageProject &&
       !isUpdatingStatus &&
       newCalculatedStatus !== project.status &&
       !statusMismatchHandled.current
@@ -473,7 +491,7 @@ export default function ProjectDetails({
       statusMismatchHandled.current = true; // Mark as handled
     }
   }, [
-    isCreator,
+    canManageProject,
     project.id,
     project.status,
     project.schedule,
@@ -491,7 +509,7 @@ export default function ProjectDetails({
         if (newStatus !== prevStatus) {
           console.log("Status updated via interval:", newStatus);
 
-          if (isCreator && !isUpdatingStatus && newStatus !== project.status) {
+          if (canManageProject && !isUpdatingStatus && newStatus !== project.status) {
             updateProjectStatusInDB(newStatus);
           }
           return newStatus;
@@ -508,7 +526,7 @@ export default function ProjectDetails({
     project.schedule,
     project.created_at,
     project.cancelled_at,
-    isCreator,
+    canManageProject,
     isUpdatingStatus
   ]); // Remove function dependency
 
@@ -554,7 +572,7 @@ export default function ProjectDetails({
 
             return {
               scheduleId,
-              title: `${formatScheduleDateLabel(day.date)} · Slot ${idx + 1}`,
+              title: `${formatScheduleDateLabel(day.date)} · ${getMultiDaySlotDisplayName(slot, idx)}`,
               subtitle: `${timeLabel} • ${remainingSlots[scheduleId] ?? slot.volunteers} spot(s) left`,
             };
           })
@@ -941,7 +959,10 @@ export default function ProjectDetails({
 
     setIsResending(true);
     try {
-      const result = await resendAnonymousConfirmationEmail(resendAnonymousId);
+      const result = await resendAnonymousConfirmationEmail(
+        resendAnonymousId,
+        resendTurnstileToken ?? undefined,
+      );
 
       if (result.error) {
         toast.error(result.error);
@@ -956,9 +977,19 @@ export default function ProjectDetails({
       console.error("Error resending confirmation:", error);
       toast.error("Failed to resend confirmation email. Please try again.");
     } finally {
+      resendTurnstileRef.current?.reset();
+      setResendTurnstileToken(null);
+      setResendTurnstileReady(false);
       setIsResending(false);
     }
   };
+
+  useEffect(() => {
+    if (showResendDialog) return;
+
+    setResendTurnstileToken(null);
+    setResendTurnstileReady(false);
+  }, [showResendDialog]);
 
   // Redirect to auth pages
   const redirectToAuth = (path: 'login' | 'signup') => {
@@ -1067,6 +1098,24 @@ export default function ProjectDetails({
       );
     }
 
+    if (pendingSlots[scheduleId]) {
+      return (
+        <HoverCard>
+          <HoverCardTrigger render={
+            <span className="flex items-center gap-1.5">
+              <Clock className="h-4 w-4" />
+              Pending Approval
+            </span>
+          } />
+          <HoverCardContent className="w-80 p-3">
+            <p className="text-sm">
+              Your signup for this slot is pending coordinator approval. You can still cancel it if your plans change.
+            </p>
+          </HoverCardContent>
+        </HoverCard>
+      );
+    }
+
     if (hasSignedUp[scheduleId]) {
       return (
         <>
@@ -1106,21 +1155,55 @@ export default function ProjectDetails({
   return (
     <>
       <div className="container mx-auto px-4 py-6 max-w-6xl">
-        {/* Render Creator Dashboard if user is creator */}
+        {/* Render project management dashboard for creators and organization admins */}
 
 
-        {/* Confirmation Alert */}
-        {showConfirmationAlert && (
-          <Alert className="mb-6 border-primary/70 bg-primary/10">
-            <MailCheck className="h-5 w-5 text-primary" />
-            <AlertTitle className="font-semibold text-primary">
-              Check Your Email
-            </AlertTitle>
-            <AlertDescription className="text-primary">
-              We&apos;ve sent a confirmation link to your email address. Please click the link to finalize your signup for this project.
-            </AlertDescription>
-          </Alert>
-        )}
+        {/* Confirmation Dialog */}
+        <Dialog open={showConfirmationAlert} onOpenChange={setShowConfirmationAlert}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <div className="flex justify-center mb-4">
+                <div className="rounded-full bg-primary/10 p-4">
+                  <Mail className="h-8 w-8 text-primary" />
+                </div>
+              </div>
+              <DialogTitle className="text-2xl text-center">
+                Check Your Email
+              </DialogTitle>
+              <DialogDescription className="text-center text-base pt-4">
+                We&apos;ve sent a confirmation link to your email address. Please click the link to finalize your signup for this project.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="bg-muted/50 rounded-lg p-4 my-4">
+              <p className="text-sm font-medium text-muted-foreground">
+                Don&apos;t see the email?
+              </p>
+              <ul className="text-sm text-muted-foreground mt-2 space-y-1 list-disc list-inside">
+                <li>Check your spam or junk folder</li>
+                <li>Make sure you entered your email correctly</li>
+                <li>Wait a few minutes for it to arrive</li>
+              </ul>
+            </div>
+            <DialogFooter className="gap-2 flex-col-reverse sm:flex-row">
+              <Button
+                variant="outline"
+                onClick={() => setShowConfirmationAlert(false)}
+                className="w-full sm:w-auto"
+              >
+                Close
+              </Button>
+              <Button
+                onClick={() => {
+                  copyToClipboard(window.location.href);
+                  toast.success("Project link copied to clipboard!");
+                }}
+                className="w-full sm:w-auto"
+              >
+                Copy Project Link
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Project Header */}
         <div className="mb-6">
@@ -1148,8 +1231,8 @@ export default function ProjectDetails({
                   <Share2 className="h-4 w-4 shrink-0" />
                 </Button>
 
-                {/* Report button - only show for non-creators */}
-                {!isCreator && (
+                {/* Report button - only show for people who do not manage this project */}
+                {!canManageProject && (
                   <DropdownMenu>
                     <DropdownMenuTrigger render={
                       <Button variant="outline" size="icon" suppressHydrationWarning>
@@ -1181,7 +1264,13 @@ export default function ProjectDetails({
           </div>
         </div>
 
-        {isCreator && <CreatorDashboard project={project} allSignups={allSignups || []} />}
+        {canManageProject && (
+          <CreatorDashboard
+            project={project}
+            allSignups={allSignups || []}
+            canSyncProjectCalendar={isCreator}
+          />
+        )}
         {/* Render User Dashboard if user is logged in, NOT creator, and has signups */}
         {user && !isCreator && userSignupsData && userSignupsData.length > 0 && (
           <UserDashboard project={project} user={user} signups={userSignupsData} />
@@ -1211,8 +1300,8 @@ export default function ProjectDetails({
                   <div className="flex min-w-0 items-center gap-2">
                     <CardTitle>Volunteer Opportunities</CardTitle>
                   </div>
-                  {/* Add How It Works button for non-creators */}
-                  {!isCreator && (
+                  {/* Add the volunteer guide button only for non-managers */}
+                  {!canManageProject && (
                     <ProjectInstructionsModal
                       project={project}
                       isCreator={false}
@@ -1282,7 +1371,7 @@ export default function ProjectDetails({
                       </div>
                       <div className="flex flex-col gap-2 items-stretch sm:items-end shrink-0">
                         <Button
-                          variant={hasSignedUp["oneTime"] ? "secondary" : rejectedSlots["oneTime"] ? "destructive" : "default"}
+                                  variant={pendingSlots["oneTime"] ? "outline" : hasSignedUp["oneTime"] ? "secondary" : rejectedSlots["oneTime"] ? "destructive" : "default"}
                           size="sm"
                           onClick={() => handleSignUpClick("oneTime")}
                           disabled={
@@ -1338,7 +1427,11 @@ export default function ProjectDetails({
                               return (
                                 <div key={scheduleId} className="border rounded-lg p-3 bg-card/50 hover:bg-card/80 transition-colors">
                                   <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-                                    <div className="flex-1 min-w-0 space-y-1 text-xs sm:text-sm text-muted-foreground">
+                                    <div className="flex-1 min-w-0">
+                                      <h4 className="font-semibold text-sm mb-1.5 wrap-break-word">
+                                        {getMultiDaySlotDisplayName(slot, slotIndex)}
+                                      </h4>
+                                      <div className="space-y-1 text-xs sm:text-sm text-muted-foreground">
                                       <div className="flex items-center gap-1.5">
                                         <Clock className="h-3.5 w-3.5 shrink-0" />
                                         <span>
@@ -1358,10 +1451,11 @@ export default function ProjectDetails({
                                           <span className="font-medium text-foreground">{remainingSlots[scheduleId] ?? slot.volunteers}</span> of {slot.volunteers} spots
                                         </span>
                                       </div>
+                                      </div>
                                     </div>
                                     <div className="flex flex-col gap-2 items-stretch sm:items-end shrink-0">
                                       <Button
-                                        variant={hasSignedUp[scheduleId] ? "secondary" : rejectedSlots[scheduleId] ? "destructive" : "default"}
+                                        variant={pendingSlots[scheduleId] ? "outline" : hasSignedUp[scheduleId] ? "secondary" : rejectedSlots[scheduleId] ? "destructive" : "default"}
                                         size="sm"
                                         onClick={() => handleSignUpClick(scheduleId)}
                                         disabled={
@@ -1434,7 +1528,7 @@ export default function ProjectDetails({
                               </div>
                               <div className="flex flex-col gap-2 items-stretch sm:items-end shrink-0">
                                 <Button
-                                  variant={hasSignedUp[role.name] ? "secondary" : rejectedSlots[role.name] ? "destructive" : "default"}
+                                  variant={pendingSlots[role.name] ? "outline" : hasSignedUp[role.name] ? "secondary" : rejectedSlots[role.name] ? "destructive" : "default"}
                                   size="sm"
                                   onClick={() => handleSignUpClick(role.name)}
                                   disabled={
@@ -1921,7 +2015,7 @@ export default function ProjectDetails({
               </Button>
               <Button
                 onClick={handleResendConfirmation}
-                disabled={isResending}
+                disabled={isResending || (showResendTurnstile && !resendTurnstileToken)}
                 className="gap-2"
               >
                 {isResending ? (
@@ -1937,6 +2031,44 @@ export default function ProjectDetails({
                 )}
               </Button>
             </div>
+
+            {showResendTurnstile && (
+              <div className="rounded-lg border border-border/60 bg-muted/20 p-4">
+                <div className="mb-3 flex items-start gap-2 text-sm text-muted-foreground">
+                  <Shield className="mt-0.5 h-4 w-4 shrink-0" />
+                  <div>
+                    <p className="font-medium text-foreground">Verify before resending</p>
+                    <p className="text-xs text-muted-foreground">
+                      Complete the security check so we can safely send a fresh confirmation link.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex justify-center">
+                  <div className="relative flex h-16.25 w-75 items-center justify-center overflow-hidden rounded-lg border border-border/50 bg-background/80">
+                    {!resendTurnstileReady && (
+                      <div className="absolute inset-0 z-10 flex items-center justify-center gap-2 rounded-lg bg-background/80 text-[0.7rem] font-semibold uppercase tracking-wide text-muted-foreground">
+                        <Shield className="h-4 w-4 text-muted-foreground/80" />
+                        <span className="text-[0.7rem] font-semibold normal-case tracking-wide">
+                          Bot verification loading…
+                        </span>
+                      </div>
+                    )}
+
+                    <TurnstileComponent
+                      ref={resendTurnstileRef}
+                      onLoad={() => setResendTurnstileReady(true)}
+                      onVerify={(token) => setResendTurnstileToken(token)}
+                      onError={() => {
+                        setResendTurnstileToken(null);
+                        toast.error("Security verification failed. Please try again.");
+                      }}
+                      onExpire={() => setResendTurnstileToken(null)}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>

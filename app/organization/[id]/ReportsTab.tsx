@@ -4,14 +4,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { DateRange } from "react-day-picker";
-import { addDays, format } from "date-fns";
+import { addDays, endOfDay, format, startOfDay, startOfMonth, subMonths } from "date-fns";
 import { toast } from "sonner";
 import {
   BarChart,
-  CheckCircle,
   Clock,
   Download,
   FileSpreadsheet,
+  FolderKanban,
   RefreshCw,
   Users,
 } from "lucide-react";
@@ -36,8 +36,6 @@ import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
-  ChartLegend,
-  ChartLegendContent,
   type ChartConfig,
 } from "@/components/ui/chart";
 import { Bar, BarChart as RechartsBarChart, XAxis, YAxis, CartesianGrid } from "recharts";
@@ -180,17 +178,16 @@ export default function ReportsTab({
 }: ReportsTabProps) {
   const searchParams = useSearchParams();
   const chartConfig = useMemo(() => ({
-    verified: {
-      label: "Verified",
+    total: {
+      label: "Hours",
       color: "var(--chart-3)",
-    },
-    pending: {
-      label: "Pending",
-      color: "var(--chart-4)",
     },
   } satisfies ChartConfig), []);
 
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(() => ({
+    from: startOfMonth(subMonths(new Date(), 11)),
+    to: new Date(),
+  }));
   const [reportData, setReportData] = useState<OrganizationReportData | null>(null);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState<ReportType | null>(null);
@@ -299,8 +296,8 @@ export default function ReportsTab({
   const dateRangeParam = useMemo(() => {
     if (!dateRange?.from || !dateRange?.to) return undefined;
     return {
-      from: dateRange.from.toISOString(),
-      to: dateRange.to.toISOString(),
+      from: startOfDay(dateRange.from).toISOString(),
+      to: endOfDay(dateRange.to).toISOString(),
     };
   }, [dateRange]);
 
@@ -617,7 +614,13 @@ export default function ReportsTab({
     }
   }, [isAdmin, organizationId, sheetStatus?.connectedBy?.id]);
 
-  const topProjects = reportData?.projects || [];
+  const topProjects = useMemo(
+    () => (reportData?.projects || [])
+      .filter((project) => (project.totalHours ?? 0) > 0)
+      .sort((a, b) => (b.totalHours ?? 0) - (a.totalHours ?? 0))
+      .slice(0, 3),
+    [reportData?.projects]
+  );
   const monthlyData = reportData?.monthlyHours || [];
 
   if (loading && !reportData) {
@@ -670,20 +673,20 @@ export default function ReportsTab({
           loading={loading}
         />
         <SummaryCard
-          title="Verified"
-          value={(reportData?.metrics?.verifiedHours ?? 0).toFixed(1)}
-          description="Approved hours"
-          icon={CheckCircle}
+          title="Projects"
+          value={reportData?.metrics?.totalProjects ?? 0}
+          description="Organization projects"
+          icon={FolderKanban}
           loading={loading}
         />
         <SummaryCard
-          title="Avg Per Member"
+          title="Avg Per Active Member"
           value={
             reportData?.metrics && reportData.metrics.totalVolunteers > 0
               ? ((reportData.metrics.totalHours ?? 0) / reportData.metrics.totalVolunteers).toFixed(1)
               : "0.0"
           }
-          description="Hours/member"
+          description="Average hours per active member"
           icon={BarChart}
           loading={loading}
         />
@@ -695,17 +698,13 @@ export default function ReportsTab({
             <Clock className="h-4 w-4 text-muted-foreground" />
             Monthly Hours Breakdown
           </CardTitle>
-          <CardDescription>Verified vs pending hours over time</CardDescription>
+          <CardDescription>Hours logged month by month for the selected range</CardDescription>
         </CardHeader>
         <CardContent>
           {loading ? (
-            <Skeleton className="h-[200px] w-full" />
-          ) : monthlyData.length === 0 ? (
-            <div className="h-[200px] flex items-center justify-center text-sm text-muted-foreground">
-              No data available for the selected period.
-            </div>
+            <Skeleton className="h-50 w-full" />
           ) : (
-            <ChartContainer config={chartConfig} className="h-[200px] w-full">
+            <ChartContainer config={chartConfig} className="h-50 w-full">
               <RechartsBarChart accessibilityLayer data={monthlyData} margin={{ left: -10, right: 10, top: 10, bottom: 0 }}>
                 <CartesianGrid vertical={false} />
                 <XAxis
@@ -717,18 +716,10 @@ export default function ReportsTab({
                 />
                 <YAxis hide />
                 <ChartTooltip content={<ChartTooltipContent />} />
-                <ChartLegend content={<ChartLegendContent />} />
                 <Bar
-                  dataKey="verified"
-                  fill="var(--color-verified)"
+                  dataKey="total"
+                  fill="var(--color-total)"
                   radius={[4, 4, 0, 0]}
-                  stackId="a"
-                />
-                <Bar
-                  dataKey="pending"
-                  fill="var(--color-pending)"
-                  radius={[4, 4, 0, 0]}
-                  stackId="a"
                 />
               </RechartsBarChart>
             </ChartContainer>
@@ -1147,7 +1138,7 @@ export default function ReportsTab({
                                   value={String(sheetStatus.syncConfig.syncIntervalMinutes)}
                                   onValueChange={(val) => val && handleIntervalChange(val)}
                                 >
-                                  <SelectTrigger className="w-[140px]">
+                                  <SelectTrigger className="w-35">
                                     <SelectValue placeholder="Interval">
                                       {getSyncIntervalLabel(sheetStatus.syncConfig.syncIntervalMinutes)}
                                     </SelectValue>
@@ -1624,7 +1615,7 @@ export default function ReportsTab({
             <BarChart className="h-4 w-4 text-muted-foreground" />
             Projects with Most Hours
           </CardTitle>
-          <CardDescription>Top projects by total hours logged</CardDescription>
+          <CardDescription>Top 3 projects by total hours logged</CardDescription>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -1635,9 +1626,11 @@ export default function ReportsTab({
             <div className="space-y-3">
               {topProjects.map((project) => (
                 <div key={project.id} className="flex items-center justify-between">
-                  <div className="min-w-0">
+                  <div className="min-w-0 space-y-1">
                     <p className="text-sm font-medium truncate">{project.title}</p>
-                    <p className="text-xs text-muted-foreground">{project.status || "Unknown"}</p>
+                    <Badge variant={getProjectStatusBadgeVariant(project.status)}>
+                      {formatProjectStatusLabel(project.status)}
+                    </Badge>
                   </div>
                   <Badge variant="secondary">{(project.totalHours ?? 0).toFixed(1)}h</Badge>
                 </div>
@@ -1684,6 +1677,28 @@ function SummaryCard({
       </CardContent>
     </Card>
   );
+}
+
+function formatProjectStatusLabel(status: string | null | undefined) {
+  if (!status) return "Unknown";
+
+  return status
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function getProjectStatusBadgeVariant(status: string | null | undefined): "default" | "secondary" | "destructive" | "outline" {
+  switch ((status || "").toLowerCase()) {
+    case "completed":
+      return "secondary";
+    case "cancelled":
+      return "destructive";
+    case "upcoming":
+    case "draft":
+      return "outline";
+    default:
+      return "outline";
+  }
 }
 
 function ExportButton({
@@ -1834,7 +1849,7 @@ function RangeBuilder({
             </p>
             <div className="mt-2 flex items-center gap-2">
               <Select value={startColumn} onValueChange={(val) => val && onStartColumnChange(val)} disabled={disabled}>
-                <SelectTrigger className="w-[90px]">
+                <SelectTrigger className="w-22.5">
                   <SelectValue placeholder="Col" />
                 </SelectTrigger>
                 <SelectContent>

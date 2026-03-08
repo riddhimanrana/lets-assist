@@ -3,18 +3,28 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { SignaturePayload, SignerData } from '@/types/waiver-definitions';
+import {
+  SignaturePayload,
+  SignaturePreviewSummary,
+  SignerData,
+} from '@/types/waiver-definitions';
 import { Loader2, Download, Printer } from 'lucide-react';
 import { useState, useEffect } from 'react';
+
+type PreviewableSigner = Pick<
+  SignerData,
+  'role_key' | 'method' | 'timestamp' | 'signer_name'
+>;
 
 // Define a compatible type for the signature
 export interface WaiverPreviewSignature {
   id: string;
   created_at: string;
   signature_type: string;
-  signer_name: string;
+  signer_name: string | null;
   signed_at: string | null;
   signature_payload: SignaturePayload | null;
+  signature_summary?: SignaturePreviewSummary | null;
   // Legacy fields for backward compatibility/display
   signature_text?: string | null;
   signature_storage_path?: string | null;
@@ -50,8 +60,8 @@ export function WaiverPreviewDialog({
   if (!signature) return null;
 
   const payload = signature.signature_payload;
-  const isMultiSigner = !!payload;
-  const signers = isMultiSigner ? payload?.signers : null;
+  const signers: PreviewableSigner[] | null =
+    signature.signature_summary?.signers ?? payload?.signers ?? null;
 
   // Determine standard signer display for legacy or overview
   const mainSignerName = signature.signer_name || 'Volunteer';
@@ -83,7 +93,7 @@ export function WaiverPreviewDialog({
             
             {signers ? (
               <div className="space-y-2">
-                {signers.map((signer: SignerData, idx: number) => (
+                {signers.map((signer, idx) => (
                   <div key={idx} className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-2">
                       <span className="font-medium">{signer.signer_name || 'Unnamed'}</span>

@@ -78,7 +78,7 @@ export default function OrganizationHeader({
           <div className="relative shrink-0">
             <Avatar className="h-20 w-20 rounded-full border-4 border-background shadow-sm md:h-24 md:w-24">
               <AvatarImage src={organization.logo_url || undefined} alt={organization.name} />
-              <AvatarFallback className="bg-primary/10 text-xl rounded-2xl">
+              <AvatarFallback className="bg-primary/10 text-xl rounded-full">
                 {(() => {
                   switch (organization.type) {
                     case 'company':

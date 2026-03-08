@@ -397,6 +397,7 @@ export default async function UserProjects() {
                       key={`created-${project.id}`}
                       project={project}
                       href={`/projects/${project.id}`}
+                      showIdentity={false}
                       topLeftBadge={
                         <Badge variant="outline" className="text-xs">
                           {(project.project_signups || []).filter((s) => s.status === "approved" || s.status === "attended").length} volunteers
@@ -417,6 +418,7 @@ export default async function UserProjects() {
                         key={`created-progress-${project.id}`}
                         project={project}
                         href={`/projects/${project.id}`}
+                        showIdentity={false}
                         topLeftBadge={
                           <Badge variant="outline" className="text-xs">
                             {(project.project_signups || []).filter((s) => s.status === "approved" || s.status === "attended").length} volunteers
@@ -439,6 +441,7 @@ export default async function UserProjects() {
                         key={`created-past-${project.id}`}
                         project={project}
                         href={`/projects/${project.id}`}
+                        showIdentity={false}
                         topLeftBadge={<Badge variant="outline" className="bg-muted text-xs">Past Event</Badge>}
                         className="bg-muted/30"
                         actionVariant="outline"
