@@ -10,6 +10,7 @@ import { format, addDays, parseISO, differenceInSeconds, differenceInHours, isAf
 import { formatTimeTo12Hour, cn } from "@/lib/utils";
 import { TimezoneBadge } from "@/components/shared/TimezoneBadge";
 import { Project } from "@/types";
+import { getMultiDaySlotByScheduleId, getMultiDaySlotDisplayName } from "@/utils/project";
 import { useState, useMemo, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
@@ -69,18 +70,13 @@ const formatScheduleSlot = (project: Project, slotId: string) => {
   }
 
   if (project.event_type === "multiDay") {
-    const parts = slotId.split("-");
-    if (parts.length >= 2) {
-      const slotIndex = parts.pop();
-      const date = parts.join("-");
-      const day = project.schedule.multiDay?.find((d) => d.date === date);
-      if (day && slotIndex !== undefined) {
-        const slotIdx = parseInt(slotIndex, 10);
-        const slot = day.slots[slotIdx];
-        if (slot) {
-          return buildTimeDisplay({ date, startTime: slot.startTime, endTime: slot.endTime });
-        }
-      }
+    const slotData = getMultiDaySlotByScheduleId(project, slotId);
+    if (slotData) {
+      const { day, slot, slotIndex } = slotData;
+      return buildTimeDisplay(
+        { date: day.date, startTime: slot.startTime, endTime: slot.endTime },
+        getMultiDaySlotDisplayName(slot, slotIndex),
+      );
     }
   }
 
@@ -289,7 +285,7 @@ export default function AnonymousSignupClient({
         }
 
         setIsLinked(true);
-        toast.success("Account linked successfully.");
+        toast.success("Account linked successfully! Your event signups have been transferred and are now pending approval from project coordinators.");
         router.replace("/dashboard");
         router.refresh();
       } catch (error) {
@@ -567,13 +563,16 @@ export default function AnonymousSignupClient({
           <Separator />
 
           <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              Link your anonymous profile to a Let&apos;s Assist account to track all your volunteer activities in one place.
-            </p>
+            <div className="bg-blue-50/50 border border-blue-200/50 rounded-lg p-3">
+              <p className="text-sm text-blue-900">
+                <span className="font-semibold">About linking:</span> When you link this anonymous profile to a Let&apos;s Assist account, all your event signups will be transferred to your account. Your signups are currently <span className="font-semibold">pending approval</span> from the project coordinator. Once approved, you can check in during events and track your volunteer hours—all in one place.
+              </p>
+            </div>
+
             {isLinked ? (
-              <div className="flex items-center gap-2 text-sm text-success">
-                <CheckCircle2 className="h-4 w-4" />
-                Account linked successfully
+              <div className="flex items-center gap-2 text-sm text-success bg-success/5 p-3 rounded-lg">
+                <CheckCircle2 className="h-4 w-4 shrink-0" />
+                <span className="font-medium">Account linked successfully! Your signups have been transferred.</span>
               </div>
             ) : (
               <>
