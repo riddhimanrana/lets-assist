@@ -134,7 +134,7 @@ export async function getActiveProjects(
   // Short-circuit: Skip profile query if no creator IDs
   let profiles: Profile[] | null = null;
   if (creatorIds.length > 0) {
-    const { data, error: profilesError } = (await supabase
+    const { data, error: profilesError } = (await admin
       .from("profiles")
       .select("id, avatar_url, full_name, username, created_at")
       .in("id", creatorIds)) as {

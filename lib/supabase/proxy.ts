@@ -146,9 +146,26 @@ export async function updateSession(request: NextRequest) {
         return supabaseResponse;
     }
 
+    // Guard the MFA challenge page itself.
+    // Unauthenticated users must log in first; pass the redirect param through so
+    // they land on the right page after completing both login and MFA.
+    if (currentPath === "/auth/mfa") {
+        if (!user) {
+            const loginUrl = new URL("/login", request.url);
+            const existingRedirect = searchParams.get("redirect");
+            if (existingRedirect) {
+                loginUrl.searchParams.set("redirect", existingRedirect);
+            }
+            return NextResponse.redirect(loginUrl);
+        }
+        // Let authenticated users (aal1 or aal2) through; MfaChallengeClient
+        // performs the precise check and redirects aal2 users automatically.
+        return supabaseResponse;
+    }
+
     let requiresMfaChallenge = false;
 
-    const shouldCheckMfa = !!user && effectivePathForMfa !== "/auth/mfa" && (
+    const shouldCheckMfa = !!user && (
         isRestrictedPathForLoggedIn ||
         isProtectedPath(effectivePathForMfa) ||
         currentPath.startsWith("/admin") ||
@@ -170,7 +187,7 @@ export async function updateSession(request: NextRequest) {
             factorData,
         );
 
-        if (requiresMfaChallenge && !isRestrictedPathForLoggedIn) {
+        if (requiresMfaChallenge) {
             const continuationPath = deriveMfaContinuationPath({
                 pathname: effectivePathForMfa,
                 search: effectiveSearchForMfa,
@@ -196,10 +213,6 @@ export async function updateSession(request: NextRequest) {
 
     // Redirect authenticated users trying to access restricted paths
     if (user && isRestrictedPathForLoggedIn) {
-        if (requiresMfaChallenge) {
-            return supabaseResponse;
-        }
-
         if (hasStaffInviteContext) {
             return supabaseResponse;
         }
