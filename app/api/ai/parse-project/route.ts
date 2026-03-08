@@ -40,6 +40,7 @@ Given a user's description, extract and return a JSON object with the following 
         "date": "YYYY-MM-DD",
         "slots": [
           {
+            "name": "string (optional, max 75 chars, descriptive slot label)",
             "startTime": "HH:MM",
             "endTime": "HH:MM",
             "volunteers": number
@@ -97,8 +98,10 @@ Rules:
   - Default endType to "never" unless a specific end date or number of occurrences is mentioned
   - For recurring events, still provide the schedule for the FIRST occurrence only
 - **For multiDay events**: ALWAYS include a "slots" array for each day, even if there's only one slot
-  - Example: [{"date": "2026-02-15", "slots": [{"startTime": "09:00", "endTime": "17:00", "volunteers": 20}]}]
+  - Example: [{"date": "2026-02-15", "slots": [{"name": "Morning Shift", "startTime": "09:00", "endTime": "17:00", "volunteers": 20}]}]
   - Never omit the slots array
+  - If the user describes different shifts or activities within a multi-day event, include a descriptive "name" for each slot
+  - If no slot label is obvious, leave "name" empty or omit it
 
 Examples:
 - "beach cleanup Saturday morning" → oneTime event, next Saturday at 9am-12pm, recurrence.enabled: false
@@ -149,14 +152,22 @@ export async function POST(req: NextRequest) {
       
       // Ensure multiDay events have proper structure with slots
       if (parsedData.eventType === 'multiDay' && Array.isArray(parsedData.schedule)) {
-        parsedData.schedule = parsedData.schedule.map((day: any) => {
+        parsedData.schedule = parsedData.schedule.map((day: Record<string, unknown>) => {
           // Ensure each day has a slots array
           if (!Array.isArray(day.slots)) {
             day.slots = [{
+              name: day.name || '',
               startTime: day.startTime || '09:00',
               endTime: day.endTime || '17:00',
               volunteers: day.volunteers || 10
             }];
+          } else {
+            day.slots = day.slots.map((slot: Record<string, unknown>) => ({
+              name: typeof slot.name === 'string' ? slot.name : '',
+              startTime: slot.startTime || day.startTime || '09:00',
+              endTime: slot.endTime || day.endTime || '17:00',
+              volunteers: slot.volunteers || day.volunteers || 10,
+            }));
           }
           return day;
         });

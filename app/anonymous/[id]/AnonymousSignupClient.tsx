@@ -4,12 +4,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { CheckCircle2, Clock, User, Mail, Phone, Calendar, Loader2, XCircle, AlertTriangle, Award, Medal, FileText, LogIn, UserPlus } from "lucide-react";
+import { CheckCircle2, Clock, User, Mail, Phone, Calendar, Loader2, XCircle, AlertTriangle, Award, Medal, FileText } from "lucide-react";
 import Link from "next/link";
 import { format, addDays, parseISO, differenceInSeconds, differenceInHours, isAfter } from "date-fns";
 import { formatTimeTo12Hour, cn } from "@/lib/utils";
 import { TimezoneBadge } from "@/components/shared/TimezoneBadge";
 import { Project } from "@/types";
+import { getMultiDaySlotByScheduleId, getMultiDaySlotDisplayName } from "@/utils/project";
 import { useState, useMemo, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
@@ -19,6 +20,7 @@ import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 import { cancelSignup, getAnonymousWaiverSignatureMeta, getWaiverDownloadUrl } from "@/app/projects/[id]/actions";
 import { linkAnonymousToAuthenticatedAccount } from "./actions";
+import { AnonymousLinkingDialog } from "./AnonymousLinkingDialog";
 
 // Slot data from the server
 interface SlotData {
@@ -69,18 +71,13 @@ const formatScheduleSlot = (project: Project, slotId: string) => {
   }
 
   if (project.event_type === "multiDay") {
-    const parts = slotId.split("-");
-    if (parts.length >= 2) {
-      const slotIndex = parts.pop();
-      const date = parts.join("-");
-      const day = project.schedule.multiDay?.find((d) => d.date === date);
-      if (day && slotIndex !== undefined) {
-        const slotIdx = parseInt(slotIndex, 10);
-        const slot = day.slots[slotIdx];
-        if (slot) {
-          return buildTimeDisplay({ date, startTime: slot.startTime, endTime: slot.endTime });
-        }
-      }
+    const slotData = getMultiDaySlotByScheduleId(project, slotId);
+    if (slotData) {
+      const { day, slot, slotIndex } = slotData;
+      return buildTimeDisplay(
+        { date: day.date, startTime: slot.startTime, endTime: slot.endTime },
+        getMultiDaySlotDisplayName(slot, slotIndex),
+      );
     }
   }
 
@@ -173,6 +170,7 @@ const getStatusBadge = (status: string) => {
 
 interface AnonymousSignupClientProps {
   id: string;
+  accessToken: string;
   name: string;
   email: string;
   phone_number: string | null;
@@ -182,10 +180,14 @@ interface AnonymousSignupClientProps {
   isProjectCancelled: boolean;
   slots: SlotData[];
   linkedUserId: string | null;
+  linkedAccountEmail: string | null;
+  linkedAccountVerified: boolean;
+  certificateIds: Record<string, string>;
 }
 
 export default function AnonymousSignupClient({
   id,
+  accessToken,
   name,
   email,
   phone_number,
@@ -195,7 +197,12 @@ export default function AnonymousSignupClient({
   isProjectCancelled,
   slots,
   linkedUserId,
+  linkedAccountEmail,
+  linkedAccountVerified,
+  certificateIds,
 }: AnonymousSignupClientProps) {
+  type LinkStatus = "unlinked" | "linked" | "verification-pending";
+
   const router = useRouter();
   const searchParams = useSearchParams();
   const isConfirmed = !!confirmed_at;
@@ -203,9 +210,15 @@ export default function AnonymousSignupClient({
   const [cancellingSlotId, setCancellingSlotId] = useState<string | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
   const [removedSlots, setRemovedSlots] = useState<Set<string>>(new Set());
-  const [isLinking, setIsLinking] = useState(false);
-  const [isLinked, setIsLinked] = useState(!!linkedUserId);
+  const [, setIsLinking] = useState(false);
+  const [linkStatus, setLinkStatus] = useState<LinkStatus>(
+    linkedUserId ? (linkedAccountVerified ? "linked" : "verification-pending") : "unlinked",
+  );
+  const [verificationPendingEmail, setVerificationPendingEmail] = useState<string | null>(
+    linkedUserId && !linkedAccountVerified ? (linkedAccountEmail ?? email) : null,
+  );
   const [autoLinkAttempted, setAutoLinkAttempted] = useState(false);
+  const [autoLinkError, setAutoLinkError] = useState<string | null>(null);
   const [waiverSignatures, setWaiverSignatures] = useState<Record<string, { signature_type: string; signed_at?: string | null } | null>>({});
 
   // Computed values
@@ -222,7 +235,11 @@ export default function AnonymousSignupClient({
       const results: Record<string, { signature_type: string; signed_at?: string | null } | null> = {};
       for (const slot of slots) {
         try {
-          const result = await getAnonymousWaiverSignatureMeta(slot.project_signup_id, id);
+          const result = await getAnonymousWaiverSignatureMeta(
+            slot.project_signup_id,
+            id,
+            accessToken,
+          );
           if ('error' in result) {
             results[slot.project_signup_id] = null;
           } else if (result.signatureId) {
@@ -240,37 +257,17 @@ export default function AnonymousSignupClient({
       setWaiverSignatures(results);
     };
     void loadWaivers();
-  }, [slots, id, project.waiver_required]);
-
-  // Load certificates for all slots
-  const [certMap, setCertMap] = useState<Record<string, string>>({});
-  useEffect(() => {
-    const supabase = createClient();
-    const loadCertificates = async () => {
-      const signupIds = slots.map(s => s.project_signup_id);
-      if (signupIds.length === 0) return;
-      const { data, error } = (await supabase
-        .from("certificates")
-        .select("id, signup_id")
-        .in("signup_id", signupIds)) as {
-          data: { id: string; signup_id: string }[] | null;
-          error: { message?: string } | null;
-        };
-      if (!error && data) {
-        const map: Record<string, string> = {};
-        data.forEach((cert) => { map[cert.signup_id] = cert.id; });
-        setCertMap(map);
-      }
-    };
-    void loadCertificates();
-  }, [slots]);
+  }, [slots, id, accessToken, project.waiver_required]);
 
   useEffect(() => {
-    setIsLinked(!!linkedUserId);
-  }, [linkedUserId]);
+    if (linkedUserId) {
+      setLinkStatus(linkedAccountVerified ? "linked" : "verification-pending");
+      setVerificationPendingEmail(linkedAccountVerified ? null : (linkedAccountEmail ?? email));
+    }
+  }, [email, linkedAccountEmail, linkedAccountVerified, linkedUserId]);
 
   const shouldAutoLink = searchParams.get("link") === "1";
-  const linkingRedirectPath = `/anonymous/${id}?link=1`;
+  const isLinked = linkStatus !== "unlinked";
 
   useEffect(() => {
     if (!shouldAutoLink || autoLinkAttempted || isLinked) {
@@ -292,9 +289,10 @@ export default function AnonymousSignupClient({
         }
 
         setIsLinking(true);
-        const result = await linkAnonymousToAuthenticatedAccount(id);
+        const result = await linkAnonymousToAuthenticatedAccount(id, accessToken);
 
         if (result.error) {
+          setAutoLinkError(result.error);
           toast.error(result.error);
           return;
         }
@@ -303,12 +301,14 @@ export default function AnonymousSignupClient({
           return;
         }
 
-        setIsLinked(true);
-        toast.success("Account linked successfully.");
+        setLinkStatus("linked");
+        setAutoLinkError(null);
+        toast.success("Account linked successfully! Your event signups have been transferred and are now pending approval from project coordinators.");
         router.replace("/dashboard");
         router.refresh();
       } catch (error) {
         console.error("Error auto-linking account:", error);
+        setAutoLinkError("Failed to link account automatically. You can still finish linking below.");
         toast.error("Failed to link account. Please try again.");
       } finally {
         if (isMounted) {
@@ -322,24 +322,14 @@ export default function AnonymousSignupClient({
     return () => {
       isMounted = false;
     };
-  }, [shouldAutoLink, autoLinkAttempted, isLinked, id, router]);
-
-  const handleGoToLogin = () => {
-    setIsLinking(true);
-    router.push(`/login?redirect=${encodeURIComponent(linkingRedirectPath)}`);
-  };
-
-  const handleGoToSignup = () => {
-    setIsLinking(true);
-    router.push(`/signup?redirect=${encodeURIComponent(linkingRedirectPath)}`);
-  };
+  }, [shouldAutoLink, autoLinkAttempted, isLinked, id, accessToken, router]);
 
   const handleCancelSlot = async () => {
     if (!cancellingSlotId) return;
 
     try {
       setIsCancelling(true);
-      const result = await cancelSignup(cancellingSlotId, id);
+      const result = await cancelSignup(cancellingSlotId, id, accessToken);
 
       if (result.error) {
         toast.error(result.error);
@@ -347,11 +337,8 @@ export default function AnonymousSignupClient({
         return;
       }
 
-      // If this was the last active slot, also delete the anonymous profile
       const remainingSlots = activeSlots.filter(s => s.project_signup_id !== cancellingSlotId);
       if (remainingSlots.length === 0) {
-        const supabase = createClient();
-        await supabase.from("anonymous_signups").delete().eq("id", id);
         toast.success("All signups cancelled successfully");
         setTimeout(() => router.push("/projects"), 2000);
       } else {
@@ -371,14 +358,14 @@ export default function AnonymousSignupClient({
 
   const handleViewWaiver = async (projectSignupId: string) => {
     try {
-      const result = await getWaiverDownloadUrl(projectSignupId, id);
+      const result = await getWaiverDownloadUrl(projectSignupId, id, accessToken);
 
       if (result?.url) {
         window.open(result.url, "_blank", "noopener,noreferrer");
         return;
       }
       if (result?.signatureId) {
-        const previewUrl = `/api/waivers/${result.signatureId}/preview?anonymousSignupId=${id}`;
+        const previewUrl = `/api/waivers/${result.signatureId}/preview?anonymousSignupId=${id}&token=${encodeURIComponent(accessToken)}`;
         window.open(previewUrl, "_blank", "noopener,noreferrer");
         return;
       }
@@ -556,7 +543,7 @@ export default function AnonymousSignupClient({
             isProjectCancelled={isProjectCancelled}
             isConfirmed={isConfirmed}
             waiverSignature={waiverSignatures[slot.project_signup_id]}
-            certificateId={certMap[slot.project_signup_id]}
+            certificateId={certificateIds[slot.project_signup_id]}
             onCancel={() => {
               setCancellingSlotId(slot.project_signup_id);
               setCancelDialogOpen(true);
@@ -585,42 +572,60 @@ export default function AnonymousSignupClient({
           <Separator />
 
           <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              Link your anonymous profile to a Let&apos;s Assist account to track all your volunteer activities in one place.
-            </p>
-            {isLinked ? (
-              <div className="flex items-center gap-2 text-sm text-success">
-                <CheckCircle2 className="h-4 w-4" />
-                Account linked successfully
+            <div className="bg-blue-50/50 border border-blue-200/50 rounded-lg p-3">
+              <p className="text-sm text-blue-900">
+                <span className="font-semibold">About linking:</span> When you link this anonymous profile to a Let&apos;s Assist account, all your event signups will be transferred to your account. Your signups are currently <span className="font-semibold">pending approval</span> from the project coordinator. Once approved, you can check in during events and track your volunteer hours—all in one place.
+              </p>
+            </div>
+
+            {autoLinkError && !isLinked && (
+              <Alert className="border-warning/30 bg-warning/5">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Linking needs one more step</AlertTitle>
+                <AlertDescription>{autoLinkError}</AlertDescription>
+              </Alert>
+            )}
+
+            {linkStatus === "linked" ? (
+              <div className="flex items-center gap-2 text-sm text-success bg-success/5 p-3 rounded-lg">
+                <CheckCircle2 className="h-4 w-4 shrink-0" />
+                <span className="font-medium">Account linked successfully! Your signups have been transferred.</span>
               </div>
-            ) : (
-              <>
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <Button
-                    variant="default"
-                    onClick={handleGoToLogin}
-                    className="flex items-center gap-2"
-                    disabled={isLinking}
-                  >
-                    {isLinking ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogIn className="h-4 w-4" />}
-                    Link to Existing Account
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={handleGoToSignup}
-                    className="flex items-center gap-2"
-                    disabled={isLinking}
-                  >
-                    <UserPlus className="h-4 w-4" />
-                    Create New Account
-                  </Button>
-                </div>
-                {shouldAutoLink && autoLinkAttempted && !isLinked && !isLinking && (
-                  <p className="text-xs text-muted-foreground">
-                    Sign in or create an account to complete linking for this anonymous profile.
+            ) : linkStatus === "verification-pending" ? (
+              <Alert className="border-primary/30 bg-primary/5">
+                <Mail className="h-4 w-4" />
+                <AlertTitle>Verify your new account</AlertTitle>
+                <AlertDescription className="space-y-1 text-sm">
+                  <p>
+                    Your volunteer profile is linked. We sent a verification email to <span className="font-medium text-foreground">{verificationPendingEmail ?? email}</span>.
                   </p>
-                )}
-              </>
+                  <p>
+                    After verifying, sign in to access your volunteer dashboard, approvals, hours, and certificates.
+                  </p>
+                  <div className="pt-2">
+                    <Link href={`/signup/success?email=${encodeURIComponent(verificationPendingEmail ?? email)}`} className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
+                      Manage verification email
+                    </Link>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <AnonymousLinkingDialog
+                anonymousId={id}
+                anonymousToken={accessToken}
+                defaultName={name}
+                defaultEmail={email}
+                isLinked={isLinked}
+                onLinked={() => {
+                  setLinkStatus("linked");
+                  setAutoLinkError(null);
+                }}
+                onLinkedPendingVerification={(pendingEmail) => {
+                  setLinkStatus("verification-pending");
+                  setVerificationPendingEmail(pendingEmail);
+                  setAutoLinkError(null);
+                }}
+              />
             )}
           </div>
         </CardContent>

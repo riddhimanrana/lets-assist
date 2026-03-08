@@ -1,5 +1,9 @@
+import { redirect } from "next/navigation";
 import { Metadata } from "next";
 import SignupClient from "./SignupClient";
+import { getAuthUser } from "@/lib/supabase/auth-helpers";
+import { applyStaffInviteForUser } from "@/lib/organization/staff-invite";
+import { buildStaffInviteRedirectPath } from "@/lib/organization/staff-invite-outcome";
 
 export const metadata: Metadata = {
   title: "Sign Up",
@@ -11,11 +15,25 @@ interface SignupPageProps {
 }
 
 export default async function SignupPage({ searchParams }: SignupPageProps) {
-  const { redirect, staff_token, org } = await searchParams;
+  const { redirect: redirectPath, staff_token, org } = await searchParams;
+
+  if (staff_token && org) {
+    const { user } = await getAuthUser({ allowMfaPending: true });
+
+    if (user) {
+      const inviteOutcome = await applyStaffInviteForUser({
+        userId: user.id,
+        staffToken: staff_token,
+        orgUsername: org,
+      });
+
+      redirect(buildStaffInviteRedirectPath(inviteOutcome));
+    }
+  }
   
   return (
     <SignupClient 
-      redirectPath={redirect ?? ""} 
+      redirectPath={redirectPath ?? ""} 
       staffToken={staff_token}
       orgUsername={org}
     />

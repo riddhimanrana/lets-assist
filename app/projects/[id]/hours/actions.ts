@@ -265,3 +265,85 @@ export async function publishVolunteerHours(
     return { success: false, error: message };
   }
 }
+
+/**
+ * Resend certificate emails to specific volunteers
+ * Used for corrections or when organizers need to resend to volunteers who didn't receive it initially
+ */
+export async function resendCertificateEmails(
+  projectId: string,
+  certificateIds: string[]
+): Promise<{ success: boolean; error?: string; emailsSent?: number; emailErrors?: string[] }> {
+  const supabase = await createClient();
+
+  try {
+    // 1. Verify user authentication and permissions
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      return { success: false, error: "Authentication required." };
+    }
+
+    // 2. Verify user has permission on this project
+    const { data: project, error: projectError } = await supabase
+      .from("projects")
+      .select("id, creator_id, organization_id, project_timezone")
+      .eq("id", projectId)
+      .single();
+
+    if (projectError || !project) {
+      return { success: false, error: "Project not found." };
+    }
+
+    // Check if user is creator or org admin
+    const isCreator = project.creator_id === user.id;
+    let isOrgAdmin = false;
+    
+    if (!isCreator && project.organization_id) {
+      const { data: member } = await supabase
+        .from("organization_members")
+        .select("role")
+        .eq("user_id", user.id)
+        .eq("organization_id", project.organization_id)
+        .single();
+      isOrgAdmin = member?.role === "admin" || member?.role === "staff";
+    }
+
+    if (!isCreator && !isOrgAdmin) {
+      return { success: false, error: "Unauthorized: Only project creators and org admins can resend certificate emails." };
+    }
+
+    // 3. Fetch the certificates to resend
+    const { data: certificates, error: certError } = await supabase
+      .from("certificates")
+      .select("id, volunteer_name, volunteer_email, project_title, event_start, event_end")
+      .eq("project_id", projectId)
+      .in("id", certificateIds);
+
+    if (certError || !certificates) {
+      return { success: false, error: "Failed to fetch certificates." };
+    }
+
+    // 4. Filter out certificates without email addresses
+    const certificatesToEmail = certificates.filter(cert => cert.volunteer_email && cert.volunteer_name);
+
+    if (certificatesToEmail.length === 0) {
+      return { success: false, error: "No valid certificates with email addresses found to resend." };
+    }
+
+    // 5. Send emails
+    const emailResult = await sendCertificatePublishedEmails(certificatesToEmail, project.project_timezone);
+
+    console.log(`Resent ${emailResult.emailsSent} certificate emails for project ${projectId}`);
+
+    return {
+      success: true,
+      emailsSent: emailResult.emailsSent,
+      emailErrors: emailResult.errors
+    };
+
+  } catch (error) {
+    console.error("Unexpected error in resendCertificateEmails:", error);
+    const message = error instanceof Error ? error.message : "An unexpected server error occurred.";
+    return { success: false, error: message };
+  }
+}

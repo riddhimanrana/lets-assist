@@ -306,9 +306,9 @@ export function SubmitTrustedMemberForm({
             <Button type="submit" className="w-full sm:w-auto" disabled={pending || !form.formState.isValid}>
               {pending ? "Submitting..." : "Submit Application"}
             </Button>
-            {!form.formState.isValid && (
+            {/* {!form.formState.isValid && (
               <span className="text-xs text-muted-foreground">Please fix the errors above to submit.</span>
-            )}
+            )} */}
           </div>
         </form>
       </CardContent>

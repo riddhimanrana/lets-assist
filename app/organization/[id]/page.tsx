@@ -1,10 +1,15 @@
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
+import { formatUtcCalendarDateLabel } from "@/lib/date-format";
+import { getPublicProfilesByIds } from "@/lib/profile/public";
 import { Metadata } from "next";
 import OrganizationHeader from "@/components/organization/OrganizationHeader";
 import OrganizationTabs from "@/components/organization/OrganizationTabs";
-import { getOrganizationReportData } from "./reports/actions";
+import {
+  getOrganizationReportData,
+  getOrganizationReportDataForSync,
+} from "./reports/actions";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -28,6 +33,10 @@ type ProfileRow = {
   username: string | null;
   full_name: string | null;
   avatar_url: string | null;
+};
+
+type FormattedOrganizationMember = OrganizationMemberRow & {
+  profiles: ProfileRow | null;
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -140,67 +149,77 @@ export default async function OrganizationPage({
     userRole = memberRecord?.role || null;
   }
 
+  // Check if members should be visible
+  // Members are visible if: show_members_publicly is true OR user is a member
+  const canViewMembers = organization.show_members_publicly !== false || !!userRole;
+
   console.log("Fetching members for organization ID:", organization.id);
 
-  // FIXED: First fetch members from organization_members table
-  const { data: membersData, error: membersError } = (await supabase
-    .from("organization_members")
-    .select(
-      `
-      id, 
-      role, 
-      joined_at,
-      user_id,
-      organization_id
-    `,
-    )
-    .eq("organization_id", organization.id)
-    .order("role", { ascending: false })) as {
-    data: OrganizationMemberRow[] | null;
-    error: { message: string } | null;
-  };
+  // Get member count from the already-fetched organization_members relationship
+  const memberCount = organization.organization_members?.length || 0;
 
-  if (membersError) {
-    console.error("Error fetching organization members:", membersError);
-  }
+  // Only fetch full member data if they should be visible
+  let formattedMembers: FormattedOrganizationMember[] = [];
 
-  // Get the list of user IDs
-  const userIds = membersData?.map((member) => member.user_id) || [];
-
-  // No need to query profiles if there are no members
-  let profilesData: ProfileRow[] = [];
-  if (userIds.length > 0) {
-    // Then fetch profile data for those users
-    const { data: profiles, error: profilesError } = (await supabase
-      .from("profiles")
-      .select("id, username, full_name, avatar_url")
-      .in("id", userIds)) as {
-      data: ProfileRow[] | null;
+  if (canViewMembers) {
+    // FIXED: First fetch members from organization_members table
+    const { data: membersData, error: membersError } = (await supabase
+      .from("organization_members")
+      .select(
+        `
+        id, 
+        role, 
+        joined_at,
+        user_id,
+        organization_id
+      `,
+      )
+      .eq("organization_id", organization.id)
+      .order("role", { ascending: false })) as {
+      data: OrganizationMemberRow[] | null;
       error: { message: string } | null;
     };
 
-    if (profilesError) {
-      console.error("Error fetching member profiles:", profilesError);
-    } else {
-      profilesData = profiles || [];
+    if (membersError) {
+      console.error("Error fetching organization members:", membersError);
     }
-  }
 
-  // Combine the data
-  const formattedMembers =
-    membersData?.map((member) => {
-      const profile = profilesData.find((p) => p.id === member.user_id) || null;
-      return {
-        ...member,
-        profiles: profile,
+    // Get the list of user IDs
+    const userIds = membersData?.map((member) => member.user_id) || [];
+
+    // No need to query profiles if there are no members
+    let profilesData: ProfileRow[] = [];
+    if (userIds.length > 0) {
+      const { data: profiles, error: profilesError } = (await getPublicProfilesByIds(
+        userIds,
+      )) as {
+        data: ProfileRow[] | null;
+        error: { message?: string } | null;
       };
-    }) || [];
 
-  console.log(
-    "Members query result:",
-    formattedMembers.length,
-    "members found",
-  );
+      if (profilesError) {
+        console.error("Error fetching member profiles:", profilesError);
+      } else {
+        profilesData = profiles || [];
+      }
+    }
+
+    // Combine the data
+    formattedMembers =
+      membersData?.map((member) => {
+        const profile = profilesData.find((p) => p.id === member.user_id) || null;
+        return {
+          ...member,
+          profiles: profile,
+        };
+      }) || [];
+
+    console.log(
+      "Members query result:",
+      formattedMembers.length,
+      "members found",
+    );
+  }
 
   // Get organization projects
   const { data: projects } = await supabase
@@ -209,11 +228,29 @@ export default async function OrganizationPage({
     .eq("organization_id", organization.id)
     .order("created_at", { ascending: false });
 
-  let reportSummary = null;
+  let reportSummary: { totalHours: number } | null = null;
+
   if (userRole === "admin" || userRole === "staff") {
     const reportResult = await getOrganizationReportData(organization.id);
-    reportSummary = reportResult.data?.metrics ?? null;
+    if (reportResult.data?.metrics) {
+      reportSummary = {
+        totalHours: reportResult.data.metrics.totalHours,
+      };
+    }
   }
+
+  if (!reportSummary) {
+    const reportResult = await getOrganizationReportDataForSync(organization.id);
+    if (reportResult.data?.metrics) {
+      reportSummary = {
+        totalHours: reportResult.data.metrics.totalHours,
+      };
+    }
+  }
+
+  const organizationCreatedLabel = formatUtcCalendarDateLabel(
+    organization.created_at,
+  );
 
   return (
     <div className="flex flex-col w-full">
@@ -223,7 +260,7 @@ export default async function OrganizationPage({
         <OrganizationHeader
           organization={organization}
           userRole={userRole}
-          memberCount={formattedMembers?.length || 0}
+          memberCount={memberCount}
         />
 
         <div className="mt-8 sm:mt-12 bg-card rounded-xl border border-border/60 shadow-xs p-4 sm:p-6 mb-8">
@@ -235,6 +272,8 @@ export default async function OrganizationPage({
             currentUserId={user?.id}
             reportSummary={reportSummary}
             organizationSlug={organization.username || organization.id}
+            organizationCreatedLabel={organizationCreatedLabel}
+            canViewMembers={canViewMembers}
           />
         </div>
       </div>

@@ -7,7 +7,12 @@ import { Upload, Sparkles, Loader2 } from "lucide-react";
 import type { WaiverDefinitionInput } from "@/components/waiver/WaiverBuilderDialog";
 
 interface HarnessDiagnostics {
+  includeDiagnostics?: boolean;
+  modelRequested?: string;
+  modelUsed?: string;
+  modelRequestedAccepted?: boolean;
   strictHallucinationGuard?: boolean;
+  pageCount?: number;
   textItemsCount?: number;
   labelCount?: number;
   candidateCount?: number;
@@ -55,12 +60,21 @@ interface HarnessApiResponse {
   analysis?: HarnessAnalysis;
 }
 
+const AI_MODEL_OPTIONS = [
+  "google/gemini-2.5-flash-lite",
+  "google/gemini-2.5-flash",
+  "google/gemini-3-flash",
+] as const;
+
 export function WaiverBuilderHarnessClient() {
   const [open, setOpen] = useState(false);
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [saveResult, setSaveResult] = useState<WaiverDefinitionInput | null>(null);
   const [strictHallucinationGuard, setStrictHallucinationGuard] = useState(true);
+  const [selectedModel, setSelectedModel] = useState<(typeof AI_MODEL_OPTIONS)[number]>(
+    "google/gemini-2.5-flash-lite"
+  );
   const [isHarnessScanning, setIsHarnessScanning] = useState(false);
   const [harnessAnalysis, setHarnessAnalysis] = useState<HarnessAnalysis | null>(null);
   const [harnessError, setHarnessError] = useState<string | null>(null);
@@ -93,6 +107,7 @@ export function WaiverBuilderHarnessClient() {
       formData.append("file", pdfFile);
       formData.append("includeDiagnostics", "true");
       formData.append("strictHallucinationGuard", strictHallucinationGuard ? "true" : "false");
+      formData.append("model", selectedModel);
 
       const response = await fetch("/api/ai/analyze-waiver", {
         method: "POST",
@@ -127,6 +142,11 @@ export function WaiverBuilderHarnessClient() {
     return harnessAnalysis.fields.filter((field) =>
       field.notes?.toLowerCase().includes("snapped to structural candidate")
     ).length;
+  }, [harnessAnalysis]);
+
+  const fieldsPerPage = useMemo(() => {
+    if (!harnessAnalysis || harnessAnalysis.pageCount <= 0) return 0;
+    return harnessAnalysis.fields.length / harnessAnalysis.pageCount;
   }, [harnessAnalysis]);
 
   return (
@@ -183,6 +203,29 @@ export function WaiverBuilderHarnessClient() {
             </label>
           </div>
 
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="space-y-1 text-xs font-medium">
+              <span className="text-muted-foreground">AI model</span>
+              <select
+                className="w-full rounded-md border bg-background px-2 py-1.5 text-xs"
+                value={selectedModel}
+                onChange={(event) => setSelectedModel(event.target.value as (typeof AI_MODEL_OPTIONS)[number])}
+              >
+                {AI_MODEL_OPTIONS.map((model) => (
+                  <option key={model} value={model}>
+                    {model}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="rounded-md border bg-background/70 p-2 text-xs">
+              <div className="text-muted-foreground">Run profile</div>
+              <div className="mt-1 font-medium">
+                {strictHallucinationGuard ? "Strict guard enabled" : "Strict guard disabled"}
+              </div>
+            </div>
+          </div>
+
           <Button
             onClick={handleRunHarnessScan}
             disabled={!pdfFile || isHarnessScanning}
@@ -223,12 +266,40 @@ export function WaiverBuilderHarnessClient() {
                   <div className="text-xs text-muted-foreground">Suspicious placements</div>
                   <div className="font-semibold" data-testid="harness-suspicious">{suspiciousPlacements.length}</div>
                 </div>
+                <div className="rounded-md border p-2">
+                  <div className="text-xs text-muted-foreground">Signer roles</div>
+                  <div className="font-semibold" data-testid="harness-roles">{harnessAnalysis.signerRoles?.length ?? 0}</div>
+                </div>
+                <div className="rounded-md border p-2">
+                  <div className="text-xs text-muted-foreground">Fields / page</div>
+                  <div className="font-semibold">{fieldsPerPage.toFixed(2)}</div>
+                </div>
               </div>
+
+              {harnessAnalysis.summary && (
+                <div className="rounded-md border p-3 bg-background/70 text-xs space-y-1">
+                  <div className="font-semibold uppercase text-muted-foreground">Summary</div>
+                  <p>{harnessAnalysis.summary}</p>
+                </div>
+              )}
+
+              {!!harnessAnalysis.recommendations?.length && (
+                <div className="rounded-md border p-3 bg-background/70 text-xs space-y-2">
+                  <div className="font-semibold uppercase text-muted-foreground">Recommendations</div>
+                  <ul className="list-disc pl-4 space-y-1">
+                    {harnessAnalysis.recommendations.map((recommendation, index) => (
+                      <li key={`${recommendation}-${index}`}>{recommendation}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               {harnessAnalysis.diagnostics && (
                 <div className="rounded-md border p-3 bg-background/70 space-y-2" data-testid="harness-diagnostics">
                   <div className="text-xs font-semibold uppercase text-muted-foreground">Diagnostics</div>
                   <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div>Model requested: {harnessAnalysis.diagnostics.modelRequested ?? "n/a"}</div>
+                    <div>Model used: {harnessAnalysis.diagnostics.modelUsed ?? "n/a"}</div>
                     <div>Candidates: {harnessAnalysis.diagnostics.candidateCount ?? 0}</div>
                     <div>Labels: {harnessAnalysis.diagnostics.labelCount ?? 0}</div>
                     <div>AI selected: {harnessAnalysis.diagnostics.aiSelectedFieldCount ?? 0}</div>
@@ -237,6 +308,8 @@ export function WaiverBuilderHarnessClient() {
                     <div>Vision anchored: {harnessAnalysis.diagnostics.visionFieldsAnchored ?? 0}</div>
                     <div>Vision rejected: {harnessAnalysis.diagnostics.visionFieldsRejected ?? 0}</div>
                     <div>Low-signal rejects: {harnessAnalysis.diagnostics.visionFieldsRejectedLowSignal ?? 0}</div>
+                    <div>Oversize rejects: {harnessAnalysis.diagnostics.visionFieldsRejectedOversize ?? 0}</div>
+                    <div>Final fields: {harnessAnalysis.diagnostics.finalFieldCount ?? 0}</div>
                   </div>
                 </div>
               )}

@@ -2,7 +2,12 @@
 
 import { CustomPlacement } from "./PdfViewerWithOverlay";
 import { WaiverDefinitionSignerInput } from "./SignerRolesEditor";
-import { WaiverFieldType } from "@/types/waiver-definitions";
+import {
+  CUSTOM_PLACEMENT_FIELD_TYPE_OPTIONS,
+  isCustomPlacementFieldType,
+  normalizeCustomPlacementFieldType,
+  resizeRectToFieldType,
+} from "@/lib/waiver/custom-field-config";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -18,24 +23,6 @@ import { Trash2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-
-const CUSTOM_FIELD_TYPE_OPTIONS: Array<{ value: WaiverFieldType; label: string }> = [
-  { value: 'signature', label: 'Signature' },
-  { value: 'initial', label: 'Initials' },
-  { value: 'name', label: 'Name' },
-  { value: 'date', label: 'Date' },
-  { value: 'email', label: 'Email' },
-  { value: 'phone', label: 'Phone' },
-  { value: 'address', label: 'Address' },
-  { value: 'text', label: 'Text' },
-  { value: 'checkbox', label: 'Checkbox' },
-  { value: 'radio', label: 'Radio' },
-  { value: 'dropdown', label: 'Dropdown' },
-];
-
-function isCustomFieldTypeOption(value: string): value is WaiverFieldType {
-  return CUSTOM_FIELD_TYPE_OPTIONS.some((option) => option.value === value);
-}
 
 interface SignaturePlacementsEditorProps {
   placements: CustomPlacement[];
@@ -66,6 +53,15 @@ export function SignaturePlacementsEditor({
 
   const handleRemovePlacement = (id: string) => {
     onPlacementsChange(placements.filter(p => p.id !== id));
+  };
+
+  const handlePlacementFieldTypeChange = (placement: CustomPlacement, nextValue: string) => {
+    if (!isCustomPlacementFieldType(nextValue)) return;
+
+    handleUpdatePlacement(placement.id, {
+      fieldType: nextValue,
+      rect: resizeRectToFieldType(placement.rect, nextValue),
+    });
   };
 
   // Helper to get signer label from roleKey
@@ -123,16 +119,16 @@ export function SignaturePlacementsEditor({
                          </div>
                          <div className="w-24 shrink-0">
                             <Select
-                               value={isCustomFieldTypeOption(placement.fieldType) ? placement.fieldType : 'text'}
-                               onValueChange={(val) => val && handleUpdatePlacement(placement.id, { fieldType: val as WaiverFieldType })}
+                               value={normalizeCustomPlacementFieldType(placement.fieldType)}
+                             onValueChange={(val) => val && handlePlacementFieldTypeChange(placement, val)}
                              >
                                <SelectTrigger className="h-8 text-[11px] px-2" onClick={(e) => e.stopPropagation()}>
                                  <SelectValue placeholder="Field Type">
-                                   {CUSTOM_FIELD_TYPE_OPTIONS.find(o => o.value === (isCustomFieldTypeOption(placement.fieldType) ? placement.fieldType : 'text'))?.label}
+                                   {CUSTOM_PLACEMENT_FIELD_TYPE_OPTIONS.find(o => o.value === normalizeCustomPlacementFieldType(placement.fieldType))?.label}
                                  </SelectValue>
                                </SelectTrigger>
                                <SelectContent>
-                                  {CUSTOM_FIELD_TYPE_OPTIONS.map((option) => (
+                                  {CUSTOM_PLACEMENT_FIELD_TYPE_OPTIONS.map((option) => (
                                     <SelectItem key={option.value} value={option.value} className="text-xs">
                                       {option.label}
                                     </SelectItem>

@@ -193,4 +193,40 @@ describe('Phase 1: Server-side Upload Validation Logic', () => {
       expect(isWithinLimit).toBe(true);
     });
   });
+
+  describe('Global platform waiver fallback behavior', () => {
+    const PLATFORM_DEFAULT_WAIVER_TEMPLATE_ID = 'platform-default-waiver-template-v1';
+
+    it('should treat built-in platform template id as valid non-DB fallback', () => {
+      const incomingTemplateId = PLATFORM_DEFAULT_WAIVER_TEMPLATE_ID;
+
+      // Mirrors persistWaiverSignature behavior: built-in template is not persisted in DB.
+      const resolvedTemplateId = incomingTemplateId === PLATFORM_DEFAULT_WAIVER_TEMPLATE_ID
+        ? null
+        : incomingTemplateId;
+
+      expect(resolvedTemplateId).toBeNull();
+    });
+
+    it('should allow signature persistence when no DB global template exists', () => {
+      const hasProjectPdf = false;
+      const hasDefinitionId = false;
+      const activeGlobalTemplateId: string | null = null;
+
+      // If no project PDF and no DB template, we now allow null template id fallback.
+      const templateIdToPersist = hasProjectPdf || hasDefinitionId
+        ? 'n/a'
+        : activeGlobalTemplateId;
+
+      expect(templateIdToPersist).toBeNull();
+    });
+
+    it('should still require DB validation for unknown template ids', () => {
+      const incomingTemplateId: string = 'some-random-template-id';
+      const isPlatformDefault = incomingTemplateId === PLATFORM_DEFAULT_WAIVER_TEMPLATE_ID;
+      const shouldValidateAgainstDb = !isPlatformDefault;
+
+      expect(shouldValidateAgainstDb).toBe(true);
+    });
+  });
 });

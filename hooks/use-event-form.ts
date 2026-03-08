@@ -86,6 +86,7 @@ export interface EventFormState {
     multiDay: {
       date: string;
       slots: {
+        name: string;
         startTime: string;
         endTime: string;
         volunteers: number;
@@ -183,6 +184,7 @@ const defaultMultiRoleEvent = {
 };
 
 const defaultMultiDaySlot = {
+  name: '',
   startTime: '09:00',
   endTime: '17:00',
   volunteers: 0,
@@ -208,13 +210,7 @@ const initialState: EventFormState = {
     multiDay: [
       {
         date: '',
-        slots: [
-          {
-            startTime: '09:00',
-            endTime: '17:00',
-            volunteers: 0,
-          },
-        ],
+        slots: [{ ...defaultMultiDaySlot }],
       },
     ],
     sameDayMultiArea: {
@@ -591,6 +587,16 @@ const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
     }
     case 'LOAD_DRAFT': {
       const payload = action.payload;
+      const normalizedMultiDay = payload.schedule?.multiDay
+        ? payload.schedule.multiDay.map((day) => ({
+            ...day,
+            slots: day.slots.map((slot) => ({
+              ...defaultMultiDaySlot,
+              ...slot,
+              name: slot.name ?? '',
+            })),
+          }))
+        : state.schedule.multiDay;
 
       return {
         ...state,
@@ -606,7 +612,7 @@ const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
             ...state.schedule.oneTime,
             ...(payload.schedule?.oneTime ?? {}),
           },
-          multiDay: payload.schedule?.multiDay ?? state.schedule.multiDay,
+          multiDay: normalizedMultiDay,
           sameDayMultiArea: {
             ...state.schedule.sameDayMultiArea,
             ...(payload.schedule?.sameDayMultiArea ?? {}),

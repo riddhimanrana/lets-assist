@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { SyncedEvent } from "@/types";
 import type { Project } from "@/types";
+import { parseMultiDayScheduleId } from "@/utils/project";
 
 
 
@@ -133,12 +134,14 @@ export async function GET(_request: Request) {
           startTime = `${s.date}T${s.startTime}`;
           endTime = `${s.date}T${s.endTime}`;
         } else if (project.event_type === "multiDay" && project.schedule.multiDay) {
-          const [date, slotIndex] = signup.schedule_id.split("-");
-          const day = project.schedule.multiDay.find((d) => d.date === date);
-          if (day) {
-            const slot = day.slots[parseInt(slotIndex)];
-            startTime = `${date}T${slot.startTime}`;
-            endTime = `${date}T${slot.endTime}`;
+          const parsedScheduleId = parseMultiDayScheduleId(signup.schedule_id);
+          if (parsedScheduleId) {
+            const day = project.schedule.multiDay.find((d) => d.date === parsedScheduleId.date);
+            const slot = day?.slots[parsedScheduleId.slotIndex];
+            if (day && slot) {
+              startTime = `${parsedScheduleId.date}T${slot.startTime}`;
+              endTime = `${parsedScheduleId.date}T${slot.endTime}`;
+            }
           }
         } else if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
           const s = project.schedule.sameDayMultiArea;

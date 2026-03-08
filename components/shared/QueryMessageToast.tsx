@@ -1,8 +1,30 @@
 "use client";
 
-import React, { useEffect, useState, Suspense } from "react";
+import React, { Suspense } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { toast } from "sonner";
+import {
+  getStaffInviteToastContent,
+  type StaffInviteStatus,
+  type StaffInviteToastPosition,
+} from "@/lib/organization/staff-invite-outcome";
+
+const STAFF_INVITE_STATUSES: StaffInviteStatus[] = [
+  "success",
+  "invalid_token",
+  "expired_token",
+  "org_not_found",
+  "error",
+];
+
+const STAFF_INVITE_TOAST_POSITIONS: StaffInviteToastPosition[] = [
+  "top-left",
+  "top-right",
+  "bottom-left",
+  "bottom-right",
+  "top-center",
+  "bottom-center",
+];
 
 function QueryMessageToastContent() {
   const searchParams = useSearchParams();
@@ -34,37 +56,38 @@ function QueryMessageToastContent() {
 
     const inviteStatus = searchParams.get("invite_status");
     const inviteOrg = searchParams.get("invite_org") ?? "your organization";
+    const inviteToastPositionParam = searchParams.get("invite_toast_position");
 
-    if (inviteStatus) {
+    const inviteToastPosition = STAFF_INVITE_TOAST_POSITIONS.includes(
+      inviteToastPositionParam as StaffInviteToastPosition,
+    )
+      ? (inviteToastPositionParam as StaffInviteToastPosition)
+      : undefined;
+
+    if (
+      inviteStatus &&
+      STAFF_INVITE_STATUSES.includes(inviteStatus as StaffInviteStatus)
+    ) {
+      const inviteToastContent = getStaffInviteToastContent(
+        inviteStatus as StaffInviteStatus,
+        inviteOrg,
+      );
+
+      const toastOptions = {
+        description: inviteToastContent.description,
+        duration: 5000,
+        ...(inviteToastPosition ? { position: inviteToastPosition } : {}),
+      };
+
       if (inviteStatus === "success") {
-        toast.success("Staff invite applied", {
-          description: `You were added to "${inviteOrg}" as staff.`,
-          duration: 5000,
-        });
-      } else if (inviteStatus === "invalid_token") {
-        toast.warning("Invite could not be applied", {
-          description: `The invite link for "${inviteOrg}" is no longer valid.`,
-          duration: 5000,
-        });
-      } else if (inviteStatus === "expired_token") {
-        toast.warning("Invite expired", {
-          description: `The staff invite for "${inviteOrg}" has expired.`,
-          duration: 5000,
-        });
-      } else if (inviteStatus === "org_not_found") {
-        toast.warning("Invite could not be applied", {
-          description: `The organization "${inviteOrg}" could not be found.`,
-          duration: 5000,
-        });
+        toast.success(inviteToastContent.title, toastOptions);
       } else {
-        toast.warning("Invite processing issue", {
-          description: `You signed in, but we could not process your invite for "${inviteOrg}".`,
-          duration: 5000,
-        });
+        toast.warning(inviteToastContent.title, toastOptions);
       }
 
       params.delete("invite_status");
       params.delete("invite_org");
+      params.delete("invite_toast_position");
       hasParamUpdates = true;
     }
 

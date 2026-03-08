@@ -3,7 +3,16 @@
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { getAdminClient } from "@/lib/supabase/admin";
-import { differenceInMinutes, format } from "date-fns";
+import {
+  differenceInMinutes,
+  eachMonthOfInterval,
+  endOfDay,
+  endOfMonth,
+  format,
+  startOfDay,
+  startOfMonth,
+  subMonths,
+} from "date-fns";
 
 export type ReportDateRange = {
   from?: string;
@@ -97,6 +106,7 @@ export type OrganizationReportData = {
 export type ReportType = "member-hours" | "project-summary" | "monthly-summary";
 
 const roundHours = (hours: number) => Math.round(hours * 10) / 10;
+const DEFAULT_REPORT_MONTH_WINDOW = 12;
 
 const calculateHours = (start?: string | null, end?: string | null): number => {
   if (!start || !end) return 0;
@@ -111,7 +121,7 @@ const calculateHours = (start?: string | null, end?: string | null): number => {
 
 type RangeQuery<T> = {
   gte: (field: string, value: string) => T;
-  lt: (field: string, value: string) => T;
+  lte: (field: string, value: string) => T;
 };
 
 const applyDateRange = <T extends RangeQuery<T>>(
@@ -121,13 +131,52 @@ const applyDateRange = <T extends RangeQuery<T>>(
 ) => {
   if (!range?.from && !range?.to) return query;
   if (range?.from) {
-    query = query.gte(field, new Date(range.from).toISOString());
+    query = query.gte(field, startOfDay(new Date(range.from)).toISOString());
   }
   if (range?.to) {
-    query = query.lt(field, new Date(range.to).toISOString());
+    query = query.lte(field, endOfDay(new Date(range.to)).toISOString());
   }
   return query;
 };
+
+type ResolvedReportWindow = {
+  queryRange: Required<ReportDateRange>;
+  monthStart: Date;
+  monthEnd: Date;
+};
+
+const getResolvedReportWindow = (range?: ReportDateRange): ResolvedReportWindow => {
+  const now = new Date();
+  const fallbackFrom = startOfMonth(subMonths(now, DEFAULT_REPORT_MONTH_WINDOW - 1));
+  const fallbackTo = endOfMonth(now);
+
+  const parsedFrom = range?.from ? new Date(range.from) : fallbackFrom;
+  const parsedTo = range?.to ? new Date(range.to) : fallbackTo;
+
+  const safeFrom = Number.isNaN(parsedFrom.getTime()) ? fallbackFrom : parsedFrom;
+  const safeTo = Number.isNaN(parsedTo.getTime()) ? fallbackTo : parsedTo;
+  const [from, to] = safeFrom <= safeTo ? [safeFrom, safeTo] : [safeTo, safeFrom];
+
+  return {
+    queryRange: {
+      from: startOfDay(from).toISOString(),
+      to: endOfDay(to).toISOString(),
+    },
+    monthStart: startOfMonth(from),
+    monthEnd: startOfMonth(to),
+  };
+};
+
+const buildMonthlyHoursSeed = (
+  monthStart: Date,
+  monthEnd: Date
+): MonthlyHours[] => eachMonthOfInterval({ start: monthStart, end: monthEnd }).map((monthDate) => ({
+  month: format(monthDate, "MMM yyyy"),
+  sortKey: format(monthDate, "yyyy-MM"),
+  verified: 0,
+  pending: 0,
+  total: 0,
+}));
 
 const csvEscape = (value: string | number | null | undefined) => {
   if (value === null || value === undefined) return "";
@@ -154,6 +203,8 @@ async function buildReportDataForOrg(
   dateRange?: ReportDateRange
 ): Promise<{ data?: OrganizationReportData; error?: string }> {
   try {
+    const reportWindow = getResolvedReportWindow(dateRange);
+
     const { data: projects, error: projectsError } = (await supabase
       .from("projects")
       .select("id, title, status, workflow_status, created_at")
@@ -182,7 +233,7 @@ async function buildReportDataForOrg(
             totalProjects: 0,
           },
           volunteers: [],
-          monthlyHours: [],
+          monthlyHours: buildMonthlyHoursSeed(reportWindow.monthStart, reportWindow.monthEnd),
           projects: [],
           updatedAt: new Date().toISOString(),
         },
@@ -196,7 +247,7 @@ async function buildReportDataForOrg(
       )
       .in("project_id", projectIds);
 
-    certificatesQuery = applyDateRange(certificatesQuery, "issued_at", dateRange);
+    certificatesQuery = applyDateRange(certificatesQuery, "issued_at", reportWindow.queryRange);
 
     const { data: certificates, error: certificatesError } = (await certificatesQuery) as {
       data: CertificateRow[] | null;
@@ -218,7 +269,7 @@ async function buildReportDataForOrg(
       .not("check_in_time", "is", null)
       .not("check_out_time", "is", null);
 
-    attendanceQuery = applyDateRange(attendanceQuery, "check_in_time", dateRange);
+    attendanceQuery = applyDateRange(attendanceQuery, "check_in_time", reportWindow.queryRange);
 
     const { data: signups, error: attendanceError } = (await attendanceQuery) as {
       data: SignupRow[] | null;
@@ -243,6 +294,10 @@ async function buildReportDataForOrg(
     const monthlyMap = new Map<string, MonthlyHours>();
     const projectMap = new Map<string, ProjectSummary>();
     const projectVolunteerMap = new Map<string, Set<string>>();
+
+    buildMonthlyHoursSeed(reportWindow.monthStart, reportWindow.monthEnd).forEach((monthRow) => {
+      monthlyMap.set(monthRow.sortKey, monthRow);
+    });
 
     projectList.forEach((project) => {
       projectMap.set(project.id, {

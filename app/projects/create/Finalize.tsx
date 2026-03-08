@@ -31,6 +31,7 @@ import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { toast } from "sonner";
 import { RichTextContent } from "@/components/ui/rich-text-content";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { getMultiDaySlotDisplayName } from "@/utils/project";
 
 // Maximum file sizes
 const MAX_COVER_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -70,7 +71,7 @@ interface FinalizeProps {
       };
       multiDay: {
         date: string;
-        slots: { startTime: string; endTime: string; volunteers: number }[];
+        slots: { name: string; startTime: string; endTime: string; volunteers: number }[];
       }[];
       sameDayMultiArea: {
         date: string;
@@ -661,6 +662,9 @@ export default function Finalize({
                   </div>
                   {day.slots.map((slot, slotIndex) => (
                     <div key={slotIndex} className="ml-6 space-y-1">
+                      <div className="text-sm font-medium">
+                        {getMultiDaySlotDisplayName(slot, slotIndex)}
+                      </div>
                       <div className="flex items-center gap-2">
                         <Clock className="h-4 w-4 text-muted-foreground" />
                         <span className="text-sm">

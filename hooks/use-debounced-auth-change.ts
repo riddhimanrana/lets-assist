@@ -14,6 +14,7 @@
  * - Debounce the listener callback with 1-second window
  * - Ignore duplicate events within debounce period
  * - Track last user ID to detect actual user changes
+ * - Treat auth events as invalidation signals instead of trusting session.user
  * 
  * Usage:
  * ```typescript
@@ -109,8 +110,21 @@ export function useDebouncedAuthChange(
     // Subscribe to auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      handleAuthChange(session?.user || null);
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') {
+        handleAuthChange(null);
+        return;
+      }
+
+      void supabase.auth.getUser().then(({ data, error }) => {
+        if (error) {
+          console.error('[DebouncedAuth] Error resolving trusted user:', error);
+          handleAuthChange(null);
+          return;
+        }
+
+        handleAuthChange(data.user ?? null);
+      });
     });
 
     // Cleanup

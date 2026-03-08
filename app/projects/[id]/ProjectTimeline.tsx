@@ -31,6 +31,7 @@ import {
   TimelineTitle,
   TimelineContent,
 } from "@/components/ui/timeline"; // Adjust path if needed
+import { getMultiDaySlotDisplayName } from "@/utils/project";
 
 interface ProjectTimelineProps {
   project: Project;
@@ -296,6 +297,7 @@ export default function ProjectTimeline({ project, open, onOpenAction }: Project
 
         // Process slots within the day
         day.slots.forEach((slot, slotIndex) => {
+          const slotLabel = getMultiDaySlotDisplayName(slot, slotIndex);
           const slotStart = new Date(dayDate);
           slotStart.setHours(parseInt(slot.startTime.split(':')[0]), parseInt(slot.startTime.split(':')[1]));
           const slotEnd = new Date(dayDate);
@@ -310,7 +312,7 @@ export default function ProjectTimeline({ project, open, onOpenAction }: Project
           // Add check-in event for the day
           dayChildEvents.push({
             id: `day-${dayIndex}-slot-${slotIndex}-checkin`,
-            title: `Check-in (Session ${slotIndex + 1})`,
+            title: `Check-in (${slotLabel})`,
             date: checkInTime,
             startDate: checkInTime,
             endDate: slotStart,
@@ -324,7 +326,7 @@ export default function ProjectTimeline({ project, open, onOpenAction }: Project
           // Add main event for the day
           dayChildEvents.push({
             id: `day-${dayIndex}-slot-${slotIndex}-event`,
-            title: `Session ${slotIndex + 1}`,
+            title: slotLabel,
             date: slotStart,
             startDate: slotStart,
             endDate: slotEnd,
@@ -347,7 +349,7 @@ export default function ProjectTimeline({ project, open, onOpenAction }: Project
           const isAttendanceCurrent = isAfter(now, slotEnd) && isBefore(now, editDeadline);
           newMilestones.push({
             id: `attendance-all-${dayIndex}-${slotIndex}`,
-            title: `Attendance: Day ${dayIndex + 1}, Session ${slotIndex + 1}`,
+            title: `Attendance: Day ${dayIndex + 1}, ${slotLabel}`,
             date: slotEnd, // Position starts after the slot ends
             startDate: slotEnd,
             endDate: editDeadline,

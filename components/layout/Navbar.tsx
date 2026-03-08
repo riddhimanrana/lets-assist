@@ -17,11 +17,11 @@ import {
   LayoutDashboard,
   Palette,
 } from "lucide-react";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { NoAvatar } from "@/components/shared/NoAvatar";
 import { logout } from "@/app/logout/actions";
 import { cn } from "@/lib/utils";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   NavigationMenu,
   NavigationMenuContent,
@@ -345,15 +345,13 @@ export default function Navbar() {
                     <DropdownMenuTrigger
                       nativeButton={false}
                       render={
-                        <Avatar className="w-9 h-9 cursor-pointer">
+                        <Avatar className="w-9 h-9 cursor-pointer hover:opacity-80 transition-opacity">
                           <AvatarImage
                             src={profile?.avatar_url ?? undefined}
                             alt={profile?.full_name ?? "User avatar"}
                           />
                           <AvatarFallback>
-                            <NoAvatar
-                              fullName={profile?.full_name ?? undefined}
-                            />
+                            <NoAvatar fullName={profile?.full_name ?? undefined} />
                           </AvatarFallback>
                         </Avatar>
                       }
@@ -504,11 +502,12 @@ export default function Navbar() {
                         <Skeleton className="w-12 h-12 rounded-full" />
                       ) : (
                         <Avatar className="w-12 h-12">
-                          <AvatarImage src={profile?.avatar_url ?? undefined} />
+                          <AvatarImage
+                            src={profile?.avatar_url ?? undefined}
+                            alt={profile?.full_name ?? "User avatar"}
+                          />
                           <AvatarFallback>
-                            <NoAvatar
-                              fullName={profile?.full_name ?? undefined}
-                            />
+                            <NoAvatar fullName={profile?.full_name ?? undefined} />
                           </AvatarFallback>
                         </Avatar>
                       )}

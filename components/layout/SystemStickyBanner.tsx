@@ -9,7 +9,6 @@ import { AlertCircle, AlertTriangle, CheckCircle2, Info, X } from "lucide-react"
 import { cn } from "@/lib/utils";
 import type { ActiveSystemBannersResponse, SystemBanner } from "@/types/system-banner";
 
-const REFRESH_INTERVAL_MS = 60_000;
 const DISMISSED_BANNER_STORAGE_KEY = "lets-assist:dismissed-system-banner-tokens-v2";
 const MAX_DISMISSED_TOKEN_COUNT = 50;
 
@@ -131,12 +130,10 @@ export default function SystemStickyBanner() {
 
     fetchBanner();
 
-    const interval = window.setInterval(fetchBanner, REFRESH_INTERVAL_MS);
     return () => {
       cancelled = true;
-      window.clearInterval(interval);
     };
-  }, []);
+  }, [pathname]);
 
   const activeBanner = useMemo(() => {
     if (!response) return null;

@@ -332,32 +332,34 @@ export default function HelpPage() {
       </div>
 
       <Tabs value={selectedTab} onValueChange={(val) => val && setSelectedTab(val)} className="w-full">
-        <TabsList className="flex w-full overflow-x-auto justify-start lg:justify-center mb-8 bg-muted/50 p-1 h-auto scrollbar-none [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-          <TabsTrigger value="getting-started" className="flex-none flex items-center gap-2 px-4 py-2 whitespace-nowrap">
-            <Rocket className="h-4 w-4" />
-            <span>Getting Started</span>
-          </TabsTrigger>
-          <TabsTrigger value="projects" className="flex-none flex items-center gap-2 px-4 py-2 whitespace-nowrap">
-            <Layout className="h-4 w-4" />
-            <span>Projects</span>
-          </TabsTrigger>
-          <TabsTrigger value="organizations" className="flex-none flex items-center gap-2 px-4 py-2 whitespace-nowrap">
-            <Users className="h-4 w-4" />
-            <span>Organizations</span>
-          </TabsTrigger>
-          <TabsTrigger value="schools" className="flex-none flex items-center gap-2 px-4 py-2 whitespace-nowrap">
-            <GraduationCap className="h-4 w-4" />
-            <span>Schools & CSF</span>
-          </TabsTrigger>
-          <TabsTrigger value="certificates" className="flex-none flex items-center gap-2 px-4 py-2 whitespace-nowrap">
-            <Award className="h-4 w-4" />
-            <span>Certificates</span>
-          </TabsTrigger>
-          <TabsTrigger value="data-export" className="flex-none flex items-center gap-2 px-4 py-2 whitespace-nowrap">
-            <Download className="h-4 w-4" />
-            <span>Data Export</span>
-          </TabsTrigger>
-        </TabsList>
+        <div className="flex justify-center mb-8 overflow-x-auto scrollbar-none [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          <TabsList className="inline-flex gap-0 bg-muted/50 p-1 h-auto">
+            <TabsTrigger value="getting-started" className="flex-none flex items-center gap-2 px-4 py-2 whitespace-nowrap">
+              <Rocket className="h-4 w-4" />
+              <span>Getting Started</span>
+            </TabsTrigger>
+            <TabsTrigger value="projects" className="flex-none flex items-center gap-2 px-4 py-2 whitespace-nowrap">
+              <Layout className="h-4 w-4" />
+              <span>Projects</span>
+            </TabsTrigger>
+            <TabsTrigger value="organizations" className="flex-none flex items-center gap-2 px-4 py-2 whitespace-nowrap">
+              <Users className="h-4 w-4" />
+              <span>Organizations</span>
+            </TabsTrigger>
+            <TabsTrigger value="schools" className="flex-none flex items-center gap-2 px-4 py-2 whitespace-nowrap">
+              <GraduationCap className="h-4 w-4" />
+              <span>Schools & CSF</span>
+            </TabsTrigger>
+            <TabsTrigger value="certificates" className="flex-none flex items-center gap-2 px-4 py-2 whitespace-nowrap">
+              <Award className="h-4 w-4" />
+              <span>Certificates</span>
+            </TabsTrigger>
+            <TabsTrigger value="data-export" className="flex-none flex items-center gap-2 px-4 py-2 whitespace-nowrap">
+              <Download className="h-4 w-4" />
+              <span>Data Export</span>
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="getting-started" className="space-y-6">
           <GettingStartedSection />

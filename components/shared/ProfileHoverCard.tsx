@@ -3,9 +3,9 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { NoAvatar } from "@/components/shared/NoAvatar";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { cn } from "@/lib/utils";
 import { BadgeCheck, Building2, GraduationCap, Briefcase, Users } from "lucide-react";
 import { format } from "date-fns";
@@ -102,9 +102,12 @@ export function ProfileHoverCard({
         <Link href={resolvedHref} className="block group transition-colors">
           <div className="flex justify-between gap-4">
             <Avatar className="h-10 w-10 border border-border">
-              {avatarUrl ? <AvatarImage src={avatarUrl} alt={fullName} /> : null}
-              <AvatarFallback className="bg-muted/50">
-                <NoAvatar fullName={fullName} className="text-xs font-medium" />
+              <AvatarImage
+                src={avatarUrl}
+                alt={fullName}
+              />
+              <AvatarFallback>
+                <NoAvatar fullName={fullName} />
               </AvatarFallback>
             </Avatar>
 

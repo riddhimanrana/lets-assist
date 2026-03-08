@@ -70,7 +70,7 @@ export async function applyStaffInviteForCurrentUser(
     return { inviteOutcome: null };
   }
 
-  const { user, error } = await getAuthUser();
+  const { user, error } = await getAuthUser({ allowMfaPending: true });
   if (error || !user) {
     return {
       inviteOutcome: { status: "error" as const, orgUsername },

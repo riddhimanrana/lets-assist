@@ -8,6 +8,61 @@ type SupabaseFromClient = {
   from: (table: string) => any;
 };
 
+type MultiDaySlotLike = {
+  name?: string;
+  startTime: string;
+  endTime: string;
+  volunteers?: number;
+};
+
+export function parseMultiDayScheduleId(scheduleId: string): { date: string; slotIndex: number } | null {
+  const lastDashIndex = scheduleId.lastIndexOf("-");
+  if (lastDashIndex <= 0 || lastDashIndex === scheduleId.length - 1) {
+    return null;
+  }
+
+  const date = scheduleId.slice(0, lastDashIndex);
+  const slotIndex = Number.parseInt(scheduleId.slice(lastDashIndex + 1), 10);
+
+  if (!date || Number.isNaN(slotIndex) || slotIndex < 0) {
+    return null;
+  }
+
+  return { date, slotIndex };
+}
+
+export function getMultiDaySlotDisplayName(slot: MultiDaySlotLike, slotIndex: number): string {
+  const trimmedName = slot.name?.trim();
+  return trimmedName ? trimmedName : `Slot ${slotIndex + 1}`;
+}
+
+export function getMultiDaySlotByScheduleId(
+  project: Project,
+  scheduleId: string
+): { day: NonNullable<Project["schedule"]["multiDay"]>[number]; slot: NonNullable<Project["schedule"]["multiDay"]>[number]["slots"][number]; slotIndex: number } | null {
+  if (project.event_type !== "multiDay" || !project.schedule.multiDay) {
+    return null;
+  }
+
+  const parsedScheduleId = parseMultiDayScheduleId(scheduleId);
+  if (!parsedScheduleId) {
+    return null;
+  }
+
+  const { date, slotIndex } = parsedScheduleId;
+  const day = project.schedule.multiDay.find((entry) => entry.date === date);
+  if (!day || slotIndex >= day.slots.length) {
+    return null;
+  }
+
+  const slot = day.slots[slotIndex];
+  if (!slot) {
+    return null;
+  }
+
+  return { day, slot, slotIndex };
+}
+
 export const getProjectEventDate = (project: Project): Date => {
   switch (project.event_type) {
     case "oneTime":
@@ -374,38 +429,13 @@ export function getSlotDetails(project: Project, scheduleId: string) {
       return project.schedule.oneTime;
     }
   } else if (project.event_type === "multiDay" && project.schedule.multiDay) {
-    // Improved parsing of scheduleId for multi-day events
-    const parts = scheduleId.split("-");
-    // For multi-day events, schedule ID should be date-slotIndex
-    // parts[0] to parts[parts.length-2] is the date (in case date contains hyphens)
-    // parts[parts.length-1] is the slot index
-    if (parts.length >= 2) {
-      const slotIndexStr = parts.pop(); // Get last element (slot index)
-      const date = parts.join("-"); // Rejoin the rest as the date
+    const slotData = getMultiDaySlotByScheduleId(project, scheduleId);
+    if (slotData) {
+      return slotData.slot;
+    }
 
-      if (shouldLogProjectDebug) {
-        console.log("Parsing multiDay scheduleId:", { date, slotIndexStr, parts });
-      }
-
-      const day = project.schedule.multiDay.find(d => d.date === date);
-      if (day) {
-        const slotIdx = parseInt(slotIndexStr!, 10);
-        if (!isNaN(slotIdx) && slotIdx >= 0 && slotIdx < day.slots.length) {
-          return day.slots[slotIdx];
-        } else {
-          if (shouldLogProjectDebug) {
-            console.log("Invalid slot index:", { slotIdx, slotsLength: day.slots.length });
-          }
-        }
-      } else {
-        if (shouldLogProjectDebug) {
-          console.log("Day not found:", { date, availableDays: project.schedule.multiDay.map(d => d.date) });
-        }
-      }
-    } else {
-      if (shouldLogProjectDebug) {
-        console.log("Invalid multiDay scheduleId format:", scheduleId);
-      }
+    if (shouldLogProjectDebug) {
+      console.log("Invalid multiDay scheduleId format:", scheduleId);
     }
   } else if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
     const role = project.schedule.sameDayMultiArea.roles.find(r => r.name === scheduleId);
@@ -500,23 +530,10 @@ export function hasAvailableMultiDaySlots(project: Project): boolean {
 
 // Check if a specific slot within a multi-day event has passed
 export function isMultiDaySlotPastByScheduleId(_project: Project, scheduleId: string): boolean {
-  if (_project.event_type !== 'multiDay' || !_project.schedule.multiDay) {
-    return false;
-  }
+  const slotData = getMultiDaySlotByScheduleId(_project, scheduleId);
+  if (!slotData) return false;
 
-  const parts = scheduleId.split("-");
-  if (parts.length < 2) return false;
-
-  const slotIndexStr = parts.pop();
-  const date = parts.join("-");
-
-  const day = _project.schedule.multiDay.find((d) => d.date === date);
-  if (!day || !slotIndexStr) return false;
-
-  const slotIdx = parseInt(slotIndexStr, 10);
-  if (isNaN(slotIdx) || slotIdx < 0 || slotIdx >= day.slots.length) return false;
-
-  const slot = day.slots[slotIdx];
+  const { day, slot } = slotData;
   const dayDate = parseISO(day.date);
   const [hours, minutes] = slot.endTime.split(':').map(Number);
   const slotEndDateTime = new Date(dayDate);

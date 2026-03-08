@@ -5,6 +5,10 @@ import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  createRectFromCenter,
+  getCustomPlacementFieldSize,
+} from "@/lib/waiver/custom-field-config";
 import { DetectedPdfField, PdfRect } from "@/lib/waiver/pdf-field-detect";
 import { WaiverFieldType } from "@/types/waiver-definitions";
 import type { SignerData } from "@/types/waiver-definitions";
@@ -229,7 +233,7 @@ function PdfPage({
   const [renderAttempts, setRenderAttempts] = useState(0);
 
   const clampRectToPage = useCallback(
-    (rect: PdfRect, minWidth = 30, minHeight = 20): PdfRect => {
+    (rect: PdfRect, minWidth = 0, minHeight = 0): PdfRect => {
       if (!viewport) return rect;
 
       const viewBox = (viewport as any).viewBox as [number, number, number, number] | undefined;
@@ -365,24 +369,12 @@ function PdfPage({
     
     const [pdfX, pdfY] = viewport.convertToPdfPoint(x, y);
 
-    // Default size for new signature box (e.g. 150x50 points)
-    const newWidth = 150;
-    const newHeight = 50;
-
-    // Adjust y to be bottom-left of the rect, since click is usually center or top-left?
-    // Let's center the new box on click
-    const finalX = pdfX - (newWidth / 2);
-    const finalY = pdfY - (newHeight / 2);
+    const textFieldSize = getCustomPlacementFieldSize('text');
 
     const clampedRect = clampRectToPage(
-      {
-        x: finalX,
-        y: finalY,
-        width: newWidth,
-        height: newHeight,
-      },
-      30,
-      20
+      createRectFromCenter(pdfX, pdfY, 'text'),
+      textFieldSize.minWidth,
+      textFieldSize.minHeight,
     );
 
     onAddPlacement({
@@ -616,6 +608,7 @@ function ResizablePlacement({
   const startPosRef = useRef<{ x: number; y: number } | null>(null);
   const startRectRef = useRef<PdfRect | null>(null);
   const latestRectRef = useRef<PdfRect>(placement.rect);
+  const { minWidth, minHeight } = getCustomPlacementFieldSize(placement.fieldType);
 
   useEffect(() => {
     if (isDragging || isResizing) return;
@@ -701,42 +694,42 @@ function ResizablePlacement({
       // Apply resize based on handle
       switch (resizeHandle) {
         case 'se': // Bottom-right corner
-          newRect.width = Math.max(30, startRectRef.current.width + pdfDeltaX);
-          newRect.height = Math.max(20, startRectRef.current.height - pdfDeltaY);
+          newRect.width = Math.max(minWidth, startRectRef.current.width + pdfDeltaX);
+          newRect.height = Math.max(minHeight, startRectRef.current.height - pdfDeltaY);
           newRect.y = startRectRef.current.y + startRectRef.current.height - newRect.height;
           break;
         case 'sw': // Bottom-left corner
-          newRect.width = Math.max(30, startRectRef.current.width - pdfDeltaX);
-          newRect.height = Math.max(20, startRectRef.current.height - pdfDeltaY);
+          newRect.width = Math.max(minWidth, startRectRef.current.width - pdfDeltaX);
+          newRect.height = Math.max(minHeight, startRectRef.current.height - pdfDeltaY);
           newRect.x = startRectRef.current.x + pdfDeltaX;
           newRect.y = startRectRef.current.y + startRectRef.current.height - newRect.height;
           break;
         case 'ne': // Top-right corner
-          newRect.width = Math.max(30, startRectRef.current.width + pdfDeltaX);
-          newRect.height = Math.max(20, startRectRef.current.height + pdfDeltaY);
+          newRect.width = Math.max(minWidth, startRectRef.current.width + pdfDeltaX);
+          newRect.height = Math.max(minHeight, startRectRef.current.height + pdfDeltaY);
           break;
         case 'nw': // Top-left corner
-          newRect.width = Math.max(30, startRectRef.current.width - pdfDeltaX);
-          newRect.height = Math.max(20, startRectRef.current.height + pdfDeltaY);
+          newRect.width = Math.max(minWidth, startRectRef.current.width - pdfDeltaX);
+          newRect.height = Math.max(minHeight, startRectRef.current.height + pdfDeltaY);
           newRect.x = startRectRef.current.x + pdfDeltaX;
           break;
         case 'e': // Right edge
-          newRect.width = Math.max(30, startRectRef.current.width + pdfDeltaX);
+          newRect.width = Math.max(minWidth, startRectRef.current.width + pdfDeltaX);
           break;
         case 'w': // Left edge
-          newRect.width = Math.max(30, startRectRef.current.width - pdfDeltaX);
+          newRect.width = Math.max(minWidth, startRectRef.current.width - pdfDeltaX);
           newRect.x = startRectRef.current.x + pdfDeltaX;
           break;
         case 's': // Bottom edge
-          newRect.height = Math.max(20, startRectRef.current.height - pdfDeltaY);
+          newRect.height = Math.max(minHeight, startRectRef.current.height - pdfDeltaY);
           newRect.y = startRectRef.current.y + startRectRef.current.height - newRect.height;
           break;
         case 'n': // Top edge
-          newRect.height = Math.max(20, startRectRef.current.height + pdfDeltaY);
+          newRect.height = Math.max(minHeight, startRectRef.current.height + pdfDeltaY);
           break;
       }
 
-      const clampedRect = clampRectToPage(newRect);
+      const clampedRect = clampRectToPage(newRect, minWidth, minHeight);
       latestRectRef.current = clampedRect;
       setLocalRect(clampedRect);
     };
@@ -760,7 +753,17 @@ function ResizablePlacement({
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isResizing, isDragging, resizeHandle, viewport, placement.id, onPlacementResize, clampRectToPage]);
+  }, [
+    isResizing,
+    isDragging,
+    resizeHandle,
+    viewport,
+    placement.id,
+    onPlacementResize,
+    clampRectToPage,
+    minWidth,
+    minHeight,
+  ]);
 
   const style = getStyle(localRect);
 

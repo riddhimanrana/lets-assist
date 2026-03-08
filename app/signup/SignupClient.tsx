@@ -33,6 +33,7 @@ import {
 import { toast } from "sonner";
 import { TurnstileComponent, TurnstileRef } from "@/components/ui/turnstile";
 import { useRouter } from "next/navigation";
+import { getStaffInviteOrgLabel } from "@/lib/organization/staff-invite-outcome";
 
 interface SignupClientProps {
   redirectPath?: string;
@@ -194,21 +195,22 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
     } else if (result.success && result.email) {
       // Check if there was a failed invite outcome
       if (result.inviteOutcome && result.inviteOutcome.status !== 'success') {
-        const { status, orgUsername } = result.inviteOutcome;
+        const { status } = result.inviteOutcome;
+        const orgLabel = getStaffInviteOrgLabel(result.inviteOutcome);
         let warningMessage = 'Could not join organization from invite.';
         
         switch (status) {
           case 'invalid_token':
-            warningMessage = `The invite link for "${orgUsername}" is no longer valid.`;
+            warningMessage = `The invite link for "${orgLabel}" is no longer valid.`;
             break;
           case 'expired_token':
-            warningMessage = `The invite link for "${orgUsername}" has expired.`;
+            warningMessage = `The invite link for "${orgLabel}" has expired.`;
             break;
           case 'org_not_found':
-            warningMessage = `The organization "${orgUsername}" could not be found.`;
+            warningMessage = `The organization "${orgLabel}" could not be found.`;
             break;
           case 'error':
-            warningMessage = `An error occurred while processing your invite to "${orgUsername}".`;
+            warningMessage = `An error occurred while processing your invite to "${orgLabel}".`;
             break;
         }
         

@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -25,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { NoAvatar } from "@/components/shared/NoAvatar";
 import { ProfileHoverCard } from "@/components/shared/ProfileHoverCard";
 import { format, formatDistanceToNowStrict } from "date-fns";
@@ -687,17 +687,15 @@ export function FeedbackTab({ feedback, onDelete, onModerate }: FeedbackTabProps
                 </div>
 
                 <div className="flex items-center gap-2 rounded-md border bg-muted/20 p-2 text-xs text-muted-foreground">
-                  {selectedFeedback.profiles?.avatar_url ? (
-                    <Avatar className="h-6 w-6">
-                      <AvatarImage src={selectedFeedback.profiles.avatar_url} />
-                      <AvatarFallback>{selectedFeedback.profiles.full_name?.[0] || "U"}</AvatarFallback>
-                    </Avatar>
-                  ) : (
-                    <NoAvatar
-                      fullName={selectedFeedback.profiles?.full_name || selectedFeedback.email}
-                      className="h-6 w-6 rounded-full bg-muted"
+                  <Avatar className="h-6 w-6">
+                    <AvatarImage
+                      src={selectedFeedback.profiles?.avatar_url || undefined}
+                      alt={selectedFeedback.profiles?.full_name || selectedFeedback.email}
                     />
-                  )}
+                    <AvatarFallback>
+                      <NoAvatar fullName={selectedFeedback.profiles?.full_name || selectedFeedback.email} />
+                    </AvatarFallback>
+                  </Avatar>
                   <span className="truncate">
                     {selectedFeedback.profiles?.username
                       ? `@${selectedFeedback.profiles.username}`

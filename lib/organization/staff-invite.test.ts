@@ -9,6 +9,8 @@ interface MockError {
 interface MockConfig {
   organization?: {
     id: string;
+    name: string;
+    username: string;
     staff_join_token: string | null;
     staff_join_token_expires_at: string | null;
   };
@@ -88,6 +90,8 @@ describe("applyStaffInviteForUser", () => {
     const { client, spies } = createMockAdminClient({
       organization: {
         id: "org-1",
+        name: "Troop 941",
+        username: "troop941",
         staff_join_token: "valid-token",
         staff_join_token_expires_at: "2026-03-01T12:00:00.000Z",
       },
@@ -102,7 +106,11 @@ describe("applyStaffInviteForUser", () => {
       { adminClient: client as never, now },
     );
 
-    expect(result).toEqual({ status: "success", orgUsername: "troop941" });
+    expect(result).toEqual({
+      status: "success",
+      orgUsername: "troop941",
+      orgName: "Troop 941",
+    });
     expect(spies.memberInsert).toHaveBeenCalledTimes(1);
   });
 
@@ -110,6 +118,8 @@ describe("applyStaffInviteForUser", () => {
     const { client, spies } = createMockAdminClient({
       organization: {
         id: "org-1",
+        name: "Troop 941",
+        username: "troop941",
         staff_join_token: "other-token",
         staff_join_token_expires_at: "2026-03-01T12:00:00.000Z",
       },
@@ -124,7 +134,11 @@ describe("applyStaffInviteForUser", () => {
       { adminClient: client as never, now },
     );
 
-    expect(result).toEqual({ status: "invalid_token", orgUsername: "troop941" });
+    expect(result).toEqual({
+      status: "invalid_token",
+      orgUsername: "troop941",
+      orgName: "Troop 941",
+    });
     expect(spies.memberInsert).not.toHaveBeenCalled();
   });
 
@@ -132,6 +146,8 @@ describe("applyStaffInviteForUser", () => {
     const { client, spies } = createMockAdminClient({
       organization: {
         id: "org-1",
+        name: "Troop 941",
+        username: "troop941",
         staff_join_token: "valid-token",
         staff_join_token_expires_at: "2026-02-27T12:00:00.000Z",
       },
@@ -146,7 +162,11 @@ describe("applyStaffInviteForUser", () => {
       { adminClient: client as never, now },
     );
 
-    expect(result).toEqual({ status: "expired_token", orgUsername: "troop941" });
+    expect(result).toEqual({
+      status: "expired_token",
+      orgUsername: "troop941",
+      orgName: "Troop 941",
+    });
     expect(spies.memberInsert).not.toHaveBeenCalled();
   });
 
@@ -154,6 +174,8 @@ describe("applyStaffInviteForUser", () => {
     const { client, spies } = createMockAdminClient({
       organization: {
         id: "org-1",
+        name: "Troop 941",
+        username: "troop941",
         staff_join_token: "valid-token",
         staff_join_token_expires_at: "2026-03-01T12:00:00.000Z",
       },
@@ -170,7 +192,11 @@ describe("applyStaffInviteForUser", () => {
       { adminClient: client as never, now },
     );
 
-    expect(result).toEqual({ status: "success", orgUsername: "troop941" });
+    expect(result).toEqual({
+      status: "success",
+      orgUsername: "troop941",
+      orgName: "Troop 941",
+    });
     expect(spies.update).toHaveBeenCalledTimes(1);
     expect(spies.updateFinalEq).toHaveBeenCalledTimes(1);
   });
@@ -179,6 +205,8 @@ describe("applyStaffInviteForUser", () => {
     const { client, spies } = createMockAdminClient({
       organization: {
         id: "org-1",
+        name: "Troop 941",
+        username: "troop941",
         staff_join_token: "valid-token",
         staff_join_token_expires_at: "2026-03-01T12:00:00.000Z",
       },
@@ -195,7 +223,11 @@ describe("applyStaffInviteForUser", () => {
       { adminClient: client as never, now },
     );
 
-    expect(result).toEqual({ status: "success", orgUsername: "troop941" });
+    expect(result).toEqual({
+      status: "success",
+      orgUsername: "troop941",
+      orgName: "Troop 941",
+    });
     expect(spies.update).not.toHaveBeenCalled();
   });
 });

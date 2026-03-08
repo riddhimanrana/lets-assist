@@ -783,7 +783,7 @@ export function WaiverSigningDialog({
                         </Button>
 
                         <div className="flex gap-2">
-                          {currentStep?.type === 'sign' && currentStep.signer && !currentStep.signer.required && (
+                          {((currentStep?.type === 'sign' || currentStep?.type === 'fields') && currentStep.signer && !currentStep.signer.required) && (
                             <Button 
                                 variant="outline"
                                 onClick={handleSkipOptionalSigner} 
@@ -1051,7 +1051,7 @@ export function WaiverSigningDialog({
 
                     <div className="flex gap-2">
                       {/* Skip button for optional signers */}
-                      {currentStep?.type === 'sign' && currentStep.signer && !currentStep.signer.required && (
+                      {((currentStep?.type === 'sign' || currentStep?.type === 'fields') && currentStep.signer && !currentStep.signer.required) && (
                         <Button 
                             variant="outline"
                             onClick={handleSkipOptionalSigner} 

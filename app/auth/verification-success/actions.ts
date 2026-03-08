@@ -24,7 +24,7 @@ export async function verifyEmailToken(token: string): Promise<VerifyEmailRespon
     console.log("Starting email verification with token");
     
     // Step 1: Exchange the token for a session (similar to password reset flow)
-    const { data: sessionData, error: sessionError } = await supabase.auth.exchangeCodeForSession(token);
+    const { error: sessionError } = await supabase.auth.exchangeCodeForSession(token);
 
     if (sessionError) {
       console.error("Session exchange error:", sessionError);
@@ -34,10 +34,14 @@ export async function verifyEmailToken(token: string): Promise<VerifyEmailRespon
       };
     }
 
-    // Get the user data from the session
-    const user = sessionData?.user;
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    // Get the trusted user data after the code exchange
     if (!user) {
-      console.error("No user in session data");
+      console.error("No trusted user available after email verification", userError);
       return { success: false, error: "User not found in verification data" };
     }
 
