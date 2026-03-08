@@ -11,6 +11,11 @@ import { cn } from "@/lib/utils";
 import { Hero } from "./_components/Hero";
 import { LandingLazySections } from "./LandingLazySections";
 
+// This page calls getAuthUser() which reads cookies — it must be dynamic.
+// Without this, Next.js attempts a build-time prerender and fails when
+// Supabase env vars are not available at build time.
+export const dynamic = "force-dynamic";
+
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://lets-assist.com";
 
 export const metadata: Metadata = {
