@@ -99,7 +99,7 @@ export function SlotAttendeesDropdown({
                         <NoAvatar fullName={displayName} />
                       </AvatarFallback>
                     </Avatar>
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-2 flex-wrap">
                       {attendee.is_anonymous ? (
                         <Tooltip>
                           <TooltipTrigger render={
@@ -107,11 +107,16 @@ export function SlotAttendeesDropdown({
                               {displayName}
                             </span>
                           } />
-                          <TooltipContent>anonymous profile</TooltipContent>
+                          <TooltipContent>Anonymous Profile</TooltipContent>
                         </Tooltip>
                       ) : (
                         <span className="font-medium text-foreground">
                           {displayName}
+                        </span>
+                      )}
+                      {attendee.volunteer_comment && (
+                        <span className="text-xs text-muted-foreground bg-background/60 rounded px-2.5 py-1 border border-border/60 leading-relaxed">
+                          {attendee.volunteer_comment}
                         </span>
                       )}
                       {/* {attendee.is_anonymous && (
@@ -120,12 +125,6 @@ export function SlotAttendeesDropdown({
                     </div>
                   </div>
                 </ProfileHoverCard>
-
-                {attendee.volunteer_comment && (
-                  <p className="text-xs text-muted-foreground bg-background/60 rounded px-2.5 py-1.5 border border-border/60 wrap-break-word leading-relaxed flex-1 self-start">
-                    {attendee.volunteer_comment}
-                  </p>
-                )}
               </div>
             );
           })}

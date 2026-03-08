@@ -172,6 +172,22 @@ function AuthenticationContent() {
       }
 
       const factorData = (factorsData as MfaListFactorsLike | null) ?? null;
+
+      // Silently remove any TOTP factors the user started enrolling but never
+      // completed (status === "unverified"). These are orphaned whenever the
+      // user abandons the setup flow (closes the tab, reloads, navigates away).
+      // Cleaning them up here ensures the next "Set up authenticator" click
+      // always works and never surfaces a spurious "already exists" error.
+      const rawTotp = Array.isArray(factorData?.totp)
+        ? factorData.totp
+        : Array.isArray(factorData?.all)
+          ? factorData.all.filter((f) => f.factor_type === "totp")
+          : [];
+      const unverified = rawTotp.filter((f) => f.status === "unverified");
+      for (const factor of unverified) {
+        await supabase.auth.mfa.unenroll({ factorId: factor.id });
+      }
+
       const assuranceData = deriveAuthenticatorAssurance(
         typeof claimsData?.claims?.aal === "string" ? claimsData.claims.aal : null,
         factorData,

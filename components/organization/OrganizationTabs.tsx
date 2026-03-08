@@ -20,7 +20,6 @@ import {
   BarChart3
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogClose, DialogFooter } from "@/components/ui/dialog";
@@ -241,7 +240,7 @@ export default function OrganizationTabs({
       helper: "Organization members",
       icon: Users,
       iconColor: "var(--info)",
-      borderGradient: "180deg, hsl(220 91% 54% / 0.8) 0%, hsl(220 91% 54% / 0.4) 100%",
+      borderGradient: "180deg, color-mix(in srgb, var(--info) 80%, transparent) 0%, color-mix(in srgb, var(--info) 40%, transparent) 100%",
     },
     {
       label: "Total Hours",
@@ -249,7 +248,7 @@ export default function OrganizationTabs({
       helper: "Verified + pending",
       icon: Clock3,
       iconColor: "var(--chart-8)",
-      borderGradient: "180deg, hsl(231 97% 72% / 0.8) 0%, hsl(231 97% 72% / 0.4) 100%",
+      borderGradient: "180deg, color-mix(in srgb, var(--chart-8) 80%, transparent) 0%, color-mix(in srgb, var(--chart-8) 40%, transparent) 100%",
     },
     {
       label: "Total Projects",
@@ -257,7 +256,7 @@ export default function OrganizationTabs({
       helper: "All-time projects",
       icon: Folders,
       iconColor: "var(--chart-2)",
-      borderGradient: "180deg, hsl(173 58% 39% / 0.8) 0%, hsl(173 58% 39% / 0.4) 100%",
+      borderGradient: "180deg, color-mix(in srgb, var(--chart-2) 80%, transparent) 0%, color-mix(in srgb, var(--chart-2) 40%, transparent) 100%",
     },
     {
       label: "Upcoming Projects",
@@ -265,7 +264,7 @@ export default function OrganizationTabs({
       helper: "Scheduled next",
       icon: CalendarClock,
       iconColor: "var(--chart-6)",
-      borderGradient: "180deg, hsl(22 99% 52% / 0.8) 0%, hsl(22 99% 52% / 0.4) 100%",
+      borderGradient: "180deg, color-mix(in srgb, var(--chart-6) 80%, transparent) 0%, color-mix(in srgb, var(--chart-6) 40%, transparent) 100%",
     },
     {
       label: "Completed Projects",
@@ -273,7 +272,7 @@ export default function OrganizationTabs({
       helper: "Finished initiatives",
       icon: CheckCircle2,
       iconColor: "var(--success)",
-      borderGradient: "180deg, hsl(142.1 76.2% 36.3% / 0.8) 0%, hsl(142.1 76.2% 36.3% / 0.4) 100%",
+      borderGradient: "180deg, color-mix(in srgb, var(--success) 80%, transparent) 0%, color-mix(in srgb, var(--success) 40%, transparent) 100%",
     },
   ] as const;
 
@@ -308,8 +307,8 @@ export default function OrganizationTabs({
       </TabsList>
 
       <TabsContent value="overview" className="space-y-6">
-        <div className="grid gap-4 sm:gap-6 lg:grid-cols-2 items-stretch justify-items-center sm:justify-items-stretch">
-          <Card className="flex flex-col overflow-hidden w-full max-w-140 sm:max-w-none">
+        <div className="grid gap-4 sm:gap-6 lg:grid-cols-2 items-stretch">
+          <Card className="overflow-hidden">
             <CardHeader>
               <CardTitle className="text-xl! font-bold tracking-tight">About</CardTitle>
             </CardHeader>
@@ -322,7 +321,7 @@ export default function OrganizationTabs({
                   </p>
                 </div>
               </div>
-              <div className="space-y-3">
+              <div className="space-y-3 mt-3">
                 <div className="flex gap-2 min-w-0">
                   <Building2 className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
                   <div className="min-w-0 flex-1">
@@ -358,74 +357,76 @@ export default function OrganizationTabs({
                   </div>
                 </div>
               </div>
-              <div className="sm:mt-auto sm:pt-2" />
             </CardContent>
           </Card>
-          {/* Quick Stats Card */}
-          <Card className="flex flex-col overflow-hidden w-full max-w-140 sm:max-w-none">
-            <CardHeader>
-              <CardTitle className="text-xl! font-bold tracking-tight">Quick Stats</CardTitle>
-            </CardHeader>
-            <CardContent className="text-sm">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-3 mb-4">
-                {quickStats.map((stat) => (
-                  <div
-                    key={stat.label}
-                    className="relative overflow-hidden rounded-lg border bg-muted/20 p-2.5 sm:p-3 transition-all hover:border-primary/40 hover:bg-muted/40"
-                  >
-                    <div 
-                      style={{ background: `linear-gradient(${stat.borderGradient})` }}
-                      className="absolute inset-x-0 top-0 h-1" 
-                    />
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="text-[10px] sm:text-xs font-medium text-muted-foreground leading-tight">
-                        {stat.label}
-                      </p>
-                      <stat.icon 
-                        style={{ color: stat.iconColor }}
-                        className="h-4 w-4 shrink-0" 
-                      />
-                    </div>
-                    <p className="mt-1.5 sm:mt-2 text-lg sm:text-2xl font-semibold leading-none tracking-tight">
-                      {stat.value}
-                    </p>
-                    <p className="mt-0.5 sm:mt-1 text-[9px] sm:text-xs text-muted-foreground leading-tight">
-                      {stat.helper}
-                    </p>
-                  </div>
-                ))}
-              </div>
-              {projects.length > 0 && (
-                <div className="mt-4 sm:mt-auto">
-                  <Separator className="my-3" />
-                  <h4 className="text-xs sm:text-sm font-medium mb-2">Recent Projects</h4>
-                  <div className="space-y-1.5">
-                    {projects.slice(0, 3).map((project) => (
-                      <Link
-                        href={`/projects/${project.id}`}
-                        key={project.id}
-                        className="block p-2 rounded-md border hover:bg-muted/70 transition-colors text-xs sm:text-sm overflow-hidden"
-                      >
-                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1.5 min-w-0">
-                          <span className="font-medium truncate flex-1">{project.title}</span>
-                          <div className="flex items-center gap-2 shrink-0">
-                            <ProjectStatusBadge status={getProjectStatus(project)} className="text-[10px] h-5" />
-                          </div>
+          {/* Recent Projects Card */}
+          {projects.length > 0 && (
+            <Card className="overflow-hidden">
+              <CardHeader>
+                <CardTitle className="text-xl! font-bold tracking-tight">Recent Projects</CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm">
+                <div className="space-y-2">
+                  {projects.slice(0, 4).map((project) => (
+                    <Link
+                      href={`/projects/${project.id}`}
+                      key={project.id}
+                      className="block p-2.5 rounded-md border hover:bg-muted/70 transition-colors overflow-hidden"
+                    >
+                      <div className="flex justify-between items-center gap-2 min-w-0">
+                        <span className="font-medium truncate flex-1 text-sm">{project.title}</span>
+                        <ProjectStatusBadge status={getProjectStatus(project)} className="text-[10px] h-5 shrink-0" />
+                      </div>
+                      {project.location && (
+                        <div className="flex items-center text-xs text-muted-foreground mt-1 min-w-0">
+                          <MapPin className="h-3 w-3 mr-1 shrink-0" />
+                          <span className="truncate">{project.location}</span>
                         </div>
-                        {project.location && (
-                          <div className="flex items-center text-[10px] sm:text-xs text-muted-foreground mt-1 min-w-0">
-                            <MapPin className="h-3 w-3 mr-1 shrink-0" />
-                            <span className="truncate">{project.location}</span>
-                          </div>
-                        )}
-                      </Link>
-                    ))}
-                  </div>
+                      )}
+                    </Link>
+                  ))}
                 </div>
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
         </div>
+
+        {/* Quick Stats — full width so all 5 cards have room */}
+        <Card className="overflow-hidden">
+          <CardHeader>
+            <CardTitle className="text-xl! font-bold tracking-tight">Quick Stats</CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+              {quickStats.map((stat) => (
+                <div
+                  key={stat.label}
+                  className="relative overflow-hidden rounded-lg border bg-muted/20 p-3 sm:p-4 transition-all hover:border-primary/40 hover:bg-muted/40"
+                >
+                  <div
+                    style={{ background: `linear-gradient(${stat.borderGradient})` }}
+                    className="absolute inset-x-0 top-0 h-1"
+                  />
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-xs font-medium text-muted-foreground leading-tight">
+                      {stat.label}
+                    </p>
+                    <stat.icon
+                      style={{ color: stat.iconColor }}
+                      className="h-4 w-4 shrink-0"
+                    />
+                  </div>
+                  <p className="mt-2 text-2xl sm:text-3xl font-semibold leading-none tracking-tight">
+                    {stat.value}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {stat.helper}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
 
         {userRole && (
           <Card className="overflow-hidden w-full max-w-140 sm:max-w-none">
