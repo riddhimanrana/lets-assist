@@ -4,6 +4,11 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { randomUUID } from "crypto";
+import { buildAuthConfirmRedirectUrl, normalizeRedirectPath } from "./redirect-utils";
+import {
+  applyStaffInviteForUser,
+  type StaffInviteOutcome,
+} from "@/lib/organization/staff-invite";
 
 const signupSchema = z.object({
   fullName: z.string().min(3, "Full name must be at least 3 characters"),
@@ -15,10 +20,12 @@ const signupSchema = z.object({
 });
 
 const getSiteUrl = () => {
-  return (
-    process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/+$/u, "") ||
-    "http://localhost:3000"
-  );
+  const configuredSiteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  const vercelSiteUrl = process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : undefined;
+
+  return (configuredSiteUrl || vercelSiteUrl || "http://localhost:3000").replace(/\/+$/u, "");
 };
 
 type SignupStatus = 
@@ -104,6 +111,7 @@ export async function signup(formData: FormData) {
   const turnstileToken = formData.get("turnstileToken") as string;
   const staffToken = formData.get("staffToken") as string | undefined;
   const orgUsername = formData.get("orgUsername") as string | undefined;
+  const redirectUrl = normalizeRedirectPath(formData.get("redirectUrl")?.toString() ?? null);
 
   const validatedFields = signupSchema.safeParse({
     fullName: formData.get("fullName"),
@@ -148,7 +156,22 @@ export async function signup(formData: FormData) {
         email: validatedFields.data.email
       };
     }
-    
+
+    // Check if this email is blacklisted
+    const adminClient = getAdminClient();
+    const normalizedSignupEmail = validatedFields.data.email.trim().toLowerCase();
+    const { data: blacklisted } = await adminClient
+      .from("banned_emails")
+      .select("email")
+      .eq("email", normalizedSignupEmail)
+      .maybeSingle();
+
+    if (blacklisted) {
+      return {
+        error: { server: ["This email address is not eligible for registration."] },
+      };
+    }
+
     // Pass the CAPTCHA token to Supabase - it will handle verification
     const signUpOptions: {
       email: string;
@@ -172,7 +195,7 @@ export async function signup(formData: FormData) {
           username: `user_${randomUUID().slice(0, 8)}`,
           created_at: new Date().toISOString(),
         },
-        emailRedirectTo: `${origin}/auth/confirm`,
+        emailRedirectTo: buildAuthConfirmRedirectUrl(origin, redirectUrl),
       },
     };
 
@@ -200,13 +223,13 @@ export async function signup(formData: FormData) {
     // Profile row will be created/updated by DB trigger using user metadata
 
     // Handle staff token - add user to organization as staff
+    let inviteOutcome: StaffInviteOutcome | undefined;
     if (staffToken && orgUsername) {
-      try {
-        await handleStaffTokenSignup(user.id, staffToken, orgUsername);
-      } catch (staffError) {
-        console.error("Error processing staff token:", staffError);
-        // Don't fail signup if staff token processing fails
-      }
+      inviteOutcome = await applyStaffInviteForUser({
+        userId: user.id,
+        staffToken,
+        orgUsername,
+      });
     } else {
       // Check for auto-affiliation based on email domain
       try {
@@ -220,62 +243,12 @@ export async function signup(formData: FormData) {
     return { 
       success: true, 
       email: validatedFields.data.email,
-      message: "Successfully signed up! Please check your email (and junk folder) to confirm your account." 
+      message: "Successfully signed up! Please check your email (and junk folder) to confirm your account.",
+      inviteOutcome,
     };
   } catch (error) {
     return { error: { server: [(error as Error).message] } };
   }
-}
-
-/**
- * Handle staff token signup - add user to organization as staff
- */
-async function handleStaffTokenSignup(userId: string, staffToken: string, orgUsername: string) {
-  const adminClient = getAdminClient();
-  
-  // Find the organization by username and verify the staff token
-  const { data: org, error: orgError } = await adminClient
-    .from("organizations")
-    .select("id, staff_join_token, staff_join_token_expires_at")
-    .eq("username", orgUsername)
-    .single();
-
-  if (orgError || !org) {
-    console.error("Organization not found for staff token:", orgUsername);
-    return;
-  }
-
-  // Verify the token matches and hasn't expired
-  if (org.staff_join_token !== staffToken) {
-    console.error("Staff token mismatch");
-    return;
-  }
-
-  if (org.staff_join_token_expires_at && new Date(org.staff_join_token_expires_at) < new Date()) {
-    console.error("Staff token expired");
-    return;
-  }
-
-  // Add user to organization as staff
-  const { error: memberError } = await adminClient
-    .from("organization_members")
-    .insert({
-      organization_id: org.id,
-      user_id: userId,
-      role: "staff",
-      joined_at: new Date().toISOString(),
-    });
-
-  if (memberError) {
-    // Check if it's a duplicate - user might already be a member
-    if (memberError.code === "23505") {
-      console.log("User already a member of organization");
-      return;
-    }
-    throw memberError;
-  }
-
-  console.log(`User ${userId} added as staff to organization ${org.id}`);
 }
 
 /**
@@ -330,13 +303,17 @@ async function handleEmailDomainAffiliation(userId: string, email: string): Prom
   return org.id;
 }
 
-export async function resendVerificationEmail(email: string, turnstileToken?: string) {
+export async function resendVerificationEmail(
+  email: string,
+  turnstileToken?: string,
+  redirectAfterAuth?: string | null,
+) {
   try {
     const supabase = await createClient();
     const origin = getSiteUrl();
     
     const options: Record<string, string> = {
-      emailRedirectTo: `${origin}/auth/confirm`,
+      emailRedirectTo: buildAuthConfirmRedirectUrl(origin, redirectAfterAuth),
     };
 
     if (turnstileToken) {
@@ -374,17 +351,33 @@ export async function resendVerificationEmail(email: string, turnstileToken?: st
   }
 }
 
-export async function signInWithGoogle(redirectAfterAuth?: string | null) {
-  const origin = process.env.NEXT_PUBLIC_SITE_URL || "";
+export async function signInWithGoogle(
+  redirectAfterAuth?: string | null,
+  inviteContext?: { staffToken?: string; orgUsername?: string } | null
+) {
+  const origin = getSiteUrl();
 
   const supabase = await createClient();
   
-  // Store the redirect URL in the session storage via a search parameter
-  // This will be picked up in the auth callback and stored in session storage
+  // Build callback URL with query params for redirect and staff invite context
   let redirectTo = `${origin}/auth/callback`;
+  const params = new URLSearchParams();
   
   if (redirectAfterAuth) {
-    redirectTo += `?redirectAfterAuth=${encodeURIComponent(redirectAfterAuth)}`;
+    params.set('redirectAfterAuth', redirectAfterAuth);
+  }
+  
+  if (inviteContext?.staffToken) {
+    params.set('staffToken', inviteContext.staffToken);
+  }
+  
+  if (inviteContext?.orgUsername) {
+    params.set('orgUsername', inviteContext.orgUsername);
+  }
+  
+  const queryString = params.toString();
+  if (queryString) {
+    redirectTo += `?${queryString}`;
   }
 
   const {

@@ -55,7 +55,7 @@ export default function CalendarOAuthCallbackHandler() {
           const response = await fetch("/api/calendar/sync-project", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ projectId: syncData.projectId }),
+            body: JSON.stringify({ project_id: syncData.projectId }),
           });
 
           if (!response.ok) {

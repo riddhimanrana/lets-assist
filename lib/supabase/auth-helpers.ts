@@ -11,11 +11,49 @@
 import { createClient } from './server';
 import type { AuthUser } from './types';
 import type { AuthError } from '@supabase/supabase-js';
+import {
+  deriveAuthenticatorAssurance,
+  shouldPromptForMfaChallenge,
+  type MfaListFactorsLike,
+} from '@/lib/auth/mfa';
 
 export type AuthResult = {
   user: AuthUser | null;
   error: AuthError | null;
+  requiresMfa?: boolean;
 };
+
+type GetAuthUserOptions = {
+  sensitive?: boolean;
+  allowMfaPending?: boolean;
+};
+
+async function sessionRequiresMfa(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  currentAal?: string | null,
+) {
+  if (currentAal === 'aal2') {
+    return false;
+  }
+
+  const { data: factorsData, error: factorsError } = await supabase.auth.mfa.listFactors();
+
+  if (factorsError) {
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('[AuthHelpers] MFA factor lookup failed:', factorsError.message);
+    }
+
+    return false;
+  }
+
+  const factorData = (factorsData as MfaListFactorsLike | null) ?? null;
+  const assuranceData = deriveAuthenticatorAssurance(currentAal, factorData);
+
+  return shouldPromptForMfaChallenge(
+    assuranceData,
+    factorData,
+  );
+}
 
 /**
  * Get authenticated user from server-side context with optimal performance.
@@ -49,7 +87,7 @@ export type AuthResult = {
  * }
  * // Proceed with password change, email change, or account deletion
  */
-export async function getAuthUser(options?: { sensitive?: boolean }): Promise<AuthResult> {
+export async function getAuthUser(options?: GetAuthUserOptions): Promise<AuthResult> {
   const supabase = await createClient();
 
   if (options?.sensitive) {
@@ -62,6 +100,14 @@ export async function getAuthUser(options?: { sensitive?: boolean }): Promise<Au
 
     if (!user) {
       return { user: null, error: null };
+    }
+
+    if (!options.allowMfaPending) {
+      const requiresMfa = await sessionRequiresMfa(supabase);
+
+      if (requiresMfa) {
+        return { user: null, error: null, requiresMfa: true };
+      }
     }
 
     // Return user in consistent format
@@ -91,6 +137,15 @@ export async function getAuthUser(options?: { sensitive?: boolean }): Promise<Au
   }
 
   const { claims } = claimsData;
+  const currentAal = typeof claims.aal === 'string' ? claims.aal : null;
+
+  if (!options?.allowMfaPending) {
+    const requiresMfa = await sessionRequiresMfa(supabase, currentAal);
+
+    if (requiresMfa) {
+      return { user: null, error: null, requiresMfa: true };
+    }
+  }
 
   // Return user-shaped object from claims
   return {

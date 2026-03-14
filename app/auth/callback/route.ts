@@ -1,6 +1,28 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
+import {
+  applyStaffInviteForUser,
+  type StaffInviteOutcome,
+} from "@/lib/organization/staff-invite";
+import { buildStaffInviteRedirectPath } from "@/lib/organization/staff-invite-outcome";
+import {
+  isRetryableAuthError,
+  withRetryableAuthOperation,
+} from "@/lib/supabase/retry-auth";
+import { normalizeRedirectPath } from "@/app/signup/redirect-utils";
+import {
+  getAccountAccessErrorCode,
+  isAccountBlockedStatus,
+  readAccountAccessFromMetadata,
+} from "@/lib/auth/account-access";
+import {
+  buildMfaRedirectPath,
+  deriveAuthenticatorAssurance,
+  resolvePostAuthRedirectPath,
+  shouldPromptForMfaChallenge,
+  type MfaListFactorsLike,
+} from "@/lib/auth/mfa";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -10,6 +32,8 @@ export async function GET(request: Request) {
   const redirectAfterAuth = searchParams.get("redirectAfterAuth");
   const error = searchParams.get("error");
   const error_description = searchParams.get("error_description");
+  const staffToken = searchParams.get("staffToken");
+  const orgUsername = searchParams.get("orgUsername");
 
   // For password reset flow
   if (code && type === "recovery") {
@@ -40,14 +64,111 @@ export async function GET(request: Request) {
     // For OAuth, we want to create a session and profile
     
     // Try to exchange the code for session info (without storing session)
-    const {
-      data: { session },
-      error: exchangeError,
-    } = await supabase.auth.exchangeCodeForSession(code || '');
+    let exchangeResult: Awaited<ReturnType<typeof supabase.auth.exchangeCodeForSession>>;
 
-    if (!exchangeError && session) {
+    try {
+      exchangeResult = await withRetryableAuthOperation(async () => {
+        const result = await supabase.auth.exchangeCodeForSession(code || "");
+
+        // Retry only transient network/auth fetch failures.
+        if (result.error && isRetryableAuthError(result.error)) {
+          throw result.error;
+        }
+
+        return result;
+      });
+    } catch (retryError) {
+      console.error("Session exchange retry exhausted:", retryError);
+
+      if (!isRetryableAuthError(retryError)) {
+        return NextResponse.redirect(`${origin}/error`);
+      }
+
+      if (from === "authentication") {
+        return NextResponse.redirect(
+          `${origin}/account/authentication?error=linking_failed`
+        );
+      }
+
+      const loginUrl = new URL(`${origin}/login`);
+      loginUrl.searchParams.set("error", "network-timeout");
+
+      const normalizedRedirect = normalizeRedirectPath(redirectAfterAuth);
+      if (normalizedRedirect) {
+        loginUrl.searchParams.set("redirect", normalizedRedirect);
+      }
+
+      if (staffToken) {
+        loginUrl.searchParams.set("staff_token", staffToken);
+      }
+
+      if (orgUsername) {
+        loginUrl.searchParams.set("org", orgUsername);
+      }
+
+      return NextResponse.redirect(loginUrl.toString());
+    }
+
+    const { error: exchangeError } = exchangeResult;
+
+    if (!exchangeError) {
       try {
-        const { user } = session;
+        const {
+          data: { user },
+          error: userError,
+        } = await supabase.auth.getUser();
+
+        if (userError || !user) {
+          console.error(
+            "Authenticated user lookup failed after code exchange:",
+            userError,
+          );
+
+          if (from === "authentication") {
+            return NextResponse.redirect(
+              `${origin}/account/authentication?error=linking_failed`
+            );
+          }
+
+          return NextResponse.redirect(`${origin}/error`);
+        }
+
+        const accountAccess = readAccountAccessFromMetadata(user.app_metadata ?? null);
+
+        if (isAccountBlockedStatus(accountAccess.status)) {
+          await supabase.auth.signOut();
+
+          const loginUrl = new URL(`${origin}/login`);
+          const errorCode = getAccountAccessErrorCode(accountAccess.status);
+
+          if (errorCode) {
+            loginUrl.searchParams.set("error", errorCode);
+          }
+
+          if (accountAccess.reason) {
+            loginUrl.searchParams.set("reason", accountAccess.reason);
+          }
+
+          return NextResponse.redirect(loginUrl.toString());
+        }
+
+        // Check if this email is blacklisted (catches OAuth signups with a banned email)
+        if (user.email) {
+          const adminClient = getAdminClient();
+          const { data: blacklisted } = await adminClient
+            .from("banned_emails")
+            .select("email")
+            .eq("email", user.email.trim().toLowerCase())
+            .maybeSingle();
+
+          if (blacklisted) {
+            await supabase.auth.signOut();
+            return NextResponse.redirect(`${origin}/login?error=account-banned`);
+          }
+        }
+
+        let inviteOutcome: StaffInviteOutcome | null = null;
+  let isNewAccount = false;
 
         // Handle account linking redirection for authentication page
         if (from === "authentication") {
@@ -97,6 +218,8 @@ export async function GET(request: Request) {
           .single()) as { data: Record<string, unknown> | null };
 
         if (!existingProfile) {
+          isNewAccount = true;
+
           // Get user's full name and avatar from identity data, then fallback to metadata
           const identities = (user as { identities?: Array<{ identity_data?: Record<string, unknown> }> })
             .identities;
@@ -157,6 +280,15 @@ export async function GET(request: Request) {
               // Don't fail signup if affiliation processing fails
             }
           }
+
+          // Handle staff invite token if present
+          if (staffToken && orgUsername) {
+            inviteOutcome = await applyStaffInviteForUser({
+              userId: user.id,
+              staffToken,
+              orgUsername,
+            });
+          }
         } else {
           // Update email in case it changed
           const { error: updateError } = (await supabase
@@ -171,32 +303,67 @@ export async function GET(request: Request) {
             console.error("Profile update error:", updateError);
             throw updateError;
           }
+
+          // Handle staff invite token for existing users too
+          if (staffToken && orgUsername) {
+            inviteOutcome = await applyStaffInviteForUser({
+              userId: user.id,
+              staffToken,
+              orgUsername,
+            });
+          }
         }
 
         // Determine redirect path for OAuth or other flows
-        const redirectTo = redirectAfterAuth
-          ? (() => {
-              const decoded = decodeURIComponent(redirectAfterAuth);
-              try {
-                // Parse as full URL to extract pathname and search params
-                const url = new URL(decoded);
-                return url.pathname + url.search; // Include both path and query params
-              } catch {
-                // If URL parsing fails, assume it's just a path and return as-is
-                return decoded;
-              }
-            })()
-          : "/home";
+        const finalRedirectTo = inviteOutcome
+          ? buildStaffInviteRedirectPath(inviteOutcome, {
+              fallbackPath: resolvePostAuthRedirectPath(redirectAfterAuth),
+              toastPosition: isNewAccount ? "bottom-center" : undefined,
+            })
+          : resolvePostAuthRedirectPath(redirectAfterAuth);
+
+        const accessToken = exchangeResult.data.session?.access_token;
+
+        const [
+          { data: claimsData, error: claimsError },
+          { data: factorsData, error: factorsError },
+        ] = await Promise.all([
+          accessToken
+            ? supabase.auth.getClaims(accessToken)
+            : Promise.resolve({ data: null, error: null }),
+          supabase.auth.mfa.listFactors(),
+        ]);
+
+        if (claimsError) {
+          console.error("Claims lookup failed during auth callback:", claimsError);
+        }
+
+        if (factorsError) {
+          console.error("MFA factor lookup failed during auth callback:", factorsError);
+        }
+
+        const factorData = (factorsData as MfaListFactorsLike | null) ?? null;
+        const assuranceData = deriveAuthenticatorAssurance(
+          typeof claimsData?.claims?.aal === "string" ? claimsData.claims.aal : null,
+          factorData,
+        );
+
+        const destinationPath = shouldPromptForMfaChallenge(
+          assuranceData,
+          factorData,
+        )
+          ? buildMfaRedirectPath(finalRedirectTo)
+          : finalRedirectTo;
 
         const forwardedHost = request.headers.get("x-forwarded-host");
         
         // Handle redirect based on environment
         if (process.env.NODE_ENV === "development") {
-          return NextResponse.redirect(`${origin}${redirectTo}`);
+          return NextResponse.redirect(`${origin}${destinationPath}`);
         } else if (forwardedHost) {
-          return NextResponse.redirect(`https://${forwardedHost}${redirectTo}`);
+          return NextResponse.redirect(`https://${forwardedHost}${destinationPath}`);
         } else {
-          return NextResponse.redirect(`${origin}${redirectTo}`);
+          return NextResponse.redirect(`${origin}${destinationPath}`);
         }
       } catch (error) {
         console.error("Error in callback:", error);
@@ -267,3 +434,4 @@ async function handleEmailDomainAffiliation(userId: string, email: string): Prom
 
   console.log(`User ${userId} auto-affiliated with organization ${org.id} via domain ${domain}`);
 }
+

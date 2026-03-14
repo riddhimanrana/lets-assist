@@ -28,8 +28,8 @@ export interface RecurrenceRule {
   frequency?: RecurrenceFrequency;
   interval?: number;
   end_type?: RecurrenceEndType;
-  end_date?: string;
-  end_occurrences?: number;
+  end_date?: string | null;
+  end_occurrences?: number | null;
   weekdays?: RecurrenceWeekday[];
 }
 
@@ -46,6 +46,7 @@ export interface Project {
   show_attendees_publicly?: boolean;
   waiver_required?: boolean;
   waiver_allow_upload?: boolean;
+  waiver_disable_esignature?: boolean;
   waiver_pdf_url?: string | null;
   waiver_pdf_storage_path?: string | null;
   creator_id: string;
@@ -68,7 +69,7 @@ export interface Project {
   creator_synced_at?: string | null;
   project_timezone?: string;
   workflow_status?: ProjectWorkflowStatus;
-  recurrence_rule?: RecurrenceRule;
+  recurrence_rule?: RecurrenceRule | null;
   recurrence_parent_id?: string;
   recurrence_sequence?: number;
   restrict_to_org_domains?: boolean;

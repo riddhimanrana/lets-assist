@@ -17,13 +17,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { User, Mail, Phone, Calendar, MapPin, Clock, Loader2, ChevronDown, Download, CheckCircle } from 'lucide-react';
+import { User, Mail, Phone, Calendar, MapPin, Clock, Loader2, ChevronDown, Download } from 'lucide-react';
 import Image from "next/image";
 import { getUserProfile } from '@/app/projects/[id]/actions';
 import { toast } from "sonner";
 import { TimezoneBadge } from '@/components/shared/TimezoneBadge';
-import { WaiverSignatureSection } from '@/app/projects/_components/WaiverSignatureSection';
-import type { Project, WaiverSignatureInput, WaiverTemplate } from '@/types';
+import { WaiverSigningDialog } from '@/components/waiver/WaiverSigningDialog';
+import { Check, PenTool } from 'lucide-react';
+import type { Project, WaiverSignatureInput, WaiverTemplate, WaiverDefinitionFull } from '@/types';
 
 interface UserProfile {
   full_name: string | null;
@@ -38,8 +39,10 @@ interface SignupConfirmationModalProps {
   enableVolunteerComments?: boolean;
   waiverRequired?: boolean;
   waiverAllowUpload?: boolean;
+  waiverDisableEsignature?: boolean;
   waiverTemplate?: WaiverTemplate | null;
   waiverPdfUrl?: string | null;
+  waiverDefinition?: WaiverDefinitionFull | null;
   project: {
     id: string;
     title: string;
@@ -60,8 +63,10 @@ export function SignupConfirmationModal({
   enableVolunteerComments = false,
   waiverRequired = false,
   waiverAllowUpload = true,
+  waiverDisableEsignature = false,
   waiverTemplate = null,
   waiverPdfUrl = null,
+  waiverDefinition = null,
   project,
   scheduleId,
   isLoading = false,
@@ -70,6 +75,7 @@ export function SignupConfirmationModal({
   const [isFetchingProfile, setIsFetchingProfile] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [waiverSignature, setWaiverSignature] = useState<WaiverSignatureInput | null>(null);
+  const [isWaiverDialogOpen, setIsWaiverDialogOpen] = useState(false);
 
   // Calendar connection state
   const [calendarConnected, setCalendarConnected] = useState(false);
@@ -164,7 +170,7 @@ export function SignupConfirmationModal({
       const returnUrl = `/projects/${project.id}`;
 
       // Redirect to OAuth
-      window.location.href = `/api/calendar/google/connect?return_to=${encodeURIComponent(returnUrl)}`;
+      window.location.href = `/api/calendar/google/connect?scopes=calendar&return_to=${encodeURIComponent(returnUrl)}`;
     } catch (error) {
       console.error('Failed to connect calendar:', error);
       toast.error('Connection Failed', {
@@ -227,7 +233,8 @@ export function SignupConfirmationModal({
   };
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
+    const [year, month, day] = dateString.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
     return date.toLocaleDateString('en-US', {
       weekday: 'long',
       year: 'numeric',
@@ -238,7 +245,8 @@ export function SignupConfirmationModal({
 
   const handleConfirm = () => {
     const trimmed = comment.trim();
-    onConfirm(trimmed.length > 0 ? trimmed : undefined, waiverSignature);
+    // Use type assertion if needed, as the action accepts compatible structure
+    onConfirm(trimmed.length > 0 ? trimmed : undefined, waiverSignature as WaiverSignatureInput);
   };
 
   const formatTime = (timeString: string) => {
@@ -255,9 +263,14 @@ export function SignupConfirmationModal({
   const waiverSatisfied = !waiverRequired || !!waiverSignature;
   const canConfirm = !isLoading && !isFetchingProfile && !profileError && !!currentUserProfile && waiverSatisfied;
 
+  const handleWaiverComplete = async (input: WaiverSignatureInput) => {
+    setWaiverSignature(input);
+    setIsWaiverDialogOpen(false);
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-5xl w-[95vw] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[95vw] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Confirm Event Signup</DialogTitle>
           <DialogDescription>
@@ -345,14 +358,53 @@ export function SignupConfirmationModal({
 
           {waiverRequired && (
             <div className="space-y-3 pt-3 border-t">
-              <WaiverSignatureSection
-                template={waiverTemplate || null}
+              <h4 className="font-semibold text-sm text-text">
+                Waiver Agreement
+              </h4>
+              <p className="text-sm text-muted-foreground mb-4">
+                You must sign the waiver to participate in this event.
+              </p>
+
+              {!waiverSignature ? (
+                <Button 
+                  onClick={() => setIsWaiverDialogOpen(true)}
+                  className="w-full sm:w-auto"
+                >
+                  <PenTool className="h-4 w-4 mr-2" />
+                  Sign Waiver
+                </Button>
+              ) : (
+                <div className="flex items-center justify-between p-3 bg-success/10 border border-success/80 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <div className="h-8 w-8 rounded-full bg-success/20 flex items-center justify-center text-success">
+                      <Check className="h-4 w-4" />
+                    </div>
+                    <div className="text-sm font-medium text-success">
+                      Waiver Signed
+                    </div>
+                  </div>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => setIsWaiverDialogOpen(true)}
+                    className="text-muted-foreground hover:text-text"
+                  >
+                    Edit
+                  </Button>
+                </div>
+              )}
+
+              <WaiverSigningDialog
+                isOpen={isWaiverDialogOpen}
+                onClose={() => setIsWaiverDialogOpen(false)}
+                onComplete={handleWaiverComplete}
+                waiverDefinition={waiverDefinition}
                 waiverPdfUrl={waiverPdfUrl}
-                signerName={currentUserProfile?.full_name || undefined}
-                signerEmail={currentUserProfile?.email || undefined}
+                waiverTemplate={waiverTemplate}
+                defaultSignerName={currentUserProfile?.full_name || ""}
+                defaultSignerEmail={currentUserProfile?.email || ""}
                 allowUpload={waiverAllowUpload}
-                required
-                onChange={setWaiverSignature}
+                disableEsignature={waiverDisableEsignature}
               />
             </div>
           )}
@@ -390,18 +442,14 @@ export function SignupConfirmationModal({
                 Checking connection...
               </div>
             ) : calendarConnected ? (
-              <div className="flex items-center justify-between gap-3 p-3 bg-success/10 border border-success/80 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className="h-8 w-8 rounded-full bg-success/20 flex items-center justify-center">
-                    <CheckCircle className="h-5 w-5 text-success" />
+              <div className="flex items-center justify-between gap-3 p-3 bg-success/10 border border-success/80 rounded-lg max-w-md">
+                <div className="flex items-center gap-3 overflow-hidden">
+                  <div className="h-8 w-8 rounded-full bg-success/20 flex items-center justify-center shrink-0">
+                    <Image className="h-4 w-4" src="/googlecalendar.svg" alt="Google Calendar" width={16} height={16} />
                   </div>
-                  <div>
-                    <div className="text-sm font-medium text-success">
-                      Signup Confirmed
-                    </div>
-                    {/* Optional: Add timestamp or confirmation code here if available */}
-                    <div className="text-xs text-success/80 truncate">
-                      You are now registered for this project
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-success truncate">
+                      Google Calendar Connected
                     </div>
                     {connectedEmail && (
                       <div className="text-xs text-success/80 truncate">
@@ -431,7 +479,7 @@ export function SignupConfirmationModal({
             ) : (
               <Button
                 variant="outline"
-                className="w-full justify-start h-auto p-3"
+                className="w-full max-w-md justify-start h-auto p-3"
                 onClick={handleConnectCalendar}
                 disabled={connectingCalendar}
               >

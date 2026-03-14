@@ -15,6 +15,7 @@ import { Calendar as CalendarIcon, AlertCircle } from "lucide-react";
 import { TimePicker } from "@/components/ui/time-picker";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { getMultiDaySlotDisplayName } from "@/utils/project";
 import { ZodIssue } from "zod";
 import { RecurrenceFrequency, RecurrenceEndType, RecurrenceWeekday } from "@/types";
 import RecurrenceSettings from "./RecurrenceSettings";
@@ -32,7 +33,7 @@ interface ScheduleProps {
       };
       multiDay: {
         date: string;
-        slots: { startTime: string; endTime: string; volunteers: number }[];
+        slots: { name: string; startTime: string; endTime: string; volunteers: number }[];
       }[];
       sameDayMultiArea: {
         date: string;
@@ -155,14 +156,6 @@ export default function Schedule({
   const getArrayError = (basePath: string, index: number, field: string): string | undefined => {
     const path = `${basePath}.${index}.${field}`;
     return getFieldError(path);
-  };
-
-  // For multi-day validation error display
-  const getMultiDayError = (dayIndex: number): string | undefined => {
-    return errors.find(issue =>
-      issue.path[0] === dayIndex ||
-      (Array.isArray(issue.path) && issue.path[0] === dayIndex)
-    )?.message;
   };
 
   if (state.eventType === "oneTime") {
@@ -308,9 +301,6 @@ export default function Schedule({
   }
 
   if (state.eventType === "multiDay") {
-    // Get general array error for multiDay
-    const multiDayError = getFieldError('');
-
     return (
       <Card>
         <CardHeader>
@@ -321,18 +311,13 @@ export default function Schedule({
         </CardHeader>
         <CardContent>
           <div className="space-y-6">
-            {multiDayError && (
-              <div className="text-destructive text-sm flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/30 rounded-md">
-                <AlertCircle className="h-4 w-4" />
-                {multiDayError}
-              </div>
-            )}
 
             {state.schedule.multiDay.map(
               (
                 day: {
                   date: string;
                   slots: {
+                    name: string;
                     startTime: string;
                     endTime: string;
                     volunteers: number;
@@ -340,15 +325,13 @@ export default function Schedule({
                 },
                 dayIndex: number,
               ) => {
-                // Get day-specific errors
-                const dayError = getMultiDayError(dayIndex);
+                // Get day-specific errors (only for date field)
                 const dateError = getFieldError(`${dayIndex}.date`);
-                const slotsError = getFieldError(`${dayIndex}.slots`);
 
                 return (
                   <div key={dayIndex} className={cn(
                     "p-4 border rounded-lg",
-                    (dayError || dateError || slotsError) && "border-destructive bg-destructive/5"
+                    dateError && "border-destructive bg-destructive/5"
                   )}>
                     <div className="flex items-center justify-between mb-4">
                       <Label className="text-base sm:text-lg font-medium">
@@ -366,10 +349,10 @@ export default function Schedule({
                       )}
                     </div>
 
-                    {(dayError || dateError) && (
+                    {dateError && (
                       <div className="text-destructive text-sm flex items-center gap-2 mb-3">
                         <AlertCircle className="h-4 w-4" />
-                        {dayError || dateError}
+                        {dateError}
                       </div>
                     )}
 
@@ -408,28 +391,24 @@ export default function Schedule({
                         </Popover>
                       </div>
 
-                      {slotsError && (
-                        <div className="text-destructive text-sm flex items-center gap-2">
-                          <AlertCircle className="h-4 w-4" />
-                          {slotsError}
-                        </div>
-                      )}
-
                       {day.slots.map(
                         (
                           slot: {
+                            name: string;
                             startTime: string;
                             endTime: string;
                             volunteers: number;
                           },
                           slotIndex: number,
                         ) => {
+                          const slotName = slot.name ?? "";
                           const timeRangeInvalid = isTimeRangeInvalid(
                             slot.startTime,
                             slot.endTime,
                           );
 
                           // Get slot-specific errors
+                          const nameError = getArrayError(`${dayIndex}.slots`, slotIndex, 'name');
                           const startTimeError = getArrayError(`${dayIndex}.slots`, slotIndex, 'startTime');
                           const endTimeError = getArrayError(`${dayIndex}.slots`, slotIndex, 'endTime');
                           const volunteersError = getArrayError(`${dayIndex}.slots`, slotIndex, 'volunteers');
@@ -439,12 +418,12 @@ export default function Schedule({
                               key={slotIndex}
                               className={cn(
                                 "p-4 bg-muted/50 rounded-lg space-y-4",
-                                (startTimeError || endTimeError || volunteersError) && "border border-destructive bg-destructive/5"
+                                (nameError || startTimeError || endTimeError || volunteersError) && "border border-destructive bg-destructive/5"
                               )}
                             >
                               <div className="flex items-center justify-between">
                                 <Label className="text-sm font-medium">
-                                  Time Slot {slotIndex + 1}
+                                  {getMultiDaySlotDisplayName(slot, slotIndex)}
                                 </Label>
                                 {slotIndex > 0 && (
                                   <Button
@@ -457,6 +436,37 @@ export default function Schedule({
                                   >
                                     ✕
                                   </Button>
+                                )}
+                              </div>
+                              <div className="space-y-2">
+                                <div className="flex justify-between items-baseline">
+                                  <Label>Slot Name</Label>
+                                  <span className="text-xs">{slotName.length}/75</span>
+                                </div>
+                                <Input
+                                  placeholder="Optional slot name (e.g., Morning Registration)"
+                                  value={slotName}
+                                  onChange={(e) => {
+                                    if (e.target.value.length <= 75) {
+                                      updateMultiDayScheduleAction(
+                                        dayIndex,
+                                        "name",
+                                        e.target.value,
+                                        slotIndex,
+                                      );
+                                    }
+                                  }}
+                                  maxLength={75}
+                                  className={nameError ? "border-destructive" : ""}
+                                />
+                                {/* <p className="text-xs text-muted-foreground">
+                                  Optional label shown on project, QR, signup, and hours views.
+                                </p> */}
+                                {nameError && (
+                                  <div className="text-destructive text-sm flex items-center gap-2 mt-1">
+                                    <AlertCircle className="h-4 w-4" />
+                                    {nameError}
+                                  </div>
                                 )}
                               </div>
                               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -569,7 +579,6 @@ export default function Schedule({
     const dateError = getFieldError('date');
     const overallStartError = getFieldError('overallStart');
     const overallEndError = getFieldError('overallEnd');
-    const rolesError = getFieldError('roles');
 
     return (
       <>
@@ -654,13 +663,6 @@ export default function Schedule({
                   </p>
                 </div>
               </div>
-
-              {rolesError && (
-                <div className="text-destructive text-sm flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/30 rounded-md">
-                  <AlertCircle className="h-4 w-4" />
-                  {rolesError}
-                </div>
-              )}
 
               {state.schedule.sameDayMultiArea.roles.map(
                 (

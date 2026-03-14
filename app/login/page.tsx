@@ -1,5 +1,9 @@
+import { redirect } from "next/navigation";
 import { Metadata } from "next";
 import LoginClient from "./LoginClient";
+import { getAuthUser } from "@/lib/supabase/auth-helpers";
+import { applyStaffInviteForUser } from "@/lib/organization/staff-invite";
+import { buildStaffInviteRedirectPath } from "@/lib/organization/staff-invite-outcome";
 
 export const metadata: Metadata = {
   title: "Login",
@@ -8,11 +12,32 @@ export const metadata: Metadata = {
 };
 
 interface LoginPageProps {
-  searchParams: Promise<{ redirect?: string }>;
+  searchParams: Promise<{ redirect?: string; staff_token?: string; org?: string }>;
 }
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
-  const { redirect } = await searchParams;
-  const redirectPath = redirect ?? "";
-  return <LoginClient redirectPath={redirectPath} />;
+  const { redirect: redirectPath, staff_token, org } = await searchParams;
+
+  if (staff_token && org) {
+    const { user } = await getAuthUser({ allowMfaPending: true });
+
+    if (user) {
+      const inviteOutcome = await applyStaffInviteForUser({
+        userId: user.id,
+        staffToken: staff_token,
+        orgUsername: org,
+      });
+
+      redirect(buildStaffInviteRedirectPath(inviteOutcome));
+    }
+  }
+
+  const resolvedRedirectPath = redirectPath ?? "";
+  return (
+    <LoginClient
+      redirectPath={resolvedRedirectPath}
+      staffToken={staff_token}
+      orgUsername={org}
+    />
+  );
 }

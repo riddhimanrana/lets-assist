@@ -9,7 +9,22 @@ module.exports = {
   outDir: "./public",
 
   // ignore API / auth folders
-  exclude: ["/api/*", "/auth/*", "/error/*", "/admin/*"],
+  exclude: [
+    "/api/*",
+    "/auth/*",
+    "/error",
+    "/admin/*",
+    "/account/*",
+    "/dashboard",
+    "/test-harness/*",
+    "/(landing)",         // Hidden group folder
+    "*/[id]*",            // Exclude dynamic patterns
+    "*/[projectId]*",
+    "*/[username]*",
+    "*/[token]*",
+    "/opengraph-image",
+    "/logout",
+  ],
 
   // manually pick up all app routes
   additionalPaths: async (config) => {
@@ -20,12 +35,21 @@ module.exports = {
     });
 
     return Promise.all(
-      pages.map((file) => {
-        // turn "app/foo/bar/page.tsx" → "/foo/bar"
-        let urlPath = file.replace(/^app/, "").replace(/\/page\..+$/, "");
-        if (urlPath === "") urlPath = "/";
-        return config.transform(config, urlPath);
-      }),
+      pages
+        .filter((file) => {
+          // Filter out dynamic routes and internal groups from additionalPaths
+          return (
+            !file.includes("[") &&
+            !file.includes("]") &&
+            !file.includes("(landing)")
+          );
+        })
+        .map((file) => {
+          // turn "app/foo/bar/page.tsx" → "/foo/bar"
+          let urlPath = file.replace(/^app/, "").replace(/\/page\..+$/, "");
+          if (urlPath === "") urlPath = "/";
+          return config.transform(config, urlPath);
+        }),
     );
   },
 
@@ -34,7 +58,16 @@ module.exports = {
       {
         userAgent: "*",
         allow: "/",
-        disallow: ["/api/", "/auth/", "/error/", "/admin/"],
+        disallow: [
+          "/api/",
+          "/auth/",
+          "/error",
+          "/admin/",
+          "/account/",
+          "/dashboard",
+          "/test-harness/",
+          "/logout",
+        ],
       },
     ],
   },

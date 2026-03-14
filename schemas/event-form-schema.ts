@@ -67,6 +67,7 @@ export const oneTimeSchema = z.object({
 
 // Slot Schema for Multi Day Events
 const slotSchema = z.object({
+  name: z.string().max(75, "Slot name cannot exceed 75 characters").optional(),
   startTime: z.string().min(1, "Start time is required"),
   endTime: z.string().min(1, "End time is required"),
   volunteers: z.number().int().min(1, "At least 1 volunteer is required").max(1000, "Maximum 1000 volunteers allowed"),
@@ -224,6 +225,7 @@ export const verificationSettingsSchema = z.object({
   showAttendeesPublicly: z.boolean().optional(),
   waiverRequired: z.boolean().optional(),
   waiverAllowUpload: z.boolean().optional(),
+  waiverDisableEsignature: z.boolean().optional(),
 });
 
 // Event Form Schema

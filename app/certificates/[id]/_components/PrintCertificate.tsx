@@ -4,6 +4,7 @@ import {
   Printer,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { escapeHtml } from "@/lib/security/html";
 import { format, parseISO } from "date-fns";
 import { tz } from "@date-fns/tz";
 import { useEffect, useState, useRef } from "react";
@@ -71,6 +72,17 @@ export function PrintCertificate({ data }: { data: CertificateData }) {
       { in: tz(userTimezone) }
     );
 
+    const safeCertificateId = escapeHtml(data.id);
+    const safeIssuedDate = escapeHtml(printIssuedDate);
+    const safeEventDate = escapeHtml(printEventDate);
+    const safeVolunteerName = escapeHtml(data.volunteer_name || "Unnamed Volunteer");
+    const safeDurationText = escapeHtml(data.durationText);
+    const safeProjectTitle = escapeHtml(data.project_title);
+    const safeOrganizationName = data.organization_name ? escapeHtml(data.organization_name) : "";
+    const safeProjectLocation = data.project_location ? escapeHtml(data.project_location) : "";
+    const safeCreatorName = escapeHtml(data.creator_name || "Let's Assist Admin");
+    const safeCertificateUrl = escapeHtml(`lets-assist.com/certificates/${data.id}`);
+
     // Assemble the HTML content for the certificate
     const certificateHtml = `
       <html>
@@ -99,35 +111,35 @@ export function PrintCertificate({ data }: { data: CertificateData }) {
                 </div>
               </div>
               <div style="text-align:right">
-                <p class="print-text" style="margin:0">Certificate ID: ${data.id}</p>
-                <p class="print-text" style="margin:0">Issued: ${printIssuedDate}</p>
+                <p class="print-text" style="margin:0">Certificate ID: ${safeCertificateId}</p>
+                <p class="print-text" style="margin:0">Issued: ${safeIssuedDate}</p>
               </div>
             </div>
 
             <div class="print-body">
               <p class="print-text" style="font-size:1.25rem">This certifies that</p>
               <h2 class="print-text print-accent" style="font-size:2.5rem;margin:0 0 1rem;border-bottom:2px solid #22c55e;padding-bottom:.5rem">
-                ${data.volunteer_name || "Unnamed Volunteer"}
+                ${safeVolunteerName}
               </h2>
               <p class="print-text" style="font-size:1.25rem;margin:1rem 0">has successfully completed</p>
               <p class="print-text print-accent" style="font-size:2rem;margin:0">
-                ${data.durationText}
+                ${safeDurationText}
               </p>
               <p class="print-text" style="margin:.5rem 0">of volunteer service for</p>
               <h3 class="print-text" style="font-size:1.75rem;margin:0 0 1rem">
-                ${data.project_title}
+                ${safeProjectTitle}
               </h3>
               <div style="display:flex;gap:2rem;margin-top:1rem">
               <div style="text-align:center">
                 <span class="print-accent" aria-hidden="true">📅</span>
-                <p class="print-text" style="margin:.5rem 0">${printEventDate}</p>
+                <p class="print-text" style="margin:.5rem 0">${safeEventDate}</p>
                 <p class="print-text" style="margin:0;font-size:0.9rem;">Event Date</p>
               </div>
                 ${data.organization_name
         ? `
                 <div style="text-align:center">
                   <span class="print-accent" aria-hidden="true">🏢</span>
-                  <p class="print-text" style="margin:.5rem 0">${data.organization_name}</p>
+                  <p class="print-text" style="margin:.5rem 0">${safeOrganizationName}</p>
                   <p class="print-text" style="margin:0;font-size:0.9rem;">Organization</p>
                 </div>`
         : ""
@@ -136,14 +148,14 @@ export function PrintCertificate({ data }: { data: CertificateData }) {
         ? `
                 <div style="text-align:center">
                   <span class="print-accent" aria-hidden="true">📍</span>
-                  <p class="print-text" style="margin:.5rem 0">${data.project_location}</p>
+                  <p class="print-text" style="margin:.5rem 0">${safeProjectLocation}</p>
                   <p class="print-text" style="margin:0;font-size:0.9rem;">Location</p>
                 </div>`
         : ""
       }
                 <div style="text-align:center">
                   <span class="print-accent" aria-hidden="true">⏰</span>
-                  <p class="print-text" style="margin:.5rem 0">${data.durationText}</p>
+                  <p class="print-text" style="margin:.5rem 0">${safeDurationText}</p>
                   <p class="print-text" style="margin:0;font-size:0.9rem;">Duration</p>
                 </div>
               </div>
@@ -152,8 +164,8 @@ export function PrintCertificate({ data }: { data: CertificateData }) {
             <div class="print-footer">
               <div>
                 <p class="print-text" style="margin:0">Issued by:</p>
-                <p class="print-text" style="font-weight:bold;margin:.25rem 0">${data.creator_name || "Let's Assist Admin"}</p>
-                <p class="print-text" style="margin:0;font-size:0.9rem;">Issued: ${printIssuedDate}</p>
+                <p class="print-text" style="font-weight:bold;margin:.25rem 0">${safeCreatorName}</p>
+                <p class="print-text" style="margin:0;font-size:0.9rem;">Issued: ${safeIssuedDate}</p>
               </div>
               ${data.is_certified
         ? `
@@ -165,7 +177,7 @@ export function PrintCertificate({ data }: { data: CertificateData }) {
       }
               <div style="text-align:right">
                 <p class="print-text" style="margin:0">Verify at:</p>
-                <p class="print-text" style="font-weight:bold;margin:.25rem 0">lets-assist.com/certificates/${data.id}</p>
+                <p class="print-text" style="font-weight:bold;margin:.25rem 0">${safeCertificateUrl}</p>
               </div>
             </div>
           </div>

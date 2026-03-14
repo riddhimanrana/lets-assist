@@ -8,7 +8,7 @@ import PlatformFeaturesSection from "./_components/PlatformFeaturesSection";
 import OrgToolingSection from "./_components/OrgToolingSection";
 import ComparisonSection from "./_components/ComparisonSection";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -24,6 +24,11 @@ function HomeContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { user, loading: isAuthLoading } = useAuth();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Check for error parameters
   const error = searchParams.get("error");
@@ -34,26 +39,10 @@ function HomeContent() {
   const shouldRedirect = !!user && !isAuthLoading && !noRedirect && !hasError;
 
   useEffect(() => {
-    if (shouldRedirect) {
+    if (mounted && shouldRedirect) {
       router.replace("/home");
     }
-  }, [router, shouldRedirect]);
-
-  if (isAuthLoading && !noRedirect && !hasError) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-pulse">Loading...</div>
-      </div>
-    );
-  }
-
-  if (shouldRedirect) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-pulse">Heading to your home…</div>
-      </div>
-    );
-  }
+  }, [mounted, router, shouldRedirect]);
 
   // Show error page if there's an error
   if (error && errorDescription) {
@@ -70,7 +59,7 @@ function HomeContent() {
 
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Card className="w-[380px] shadow-lg">
+        <Card className="w-95 shadow-lg">
           <CardHeader className="text-center">
             <CardTitle className="flex items-center justify-center gap-2 text-destructive">
               <AlertCircle className="h-6 w-6" />
@@ -107,13 +96,7 @@ function HomeContent() {
 
 export default function HomeClient() {
   return (
-    <Suspense
-      fallback={
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="animate-pulse">Loading...</div>
-        </div>
-      }
-    >
+    <Suspense fallback={null}>
       <HomeContent />
     </Suspense>
   );

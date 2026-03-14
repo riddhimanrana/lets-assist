@@ -30,17 +30,8 @@ import Image from "next/image";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { toast } from "sonner";
 import { RichTextContent } from "@/components/ui/rich-text-content";
-import { checkProfanity } from "./actions";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter,
-} from "@/components/ui/dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { getMultiDaySlotDisplayName } from "@/utils/project";
 
 // Maximum file sizes
 const MAX_COVER_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -59,20 +50,6 @@ const ALLOWED_DOCUMENT_TYPES = [
   "image/webp",
   "image/jpg"
 ];
-
-interface ProfanityFieldResult {
-  isProfanity: boolean;
-  score?: number;
-  flaggedFor?: string;
-}
-
-interface ProfanityResult {
-  success: boolean;
-  hasProfanity: boolean;
-  fieldResults: {
-    [key: string]: ProfanityFieldResult;
-  };
-}
 
 interface FinalizeProps {
   state: {
@@ -94,7 +71,7 @@ interface FinalizeProps {
       };
       multiDay: {
         date: string;
-        slots: { startTime: string; endTime: string; volunteers: number }[];
+        slots: { name: string; startTime: string; endTime: string; volunteers: number }[];
       }[];
       sameDayMultiArea: {
         date: string;
@@ -111,14 +88,14 @@ interface FinalizeProps {
   };
   setCoverImageAction: (file: File | null) => void;
   setDocumentsAction: (docs: File[]) => void;
-  onProfanityChange: (hasProfanity: boolean) => void; // Add this line
+  hasProfanity: boolean;
 }
 
 export default function Finalize({
   state,
   setCoverImageAction,
   setDocumentsAction,
-  onProfanityChange
+  hasProfanity
 }: FinalizeProps) {
   const [coverImagePreview, setCoverImagePreview] = useState<string | null>(null);
   const [localDocuments, setLocalDocuments] = useState<File[]>([]);
@@ -126,15 +103,6 @@ export default function Finalize({
   const [totalDocumentsSize, setTotalDocumentsSize] = useState<number>(0);
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const [hoverUpload, setHoverUpload] = useState<"cover" | "docs" | null>(null);
-  const [isProfanityChecking, setIsProfanityChecking] = useState<boolean>(false);
-  const [profanityResult, setProfanityResult] = useState<{
-    hasProfanity: boolean;
-    checkedFields: string[];
-    details: {
-      [key: string]: ProfanityFieldResult;
-    };
-  } | null>(null);
-  const [isProfanityDialogOpen, setIsProfanityDialogOpen] = useState(false);
 
   // Calculate total documents size whenever localDocuments change
   useEffect(() => {
@@ -380,7 +348,8 @@ export default function Finalize({
   };
 
   // Helper function to format file size
-  const formatFileSize = (bytes: number): string => {
+  const formatFileSize = (bytes: number | undefined | null): string => {
+    if (bytes === undefined || bytes === null || isNaN(bytes)) return "0 B";
     if (bytes < 1024) return bytes + " B";
     else if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
     else return (bytes / (1024 * 1024)).toFixed(1) + " MB";
@@ -399,182 +368,21 @@ export default function Finalize({
     }
   };
 
-  // Check content for profanity
-  const checkContentForProfanity = useCallback(async () => {
-    setIsProfanityChecking(true);
-
-    try {
-      const contentToCheck = {
-        title: state.basicInfo.title || '',
-        location: state.basicInfo.location || '',
-        description: state.basicInfo.description || ''
-      };
-
-      const result = await checkProfanity(contentToCheck) as ProfanityResult;
-
-      setProfanityResult({
-        hasProfanity: result.hasProfanity,
-        checkedFields: Object.keys(contentToCheck),
-        details: result.fieldResults
-      });
-
-      // Notify parent of profanity status
-      onProfanityChange(result.hasProfanity);
-    } catch (error) {
-      console.error("Error checking profanity:", error);
-      setProfanityResult({
-        hasProfanity: false,
-        checkedFields: ['title', 'location', 'description'],
-        details: {}
-      });
-      // Default to no profanity if check fails
-      onProfanityChange(false);
-    } finally {
-      setIsProfanityChecking(false);
-    }
-  }, [state.basicInfo.title, state.basicInfo.location, state.basicInfo.description, onProfanityChange]);
-
-  // Run profanity check when component mounts
-  useEffect(() => {
-    checkContentForProfanity();
-  }, [checkContentForProfanity]);
-
-  // Helper to get a human-readable field name
-  const getFieldDisplayName = (fieldName: string): string => {
-    switch (fieldName) {
-      case 'title': return 'Project Title';
-      case 'location': return 'Location';
-      case 'description': return 'Description';
-      default: return fieldName.charAt(0).toUpperCase() + fieldName.slice(1);
-    }
-  };
-
-  // Function to render the confidence level with appropriate color
-  const renderConfidenceLevel = (score?: number) => {
-    if (!score && score !== 0) return null;
-
-    let colorClass = 'text-green-500';
-    let label = 'Low';
-
-    if (score >= 0.8) {
-      colorClass = 'text-destructive font-medium';
-      label = 'High';
-    } else if (score >= 0.5) {
-      colorClass = 'text-amber-500 font-medium';
-      label = 'Medium';
-    }
-
-    return (
-      <span className={colorClass}>
-        {label} ({(score * 100).toFixed(1)}%)
-      </span>
-    );
-  };
-
-  // Function to render the flagged content section with type safety
-  const renderFlaggedContent = (result: ProfanityFieldResult) => {
-    if (!result.flaggedFor) {
-      return (
-        <div className="text-sm text-muted-foreground">
-          Content flagged as inappropriate, but no specific phrases identified.
-        </div>
-      );
-    }
-
-    return (
-      <div className="space-y-2">
-        <div>
-          <p className="text-sm font-medium">Flagged content:</p>
-          <Badge
-            variant="outline"
-            className="bg-destructive/10 text-destructive border-destructive/20"
-          >
-            &quot;{result.flaggedFor}&quot;
-          </Badge>
-        </div>
-        <div className="text-xs text-muted-foreground mt-1">
-          The above phrase was identified as potentially inappropriate.
-          Consider rephrasing or removing it.
-        </div>
-      </div>
-    );
-  };
-
-  // Replace the existing profanity warning section
+  // Show the last submit-time profanity result from parent state
   const renderProfanityWarning = () => {
-    if (isProfanityChecking) {
-      return (
-        <>
-          <AlertTriangle className="shrink-0 h-8 w-8 text-muted-foreground animate-pulse mt-0.5" />
-          <div>
-            <h4 className="font-semibold">Checking content...</h4>
-            <p className="text-sm text-muted-foreground">
-              We&apos;re checking your project content for inappropriate language.
-            </p>
-          </div>
-        </>
-      );
-    }
-
-    if (profanityResult?.hasProfanity) {
+    if (hasProfanity) {
       return (
         <>
           <AlertTriangle className="shrink-0 h-8 w-8 text-destructive mt-0.5" />
           <div>
             <h4 className="font-semibold">Content warning</h4>
             <p className="text-sm text-muted-foreground">
-              Our system has detected potentially inappropriate content in your project.
-              Please review and revise your {profanityResult.checkedFields.join(', ')} before submitting.
+              We detected potentially inappropriate content when you clicked create.
+              Please revise your title, location, or description and try again.
             </p>
-            <div className="flex gap-2 mt-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={checkContentForProfanity}
-              >
-                Check Again
-              </Button>
-
-              <Dialog open={isProfanityDialogOpen} onOpenChange={setIsProfanityDialogOpen}>
-                <DialogTrigger render={
-                  <Button size="sm" variant="secondary">
-                    More Details
-                  </Button>
-                } />
-                <DialogContent className="sm:max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Content Warning Details</DialogTitle>
-                    <DialogDescription>
-                      Our system identified inappropriate content in the following sections:
-                    </DialogDescription>
-                  </DialogHeader>
-
-                  <div className="space-y-4 my-2 max-h-[60vh] overflow-y-auto">
-                    {profanityResult.details && Object.entries(profanityResult.details).map(([fieldName, result]) => {
-                      // Skip fields that don't have profanity
-                      if (!result.isProfanity) return null;
-
-                      return (
-                        <div key={fieldName} className="border rounded-md p-3">
-                          <div className="flex items-center justify-between mb-2">
-                            <h4 className="font-medium">{getFieldDisplayName(fieldName)}</h4>
-                            <div className="text-sm">
-                              Confidence: {renderConfidenceLevel(result.score)}
-                            </div>
-                          </div>
-
-                          {renderFlaggedContent(result)}
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  <DialogFooter>
-                    <Button onClick={() => setIsProfanityDialogOpen(false)}>Close</Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              We only run this check during submission.
+            </p>
           </div>
         </>
       );
@@ -586,8 +394,8 @@ export default function Finalize({
         <div>
           <h4 className="font-semibold">Ready to create your project</h4>
           <p className="text-sm text-muted-foreground">
-            Click the &quot;Create&quot; button below to publish this project
-            and start accepting volunteers.
+            Click the &quot;Create&quot; button below to publish this project and start accepting volunteers.
+            We&apos;ll run one profanity check right before submission.
           </p>
         </div>
       </>
@@ -854,6 +662,9 @@ export default function Finalize({
                   </div>
                   {day.slots.map((slot, slotIndex) => (
                     <div key={slotIndex} className="ml-6 space-y-1">
+                      <div className="text-sm font-medium">
+                        {getMultiDaySlotDisplayName(slot, slotIndex)}
+                      </div>
                       <div className="flex items-center gap-2">
                         <Clock className="h-4 w-4 text-muted-foreground" />
                         <span className="text-sm">

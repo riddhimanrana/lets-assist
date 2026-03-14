@@ -40,6 +40,7 @@ Given a user's description, extract and return a JSON object with the following 
         "date": "YYYY-MM-DD",
         "slots": [
           {
+            "name": "string (optional, max 75 chars, descriptive slot label)",
             "startTime": "HH:MM",
             "endTime": "HH:MM",
             "volunteers": number
@@ -64,7 +65,16 @@ Given a user's description, extract and return a JSON object with the following 
     }
   },
   "verificationMethod": "qr-code" | "manual" | "auto" | "signup-only",
-  "requireLogin": boolean
+  "requireLogin": boolean,
+  "recurrence": {
+    "enabled": boolean,
+    "frequency": "daily" | "weekly" | "monthly" | "yearly",
+    "interval": number (default 1),
+    "endType": "never" | "on_date" | "after_occurrences",
+    "endDate": "YYYY-MM-DD" (only if endType is "on_date"),
+    "endOccurrences": number (only if endType is "after_occurrences"),
+    "weekdays": ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"] (only for weekly frequency)
+  }
 }
 
 Rules:
@@ -80,12 +90,26 @@ Rules:
 - Default requireLogin to true
 - Keep descriptions informative and engaging
 - Extract location information carefully (city, state, address if provided)
+- **For recurring events**: Set recurrence.enabled to true and populate the recurrence object
+  - Keywords like "every", "weekly", "monthly", "daily" indicate recurring events
+  - If specific days are mentioned (e.g., "every Tuesday and Thursday"), set frequency to "weekly" and add those days to weekdays array
+  - If "every day" is mentioned, set frequency to "daily"
+  - Default interval to 1 unless specified (e.g., "every 2 weeks" would be interval: 2)
+  - Default endType to "never" unless a specific end date or number of occurrences is mentioned
+  - For recurring events, still provide the schedule for the FIRST occurrence only
+- **For multiDay events**: ALWAYS include a "slots" array for each day, even if there's only one slot
+  - Example: [{"date": "2026-02-15", "slots": [{"name": "Morning Shift", "startTime": "09:00", "endTime": "17:00", "volunteers": 20}]}]
+  - Never omit the slots array
+  - If the user describes different shifts or activities within a multi-day event, include a descriptive "name" for each slot
+  - If no slot label is obvious, leave "name" empty or omit it
 
 Examples:
-- "beach cleanup Saturday morning" → oneTime event, next Saturday at 9am-12pm (${new Date(new Date().getTime() + 6 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]} or later)
-- "food drive Monday-Friday" → multiDay event spanning next 5 days starting ${new Date(new Date().getTime() + 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
-- "festival with registration booth and cleanup crew" → sameDayMultiArea with 2 roles on one day
-- "tutoring sessions every Tuesday and Thursday" → multiDay with multiple slots per week
+- "beach cleanup Saturday morning" → oneTime event, next Saturday at 9am-12pm, recurrence.enabled: false
+- "food drive Monday-Friday" → multiDay event spanning next 5 days, recurrence.enabled: false
+- "tutoring sessions every Tuesday and Thursday" → oneTime event on next Tuesday, with recurrence: {enabled: true, frequency: "weekly", weekdays: ["tuesday", "thursday"]}
+- "weekly team meeting every Friday at 3pm" → oneTime event on next Friday, with recurrence: {enabled: true, frequency: "weekly", weekdays: ["friday"]}
+- "monthly volunteering on the 15th" → oneTime event on next 15th, with recurrence: {enabled: true, frequency: "monthly"}
+- "festival with registration booth and cleanup crew" → sameDayMultiArea with 2 roles on one day, recurrence.enabled: false
 
 Return ONLY valid JSON, no additional text.`;
 
@@ -108,23 +132,60 @@ export async function POST(req: NextRequest) {
     try {
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
-        throw new Error('No JSON found in response');
+        console.error('No JSON found in AI response:', text);
+        return Response.json(
+          { error: 'AI did not return valid JSON. Please try rephrasing your description.' },
+          { status: 500 }
+        );
       }
+      
       const parsedData = JSON.parse(jsonMatch[0]);
+      
+      // Validate required fields
+      if (!parsedData.eventType || !parsedData.schedule) {
+        console.error('Missing required fields in AI response:', parsedData);
+        return Response.json(
+          { error: 'AI response missing required fields. Please try again.' },
+          { status: 500 }
+        );
+      }
+      
+      // Ensure multiDay events have proper structure with slots
+      if (parsedData.eventType === 'multiDay' && Array.isArray(parsedData.schedule)) {
+        parsedData.schedule = parsedData.schedule.map((day: Record<string, unknown>) => {
+          // Ensure each day has a slots array
+          if (!Array.isArray(day.slots)) {
+            day.slots = [{
+              name: day.name || '',
+              startTime: day.startTime || '09:00',
+              endTime: day.endTime || '17:00',
+              volunteers: day.volunteers || 10
+            }];
+          } else {
+            day.slots = day.slots.map((slot: Record<string, unknown>) => ({
+              name: typeof slot.name === 'string' ? slot.name : '',
+              startTime: slot.startTime || day.startTime || '09:00',
+              endTime: slot.endTime || day.endTime || '17:00',
+              volunteers: slot.volunteers || day.volunteers || 10,
+            }));
+          }
+          return day;
+        });
+      }
+      
       return Response.json(parsedData);
     } catch (parseError) {
-      console.error('JSON parse error:', parseError);
+      console.error('JSON parse error:', parseError, 'Raw text:', text);
       return Response.json(
-        { error: 'Failed to parse AI response' },
+        { error: 'Failed to parse AI response. Please try again or rephrase your description.' },
         { status: 500 }
       );
     }
   } catch (error) {
     console.error('AI parsing error:', error);
     return Response.json(
-      { error: 'Failed to parse project description' },
+      { error: 'Failed to process your request. Please try again.' },
       { status: 500 }
     );
   }
 }
-

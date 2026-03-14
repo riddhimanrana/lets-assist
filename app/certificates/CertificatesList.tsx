@@ -2,15 +2,17 @@
 
 import { useState } from "react";
 import { format, parseISO, differenceInMinutes, endOfDay, startOfDay } from "date-fns";
-import { Award, Calendar, ChevronRight, Clock, BadgeCheck, Filter, MapPin, Search, SlidersHorizontal, Printer, X } from "lucide-react";
+import { Award, Calendar, ChevronRight, Clock, BadgeCheck, Filter, MapPin, Search, SlidersHorizontal, Printer, X, Trash2, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { escapeHtml } from "@/lib/security/html";
 import Link from "next/link";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,12 +28,23 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Certificate {
   id: string;
   project_title: string;
   creator_name: string | null;
   is_certified: boolean;
+  type?: "platform" | "self-reported"; // Optional for backward compatibility
   event_start: string;
   event_end: string;
   volunteer_email: string | null;
@@ -104,6 +117,41 @@ export function CertificatesList({ certificates, user }: CertificatesListProps) 
   const [dateFilter, setDateFilter] = useState<"all" | "6months" | "year" | "custom">("all");
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deletingTitle, setDeletingTitle] = useState<string | null>(null);
+  const [displayCertificates, setDisplayCertificates] = useState(certificates);
+
+  // Handle delete of self-reported hours
+  const handleDeleteSelfReported = async (id: string) => {
+    setDeletingId(id);
+    try {
+      const res = await fetch(`/api/self-reported-hours/${id}`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to delete hours");
+      }
+
+      // Remove from display
+      setDisplayCertificates(prev => prev.filter(cert => cert.id !== id));
+      
+      toast.success("Self-reported hours deleted", {
+        description: `${deletingTitle || "Certificate"} has been removed.`,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Please try again";
+      toast.error("Failed to delete hours", {
+        description: message,
+      });
+    } finally {
+      setDeletingId(null);
+      setConfirmDeleteId(null);
+      setDeletingTitle(null);
+    }
+  };
 
   // Calculate hours for a certificate
   const calculateHours = (startTime: string, endTime: string): number => {
@@ -117,7 +165,7 @@ export function CertificatesList({ certificates, user }: CertificatesListProps) 
   };
 
   // Add hours property to certificates
-  const certificatesWithHours = certificates.map(cert => ({
+  const certificatesWithHours = displayCertificates.map(cert => ({
     ...cert,
     hours: calculateHours(cert.event_start, cert.event_end)
   }));
@@ -197,6 +245,16 @@ export function CertificatesList({ certificates, user }: CertificatesListProps) 
     // Calculate total hours on filtered results
     const totalHours = filteredCertificates.reduce((sum, cert) => sum + cert.hours, 0);
     const totalDuration = formatTotalDuration(totalHours);
+    const printedAt = `${new Date().toLocaleString()} ${(() => {
+      try {
+        return new Intl.DateTimeFormat('en-US', {
+          timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          timeZoneName: 'short'
+        }).formatToParts(new Date()).find(part => part.type === 'timeZoneName')?.value || '';
+      } catch {
+        return '';
+      }
+    })()}`.trim();
     // prepare container
     let container = document.getElementById("print-container");
     if (!container) {
@@ -220,19 +278,10 @@ export function CertificatesList({ certificates, user }: CertificatesListProps) 
 
     const content = `
       ${style}
-      <h1>All Certificates for ${user.name}</h1>
-      <div>Email: ${user.email}</div>
-      <div>Printed: ${new Date().toLocaleString()} ${(() => {
-        try {
-          return new Intl.DateTimeFormat('en-US', {
-            timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-            timeZoneName: 'short'
-          }).formatToParts(new Date()).find(part => part.type === 'timeZoneName')?.value || '';
-        } catch {
-          return '';
-        }
-      })()}</div>
-      <div><strong>Total Hours: ${totalDuration}</strong></div>
+      <h1>All Certificates for ${escapeHtml(user.name)}</h1>
+      <div>Email: ${escapeHtml(user.email)}</div>
+      <div>Printed: ${escapeHtml(printedAt)}</div>
+      <div><strong>Total Hours: ${escapeHtml(totalDuration)}</strong></div>
       <table>
         <thead>
           <tr>
@@ -272,9 +321,9 @@ export function CertificatesList({ certificates, user }: CertificatesListProps) 
         })
         .map(cert => `
               <tr>
-                <td>${cert.project_title}</td>
-                <td>${cert.organization_name || cert.creator_name || "-"}</td>
-                <td>${format(parseISO(cert.issued_at), "MMM d, yyyy")} ${(() => {
+                <td>${escapeHtml(cert.project_title)}</td>
+                <td>${escapeHtml(cert.organization_name || cert.creator_name || "-")}</td>
+                <td>${escapeHtml(`${format(parseISO(cert.issued_at), "MMM d, yyyy")} ${(() => {
             const date = parseISO(cert.issued_at);
             const timezone = cert.projects?.project_timezone || 'America/Los_Angeles';
             try {
@@ -285,9 +334,9 @@ export function CertificatesList({ certificates, user }: CertificatesListProps) 
             } catch {
               return '';
             }
-          })()}</td>
-                <td>${formatTotalDuration(calculateDecimalHours(cert.event_start, cert.event_end))}</td>
-                <td>${cert.is_certified ? "Yes" : "No"}</td>
+          })()}`)}</td>
+                <td>${escapeHtml(formatTotalDuration(calculateDecimalHours(cert.event_start, cert.event_end)))}</td>
+                <td>${escapeHtml(cert.is_certified ? "Yes" : "No")}</td>
               </tr>
             `)
         .join("")}
@@ -482,38 +531,67 @@ export function CertificatesList({ certificates, user }: CertificatesListProps) 
         {/* Certificates Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {sortedCertificates.map((cert) => {
+            const isSelfReported = cert.type === "self-reported";
+            
             return (
-              <Link key={cert.id} href={`/certificates/${cert.id}`} passHref>
-                <Card className="group h-full cursor-pointer transition-all duration-300 hover:shadow-lg hover:border-primary/50 flex flex-col">
-                  <CardHeader className="pb-3 relative">
-                    <div className="absolute right-4 top-4">
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger render={
-                            <BadgeCheck className={`h-5 w-5 ${cert.is_certified ? 'text-primary' : 'text-muted-foreground/30'}`} />
-                          } />
-                          <TooltipContent>
-                            <p>
-                              {cert.is_certified
-                                ? "Certificate comes from a verified organization"
-                                : "Certificate does not come from a verified organization"
-                              }
-                            </p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
-                    <CardTitle className="text-xl font-semibold leading-tight line-clamp-2 pr-8">
-                      {cert.project_title}
-                    </CardTitle>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2">
-                      {cert.organization_name && (
-                        <div className="flex items-center gap-2 max-w-full">
-                          <span className="truncate">{cert.organization_name}</span>
-                          <span className="text-muted-foreground/50">•</span>
-                        </div>
+              <div key={cert.id} className="relative">
+                <Link href={`/certificates/${cert.id}`} passHref>
+                  <Card className="group h-full cursor-pointer transition-all duration-300 hover:shadow-lg hover:border-primary/50 flex flex-col">
+                    <CardHeader className="pb-3 relative">
+                      <div className="absolute right-4 top-4 flex items-center gap-2">
+                        {isSelfReported && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-5 w-5 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setConfirmDeleteId(cert.id);
+                              setDeletingTitle(cert.project_title);
+                            }}
+                            disabled={deletingId === cert.id}
+                            title="Delete self-reported hours"
+                          >
+                            {deletingId === cert.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-4 w-4" />
+                            )}
+                          </Button>
+                        )}
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger render={
+                              <BadgeCheck className={`h-5 w-5 ${cert.is_certified ? 'text-primary' : 'text-muted-foreground/30'}`} />
+                            } />
+                            <TooltipContent>
+                              <p>
+                                {cert.is_certified
+                                  ? "Certificate comes from a verified organization"
+                                  : "Certificate does not come from a verified organization"
+                                }
+                              </p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                      <CardTitle className="text-xl font-semibold leading-tight line-clamp-2 pr-8">
+                        {cert.project_title}
+                      </CardTitle>
+                      {isSelfReported && (
+                        <Badge variant="secondary" className="w-fit mt-2 text-xs bg-warning/10 text-warning dark:bg-warning/10 dark:text-warning">
+                          Self-Reported
+                        </Badge>
                       )}
-                      <span className="shrink-0">{format(parseISO(cert.issued_at), "MMM d, yyyy")}</span>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2">
+                        {cert.organization_name && (
+                          <div className="flex items-center gap-2 max-w-full">
+                            <span className="truncate">{cert.organization_name}</span>
+                            <span className="text-muted-foreground/50">•</span>
+                          </div>
+                        )}
+                        <span className="shrink-0">{format(parseISO(cert.issued_at), "MMM d, yyyy")}</span>
                     </div>
                   </CardHeader>
 
@@ -559,6 +637,38 @@ export function CertificatesList({ certificates, user }: CertificatesListProps) 
                   </CardFooter>
                 </Card>
               </Link>
+
+              {/* Delete Confirmation Dialog */}
+              {confirmDeleteId === cert.id && isSelfReported && (
+                <AlertDialog open={confirmDeleteId === cert.id} onOpenChange={(open) => !open && setConfirmDeleteId(null)}>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete Self-Reported Hours?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will permanently delete &quot;{cert.project_title}&quot; and its associated certificate. This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => handleDeleteSelfReported(cert.id)}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        disabled={deletingId === cert.id}
+                      >
+                        {deletingId === cert.id ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Deleting...
+                          </>
+                        ) : (
+                          "Delete"
+                        )}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
+            </div>
             );
           })}
         </div>

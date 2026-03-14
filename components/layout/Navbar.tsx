@@ -17,11 +17,11 @@ import {
   LayoutDashboard,
   Palette,
 } from "lucide-react";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { NoAvatar } from "@/components/shared/NoAvatar";
 import { logout } from "@/app/logout/actions";
 import { cn } from "@/lib/utils";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   NavigationMenu,
   NavigationMenuContent,
@@ -226,7 +226,7 @@ export default function Navbar() {
           {/* Desktop Navigation */}
           <div className="hidden lg:flex items-center space-x-4 ml-auto">
             {isAuthLoading ? (
-              <Skeleton className="h-6 w-48" />
+              null
             ) : user ? (
               <>
                 <Link
@@ -334,10 +334,7 @@ export default function Navbar() {
           </div>
           <div className="hidden lg:flex items-center space-x-4 ml-auto">
             {isAuthLoading ? (
-              <div className="flex items-center space-x-3">
-                <Skeleton className="w-9 h-9 rounded-full" />
-                <Skeleton className="w-20 h-3" />
-              </div>
+              <Skeleton className="h-9 w-9 rounded-full" />
             ) : user ? (
               <div className="flex items-center gap-5">
                 <NotificationPopover key={user.id} />
@@ -348,15 +345,13 @@ export default function Navbar() {
                     <DropdownMenuTrigger
                       nativeButton={false}
                       render={
-                        <Avatar className="w-9 h-9 cursor-pointer">
+                        <Avatar className="w-9 h-9 cursor-pointer hover:opacity-80 transition-opacity">
                           <AvatarImage
                             src={profile?.avatar_url ?? undefined}
                             alt={profile?.full_name ?? "User avatar"}
                           />
                           <AvatarFallback>
-                            <NoAvatar
-                              fullName={profile?.full_name ?? undefined}
-                            />
+                            <NoAvatar fullName={profile?.full_name ?? undefined} />
                           </AvatarFallback>
                         </Avatar>
                       }
@@ -475,7 +470,7 @@ export default function Navbar() {
             <SheetTitle className="hidden"></SheetTitle>
             <div className="lg:hidden flex items-center ml-auto">
               {isAuthLoading ? (
-                <Skeleton className="w-10 h-10 rounded-full" />
+                <Skeleton className="w-9 h-9 rounded-full" />
               ) : (
                 user && <NotificationPopover key={user.id} />
               )}
@@ -493,13 +488,12 @@ export default function Navbar() {
             />
             <SheetContent
               side="right"
-              className="w-[85%] sm:w-[380px] pt-10 px-4 pb-4 overflow-y-auto"
+              className="w-[85%] sm:w-95 pt-10 px-4 pb-4 overflow-y-auto"
             >
               <div className="flex flex-col h-full">
                 {isAuthLoading ? (
-                  <div className="grid gap-2 mb-6">
-                    <Skeleton className="w-full h-12 rounded" />
-                    <Skeleton className="w-full h-12 rounded" />
+                  <div className="mb-6">
+                    <Skeleton className="w-full h-10 rounded" />
                   </div>
                 ) : user ? (
                   <>
@@ -508,11 +502,12 @@ export default function Navbar() {
                         <Skeleton className="w-12 h-12 rounded-full" />
                       ) : (
                         <Avatar className="w-12 h-12">
-                          <AvatarImage src={profile?.avatar_url ?? undefined} />
+                          <AvatarImage
+                            src={profile?.avatar_url ?? undefined}
+                            alt={profile?.full_name ?? "User avatar"}
+                          />
                           <AvatarFallback>
-                            <NoAvatar
-                              fullName={profile?.full_name ?? undefined}
-                            />
+                            <NoAvatar fullName={profile?.full_name ?? undefined} />
                           </AvatarFallback>
                         </Avatar>
                       )}

@@ -9,4 +9,5 @@ export interface Organization {
   type: string;
   verified: boolean;
   allowed_email_domains?: string[] | null;
+  show_members_publicly?: boolean | null;
 }

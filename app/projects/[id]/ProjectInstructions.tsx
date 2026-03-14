@@ -316,7 +316,7 @@ export default function ProjectInstructionsModal({
                   <li>Review volunteer information and approve/reject as needed</li>
                   <li>Download signup lists and contact information</li>
                   {verification_method === 'qr-code' && (
-                    <li>Print QR codes 24 hours before the event starts</li>
+                    <li>Print QR codes 1 week before the event starts</li>
                   )}
                 </ul>
               </div>

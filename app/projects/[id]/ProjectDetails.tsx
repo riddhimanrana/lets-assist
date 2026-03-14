@@ -4,16 +4,17 @@ import {
   Project,
   MultiDayScheduleDay,
   SameDayMultiAreaRole,
-  Profile,
   Organization,
   ProjectStatus,
   ProjectDocument,
   AnonymousSignupData,
   Signup,
+  WaiverDefinitionFull,
   WaiverSignatureInput,
   WaiverTemplate,
 } from "@/types";
 import { AuthUser } from '@/lib/supabase/types';
+import type { ProjectCreatorProfileRecord } from '@/lib/profile/public';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -48,21 +49,23 @@ import {
   MailCheck,
   MoreVertical,
   Flag,
+  Shield,
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { signUpForProject, resendAnonymousConfirmationEmail, getActiveWaiverTemplate } from "./actions";
+import { signUpForProject, resendAnonymousConfirmationEmail, getProjectWaiver } from "./actions";
 import { formatTimeTo12Hour, formatBytes, copyToClipboard, isMobileDevice } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
-import { isSlotAvailable, isMultiDaySlotPastByScheduleId, isSameDayMultiAreaSlotPast, isOneTimeSlotPast } from "@/utils/project";
+import { getMultiDaySlotDisplayName, isSlotAvailable, isMultiDaySlotPastByScheduleId, isSameDayMultiAreaSlotPast, isOneTimeSlotPast } from "@/utils/project";
 import { getProjectStatus } from "@/utils/project"; // Import the getProjectStatus utility and date utils
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogDescription,
@@ -86,6 +89,7 @@ import { SignupConfirmationModal } from "@/app/projects/_components/SignupConfir
 import { CancelSignupModal } from "@/app/projects/_components/CancelSignupModal";
 import CalendarOptionsModal from "@/app/projects/_components/CalendarOptionsModal";
 import { TimezoneBadge } from "@/components/shared/TimezoneBadge";
+import { TurnstileComponent, type TurnstileRef } from "@/components/ui/turnstile";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -93,6 +97,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ReportContentButton } from "@/components/feedback/ReportContentButton";
+import { Checkbox } from "@/components/ui/checkbox";
+import { shouldRenderTurnstileWidget } from "@/lib/anonymous-signup-security";
 
 interface SlotData {
   remainingSlots: Record<string, number>;
@@ -100,18 +106,27 @@ interface SlotData {
   rejectedSlots: Record<string, boolean>;
   // Add new property to track attended status
   attendedSlots: Record<string, boolean>;
+  pendingSlots: Record<string, boolean>;
+}
+
+interface AnonymousSlotOption {
+  scheduleId: string;
+  title: string;
+  subtitle: string;
 }
 
 interface Props {
   project: Project;
-  creator: Profile | null;
+  creator: ProjectCreatorProfileRecord | null;
   organization?: Organization | null;
   initialSlotData: SlotData;
   initialIsCreator: boolean;
+  initialCanManageProject: boolean;
   // Use the specific AuthUser type
   initialUser: AuthUser | null;
   // Add prop for full signup data
   userSignupsData: Signup[];
+  allSignups?: Array<Pick<Signup, "id" | "schedule_id" | "status" | "check_in_time">>;
 }
 
 const getFileIcon = (type: string) => {
@@ -145,20 +160,25 @@ export default function ProjectDetails({
   organization,
   initialSlotData,
   initialIsCreator,
+  initialCanManageProject,
   initialUser,
   // Destructure the new prop
-  userSignupsData
+  userSignupsData,
+  allSignups = [],
 }: Props) {
   const router = useRouter();
   const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
   const [isCreator] = useState(initialIsCreator);
+  const [canManageProject] = useState(initialCanManageProject);
   const [remainingSlots, setRemainingSlots] = useState<Record<string, number>>(initialSlotData.remainingSlots);
   const [hasSignedUp, setHasSignedUp] = useState<Record<string, boolean>>(initialSlotData.userSignups);
   // Use the specific AuthUser type
   const [user] = useState<AuthUser | null>(initialUser);
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [anonymousDialogOpen, setAnonymousDialogOpen] = useState(false);
+  const [anonymousSlotSelectionOpen, setAnonymousSlotSelectionOpen] = useState(false);
   const [currentScheduleId, setCurrentScheduleId] = useState<string>("");
+  const [selectedAnonymousScheduleIds, setSelectedAnonymousScheduleIds] = useState<string[]>([]);
   const [previewDoc, setPreviewDoc] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewDocName, setPreviewDocName] = useState<string>("Document");
@@ -170,6 +190,7 @@ export default function ProjectDetails({
 
   // Add state for attended slots
   const [attendedSlots, setAttendedSlots] = useState<Record<string, boolean>>(initialSlotData.attendedSlots || {});
+  const [pendingSlots, setPendingSlots] = useState<Record<string, boolean>>(initialSlotData.pendingSlots || {});
 
   // Add state for the confirmation alert
   const [showConfirmationAlert, setShowConfirmationAlert] = useState(false);
@@ -181,6 +202,7 @@ export default function ProjectDetails({
   const [pendingScheduleId, setPendingScheduleId] = useState<string>("");
   const [publicAttendees, setPublicAttendees] = useState<SlotAttendee[]>([]);
   const [waiverTemplate, setWaiverTemplate] = useState<WaiverTemplate | null>(null);
+  const [waiverDefinition, setWaiverDefinition] = useState<WaiverDefinitionFull | null>(null);
 
   // Add state to track calculated status
   // Initialize with project.status to avoid hydration mismatch, then update on client
@@ -255,6 +277,14 @@ export default function ProjectDetails({
   const [showResendDialog, setShowResendDialog] = useState(false);
   const [resendAnonymousId, setResendAnonymousId] = useState<string | null>(null);
   const [isResending, setIsResending] = useState(false);
+  const resendTurnstileRef = useRef<TurnstileRef>(null);
+  const [resendTurnstileToken, setResendTurnstileToken] = useState<string | null>(null);
+  const [resendTurnstileReady, setResendTurnstileReady] = useState(false);
+
+  const showResendTurnstile = shouldRenderTurnstileWidget({
+    siteKey: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
+    bypass: process.env.NEXT_PUBLIC_TURNSTILE_BYPASS,
+  });
 
   type SignupStatusRow = { id: string; schedule_id: string };
 
@@ -326,6 +356,7 @@ export default function ProjectDetails({
         // Clear rejected and attended slots if user logs out
         setRejectedSlots({});
         setAttendedSlots({});
+        setPendingSlots({});
       }
     }
 
@@ -370,31 +401,37 @@ export default function ProjectDetails({
 
 
   useEffect(() => {
-    if (!project.waiver_required || project.waiver_pdf_url) return;
+    if (!project.waiver_required) return;
     let isMounted = true;
 
-    const fetchWaiverTemplate = async () => {
+    const fetchWaiverConfig = async () => {
       try {
-        const result = await getActiveWaiverTemplate();
-        if (result?.template && isMounted) {
-          setWaiverTemplate(result.template as WaiverTemplate);
-        } else if (isMounted) {
-          toast.error("Unable to load waiver template. Please try again later.");
+        const result = await getProjectWaiver(project.id);
+        if (!isMounted) return;
+
+        if (result.error) {
+             console.error("Error fetching waiver config:", result.error);
+             return;
+        }
+
+        if (result.definition) {
+             setWaiverDefinition(result.definition as WaiverDefinitionFull);
+        }
+        
+        if (result.template) {
+             setWaiverTemplate(result.template as WaiverTemplate);
         }
       } catch (error) {
-        console.error("Error fetching waiver template:", error);
-        if (isMounted) {
-          toast.error("Unable to load waiver template. Please try again later.");
-        }
+        console.error("Error fetching waiver configuration:", error);
       }
     };
 
-    fetchWaiverTemplate();
+    fetchWaiverConfig();
 
     return () => {
       isMounted = false;
     };
-  }, [project.waiver_required]);
+  }, [project.id, project.waiver_required]);
 
   // Move updateProjectStatusInDB outside useCallback to break circular dependency
   const updateProjectStatusInDB = async (newStatus: ProjectStatus) => {
@@ -442,9 +479,9 @@ export default function ProjectDetails({
       return prevStatus;
     });
 
-    // Only update DB if we're the creator, status differs, and not already handled
+    // Only update DB if the current user can manage the project, status differs, and it has not already been handled
     if (
-      isCreator &&
+      canManageProject &&
       !isUpdatingStatus &&
       newCalculatedStatus !== project.status &&
       !statusMismatchHandled.current
@@ -454,7 +491,7 @@ export default function ProjectDetails({
       statusMismatchHandled.current = true; // Mark as handled
     }
   }, [
-    isCreator,
+    canManageProject,
     project.id,
     project.status,
     project.schedule,
@@ -472,7 +509,7 @@ export default function ProjectDetails({
         if (newStatus !== prevStatus) {
           console.log("Status updated via interval:", newStatus);
 
-          if (isCreator && !isUpdatingStatus && newStatus !== project.status) {
+          if (canManageProject && !isUpdatingStatus && newStatus !== project.status) {
             updateProjectStatusInDB(newStatus);
           }
           return newStatus;
@@ -489,9 +526,116 @@ export default function ProjectDetails({
     project.schedule,
     project.created_at,
     project.cancelled_at,
-    isCreator,
+    canManageProject,
     isUpdatingStatus
   ]); // Remove function dependency
+
+  const isAnonymousSlotSelectable = (scheduleId: string) => {
+    if (isCreator || calculatedStatus === "cancelled") return false;
+    if (hasSignedUp[scheduleId] || rejectedSlots[scheduleId] || attendedSlots[scheduleId]) return false;
+    if ((remainingSlots[scheduleId] ?? 0) === 0) return false;
+
+    if (project.event_type === "multiDay") {
+      return !isMultiDaySlotPastByScheduleId(project, scheduleId);
+    }
+
+    if (project.event_type === "sameDayMultiArea") {
+      return !isSameDayMultiAreaSlotPast(project, scheduleId);
+    }
+
+    return true;
+  };
+
+  const formatScheduleDateLabel = (dateStr: string) => {
+    const [year, month, dayNum] = dateStr.split("-").map(Number);
+    if (!year || !month || !dayNum) return dateStr;
+    const date = new Date(year, month - 1, dayNum);
+    if (isNaN(date.getTime())) return dateStr;
+    return format(date, "EEE, MMM d");
+  };
+
+  const anonymousSlotOptions = useMemo<AnonymousSlotOption[]>(() => {
+    if (project.event_type === "oneTime") {
+      return [];
+    }
+
+    if (project.event_type === "multiDay" && project.schedule.multiDay) {
+      return project.schedule.multiDay.flatMap((day) => {
+        return day.slots
+          .map((slot, idx) => {
+            const scheduleId = `${day.date}-${idx}`;
+            if (!isAnonymousSlotSelectable(scheduleId)) return null;
+
+            const startLabel = slot.startTime ? formatTimeTo12Hour(slot.startTime) : "TBD";
+            const endLabel = slot.endTime ? formatTimeTo12Hour(slot.endTime) : undefined;
+            const timeLabel = endLabel ? `${startLabel} - ${endLabel}` : startLabel;
+
+            return {
+              scheduleId,
+              title: `${formatScheduleDateLabel(day.date)} · ${getMultiDaySlotDisplayName(slot, idx)}`,
+              subtitle: `${timeLabel} • ${remainingSlots[scheduleId] ?? slot.volunteers} spot(s) left`,
+            };
+          })
+          .filter((slotOption): slotOption is AnonymousSlotOption => !!slotOption);
+      });
+    }
+
+    if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
+      return project.schedule.sameDayMultiArea.roles
+        .map((role) => {
+          const scheduleId = role.name;
+          if (!isAnonymousSlotSelectable(scheduleId)) return null;
+
+          const startLabel = role.startTime ? formatTimeTo12Hour(role.startTime) : "TBD";
+          const endLabel = role.endTime ? formatTimeTo12Hour(role.endTime) : undefined;
+          const timeLabel = endLabel ? `${startLabel} - ${endLabel}` : startLabel;
+
+          return {
+            scheduleId,
+            title: role.name,
+            subtitle: `${timeLabel} • ${remainingSlots[scheduleId] ?? role.volunteers} spot(s) left`,
+          };
+        })
+        .filter((slotOption): slotOption is AnonymousSlotOption => !!slotOption);
+    }
+
+    return [];
+  }, [
+    project,
+    isCreator,
+    calculatedStatus,
+    hasSignedUp,
+    rejectedSlots,
+    attendedSlots,
+    remainingSlots,
+  ]);
+
+  const closeAnonymousFlows = () => {
+    setAnonymousSlotSelectionOpen(false);
+    setAnonymousDialogOpen(false);
+    setSelectedAnonymousScheduleIds([]);
+    setCurrentScheduleId("");
+  };
+
+  const continueToAnonymousForm = () => {
+    if (selectedAnonymousScheduleIds.length === 0) {
+      toast.error("Select at least one slot to continue.");
+      return;
+    }
+
+    setCurrentScheduleId(selectedAnonymousScheduleIds[0]);
+    setAnonymousSlotSelectionOpen(false);
+    setAnonymousDialogOpen(true);
+  };
+
+  const toggleAnonymousSlotSelection = (scheduleId: string, checked: boolean) => {
+    setSelectedAnonymousScheduleIds((prev) => {
+      if (checked) {
+        return prev.includes(scheduleId) ? prev : [...prev, scheduleId];
+      }
+      return prev.filter((id) => id !== scheduleId);
+    });
+  };
 
   // Handle sign up or cancel click
   const handleSignUpClick = async (scheduleId: string) => {
@@ -542,7 +686,20 @@ export default function ProjectDetails({
 
     if (!user && !project.require_login) {
       setCurrentScheduleId(scheduleId);
-      setAnonymousDialogOpen(true);
+
+      if (project.event_type === "oneTime") {
+        setSelectedAnonymousScheduleIds([scheduleId]);
+        setAnonymousDialogOpen(true);
+      } else {
+        const orderedIds = anonymousSlotOptions.map((slot) => slot.scheduleId);
+        const initialSelection = orderedIds.includes(scheduleId)
+          ? [scheduleId]
+          : orderedIds.slice(0, 1);
+
+        setSelectedAnonymousScheduleIds(initialSelection);
+        setAnonymousSlotSelectionOpen(true);
+      }
+
       return;
     }
 
@@ -671,13 +828,129 @@ export default function ProjectDetails({
       toast.error("An unexpected error occurred. Please try again.");
     } finally {
       setLoadingStates(prev => ({ ...prev, [scheduleId]: false }));
-      setAnonymousDialogOpen(false); // Close anonymous dialog regardless of outcome
+      if (anonymousData) {
+        closeAnonymousFlows();
+      } else {
+        setAnonymousDialogOpen(false);
+      }
     }
   };
 
   // Handle anonymous form submit
   const handleAnonymousSubmit = (values: AnonymousSignupData, waiverSignature?: WaiverSignatureInput | null) => {
-    handleSignUp(currentScheduleId, values, values.comment, waiverSignature);
+    const scheduleIds = Array.from(
+      new Set(
+        (selectedAnonymousScheduleIds.length > 0 ? selectedAnonymousScheduleIds : [currentScheduleId])
+          .filter(Boolean)
+      )
+    );
+
+    if (scheduleIds.length <= 1) {
+      const onlyScheduleId = scheduleIds[0] || currentScheduleId;
+      const payload: AnonymousSignupData = {
+        ...values,
+        selectedSlotCount: 1,
+      };
+      handleSignUp(onlyScheduleId, payload, values.comment, waiverSignature);
+      return;
+    }
+
+    void (async () => {
+      setShowConfirmationAlert(false);
+      setLoadingStates((prev) => {
+        const next = { ...prev };
+        scheduleIds.forEach((id) => {
+          next[id] = true;
+        });
+        return next;
+      });
+
+      let successfulSignups = 0;
+      let needsConfirmation = false;
+      const errorMessages: string[] = [];
+
+      try {
+        for (let index = 0; index < scheduleIds.length; index += 1) {
+          const scheduleId = scheduleIds[index];
+          const payload: AnonymousSignupData = {
+            ...values,
+            selectedSlotCount: scheduleIds.length,
+            skipConfirmationEmail: index > 0,
+          };
+
+          const result = await signUpForProject(
+            project.id,
+            scheduleId,
+            payload,
+            values.comment,
+            index === 0 ? waiverSignature : null,
+          );
+
+          if (result.error) {
+            errorMessages.push(result.error);
+            continue;
+          }
+
+          if (result.success) {
+            successfulSignups += 1;
+            needsConfirmation = needsConfirmation || !!result.needsConfirmation;
+
+            if (!result.needsConfirmation) {
+              setHasSignedUp((prev) => ({ ...prev, [scheduleId]: true }));
+              setRemainingSlots((prev) => ({
+                ...prev,
+                [scheduleId]: Math.max(0, (prev[scheduleId] || 0) - 1),
+              }));
+            }
+          }
+        }
+
+        if (successfulSignups > 0) {
+          if (needsConfirmation) {
+            setShowConfirmationAlert(true);
+            toast.success(
+              successfulSignups > 1
+                ? `Signup initiated for ${successfulSignups} slots!`
+                : "Signup initiated!",
+              {
+                description: "Please check your email to confirm your signup.",
+                duration: 5000,
+              }
+            );
+          } else {
+            toast.success(
+              successfulSignups > 1
+                ? `Successfully signed up for ${successfulSignups} slots!`
+                : "Successfully signed up!",
+              {
+                duration: 5000,
+              }
+            );
+
+            await refetchAttendees();
+            router.refresh();
+          }
+        }
+
+        if (errorMessages.length > 0) {
+          const firstError = errorMessages[0];
+          const remaining = errorMessages.length - 1;
+          toast.error(remaining > 0 ? `${firstError} (+${remaining} more issue${remaining > 1 ? "s" : ""})` : firstError);
+        }
+      } catch (error) {
+        console.error("Error processing multi-slot anonymous signup:", error);
+        toast.error("An unexpected error occurred. Please try again.");
+      } finally {
+        setLoadingStates((prev) => {
+          const next = { ...prev };
+          scheduleIds.forEach((id) => {
+            next[id] = false;
+          });
+          return next;
+        });
+        closeAnonymousFlows();
+      }
+    })();
   };
 
   // Handle resending confirmation email
@@ -686,7 +959,10 @@ export default function ProjectDetails({
 
     setIsResending(true);
     try {
-      const result = await resendAnonymousConfirmationEmail(resendAnonymousId);
+      const result = await resendAnonymousConfirmationEmail(
+        resendAnonymousId,
+        resendTurnstileToken ?? undefined,
+      );
 
       if (result.error) {
         toast.error(result.error);
@@ -701,9 +977,19 @@ export default function ProjectDetails({
       console.error("Error resending confirmation:", error);
       toast.error("Failed to resend confirmation email. Please try again.");
     } finally {
+      resendTurnstileRef.current?.reset();
+      setResendTurnstileToken(null);
+      setResendTurnstileReady(false);
       setIsResending(false);
     }
   };
+
+  useEffect(() => {
+    if (showResendDialog) return;
+
+    setResendTurnstileToken(null);
+    setResendTurnstileReady(false);
+  }, [showResendDialog]);
 
   // Redirect to auth pages
   const redirectToAuth = (path: 'login' | 'signup') => {
@@ -812,6 +1098,24 @@ export default function ProjectDetails({
       );
     }
 
+    if (pendingSlots[scheduleId]) {
+      return (
+        <HoverCard>
+          <HoverCardTrigger render={
+            <span className="flex items-center gap-1.5">
+              <Clock className="h-4 w-4" />
+              Pending Approval
+            </span>
+          } />
+          <HoverCardContent className="w-80 p-3">
+            <p className="text-sm">
+              Your signup for this slot is pending coordinator approval. You can still cancel it if your plans change.
+            </p>
+          </HoverCardContent>
+        </HoverCard>
+      );
+    }
+
     if (hasSignedUp[scheduleId]) {
       return (
         <>
@@ -846,24 +1150,60 @@ export default function ProjectDetails({
     );
   };
 
+  const enableSavedAnonymousInfoReuse = project.event_type !== "oneTime";
+
   return (
     <>
       <div className="container mx-auto px-4 py-6 max-w-6xl">
-        {/* Render Creator Dashboard if user is creator */}
+        {/* Render project management dashboard for creators and organization admins */}
 
 
-        {/* Confirmation Alert */}
-        {showConfirmationAlert && (
-          <Alert className="mb-6 border-primary/70 bg-primary/10">
-            <MailCheck className="h-5 w-5 text-primary" />
-            <AlertTitle className="font-semibold text-primary">
-              Check Your Email
-            </AlertTitle>
-            <AlertDescription className="text-primary">
-              We&apos;ve sent a confirmation link to your email address. Please click the link to finalize your signup for this project.
-            </AlertDescription>
-          </Alert>
-        )}
+        {/* Confirmation Dialog */}
+        <Dialog open={showConfirmationAlert} onOpenChange={setShowConfirmationAlert}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <div className="flex justify-center mb-4">
+                <div className="rounded-full bg-primary/10 p-4">
+                  <Mail className="h-8 w-8 text-primary" />
+                </div>
+              </div>
+              <DialogTitle className="text-2xl text-center">
+                Check Your Email
+              </DialogTitle>
+              <DialogDescription className="text-center text-base pt-4">
+                We&apos;ve sent a confirmation link to your email address. Please click the link to finalize your signup for this project.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="bg-muted/50 rounded-lg p-4 my-4">
+              <p className="text-sm font-medium text-muted-foreground">
+                Don&apos;t see the email?
+              </p>
+              <ul className="text-sm text-muted-foreground mt-2 space-y-1 list-disc list-inside">
+                <li>Check your spam or junk folder</li>
+                <li>Make sure you entered your email correctly</li>
+                <li>Wait a few minutes for it to arrive</li>
+              </ul>
+            </div>
+            <DialogFooter className="gap-2 flex-col-reverse sm:flex-row">
+              <Button
+                variant="outline"
+                onClick={() => setShowConfirmationAlert(false)}
+                className="w-full sm:w-auto"
+              >
+                Close
+              </Button>
+              <Button
+                onClick={() => {
+                  copyToClipboard(window.location.href);
+                  toast.success("Project link copied to clipboard!");
+                }}
+                className="w-full sm:w-auto"
+              >
+                Copy Project Link
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Project Header */}
         <div className="mb-6">
@@ -891,8 +1231,8 @@ export default function ProjectDetails({
                   <Share2 className="h-4 w-4 shrink-0" />
                 </Button>
 
-                {/* Report button - only show for non-creators */}
-                {!isCreator && (
+                {/* Report button - only show for people who do not manage this project */}
+                {!canManageProject && (
                   <DropdownMenu>
                     <DropdownMenuTrigger render={
                       <Button variant="outline" size="icon" suppressHydrationWarning>
@@ -924,7 +1264,13 @@ export default function ProjectDetails({
           </div>
         </div>
 
-        {isCreator && <CreatorDashboard project={project} />}
+        {canManageProject && (
+          <CreatorDashboard
+            project={project}
+            allSignups={allSignups || []}
+            canSyncProjectCalendar={isCreator}
+          />
+        )}
         {/* Render User Dashboard if user is logged in, NOT creator, and has signups */}
         {user && !isCreator && userSignupsData && userSignupsData.length > 0 && (
           <UserDashboard project={project} user={user} signups={userSignupsData} />
@@ -954,8 +1300,8 @@ export default function ProjectDetails({
                   <div className="flex min-w-0 items-center gap-2">
                     <CardTitle>Volunteer Opportunities</CardTitle>
                   </div>
-                  {/* Add How It Works button for non-creators */}
-                  {!isCreator && (
+                  {/* Add the volunteer guide button only for non-managers */}
+                  {!canManageProject && (
                     <ProjectInstructionsModal
                       project={project}
                       isCreator={false}
@@ -1025,7 +1371,7 @@ export default function ProjectDetails({
                       </div>
                       <div className="flex flex-col gap-2 items-stretch sm:items-end shrink-0">
                         <Button
-                          variant={hasSignedUp["oneTime"] ? "secondary" : rejectedSlots["oneTime"] ? "destructive" : "default"}
+                                  variant={pendingSlots["oneTime"] ? "outline" : hasSignedUp["oneTime"] ? "secondary" : rejectedSlots["oneTime"] ? "destructive" : "default"}
                           size="sm"
                           onClick={() => handleSignUpClick("oneTime")}
                           disabled={
@@ -1081,7 +1427,11 @@ export default function ProjectDetails({
                               return (
                                 <div key={scheduleId} className="border rounded-lg p-3 bg-card/50 hover:bg-card/80 transition-colors">
                                   <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-                                    <div className="flex-1 min-w-0 space-y-1 text-xs sm:text-sm text-muted-foreground">
+                                    <div className="flex-1 min-w-0">
+                                      <h4 className="font-semibold text-sm mb-1.5 wrap-break-word">
+                                        {getMultiDaySlotDisplayName(slot, slotIndex)}
+                                      </h4>
+                                      <div className="space-y-1 text-xs sm:text-sm text-muted-foreground">
                                       <div className="flex items-center gap-1.5">
                                         <Clock className="h-3.5 w-3.5 shrink-0" />
                                         <span>
@@ -1101,10 +1451,11 @@ export default function ProjectDetails({
                                           <span className="font-medium text-foreground">{remainingSlots[scheduleId] ?? slot.volunteers}</span> of {slot.volunteers} spots
                                         </span>
                                       </div>
+                                      </div>
                                     </div>
                                     <div className="flex flex-col gap-2 items-stretch sm:items-end shrink-0">
                                       <Button
-                                        variant={hasSignedUp[scheduleId] ? "secondary" : rejectedSlots[scheduleId] ? "destructive" : "default"}
+                                        variant={pendingSlots[scheduleId] ? "outline" : hasSignedUp[scheduleId] ? "secondary" : rejectedSlots[scheduleId] ? "destructive" : "default"}
                                         size="sm"
                                         onClick={() => handleSignUpClick(scheduleId)}
                                         disabled={
@@ -1177,7 +1528,7 @@ export default function ProjectDetails({
                               </div>
                               <div className="flex flex-col gap-2 items-stretch sm:items-end shrink-0">
                                 <Button
-                                  variant={hasSignedUp[role.name] ? "secondary" : rejectedSlots[role.name] ? "destructive" : "default"}
+                                  variant={pendingSlots[role.name] ? "outline" : hasSignedUp[role.name] ? "secondary" : rejectedSlots[role.name] ? "destructive" : "default"}
                                   size="sm"
                                   onClick={() => handleSignUpClick(role.name)}
                                   disabled={
@@ -1252,7 +1603,7 @@ export default function ProjectDetails({
                     <h3 className="text-sm font-medium text-muted-foreground mb-2">
                       Project Image
                     </h3>
-                    <div className="relative mb-4 cursor-pointer max-w-[400px]" onClick={() => openPreview(project.cover_image_url!, project.title, "image/jpeg")}>
+                    <div className="relative mb-4 cursor-pointer max-w-100" onClick={() => openPreview(project.cover_image_url!, project.title, "image/jpeg")}>
                       <div className="overflow-hidden rounded-md border">
                         <Image
                           src={project.cover_image_url}
@@ -1348,9 +1699,6 @@ export default function ProjectDetails({
                                 {project.organization.verified && (
                                   <BadgeCheck
                                     className="h-4 w-4 text-primary"
-                                    fill="hsl(var(--primary))"
-                                    stroke="hsl(var(--popover))"
-                                    strokeWidth={2}
                                   />
                                 )}
                               </div>
@@ -1517,7 +1865,7 @@ export default function ProjectDetails({
 
       {/* Authentication Dialog */}
       <Dialog open={authDialogOpen} onOpenChange={setAuthDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-106.25">
           <DialogHeader>
             <DialogTitle>Authentication Required</DialogTitle>
             <DialogDescription>
@@ -1546,31 +1894,104 @@ export default function ProjectDetails({
         </DialogContent>
       </Dialog>
 
+      {/* Anonymous Slot Selection Dialog (multi-day / multi-role) */}
+      <Dialog
+        open={anonymousSlotSelectionOpen}
+        onOpenChange={(open) => {
+          setAnonymousSlotSelectionOpen(open);
+          if (!open) {
+            setSelectedAnonymousScheduleIds([]);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Select your slots</DialogTitle>
+            <DialogDescription>
+              Want to sign up for more than one slot? Select all that apply, then continue to quick signup.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2 py-2">
+            {anonymousSlotOptions.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No additional slots are currently available.</p>
+            ) : (
+              anonymousSlotOptions.map((slot) => {
+                const checked = selectedAnonymousScheduleIds.includes(slot.scheduleId);
+
+                return (
+                  <label
+                    key={slot.scheduleId}
+                    className="flex items-start gap-3 rounded-lg border p-3 hover:bg-muted/40 cursor-pointer"
+                  >
+                    <Checkbox
+                      checked={checked}
+                      onCheckedChange={(value) => toggleAnonymousSlotSelection(slot.scheduleId, value === true)}
+                      className="mt-0.5"
+                    />
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium leading-none">{slot.title}</p>
+                      <p className="text-xs text-muted-foreground">{slot.subtitle}</p>
+                    </div>
+                  </label>
+                );
+              })
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={closeAnonymousFlows}>
+              Cancel
+            </Button>
+            <Button
+              onClick={continueToAnonymousForm}
+              disabled={selectedAnonymousScheduleIds.length === 0}
+            >
+              Continue ({selectedAnonymousScheduleIds.length})
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Anonymous Signup Dialog */}
-      <Dialog open={anonymousDialogOpen} onOpenChange={setAnonymousDialogOpen}>
+      <Dialog
+        open={anonymousDialogOpen}
+        onOpenChange={(open) => {
+          setAnonymousDialogOpen(open);
+          if (!open) {
+            closeAnonymousFlows();
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-5xl w-[95vw] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Quick Sign Up</DialogTitle>
             <DialogDescription>
-              Please provide your information to sign up. You&apos;ll receive an email to confirm your spot.
+              {selectedAnonymousScheduleIds.length > 1
+                ? `You selected ${selectedAnonymousScheduleIds.length} slots. Fill this once and we&apos;ll apply it to all selected slots.`
+                : "Please provide your information to sign up. You&apos;ll receive an email to confirm your spot."}
             </DialogDescription>
           </DialogHeader>
           <ProjectSignupForm
             onSubmit={handleAnonymousSubmit}
-            onCancel={() => setAnonymousDialogOpen(false)}
+            onCancel={closeAnonymousFlows}
             isSubmitting={loadingStates[currentScheduleId]}
             showCommentField={!!project.enable_volunteer_comments}
+            enableSavedInfoReuse={enableSavedAnonymousInfoReuse}
+            projectId={project.id}
             waiverRequired={!!project.waiver_required}
-            waiverAllowUpload={project.waiver_allow_upload ?? true}
+            waiverAllowUpload={project.waiver_disable_esignature ? true : (project.waiver_allow_upload ?? true)}
+            waiverDisableEsignature={project.waiver_disable_esignature ?? false}
             waiverTemplate={waiverTemplate}
-            waiverPdfUrl={project.waiver_pdf_url || null}
+            waiverPdfUrl={waiverDefinition?.pdf_public_url || project.waiver_pdf_url || null}
+            waiverDefinition={waiverDefinition}
           />
         </DialogContent>
       </Dialog>
 
       {/* Resend Confirmation Email Dialog */}
       <Dialog open={showResendDialog} onOpenChange={setShowResendDialog}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-106.25">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Mail className="h-5 w-5 text-amber-500" />
@@ -1594,7 +2015,7 @@ export default function ProjectDetails({
               </Button>
               <Button
                 onClick={handleResendConfirmation}
-                disabled={isResending}
+                disabled={isResending || (showResendTurnstile && !resendTurnstileToken)}
                 className="gap-2"
               >
                 {isResending ? (
@@ -1610,6 +2031,44 @@ export default function ProjectDetails({
                 )}
               </Button>
             </div>
+
+            {showResendTurnstile && (
+              <div className="rounded-lg border border-border/60 bg-muted/20 p-4">
+                <div className="mb-3 flex items-start gap-2 text-sm text-muted-foreground">
+                  <Shield className="mt-0.5 h-4 w-4 shrink-0" />
+                  <div>
+                    <p className="font-medium text-foreground">Verify before resending</p>
+                    <p className="text-xs text-muted-foreground">
+                      Complete the security check so we can safely send a fresh confirmation link.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex justify-center">
+                  <div className="relative flex h-16.25 w-75 items-center justify-center overflow-hidden rounded-lg border border-border/50 bg-background/80">
+                    {!resendTurnstileReady && (
+                      <div className="absolute inset-0 z-10 flex items-center justify-center gap-2 rounded-lg bg-background/80 text-[0.7rem] font-semibold uppercase tracking-wide text-muted-foreground">
+                        <Shield className="h-4 w-4 text-muted-foreground/80" />
+                        <span className="text-[0.7rem] font-semibold normal-case tracking-wide">
+                          Bot verification loading…
+                        </span>
+                      </div>
+                    )}
+
+                    <TurnstileComponent
+                      ref={resendTurnstileRef}
+                      onLoad={() => setResendTurnstileReady(true)}
+                      onVerify={(token) => setResendTurnstileToken(token)}
+                      onError={() => {
+                        setResendTurnstileToken(null);
+                        toast.error("Security verification failed. Please try again.");
+                      }}
+                      onExpire={() => setResendTurnstileToken(null)}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>
@@ -1631,9 +2090,11 @@ export default function ProjectDetails({
           onConfirm={handleConfirmSignup}
           enableVolunteerComments={!!project.enable_volunteer_comments}
           waiverRequired={!!project.waiver_required}
-          waiverAllowUpload={project.waiver_allow_upload ?? true}
+          waiverAllowUpload={project.waiver_disable_esignature ? true : (project.waiver_allow_upload ?? true)}
+          waiverDisableEsignature={project.waiver_disable_esignature ?? false}
           waiverTemplate={waiverTemplate}
-          waiverPdfUrl={project.waiver_pdf_url || null}
+          waiverPdfUrl={waiverDefinition?.pdf_public_url || project.waiver_pdf_url || null}
+          waiverDefinition={waiverDefinition}
           project={{
             id: project.id,
             title: project.title,

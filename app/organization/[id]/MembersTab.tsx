@@ -71,6 +71,7 @@ interface MembersTabProps {
   userRole: string | null;
   organizationId: string;
   currentUserId: string | undefined;
+  canViewMembers?: boolean;
 }
 
 type MemberProfile = {
@@ -106,6 +107,7 @@ export default function MembersTab({
   userRole,
   organizationId,
   currentUserId,
+  canViewMembers = true,
 }: MembersTabProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -315,7 +317,7 @@ export default function MembersTab({
                   src={profile?.avatar_url || undefined}
                   alt={profile?.full_name || ""}
                 />
-                <AvatarFallback className="bg-primary/5 text-primary text-xs">
+                <AvatarFallback className=" text-primary text-xs">
                   <NoAvatar fullName={profile?.full_name || ""} />
                 </AvatarFallback>
               </Avatar>
@@ -503,7 +505,7 @@ export default function MembersTab({
                         )}
                         disabled={member.role === "staff"}
                       >
-                        <UserRoundCog className="h-4 w-4 text-blue-500" />
+                        <UserRoundCog className="h-4 w-4 text-info" />
                         <span className="font-medium">Make Staff</span>
                       </DropdownMenuItem>
                       <DropdownMenuItem
@@ -532,7 +534,7 @@ export default function MembersTab({
                         "staff"
                       )}
                     >
-                      <UserRoundCog className="h-4 w-4 text-blue-500" />
+                      <UserRoundCog className="h-4 w-4 text-info" />
                       <span className="font-medium">Make Staff</span>
                     </DropdownMenuItem>
                   )}
@@ -587,6 +589,15 @@ export default function MembersTab({
 
   return (
     <div className="space-y-6">
+      {!canViewMembers && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          <p className="font-medium">Members are not publicly visible</p>
+          <p className="text-amber-700 mt-1">
+            This organization has chosen not to display its member list publicly. As a member, you can see this list, but visitors will not be able to view it.
+          </p>
+        </div>
+      )}
+
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-xl font-bold tracking-tight">Members</h2>

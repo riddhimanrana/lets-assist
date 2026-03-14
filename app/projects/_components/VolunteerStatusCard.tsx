@@ -5,6 +5,7 @@ import { parseISO, differenceInSeconds } from "date-fns";
 import { Project } from "@/types";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { getMultiDaySlotByScheduleId, getMultiDaySlotDisplayName } from "@/utils/project";
 import Link from "next/link";
 
 interface VolunteerStatusCardProps {
@@ -17,23 +18,26 @@ export default function VolunteerStatusCard({ project, signup }: VolunteerStatus
   const scheduleId = signup.schedule_id;
   let sessionDate = "";
   let endTime = "";
+  let sessionLabel = scheduleId;
   
   if (project.event_type === "oneTime" && project.schedule.oneTime) {
     sessionDate = project.schedule.oneTime.date;
     endTime = project.schedule.oneTime.endTime;
+    sessionLabel = "Main Event";
   } else if (project.event_type === "multiDay" && project.schedule.multiDay) {
-    const [date, idx] = scheduleId.split("-");
-    const day = project.schedule.multiDay.find(d => d.date === date);
-    const slot = day?.slots[parseInt(idx, 10)];
-    if (day && slot) {
+    const slotData = getMultiDaySlotByScheduleId(project, scheduleId);
+    if (slotData) {
+      const { day, slot, slotIndex } = slotData;
       sessionDate = day.date;
       endTime = slot.endTime;
+      sessionLabel = getMultiDaySlotDisplayName(slot, slotIndex);
     }
   } else if (project.event_type === "sameDayMultiArea" && project.schedule.sameDayMultiArea) {
     const role = project.schedule.sameDayMultiArea.roles.find(r => r.name === scheduleId);
     if (role) {
       sessionDate = project.schedule.sameDayMultiArea.date;
       endTime = role.endTime;
+      sessionLabel = role.name;
     }
   }
 
@@ -63,7 +67,7 @@ export default function VolunteerStatusCard({ project, signup }: VolunteerStatus
         <CardTitle>Current Check-in Status</CardTitle>
       </CardHeader>
       <CardContent>
-        <p className="mb-2">You are checked in to <strong>{project.title}</strong> ({scheduleId}).</p>
+        <p className="mb-2">You are checked in to <strong>{project.title}</strong> ({sessionLabel}).</p>
         {/* Ensure Progress component receives a valid number */}
         <Progress value={percent} className="h-4 mb-2" aria-label="Session progress" />
         <p className="text-sm text-muted-foreground">{percent}% of session completed</p>

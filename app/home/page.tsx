@@ -10,7 +10,6 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { NoAvatar } from "@/components/shared/NoAvatar";
 import { Metadata } from "next";
 import { ProjectsInfiniteScroll } from "@/components/projects/ProjectsInfiniteScroll";
-import { TrustedInfoIcon } from "@/components/shared/TrustedInfoIcon";
 import { checkSuperAdmin } from "@/app/admin/actions";
 
 export const metadata: Metadata = {
@@ -26,29 +25,13 @@ export default async function Home() {
   const { user } = await getAuthUser();
   const { data: profileData } = await supabase
     .from("profiles")
-    .select("full_name, avatar_url, username, trusted_member")
+    .select("full_name, avatar_url, username")
     .eq("id", user?.id)
     .single();
   const userName = profileData?.full_name || "Anonymous";
-  let isTrusted = !!profileData?.trusted_member;
 
   // Check if user is super admin
   const { isAdmin } = await checkSuperAdmin();
-
-  // Determine application status (NULL: pending, TRUE: accepted, FALSE: denied)
-  let applicationStatus: boolean | null | undefined = undefined;
-  if (user) {
-    const { data: tmApp } = await supabase
-      .from("trusted_member")
-      .select("status")
-      .eq("id", user.id)
-      .maybeSingle();
-    applicationStatus = tmApp?.status ?? null; // if no row -> null (treated as pending until they submit)
-    // Consider accepted application as trusted even if profile flag hasn't synced yet
-    if (!isTrusted && tmApp?.status === true) {
-      isTrusted = true;
-    }
-  }
   
   return (
     <div className="min-h-screen">
@@ -84,25 +67,15 @@ export default async function Home() {
                 </Button>
               </Link>
             )}
-            <Link href={isTrusted ? "/projects/create" : "#"} className="w-full md:w-auto pointer-events-auto">
+            <Link href="/projects/create" className="w-full md:w-auto pointer-events-auto">
               <Button
                 size="lg"
                 className="font-semibold flex items-center gap-1 w-full md:w-auto"
-                disabled={!isTrusted}
               >
                 <Plus className="w-4 h-4" />
                 Create Project
               </Button>
             </Link>
-            {!isTrusted && (
-              <TrustedInfoIcon
-                message={
-                  applicationStatus === false
-                    ? "It looks like you've already applied to be a Trusted Member. Please email support@lets-assist.com for further assistance."
-                    : "You must be a Trusted Member to create projects. Apply using the form."
-                }
-              />
-            )}
           </div>
         </div>
 

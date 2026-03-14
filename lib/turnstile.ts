@@ -5,6 +5,8 @@ interface TurnstileVerificationResponse {
   hostname?: string;
 }
 
+import { logError } from '@/lib/logger';
+
 export async function verifyTurnstileToken(token: string): Promise<boolean> {
   const shouldBypass = process.env.NODE_ENV !== "production" && process.env.TURNSTILE_BYPASS === "true";
 
@@ -15,7 +17,7 @@ export async function verifyTurnstileToken(token: string): Promise<boolean> {
   const secretKey = process.env.TURNSTILE_SECRET_KEY;
   
   if (!secretKey) {
-    console.error("Turnstile secret key is not configured");
+    logError('Turnstile secret key is not configured', new Error('Missing TURNSTILE_SECRET_KEY'));
     return false;
   }
 
@@ -34,13 +36,15 @@ export async function verifyTurnstileToken(token: string): Promise<boolean> {
     const data: TurnstileVerificationResponse = await response.json();
     
     if (!data.success) {
-      console.error("Turnstile verification failed:", data["error-codes"]);
+      logError('Turnstile verification failed', new Error('Verification failed'), {
+        error_codes: data["error-codes"]?.join(', '),
+      });
       return false;
     }
 
     return true;
   } catch (error) {
-    console.error("Error verifying Turnstile token:", error);
+    logError('Exception while verifying Turnstile token', error);
     return false;
   }
 }

@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
-import { getProjectStatus } from "@/utils/project";
 import { ReportContentButton } from "@/components/feedback/ReportContentButton";
 import {
   MapPin,
@@ -39,10 +38,15 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { Project as BaseProject, Organization, Signup } from "@/types";
+import {
+  getProjectRemainingSpots,
+} from "@/lib/projects/availability";
+import { getProjectStatus as getProjectStatusUtil } from "@/utils/project";
 
 type ProjectWithExtras = BaseProject & {
   organizations?: Organization;
   total_confirmed?: number;
+  slots_filled?: number;
   signups?: { status?: string }[] | Signup[];
 };
 
@@ -198,63 +202,16 @@ const getEventScheduleSummary = (project: ProjectWithExtras) => {
   }
 };
 
-// Get volunteer count from project (total spots)
-const getVolunteerCount = (project: ProjectWithExtras) => {
-  if (!project.event_type || !project.schedule) return 0;
-
-  switch (project.event_type) {
-    case "oneTime":
-      return project.schedule.oneTime?.volunteers || 0;
-    case "multiDay": {
-      // Sum all volunteers across all days and slots
-      let total = 0;
-      if (project.schedule.multiDay) {
-        project.schedule.multiDay.forEach((day) => {
-          if (day.slots) {
-            day.slots.forEach((slot) => {
-              total += slot.volunteers || 0;
-            });
-          }
-        });
-      }
-      return total;
-    }
-    case "sameDayMultiArea": {
-      // Sum all volunteers across all roles
-      let total = 0;
-      if (project.schedule.sameDayMultiArea?.roles) {
-        project.schedule.sameDayMultiArea.roles.forEach((role) => {
-          total += role.volunteers || 0;
-        });
-      }
-      return total;
-    }
-    default:
-      return 0;
-  }
-};
-
 // New function to get remaining spots
 const getRemainingSpots = (project: ProjectWithExtras) => {
-  const totalSpots = getVolunteerCount(project);
-
-  // Use confirmed_signups from server or count manually if signups array exists
-  let filledSpots = 0;
-  if (project.signups && Array.isArray(project.signups)) {
-    // Include both approved and pending to avoid overestimating availability
-    filledSpots = project.signups.filter(s => s.status === 'approved' || s.status === 'pending').length;
-  } else {
-    filledSpots = project.total_confirmed || 0;
-  }
-
-  return Math.max(0, totalSpots - filledSpots);
+  return getProjectRemainingSpots(project);
 };
 
 // Function to check if project has upcoming status
+// Uses actual event dates to determine if project is truly upcoming/in-progress
 const isUpcomingProject = (project: ProjectWithExtras) => {
-  return (
-    project.status === "upcoming" || getProjectStatus(project) === "upcoming"
-  );
+  const actualStatus = getProjectStatusUtil(project);
+  return actualStatus === "upcoming" || actualStatus === "in-progress";
 };
 
 // Function to get project organization or creator name
@@ -333,9 +290,9 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
     <div>
       {/* Card View - Cleaner with hover cards */}
       {view === "card" && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[repeat(auto-fill,minmax(376px,2fr))] gap-6">
           {filteredProjects.map((project) => (
-            <div key={project.id} className="relative group max-w-lg">
+            <div key={project.id} className="relative group">
               <Link href={`/projects/${project.id}`}>
                 <Card className="hover:shadow-xl dark:hover:shadow-primary/10 transition-all cursor-pointer h-full flex flex-col group/project-card border-muted/40">
                   <div className="px-4 py-1 flex flex-col h-full">
@@ -404,7 +361,7 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                               </ProfileHoverCard>
                             )}
                             {project.organization_id && isOrganizationVerified(project) && (
-                              <BadgeCheck className="h-4 w-4 shrink-0" fill="hsl(var(--primary))" stroke="hsl(var(--popover))" strokeWidth={2.5} />
+                              <BadgeCheck className="h-4 w-4 shrink-0 text-success" />
                             )}
                           </div>
                         </div>
@@ -517,7 +474,7 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                           </ProfileHoverCard>
                         )}
                         {project.organization_id && isOrganizationVerified(project) && (
-                          <BadgeCheck className="h-4 w-4 shrink-0" fill="hsl(var(--primary))" stroke="hsl(var(--popover))" strokeWidth={2.5} />
+                          <BadgeCheck className="h-4 w-4 shrink-0 text-success" />
                         )}
                       </div>
                     </div>
@@ -594,14 +551,14 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                     )}
                   </div>
                 </TableHead>
-                <TableHead className="w-[100px] text-right">Actions</TableHead>
+                <TableHead className="w-25 text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredProjects.map((project) => (
                 <TableRow key={project.id}>
                   <TableCell>
-                    <div className="max-w-[300px] sm:max-w-none">
+                    <div className="max-w-75 sm:max-w-none">
                       <div className="font-medium line-clamp-1">
                         {project.title}
                       </div>
@@ -628,7 +585,7 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                   <TableCell className="hidden sm:table-cell">
                     <div className="flex items-center gap-1">
                       <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                      <span className="text-sm truncate max-w-[180px]">
+                      <span className="text-sm truncate max-w-45">
                         {project.location}
                       </span>
                     </div>
@@ -659,7 +616,7 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                               {getProjectCreator(project)}
                             </span>
                             {isOrganizationVerified(project) && (
-                              <BadgeCheck className="h-4 w-4 shrink-0" fill="hsl(var(--primary))" stroke="hsl(var(--popover))" strokeWidth={2.5} />
+                              <BadgeCheck className="h-4 w-4 shrink-0 text-success" />
                             )}
                           </div>
                         </div>
@@ -717,7 +674,7 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
       )}
 
       {view === "map" && (
-        <div className="w-full h-[500px]">
+        <div className="w-full h-125">
           <ProjectsMapView initialProjects={filteredProjects} />
         </div>
       )}

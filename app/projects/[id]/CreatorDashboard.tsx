@@ -57,14 +57,26 @@ import { getProjectStartDateTime, getProjectEndDateTime } from "@/utils/project"
 import ProjectTimeline from "./ProjectTimeline";
 import { ProjectQRCodeModal } from "./ProjectQRCodeModal";
 import CalendarOptionsModal from "@/app/projects/_components/CalendarOptionsModal";
+import { Signup } from "@/types/signup";
+
+type CreatorDashboardSignupSummary = Pick<
+  Signup,
+  "id" | "schedule_id" | "status" | "check_in_time"
+>;
 
 interface Props {
   project: Project;
+  allSignups?: CreatorDashboardSignupSummary[];
+  canSyncProjectCalendar?: boolean;
 }
 
 import ProjectInstructionsModal from "./ProjectInstructionsModalWrapper";
 
-export default function CreatorDashboard({ project }: Props) {
+export default function CreatorDashboard({
+  project,
+  allSignups = [],
+  canSyncProjectCalendar = true,
+}: Props) {
   const router = useRouter();
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -79,6 +91,8 @@ export default function CreatorDashboard({ project }: Props) {
   // Auto-sync calendar on page load if user is connected and project isn't synced
   useEffect(() => {
     const autoSyncCalendar = async () => {
+      if (!canSyncProjectCalendar) return;
+
       // Only sync if not already synced
       if (isCalendarSynced) return;
 
@@ -106,7 +120,7 @@ export default function CreatorDashboard({ project }: Props) {
     };
 
     autoSyncCalendar();
-  }, [project.id, isCalendarSynced]);
+  }, [project.id, isCalendarSynced, canSyncProjectCalendar]);
 
   const handleCancelProject = async (reason: string) => {
     try {
@@ -303,23 +317,38 @@ export default function CreatorDashboard({ project }: Props) {
 
   // --- NEW: Session-specific Editing Window Check (FILTERED) ---
   const activeUnpublishedSessionsInEditingWindow = useMemo(() => {
-    const result: { id: string; name: string; hoursRemaining: number }[] = [];
+    const result: { id: string; name: string; hoursRemaining: number; attendedCount: number }[] = [];
     const publishedKeys = project.published || {};
+
+    // Helper to get number of people who attended a session (status 'attended')
+    const getAttendedCount = (sessionIds: string[]): number => {
+      // FIX: Use attended count instead of total signups count
+      return allSignups.filter(signup => 
+        signup.status === 'attended' && 
+        sessionIds.includes(signup.schedule_id)
+      ).length;
+    };
 
     // Check one-time events
     if (project.event_type === "oneTime" && project.schedule.oneTime) {
       const date = parseISO(project.schedule.oneTime.date);
       const [hours, minutes] = project.schedule.oneTime.endTime.split(':').map(Number);
-      const sessionEndTime = new Date(new Date(date).setHours(hours, minutes)); // Use new Date() to avoid modifying original 'date'
+      const sessionEndTime = new Date(new Date(date).setHours(hours, minutes)); 
       const hoursSinceEnd = differenceInHours(now, sessionEndTime);
       const sessionId = "oneTime";
       const publishKey = getPublishStateKey(sessionId);
 
-      if (isAfter(now, sessionEndTime) && hoursSinceEnd >= 0 && hoursSinceEnd < 48 && !publishedKeys[publishKey]) {
+      // We use multiple alternative IDs for oneTime just in case
+      const sessionIds = ["oneTime", "0", "default"];
+      const attendedCount = getAttendedCount(sessionIds);
+
+      // Only count sessions where people actually attended, unless it's a special requirement
+      if (isAfter(now, sessionEndTime) && hoursSinceEnd >= 0 && hoursSinceEnd < 48 && !publishedKeys[publishKey] && attendedCount > 0) {
         result.push({
           id: sessionId,
           name: `Event on ${format(date, "MMM d")}`,
-          hoursRemaining: 48 - hoursSinceEnd
+          hoursRemaining: 48 - hoursSinceEnd,
+          attendedCount
         });
       }
     }
@@ -331,16 +360,24 @@ export default function CreatorDashboard({ project }: Props) {
 
         day.slots.forEach((slot, slotIndex) => {
           const [hours, minutes] = slot.endTime.split(':').map(Number);
-          const slotEndTime = new Date(new Date(dayDate).setHours(hours, minutes)); // Use new Date()
+          const slotEndTime = new Date(new Date(dayDate).setHours(hours, minutes)); 
           const hoursSinceEnd = differenceInHours(now, slotEndTime);
           const sessionId = `day-${dayIndex}-slot-${slotIndex}`;
-          const publishKey = getPublishStateKey(sessionId); // Uses date and slotIndex
+          const publishKey = getPublishStateKey(sessionId); 
 
-          if (isAfter(now, slotEndTime) && hoursSinceEnd >= 0 && hoursSinceEnd < 48 && !publishedKeys[publishKey]) {
+          // IDs used in multi-day scheduling
+          const simplifiedId = `${dayIndex}-${slotIndex}`;
+          const dateString = format(dayDate, "yyyy-MM-dd");
+          const dateBasedId = `${dateString}-${slotIndex}`;
+          const sessionIds = [sessionId, simplifiedId, dateBasedId];
+          const attendedCount = getAttendedCount(sessionIds);
+
+          if (isAfter(now, slotEndTime) && hoursSinceEnd >= 0 && hoursSinceEnd < 48 && !publishedKeys[publishKey] && attendedCount > 0) {
             result.push({
               id: sessionId,
               name: `${format(dayDate, "MMM d")} (${slot.startTime} - ${slot.endTime})`,
-              hoursRemaining: 48 - hoursSinceEnd
+              hoursRemaining: 48 - hoursSinceEnd,
+              attendedCount
             });
           }
         });
@@ -353,25 +390,28 @@ export default function CreatorDashboard({ project }: Props) {
 
       project.schedule.sameDayMultiArea.roles.forEach((role) => {
         const [hours, minutes] = role.endTime.split(':').map(Number);
-        const roleEndTime = new Date(new Date(date).setHours(hours, minutes)); // Use new Date()
+        const roleEndTime = new Date(new Date(date).setHours(hours, minutes)); 
         const hoursSinceEnd = differenceInHours(now, roleEndTime);
-        // Use the role name as the primary identifier and the key for publishing
-        const sessionId = role.name; // Use role name directly
-        const publishKey = sessionId; // The key is the role name
+        const sessionId = role.name; 
+        const publishKey = sessionId; 
 
-        if (isAfter(now, roleEndTime) && hoursSinceEnd >= 0 && hoursSinceEnd < 48 && !publishedKeys[publishKey]) {
+        // For sameDayMultiArea, the schedule_id is usually role.name
+        const sessionIds = [sessionId];
+        const attendedCount = getAttendedCount(sessionIds);
+
+        if (isAfter(now, roleEndTime) && hoursSinceEnd >= 0 && hoursSinceEnd < 48 && !publishedKeys[publishKey] && attendedCount > 0) {
           result.push({
-            id: sessionId, // Store role name as ID here
+            id: sessionId, 
             name: `${role.name} (${role.startTime} - ${role.endTime})`,
-            hoursRemaining: 48 - hoursSinceEnd
+            hoursRemaining: 48 - hoursSinceEnd,
+            attendedCount
           });
         }
       });
     }
 
     return result;
-    // Add project.published to dependency array
-  }, [project, now, project.published]);
+  }, [project, now, project.published, allSignups]);
 
   // Rename variable used later
   const hasActiveUnpublishedSessions = activeUnpublishedSessionsInEditingWindow.length > 0;
@@ -383,7 +423,7 @@ export default function CreatorDashboard({ project }: Props) {
         <CardHeader className="pb-3">
           <div className="space-y-1">
             <div className="flex items-center justify-between gap-3">
-              <CardTitle className="text-xl sm:text-2xl">Creator Dashboard</CardTitle>
+              <CardTitle className="text-xl sm:text-2xl">Project Dashboard</CardTitle>
               <div className={cn("inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold shrink-0", statusTone)}>
                 {statusLabel}
               </div>
@@ -421,7 +461,7 @@ export default function CreatorDashboard({ project }: Props) {
           {hasActiveUnpublishedSessions && (
             <div className="flex items-center gap-2 rounded-md border border-info/40 bg-info/10 px-3 py-2 text-xs text-info">
               <Clock className="h-3.5 w-3.5" />
-              {activeUnpublishedSessionsInEditingWindow.length} session{activeUnpublishedSessionsInEditingWindow.length === 1 ? "" : "s"} need hours published.
+              {activeUnpublishedSessionsInEditingWindow.length} session{activeUnpublishedSessionsInEditingWindow.length === 1 ? "" : "s"} ({activeUnpublishedSessionsInEditingWindow.reduce((acc, s) => acc + s.attendedCount, 0)} attended) need hours published.
             </div>
           )}
 
@@ -499,39 +539,41 @@ export default function CreatorDashboard({ project }: Props) {
                     buttonClassName="h-10 w-full justify-between px-2"
                   />
                 </div>
-                <div>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger render={
-                        <span className="w-full">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-10 w-full justify-between px-2"
-                            onClick={() => setShowCalendarModal(true)}
-                          >
-                            <span className="flex items-center gap-2">
-                              {isCalendarSynced ? (
-                                <CalendarCheck className="h-4 w-4 text-success" />
-                              ) : (
-                                <Calendar className="h-4 w-4" />
-                              )}
-                              {isCalendarSynced ? "Synced to Calendar" : "Add to Calendar"}
-                            </span>
-                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                          </Button>
-                        </span>
-                      } />
-                      <TooltipContent className="max-w-70 p-2">
-                        <p>
-                          {isCalendarSynced
-                            ? "This project is synced to your calendar. Click to manage or remove."
-                            : "Add this project to your Google Calendar or download an iCal file"}
-                        </p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
+                {canSyncProjectCalendar && (
+                  <div>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger render={
+                          <span className="w-full">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-10 w-full justify-between px-2"
+                              onClick={() => setShowCalendarModal(true)}
+                            >
+                              <span className="flex items-center gap-2">
+                                {isCalendarSynced ? (
+                                  <CalendarCheck className="h-4 w-4 text-success" />
+                                ) : (
+                                  <Calendar className="h-4 w-4" />
+                                )}
+                                {isCalendarSynced ? "Synced to Calendar" : "Add to Calendar"}
+                              </span>
+                              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                            </Button>
+                          </span>
+                        } />
+                        <TooltipContent className="max-w-70 p-2">
+                          <p>
+                            {isCalendarSynced
+                              ? "This project is synced to your calendar. Click to manage or remove."
+                              : "Add this project to your Google Calendar or download an iCal file"}
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                )}
                 {hasActiveUnpublishedSessions && project.verification_method !== 'auto' && (
                   <div>
                     <TooltipProvider>
@@ -558,15 +600,13 @@ export default function CreatorDashboard({ project }: Props) {
                               ? `Editing window open for: ${activeUnpublishedSessionsInEditingWindow[0].name}`
                               : `Editing windows open for ${activeUnpublishedSessionsInEditingWindow.length} sessions`}
                           </p>
-                          {activeUnpublishedSessionsInEditingWindow.length > 1 && (
-                            <ul className="text-xs mt-1 space-y-1">
-                              {activeUnpublishedSessionsInEditingWindow.map(session => (
-                                <li key={session.id}>
-                                  • {session.name} ({session.hoursRemaining}h remaining)
-                                </li>
-                              ))}
-                            </ul>
-                          )}
+                          <ul className="text-xs mt-1 space-y-1">
+                            {activeUnpublishedSessionsInEditingWindow.map(session => (
+                              <li key={session.id}>
+                                • {session.name}: {session.attendedCount} attended ({session.hoursRemaining}h left)
+                              </li>
+                            ))}
+                          </ul>
                           <p className="text-xs mt-1 text-muted-foreground">Click to review/edit hours before publishing.</p>
                         </TooltipContent>
                       </Tooltip>
@@ -632,39 +672,41 @@ export default function CreatorDashboard({ project }: Props) {
                 showChevron
               />
 
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger render={
-                    <span className="w-full">
-                      <Button
-                        variant="outline"
-                        className={`h-10 w-full justify-between gap-2 bg-background/60 shadow-none ${isCalendarSynced
-                          ? "bg-success/10 hover:bg-success/20 border-success/80"
-                          : ""
-                          }`}
-                        onClick={() => setShowCalendarModal(true)}
-                      >
-                        <span className="flex items-center gap-2">
-                          {isCalendarSynced ? (
-                            <CalendarCheck className="h-4 w-4 text-success" />
-                          ) : (
-                            <Calendar className="h-4 w-4" />
-                          )}
-                          {isCalendarSynced ? "Synced to Calendar" : "Add to Calendar"}
-                        </span>
-                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                      </Button>
-                    </span>
-                  } />
-                  <TooltipContent className="max-w-70 p-2">
-                    <p>
-                      {isCalendarSynced
-                        ? "This project is synced to your calendar. Click to manage or remove."
-                        : "Add this project to your Google Calendar or download an iCal file"}
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              {canSyncProjectCalendar && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger render={
+                      <span className="w-full">
+                        <Button
+                          variant="outline"
+                          className={`h-10 w-full justify-between gap-2 bg-background/60 shadow-none ${isCalendarSynced
+                            ? "bg-success/10 hover:bg-success/20 border-success/80"
+                            : ""
+                            }`}
+                          onClick={() => setShowCalendarModal(true)}
+                        >
+                          <span className="flex items-center gap-2">
+                            {isCalendarSynced ? (
+                              <CalendarCheck className="h-4 w-4 text-success" />
+                            ) : (
+                              <Calendar className="h-4 w-4" />
+                            )}
+                            {isCalendarSynced ? "Synced to Calendar" : "Add to Calendar"}
+                          </span>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        </Button>
+                      </span>
+                    } />
+                    <TooltipContent className="max-w-70 p-2">
+                      <p>
+                        {isCalendarSynced
+                          ? "This project is synced to your calendar. Click to manage or remove."
+                          : "Add this project to your Google Calendar or download an iCal file"}
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
 
               {hasActiveUnpublishedSessions && project.verification_method !== 'auto' && (
                 <TooltipProvider>
@@ -690,15 +732,13 @@ export default function CreatorDashboard({ project }: Props) {
                           ? `Editing window open for: ${activeUnpublishedSessionsInEditingWindow[0].name}`
                           : `Editing windows open for ${activeUnpublishedSessionsInEditingWindow.length} sessions`}
                       </p>
-                      {activeUnpublishedSessionsInEditingWindow.length > 1 && (
-                        <ul className="text-xs mt-1 space-y-1">
-                          {activeUnpublishedSessionsInEditingWindow.map(session => (
-                            <li key={session.id}>
-                              • {session.name} ({session.hoursRemaining}h remaining)
-                            </li>
-                          ))}
-                        </ul>
-                      )}
+                      <ul className="text-xs mt-1 space-y-1">
+                        {activeUnpublishedSessionsInEditingWindow.map(session => (
+                          <li key={session.id}>
+                            • {session.name}: {session.attendedCount} attended ({session.hoursRemaining}h left)
+                          </li>
+                        ))}
+                      </ul>
                       <p className="text-xs mt-1 text-muted-foreground">Click to review/edit hours before publishing.</p>
                     </TooltipContent>
                   </Tooltip>
@@ -1070,13 +1110,15 @@ export default function CreatorDashboard({ project }: Props) {
       )}
 
       {/* Calendar Sync Modal */}
-      <CalendarOptionsModal
-        open={showCalendarModal}
-        onOpenChange={setShowCalendarModal}
-        project={project}
-        mode="creator"
-        onSyncSuccess={() => setIsCalendarSynced(true)}
-      />
+      {canSyncProjectCalendar && (
+        <CalendarOptionsModal
+          open={showCalendarModal}
+          onOpenChange={setShowCalendarModal}
+          project={project}
+          mode="creator"
+          onSyncSuccess={() => setIsCalendarSynced(true)}
+        />
+      )}
     </div>
   );
 }

@@ -1,13 +1,14 @@
 "use client";
-import { Shield } from "lucide-react";
-import { useMemo, useState, useRef } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { login, signInWithGoogle } from "./actions";
+
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/client";
+import { useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Shield } from "lucide-react";
+import { Controller, useForm } from "react-hook-form";
+import { z } from "zod";
+
+import { applyStaffInviteForCurrentUser, signInWithGoogle } from "./actions";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -16,15 +17,24 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import {
-  Field,
-  FieldLabel,
-  FieldError,
-} from "@/components/ui/field";
-import { Controller } from "react-hook-form";
-import { toast } from "sonner";
 import { TurnstileComponent, TurnstileRef } from "@/components/ui/turnstile";
+import {
+  buildMfaRedirectPath,
+  deriveAuthenticatorAssurance,
+  resolvePostAuthRedirectPath,
+  shouldPromptForMfaChallenge,
+  type MfaListFactorsLike,
+} from "@/lib/auth/mfa";
+import { buildStaffInviteRedirectPath } from "@/lib/organization/staff-invite-outcome";
+import {
+  getAccountAccessErrorCode,
+  isAccountBlockedStatus,
+  readAccountAccessFromMetadata,
+} from "@/lib/auth/account-access";
+import { createClient } from "@/lib/supabase/client";
+import { toast } from "sonner";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -36,9 +46,15 @@ type LoginValues = z.infer<typeof loginSchema>;
 
 interface LoginClientProps {
   redirectPath?: string;
+  staffToken?: string;
+  orgUsername?: string;
 }
 
-export default function LoginClient({ redirectPath }: LoginClientProps) {
+export default function LoginClient({
+  redirectPath,
+  staffToken,
+  orgUsername,
+}: LoginClientProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -46,7 +62,6 @@ export default function LoginClient({ redirectPath }: LoginClientProps) {
   const turnstileRef = useRef<TurnstileRef>(null);
   const [turnstileReady, setTurnstileReady] = useState(false);
   const router = useRouter();
-  const supabase = useMemo(() => createClient(), []);
 
   const form = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
@@ -58,107 +73,181 @@ export default function LoginClient({ redirectPath }: LoginClientProps) {
   });
 
   const searchParams = useSearchParams();
-  const isVerified = searchParams.get('verified') === 'true';
+  const isVerified = searchParams.get("verified") === "true";
+  const authError = searchParams.get("error");
+  const authReason = searchParams.get("reason");
 
+  useEffect(() => {
+    if (authError === "network-timeout") {
+      toast.error("Connection issue while finishing sign-in. Please try again.");
+      return;
+    }
+
+    if (authError === "account-banned") {
+      toast.error("Your account has been banned.", {
+        description:
+          authReason || "If you think this is a mistake, contact support.",
+      });
+      return;
+    }
+
+    if (authError === "account-restricted") {
+      toast.error("Your account is currently restricted.", {
+        description: authReason || "Please contact support for assistance.",
+      });
+    }
+  }, [authError, authReason]);
 
   async function onSubmit(data: LoginValues) {
     const turnstileToken = turnstileRef.current?.getResponse();
 
     setIsLoading(true);
-    const formData = new FormData();
-    Object.entries(data).forEach(([key, value]) => formData.append(key, value));
 
-    if (turnstileToken) {
-      formData.append("turnstileToken", turnstileToken);
-    }
+    try {
+      const supabase = createClient();
 
-    const result = await login(formData);
-
-    if (result.error) {
-      const errors = result.error;
-      Object.keys(errors).forEach((key) => {
-        if (key in errors && key in loginSchema.shape) {
-          form.setError(key as keyof LoginValues, {
-            type: "server",
-            message: errors[key as keyof typeof errors]?.[0],
-          });
-        }
+      const { data: authData, error } = await supabase.auth.signInWithPassword({
+        email: data.email,
+        password: data.password,
+        options: turnstileToken ? { captchaToken: turnstileToken } : undefined,
       });
 
-      if ("server" in errors && errors.server?.[0]?.includes("captcha verification process failed")) {
-        toast.error("Security verification failed. Please complete the captcha again.");
+      if (error) {
+        if (error.message.includes("captcha verification process failed")) {
+          toast.error(
+            "Security verification failed. Please complete the captcha again.",
+          );
+          turnstileRef.current?.reset();
+          setTurnstileVerified(false);
+        } else if (error.message.includes("provider")) {
+          toast.error(
+            "This email is registered with a different provider. Please sign in with that method.",
+          );
+        } else if (error.message.includes("Invalid login credentials")) {
+          toast.error("Incorrect email or password.");
+        } else {
+          toast.error(error.message || "Login failed. Please try again.");
+        }
+
+        setIsLoading(false);
         turnstileRef.current?.reset();
         setTurnstileVerified(false);
-      } else if ("server" in errors && errors.server?.[0]?.includes("provider")) {
-        toast.error(
-          "This email is registered with password. Please sign in with email and password.",
-        );
-      } else {
-        toast.error("Incorrect email or password.");
+        return;
       }
-      setIsLoading(false);
-    } else if (result.success) {
-      // Login successful
-      console.log('[LoginClient] Login successful, session established');
 
-      // The server action returns the session directly - use it immediately
-      if (result.session?.user) {
-        console.log('[LoginClient] Session received from server:', result.session.user.email);
+      const accessState = readAccountAccessFromMetadata(
+        authData.user?.app_metadata ?? null,
+      );
 
-        // Persist session in the browser so refreshes stay logged in
-        if (result.session.access_token && result.session.refresh_token) {
-          const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
-            access_token: result.session.access_token,
-            refresh_token: result.session.refresh_token,
+      if (isAccountBlockedStatus(accessState.status)) {
+        await supabase.auth.signOut();
+
+        const errorCode = getAccountAccessErrorCode(accessState.status);
+        if (errorCode === "account-banned") {
+          toast.error("Your account has been banned.", {
+            description:
+              accessState.reason ||
+              "If you think this is a mistake, contact support.",
           });
-
-          if (sessionError) {
-            console.error('[LoginClient] Failed to persist session:', sessionError);
-            toast.error('Failed to establish session. Please try again.');
-            setIsLoading(false);
-            return;
-          }
-
-          const persistedUser = sessionData?.user ?? result.session.user;
-          console.log('[LoginClient] Session persisted:', persistedUser.email);
-
-          // Wait a brief moment for cookies to be written before redirect
-          // This ensures middleware can read the session cookies
-          await new Promise(resolve => setTimeout(resolve, 100));
         } else {
-          // Fallback: even if tokens are missing (shouldn't happen)
-          console.log('[LoginClient] Session established:', result.session.user.email);
+          toast.error("Your account is currently restricted.", {
+            description:
+              accessState.reason || "Please contact support for assistance.",
+          });
+        }
 
-          // Wait a brief moment for state to synchronize
-          await new Promise(resolve => setTimeout(resolve, 100));
+        turnstileRef.current?.reset();
+        setTurnstileVerified(false);
+        setIsLoading(false);
+        return;
+      }
+
+      console.log("[LoginClient] Login successful, user:", authData.user?.email);
+
+      const defaultRedirectUrl = isVerified
+        ? "/home?confirmed=true"
+        : resolvePostAuthRedirectPath(redirectPath);
+
+      let finalRedirectUrl = defaultRedirectUrl;
+
+      if (staffToken && orgUsername) {
+        const inviteResult = await applyStaffInviteForCurrentUser(
+          staffToken,
+          orgUsername,
+        );
+        const inviteOutcome = inviteResult.inviteOutcome;
+
+        if (inviteOutcome) {
+          finalRedirectUrl = buildStaffInviteRedirectPath(inviteOutcome, {
+            fallbackPath: defaultRedirectUrl,
+          });
         }
       }
 
-      // Navigate immediately - don't wait for profile fetch
-      const redirectUrl = redirectPath ? decodeURIComponent(redirectPath) : "/home";
+      const accessToken = authData.session?.access_token;
 
-      if (isVerified) {
-        router.push("/home?confirmed=true");
-      } else {
-        // Use replace for immediate transition without adding to history
-        router.replace(redirectUrl);
+      const [
+        { data: claimsData, error: claimsError },
+        { data: factorsData, error: factorsError },
+      ] = await Promise.all([
+        accessToken
+          ? supabase.auth.getClaims(accessToken)
+          : Promise.resolve({ data: null, error: null }),
+        supabase.auth.mfa.listFactors(),
+      ]);
+
+      if (claimsError) {
+        console.error("[LoginClient] Claims lookup failed:", claimsError);
       }
 
-      // Don't clear loading state - keep the loading spinner visible
-      return;
-    }
+      if (factorsError) {
+        console.error("[LoginClient] MFA factor lookup failed:", factorsError);
+      }
 
-    setIsLoading(false);
-    // Reset Turnstile after submission
-    turnstileRef.current?.reset();
-    setTurnstileVerified(false);
+      const factorData = (factorsData as MfaListFactorsLike | null) ?? null;
+      const assuranceData = deriveAuthenticatorAssurance(
+        typeof claimsData?.claims?.aal === "string" ? claimsData.claims.aal : null,
+        factorData,
+      );
+
+      if (
+        shouldPromptForMfaChallenge(
+          assuranceData,
+          factorData,
+        )
+      ) {
+        // toast.info(
+        //   "Enter the code from your authenticator app to finish signing in.",
+        // );
+        router.replace(buildMfaRedirectPath(finalRedirectUrl));
+        router.refresh();
+        return;
+      }
+
+      router.replace(finalRedirectUrl);
+      router.refresh();
+      return;
+    } catch (error) {
+      console.error("[LoginClient] Login error:", error);
+      toast.error("An error occurred. Please try again.");
+      setIsLoading(false);
+      turnstileRef.current?.reset();
+      setTurnstileVerified(false);
+    }
   }
 
   const handleGoogleSignIn = async () => {
     try {
       setIsGoogleLoading(true);
 
-      const result = await signInWithGoogle(redirectPath ? decodeURIComponent(redirectPath) : null);
+      const inviteContext = staffToken || orgUsername
+        ? { staffToken, orgUsername }
+        : null;
+
+      const result = await signInWithGoogle(
+        redirectPath ? resolvePostAuthRedirectPath(redirectPath) : null,
+        inviteContext,
+      );
 
       if (result.error) {
         if (result.error.server?.[0]?.includes("email-password")) {
@@ -182,18 +271,17 @@ export default function LoginClient({ redirectPath }: LoginClientProps) {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen">
-      <Card className="mx-auto w-[380px] max-w-full mb-12 py-0">
+    <div className="flex min-h-screen items-center justify-center">
+      <Card className="mx-auto mb-12 w-95 max-w-full py-0">
         <CardHeader className="px-6 pt-6 pb-0">
           <CardTitle className="text-2xl font-bold">Login</CardTitle>
           <CardDescription>
             {redirectPath
               ? "Login to continue to the requested page"
-              : "Enter your email below to login to your account"
-            }
+              : "Enter your email below to login to your account"}
           </CardDescription>
         </CardHeader>
-        <CardContent className="p-6 space-y-4">
+        <CardContent className="space-y-4 p-6">
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <Button
               type="button"
@@ -219,22 +307,24 @@ export default function LoginClient({ redirectPath }: LoginClientProps) {
                     <path
                       fill="currentColor"
                       d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 123 24.5 166.3 64.9l-67.5 64.9C258.5 52.6 94.3 116.6 94.3 256c0 86.5 69.1 156.6 153.7 156.6 98.2 0 135-70.4 140.8-106.9H248v-85.3h236.1c2.3 12.7 3.9 24.9 3.9 41.4z"
-                    ></path>
+                    />
                   </svg>
                   Login with Google
                 </>
               )}
             </Button>
+
             <div className="relative py-1">
               <div className="absolute inset-0 flex items-center">
                 <span className="w-full border-t" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground font-medium">
+                <span className="bg-card px-2 font-medium text-muted-foreground">
                   Or continue with
                 </span>
               </div>
             </div>
+
             <div className="grid gap-4">
               <Controller
                 control={form.control}
@@ -242,11 +332,17 @@ export default function LoginClient({ redirectPath }: LoginClientProps) {
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid}>
                     <FieldLabel htmlFor={field.name}>Email</FieldLabel>
-                    <Input id={field.name} placeholder="m@example.com" {...field} aria-invalid={fieldState.invalid} />
+                    <Input
+                      id={field.name}
+                      placeholder="m@example.com"
+                      {...field}
+                      aria-invalid={fieldState.invalid}
+                    />
                     <FieldError errors={[fieldState.error]} />
                   </Field>
                 )}
               />
+
               <Controller
                 control={form.control}
                 name="password"
@@ -256,34 +352,44 @@ export default function LoginClient({ redirectPath }: LoginClientProps) {
                       <FieldLabel htmlFor={field.name}>Password</FieldLabel>
                       <Link
                         href="/reset-password"
-                        className="text-xs text-muted-foreground/80 font-medium hover:text-primary transition-colors"
+                        className="text-xs font-medium text-muted-foreground/80 transition-colors hover:text-primary"
                       >
                         Forgot your password?
                       </Link>
                     </div>
-                    <Input id={field.name} type="password" {...field} aria-invalid={fieldState.invalid} />
+                    <Input
+                      id={field.name}
+                      type="password"
+                      {...field}
+                      aria-invalid={fieldState.invalid}
+                    />
                     <FieldError errors={[fieldState.error]} />
                   </Field>
                 )}
               />
+
               <div className="flex justify-center">
-                <div className="relative w-[300px] h-[65px] overflow-hidden bg-muted/30 rounded-lg flex items-center justify-center border border-border/50">
+                <div className="relative flex h-16.25 w-75 items-center justify-center overflow-hidden rounded-lg border border-border/50 bg-muted/30">
                   {!turnstileReady && (
                     <div className="absolute inset-0 z-10 flex items-center justify-center gap-2 rounded-lg bg-background/80 text-[0.7rem] font-semibold uppercase tracking-wide text-muted-foreground">
                       <Shield className="h-4 w-4 text-muted-foreground/80" />
-                      <span className="text-[0.7rem] font-semibold normal-case tracking-wide">Bot verification loading…</span>
+                      <span className="text-[0.7rem] font-semibold normal-case tracking-wide">
+                        Bot verification loading…
+                      </span>
                     </div>
                   )}
                   <TurnstileComponent
                     ref={turnstileRef}
                     onLoad={() => setTurnstileReady(true)}
-                    onVerify={(token) => {
+                    onVerify={(token: string) => {
                       setTurnstileVerified(true);
                       form.setValue("turnstileToken", token);
                     }}
                     onError={() => {
                       setTurnstileVerified(false);
-                      toast.error("Security verification failed. Please try again.");
+                      toast.error(
+                        "Security verification failed. Please try again.",
+                      );
                     }}
                     onExpire={() => {
                       setTurnstileVerified(false);
@@ -292,15 +398,34 @@ export default function LoginClient({ redirectPath }: LoginClientProps) {
                   />
                 </div>
               </div>
+
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? "Logging in..." : "Login"}
               </Button>
             </div>
+
             <div className="mt-2 text-center text-sm text-muted-foreground">
               Don&apos;t have an account?{" "}
               <Link
-                href={redirectPath ? `/signup?redirect=${redirectPath}` : "/signup"}
-                className="underline text-primary hover:text-primary/80"
+                href={(() => {
+                  const params = new URLSearchParams();
+
+                  if (redirectPath) {
+                    params.set("redirect", redirectPath);
+                  }
+
+                  if (staffToken) {
+                    params.set("staff_token", staffToken);
+                  }
+
+                  if (orgUsername) {
+                    params.set("org", orgUsername);
+                  }
+
+                  const query = params.toString();
+                  return query ? `/signup?${query}` : "/signup";
+                })()}
+                className="text-primary underline hover:text-primary/80"
               >
                 Sign up
               </Link>
