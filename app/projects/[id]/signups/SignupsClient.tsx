@@ -4,13 +4,16 @@ import React, { useEffect, useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { escapeHtml, escapeHtmlWithLineBreaks } from "@/lib/security/html";
 import { Project } from "@/types";
-import { togglePauseSignups, unrejectSignup, getWaiverDownloadUrl } from "../actions";
+import { getWaiverDownloadUrl, togglePauseSignups, unrejectSignup } from "../actions";
+import { getOrganizerSignupsWithWaiverStatus } from "./actions";
 import {
   formatScheduleDisplay,
   formatDateForDisplay,
   ProjectScheduleTime
 } from "@/utils/timezone";
+import { getMultiDaySlotDisplayName } from "@/utils/project";
 import Link from "next/link";
 import {
   Card,
@@ -30,12 +33,19 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, XCircle, Clock, ArrowLeft, Loader2, UserRoundSearch, ArrowUpDown, ChevronUp, ChevronDown, Printer, RefreshCw, Pause, Play, UserCheck } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, ArrowLeft, Loader2, UserRoundSearch, ArrowUpDown, ChevronUp, ChevronDown, Printer, RefreshCw, Pause, Play, UserCheck, Eye, Download, MoreVertical } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { NotificationService } from "@/services/notifications";
+import { WaiverPreviewDialog, WaiverPreviewSignature } from "@/components/projects/WaiverPreviewDialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface Props {
   projectId: string;
@@ -50,21 +60,7 @@ type Signup = {
   anonymous_id: string | null; // FK to anonymous_signups
   schedule_id: string;
   volunteer_comment?: string | null;
-  waiver_signature?: {
-    signature_type: "draw" | "typed" | "upload";
-    signature_storage_path?: string | null;
-    upload_storage_path?: string | null;
-    signature_text?: string | null;
-    signed_at?: string | null;
-    signer_name?: string | null;
-  } | { // handle array shape if Supabase returns array
-    signature_type: "draw" | "typed" | "upload";
-    signature_storage_path?: string | null;
-    upload_storage_path?: string | null;
-    signature_text?: string | null;
-    signed_at?: string | null;
-    signer_name?: string | null;
-  }[];
+  waiver_signature?: WaiverPreviewSignature | WaiverPreviewSignature[];
   profile?: { // Data from profiles table (if user_id exists)
     full_name: string;
     username: string;
@@ -101,6 +97,10 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
   const [pausedSignups, setPausedSignups] = useState(false);
   const [unrejectingSignups, setUnrejectingSignups] = useState<Record<string, boolean>>({});
   const [waiverDownloads, setWaiverDownloads] = useState<Record<string, boolean>>({});
+  
+  // Waiver preview state
+  const [previewSignature, setPreviewSignature] = useState<WaiverPreviewSignature | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   const toggleSort = (field: SortField) => {
     setSort(current => ({
@@ -132,13 +132,16 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
       document.body.appendChild(printContainer);
     }
 
+    const safeProjectTitle = escapeHtml(project?.title || 'Project');
+    const printedAt = escapeHtml(`${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`);
+
     // Generate HTML content for printing - only approved volunteers
     const printContent = `
       <div class="print-content">
       <style>
         @media print {
         body > *:not(#print-container) { display: none !important; }
-        #print-container { display: block !important; font-family: Arial, sans-serif; margin: 10px; color: black !important; }
+        #print-container { display: block !important; font-family: Arial, sans-serif; margin: 10px; }
         h1 { font-size: 18px; margin-bottom: 5px; }
         h2 { font-size: 14px; margin: 10px 0 5px; }
         table { width: 100%; border-collapse: collapse; margin: 5px 0; }
@@ -149,14 +152,15 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
         /* Removed page-break class */
         }
       </style>
-      <h1>Approved Volunteers - ${project?.title || 'Project'}</h1>
-      <div>Printed: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</div>
+      <h1>Approved Volunteers - ${safeProjectTitle}</h1>
+      <div>Printed: ${printedAt}</div>
       ${Object.entries(filteredSignupsBySlot).map(([slot, slotSignups]) => {
       // Filter for approved or pending (if pending should be printed)
       const approved = slotSignups.filter(s => s.status === "approved" || s.status === "pending");
+      const safeSlotLabel = project ? escapeHtml(formatScheduleSlot(project, slot)) : escapeHtml(slot);
       return approved.length > 0 ? `
         <div class="schedule-slot">
-          <h2>${project && formatScheduleSlot(project, slot)}</h2>
+          <h2>${safeSlotLabel}</h2>
           <table>
           <thead><tr><th>Name</th><th>Type</th><th>Contact</th><th>Status</th>${project?.enable_volunteer_comments ? '<th>Comment</th>' : ''}</thead>
           <tbody>
@@ -168,14 +172,20 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
         const type = isRegistered ? 'Registered' : 'Anonymous';
         const statusText = s.status === 'pending' ? 'Pending Confirmation' : 'Approved';
         const comment = s.volunteer_comment || '—';
+        const safeName = escapeHtml(name || 'N/A');
+        const safeEmail = escapeHtml(email || 'N/A');
+        const safePhone = phone
+          ? `<br>${escapeHtml(phone.replace(/(\\d{3})(\\d{3})(\\d{4})/, "$1-$2-$3"))}`
+          : '';
+        const safeComment = escapeHtmlWithLineBreaks(comment);
 
         return `
               <tr>
-                <td>${name || 'N/A'}</td>
-                <td>${type}</td>
-                <td>${email || 'N/A'} ${phone ? '<br>' + phone.replace(/(\\d{3})(\\d{3})(\\d{4})/, "$1-$2-$3") : ''}</td>
-                <td>${statusText}</td>
-                ${project?.enable_volunteer_comments ? `<td class="comment-cell">${comment}</td>` : ''} 
+                <td>${safeName}</td>
+                <td>${escapeHtml(type)}</td>
+                <td>${safeEmail}${safePhone}</td>
+                <td>${escapeHtml(statusText)}</td>
+                ${project?.enable_volunteer_comments ? `<td class="comment-cell">${safeComment}</td>` : ''} 
               </tr>
               `;
       }).join('')}
@@ -289,52 +299,20 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
   // Update Supabase query to join anonymous_signups
   const loadSignups = async () => {
     setRefreshing(true);
-    const supabase = createClient();
+    try {
+      const result = await getOrganizerSignupsWithWaiverStatus(projectId);
 
-    const { data, error } = await supabase
-      .from("project_signups")
-      .select(`
-      id,
-      created_at,
-      status,
-      user_id,
-      anonymous_id, 
-      schedule_id,
-      volunteer_comment,
-      waiver_signature:waiver_signatures!waiver_signatures_signup_id_fkey (
-        signature_type,
-        signature_storage_path,
-        upload_storage_path,
-        signature_text,
-        signed_at,
-        signer_name
-      ),
-      profile:profiles!left (
-        full_name,
-        username,
-        email,
-        phone
-      ),
-      anonymous_signup:anonymous_signups!project_signups_anonymous_id_fkey ( 
-        id,
-        name,
-        email,
-        phone_number,
-        confirmed_at
-      )
-      `)
-      .eq("project_id", projectId)
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      console.error("Error loading signups:", error);
-      console.log(error)
-      toast.error("Failed to load signups");
-    } else {
-      setSignups(data as unknown as Signup[]);
-      if (refreshing) {
-        toast.success("Signups refreshed successfully");
+      if (result && 'error' in result && result.error) {
+        toast.error(result.error);
+      } else {
+        setSignups((result as { signups: unknown[] }).signups as Signup[]);
+        if (refreshing) {
+          toast.success("Signups refreshed successfully");
+        }
       }
+    } catch (error) {
+      console.error("Error loading signups:", error);
+      toast.error("Failed to load signups");
     }
 
     setLoading(false);
@@ -400,32 +378,92 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
     }
   };
 
-  const handleViewWaiver = async (signupId: string) => {
+  const handleOpenWaiverPreview = async (signup: Signup) => {
+    const waiverSignature = Array.isArray(signup.waiver_signature)
+      ? signup.waiver_signature[0]
+      : signup.waiver_signature;
+
+    if (waiverSignature) {
+      try {
+        // Resolve signatureId from server to avoid stale/incorrect embedded IDs.
+        const result = await getWaiverDownloadUrl(signup.id);
+
+        if (result?.error) {
+          toast.error(result.error);
+          return;
+        }
+
+        const resolvedId = result?.signatureId || waiverSignature.id;
+        if (!resolvedId) {
+          toast.error('Signature not found');
+          return;
+        }
+
+        setPreviewSignature({
+          ...waiverSignature,
+          id: resolvedId,
+        });
+        setPreviewOpen(true);
+      } catch (error) {
+        console.error('Error resolving waiver signature:', error);
+        toast.error('Failed to open waiver preview');
+      }
+    }
+  };
+
+  const handleDownloadWaiverForSignup = async (signupId: string) => {
     try {
-      setWaiverDownloads(prev => ({ ...prev, [signupId]: true }));
       const result = await getWaiverDownloadUrl(signupId);
-
-      if (result?.url) {
-        window.open(result.url, "_blank", "noopener,noreferrer");
-        return;
-      }
-
-      if (result?.signature?.signature_text) {
-        toast.success(`Typed signature on file: ${result.signature.signature_text}`);
-        return;
-      }
 
       if (result?.error) {
         toast.error(result.error);
         return;
       }
 
-      toast.error("Unable to load waiver at this time.");
+      if (result?.signatureId) {
+        await handleDownloadWaiver(result.signatureId);
+        return;
+      }
+
+      if (result?.url) {
+        // Legacy/offline upload signed URL.
+        window.open(result.url, '_blank', 'noopener,noreferrer');
+        return;
+      }
+
+      toast.error('Signature not found');
     } catch (error) {
-      console.error("Error loading waiver:", error);
-      toast.error("Unable to load waiver at this time.");
+      console.error('Error downloading waiver:', error);
+      toast.error('Failed to download waiver');
+    }
+  };
+
+  const handleDownloadWaiver = async (signatureId: string) => {
+    try {
+      setWaiverDownloads(prev => ({ ...prev, [signatureId]: true }));
+
+      const response = await fetch(`/api/waivers/${signatureId}/download`);
+
+      if (!response.ok) {
+        throw new Error('Download failed');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `waiver-${signatureId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+
+      toast.success('Waiver downloaded successfully');
+    } catch (error) {
+      console.error("Error downloading waiver:", error);
+      toast.error('Failed to download waiver');
     } finally {
-      setWaiverDownloads(prev => ({ ...prev, [signupId]: false }));
+      setWaiverDownloads(prev => ({ ...prev, [signatureId]: false }));
     }
   };
 
@@ -523,8 +561,9 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
 
             const dateDisplay = formatDateForDisplay(scheduleTime.date);
             const timeDisplay = formatScheduleDisplay(scheduleTime, projectTimezone, undefined, true);
+            const slotLabel = getMultiDaySlotDisplayName(slot, slotIdx);
 
-            return `${dateDisplay} from ${timeDisplay}`;
+            return `${dateDisplay} - ${slotLabel} (${timeDisplay})`;
           }
         }
       }
@@ -593,6 +632,14 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-5xl">
+      <WaiverPreviewDialog 
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        signature={previewSignature}
+        onDownload={handleDownloadWaiver}
+        isDownloading={previewSignature ? waiverDownloads[previewSignature.id] : false}
+      />
+      
       <div className="mb-6">
         <Button
           variant="ghost"
@@ -604,7 +651,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
         </Button>
       </div>
 
-      <Card className="min-h-[400px] relative">
+      <Card className="min-h-100 relative">
 
         {loading && (
           <div className="absolute inset-0 flex items-center justify-center z-10">
@@ -734,6 +781,10 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
                     const waiverSignature = Array.isArray(signup.waiver_signature)
                       ? signup.waiver_signature[0]
                       : signup.waiver_signature;
+                    const multiSignerCount =
+                      waiverSignature?.signature_summary?.signerCount ??
+                      waiverSignature?.signature_payload?.signers?.length ??
+                      0;
 
                     return (
                       <TableRow key={signup.id}>
@@ -766,9 +817,9 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
                           </div>
                         </TableCell>
                         {project?.enable_volunteer_comments && (
-                          <TableCell className="text-sm text-muted-foreground max-w-[200px]">
+                          <TableCell className="text-sm text-muted-foreground max-w-50">
                             {signup.volunteer_comment ? (
-                              <div className="max-h-[60px] overflow-y-auto text-wrap wrap-break-word whitespace-pre-wrap border border-border rounded p-2 bg-muted/20 text-xs leading-relaxed">
+                              <div className="max-h-15 overflow-y-auto text-wrap wrap-break-word whitespace-pre-wrap border border-border rounded p-2 bg-muted/20 text-xs leading-relaxed">
                                 {signup.volunteer_comment}
                               </div>
                             ) : (
@@ -780,20 +831,32 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
                           <TableCell>
                             {waiverSignature ? (
                               <div className="flex items-center gap-2">
-                                <Badge variant="outline" className="text-xs">Signed</Badge>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleViewWaiver(signup.id)}
-                                  disabled={waiverDownloads[signup.id]}
-                                  className="px-2"
-                                >
-                                  {waiverDownloads[signup.id] ? (
-                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                  ) : (
-                                    "View"
-                                  )}
-                                </Button>
+                                <Badge variant="outline" className="text-xs">
+                                  Signed
+                                  {multiSignerCount > 1 && ` (${multiSignerCount})`}
+                                </Badge>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger render={
+                                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                      <span className="sr-only">Open menu</span>
+                                      <MoreVertical className="h-4 w-4" />
+                                    </Button>
+                                  } />
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => handleOpenWaiverPreview(signup)}>
+                                      <Eye className="mr-2 h-4 w-4" />
+                                      View Waiver
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleDownloadWaiverForSignup(signup.id)}>
+                                      {waiverSignature?.id && waiverDownloads[waiverSignature.id] ? (
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                      ) : (
+                                        <Download className="mr-2 h-4 w-4" />
+                                      )}
+                                      Download PDF
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
                               </div>
                             ) : (
                               <Badge variant="secondary" className="text-xs">Missing</Badge>

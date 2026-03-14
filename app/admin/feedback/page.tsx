@@ -30,13 +30,15 @@ export default async function FeedbackPage() {
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-bold tracking-tight">User Feedback</h1>
         <p className="text-muted-foreground">
-          Review user feedback, ideas, and issues submitted through the platform.
+          High-speed moderation queue for user feedback, ideas, and issues.
         </p>
       </div>
       <Card className="border-border bg-card text-card-foreground shadow-xs">
         <CardHeader>
-          <CardTitle>Feedback & Moderation</CardTitle>
-          <CardDescription>Sort, filter, and moderate incoming submissions.</CardDescription>
+          <CardTitle>Feedback triage queue</CardTitle>
+          <CardDescription>
+            Process hundreds quickly with next/previous navigation, keyboard shortcuts, and one-click approve/flag/archive actions.
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <FeedbackTab feedback={feedback || []} />

@@ -33,6 +33,29 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+interface FormatDateRangeLabelOptions {
+  singleDatePrefix?: string;
+}
+
+export function formatDateRangeLabel(
+  value?: DateRange,
+  options: FormatDateRangeLabelOptions = {}
+) {
+  if (!value?.from) {
+    return undefined;
+  }
+
+  const startLabel = format(value.from, "MMM d");
+
+  if (value.to && value.to.getTime() !== value.from.getTime()) {
+    return `${startLabel} - ${format(value.to, "MMM d")}`;
+  }
+
+  return options.singleDatePrefix
+    ? `${options.singleDatePrefix} ${startLabel}`
+    : startLabel;
+}
+
 export function DateRangePicker({
   value,
   onChange,
@@ -48,15 +71,6 @@ export function DateRangePicker({
   // Handle the date range selection
   const handleSelect = (range: DateRange | undefined) => {
     onChange?.(range);
-    
-    // Only close the popover when both dates are selected or range is cleared
-    if (range?.from && range?.to) {
-      setOpen(false);
-    } else if (!range?.from && !range?.to) {
-      // Range was cleared
-      setOpen(false);
-    }
-    // If only one date is selected (range.from exists but range.to doesn't), keep popover open
   };
 
   const handleQuickSelect = (val: string | null) => {
@@ -184,14 +198,7 @@ export function DateRangePicker({
             >
               <CalendarIcon className="mr-2 h-4 w-4" />
               {value?.from ? (
-                value.to && value.to.getTime() !== value.from.getTime() ? (
-                  <>
-                    {format(value.from, "MMM d")} -{" "}
-                    {format(value.to, "MMM d")}
-                  </>
-                ) : (
-                  format(value.from, "MMM d")
-                )
+                formatDateRangeLabel(value)
               ) : (
                 <span>{placeholder}</span>
               )}

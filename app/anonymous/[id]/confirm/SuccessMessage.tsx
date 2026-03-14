@@ -13,9 +13,13 @@ import Link from "next/link";
 
 interface SuccessMessageProps {
   anonymousSignupId: string;
+  anonymousAccessToken: string;
 }
 
-export function SuccessMessage({ anonymousSignupId }: SuccessMessageProps) {
+export function SuccessMessage({
+  anonymousSignupId,
+  anonymousAccessToken,
+}: SuccessMessageProps) {
   return (
     <div className="container mx-auto flex min-h-[calc(100vh-150px)] items-center justify-center px-4 py-10">
       <Card className="w-full max-w-md text-center">
@@ -36,7 +40,10 @@ export function SuccessMessage({ anonymousSignupId }: SuccessMessageProps) {
           </p>
         </CardContent>
         <CardFooter className="flex flex-col gap-3 sm:flex-row sm:justify-center">
-          <Link href={`/anonymous/${anonymousSignupId}`} className={cn(buttonVariants({ variant: "secondary" }), "w-full sm:w-auto")}>
+          <Link
+            href={`/anonymous/${anonymousSignupId}?token=${encodeURIComponent(anonymousAccessToken)}`}
+            className={cn(buttonVariants({ variant: "secondary" }), "w-full sm:w-auto")}
+          >
             View signup details
           </Link>
           <Link href="/projects" className={cn(buttonVariants(), "w-full sm:w-auto flex items-center gap-2")}>

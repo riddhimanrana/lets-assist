@@ -15,6 +15,7 @@ import GlobalNotificationProvider from "@/components/providers/GlobalNotificatio
 import CalendarOAuthCallbackHandler from "@/components/calendar/CalendarOAuthCallbackHandler";
 import { AuthProvider } from "@/components/providers/AuthProvider";
 import { Suspense } from "react";
+import SystemStickyBanner from "@/components/layout/SystemStickyBanner";
 
 export const metadata: Metadata = {
   title: {
@@ -112,6 +113,7 @@ export default async function RootLayout({
             <PostHogProvider>
               <GlobalNotificationProvider>
                 <div className="bg-background text-foreground min-h-screen flex flex-col w-full">
+                  <SystemStickyBanner />
                   <Navbar />
                   <Toaster richColors />
                   <main className="flex-1 w-full">{children}</main>

@@ -23,6 +23,7 @@ interface AnonymousSignupConfirmationProps {
   projectDate: string;
   projectTime: string;
   slotLabel: string;
+  selectedSlotCount?: number;
 }
 
 export default function AnonymousSignupConfirmation({
@@ -33,7 +34,10 @@ export default function AnonymousSignupConfirmation({
   projectDate = "January 15, 2026",
   projectTime = "9:00 AM - 12:00 PM",
   slotLabel = "Slot 1",
+  selectedSlotCount = 1,
 }: AnonymousSignupConfirmationProps) {
+  const isMultiSlotSignup = selectedSlotCount > 1;
+
   return (
     <Html lang="en">
       <Head>
@@ -63,6 +67,12 @@ export default function AnonymousSignupConfirmation({
               <Text style={paragraph}>
                 Thanks for signing up to volunteer for <strong>{projectName}</strong>. Please confirm your email to complete your registration.
               </Text>
+
+              {isMultiSlotSignup && (
+                <Text style={paragraph}>
+                  You selected <strong>{selectedSlotCount} slots</strong>. Confirming once will activate all selected signups tied to this anonymous profile.
+                </Text>
+              )}
 
               <Section style={detailsBox}>
                 <Text style={label}>Signup details</Text>

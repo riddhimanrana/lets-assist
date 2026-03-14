@@ -1,6 +1,11 @@
 "use server";
+import { getAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import type { Project, ProjectStatus, Organization } from "@/types";
+import {
+  ACTIVE_PROJECT_SIGNUP_STATUSES,
+  buildProjectOccupancyByProject,
+} from "@/lib/projects/availability";
 import { getProjectStatus } from "@/utils/project";
 
 // Define the Profile type with an id property
@@ -14,14 +19,22 @@ export type Profile = {
   phone?: string | null;
 };
 
+type GetActiveProjectsOptions = {
+  searchTerm?: string;
+  eventType?: Project["event_type"];
+};
+
 export async function getActiveProjects(
   limit: number = 21, 
   offset: number = 0,
   status?: ProjectStatus,
   organizationId?: string,
-  _userId?: string
+  _userId?: string,
+  options: GetActiveProjectsOptions = {},
 ): Promise<Project[]> {
   const supabase = await createClient();
+  const admin = getAdminClient();
+  const normalizedSearchTerm = options.searchTerm?.trim();
 
   // First get all projects
   let query = supabase
@@ -38,6 +51,14 @@ export async function getActiveProjects(
   // Apply organization filter if specified
   if (organizationId) {
     query = query.eq("organization_id", organizationId);
+  }
+
+  if (normalizedSearchTerm) {
+    query = query.or(`title.ilike.%${normalizedSearchTerm}%,description.ilike.%${normalizedSearchTerm}%`);
+  }
+
+  if (options.eventType) {
+    query = query.eq("event_type", options.eventType);
   }
 
   // Apply visibility filter: only show public projects in the main feed
@@ -65,42 +86,44 @@ export async function getActiveProjects(
 
   // Short-circuit: Skip query if no projects to avoid empty in() filter
   const projectIds = projects.map(p => p.id);
-  let confirmedSignups: { project_id: string; schedule_id: string }[] | null = null;
+  let occupancyByProject: ReturnType<typeof buildProjectOccupancyByProject> = {};
   
   if (projectIds.length > 0) {
-    // Get confirmed signups for all projects in a single query
-    const { data } = (await supabase
+    // Fetch aggregate occupancy with the admin client so the public feed can
+    // show accurate capacity without exposing who signed up.
+    const { data, error: signupsError } = (await admin
       .from("project_signups")
       .select(`
         project_id,
-        schedule_id
+        schedule_id,
+        status
       `)
-      .eq("status", "approved")
+      .in("status", [...ACTIVE_PROJECT_SIGNUP_STATUSES])
       .in("project_id", projectIds)) as {
-      data: { project_id: string; schedule_id: string | null }[] | null;
+      data: { project_id: string; schedule_id: string | null; status: string }[] | null;
+      error: { message?: string } | null;
     };
-    confirmedSignups = (data || []).filter(
-      (signup): signup is { project_id: string; schedule_id: string } =>
-        !!signup.schedule_id
-    );
+
+    if (signupsError) {
+      console.error("Error fetching project occupancy counts:", signupsError);
+    } else {
+      occupancyByProject = buildProjectOccupancyByProject(data || []);
+    }
   }
 
   // Process projects and add signup counts
   const processedProjects = projects.map(project => {
-    // Get confirmed signups for this project
-    const projectSignups = confirmedSignups?.filter(s => s.project_id === project.id) || [];
-    
-    // Count signups by schedule_id
-    const signupsBySchedule = projectSignups.reduce((acc: Record<string, number>, signup) => {
-      const scheduleId = signup.schedule_id || 'default';
-      acc[scheduleId] = (acc[scheduleId] || 0) + 1;
-      return acc;
-    }, {});
+    const occupancy = occupancyByProject[project.id] || {
+      slotsFilled: 0,
+      slotsFilledBySchedule: {},
+    };
 
     return {
       ...project,
-      confirmed_signups: signupsBySchedule,
-      total_confirmed: projectSignups.length
+      confirmed_signups: occupancy.slotsFilledBySchedule,
+      total_confirmed: occupancy.slotsFilled,
+      slots_filled: occupancy.slotsFilled,
+      slots_filled_by_schedule: occupancy.slotsFilledBySchedule,
     };
   });
 
@@ -111,7 +134,7 @@ export async function getActiveProjects(
   // Short-circuit: Skip profile query if no creator IDs
   let profiles: Profile[] | null = null;
   if (creatorIds.length > 0) {
-    const { data, error: profilesError } = (await supabase
+    const { data, error: profilesError } = (await admin
       .from("profiles")
       .select("id, avatar_url, full_name, username, created_at")
       .in("id", creatorIds)) as {

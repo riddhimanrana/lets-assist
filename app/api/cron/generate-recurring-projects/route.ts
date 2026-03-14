@@ -3,9 +3,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { addDays, addWeeks, addMonths, addYears, format, isAfter, isBefore, parseISO } from "date-fns";
 
 function createServiceClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_SECRET_KEY;
+
+  if (!supabaseUrl || !supabaseKey) {
+    throw new Error("Supabase service credentials are required.");
+  }
+
   return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
+    supabaseUrl,
+    supabaseKey
   );
 }
 
@@ -68,6 +75,51 @@ interface Project {
   restrict_to_org_domains: boolean;
   recurrence_rule: RecurrenceRule;
   recurrence_sequence: number | null;
+  recurrence_occurrence_date?: string | null;
+}
+
+type PostgrestErrorLike = {
+  code?: string;
+  message?: string;
+  details?: string;
+  hint?: string;
+};
+
+function isNoRowsError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+
+  const pgError = error as PostgrestErrorLike;
+  return pgError.code === "PGRST116";
+}
+
+function isMultipleRowsError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+
+  const pgError = error as PostgrestErrorLike;
+  const combined = `${pgError.message ?? ""} ${pgError.details ?? ""}`.toLowerCase();
+  return combined.includes("multiple") && combined.includes("rows");
+}
+
+function isUniqueViolation(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+
+  const pgError = error as PostgrestErrorLike;
+  return pgError.code === "23505";
+}
+
+function isMissingRecurrenceOccurrenceDateColumnError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+
+  const pgError = error as PostgrestErrorLike;
+  const combined = `${pgError.message ?? ""} ${pgError.details ?? ""} ${pgError.hint ?? ""}`.toLowerCase();
+  const referencesColumn = combined.includes("recurrence_occurrence_date");
+  const missingColumn =
+    pgError.code === "42703" ||
+    combined.includes("schema cache") ||
+    combined.includes("column") ||
+    combined.includes("could not find");
+
+  return referencesColumn && missingColumn;
 }
 
 function calculateNextDate(
@@ -162,6 +214,79 @@ function getProjectDate(project: Project): Date | null {
   return null;
 }
 
+function canLegacyDateCheck(eventType: string): boolean {
+  return eventType === "oneTime" || eventType === "sameDayMultiArea";
+}
+
+async function hasExistingOccurrence(
+  supabase: ReturnType<typeof createServiceClient>,
+  parent: Project,
+  formattedNextDate: string
+): Promise<{ exists: boolean; errorMessage?: string }> {
+  const byDateResult = await supabase
+    .from("projects")
+    .select("id")
+    .eq("recurrence_parent_id", parent.id)
+    .eq("recurrence_occurrence_date", formattedNextDate)
+    .limit(1)
+    .maybeSingle();
+
+  if (byDateResult.error && !isNoRowsError(byDateResult.error)) {
+    if (!isMissingRecurrenceOccurrenceDateColumnError(byDateResult.error)) {
+      return {
+        exists: true,
+        errorMessage: `Failed date-based dedupe check for ${parent.title}: ${byDateResult.error.message}`,
+      };
+    }
+  }
+
+  if (byDateResult.data) {
+    return { exists: true };
+  }
+
+  if (!canLegacyDateCheck(parent.event_type)) {
+    return { exists: false };
+  }
+
+  let legacyQuery = supabase
+    .from("projects")
+    .select("id")
+    .eq("recurrence_parent_id", parent.id);
+
+  if (parent.event_type === "oneTime") {
+    legacyQuery = legacyQuery.filter(
+      "schedule->oneTime->>date",
+      "eq",
+      formattedNextDate
+    );
+  } else if (parent.event_type === "sameDayMultiArea") {
+    legacyQuery = legacyQuery.filter(
+      "schedule->sameDayMultiArea->>date",
+      "eq",
+      formattedNextDate
+    );
+  }
+
+  const legacyResult = await legacyQuery.limit(1).single();
+
+  if (legacyResult.error) {
+    if (isNoRowsError(legacyResult.error)) {
+      return { exists: false };
+    }
+
+    if (isMultipleRowsError(legacyResult.error)) {
+      return { exists: true };
+    }
+
+    return {
+      exists: true,
+      errorMessage: `Failed legacy dedupe check for ${parent.title}: ${legacyResult.error.message}`,
+    };
+  }
+
+  return { exists: !!legacyResult.data };
+}
+
 function updateScheduleDate(schedule: Record<string, unknown>, eventType: string, newDate: Date) {
   const formattedDate = format(newDate, "yyyy-MM-dd");
   const newSchedule = JSON.parse(JSON.stringify(schedule)) as {
@@ -222,18 +347,34 @@ async function processRecurringProjects(): Promise<{
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
+  const MAX_PARENTS = 20; // Limit parents per run
+  let parentsProcessed = 0;
+
   for (const parent of parentProjects as Project[]) {
+    if (parentsProcessed >= MAX_PARENTS) {
+      console.log(`Reached limit of ${MAX_PARENTS} parent projects per run. Skipping remaining.`);
+      break;
+    }
+    parentsProcessed++;
+
     try {
       const rule = parent.recurrence_rule;
       if (!rule) continue;
 
-      const { data: latestOccurrence } = await supabase
+      const latestOccurrenceResult = await supabase
         .from("projects")
         .select("id, schedule, recurrence_sequence")
         .eq("recurrence_parent_id", parent.id)
         .order("recurrence_sequence", { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
+
+      if (latestOccurrenceResult.error && !isNoRowsError(latestOccurrenceResult.error)) {
+        errors.push(`Failed loading latest occurrence for ${parent.title}: ${latestOccurrenceResult.error.message}`);
+        continue;
+      }
+
+      const latestOccurrence = latestOccurrenceResult.data;
 
       let currentSequence = 1;
       let lastDate: Date | null;
@@ -263,32 +404,16 @@ async function processRecurringProjects(): Promise<{
         if (isBefore(today, nextDate)) {
           const formattedNextDate = format(nextDate, "yyyy-MM-dd");
 
-          let existingQuery = supabase
-            .from("projects")
-            .select("id")
-            .eq("recurrence_parent_id", parent.id);
-
-          if (parent.event_type === "oneTime") {
-            existingQuery = existingQuery.filter(
-              "schedule->oneTime->>date",
-              "eq",
-              formattedNextDate
-            );
-          } else if (parent.event_type === "sameDayMultiArea") {
-            existingQuery = existingQuery.filter(
-              "schedule->sameDayMultiArea->>date",
-              "eq",
-              formattedNextDate
-            );
+          const existingCheck = await hasExistingOccurrence(supabase, parent, formattedNextDate);
+          if (existingCheck.errorMessage) {
+            errors.push(existingCheck.errorMessage);
           }
 
-          const { data: existing } = await existingQuery.limit(1).single();
-
-          if (!existing) {
+          if (!existingCheck.exists) {
             const newSchedule = updateScheduleDate(parent.schedule, parent.event_type, nextDate);
             const publishedState = initializePublishedState(parent.event_type, newSchedule);
 
-            const { error: insertError } = await supabase.from("projects").insert({
+            const insertPayload = {
               creator_id: parent.creator_id,
               title: parent.title,
               description: parent.description,
@@ -309,19 +434,37 @@ async function processRecurringProjects(): Promise<{
               published: publishedState,
               recurrence_parent_id: parent.id,
               recurrence_sequence: currentSequence,
-            });
+              recurrence_occurrence_date: formattedNextDate,
+            };
+
+            let insertResult = await supabase.from("projects").insert(insertPayload);
+
+            if (insertResult.error && isMissingRecurrenceOccurrenceDateColumnError(insertResult.error)) {
+              const legacyInsertPayload = { ...insertPayload } as Record<string, unknown>;
+              delete legacyInsertPayload.recurrence_occurrence_date;
+              insertResult = await supabase.from("projects").insert(legacyInsertPayload);
+            }
+
+            const insertError = insertResult.error;
 
             if (insertError) {
-              errors.push(`Failed to create occurrence for ${parent.title}: ${insertError.message}`);
+              if (!isUniqueViolation(insertError)) {
+                errors.push(`Failed to create occurrence for ${parent.title}: ${insertError.message}`);
+              }
             } else {
               createdOccurrences++;
             }
           }
+          // Small delay after each check/insert inside a parent to stay under rate limits
+          await new Promise(resolve => setTimeout(resolve, 100));
         }
 
         currentSequence++;
         nextDate = calculateNextDate(nextDate, rule);
       }
+      
+      // Delay between different parent projects
+      await new Promise(resolve => setTimeout(resolve, 500));
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
       errors.push(`Error processing ${parent.title}: ${errorMessage}`);
@@ -329,7 +472,7 @@ async function processRecurringProjects(): Promise<{
   }
 
   return {
-    processedProjects: parentProjects.length,
+    processedProjects: parentsProcessed,
     createdOccurrences,
     errors,
   };

@@ -1,6 +1,6 @@
 import { Metadata } from "next";
-// import { createClient } from "@/lib/supabase/server";
-// import { redirect } from "next/navigation";
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
 import AuthenticationClient from "./AuthenticationClient";
 
 export const metadata: Metadata = {
@@ -9,14 +9,12 @@ export const metadata: Metadata = {
 };
 
 export default async function AuthenticationPage() {
-  // Check if user is authenticated
-  // const supabase = await createClient();
-  // const { data: { user } } = await supabase.auth.getUser();
-  
-  // if (!user) {
-  //   // Redirect unauthenticated users to login
-  //   redirect("/login?redirect=/account/authentication");
-  // }
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login?redirect=/account/authentication");
+  }
 
   return <AuthenticationClient />;
 }

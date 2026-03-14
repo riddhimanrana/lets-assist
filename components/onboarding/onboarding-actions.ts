@@ -4,6 +4,35 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { checkOffensiveLanguage } from "@/utils/moderation-helpers";
 
+type ServerSupabaseClient = Awaited<ReturnType<typeof createClient>>;
+
+async function updateUserMetadataAndRefreshSession(
+  supabase: ServerSupabaseClient,
+  existingMetadata: Record<string, unknown> | null | undefined,
+  metadataPatch: Record<string, unknown>,
+  context: string,
+): Promise<{ error?: string }> {
+  const { error: authError } = await supabase.auth.updateUser({
+    data: {
+      ...(existingMetadata ?? {}),
+      ...metadataPatch,
+    },
+  });
+
+  if (authError) {
+    console.error(`Error updating user metadata during ${context}:`, authError);
+    return { error: "Failed to update user metadata" };
+  }
+
+  const { error: refreshError } = await supabase.auth.refreshSession();
+
+  if (refreshError) {
+    console.error(`Error refreshing session during ${context}:`, refreshError);
+  }
+
+  return {};
+}
+
 // Schema for initial onboarding (username + phone only)
 const initialOnboardingSchema = z.object({
   username: z
@@ -110,18 +139,19 @@ export async function completeInitialOnboarding(
       return { error: "Failed to update profile" };
     }
 
-    // Update user metadata to mark onboarding as complete
-    const { error: authError } = await supabase.auth.updateUser({
-      data: {
+    const metadataResult = await updateUserMetadataAndRefreshSession(
+      supabase,
+      user.user_metadata as Record<string, unknown> | null | undefined,
+      {
         has_completed_onboarding: true,
         username: validUsername, // Also store in metadata for consistency
         phone: validPhoneNumber || null, // Store phone number in metadata
       },
-    });
+      "initial onboarding",
+    );
 
-    if (authError) {
-      console.error("Error updating user metadata:", authError);
-      return { error: "Failed to update user metadata" };
+    if (metadataResult.error) {
+      return metadataResult;
     }
 
     return { success: true };
@@ -140,15 +170,17 @@ export async function markIntroTourAsComplete(): Promise<{ success?: boolean; er
   }
 
   try {
-    const { error: authError } = await supabase.auth.updateUser({
-      data: {
-        has_completed_intro_tour: true
+    const metadataResult = await updateUserMetadataAndRefreshSession(
+      supabase,
+      user.user_metadata as Record<string, unknown> | null | undefined,
+      {
+        has_completed_intro_tour: true,
       },
-    });
+      "intro tour completion",
+    );
 
-    if (authError) {
-      console.error("Error updating intro tour status on server:", authError);
-      return { error: "Failed to update user metadata" };
+    if (metadataResult.error) {
+      return metadataResult;
     }
 
     return { success: true };

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { Calendar, CalendarCheck, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
@@ -35,6 +36,8 @@ export default function OrganizationCalendarSettings({
   organizationSlug,
   organizationName,
 }: OrganizationCalendarSettingsProps) {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [status, setStatus] = useState<Awaited<ReturnType<typeof getOrganizationCalendarStatus>> | null>(null);
   const [loading, setLoading] = useState(true);
   const [disconnecting, setDisconnecting] = useState(false);
@@ -59,6 +62,34 @@ export default function OrganizationCalendarSettings({
   useEffect(() => {
     loadStatus();
   }, [organizationId]);
+
+  // Handle success/error messages from URL
+  useEffect(() => {
+    const success = searchParams.get("success");
+    const error = searchParams.get("error");
+    const section = searchParams.get("section");
+
+    if (section === "calendar" && (success || error)) {
+      if (success === "connected") {
+        toast.success("Google Calendar connected successfully!");
+        // Clean up URL
+        const newParams = new URLSearchParams(searchParams.toString());
+        newParams.delete("success");
+        router.replace(`?${newParams.toString()}`, { scroll: false });
+        loadStatus();
+      } else if (error) {
+        if (error === "access_denied") {
+          toast.error("Access denied. Please grant calendar permissions.");
+        } else {
+          toast.error(`Connection failed: ${error}`);
+        }
+        // Clean up URL
+        const newParams = new URLSearchParams(searchParams.toString());
+        newParams.delete("error");
+        router.replace(`?${newParams.toString()}`, { scroll: false });
+      }
+    }
+  }, [searchParams, router]);
 
   const handleToggleAutoSync = async (enabled: boolean) => {
     setUpdatingAutoSync(true);

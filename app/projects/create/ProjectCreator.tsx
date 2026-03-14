@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useEventForm } from "@/hooks/use-event-form";
 import type { EventFormState } from "@/hooks/use-event-form";
 import BasicInfo from "./BasicInfo";
@@ -23,7 +23,8 @@ import { Loader2, ChevronLeft, ChevronRight, AlertCircle, Sparkles, Save } from 
 import { cn } from "@/lib/utils";
 // Replace shadcn toast with Sonner
 import { toast } from "sonner";
-import { createProject, uploadCoverImage, uploadProjectDocument, uploadWaiverPdf, finalizeProject, saveProjectAsNewDraft, autoSaveDraft } from "./actions";
+import { createProject, uploadCoverImage, uploadProjectDocument, uploadWaiverPdf, finalizeProject, saveProjectAsNewDraft, autoSaveDraft, deleteDraft, checkProfanity } from "./actions";
+import { saveWaiverDefinition } from "../[id]/actions";
 import { useRouter } from "next/navigation";
 // Import Zod schemas
 import {
@@ -63,12 +64,13 @@ interface ProjectCreatorProps {
     role: string;
     allowed_email_domains?: string[] | null;
   }[];
+  canUsePublicVisibility?: boolean;
   drafts?: Draft[];
   initialDraftData?: Partial<EventFormState>;
   initialDraftId?: string | null;
 }
 
-export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts = [], initialDraftData, initialDraftId }: ProjectCreatorProps) {
+export default function ProjectCreator({ initialOrgId, initialOrgOptions, canUsePublicVisibility = true, drafts = [], initialDraftData, initialDraftId }: ProjectCreatorProps) {
   const {
     state,
     nextStep,
@@ -94,8 +96,11 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
     updateShowAttendeesPublicly,
     updateWaiverRequired,
     updateWaiverAllowUpload,
+    updateWaiverDisableEsignature,
     updateWaiverPdfFile,
     updateWaiverPdfValidation,
+    updateWaiverDefinition,
+    updateDetectedFields,
     clearWaiverPdf,
     updateRecurrence,
     loadDraftState,
@@ -124,6 +129,25 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
 
   // AI Assistant state
   const [showAIAssistant, setShowAIAssistant] = useState(false);
+  const [showLocationPointer, setShowLocationPointer] = useState(false);
+
+  const shouldPromptWaiverReuploadFromDraft = useMemo(
+    () =>
+      Boolean(
+        initialDraftData?.waiverRequired &&
+          (
+            initialDraftData?.waiverDefinition ||
+            initialDraftData?.detectedFields ||
+            initialDraftData?.waiverPdfFile ||
+            initialDraftData?.waiverPdfUrl ||
+            initialDraftData?.waiverPdfValidation
+          )
+      ),
+    [initialDraftData]
+  );
+  const [showWaiverReuploadNotice, setShowWaiverReuploadNotice] = useState(
+    shouldPromptWaiverReuploadFromDraft
+  );
 
   // Autosave state - initialize with loaded draft ID if available
   const [autosaveDraftId, setAutosaveDraftId] = useState<string | undefined>(initialDraftId || undefined);
@@ -131,7 +155,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [_lastAutosaveTime, setLastAutosaveTime] = useState<Date | null>(null);
 
-  type AIScheduleSlot = { startTime: string; endTime: string; volunteers: number };
+  type AIScheduleSlot = { name?: string; startTime: string; endTime: string; volunteers: number };
   type AIScheduleDay = { date: string; slots?: AIScheduleSlot[] };
   type AIScheduleRole = { name: string; startTime: string; endTime: string; volunteers: number };
   type AIScheduleSameDay = { date: string; overallStart?: string; overallEnd?: string; roles?: AIScheduleRole[] };
@@ -158,10 +182,46 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
   const stateSnapshot = useMemo(() => JSON.stringify(state), [state]);
   const previousStateRef = useRef<string>("");
 
+  const getDraftSafeState = useCallback(
+    (): Partial<EventFormState> => ({
+      ...state,
+      // Waiver configuration is persisted; uploaded PDF-specific data is intentionally not persisted in drafts.
+      waiverPdfFile: null,
+      waiverPdfUrl: null,
+      waiverPdfValidation: null,
+    }),
+    [state]
+  );
+
+  useEffect(() => {
+    if (shouldPromptWaiverReuploadFromDraft) {
+      setShowWaiverReuploadNotice(true);
+    }
+  }, [shouldPromptWaiverReuploadFromDraft]);
+
+  useEffect(() => {
+    if (state.waiverPdfFile || state.waiverPdfUrl) {
+      setShowWaiverReuploadNotice(false);
+    }
+  }, [state.waiverPdfFile, state.waiverPdfUrl]);
+
+  // Keep UI state aligned with trust policy: non-trusted users cannot keep
+  // public visibility selected in the editor.
+  useEffect(() => {
+    if (!canUsePublicVisibility && state.visibility === "public") {
+      updateVisibility("unlisted");
+    }
+  }, [canUsePublicVisibility, state.visibility, updateVisibility]);
+
   // Autosave to database on state changes (debounced and change-based)
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (!state) return;
+
+    // Don't autosave while submitting/saving to avoid recreating drafts during publish flow
+    if (isSubmitting || isSavingDraft) {
+      return;
+    }
 
     // Skip autosave if there's no title
     if (!state.basicInfo.title || state.basicInfo.title.trim() === '') {
@@ -186,7 +246,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
       try {
         setAutosaveStatus('saving');
 
-        const result = await autoSaveDraft(state, autosaveDraftId);
+        const result = await autoSaveDraft(getDraftSafeState(), autosaveDraftId);
 
         if (result.autosaved && result.id) {
           // Set the draft ID if this is the first autosave
@@ -224,12 +284,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
         clearTimeout(autosaveTimerRef.current);
       }
     };
-  }, [stateSnapshot, state, autosaveDraftId]);
-
-  // Add handler to update profanity state
-  const handleProfanityResult = (hasIssues: boolean) => {
-    setHasProfanity(hasIssues);
-  };
+  }, [stateSnapshot, state, autosaveDraftId, isSubmitting, isSavingDraft, getDraftSafeState]);
 
   // Handle AI-generated data
   const handleApplyAIData = (data: AIParseResult) => {
@@ -272,11 +327,13 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
             if (Array.isArray(day.slots)) {
               day.slots.forEach((slot, slotIndex) => {
                 if (slotIndex === 0) {
+                  handleMultiDayScheduleUpdate(0, 'name', slot.name || '', 0);
                   handleMultiDayScheduleUpdate(0, 'startTime', slot.startTime, 0);
                   handleMultiDayScheduleUpdate(0, 'endTime', slot.endTime, 0);
                   handleMultiDayScheduleUpdate(0, 'volunteers', slot.volunteers, 0);
                 } else {
                   addMultiDaySlot(0);
+                  handleMultiDayScheduleUpdate(0, 'name', slot.name || '', slotIndex);
                   handleMultiDayScheduleUpdate(0, 'startTime', slot.startTime, slotIndex);
                   handleMultiDayScheduleUpdate(0, 'endTime', slot.endTime, slotIndex);
                   handleMultiDayScheduleUpdate(0, 'volunteers', slot.volunteers, slotIndex);
@@ -289,11 +346,13 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
             if (Array.isArray(day.slots)) {
               day.slots.forEach((slot, slotIndex) => {
                 if (slotIndex === 0) {
+                  handleMultiDayScheduleUpdate(dayIndex, 'name', slot.name || '', 0);
                   handleMultiDayScheduleUpdate(dayIndex, 'startTime', slot.startTime, 0);
                   handleMultiDayScheduleUpdate(dayIndex, 'endTime', slot.endTime, 0);
                   handleMultiDayScheduleUpdate(dayIndex, 'volunteers', slot.volunteers, 0);
                 } else {
                   addMultiDaySlot(dayIndex);
+                  handleMultiDayScheduleUpdate(dayIndex, 'name', slot.name || '', slotIndex);
                   handleMultiDayScheduleUpdate(dayIndex, 'startTime', slot.startTime, slotIndex);
                   handleMultiDayScheduleUpdate(dayIndex, 'endTime', slot.endTime, slotIndex);
                   handleMultiDayScheduleUpdate(dayIndex, 'volunteers', slot.volunteers, slotIndex);
@@ -342,8 +401,36 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
       updateRequireLogin(data.requireLogin);
     }
 
+    // Apply recurrence settings
+    if (data.recurrence) {
+      if (data.recurrence.enabled !== undefined) {
+        updateRecurrence('enabled', data.recurrence.enabled);
+      }
+      if (data.recurrence.frequency) {
+        updateRecurrence('frequency', data.recurrence.frequency);
+      }
+      if (data.recurrence.interval !== undefined) {
+        updateRecurrence('interval', data.recurrence.interval);
+      }
+      if (data.recurrence.endType) {
+        updateRecurrence('endType', data.recurrence.endType);
+      }
+      if (data.recurrence.endDate) {
+        updateRecurrence('endDate', data.recurrence.endDate);
+      }
+      if (data.recurrence.endOccurrences !== undefined) {
+        updateRecurrence('endOccurrences', data.recurrence.endOccurrences);
+      }
+      if (data.recurrence.weekdays) {
+        updateRecurrence('weekdays', data.recurrence.weekdays);
+      }
+    }
+
     // Close AI Assistant
     setShowAIAssistant(false);
+    
+    // Show a pointer to the location field to encourage manual verification/filling
+    setShowLocationPointer(true);
   };
 
   // Clear errors when a field is updated
@@ -445,6 +532,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
             visibility: state.visibility,
             waiverRequired: state.waiverRequired,
             waiverAllowUpload: state.waiverAllowUpload,
+            waiverDisableEsignature: state.waiverDisableEsignature,
           });
           setVerificationErrors([]);
           return true;
@@ -508,12 +596,6 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
       return;
     }
 
-    // Check for profanity before allowing submission
-    if (hasProfanity) {
-      toast.error("Please fix the flagged content before creating your project");
-      return;
-    }
-
     // Final validation of all steps before submission
     try {
       basicInfoSchema.parse(state.basicInfo);
@@ -534,6 +616,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
         showAttendeesPublicly: state.showAttendeesPublicly,
         waiverRequired: state.waiverRequired,
         waiverAllowUpload: state.waiverAllowUpload,
+        waiverDisableEsignature: state.waiverDisableEsignature,
       });
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -546,6 +629,29 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
 
     try {
       setIsSubmitting(true);
+
+      const profanityToast = toast.loading("Checking content for inappropriate language...");
+      const profanityCheck = await checkProfanity({
+        title: state.basicInfo.title || "",
+        location: state.basicInfo.location || "",
+        description: state.basicInfo.description || "",
+      });
+      toast.dismiss(profanityToast);
+
+      if (profanityCheck?.hasProfanity) {
+        setHasProfanity(true);
+        toast.error("Please fix the flagged content before creating your project");
+        setIsSubmitting(false);
+        return;
+      }
+
+      setHasProfanity(false);
+
+      // Prevent any pending autosave from firing during submission
+      if (autosaveTimerRef.current) {
+        clearTimeout(autosaveTimerRef.current);
+        autosaveTimerRef.current = null;
+      }
 
       // Show loading toast
       const loadingToast = toast.loading("Creating your project...");
@@ -623,6 +729,15 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
             console.error(`Waiver PDF: ${waiverResult.error}`);
             hasErrors = true;
           }
+          
+          // Step 4.5: Save waiver definition if configured
+          if (!waiverResult.error && state.waiverDefinition) {
+             const defResult = await saveWaiverDefinition(projectId, state.waiverDefinition);
+             if (defResult.error) {
+                console.error(`Waiver Definition: ${defResult.error}`);
+                hasErrors = true;
+             }
+          }
         } catch (error) {
           console.error("Error processing waiver PDF:", error);
           hasErrors = true;
@@ -634,11 +749,26 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
         console.error("Error finalizing project:", error);
       });
 
+      // Step 6: Cleanup draft/autosave entry if it exists
+      if (autosaveDraftId) {
+        const draftIdToDelete = autosaveDraftId;
+
+        // Clear local autosave tracking first so we don't attempt further updates
+        setAutosaveDraftId(undefined);
+        setAutosaveStatus('idle');
+        previousStateRef.current = "";
+
+        const deleteResult = await deleteDraft(draftIdToDelete);
+        if (deleteResult && "error" in deleteResult && deleteResult.error) {
+          console.error("Failed to delete draft after project creation:", deleteResult.error);
+        }
+      }
+
       // Dismiss loading toast and show success
       toast.dismiss(loadingToast);
       const message = hasErrors
         ? "Project created but some files couldn't be uploaded"
-        : "Project Created Successfully! 🎉";
+        : "Project Created Successfully!";
 
       if (hasErrors) {
         toast.warning(message);
@@ -674,7 +804,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
       const loadingToast = toast.loading("Saving new draft...");
 
       const formData = new FormData();
-      formData.append("projectData", JSON.stringify(state));
+      formData.append("projectData", JSON.stringify(getDraftSafeState()));
 
       const result = await saveProjectAsNewDraft(formData);
 
@@ -686,7 +816,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
       }
 
       toast.dismiss(loadingToast);
-      toast.success("New draft saved! Refreshing...");
+      toast.success("New draft saved!");
 
       // Refresh the page to update the drafts list
       router.refresh();
@@ -725,6 +855,8 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
             updateBasicInfoAction={handleBasicInfoUpdate}
             initialOrgId={initialOrgId}
             initialOrganizations={initialOrgOptions}
+            showLocationPointer={showLocationPointer}
+            onLocationPointerDismiss={() => setShowLocationPointer(false)}
             errors={{
               title: getFieldError("title", basicInfoErrors),
               location: getFieldError("location", basicInfoErrors),
@@ -763,13 +895,20 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
             requireLogin={state.requireLogin}
             isOrganization={isOrganizationProject()}
             visibility={state.visibility}
+            canUsePublicVisibility={canUsePublicVisibility}
             enableVolunteerComments={state.enableVolunteerComments}
             showAttendeesPublicly={state.showAttendeesPublicly}
             waiverRequired={state.waiverRequired}
             waiverAllowUpload={state.waiverAllowUpload}
+            waiverDisableEsignature={state.waiverDisableEsignature}
             waiverPdfFile={state.waiverPdfFile}
             waiverPdfUrl={state.waiverPdfUrl}
             waiverPdfValidation={state.waiverPdfValidation}
+            waiverDefinition={state.waiverDefinition}
+            detectedFields={state.detectedFields}
+            showWaiverReuploadNotice={showWaiverReuploadNotice}
+            updateWaiverDefinitionAction={updateWaiverDefinition}
+            updateDetectedFieldsAction={updateDetectedFields}
             restrictToOrgDomains={state.restrictToOrgDomains}
             allowedEmailDomains={
               state.basicInfo.organizationId
@@ -798,6 +937,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
             updateShowAttendeesPubliclyAction={updateShowAttendeesPublicly}
             updateWaiverRequiredAction={updateWaiverRequired}
             updateWaiverAllowUploadAction={updateWaiverAllowUpload}
+            updateWaiverDisableEsignatureAction={updateWaiverDisableEsignature}
             updateWaiverPdfFileAction={updateWaiverPdfFile}
             updateWaiverPdfValidationAction={updateWaiverPdfValidation}
             clearWaiverPdfAction={clearWaiverPdf}
@@ -813,7 +953,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
             state={state}
             setCoverImageAction={setCoverImage} // Updated prop name
             setDocumentsAction={setDocuments}   // Updated prop name
-            onProfanityChange={handleProfanityResult}
+            hasProfanity={hasProfanity}
           />
         );
       default:
@@ -876,7 +1016,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
             variant="outline"
             onClick={prevStep}
             disabled={state.step === 1 || isSubmitting || isSavingDraft}
-            className="w-[120px]"
+            className="w-30"
           >
             <ChevronLeft className="h-4 w-4 mr-2" />
             Back
@@ -945,7 +1085,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, drafts
             <Button
               onClick={handleSubmit}
               disabled={isSubmitting || isSavingDraft}
-              className="w-[120px]"
+              className="w-30"
             >
               {isSubmitting ? (
                 <Loader2 className="h-4 w-4 animate-spin" />

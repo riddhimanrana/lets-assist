@@ -90,6 +90,8 @@ const orgUpdateSchema = z.object({
         /^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/.test(val),
       "Please enter a valid domain (e.g., example.org)"
     ),
+
+  showMembersPublicly: z.boolean().optional(),
 });
 
 type OrganizationFormValues = z.infer<typeof orgUpdateSchema>;
@@ -104,6 +106,7 @@ type OrganizationWithSettings = Organization & {
   auto_join_domain?: string | null;
   type?: string | null;
   logo_url?: string | null;
+  show_members_publicly?: boolean | null;
 };
 
 export default function EditOrganizationForm({ organization, userId: _userId }: EditOrganizationFormProps) {
@@ -138,6 +141,7 @@ export default function EditOrganizationForm({ organization, userId: _userId }: 
       logoUrl: organization.logo_url || null,
       enableAutoJoin: !!organization.auto_join_domain,
       autoJoinDomain: organization.auto_join_domain || "",
+      showMembersPublicly: organization.show_members_publicly !== false,
     },
   });
 
@@ -320,6 +324,7 @@ export default function EditOrganizationForm({ organization, userId: _userId }: 
         website: data.website || "",
         logoUrl: data.logoUrl === undefined ? organization.logo_url : data.logoUrl,
         autoJoinDomain: newDomain || null,
+        showMembersPublicly: data.showMembersPublicly,
       });
 
       if (result.error) {
@@ -676,7 +681,29 @@ export default function EditOrganizationForm({ organization, userId: _userId }: 
                 />
               )}
             </div>
-          </CardContent>
+            {/* Member Visibility Section */}
+            <div className="space-y-4 rounded-lg border p-4 bg-muted/30">
+              <Controller
+                control={form.control}
+                name="showMembersPublicly"
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid} className="flex flex-row items-center justify-between">
+                    <div className="space-y-0.5">
+                      <FieldLabel htmlFor={field.name} className="text-base">Show Members Publicly</FieldLabel>
+                      <FieldDescription>
+                        Allow visitors to see the list of organization members
+                      </FieldDescription>
+                    </div>
+                    <Switch
+                      id={field.name}
+                      checked={field.value ?? true}
+                      onCheckedChange={field.onChange}
+                      aria-invalid={fieldState.invalid}
+                    />
+                  </Field>
+                )}
+              />
+            </div>          </CardContent>
           <CardFooter className="flex justify-between">
             <Button
               type="submit"

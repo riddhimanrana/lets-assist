@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ShieldCheck, Search, Loader2 } from "lucide-react";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { NoAvatar } from "@/components/shared/NoAvatar";
 import {
   Dialog,
@@ -140,25 +140,13 @@ export function TrustedMembersTab({ trustedMembers }: TrustedMembersTabProps) {
                 <div key={user.id} className="flex items-center justify-between p-3 border rounded-xl hover:bg-muted/50 transition-colors">
                   <div className="flex items-center gap-3">
                     <Avatar className="h-10 w-10">
-                      {user.avatar_url ? (
-                        <>
-                          <AvatarImage src={user.avatar_url} />
-                          <AvatarFallback>
-                            {user.full_name
-                              ? user.full_name
-                                  .split(" ")
-                                  .map((n) => n[0])
-                                  .slice(0, 2)
-                                  .join("")
-                                  .toUpperCase()
-                              : user.email[0].toUpperCase()}
-                          </AvatarFallback>
-                        </>
-                      ) : (
-                        <AvatarFallback>
-                          <NoAvatar fullName={user.full_name || user.email.split("@")[0]} />
-                        </AvatarFallback>
-                      )}
+                      <AvatarImage
+                        src={user.avatar_url || undefined}
+                        alt={user.full_name || "User"}
+                      />
+                      <AvatarFallback>
+                        <NoAvatar fullName={user.full_name || user.email.split("@")[0]} />
+                      </AvatarFallback>
                     </Avatar>
                     <div className="min-w-0">
                       <p className="font-medium truncate">{user.full_name || user.email.split("@")[0]}</p>

@@ -82,6 +82,30 @@ export async function GET(request: Request) {
       })
     ).toString("base64");
 
+    const wantsSheetsScopes = scopeType === "sheets" || scopeType === "both" || isSheetsSync;
+    const connectionTypesToCheck = wantsSheetsScopes
+      ? ["sheets", "both"]
+      : ["calendar", "both"];
+
+    const { data: existingConnection } = await supabase
+      .from("user_calendar_connections")
+      .select("refresh_token")
+      .eq("user_id", user.id)
+      .eq("provider", "google")
+      .eq("is_active", true)
+      .in("connection_type", connectionTypesToCheck)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const shouldPromptConsent = forceConsent || !existingConnection?.refresh_token;
+
+    const sheetsScopes = [
+      "https://www.googleapis.com/auth/spreadsheets",
+      "https://www.googleapis.com/auth/drive.file",
+      "https://www.googleapis.com/auth/drive.metadata.readonly",
+    ];
+
     // Build Google OAuth URL
     // IMPORTANT: redirect_uri must exactly match what's configured in Google Cloud Console
     const googleAuthUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
@@ -95,16 +119,12 @@ export async function GET(request: Request) {
     // Determine which scopes to request based on the connection type
     if (scopeType === "sheets" || isSheetsSync) {
       // Sheets-only connection (for organization reports)
-      scopes.push(
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/drive.file"
-      );
+      scopes.push(...sheetsScopes);
     } else if (scopeType === "both") {
       // Both calendar and sheets (rare case)
       scopes.push(
         "https://www.googleapis.com/auth/calendar",
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/drive.file"
+        ...sheetsScopes
       );
     } else {
       // Default to calendar-only (for organization calendar sync or personal calendar)
@@ -114,7 +134,7 @@ export async function GET(request: Request) {
     googleAuthUrl.searchParams.set("scope", scopes.join(" "));
     googleAuthUrl.searchParams.set("access_type", "offline");
     googleAuthUrl.searchParams.set("include_granted_scopes", "true");
-    if (forceConsent) {
+    if (shouldPromptConsent) {
       googleAuthUrl.searchParams.set("prompt", "consent");
     }
     googleAuthUrl.searchParams.set("state", state);

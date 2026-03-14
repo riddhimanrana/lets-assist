@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
+import { escapeHtml } from "@/lib/security/html";
 import { Search, ArrowLeft, Clock, CheckCircle, Printer, RefreshCw, ArrowUpDown, ChevronUp, ChevronDown, Loader2, UserRoundCheck, CalendarClock, AlertCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -120,6 +121,9 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
       document.body.appendChild(printContainer);
     }
 
+    const safeProjectTitle = escapeHtml(project?.title || 'Project');
+    const printedAt = escapeHtml(`${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`);
+
     // Generate HTML content for printing
     const printContent = `
       <div class="print-content">
@@ -134,12 +138,13 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
         th { background-color: #f2f2f2; }
         }
       </style>
-      <h1>Attendance Record - ${project?.title || 'Project'}</h1>
-      <div>Printed: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</div>
+      <h1>Attendance Record - ${safeProjectTitle}</h1>
+      <div>Printed: ${printedAt}</div>
       ${Object.entries(filteredAttendanceBySession).map(([session, sessionAttendance]) => {
+      const safeSessionLabel = project ? escapeHtml(formatSessionName(project, session)) : escapeHtml(session);
       return sessionAttendance.length > 0 ? `
         <div class="session-attendance">
-          <h2>${project && formatSessionName(project, session)}</h2>
+          <h2>${safeSessionLabel}</h2>
           <table>
           <thead><tr><th>Name</th><th>Email</th><th>Type</th><th>Check-in Time</th><th>Check-out Time</th></tr></thead>
           <tbody>
@@ -150,14 +155,16 @@ export function AttendanceClient({ projectId, initialAvailability }: Props): Rea
         const type = isRegistered ? 'Registered' : 'Anonymous';
         const checkInTime = a.check_in_time ? format(parseISO(a.check_in_time), 'MMM d, yyyy h:mm a') : 'N/A';
         const checkOutTime = a.check_out_time ? format(parseISO(a.check_out_time), 'MMM d, yyyy h:mm a') : 'N/A';
+        const safeName = escapeHtml(name || 'N/A');
+        const safeEmail = escapeHtml(email || 'N/A');
 
         return `
               <tr>
-                <td>${name || 'N/A'}</td>
-                <td>${email || 'N/A'}</td>
-                <td>${type}</td>
-                <td>${checkInTime}</td>
-                <td>${checkOutTime}</td>
+          <td>${safeName}</td>
+          <td>${safeEmail}</td>
+          <td>${escapeHtml(type)}</td>
+          <td>${escapeHtml(checkInTime)}</td>
+          <td>${escapeHtml(checkOutTime)}</td>
               </tr>
               `;
       }).join('')}

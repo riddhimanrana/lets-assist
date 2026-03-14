@@ -1,4 +1,6 @@
-export type WaiverSignatureType = "draw" | "typed" | "upload";
+import { SignaturePayload } from "./waiver-definitions";
+
+export type WaiverSignatureType = "draw" | "typed" | "upload" | "multi-signer";
 
 export interface WaiverTemplate {
   id: string;
@@ -44,12 +46,16 @@ export interface WaiverSignatureInput {
   signerEmail?: string;
   waiverPdfUrl?: string;
   formData?: Record<string, string | boolean | string[]>;
+  // Phase 4: Multi-signer payload
+  payload?: SignaturePayload; 
+  definitionId?: string;
 }
 
 // Project waiver configuration
 export interface ProjectWaiverConfig {
   waiverRequired: boolean;
   waiverAllowUpload: boolean;
+  waiverDisableEsignature?: boolean;
   waiverPdfUrl?: string | null;
   waiverPdfStoragePath?: string | null;
 }

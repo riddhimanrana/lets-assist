@@ -1,6 +1,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
+import { getPublicProfilesByIds } from "@/lib/profile/public";
 import { getProjectStatus } from "@/utils/project";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { buttonVariants } from "@/components/ui/button-variants";
@@ -153,10 +154,7 @@ export default async function UserProjects() {
   type CreatorProfile = ProjectWithCreator["creator"];
   let creatorProfiles: Record<string, CreatorProfile> = {};
   if (projectCreatorIds && projectCreatorIds.length > 0) {
-    const { data: profiles } = await supabase
-      .from("profiles")
-      .select("id, full_name, avatar_url, username")
-      .in("id", projectCreatorIds);
+    const { data: profiles } = await getPublicProfilesByIds(projectCreatorIds);
 
     if (profiles) {
       creatorProfiles = profiles.reduce<Record<string, CreatorProfile>>((acc, profile) => {
@@ -399,6 +397,7 @@ export default async function UserProjects() {
                       key={`created-${project.id}`}
                       project={project}
                       href={`/projects/${project.id}`}
+                      showIdentity={false}
                       topLeftBadge={
                         <Badge variant="outline" className="text-xs">
                           {(project.project_signups || []).filter((s) => s.status === "approved" || s.status === "attended").length} volunteers
@@ -419,6 +418,7 @@ export default async function UserProjects() {
                         key={`created-progress-${project.id}`}
                         project={project}
                         href={`/projects/${project.id}`}
+                        showIdentity={false}
                         topLeftBadge={
                           <Badge variant="outline" className="text-xs">
                             {(project.project_signups || []).filter((s) => s.status === "approved" || s.status === "attended").length} volunteers
@@ -441,6 +441,7 @@ export default async function UserProjects() {
                         key={`created-past-${project.id}`}
                         project={project}
                         href={`/projects/${project.id}`}
+                        showIdentity={false}
                         topLeftBadge={<Badge variant="outline" className="bg-muted text-xs">Past Event</Badge>}
                         className="bg-muted/30"
                         actionVariant="outline"

@@ -1,6 +1,9 @@
+import { redirect } from "next/navigation";
 import { Metadata } from "next";
 import SignupClient from "./SignupClient";
-import { createClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/supabase/auth-helpers";
+import { applyStaffInviteForUser } from "@/lib/organization/staff-invite";
+import { buildStaffInviteRedirectPath } from "@/lib/organization/staff-invite-outcome";
 
 export const metadata: Metadata = {
   title: "Sign Up",
@@ -12,38 +15,27 @@ interface SignupPageProps {
 }
 
 export default async function SignupPage({ searchParams }: SignupPageProps) {
-  const { redirect, staff_token, org } = await searchParams;
-  
-  // If staff_token is provided, validate it and get org info
-  let validStaffToken: string | undefined;
-  let orgUsername: string | undefined;
-  
+  const { redirect: redirectPath, staff_token, org } = await searchParams;
+
   if (staff_token && org) {
-    const supabase = await createClient();
-    
-    // Verify the token is valid for the org
-    const { data: orgData } = await supabase
-      .from("organizations")
-      .select("username, staff_join_token, staff_join_token_expires_at")
-      .eq("username", org)
-      .single();
-    
-    if (
-      orgData &&
-      orgData.staff_join_token === staff_token &&
-      orgData.staff_join_token_expires_at &&
-      new Date(orgData.staff_join_token_expires_at) > new Date()
-    ) {
-      validStaffToken = staff_token;
-      orgUsername = org;
+    const { user } = await getAuthUser({ allowMfaPending: true });
+
+    if (user) {
+      const inviteOutcome = await applyStaffInviteForUser({
+        userId: user.id,
+        staffToken: staff_token,
+        orgUsername: org,
+      });
+
+      redirect(buildStaffInviteRedirectPath(inviteOutcome));
     }
   }
   
   return (
     <SignupClient 
-      redirectPath={redirect ?? ""} 
-      staffToken={validStaffToken}
-      orgUsername={orgUsername}
+      redirectPath={redirectPath ?? ""} 
+      staffToken={staff_token}
+      orgUsername={org}
     />
   );
 }

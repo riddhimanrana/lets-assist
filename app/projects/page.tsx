@@ -2,17 +2,14 @@ import React from "react";
 import { Metadata } from "next";
 import { ProjectsInfiniteScroll } from "@/components/projects/ProjectsInfiniteScroll";
 import Link from "next/link"
-import { createClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import UserProjects from "./UserProjects"
 async function getUserData() {
-    const supabase = await createClient(); // (/Users/riddhiman.rana/Desktop/Coding/lets-assist/app/projects/page.tsx, line 2)
-    return supabase.auth.getUser();
+    return getAuthUser();
 }
 
 export async function generateMetadata(): Promise<Metadata> {
-    const {
-        data: { user },
-    } = await getUserData(); // (/Users/riddhiman.rana/Desktop/Coding/lets-assist/app/projects/page.tsx, line 12)
+    const { user } = await getUserData();
     if (user) {
         return {
             title: "My Projects",
@@ -28,10 +25,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function ProjectsPage() {
-    const {
-        data: { user },
-    } = await getUserData(); // (/Users/riddhiman.rana/Desktop/Coding/lets-assist/app/projects/page.tsx, line 29)
-    console.log("User data:", user); // Debugging line
+    const { user } = await getUserData();
     if (user) {
         return <UserProjects />;
     }

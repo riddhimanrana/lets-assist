@@ -64,14 +64,18 @@ export async function POST(request: Request) {
       }
     }
 
-    // Delete the connection
-    const { error: deleteError } = (await supabase
+    // Deactivate instead of deleting so preferences (like volunteering_calendar_id)
+    // survive reconnect and we can continue using the same Google Calendar.
+    const { error: deactivateError } = (await supabase
       .from("user_calendar_connections")
-      .delete()
+      .update({
+        is_active: false,
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", connection.id)) as { error: { message?: string } | null };
 
-    if (deleteError) {
-      console.error("Failed to delete connection:", deleteError);
+    if (deactivateError) {
+      console.error("Failed to deactivate connection:", deactivateError);
       return NextResponse.json(
         { error: "Failed to disconnect calendar" },
         { status: 500 }

@@ -41,6 +41,18 @@ interface StaffLinkDisplayProps {
   organizationUsername: string;
 }
 
+const expirationOptions = [
+  { value: "7", label: "7 days" },
+  { value: "30", label: "30 days" },
+  { value: "90", label: "90 days" },
+  { value: "365", label: "1 year" },
+] as const;
+
+const getExpirationLabel = (value: string | null | undefined) => {
+  const normalized = value ?? "";
+  return expirationOptions.find((option) => option.value === normalized)?.label || normalized;
+};
+
 export default function StaffLinkDisplay({
   organizationId,
   organizationUsername
@@ -83,7 +95,7 @@ export default function StaffLinkDisplay({
   const handleGenerate = async () => {
     setIsLoading(true);
     try {
-      const result = await generateStaffLink(organizationId, parseInt(expirationDays));
+      const result = await generateStaffLink(organizationId, parseInt(expirationDays, 10));
 
       if (result.error) {
         toast.error(result.error);
@@ -191,7 +203,7 @@ export default function StaffLinkDisplay({
               disabled={isLoading}
             >
               {copied ? (
-                <Check className="h-4 w-4 text-green-500" />
+                <Check className="h-4 w-4 text-success" />
               ) : (
                 <Copy className="h-4 w-4" />
               )}
@@ -256,13 +268,16 @@ export default function StaffLinkDisplay({
                 onValueChange={(val) => val && setExpirationDays(val)}
               >
                 <SelectTrigger id="expiration" className="mt-1.5">
-                  <SelectValue />
+                  <SelectValue placeholder="Select duration">
+                    {getExpirationLabel(expirationDays)}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="7">7 days</SelectItem>
-                  <SelectItem value="30">30 days</SelectItem>
-                  <SelectItem value="90">90 days</SelectItem>
-                  <SelectItem value="365">1 year</SelectItem>
+                  {expirationOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

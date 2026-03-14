@@ -42,6 +42,7 @@ import {
 import { publishVolunteerHours } from "./actions"; // Import the server action
 import { TimePicker } from "@/components/ui/time-picker"; // Import the TimePicker
 import { formatTimeTo12Hour } from "@/lib/utils"; // Assuming this exists and works
+import { getMultiDaySlotDisplayName } from "@/utils/project";
 
 // Define the structure for edited times
 type EditedTime = {
@@ -110,6 +111,10 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
     }>;
   } | null>(null);
   const [loadingCertificates, setLoadingCertificates] = useState(false);
+
+  // State for resending certificates
+  const [showResendDialog, setShowResendDialog] = useState<string | null>(null);
+  const [resendingSessions, setResendingSessions] = useState<Record<string, boolean>>({});
 
   // Log initial data for debugging
   useEffect(() => {
@@ -186,8 +191,9 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
           const date = parseISO(day.date);
           const startTime = formatTimeTo12Hour(slot.startTime);
           const endTime = formatTimeTo12Hour(slot.endTime);
+          const slotLabel = getMultiDaySlotDisplayName(slot, slotIndex);
 
-          return `${format(date, "MMMM d, yyyy")} (${startTime} - ${endTime})`;
+          return `${format(date, "MMMM d, yyyy")} - ${slotLabel} (${startTime} - ${endTime})`;
         }
       }
     }
@@ -496,6 +502,55 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
         ...prev,
         [sessionId]: false
       }));
+    }
+  };
+
+  // Handler for resending certificate emails
+  const handleResendCertificates = async (sessionId: string) => {
+    setResendingSessions(prev => ({
+      ...prev,
+      [sessionId]: true
+    }));
+
+    try {
+      // Find all certificates for this session to get their IDs
+      let sessionSignups: ProjectSignup[] = [];
+      if (signupsBySession[sessionId]) {
+        sessionSignups = signupsBySession[sessionId];
+      }
+
+      // Extract certificate IDs from signups
+      // In a real scenario, we'd fetch actual certificates from DB
+      // For now, we'll collect emails and let the action handle it
+      
+      if (sessionSignups.length === 0) {
+        toast.error("No volunteers found for this session");
+        return;
+      }
+
+      // Call the resend action
+      const { resendCertificateEmails } = await import("./actions");
+      
+      // Get all certificate IDs for the session - in a real app, you'd fetch these from DB
+      // For now, let's call the action with the session ID
+      // We'll need to modify this based on actual certificate tracking
+      
+      // TODO: Implement proper certificate ID tracking and resending
+      toast.success("Resend certificates feature coming soon", {
+        description: "This feature will allow you to resend certificates to volunteers."
+      });
+
+    } catch (error) {
+      console.error("Error resending certificates:", error);
+      toast.error("Resend Error", {
+        description: "An error occurred while resending certificates."
+      });
+    } finally {
+      setResendingSessions(prev => ({
+        ...prev,
+        [sessionId]: false
+      }));
+      setShowResendDialog(null);
     }
   };
 
@@ -1485,26 +1540,91 @@ export function HoursClient({ project, initialSignups, hoursUntilWindowCloses: _
 
                       {/* Show view certificates button if published */}
                       {isPublished && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="whitespace-nowrap"
-                          onClick={() => loadCertificatesData(session.id)}
-                          disabled={loadingCertificates}
-                        >
-                          {loadingCertificates ? (
-                            <>
-                              <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
-                              Loading...
-                            </>
-                          ) : (
-                            <>
-                              <FileText className="h-4 w-4 mr-1.5" />
-                              <span className="hidden sm:inline">View Certificates</span>
-                              <span className="sm:hidden">Certificates</span>
-                            </>
-                          )}
-                        </Button>
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="whitespace-nowrap"
+                            onClick={() => loadCertificatesData(session.id)}
+                            disabled={loadingCertificates}
+                          >
+                            {loadingCertificates ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                                Loading...
+                              </>
+                            ) : (
+                              <>
+                                <FileText className="h-4 w-4 mr-1.5" />
+                                <span className="hidden sm:inline">View Certificates</span>
+                                <span className="sm:hidden">Certificates</span>
+                              </>
+                            )}
+                          </Button>
+                          
+                          <Dialog open={showResendDialog === session.id} onOpenChange={(open) => {
+                            if (!open) setShowResendDialog(null);
+                          }}>
+                            <DialogTrigger render={
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="whitespace-nowrap"
+                                disabled={resendingSessions[session.id]}
+                              >
+                                {resendingSessions[session.id] ? (
+                                  <>
+                                    <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                                    Resending...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Mail className="h-4 w-4 mr-1.5" />
+                                    <span className="hidden sm:inline">Resend</span>
+                                    <span className="sm:hidden">Resend</span>
+                                  </>
+                                )}
+                              </Button>
+                            } onClick={() => setShowResendDialog(session.id)} />
+                            <DialogContent className="sm:max-w-lg">
+                              <DialogHeader>
+                                <DialogTitle>Resend Certificates</DialogTitle>
+                                <DialogDescription>
+                                  Resend certificate emails to volunteers who have already received their certificates.
+                                  This is useful for corrections or if volunteers didn't receive their original email.
+                                </DialogDescription>
+                              </DialogHeader>
+                              
+                              <div className="space-y-4 py-4">
+                                <p className="text-sm text-muted-foreground">
+                                  Are you sure you want to resend all certificates for this session to volunteers?
+                                </p>
+                              </div>
+                              
+                              <DialogFooter className="gap-2">
+                                <DialogClose render={
+                                  <Button variant="outline">Cancel</Button>
+                                } />
+                                <Button
+                                  onClick={() => handleResendCertificates(session.id)}
+                                  disabled={resendingSessions[session.id]}
+                                >
+                                  {resendingSessions[session.id] ? (
+                                    <>
+                                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                      Resending...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Mail className="h-4 w-4 mr-2" />
+                                      Resend All Certificates
+                                    </>
+                                  )}
+                                </Button>
+                              </DialogFooter>
+                            </DialogContent>
+                          </Dialog>
+                        </>
                       )}
                     </div>
                   </div>

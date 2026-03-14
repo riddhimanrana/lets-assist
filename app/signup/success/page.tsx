@@ -11,6 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { ResendVerificationButton } from "./ResendVerificationButton";
+import { normalizeRedirectPath } from "../redirect-utils";
 
 export const metadata: Metadata = {
   title: "Signup Success",
@@ -19,6 +20,7 @@ export const metadata: Metadata = {
 
 type SignupSuccessSearchParams = {
   email?: string;
+  redirect?: string;
 };
 
 type PageProps = {
@@ -30,6 +32,7 @@ export default async function SignupSuccessPage({
 }: PageProps) {
   const resolvedSearchParams = await searchParams;
   const email = resolvedSearchParams.email;
+  const redirectPath = normalizeRedirectPath(resolvedSearchParams.redirect ?? null);
 
   if (!email) {
     // If no email is provided, redirect to signup
@@ -89,12 +92,15 @@ export default async function SignupSuccessPage({
             <p>Didn&apos;t receive the email?</p>
           </div>
 
-          <ResendVerificationButton email={email} />
+          <ResendVerificationButton email={email} redirectPath={redirectPath} />
         </CardContent>
         <CardFooter className="flex flex-col gap-2">
           <div className="text-xs text-center text-muted-foreground">
             Already verified your email?{" "}
-            <Link href="/login" className="text-primary hover:underline font-medium">
+            <Link
+              href={redirectPath ? `/login?redirect=${encodeURIComponent(redirectPath)}` : "/login"}
+              className="text-primary hover:underline font-medium"
+            >
               Log in here
             </Link>
           </div>

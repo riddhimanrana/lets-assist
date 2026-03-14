@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { getAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { TZDate } from "@date-fns/tz";
 import type { Project } from "@/types";
@@ -97,6 +98,7 @@ export async function checkInUser(signupId: string, userId?: string) {
 export async function lookupEmailStatus(projectId: string, scheduleId: string, email: string) {
   console.log("Looking up email status:", { projectId, scheduleId, email });
   const supabase = await createClient();
+  const serviceSupabase = getAdminClient();
   const lowerCaseEmail = email.toLowerCase();
 
   try {
@@ -140,7 +142,7 @@ export async function lookupEmailStatus(projectId: string, scheduleId: string, e
     let userId: string | null = null;
 
     // Check primary email
-    const { data: profileData, error: profileError } = await supabase
+    const { data: profileData, error: profileError } = await serviceSupabase
       .from("profiles")
       .select("id")
       .eq("email", lowerCaseEmail)
@@ -155,7 +157,7 @@ export async function lookupEmailStatus(projectId: string, scheduleId: string, e
       userId = profileData.id;
     } else {
       // Check secondary emails
-      const { data: userEmailData, error: userEmailError } = await supabase
+      const { data: userEmailData, error: userEmailError } = await serviceSupabase
         .from("user_emails")
         .select("user_id")
         .eq("email", lowerCaseEmail)
@@ -170,7 +172,7 @@ export async function lookupEmailStatus(projectId: string, scheduleId: string, e
 
     if (userId) {
       // Found registered user - check if they have a signup for this specific project/schedule
-      const { data: signupData, error: regSignupError } = await supabase
+      const { data: signupData, error: regSignupError } = await serviceSupabase
         .from("project_signups")
         .select("id, status")
         .eq("project_id", projectId)
@@ -218,9 +220,9 @@ export async function lookupEmailStatus(projectId: string, scheduleId: string, e
         };
       }
 
-      const { data: anonData, error: anonError } = await supabase
+      const { data: anonData, error: anonError } = await serviceSupabase
         .from("anonymous_signups")
-        .select("id, signup_id") // Select anon id and the linked signup id
+        .select("id, signup_id, token") // Select anon id and the linked signup id
         .eq("email", lowerCaseEmail)
         .eq("project_id", projectId) // Ensure it's for the correct project
         .maybeSingle();
@@ -232,7 +234,7 @@ export async function lookupEmailStatus(projectId: string, scheduleId: string, e
 
       if (anonData && anonData.signup_id) {
         // Anonymous record found for this project, check the linked project_signup details
-        const { data: signupData, error: anonSignupError } = await supabase
+        const { data: signupData, error: anonSignupError } = await serviceSupabase
           .from("project_signups")
           .select("id, status, schedule_id") // Select status and schedule_id
           .eq("id", anonData.signup_id)
@@ -254,6 +256,7 @@ export async function lookupEmailStatus(projectId: string, scheduleId: string, e
               isRegistered: false,
               signupId: signupData.id,
               anonSignupId: anonData.id, // Pass the anonymous_signups ID
+              anonAccessToken: anonData.token,
               message: isApproved
                 ? "Anonymous signup found and approved for this session."
                 : `Anonymous signup found for this session. Status: ${signupData.status}. Approval may be required.`
@@ -298,6 +301,7 @@ export async function lookupEmailStatus(projectId: string, scheduleId: string, e
  */
 export async function checkInAnonymous(projectId: string, scheduleId: string, email: string) {
   const supabase = await createClient();
+  const serviceSupabase = getAdminClient();
   const nowDate = new Date();
   const nowIso = nowDate.toISOString();
   const lowerEmail = email.toLowerCase();
@@ -310,9 +314,9 @@ export async function checkInAnonymous(projectId: string, scheduleId: string, em
   );
 
   // 1. Find anonymous_signups
-  const { data: anon, error: anonErr } = await supabase
+  const { data: anon, error: anonErr } = await serviceSupabase
     .from('anonymous_signups')
-    .select('id, signup_id')
+    .select('id, signup_id, token')
     .eq('email', lowerEmail)
     .eq('project_id', projectId)
     .maybeSingle();
@@ -327,7 +331,7 @@ export async function checkInAnonymous(projectId: string, scheduleId: string, em
   }
 
   // 2. Find project_signups for this anon and schedule
-  const { data: signup, error: signupErr } = await supabase
+  const { data: signup, error: signupErr } = await serviceSupabase
     .from('project_signups')
     .select('id, check_in_time, check_out_time, schedule_id, status')
     .eq('anonymous_id', anon.id)
@@ -362,7 +366,7 @@ export async function checkInAnonymous(projectId: string, scheduleId: string, em
         updatePayload.check_out_time = scheduledCheckoutIso;
       }
 
-      const { data: updateData, error: updateErr } = (await supabase
+      const { data: updateData, error: updateErr } = (await serviceSupabase
         .from('project_signups')
         .update(updatePayload)
         .eq('id', signup.id)
@@ -386,7 +390,7 @@ export async function checkInAnonymous(projectId: string, scheduleId: string, em
   } else {
     // No signup for this session, update existing signup if possible
     // Try to find any signup for this anon/project (not schedule-specific)
-    const { data: anySignup, error: anySignupErr } = await supabase
+    const { data: anySignup, error: anySignupErr } = await serviceSupabase
       .from('project_signups')
       .select('id, schedule_id')
       .eq('anonymous_id', anon.id)
@@ -410,7 +414,7 @@ export async function checkInAnonymous(projectId: string, scheduleId: string, em
         updatePayload.check_out_time = scheduledCheckoutIso;
       }
 
-      const { error: updateErr } = (await supabase
+      const { error: updateErr } = (await serviceSupabase
         .from('project_signups')
         .update(updatePayload)
         .eq('id', anySignup.id)) as { error: { message?: string } | null };
@@ -441,7 +445,8 @@ export async function checkInAnonymous(projectId: string, scheduleId: string, em
     signupId: signupId,
     checkInTime: checkInTime,
     checkOutTime: checkOutTime,
-    anonSignupId: anon.id   // include anonymous_signups ID for profile link
+    anonSignupId: anon.id,   // include anonymous_signups ID for profile link
+    anonAccessToken: anon.token,
   };
 }
 

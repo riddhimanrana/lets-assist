@@ -9,6 +9,9 @@ import {
   Users,
   Folders,
   Calendar,
+  Clock3,
+  CalendarClock,
+  CheckCircle2,
   Building2,
   Globe,
   MapPin,
@@ -16,13 +19,11 @@ import {
   LogOut,
   BarChart3
 } from "lucide-react";
-import { format } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogClose, DialogFooter } from "@/components/ui/dialog";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { leaveOrganization } from "@/app/organization/actions";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
@@ -62,9 +63,10 @@ interface OrganizationTabsProps {
   currentUserId: string | undefined;
   reportSummary?: {
     totalHours: number;
-    verifiedHours: number;
-    pendingHours: number;
   } | null;
+  organizationSlug?: string;
+  organizationCreatedLabel: string;
+  canViewMembers?: boolean;
 }
 
 function LeaveOrganizationDialog({
@@ -159,8 +161,27 @@ export default function OrganizationTabs({
   userRole,
   currentUserId,
   reportSummary,
+  organizationSlug,
+  organizationCreatedLabel,
+  canViewMembers = true,
 }: OrganizationTabsProps) {
-  const [activeTab, setActiveTab] = useState("overview");
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "overview");
+
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (tab && (tab === "overview" || tab === "members" || tab === "projects" || tab === "reports")) {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
+
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", value);
+    router.replace(`?${params.toString()}`, { scroll: false });
+  };
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -210,12 +231,56 @@ export default function OrganizationTabs({
   const upcomingProjects = projects.filter(p => getProjectStatus(p) === "upcoming").length;
   const completedProjects = projects.filter(p => getProjectStatus(p) === "completed").length;
   const canViewReports = userRole === "admin" || userRole === "staff";
+  const totalHours = reportSummary?.totalHours ?? 0;
+
+  const quickStats = [
+    {
+      label: "Members",
+      value: members.length.toLocaleString(),
+      helper: "Organization members",
+      icon: Users,
+      iconColor: "var(--info)",
+      borderGradient: "180deg, color-mix(in srgb, var(--info) 80%, transparent) 0%, color-mix(in srgb, var(--info) 40%, transparent) 100%",
+    },
+    {
+      label: "Total Hours",
+      value: `${totalHours.toFixed(1)}h`,
+      helper: "Verified + pending",
+      icon: Clock3,
+      iconColor: "var(--chart-8)",
+      borderGradient: "180deg, color-mix(in srgb, var(--chart-8) 80%, transparent) 0%, color-mix(in srgb, var(--chart-8) 40%, transparent) 100%",
+    },
+    {
+      label: "Total Projects",
+      value: projects.length.toLocaleString(),
+      helper: "All-time projects",
+      icon: Folders,
+      iconColor: "var(--chart-2)",
+      borderGradient: "180deg, color-mix(in srgb, var(--chart-2) 80%, transparent) 0%, color-mix(in srgb, var(--chart-2) 40%, transparent) 100%",
+    },
+    {
+      label: "Upcoming Projects",
+      value: upcomingProjects.toLocaleString(),
+      helper: "Scheduled next",
+      icon: CalendarClock,
+      iconColor: "var(--chart-6)",
+      borderGradient: "180deg, color-mix(in srgb, var(--chart-6) 80%, transparent) 0%, color-mix(in srgb, var(--chart-6) 40%, transparent) 100%",
+    },
+    {
+      label: "Completed Projects",
+      value: completedProjects.toLocaleString(),
+      helper: "Finished initiatives",
+      icon: CheckCircle2,
+      iconColor: "var(--success)",
+      borderGradient: "180deg, color-mix(in srgb, var(--success) 80%, transparent) 0%, color-mix(in srgb, var(--success) 40%, transparent) 100%",
+    },
+  ] as const;
 
   return (
     <Tabs
       defaultValue="overview"
       value={activeTab}
-      onValueChange={setActiveTab}
+      onValueChange={handleTabChange}
       className="w-full"
     >
       <TabsList className="mb-6 flex h-auto w-full sm:w-fit self-start max-w-full items-center justify-start overflow-x-auto bg-muted p-1 text-muted-foreground [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
@@ -223,10 +288,12 @@ export default function OrganizationTabs({
           <LayoutDashboard className="h-4 w-4 shrink-0" />
           <span className="truncate">Overview</span>
         </TabsTrigger>
-        <TabsTrigger value="members" className="flex-1 sm:flex-none min-w-0 gap-2 px-3">
-          <Users className="h-4 w-4 shrink-0" />
-          <span className="truncate">Members</span>
-        </TabsTrigger>
+        {canViewMembers && (
+          <TabsTrigger value="members" className="flex-1 sm:flex-none min-w-0 gap-2 px-3">
+            <Users className="h-4 w-4 shrink-0" />
+            <span className="truncate">Members</span>
+          </TabsTrigger>
+        )}
         <TabsTrigger value="projects" className="flex-1 sm:flex-none min-w-0 gap-2 px-3">
           <Folders className="h-4 w-4 shrink-0" />
           <span className="truncate">Projects</span>
@@ -240,8 +307,8 @@ export default function OrganizationTabs({
       </TabsList>
 
       <TabsContent value="overview" className="space-y-6">
-        <div className="grid gap-4 sm:gap-6 lg:grid-cols-2 items-stretch justify-items-center sm:justify-items-stretch">
-          <Card className="flex flex-col overflow-hidden w-full max-w-140 sm:max-w-none">
+        <div className="grid gap-4 sm:gap-6 lg:grid-cols-2 items-stretch">
+          <Card className="overflow-hidden">
             <CardHeader>
               <CardTitle className="text-xl! font-bold tracking-tight">About</CardTitle>
             </CardHeader>
@@ -254,7 +321,7 @@ export default function OrganizationTabs({
                   </p>
                 </div>
               </div>
-              <div className="space-y-3">
+              <div className="space-y-3 mt-3">
                 <div className="flex gap-2 min-w-0">
                   <Building2 className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
                   <div className="min-w-0 flex-1">
@@ -285,77 +352,81 @@ export default function OrganizationTabs({
                   <div className="min-w-0 flex-1">
                     <h4 className="text-xs font-medium">Created</h4>
                     <p className="text-muted-foreground truncate">
-                      {organization.created_at
-                        ? format(new Date(organization.created_at), "MMMM d, yyyy")
-                        : "N/A"}
+                      {organizationCreatedLabel}
                     </p>
                   </div>
                 </div>
               </div>
-              <div className="sm:mt-auto sm:pt-2" />
             </CardContent>
           </Card>
-          {/* Quick Stats Card */}
-          <Card className="flex flex-col overflow-hidden w-full max-w-140 sm:max-w-none">
-            <CardHeader>
-              <CardTitle className="text-xl! font-bold tracking-tight">Quick Stats</CardTitle>
-            </CardHeader>
-            <CardContent className="text-sm">
-              <div className="grid grid-cols-2 gap-2 sm:gap-3 mb-4">
-                <div className="rounded-md border bg-muted/30 p-2.5 sm:p-3 flex flex-col items-center justify-center min-w-0">
-                  <p className="text-base sm:text-lg font-semibold leading-none truncate w-full text-center">{members.length}</p>
-                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 text-center truncate w-full">Members</p>
-                </div>
-                <div className="rounded-md border bg-muted/30 p-2.5 sm:p-3 flex flex-col items-center justify-center min-w-0">
-                  <p className="text-base sm:text-lg font-semibold leading-none truncate w-full text-center">
-                    {reportSummary ? reportSummary.totalHours.toFixed(1) : "0.0"}
-                  </p>
-                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 text-center truncate w-full">Hours</p>
-                </div>
-                <div className="rounded-md border bg-muted/30 p-2.5 sm:p-3 flex flex-col items-center justify-center min-w-0">
-                  <p className="text-base sm:text-lg font-semibold leading-none truncate w-full text-center">{upcomingProjects}</p>
-                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 text-center truncate w-full">Upcoming</p>
-                </div>
-                <div className="rounded-md border bg-muted/30 p-2.5 sm:p-3 flex flex-col items-center justify-center min-w-0">
-                  <p className="text-base sm:text-lg font-semibold leading-none truncate w-full text-center">{completedProjects}</p>
-                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 text-center truncate w-full">Completed</p>
-                </div>
-                <div className="col-span-2 rounded-md bg-primary/10 p-4 flex flex-col items-center justify-center min-w-0">
-                  <p className="text-xl sm:text-2xl font-bold text-primary leading-none truncate w-full text-center">{projects.length}</p>
-                  <p className="text-[11px] sm:text-sm font-medium text-primary mt-1 text-center truncate w-full">Total Projects</p>
-                </div>
-              </div>
-              {projects.length > 0 && (
-                <div className="mt-4 sm:mt-auto">
-                  <Separator className="my-3" />
-                  <h4 className="text-xs sm:text-sm font-medium mb-2">Recent Projects</h4>
-                  <div className="space-y-1.5">
-                    {projects.slice(0, 3).map((project) => (
-                      <Link
-                        href={`/projects/${project.id}`}
-                        key={project.id}
-                        className="block p-2 rounded-md border hover:bg-muted/70 transition-colors text-xs sm:text-sm overflow-hidden"
-                      >
-                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1.5 min-w-0">
-                          <span className="font-medium truncate flex-1">{project.title}</span>
-                          <div className="flex items-center gap-2 shrink-0">
-                            <ProjectStatusBadge status={getProjectStatus(project)} className="text-[10px] h-5" />
-                          </div>
+          {/* Recent Projects Card */}
+          {projects.length > 0 && (
+            <Card className="overflow-hidden">
+              <CardHeader>
+                <CardTitle className="text-xl! font-bold tracking-tight">Recent Projects</CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm">
+                <div className="space-y-2">
+                  {projects.slice(0, 4).map((project) => (
+                    <Link
+                      href={`/projects/${project.id}`}
+                      key={project.id}
+                      className="block p-2.5 rounded-md border hover:bg-muted/70 transition-colors overflow-hidden"
+                    >
+                      <div className="flex justify-between items-center gap-2 min-w-0">
+                        <span className="font-medium truncate flex-1 text-sm">{project.title}</span>
+                        <ProjectStatusBadge status={getProjectStatus(project)} className="text-[10px] h-5 shrink-0" />
+                      </div>
+                      {project.location && (
+                        <div className="flex items-center text-xs text-muted-foreground mt-1 min-w-0">
+                          <MapPin className="h-3 w-3 mr-1 shrink-0" />
+                          <span className="truncate">{project.location}</span>
                         </div>
-                        {project.location && (
-                          <div className="flex items-center text-[10px] sm:text-xs text-muted-foreground mt-1 min-w-0">
-                            <MapPin className="h-3 w-3 mr-1 shrink-0" />
-                            <span className="truncate">{project.location}</span>
-                          </div>
-                        )}
-                      </Link>
-                    ))}
-                  </div>
+                      )}
+                    </Link>
+                  ))}
                 </div>
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
         </div>
+
+        {/* Quick Stats — full width so all 5 cards have room */}
+        <Card className="overflow-hidden">
+          <CardHeader>
+            <CardTitle className="text-xl! font-bold tracking-tight">Quick Stats</CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+              {quickStats.map((stat) => (
+                <div
+                  key={stat.label}
+                  className="relative overflow-hidden rounded-lg border bg-muted/20 p-3 sm:p-4 transition-all hover:border-primary/40 hover:bg-muted/40"
+                >
+                  <div
+                    style={{ background: `linear-gradient(${stat.borderGradient})` }}
+                    className="absolute inset-x-0 top-0 h-1"
+                  />
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-xs font-medium text-muted-foreground leading-tight">
+                      {stat.label}
+                    </p>
+                    <stat.icon
+                      style={{ color: stat.iconColor }}
+                      className="h-4 w-4 shrink-0"
+                    />
+                  </div>
+                  <p className="mt-2 text-2xl sm:text-3xl font-semibold leading-none tracking-tight">
+                    {stat.value}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {stat.helper}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
 
         {userRole && (
           <Card className="overflow-hidden w-full max-w-140 sm:max-w-none">
@@ -549,6 +620,7 @@ export default function OrganizationTabs({
           userRole={userRole}
           organizationId={organization.id}
           currentUserId={currentUserId}
+          canViewMembers={canViewMembers}
         />
       </TabsContent>
 
@@ -566,6 +638,7 @@ export default function OrganizationTabs({
             organizationId={organization.id}
             organizationName={organization.name}
             userRole={userRole}
+            organizationSlug={organizationSlug}
           />
         </TabsContent>
       )}

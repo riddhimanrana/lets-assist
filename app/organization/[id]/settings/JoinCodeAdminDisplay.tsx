@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Copy, CheckCircle2, RefreshCw, Loader2 } from "lucide-react";
+import { Copy, Check, RefreshCw, Loader2 } from "lucide-react";
 import { regenerateJoinCode } from "../../create/actions";
 import { copyToClipboard } from "@/lib/utils";
 import {
@@ -91,7 +91,7 @@ export default function JoinCodeAdminDisplay({
             className="shrink-0"
           >
             {isCopied ? (
-              <CheckCircle2 className="h-4 w-4 text-primary" />
+              <Check className="h-4 w-4 text-primary" />
             ) : (
               <Copy className="h-4 w-4" />
             )}

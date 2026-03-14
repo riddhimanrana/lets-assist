@@ -1,4 +1,5 @@
 const GOOGLE_SHEETS_API = "https://sheets.googleapis.com/v4/spreadsheets";
+import { logError } from '@/lib/logger';
 
 const columnToIndex = (column: string) => {
   return column
@@ -91,7 +92,10 @@ export async function createSpreadsheet(
 
     if (!response.ok) {
       const error = await response.text();
-      console.error("Failed to create spreadsheet:", error);
+      logError('Failed to create Google spreadsheet', new Error(error), {
+        title,
+        tab_name: tabName,
+      });
       return null;
     }
 
@@ -103,7 +107,10 @@ export async function createSpreadsheet(
       sheetTitle: data.properties?.title || title,
     };
   } catch (error) {
-    console.error("Error creating spreadsheet:", error);
+    logError('Exception while creating Google spreadsheet', error, {
+      title,
+      tab_name: tabName,
+    });
     return null;
   }
 }
@@ -139,7 +146,9 @@ export async function getSpreadsheetMetadata(
 
     if (!response.ok) {
       const error = await response.text();
-      console.error("Failed to fetch spreadsheet metadata:", error);
+      logError('Failed to fetch Google spreadsheet metadata', new Error(error), {
+        sheet_id: sheetId,
+      });
       return null;
     }
 
@@ -154,7 +163,9 @@ export async function getSpreadsheetMetadata(
       tabs,
     };
   } catch (error) {
-    console.error("Error fetching spreadsheet metadata:", error);
+    logError('Exception while fetching Google spreadsheet metadata', error, {
+      sheet_id: sheetId,
+    });
     return null;
   }
 }
@@ -193,13 +204,19 @@ export async function ensureSpreadsheetTab(
 
     if (!response.ok) {
       const error = await response.text();
-      console.error("Failed to create sheet tab:", error);
+      logError('Failed to create Google sheet tab', new Error(error), {
+        sheet_id: sheetId,
+        tab_name: tabName,
+      });
       return false;
     }
 
     return true;
   } catch (error) {
-    console.error("Error ensuring sheet tab:", error);
+    logError('Exception while ensuring Google sheet tab', error, {
+      sheet_id: sheetId,
+      tab_name: tabName,
+    });
     return false;
   }
 }
@@ -210,8 +227,8 @@ export async function updateSpreadsheetValues(
   range: string,
   rows: string[][]
 ): Promise<boolean> {
+  const resolvedRange = range || "A1";
   try {
-    const resolvedRange = range || "A1";
     const response = await fetch(
       `${GOOGLE_SHEETS_API}/${encodeURIComponent(
         sheetId
@@ -232,13 +249,21 @@ export async function updateSpreadsheetValues(
 
     if (!response.ok) {
       const error = await response.text();
-      console.error("Failed to update spreadsheet values:", error);
+      logError('Failed to update Google spreadsheet values', new Error(error), {
+        sheet_id: sheetId,
+        range: resolvedRange,
+        rows_count: rows.length,
+      });
       return false;
     }
 
     return true;
   } catch (error) {
-    console.error("Error updating spreadsheet values:", error);
+    logError('Exception while updating Google spreadsheet values', error, {
+      sheet_id: sheetId,
+      range: resolvedRange,
+      rows_count: rows.length,
+    });
     return false;
   }
 }

@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Progress } from "@/components/ui/progress"; // Import Progress component
 import { format, parseISO, differenceInMinutes, parse } from "date-fns";
 import { formatTimeTo12Hour } from "@/lib/utils";
-import { getSlotDetails } from "@/utils/project";
+import { getMultiDaySlotByScheduleId, getMultiDaySlotDisplayName, getSlotDetails } from "@/utils/project";
 import { toast } from "sonner";
 import {
   CheckCircle,
@@ -107,6 +107,7 @@ export default function AttendanceClient({
   const [checkedInAnonymously, setCheckedInAnonymously] = useState(false);
   const [displayEmail, setDisplayEmail] = useState(user?.email || ""); // Email to show on success screen
   const [anonSignupId, setAnonSignupId] = useState<string>(""); // State for anonymous signup ID
+  const [anonAccessToken, setAnonAccessToken] = useState<string>("");
 
   // Add state for progress and remaining time
   const [progressPercentage, setProgressPercentage] = useState(0);
@@ -155,17 +156,13 @@ export default function AttendanceClient({
             date: project.schedule.oneTime?.date || ""
           };
         } else if (project.event_type === "multiDay") {
-          // Parse the multiDay scheduleId (format: date-slotIndex)
-          const [date, slotIndexStr] = scheduleId.split("-");
-          const slotIndex = parseInt(slotIndexStr, 10);
-          
-          const day = project.schedule.multiDay?.find(d => d.date === date);
-          if (day) {
-            const dayIndex = project.schedule.multiDay?.indexOf(day) || 0;
+          const slotData = getMultiDaySlotByScheduleId(project, scheduleId);
+          if (slotData) {
+            const { day, slot, slotIndex } = slotData;
             formattedDetails = {
               ...details,
-              name: `Day ${dayIndex + 1}, Slot ${slotIndex + 1}`,
-              date: date
+              name: getMultiDaySlotDisplayName(slot, slotIndex),
+              date: day.date
             };
           }
         } else if (project.event_type === "sameDayMultiArea") {
@@ -334,6 +331,7 @@ export default function AttendanceClient({
         setCheckedInAnonymously(true); // Mark as anonymous
         setDisplayEmail(anonCheckinEmail); // Set display email to the one used
         setAnonSignupId(result.anonSignupId || ""); // Save anonymous signup ID
+        setAnonAccessToken(result.anonAccessToken || "");
         toast.success("Successfully checked in!");
         setShowAnonInputSection(false); // Hide the input section on success
       } else {
@@ -538,7 +536,10 @@ export default function AttendanceClient({
                 </Button>
                 {checkedInAnonymously && (
                   <Button variant="outline" className="w-full">
-                    <Link href={`/anonymous/${anonSignupId}`} className="flex items-center gap-2">
+                    <Link
+                      href={`/anonymous/${anonSignupId}?token=${encodeURIComponent(anonAccessToken)}`}
+                      className="flex items-center gap-2"
+                    >
                       <User className="h-4 w-4" />
                       Your Anonymous Profile
                     </Link>

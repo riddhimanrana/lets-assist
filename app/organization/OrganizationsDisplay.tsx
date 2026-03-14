@@ -19,6 +19,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { Organization } from "@/types";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 type OrganizationDisplay = Organization & {
   description?: string | null;
@@ -41,8 +47,6 @@ interface OrganizationsDisplayProps {
   isTrusted?: boolean;
   applicationStatus?: boolean | null;
 }
-
-import { TrustedInfoIcon } from "@/components/shared/TrustedInfoIcon";
 
 export default function OrganizationsDisplay({
   organizations,
@@ -141,28 +145,33 @@ export default function OrganizationsDisplay({
               <>
                 <CsvVerificationModal />
                 <JoinOrganizationDialog />
-                <div className="flex items-center gap-2">
-                  {isTrusted || applicationStatus === true ? (
-                    <Link href="/organization/create" className={cn(buttonVariants(), "w-full sm:w-auto")}>
-                      <Plus className="w-4 h-4 mr-2" />
-                      Create Organization
-                    </Link>
-                  ) : (
-                    <Button className="w-full sm:w-auto cursor-not-allowed opacity-60" disabled>
-                      <Plus className="w-4 h-4 mr-2" />
-                      Create Organization
-                    </Button>
-                  )}
-                  {!isTrusted && applicationStatus !== true && (
-                    <TrustedInfoIcon
-                      message={
-                        applicationStatus === false
-                          ? "It looks like you've already applied to be a Trusted Member. Please email support@lets-assist.com for further assistance."
-                          : "You must be a Trusted Member to create organizations. Apply using the form."
-                      }
-                    />
-                  )}
-                </div>
+                {isTrusted || applicationStatus === true ? (
+                  <Link href="/organization/create" className={cn(buttonVariants(), "w-full sm:w-auto")}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create Organization
+                  </Link>
+                ) : (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger render={
+                        <span className="w-full sm:w-auto inline-flex">
+                          <Button
+                            className="w-full sm:w-auto cursor-not-allowed opacity-60 pointer-events-none"
+                            disabled
+                          >
+                            <Plus className="w-4 h-4 mr-2" />
+                            Create Organization
+                          </Button>
+                        </span>
+                      } />
+                      <TooltipContent className="text-xs font-normal max-w-xs">
+                        {applicationStatus === false
+                          ? "It looks like you already applied for Trusted Member access. Please email support@lets-assist.com for help."
+                          : "Trusted Member access is required to create organizations. Apply using the Trusted Member form."}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
               </>
             )}
             {!isLoggedIn && (
@@ -228,10 +237,30 @@ export default function OrganizationsDisplay({
               {search ? "Try different keywords or filters" : "Be the first to create an organization!"}
             </p>
             {isLoggedIn && !search && (
-              <Link href="/organization/create" className={cn(buttonVariants(), "mt-4")}>
-                <Plus className="w-4 h-4 mr-2" />
-                Create Organization
-              </Link>
+              (isTrusted || applicationStatus === true) ? (
+                <Link href="/organization/create" className={cn(buttonVariants(), "mt-4")}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create Organization
+                </Link>
+              ) : (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger render={
+                      <span className="mt-4 inline-flex">
+                        <Button className="cursor-not-allowed opacity-60 pointer-events-none" disabled>
+                          <Plus className="w-4 h-4 mr-2" />
+                          Create Organization
+                        </Button>
+                      </span>
+                    } />
+                    <TooltipContent className="text-xs font-normal max-w-xs">
+                      {applicationStatus === false
+                        ? "It looks like you already applied for Trusted Member access. Please email support@lets-assist.com for help."
+                        : "Trusted Member access is required to create organizations. Apply using the Trusted Member form."}
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )
             )}
           </div>
         ) : (

@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ChevronDown, ChevronUp, Users } from "lucide-react";
 import { ProfileHoverCard } from "@/components/shared/ProfileHoverCard";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { NoAvatar } from "@/components/shared/NoAvatar";
 import { cn } from "@/lib/utils";
 import {
@@ -12,6 +12,11 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from "@/components/ui/tooltip";
 
 export interface SlotAttendee {
   signup_id: string;
@@ -73,7 +78,7 @@ export function SlotAttendeesDropdown({
             return (
               <div
                 key={attendee.signup_id}
-                className="text-xs"
+                className="flex items-start gap-2"
               >
                 <ProfileHoverCard
                   username={attendee.username}
@@ -82,35 +87,44 @@ export function SlotAttendeesDropdown({
                   disabled={attendee.is_anonymous}
                 >
                   <div className={cn(
-                    "flex items-center gap-2",
+                    "flex items-center gap-2 shrink-0",
                     !attendee.is_anonymous && "cursor-pointer hover:text-foreground"
                   )}>
-                    <Avatar className="h-6 w-6 shrink-0">
-                      {attendee.avatar_url && !attendee.is_anonymous ? (
-                        <AvatarImage src={attendee.avatar_url} alt={displayName} />
-                      ) : null}
-                      <AvatarFallback className="text-[9px]">
-                        <NoAvatar fullName={displayName} className="text-[9px]" />
+                    <Avatar className="h-6 w-6">
+                      <AvatarImage
+                        src={attendee.is_anonymous ? undefined : attendee.avatar_url}
+                        alt={displayName}
+                      />
+                      <AvatarFallback className="text-[10px]">
+                        <NoAvatar fullName={displayName} />
                       </AvatarFallback>
                     </Avatar>
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-medium text-foreground">
-                        {displayName}
-                      </span>
-                      {attendee.is_anonymous && (
-                        <span className="text-[10px] text-muted-foreground/70">(Anon)</span>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {attendee.is_anonymous ? (
+                        <Tooltip>
+                          <TooltipTrigger render={
+                            <span className="font-medium text-foreground">
+                              {displayName}
+                            </span>
+                          } />
+                          <TooltipContent>Anonymous Profile</TooltipContent>
+                        </Tooltip>
+                      ) : (
+                        <span className="font-medium text-foreground">
+                          {displayName}
+                        </span>
                       )}
+                      {attendee.volunteer_comment && (
+                        <span className="text-xs text-muted-foreground bg-background/60 rounded px-2.5 py-1 border border-border/60 leading-relaxed">
+                          {attendee.volunteer_comment}
+                        </span>
+                      )}
+                      {/* {attendee.is_anonymous && (
+                        <span className="text-[10px] text-muted-foreground/70">(Anon)</span>
+                      )} */}
                     </div>
                   </div>
                 </ProfileHoverCard>
-
-                {attendee.volunteer_comment && (
-                  <div className="mt-1.5 ml-8">
-                    <p className="text-xs text-muted-foreground bg-background/60 rounded px-2.5 py-1.5 border border-border/60 wrap-break-word leading-relaxed">
-                      {attendee.volunteer_comment}
-                    </p>
-                  </div>
-                )}
               </div>
             );
           })}

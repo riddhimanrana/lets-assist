@@ -17,9 +17,10 @@ import {
 
 interface ResendVerificationButtonProps {
   email: string;
+  redirectPath?: string | null;
 }
 
-export function ResendVerificationButton({ email }: ResendVerificationButtonProps) {
+export function ResendVerificationButton({ email, redirectPath }: ResendVerificationButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [countdown, setCountdown] = useState(60);
   const [canResend, setCanResend] = useState(false);
@@ -53,7 +54,7 @@ export function ResendVerificationButton({ email }: ResendVerificationButtonProp
     setIsLoading(true);
 
     try {
-      const result = await resendVerificationEmail(email, turnstileToken);
+      const result = await resendVerificationEmail(email, turnstileToken, redirectPath ?? null);
 
       if (result.success) {
         toast.success(result.message || 'Verification email sent!');
@@ -109,7 +110,7 @@ export function ResendVerificationButton({ email }: ResendVerificationButtonProp
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-center py-4">
-            <div className="relative w-[300px] h-[65px] overflow-hidden rounded-lg bg-muted/30 border border-border/50 flex items-center justify-center">
+            <div className="relative w-75 h-16.25 overflow-hidden rounded-lg bg-muted/30 border border-border/50 flex items-center justify-center">
               {!turnstileReady && (
                 <div className="absolute inset-0 z-10 flex items-center justify-center gap-2 rounded-lg bg-background/80 text-[0.7rem] font-semibold uppercase tracking-wide text-muted-foreground">
                   <Shield className="h-4 w-4 text-muted-foreground/80" />

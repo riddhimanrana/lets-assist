@@ -50,6 +50,8 @@ interface BasicInfoProps {
   ) => void;
   initialOrgId?: string;
   initialOrganizations?: OrganizationOption[];
+  showLocationPointer?: boolean;
+  onLocationPointerDismiss?: () => void;
   errors?: {
     title?: string;
     location?: string;
@@ -62,6 +64,8 @@ export default function BasicInfo({
   updateBasicInfoAction,
   initialOrgId,
   initialOrganizations = [],
+  showLocationPointer,
+  onLocationPointerDismiss,
   errors = {}
 }: BasicInfoProps) {
   const [open, setOpen] = useState(false);
@@ -277,7 +281,18 @@ export default function BasicInfo({
           <LocationAutocomplete
             id="location" // Pass id
             value={state.basicInfo.locationData}
-            onChangeAction={handleLocationChange}
+            onChangeAction={(data) => {
+              handleLocationChange(data);
+              if (showLocationPointer && onLocationPointerDismiss) {
+                onLocationPointerDismiss();
+              }
+            }}
+            onFocusAction={() => {
+              if (showLocationPointer && onLocationPointerDismiss) {
+                onLocationPointerDismiss();
+              }
+            }}
+            highlight={showLocationPointer}
             maxLength={250}
             required
             error={!!errors.location} // Pass boolean error state

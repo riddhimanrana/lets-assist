@@ -1,8 +1,8 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -14,11 +14,24 @@ import {
   FileCheck,
   AlertTriangle,
   CircleCheck,
-  UserCheck
+  UserCheck,
+  Trash2,
+  Loader2
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import Link from "next/link";
 import { TimezoneBadge } from "@/components/shared/TimezoneBadge";
+import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Certificate {
   id: string;
@@ -64,60 +77,146 @@ function formatTotalDuration(totalHours: number): string {
 }
 
 export function AllHoursSection({ certificates }: AllHoursSectionProps) {
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deletingTitle, setDeletingTitle] = useState<string | null>(null);
 
   // Separate platform and self-reported certificates (default to platform for backward compatibility)
   const verifiedCertificates = certificates.filter(cert => (cert.type || "platform") === "platform");
-  const selfReportedCertificates = certificates.filter(cert => cert.type === "self-reported");
+  const [selfReportedCertificates, setSelfReportedCertificates] = useState(
+    certificates.filter(cert => cert.type === "self-reported")
+  );
 
   const totalVerified = verifiedCertificates.length;
   const totalSelfReported = selfReportedCertificates.length;
+
+  const handleDeleteSelfReported = async (id: string) => {
+    setDeletingId(id);
+    try {
+      const res = await fetch(`/api/self-reported-hours/${id}`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to delete hours");
+      }
+
+      // Remove from local state
+      setSelfReportedCertificates(prev => prev.filter(cert => cert.id !== id));
+      
+      toast.success("Self-reported hours deleted", {
+        description: `${deletingTitle} has been removed.`,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Please try again";
+      toast.error("Failed to delete hours", {
+        description: message,
+      });
+    } finally {
+      setDeletingId(null);
+      setConfirmDeleteId(null);
+      setDeletingTitle(null);
+    }
+  };
 
   const CertificateItem = ({ cert, isSelfReported = false }: { cert: Certificate; isSelfReported?: boolean }) => {
     const durationHours = calculateDecimalHours(cert.event_start, cert.event_end);
     const formattedDuration = formatTotalDuration(durationHours);
 
     return (
-      <div className="border rounded-lg p-3 sm:p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
-        <div className="flex-1 space-y-1 min-w-0">
-          <div className="flex items-center gap-2">
-            {isSelfReported ? (
-              <Badge variant="secondary" className="text-xs bg-warning/10 text-warning dark:bg-warning/10 dark:text-warning">
-                Self-Reported
-              </Badge>
-            ) : (
-              <Badge variant="default" className="text-xs">Platform</Badge>
-            )}
-            {!isSelfReported && cert.is_certified && (
-              <Badge variant="default" className="text-xs bg-chart-2">
-                <Award className="h-3 w-3 mr-1" /> Official Org
-              </Badge>
-            )}
-          </div>
-          <div className="font-medium text-sm sm:text-base">{cert.project_title}</div>
-          <p className="text-xs sm:text-sm text-muted-foreground truncate">
-            {cert.organization_name || cert.creator_name || "Unknown Organizer"}
-          </p>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground pt-1">
-            <div className="flex items-center gap-1.5">
-              <span className="flex items-center gap-1">
-                <Calendar className="h-3 w-3" />
-                {format(parseISO(cert.event_start), "MMM d, yyyy")}
-              </span>
-              <TimezoneBadge timezone={cert.projects?.project_timezone || 'America/Los_Angeles'} />
+      <>
+        <div className="border rounded-lg p-3 sm:p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
+          <div className="flex-1 space-y-1 min-w-0">
+            <div className="flex items-center gap-2">
+              {isSelfReported ? (
+                <Badge variant="secondary" className="text-xs bg-warning/10 text-warning dark:bg-warning/10 dark:text-warning">
+                  Self-Reported
+                </Badge>
+              ) : (
+                <Badge variant="default" className="text-xs">Platform</Badge>
+              )}
+              {!isSelfReported && cert.is_certified && (
+                <Badge variant="default" className="text-xs bg-chart-2">
+                  <Award className="h-3 w-3 mr-1" /> Official Org
+                </Badge>
+              )}
             </div>
-            {formattedDuration !== "0m" && (
-              <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {formattedDuration}</span>
+            <div className="font-medium text-sm sm:text-base">{cert.project_title}</div>
+            <p className="text-xs sm:text-sm text-muted-foreground truncate">
+              {cert.organization_name || cert.creator_name || "Unknown Organizer"}
+            </p>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground pt-1">
+              <div className="flex items-center gap-1.5">
+                <span className="flex items-center gap-1">
+                  <Calendar className="h-3 w-3" />
+                  {format(parseISO(cert.event_start), "MMM d, yyyy")}
+                </span>
+                <TimezoneBadge timezone={cert.projects?.project_timezone || 'America/Los_Angeles'} />
+              </div>
+              {formattedDuration !== "0m" && (
+                <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {formattedDuration}</span>
+              )}
+            </div>
+          </div>
+          <div className="shrink-0 w-full sm:w-auto flex gap-2">
+            <Link href={`/certificates/${cert.id}`} target="_blank" rel="noopener noreferrer" className={cn(buttonVariants({ variant: "outline", size: "sm" }), "flex-1 sm:flex-initial")}>
+              <TicketCheck className="h-4 w-4 mr-2" />
+              <span className="hidden sm:inline">View</span>
+              <span className="sm:hidden">Certificate</span>
+            </Link>
+            {isSelfReported && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                onClick={() => {
+                  setConfirmDeleteId(cert.id);
+                  setDeletingTitle(cert.project_title);
+                }}
+                disabled={deletingId === cert.id}
+              >
+                {deletingId === cert.id ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4" />
+                )}
+              </Button>
             )}
           </div>
         </div>
-        <div className="shrink-0 w-full sm:w-auto">
-          <Link href={`/certificates/${cert.id}`} target="_blank" rel="noopener noreferrer" className={cn(buttonVariants({ variant: "outline", size: "sm" }), "w-full sm:w-auto")}>
-            <TicketCheck className="h-4 w-4 mr-2" />
-            <span className="hidden sm:inline">View Certificate</span>
-            <span className="sm:hidden">Certificate</span>
-          </Link>
-        </div>
-      </div>
+
+        {/* Delete Confirmation Dialog */}
+        {confirmDeleteId === cert.id && isSelfReported && (
+          <AlertDialog open={confirmDeleteId === cert.id} onOpenChange={(open) => !open && setConfirmDeleteId(null)}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete Self-Reported Hours?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will permanently delete &quot;{cert.project_title}&quot; and its associated certificate. This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => handleDeleteSelfReported(cert.id)}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  disabled={deletingId === cert.id}
+                >
+                  {deletingId === cert.id ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Deleting...
+                    </>
+                  ) : (
+                    "Delete"
+                  )}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
+      </>
     );
   };
 

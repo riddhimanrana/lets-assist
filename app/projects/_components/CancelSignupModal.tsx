@@ -128,7 +128,8 @@ export function CancelSignupModal({
     }
   };
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
+    const [year, month, day] = dateString.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
     return date.toLocaleDateString('en-US', {
       weekday: 'long',
       year: 'numeric',

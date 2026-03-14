@@ -19,10 +19,12 @@ import {
   format,
   formatDistanceToNowStrict,
 } from "date-fns";
-import { Clock, CheckCircle, AlertTriangle, Camera, Hourglass, CalendarCheck, Info, TicketCheck, FileText, Award } from "lucide-react";
+import { Clock, CheckCircle, AlertTriangle, Camera, Hourglass, CalendarCheck, Info, TicketCheck, FileText, Award, Download, Eye, Mail } from "lucide-react";
 import Link from "next/link";
 import { QRCodeScannerModal } from "@/app/projects/_components/QRCodeScannerModal"; // Import the new component
 import { createClient } from "@/lib/supabase/client";          // 🆕 add supabase client
+import { toast } from "sonner";
+import { getMyWaiverSignatures } from "./actions";
 import {
   Carousel,
   CarouselContent,
@@ -122,10 +124,53 @@ export default function UserDashboard({ project, user: _user, signups }: Props) 
 
   // 🆕 store map of signup_id → certificate.id
   const [certMap, setCertMap] = useState<Record<string, string>>({});
+  const [waiverSignatures, setWaiverSignatures] = useState<Array<{ id: string; signed_at: string | null; created_at: string }>>([]);
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  // Fetch waivers (server-authorized; resilient to RLS)
+  useEffect(() => {
+    const fetchWaivers = async () => {
+      const result = await getMyWaiverSignatures(project.id);
+      if ('error' in result) {
+        // Fail soft: leave list empty
+        console.error(result.error);
+        return;
+      }
+      setWaiverSignatures(result.signatures);
+    };
+    void fetchWaivers();
+  }, [project.id]);
+
+  const downloadWaiver = async (signatureId: string) => {
+    try {
+      // Direct download using the actual route
+      const response = await fetch(`/api/waivers/${signatureId}/download`);
+      
+      if (!response.ok) {
+        throw new Error('Download failed');
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `signed-waiver-${signatureId}.pdf`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+      
+      toast.success('Waiver downloaded successfully!');
+    } catch (error) {
+      console.error('Failed to download waiver:', error);
+      toast.error('Failed to download waiver. Please try again.');
+    }
+  };
+
+  const viewWaiver = (signatureId: string) => {
+    window.open(`/api/waivers/${signatureId}/preview`, "_blank", "noopener,noreferrer");
+  };
 
   // Update 'now' state every minute for countdowns
   useEffect(() => {
@@ -176,9 +221,50 @@ export default function UserDashboard({ project, user: _user, signups }: Props) 
       .map((signup) => {
         // First check if signup status is valid for processing
         // Using type-safe approach with Array.includes
-        const validStatuses: Signup["status"][] = ['approved', 'attended'];
+        const validStatuses: Signup["status"][] = ['approved', 'attended', 'pending'];
         if (!validStatuses.includes(signup.status)) {
-          return null; // Skip signups that are not approved or already attended
+          return null; // Skip signups that are not approved, attended, or pending
+        }
+
+        // Handle pending signups (e.g., from linked anonymous profiles)
+        if (signup.status === 'pending') {
+          const details = getSlotDetails(project, signup.schedule_id);
+          if (!details) return null; // Skip if slot details not found
+
+          // Find the date for the slot
+          let slotDate: string | undefined;
+          if (project.schedule?.multiDay) {
+            for (const day of project.schedule.multiDay) {
+              if (day.slots.some(slot => slot === details)) {
+                slotDate = day.date;
+                break;
+              }
+            }
+          } else if (project.schedule?.oneTime) {
+            slotDate = project.schedule.oneTime.date;
+          } else if (project.schedule?.sameDayMultiArea) {
+            slotDate = project.schedule.sameDayMultiArea.date;
+          }
+
+          if (!slotDate || !details.startTime || !details.endTime) {
+            return null; // Skip if essential time info is missing
+          }
+
+          const startTime = getCombinedDateTime(slotDate, details.startTime);
+          const endTime = getCombinedDateTime(slotDate, details.endTime);
+
+          if (!startTime || !endTime) {
+            return null; // Skip if dates are invalid
+          }
+
+          return {
+            signup,
+            slotDetails: details,
+            sessionStartTime: startTime,
+            sessionEndTime: endTime,
+            renderState: 'pendingLinked' as const,
+            sessionDisplayName: getSessionDisplayName(project, startTime, details),
+          };
         }
 
         const details = getSlotDetails(project, signup.schedule_id);
@@ -302,7 +388,7 @@ export default function UserDashboard({ project, user: _user, signups }: Props) 
         }
 
         // --- MODIFIED: Determine state for rendering with type-safe comparisons and published hours check ---
-        let renderState: 'checkedIn' | 'checkInOpen' | 'reminder' | 'none' | 'postEventHours' | 'missedEvent' | 'hoursPublished' = 'none';
+        let renderState: 'checkedIn' | 'checkInOpen' | 'reminder' | 'none' | 'postEventHours' | 'missedEvent' | 'hoursPublished' | 'pendingLinked' = 'none';
 
         if (areHoursPublished) {
           renderState = 'hoursPublished'; // Highest priority if hours are published
@@ -365,6 +451,72 @@ export default function UserDashboard({ project, user: _user, signups }: Props) 
       if (!status) return null; // Should not happen due to filter, but good practice
 
       switch (status.renderState) {
+        // --- ADDED: New case for pending linked signups ---
+        case 'pendingLinked':
+          return (
+            <Card key={status.signup.id} className="border-blue-300/30 bg-blue-50/5 overflow-hidden">
+              <CardHeader className="pb-2">
+                <div className="flex items-center gap-3">
+                  <div className="bg-blue-100/20 p-2 rounded-full">
+                    <Mail className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg">Signup Pending Approval</CardTitle>
+                    <CardDescription>
+                      Your signup for {project.title} is awaiting project coordinator confirmation.
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4 pt-2">
+                {/* Session info */}
+                <div className="flex flex-col space-y-2 text-sm">
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium text-muted-foreground">Session:</span>
+                    <span>{status.sessionDisplayName}</span>
+                  </div>
+                </div>
+                {/* Information with visual timeline */}
+                <div className="relative pl-6 border-blue-300/30 mt-3 space-y-3">
+                  <div className="relative">
+                    <div className="absolute -left-7 top-0 w-5 h-5 rounded-full bg-blue-200/40 flex items-center justify-center">
+                      <div className="w-2 h-2 rounded-full bg-blue-600"></div>
+                    </div>
+                    <p className="text-sm font-medium">How it got here</p>
+                    <p className="text-xs text-muted-foreground">
+                      This signup was linked from your anonymous profile or created through an email notification. The project coordinator will review and approve it soon.
+                    </p>
+                  </div>
+
+                  <div className="relative">
+                    <div className="absolute -left-7 top-0 w-5 h-5 rounded-full bg-blue-200/40 flex items-center justify-center">
+                      <div className="w-2 h-2 rounded-full bg-blue-600"></div>
+                    </div>
+                    <p className="text-sm font-medium">What to expect</p>
+                    <p className="text-xs text-muted-foreground">
+                      Once approved, you'll be able to check in for the event and track your volunteer hours. You can check the status of your signup anytime.
+                    </p>
+                  </div>
+
+                  <div className="relative">
+                    <div className="absolute -left-7 top-0 w-5 h-5 rounded-full bg-blue-200/40 flex items-center justify-center">
+                      <div className="w-2 h-2 rounded-full bg-blue-600"></div>
+                    </div>
+                    <p className="text-sm font-medium">Questions?</p>
+                    <p className="text-xs text-muted-foreground">
+                      If you have any questions about your signup, you can reach out to the project coordinator directly.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Status badge */}
+                <div className="mt-4 px-3 py-2 bg-blue-100/40 rounded-md border border-blue-200/50">
+                  <p className="text-xs font-medium text-blue-700">Status: <span className="font-semibold">Pending Coordinator Review</span></p>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        // --- END ADDED ---
         // --- ADDED: New case for published hours ---
         case 'hoursPublished':
           return (
@@ -418,7 +570,7 @@ export default function UserDashboard({ project, user: _user, signups }: Props) 
                 {/* Info Section */}
                 <div className="relative pl-6 border-success/30 mt-3 space-y-3">
                   <div className="relative">
-                    <div className="absolute -left-[27px] top-0 w-5 h-5 rounded-full bg-success/20 flex items-center justify-center">
+                    <div className="absolute -left-7 top-0 w-5 h-5 rounded-full bg-success/20 flex items-center justify-center">
                       <div className="w-2 h-2 rounded-full bg-success"></div>
                     </div>
                     <p className="text-sm font-medium">View Your Record</p>
@@ -493,7 +645,7 @@ export default function UserDashboard({ project, user: _user, signups }: Props) 
                 {/* Processing information with visual timeline */}
                 <div className="relative pl-6 border-warning/30 mt-3 space-y-3">
                   <div className="relative">
-                    <div className="absolute -left-[27px] top-0 w-5 h-5 rounded-full bg-warning/20 flex items-center justify-center">
+                    <div className="absolute -left-7 top-0 w-5 h-5 rounded-full bg-warning/20 flex items-center justify-center">
                       <div className="w-2 h-2 rounded-full bg-warning"></div>
                     </div>
                     <p className="text-sm font-medium">Processing Period</p>
@@ -503,7 +655,7 @@ export default function UserDashboard({ project, user: _user, signups }: Props) 
                   </div>
 
                   <div className="relative">
-                    <div className="absolute -left-[27px] top-0 w-5 h-5 rounded-full bg-warning/20 flex items-center justify-center">
+                    <div className="absolute -left-7 top-0 w-5 h-5 rounded-full bg-warning/20 flex items-center justify-center">
                       <div className="w-2 h-2 rounded-full bg-warning"></div>
                     </div>
                     <p className="text-sm font-medium">Need Adjustments?</p>
@@ -552,7 +704,7 @@ export default function UserDashboard({ project, user: _user, signups }: Props) 
                 {/* Timeline style info */}
                 <div className="relative pl-6 border-destructive/30 mt-3 space-y-3">
                   <div className="relative">
-                    <div className="absolute -left-[27px] top-0 w-5 h-5 rounded-full bg-destructive/20 flex items-center justify-center">
+                    <div className="absolute -left-7 top-0 w-5 h-5 rounded-full bg-destructive/20 flex items-center justify-center">
                       <div className="w-2 h-2 rounded-full bg-destructive"></div>
                     </div>
                     <p className="text-sm font-medium">Think This Is a Mistake?</p>
@@ -917,6 +1069,54 @@ export default function UserDashboard({ project, user: _user, signups }: Props) 
           expectedScheduleId={selectedScheduleForScan}
         />
       )}
+
+      {/* Signed Waivers Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle>My Signed Waivers</CardTitle>
+          <CardDescription>
+            Download copies of waivers you&apos;ve signed
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {waiverSignatures.length > 0 ? (
+            <div className="space-y-2">
+              {waiverSignatures.map(sig => (
+                <div key={sig.id} className="flex items-center justify-between p-3 border rounded">
+                  <div>
+                    <p className="font-medium">{project.title}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Signed {new Date(sig.signed_at || sig.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => viewWaiver(sig.id)}
+                    >
+                      <Eye className="h-4 w-4 mr-2" />
+                      View
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => downloadWaiver(sig.id)}
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Download
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              No signed waivers found.
+            </p>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

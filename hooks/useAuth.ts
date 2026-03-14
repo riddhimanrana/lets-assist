@@ -9,7 +9,7 @@
  * Based on Supabase best practices from Issue #40985:
  * - getClaims() is recommended over getSession()
  * - Validates JWT locally without database roundtrip
- * - onAuthStateChange still provides real-time updates
+ * - onAuthStateChange should be treated as an invalidation signal, not a trusted user source
  *
  * Usage:
  * const { user, loading } = useAuth();
@@ -19,6 +19,11 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import {
+  deriveAuthenticatorAssurance,
+  shouldPromptForMfaChallenge,
+  type MfaListFactorsLike,
+} from '@/lib/auth/mfa';
 import type { User } from '@supabase/supabase-js';
 
 export type { User } from '@supabase/supabase-js';
@@ -26,7 +31,31 @@ export type { User } from '@supabase/supabase-js';
 export interface AuthState {
   user: User | null;
   loading: boolean;
+  needsMfa: boolean;
   isAuthenticated: boolean;
+}
+
+type AuthClaimsLike = {
+  sub: string;
+  role?: string;
+  email?: string;
+  phone?: string;
+  user_metadata?: Record<string, unknown>;
+  app_metadata?: Record<string, unknown>;
+};
+
+function buildUserFromClaims(claims: AuthClaimsLike): User {
+  return {
+    id: claims.sub,
+    aud: 'authenticated',
+    role: claims.role || undefined,
+    email: claims.email || undefined,
+    phone: claims.phone || undefined,
+    user_metadata: claims.user_metadata || {},
+    app_metadata: claims.app_metadata || {},
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
 }
 
 /**
@@ -40,6 +69,7 @@ export interface AuthState {
 export function useAuth(): AuthState {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [needsMfa, setNeedsMfa] = useState(false);
 
   // Create stable supabase client reference
   const supabase = useMemo(() => createClient(), []);
@@ -47,52 +77,85 @@ export function useAuth(): AuthState {
   useEffect(() => {
     let mounted = true;
 
-    // Get initial auth state using getClaims() for fast validation
-    const initAuth = async () => {
+    const syncAuthState = async () => {
       try {
-        // Use getClaims() for fast, local JWT validation (no API call)
-        const { data: claimsData, error } = await supabase.auth.getClaims();
+        const { data: claimsData, error: claimsError } = await supabase.auth.getClaims();
 
         if (!mounted) return;
 
-        if (error) {
-          console.error('[useAuth] Error getting claims:', error);
+        if (claimsError || !claimsData?.claims) {
+          if (claimsError) {
+            console.error('[useAuth] Error getting claims:', claimsError);
+          }
+
           setUser(null);
-        } else if (claimsData?.claims) {
-          // Construct User object from claims
-          const { claims } = claimsData;
-          const userFromClaims: User = {
-            id: claims.sub,
-            aud: 'authenticated',
-            role: claims.role || undefined,
-            email: claims.email || undefined,
-            phone: claims.phone || undefined,
-            user_metadata: claims.user_metadata || {},
-            app_metadata: claims.app_metadata || {},
-            created_at: new Date().toISOString(), // Not available in claims
-            updated_at: new Date().toISOString(), // Not available in claims
-          };
-          setUser(userFromClaims);
-        } else {
-          setUser(null);
+          setNeedsMfa(false);
+          return;
         }
+
+        const { data: factorsData, error: factorsError } = await supabase.auth.mfa.listFactors();
+
+        if (!mounted) return;
+
+        if (factorsError) {
+          console.error('[useAuth] Error listing MFA factors:', factorsError);
+        }
+
+        const factorData = (factorsData as MfaListFactorsLike | null) ?? null;
+        const assuranceData = deriveAuthenticatorAssurance(
+          typeof claimsData.claims.aal === 'string' ? claimsData.claims.aal : null,
+          factorData,
+        );
+
+        const pendingMfaChallenge = shouldPromptForMfaChallenge(
+          assuranceData,
+          factorData,
+        );
+
+        setNeedsMfa(pendingMfaChallenge);
+
+        if (pendingMfaChallenge) {
+          setUser(null);
+          return;
+        }
+
+        setUser(buildUserFromClaims(claimsData.claims as AuthClaimsLike));
       } catch (error) {
         console.error('[useAuth] Error during auth initialization:', error);
-        if (mounted) setUser(null);
+        if (mounted) {
+          setUser(null);
+          setNeedsMfa(false);
+        }
       } finally {
         if (mounted) setLoading(false);
       }
     };
 
-    initAuth();
+    void syncAuthState();
 
     // Subscribe to auth state changes for real-time updates
     // This ensures user data stays fresh when login/logout occurs
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      (event) => {
         if (!mounted) return;
-        setUser(session?.user ?? null);
-        setLoading(false);
+
+        if (event === 'SIGNED_OUT') {
+          setUser(null);
+          setNeedsMfa(false);
+          setLoading(false);
+          return;
+        }
+
+        if (event === 'INITIAL_SESSION') {
+          return;
+        }
+
+        setLoading(true);
+        setTimeout(() => {
+          if (mounted) {
+            void syncAuthState();
+          }
+        }, 0);
       }
     );
 
@@ -105,7 +168,8 @@ export function useAuth(): AuthState {
   return {
     user,
     loading,
-    isAuthenticated: user !== null,
+    needsMfa,
+    isAuthenticated: user !== null && !needsMfa,
   };
 }
 

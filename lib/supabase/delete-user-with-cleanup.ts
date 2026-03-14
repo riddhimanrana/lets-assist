@@ -154,7 +154,7 @@ export async function deleteUserWithCleanup(
  * Find organizations where the user is the sole admin.
  * Users cannot be deleted if they're the only admin in any organization.
  */
-async function findSoleAdminOrgs(
+export async function findSoleAdminOrgs(
   supabaseAdmin: SupabaseClient,
   userId: string,
 ): Promise<Array<{ organization_id: string; organization_name: string | null }>> {

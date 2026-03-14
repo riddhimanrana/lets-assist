@@ -764,7 +764,7 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                             <BadgeCheck className="w-4 h-4 sm:w-5 sm:h-5 text-secondary shrink-0" />
                             <div className="min-w-0 flex-1">
                               <div className="text-sm sm:text-lg font-bold text-secondary truncate">{formatHours(summary.certifiedHours)}</div>
-                              <div className="text-xs text-muted-foreground truncate">Official</div>
+                              <div className="text-xs text-secondary truncate">Official</div>
                             </div>
                           </CardContent>
                         </Card>

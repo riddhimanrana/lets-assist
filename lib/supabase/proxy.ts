@@ -1,14 +1,34 @@
 import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
+import {
+    getAccountAccessErrorCode,
+    isAccountBlockedStatus,
+    readAccountAccessFromMetadata,
+} from "@/lib/auth/account-access";
+import {
+    buildMfaRedirectPath,
+    deriveAuthenticatorAssurance,
+    deriveMfaContinuationPath,
+    shouldPromptForMfaChallenge,
+    type MfaListFactorsLike,
+} from "@/lib/auth/mfa";
 
 // Paths that require authentication
-const PROTECTED_PATHS = ["/home", "/projects/create", "/account"];
+const PROTECTED_PATHS = [
+    "/home",
+    "/dashboard",
+    "/certificates",
+    "/organization/create",
+    "/projects/create",
+    "/projects/drafts",
+    "/account",
+];
 
 // Paths that logged-in users shouldn't access
 const RESTRICTED_PATHS_FOR_LOGGED_IN_USERS = ["/", "/login", "/signup", "/reset-password", "/faq"];
 
 // Function to check if a path requires authentication
-function isProtectedPath(path: string) {
+export function isProtectedPath(path: string) {
     return PROTECTED_PATHS.some(
         (protectedPath) =>
             path === protectedPath || path.startsWith(`${protectedPath}/`),
@@ -47,43 +67,71 @@ export async function updateSession(request: NextRequest) {
         }
     )
 
-    const currentPath = request.nextUrl.pathname;
-    const creatorRouteInfo = isProjectCreatorPath(currentPath);
-    const mustEvaluateAuth =
-        isProtectedPath(currentPath) ||
-        RESTRICTED_PATHS_FOR_LOGGED_IN_USERS.includes(currentPath) ||
-        currentPath.startsWith("/admin") ||
-        currentPath.startsWith("/reset-password") ||
-        creatorRouteInfo.isCreatorPath;
-
-    const hasAuthCookies =
-        request.cookies.has("sb-access-token") ||
-        request.cookies.has("sb-refresh-token") ||
-        // Also check for legacy cookie format
-        request.cookies.getAll().some(cookie =>
-            cookie.name.startsWith("sb-") && cookie.name.includes("auth-token")
-        );
-
+    // IMPORTANT: Always call getClaims() immediately after creating the Supabase client.
+    // This refreshes the user's session tokens and writes updated cookies to the response.
+    // Do NOT run any code between createServerClient and getClaims().
+    // Per Supabase docs: "If you remove getClaims() and you use server-side rendering
+    // with the Supabase client, your users may be randomly logged out."
+    // @see https://github.com/supabase/supabase/issues/40985
+    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims();
+    
+    // If getClaims() fails (e.g., invalid/expired tokens that can't be refreshed),
+    // treat the user as not authenticated. The error is expected for anonymous users
+    // or users with completely invalid session state.
+    if (claimsError && process.env.NODE_ENV === 'development') {
+        // Only log in development to avoid noise in production
+        console.log('[Proxy] getClaims error (user will be treated as not authenticated):', claimsError.message);
+    }
+    
+    // Extract user from claims if available
     let user = null;
-    if (mustEvaluateAuth || hasAuthCookies) {
-        // Use getClaims() for lighter validation - validates JWT locally without API call
-        // This is the recommended approach per Supabase Issue #40985
-        // @see https://github.com/supabase/supabase/issues/40985
-        const { data: claimsData } = await supabase.auth.getClaims();
-        if (claimsData?.claims) {
-            user = { id: claimsData.claims.sub, ...claimsData.claims };
+    if (claimsData?.claims) {
+        user = { id: claimsData.claims.sub, ...claimsData.claims };
+    }
+
+    if (user) {
+        const userWithMetadata = user as { app_metadata?: Record<string, unknown> | null };
+        const accountAccess = readAccountAccessFromMetadata(userWithMetadata.app_metadata ?? null);
+
+        if (isAccountBlockedStatus(accountAccess.status)) {
+            await supabase.auth.signOut();
+
+            const loginUrl = new URL('/login', request.url);
+            const errorCode = getAccountAccessErrorCode(accountAccess.status);
+
+            if (errorCode) {
+                loginUrl.searchParams.set('error', errorCode);
+            }
+
+            if (accountAccess.reason) {
+                loginUrl.searchParams.set('reason', accountAccess.reason);
+            }
+
+            const response = NextResponse.redirect(loginUrl);
+            response.cookies.delete('sb-access-token');
+            response.cookies.delete('sb-refresh-token');
+            return response;
         }
     }
 
+    const currentPath = request.nextUrl.pathname;
+    const creatorRouteInfo = isProjectCreatorPath(currentPath);
+    const effectivePathForMfa = currentPath === "/account" ? "/account/profile" : currentPath;
+    const effectiveSearchForMfa = currentPath === "/account" ? "" : request.nextUrl.search;
+    const isRestrictedPathForLoggedIn = RESTRICTED_PATHS_FOR_LOGGED_IN_USERS.includes(currentPath);
+    const currentAal = claimsData?.claims && typeof claimsData.claims.aal === "string"
+        ? claimsData.claims.aal
+        : null;
+
     // Check for ?noRedirect=1 query parameter
     const searchParams = request.nextUrl.searchParams;
+    const hasStaffInviteContext =
+        (currentPath === "/login" || currentPath === "/signup") &&
+        !!searchParams.get("staff_token") &&
+        !!searchParams.get("org");
+
     if (searchParams.get("noRedirect") === "1") {
         return supabaseResponse; // Skip redirects if requested
-    }
-
-    // Handle /account redirect - must come first as it's a simple path redirect
-    if (currentPath === "/account") {
-        return NextResponse.redirect(new URL("/account/profile", request.url));
     }
 
     // Handle reset password paths specially
@@ -98,8 +146,77 @@ export async function updateSession(request: NextRequest) {
         return supabaseResponse;
     }
 
+    // Guard the MFA challenge page itself.
+    // Unauthenticated users must log in first; pass the redirect param through so
+    // they land on the right page after completing both login and MFA.
+    if (currentPath === "/auth/mfa") {
+        if (!user) {
+            const loginUrl = new URL("/login", request.url);
+            const existingRedirect = searchParams.get("redirect");
+            if (existingRedirect) {
+                loginUrl.searchParams.set("redirect", existingRedirect);
+            }
+            return NextResponse.redirect(loginUrl);
+        }
+        // Let authenticated users (aal1 or aal2) through; MfaChallengeClient
+        // performs the precise check and redirects aal2 users automatically.
+        return supabaseResponse;
+    }
+
+    let requiresMfaChallenge = false;
+
+    const shouldCheckMfa = !!user && (
+        isRestrictedPathForLoggedIn ||
+        isProtectedPath(effectivePathForMfa) ||
+        currentPath.startsWith("/admin") ||
+        creatorRouteInfo.isCreatorPath
+    );
+
+    if (shouldCheckMfa) {
+        const { data: factorsData, error: factorsError } = await supabase.auth.mfa.listFactors();
+
+        if (factorsError && process.env.NODE_ENV === "development") {
+            console.log("[Proxy] MFA factor lookup error:", factorsError.message);
+        }
+
+        const factorData = (factorsData as MfaListFactorsLike | null) ?? null;
+        const assuranceData = deriveAuthenticatorAssurance(currentAal, factorData);
+
+        requiresMfaChallenge = shouldPromptForMfaChallenge(
+            assuranceData,
+            factorData,
+        );
+
+        if (requiresMfaChallenge) {
+            const continuationPath = deriveMfaContinuationPath({
+                pathname: effectivePathForMfa,
+                search: effectiveSearchForMfa,
+                requestedRedirect: searchParams.get("redirect"),
+            });
+
+            return NextResponse.redirect(
+                new URL(buildMfaRedirectPath(continuationPath), request.url),
+            );
+        }
+    }
+
+    // Handle /account redirect after auth/MFA checks so we preserve the intended continuation path.
+    if (currentPath === "/account") {
+        if (!user) {
+            const loginUrl = new URL('/login', request.url);
+            loginUrl.searchParams.set('redirect', '/account/profile');
+            return NextResponse.redirect(loginUrl);
+        }
+
+        return NextResponse.redirect(new URL("/account/profile", request.url));
+    }
+
     // Redirect authenticated users trying to access restricted paths
-    if (user && RESTRICTED_PATHS_FOR_LOGGED_IN_USERS.includes(currentPath)) {
+    if (user && isRestrictedPathForLoggedIn) {
+        if (hasStaffInviteContext) {
+            return supabaseResponse;
+        }
+
         return NextResponse.redirect(new URL("/home", request.url));
     }
 

@@ -13,9 +13,11 @@ interface LocationAutocompleteProps {
   id?: string;
   value?: LocationData;
   onChangeAction: (location?: LocationData) => void;
+  onFocusAction?: () => void;
   maxLength?: number;
   required?: boolean;
   className?: string;
+  highlight?: boolean;
   error?: boolean;
   errorMessage?: string;
   "aria-invalid"?: boolean;
@@ -26,9 +28,11 @@ function LocationAutocompleteContent({
   id,
   value,
   onChangeAction,
+  onFocusAction,
   maxLength = 250,
   required = false,
   className,
+  highlight = false,
   error = false,
   errorMessage,
   "aria-invalid": ariaInvalid,
@@ -322,6 +326,7 @@ function LocationAutocompleteContent({
           onFocus={() => {
             setShowResults(true)
             setQuery("") // Clear query on focus to allow re-searching
+            if (onFocusAction) onFocusAction();
           }}
           onKeyDown={handleKeyDown}
           className={cn(
@@ -336,6 +341,16 @@ function LocationAutocompleteContent({
         <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
           <Search className="h-4 w-4 text-muted-foreground" />
         </div>
+        
+        {highlight && (
+          <div className="absolute -top-12 left-0 right-0 flex justify-center animate-bounce z-10">
+            <div className="bg-primary text-primary-foreground text-xs font-bold py-1.5 px-3 rounded-full shadow-lg flex items-center gap-1.5 whitespace-nowrap">
+              <MapPin className="h-3.5 w-3.5" />
+              Please verify/fill the location manually!
+              <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-primary" />
+            </div>
+          </div>
+        )}
       </div>
 
       {showResults && (
@@ -436,6 +451,7 @@ export default function LocationAutocomplete(props: LocationAutocompleteProps) {
         className={props.className}
         aria-invalid={props["aria-invalid"]}
         aria-errormessage={props["aria-errormessage"]}
+        onFocus={props.onFocusAction}
         onChange={(event) =>
           props.onChangeAction({
             text: event.target.value,

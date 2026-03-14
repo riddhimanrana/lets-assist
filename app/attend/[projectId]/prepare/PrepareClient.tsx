@@ -15,6 +15,11 @@ export default function PrepareClient({ projectId }: PrepareClientProps) {
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     // --- Device Check ---
@@ -54,8 +59,11 @@ export default function PrepareClient({ projectId }: PrepareClientProps) {
         if (result.success) {
           console.log('PrepareClient: Cookie set successfully. Redirecting client-side...');
           setStatus('success');
-          // Redirect client-side to the main attendance page
-          router.replace(`/attend/${encodeURIComponent(projectId)}?session=${encodeURIComponent(sessionUuid)}&schedule=${encodeURIComponent(scheduleId)}`);
+          // Wait for mounted and router to be ready
+          if (mounted) {
+            // Redirect client-side to the main attendance page
+            router.replace(`/attend/${encodeURIComponent(projectId)}?session=${encodeURIComponent(sessionUuid)}&schedule=${encodeURIComponent(scheduleId)}`);
+          }
         } else {
           console.error('PrepareClient: Failed to set cookie via server action.', result.error);
           setErrorMessage(result.error || 'Failed to verify attendance link. Please try scanning the QR code again.');
@@ -71,7 +79,7 @@ export default function PrepareClient({ projectId }: PrepareClientProps) {
     // Use void to explicitly ignore the promise returned by the async function
     void setCookieAndRedirect();
     // Dependency array includes necessary values
-  }, [projectId, router, searchParams]);
+  }, [projectId, router, searchParams, mounted]);
 
   // Render UI based on status
   return (

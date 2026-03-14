@@ -3,13 +3,15 @@
  * Analyzes reports one-by-one with detailed reasoning steps
  */
 
-import { createServerClient } from '@supabase/ssr';
+import { createClient } from '@/lib/supabase/server';
 import { getAdminClient } from '@/lib/supabase/admin';
+import { getAuthUser } from '@/lib/supabase/auth-helpers';
 import {
   analyzeProjectWithAi,
   analyzeReportWithAi,
   buildProjectFlagDetails,
 } from '@/app/admin/moderation/ai-review';
+import { isPendingReportStatus } from '@/app/admin/moderation/report-status';
 import { NextRequest } from 'next/server';
 import { cookies } from 'next/headers';
 
@@ -23,21 +25,7 @@ async function fetchAuthUser(userId: string) {
 // Check if user is super admin using auth metadata
 async function checkSuperAdmin() {
   try {
-    const cookieStore = await cookies();
-    
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll();
-          },
-        },
-      }
-    );
-    
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { user, error: authError } = await getAuthUser({ sensitive: true });
     
     if (authError || !user) {
       console.log('[scan-stream] No authenticated user found:', authError?.message);
@@ -89,19 +77,22 @@ export async function GET(_request: NextRequest) {
       try {
         const supabase = getAdminClient();
 
-        // Fetch pending reports
-        const { data: pendingReports, error: reportsError } = await supabase
+        // Fetch report backlog and derive pending candidates (including legacy/null pending states)
+        const { data: reportsData, error: reportsError } = await supabase
           .from('content_reports')
           .select('*')
-          .eq('status', 'pending')
           .order('created_at', { ascending: true })
-          .limit(25);
+          .limit(200);
 
         if (reportsError) {
           sendEvent(controller, { type: 'error', data: { message: reportsError.message } });
           controller.close();
           return;
         }
+
+        const pendingReports = (reportsData ?? [])
+          .filter((report) => isPendingReportStatus(report.status))
+          .slice(0, 25);
 
         // Manually fetch reporter profiles
         const reporterIds = (pendingReports ?? [])

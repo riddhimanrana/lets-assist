@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getProject } from "../actions";
+import { getCurrentUserProjectPermissions, getProject } from "../actions";
 import EditProjectClient from "./EditProjectClient";
 
 type Props = {
@@ -24,8 +24,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function EditProjectPage({ params }: Props): Promise<React.ReactElement> {
   const { id } = await params;
   const { project, error } = await getProject(id);
+  const { canManageProject } = await getCurrentUserProjectPermissions(id);
 
-  if (error || !project) {
+  if (error || !project || !canManageProject) {
     notFound();
   }
 

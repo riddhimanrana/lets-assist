@@ -10,7 +10,9 @@ export interface OneTimeSchedule extends BaseScheduleSlot {
   date: string;
 }
 
-export interface MultiDaySlot extends BaseScheduleSlot {}
+export interface MultiDaySlot extends BaseScheduleSlot {
+  name?: string;
+}
 
 export interface MultiDayScheduleDay {
   date: string;

@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { sanitizeRichTextHtml } from "@/lib/security/html.server";
 import { revalidatePath } from "next/cache";
 import { v4 as uuidv4 } from "uuid";
 import type { EventFormState } from "@/hooks/use-event-form";
@@ -18,6 +19,50 @@ const ALLOWED_DOCUMENT_TYPES = [
   "image/webp",
   "image/jpg"
 ];
+
+function sanitizeDraftData(projectData: Partial<EventFormState>): Partial<EventFormState> {
+  const sanitizedDescription =
+    typeof projectData.basicInfo?.description === "string"
+      ? sanitizeRichTextHtml(projectData.basicInfo.description)
+      : projectData.basicInfo?.description;
+
+  return {
+    ...projectData,
+    basicInfo: projectData.basicInfo
+      ? {
+          ...projectData.basicInfo,
+          ...(typeof sanitizedDescription === "string"
+            ? { description: sanitizedDescription }
+            : {}),
+        }
+      : projectData.basicInfo,
+    // Persist waiver configuration, but never persist uploaded PDF/file-specific data in drafts.
+    waiverPdfFile: null,
+    waiverPdfUrl: null,
+    waiverPdfValidation: null,
+  };
+}
+
+function isMissingWaiverDisableEsignatureColumnError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+
+  const pgError = error as {
+    code?: string;
+    message?: string;
+    details?: string;
+    hint?: string;
+  };
+
+  const combined = `${pgError.message ?? ""} ${pgError.details ?? ""} ${pgError.hint ?? ""}`.toLowerCase();
+  const referencesColumn = combined.includes("waiver_disable_esignature");
+  const schemaCacheLike =
+    combined.includes("schema cache") ||
+    combined.includes("could not find") ||
+    combined.includes("column");
+  const knownCode = pgError.code === "PGRST204" || pgError.code === "42703";
+
+  return referencesColumn && (knownCode || schemaCacheLike);
+}
 
 // Helper function to check if date/time is in the past, using user's local time
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -77,24 +122,30 @@ export async function createBasicProject(
     return { error: "You must be logged in to create a project" };
   }
 
-  // Trusted member gating (no bypass by org roles)
-  const { data: tmProfile } = await supabase
-    .from("profiles")
-    .select("trusted_member")
-    .eq("id", user.id)
-    .single();
-  if (!tmProfile?.trusted_member) {
-    // If profile flag isn't set, allow if application is accepted
-    const { data: tmApp } = await supabase
-      .from("trusted_member")
-      .select("status")
+  const requestedVisibility = projectData.visibility || "unlisted";
+
+  // Trusted member gating only for projects that appear in public feed.
+  if (requestedVisibility === "public") {
+    const { data: tmProfile } = await supabase
+      .from("profiles")
+      .select("trusted_member")
       .eq("id", user.id)
-      .maybeSingle();
-    if (tmApp?.status !== true) {
-      return {
-        error:
-          "Only Trusted Members can create projects. Please visit /trusted-member to apply, and once accepted you can create projects.",
-      };
+      .single();
+
+    if (!tmProfile?.trusted_member) {
+      // If profile flag isn't set, allow if application is accepted.
+      const { data: tmApp } = await supabase
+        .from("trusted_member")
+        .select("status")
+        .or(`id.eq.${user.id},user_id.eq.${user.id}`)
+        .maybeSingle();
+
+      if (tmApp?.status !== true) {
+        return {
+          error:
+            "Only Trusted Members can create Public projects. You can still create Unlisted or Organization-only projects. Visit /trusted-member to apply for Public visibility.",
+        };
+      }
     }
   }
 
@@ -111,7 +162,7 @@ export async function createBasicProject(
     // Decide if you want to block creation or allow if count fails. For now, allowing.
   }
 
-  if (projectsCount !== null && projectsCount >= 10) {
+  if (projectsCount !== null && projectsCount >= 50) {
     return { error: "You have created too many projects recently. Please try again in 24 hours." };
   }
 
@@ -172,36 +223,48 @@ export async function createBasicProject(
       weekdays: projectData.recurrence.weekdays || [],
     } : null;
 
+    const baseProjectPayload = {
+      creator_id: user.id,
+      title: projectData.basicInfo.title,
+      location: projectData.basicInfo.location,
+      location_data: projectData.basicInfo.locationData, // Add locationData field
+      description: sanitizeRichTextHtml(projectData.basicInfo.description),
+      event_type: projectData.eventType,
+      schedule: projectData.schedule,
+      status: 'upcoming',
+      verification_method: projectData.verificationMethod,
+      require_login: projectData.requireLogin,
+      enable_volunteer_comments: projectData.enableVolunteerComments || false,
+      show_attendees_publicly: projectData.showAttendeesPublicly || false,
+      waiver_required: projectData.waiverRequired || false,
+      waiver_allow_upload: projectData.waiverAllowUpload ?? true,
+      organization_id: organizationId || null, // Save organization_id if provided
+      visibility: requestedVisibility, // Public requires Trusted Member. Unlisted / org-only do not.
+      published: publishedState, // Add the published state tracking
+      project_timezone: projectData.basicInfo.projectTimezone || 'America/Los_Angeles', // Save project timezone with fallback
+      restrict_to_org_domains: projectData.restrictToOrgDomains || false, // Add domain restriction flag
+      workflow_status: isDraft ? 'draft' : 'published', // Support draft saving
+      recurrence_rule: recurrenceRule, // Support recurring projects
+    };
+
     // Create project in the database
-    const { data: project, error: projectError } = await supabase
+    let { data: project, error: projectError } = await supabase
       .from("projects")
       .insert({
-        creator_id: user.id,
-        title: projectData.basicInfo.title,
-        location: projectData.basicInfo.location,
-        location_data: projectData.basicInfo.locationData, // Add locationData field
-        description: projectData.basicInfo.description,
-        event_type: projectData.eventType,
-        verification_method: projectData.verificationMethod,
-        require_login: projectData.requireLogin,
-        enable_volunteer_comments: projectData.enableVolunteerComments || false,
-        show_attendees_publicly: projectData.showAttendeesPublicly || false,
-        waiver_required: projectData.waiverRequired || false,
-        waiver_allow_upload: projectData.waiverAllowUpload ?? true,
-        schedule: {
-          [projectData.eventType]: projectData.schedule[projectData.eventType],
-        },
-        status: "upcoming",
-        organization_id: organizationId || null, // Save organization_id if provided
-        visibility: projectData.visibility || 'public', // Set visibility (public/unlisted for all, org_only for org projects)
-        published: publishedState, // Add the published state tracking
-        project_timezone: projectData.basicInfo.projectTimezone || 'America/Los_Angeles', // Save project timezone with fallback
-        restrict_to_org_domains: projectData.restrictToOrgDomains || false, // Add domain restriction flag
-        workflow_status: isDraft ? 'draft' : 'published', // Support draft saving
-        recurrence_rule: recurrenceRule, // Support recurring projects
+        ...baseProjectPayload,
+        waiver_disable_esignature: projectData.waiverDisableEsignature ?? false,
       })
       .select("id")
       .single();
+
+    // Backward compatibility for databases where this column doesn't exist yet.
+    if (projectError && isMissingWaiverDisableEsignatureColumnError(projectError)) {
+      ({ data: project, error: projectError } = await supabase
+        .from("projects")
+        .insert(baseProjectPayload)
+        .select("id")
+        .single());
+    }
 
     if (projectError || !project) {
       console.error("Error creating project:", projectError);
@@ -481,6 +544,7 @@ export async function createProject(formData: FormData) {
 export async function autoSaveDraft(projectData: Partial<EventFormState>, autosaveDraftId?: string) {
   try {
     const supabase = await createClient();
+    const sanitizedProjectData = sanitizeDraftData(projectData);
 
     // Get current user
     const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -489,7 +553,7 @@ export async function autoSaveDraft(projectData: Partial<EventFormState>, autosa
     }
 
     // Extract title for easy reference
-    const title = projectData.basicInfo?.title || "Untitled Draft";
+    const title = sanitizedProjectData.basicInfo?.title || "Untitled Draft";
 
     // If we have an autosave draft ID, update it; otherwise find or create the autosave draft
     if (autosaveDraftId) {
@@ -498,7 +562,7 @@ export async function autoSaveDraft(projectData: Partial<EventFormState>, autosa
         .from("project_drafts")
         .update({
           title: title,
-          draft_data: projectData,
+          draft_data: sanitizedProjectData,
           updated_at: new Date().toISOString()
         })
         .eq("id", autosaveDraftId)
@@ -519,7 +583,7 @@ export async function autoSaveDraft(projectData: Partial<EventFormState>, autosa
         .insert({
           user_id: user.id,
           title: title,
-          draft_data: projectData
+          draft_data: sanitizedProjectData
         })
         .select()
         .single();
@@ -545,6 +609,7 @@ export async function saveProjectAsNewDraft(formData: FormData) {
     const projectDataStr = formData.get("projectData") as string;
     if (!projectDataStr) return { error: "Missing project data" };
     const projectData = JSON.parse(projectDataStr);
+    const sanitizedProjectData = sanitizeDraftData(projectData);
 
     // Get current user
     const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -553,7 +618,7 @@ export async function saveProjectAsNewDraft(formData: FormData) {
     }
 
     // Extract title for easy reference
-    const title = projectData.basicInfo?.title || "Untitled Draft";
+    const title = sanitizedProjectData.basicInfo?.title || "Untitled Draft";
 
     // Always create a new draft entry
     const { data: draft, error: draftError } = await supabase
@@ -561,7 +626,7 @@ export async function saveProjectAsNewDraft(formData: FormData) {
       .insert({
         user_id: user.id,
         title: title,
-        draft_data: projectData
+        draft_data: sanitizedProjectData
       })
       .select()
       .single();
@@ -587,6 +652,7 @@ export async function saveProjectAsDraft(formData: FormData) {
     const projectDataStr = formData.get("projectData") as string;
     if (!projectDataStr) return { error: "Missing project data" };
     const projectData = JSON.parse(projectDataStr);
+    const sanitizedProjectData = sanitizeDraftData(projectData);
 
     // Get current user
     const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -595,7 +661,7 @@ export async function saveProjectAsDraft(formData: FormData) {
     }
 
     // Extract title for easy reference
-    const title = projectData.basicInfo?.title || "Untitled Draft";
+    const title = sanitizedProjectData.basicInfo?.title || "Untitled Draft";
 
     // Save as JSON in project_drafts table
     const { data: draft, error: draftError } = await supabase
@@ -603,7 +669,7 @@ export async function saveProjectAsDraft(formData: FormData) {
       .insert({
         user_id: user.id,
         title: title,
-        draft_data: projectData
+        draft_data: sanitizedProjectData
       })
       .select()
       .single();
@@ -681,7 +747,7 @@ export async function updateDraft(projectId: string, projectData: Partial<EventF
   // Verify the user owns this draft
   const { data: project, error: projectError } = await supabase
     .from("projects")
-    .select("id, creator_id, workflow_status")
+    .select("id, creator_id, workflow_status, visibility")
     .eq("id", projectId)
     .single();
 
@@ -701,6 +767,31 @@ export async function updateDraft(projectId: string, projectData: Partial<EventF
     return { error: "Incomplete project data for draft update" };
   }
 
+  const targetVisibility = projectData.visibility || project.visibility || "unlisted";
+
+  if (targetVisibility === "public") {
+    const { data: tmProfile } = await supabase
+      .from("profiles")
+      .select("trusted_member")
+      .eq("id", user.id)
+      .single();
+
+    if (!tmProfile?.trusted_member) {
+      const { data: tmApp } = await supabase
+        .from("trusted_member")
+        .select("status")
+        .or(`id.eq.${user.id},user_id.eq.${user.id}`)
+        .maybeSingle();
+
+      if (tmApp?.status !== true) {
+        return {
+          error:
+            "Only Trusted Members can set project visibility to Public. Keep this draft Unlisted or Organization-only, or apply at /trusted-member.",
+        };
+      }
+    }
+  }
+
   // Build recurrence rule if enabled
   const recurrenceRule = projectData.recurrence?.enabled ? {
     frequency: projectData.recurrence.frequency,
@@ -712,29 +803,39 @@ export async function updateDraft(projectId: string, projectData: Partial<EventF
   } : null;
 
   // Update the draft
-  const { error: updateError } = await supabase
+  const baseUpdatePayload = {
+    title: projectData.basicInfo.title,
+    location: projectData.basicInfo.location,
+    location_data: projectData.basicInfo.locationData,
+    description: sanitizeRichTextHtml(projectData.basicInfo.description),
+    event_type: projectData.eventType,
+    schedule: projectData.schedule,
+    verification_method: projectData.verificationMethod,
+    require_login: projectData.requireLogin,
+    enable_volunteer_comments: projectData.enableVolunteerComments || false,
+    show_attendees_publicly: projectData.showAttendeesPublicly || false,
+    waiver_required: projectData.waiverRequired || false,
+    waiver_allow_upload: projectData.waiverAllowUpload ?? true,
+    visibility: targetVisibility,
+    project_timezone: projectData.basicInfo.projectTimezone || 'America/Los_Angeles',
+    restrict_to_org_domains: projectData.restrictToOrgDomains || false,
+    recurrence_rule: recurrenceRule,
+  };
+
+  let { error: updateError } = await supabase
     .from("projects")
     .update({
-      title: projectData.basicInfo.title,
-      location: projectData.basicInfo.location,
-      location_data: projectData.basicInfo.locationData,
-      description: projectData.basicInfo.description,
-      event_type: projectData.eventType,
-      verification_method: projectData.verificationMethod,
-      require_login: projectData.requireLogin,
-      enable_volunteer_comments: projectData.enableVolunteerComments || false,
-      show_attendees_publicly: projectData.showAttendeesPublicly || false,
-      waiver_required: projectData.waiverRequired || false,
-      waiver_allow_upload: projectData.waiverAllowUpload ?? true,
-      schedule: {
-        [projectData.eventType]: projectData.schedule[projectData.eventType],
-      },
-      visibility: projectData.visibility || 'public',
-      project_timezone: projectData.basicInfo.projectTimezone || 'America/Los_Angeles',
-      restrict_to_org_domains: projectData.restrictToOrgDomains || false,
-      recurrence_rule: recurrenceRule,
+      ...baseUpdatePayload,
+      waiver_disable_esignature: projectData.waiverDisableEsignature ?? false,
     })
     .eq("id", projectId);
+
+  if (updateError && isMissingWaiverDisableEsignatureColumnError(updateError)) {
+    ({ error: updateError } = await supabase
+      .from("projects")
+      .update(baseUpdatePayload)
+      .eq("id", projectId));
+  }
 
   if (updateError) {
     console.error("Error updating draft:", updateError);
@@ -828,7 +929,6 @@ export async function checkProfanity(content: { [key: string]: string }) {
         }
 
         const result = await response.json();
-        console.log(result)
 
         results[field] = {
           isProfanity: !!result.isProfanity,

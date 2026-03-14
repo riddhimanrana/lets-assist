@@ -1,3 +1,5 @@
+"use client";
+
 import React from "react";
 
 type NoAvatarProps = {
@@ -5,23 +7,30 @@ type NoAvatarProps = {
   className?: string;
 };
 
+/**
+ * Returns only the user's monogram text.
+ * The surrounding avatar/fallback UI should be handled by the shared Avatar components.
+ */
 export const NoAvatar: React.FC<NoAvatarProps> = ({ fullName, className }) => {
-  if (!fullName) return null;
+  const trimmedFullName = fullName?.trim();
 
-  const parts = fullName.trim().split(/\s+/);
+  if (!trimmedFullName) return null;
+
+  const parts = trimmedFullName.split(/\s+/);
   const initials =
     parts.length > 1
       ? parts
           .slice(0, 2)
           .map((name) => name[0])
           .join("")
-      : parts[0].substring(0, 2);
+      : parts.length === 1
+        ? parts[0].substring(0, 2)
+        : null;
+
+  if (!initials) return null;
 
   const text = initials.toUpperCase();
 
-  // If a className is provided, render a span so callers can style it.
-  // Otherwise return just the text so it can be used inside AvatarFallback
-  // without adding extra wrappers.
   if (className) {
     return <span className={className}>{text}</span>;
   }

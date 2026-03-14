@@ -8,7 +8,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { NoAvatar } from "@/components/shared/NoAvatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -245,12 +246,15 @@ export function ReportDetailView({
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-3">
-              {typeof reporter?.avatar_url === 'string' && reporter.avatar_url && (
-                <Avatar className="h-10 w-10">
-                  <AvatarImage src={reporter.avatar_url} alt={String(reporter.full_name || '')} />
-                  <AvatarFallback>{String(reporter.full_name || '').charAt(0)}</AvatarFallback>
-                </Avatar>
-              )}
+              <Avatar className="h-10 w-10">
+                <AvatarImage
+                  src={reporter?.avatar_url as string || undefined}
+                  alt="Reporter"
+                />
+                <AvatarFallback>
+                  <NoAvatar fullName={reporter?.full_name as string || undefined} />
+                </AvatarFallback>
+              </Avatar>
               <div>
                 <p className="font-medium">{String(reporter?.full_name || '')}</p>
                 <p className="text-sm text-muted-foreground">
@@ -342,12 +346,15 @@ export function ReportDetailView({
               <div className="border-t pt-4">
                 <p className="text-sm text-muted-foreground mb-2">Content Creator</p>
                 <div className="flex items-center gap-3">
-                  {typeof creator?.avatar_url === 'string' && creator.avatar_url && (
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src={creator.avatar_url} alt={String(creator.full_name || '')} />
-                      <AvatarFallback>{String(creator.full_name || '').charAt(0)}</AvatarFallback>
-                    </Avatar>
-                  )}
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage
+                      src={creator?.avatar_url as string || undefined}
+                      alt="Content Creator"
+                    />
+                    <AvatarFallback>
+                      <NoAvatar fullName={creator?.full_name as string || undefined} />
+                    </AvatarFallback>
+                  </Avatar>
                   <div>
                     <p className="font-medium">{String(creator.full_name || '')}</p>
                     <p className="text-sm text-muted-foreground">

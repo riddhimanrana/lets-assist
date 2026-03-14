@@ -16,6 +16,7 @@
 import { streamText } from 'ai';
 import { createClient } from '@/lib/supabase/server';
 import { notifyAdminUserBatched } from '@/services/admin-notifications';
+import { logError } from '@/lib/logger';
 
 // Model configuration for Vercel AI Gateway
 const MODEL = 'google/gemini-2.0-flash-lite';
@@ -136,7 +137,10 @@ export async function moderateImage(imageUrl: string, userId?: string): Promise<
 
     return moderationResult;
   } catch (error) {
-    console.error('Image moderation error:', error);
+    logError('Image moderation failed', error, {
+      user_id: userId,
+      image_url: imageUrl.substring(0, 100),
+    });
     // On error, fail safe - allow but flag for review
     return {
       safe: true,
@@ -256,7 +260,11 @@ export async function moderateText(text: string, userId?: string, contentId?: st
 
     return moderationResult;
   } catch (error) {
-    console.error('Text moderation error:', error);
+    logError('Text moderation failed', error, {
+      user_id: userId,
+      content_id: contentId,
+      text_length: text.length,
+    });
     // On error, fail safe - allow but flag for review
     return {
       safe: true,
@@ -312,7 +320,13 @@ async function logModeration({
       });
     }
   } catch (error) {
-    console.error('Failed to log moderation result:', error);
+    logError('Failed to log moderation result to database', error, {
+      user_id: userId,
+      content_type: contentType,
+      content_id: contentId.substring(0, 50),
+      action: result.action,
+      severity: result.severity,
+    });
   }
 }
 
@@ -330,7 +344,9 @@ export async function getUserViolations(userId: string): Promise<number> {
     
     return count || 0;
   } catch (error) {
-    console.error('Failed to get user violations:', error);
+    logError('Failed to retrieve user violations', error, {
+      user_id: userId,
+    });
     return 0;
   }
 }
@@ -354,7 +370,12 @@ export async function notifyAdminFlaggedContent(
       confidenceScore,
     });
   } catch (error) {
-    console.error('Error notifying admin of flagged content:', error);
+    logError('Failed to notify admin of flagged content', error, {
+      content_id: contentId,
+      content_type: contentType,
+      flag_type: flagType,
+      admin_user_id: adminUserId,
+    });
   }
 }
 
@@ -377,7 +398,13 @@ export async function notifyAdminUserReport(
       priority,
     });
   } catch (error) {
-    console.error('Error notifying admin of user report:', error);
+    logError('Failed to notify admin of user report', error, {
+      report_id: reportId,
+      content_type: contentType,
+      reason,
+      priority,
+      admin_user_id: adminUserId,
+    });
   }
 }
 
@@ -398,6 +425,11 @@ export async function notifyAdminTrustedMemberApplication(
       applicantEmail,
     });
   } catch (error) {
-    console.error('Error notifying admin of trusted member application:', error);
+    logError('Failed to notify admin of trusted member application', error, {
+      application_id: applicationId,
+      applicant_name: applicantName,
+      applicant_email: applicantEmail,
+      admin_user_id: adminUserId,
+    });
   }
 }

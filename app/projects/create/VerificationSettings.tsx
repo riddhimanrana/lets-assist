@@ -33,19 +33,27 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import type { DetectedPdfField } from "@/lib/waiver/pdf-field-detect";
+import { WaiverBuilderDialog, WaiverDefinitionInput } from "@/components/waiver/WaiverBuilderDialog";
+import { Button } from "@/components/ui/button";
 
 interface VerificationSettingsProps {
   verificationMethod: VerificationMethod;
   requireLogin: boolean;
   isOrganization: boolean; // Add this to detect if creating for an organization
   visibility: ProjectVisibility; // Project visibility setting
+  canUsePublicVisibility: boolean;
   enableVolunteerComments: boolean;
   showAttendeesPublicly: boolean;
   waiverRequired: boolean;
   waiverAllowUpload: boolean;
+  waiverDisableEsignature: boolean;
   waiverPdfFile?: File | null;
   waiverPdfUrl?: string | null;
   waiverPdfValidation?: { hasSignatureFields: boolean; warnings: string[] } | null;
+  waiverDefinition?: WaiverDefinitionInput | null;
+  detectedFields?: DetectedPdfField[] | null;
+  showWaiverReuploadNotice?: boolean;
   updateVerificationMethodAction: (method: VerificationMethod) => void;
   updateRequireLoginAction: (requireLogin: boolean) => void;
   updateVisibilityAction: (visibility: ProjectVisibility) => void;
@@ -53,8 +61,11 @@ interface VerificationSettingsProps {
   updateShowAttendeesPubliclyAction: (enabled: boolean) => void;
   updateWaiverRequiredAction: (enabled: boolean) => void;
   updateWaiverAllowUploadAction: (enabled: boolean) => void;
+  updateWaiverDisableEsignatureAction: (disabled: boolean) => void;
   updateWaiverPdfFileAction?: (file: File | null) => void;
   updateWaiverPdfValidationAction?: (validation: { hasSignatureFields: boolean; warnings: string[] } | null) => void;
+  updateWaiverDefinitionAction?: (definition: WaiverDefinitionInput | null) => void;
+  updateDetectedFieldsAction?: (fields: DetectedPdfField[] | null) => void;
   clearWaiverPdfAction?: () => void;
   restrictToOrgDomains?: boolean;
   updateRestrictToOrgDomainsAction?: (restrict: boolean) => void;
@@ -71,13 +82,18 @@ export default function VerificationSettings({
   requireLogin,
   isOrganization,
   visibility,
+  canUsePublicVisibility,
   enableVolunteerComments,
   showAttendeesPublicly,
   waiverRequired,
-  waiverAllowUpload,
+  waiverAllowUpload: _waiverAllowUpload,
+  waiverDisableEsignature,
   waiverPdfFile,
   waiverPdfUrl,
   waiverPdfValidation,
+  waiverDefinition,
+  detectedFields,
+  showWaiverReuploadNotice = false,
   updateVerificationMethodAction,
   updateRequireLoginAction,
   updateVisibilityAction,
@@ -85,8 +101,11 @@ export default function VerificationSettings({
   updateShowAttendeesPubliclyAction,
   updateWaiverRequiredAction,
   updateWaiverAllowUploadAction,
+  updateWaiverDisableEsignatureAction,
   updateWaiverPdfFileAction,
   updateWaiverPdfValidationAction,
+  updateWaiverDefinitionAction,
+  updateDetectedFieldsAction,
   clearWaiverPdfAction,
   restrictToOrgDomains = false,
   updateRestrictToOrgDomainsAction,
@@ -95,15 +114,18 @@ export default function VerificationSettings({
 }: VerificationSettingsProps) {
   const [isValidatingPdf, setIsValidatingPdf] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
+  const [showBuilder, setShowBuilder] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const MAX_PDF_SIZE = 10 * 1024 * 1024; // 10MB
+  const isPublicVisibilityDisabled = !canUsePublicVisibility;
 
   const validatePdfFile = useCallback(async (file: File) => {
     setIsValidatingPdf(true);
     setPdfError(null);
 
     try {
+      // ... existing checks ...
       // Check file type
       if (file.type !== 'application/pdf') {
         setPdfError('Please upload a PDF file');
@@ -130,30 +152,45 @@ export default function VerificationSettings({
         return;
       }
 
-      // Simple signature field detection (look for /Sig or /AcroForm in the PDF)
-      const pdfText = new TextDecoder('latin1').decode(bytes);
-      const hasSignatureFields =
-        pdfText.includes('/Sig') ||
-        pdfText.includes('/AcroForm') ||
-        pdfText.includes('/SigFlags') ||
-        pdfText.includes('signature') ||
-        pdfText.includes('/Widget');
+      // Use PDF.js-based widget detection with dynamic import to avoid server-side issues
+      const { detectPdfWidgets } = await import('@/lib/waiver/pdf-field-detect');
+      const detectionResult = await detectPdfWidgets(file);
 
       const warnings: string[] = [];
-      if (!hasSignatureFields) {
-        warnings.push('No signature fields detected. Volunteers will sign electronically (draw/type) alongside this document.');
+      
+      // Simplified user-facing messages
+      if (!detectionResult.success) {
+        // Log technical details to console for debugging
+        if (detectionResult.errors) {
+          console.warn('PDF analysis warnings:', detectionResult.errors);
+        }
+      }
+
+      if (!detectionResult.hasSignatureFields) {
+        warnings.push('No pre-filled signature fields detected. You can configure custom signature placements in the next step.');
+      } else if (detectionResult.success && detectionResult.fields.length > 0) {
+        const sigFields = detectionResult.fields.filter(f => f.fieldType === 'signature');
+        warnings.push(`Found ${sigFields.length} signature field(s) and ${detectionResult.fields.length - sigFields.length} other form field(s).`);
       }
 
       // Update state
       updateWaiverPdfFileAction?.(file);
-      updateWaiverPdfValidationAction?.({ hasSignatureFields, warnings });
+      updateWaiverPdfValidationAction?.({ hasSignatureFields: detectionResult.hasSignatureFields, warnings });
+      
+      // Store detected fields and open builder
+      if (detectionResult.success) {
+         updateDetectedFieldsAction?.(detectionResult.fields);
+         // Open builder automatically
+         setShowBuilder(true);
+      }
+      
     } catch (error) {
       console.error('Error validating PDF:', error);
       setPdfError('Error reading PDF file. Please try again.');
     } finally {
       setIsValidatingPdf(false);
     }
-  }, [updateWaiverPdfFileAction, updateWaiverPdfValidationAction]);
+  }, [updateWaiverPdfFileAction, updateWaiverPdfValidationAction, updateDetectedFieldsAction]);
 
   const handleFileChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -525,6 +562,16 @@ export default function VerificationSettings({
 
             {waiverRequired && (
               <>
+                {showWaiverReuploadNotice && !hasWaiverPdf && (
+                  <Alert className="bg-warning/10 border-warning">
+                    <AlertTriangle className="h-4 w-4 text-warning" />
+                    <AlertDescription className="text-warning text-sm">
+                      <span className="font-medium">Draft restored:</span> Your waiver signer configuration was saved, but waiver PDFs are not stored in drafts. Please re-upload your waiver PDF to use your saved configuration.
+                      {waiverDefinition?.signers?.length ? ` (${waiverDefinition.signers.length} signer role${waiverDefinition.signers.length !== 1 ? 's' : ''} ready.)` : ''}
+                    </AlertDescription>
+                  </Alert>
+                )}
+
                 {/* PDF Upload Section */}
                 <div className="space-y-3 pt-2">
                   <Label className="text-sm font-medium">Waiver Document (PDF)</Label>
@@ -576,7 +623,7 @@ export default function VerificationSettings({
                               {waiverPdfFile?.name || 'Waiver PDF'}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              {waiverPdfFile
+                              {waiverPdfFile?.size !== undefined
                                 ? `${(waiverPdfFile.size / 1024).toFixed(1)} KB`
                                 : 'Uploaded'}
                             </p>
@@ -597,56 +644,132 @@ export default function VerificationSettings({
                       {waiverPdfValidation && (
                         <div className="space-y-2">
                           {waiverPdfValidation.hasSignatureFields ? (
-                            <Alert className="bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-900">
-                              <CheckCircle2 className="h-4 w-4 text-green-600" />
-                              <AlertDescription className="text-green-700 dark:text-green-400">
-                                Signature fields detected in the PDF. Volunteers can sign directly on the document.
+                            <Alert className="bg-success/10 border-success">
+                              <CheckCircle2 className="h-4 w-4 text-success" />
+                              <AlertDescription className="text-success">
+                                Signature fields detected in the PDF.
                               </AlertDescription>
                             </Alert>
                           ) : (
-                            <Alert className="bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-900">
-                              <AlertTriangle className="h-4 w-4 text-amber-600" />
-                              <AlertDescription className="text-amber-700 dark:text-amber-400">
+                            <Alert className="bg-warning/10 border-warning">
+                              <AlertTriangle className="h-4 w-4 text-warning" />
+                              <AlertDescription className="text-warning">
                                 {waiverPdfValidation.warnings.join(' ')}
                               </AlertDescription>
                             </Alert>
                           )}
                         </div>
                       )}
+                      
+                      {/* Builder Trigger */}
+                      <div className="pt-2">
+                        {waiverDefinition ? (
+                           <div className="flex items-center gap-2 p-3 border-success rounded-md bg-success/10">
+                              <CheckCircle2 className="h-5 w-5 text-success" />
+                              <div className="flex-1">
+                                <p className="text-sm font-medium">Waiver Configured</p>
+                                <p className="text-xs text-muted-foreground">
+                                   {waiverDefinition.signers.length} signer role(s) defined.
+                                </p>
+                              </div>
+                              {!waiverDisableEsignature && (
+                                <Button variant="outline" size="sm" onClick={() => setShowBuilder(true)}>
+                                   Edit Configuration
+                                </Button>
+                              )}
+                           </div>
+                        ) : (
+                           !waiverDisableEsignature && (
+                             <Button 
+                               onClick={() => setShowBuilder(true)} 
+                               className="w-full"
+                               variant={waiverDefinition ? "outline" : "default"}
+                             >
+                               <FileSignature className="mr-2 h-4 w-4" />
+                               Configure Waiver Signers & Fields
+                             </Button>
+                           )
+                        )}
+                        {!waiverDefinition && !waiverDisableEsignature && (
+                           <p className="text-xs text-muted-foreground mt-2 text-center">
+                              You must configure signature placements before continuing.
+                           </p>
+                        )}
+                      </div>
                     </div>
                   )}
 
                   {!hasWaiverPdf && (
-                    <Alert className="bg-blue-50 border-blue-200 dark:bg-blue-950/20 dark:border-blue-900">
-                      <Info className="h-4 w-4 text-blue-600" />
-                      <AlertDescription className="text-blue-700 dark:text-blue-400 text-xs">
-                        If you don&apos;t upload a custom waiver, the global platform waiver template will be used instead.
+                    <Alert className="bg-info/20 border-info">
+
+                      <AlertDescription className="text-info text-xs flex gap-2">
+                        <Info className="h-4 w-4 text-info text-xs" />
+                        If you don&apos;t upload a custom waiver, we&apos;ll use the active global platform waiver template (or the default Let&apos;s Assist waiver if none is configured yet).
                       </AlertDescription>
                     </Alert>
                   )}
                 </div>
 
-                {/* Print & Upload Option */}
+                {/* Waiver Builder Dialog */}
+                {showBuilder && (
+                   <WaiverBuilderDialog
+                     open={showBuilder}
+                     onOpenChange={setShowBuilder}
+                     pdfFile={waiverPdfFile || null}
+                     pdfUrl={waiverPdfUrl || null}
+                     detectedFields={detectedFields || []}
+                     onSave={async (def) => {
+                        updateWaiverDefinitionAction?.(def);
+                     }}
+                    existingDefinition={undefined} // No existing DB definition yet
+                    existingDraftDefinition={waiverDefinition ?? null}
+                    autoSaveDraft
+                   />
+                )}
+
+                {/* E-Signature Option */}
                 <div className="flex items-center justify-between space-x-4">
                   <div className="flex items-center space-x-3 flex-1">
-                    <div className={cn("p-2 rounded-md", waiverRequired ? "bg-primary/10" : "bg-muted")}
-                    >
+                    <div className={cn("p-2 rounded-md", waiverRequired ? "bg-primary/10" : "bg-muted")}>
                       <FileSignature className={cn("h-5 w-5", waiverRequired ? "text-primary" : "text-muted-foreground")} />
                     </div>
                     <div className="flex-1">
-                      <Label htmlFor="waiver-allow-upload" className="text-base font-medium cursor-pointer">
-                        Allow print & upload
+                      <Label htmlFor="waiver-enable-esign" className="text-base font-medium cursor-pointer">
+                        Enable e-signatures
                       </Label>
                       <p className="text-sm text-muted-foreground mt-1">
-                        Let volunteers download, print, sign physically, scan, and upload.
+                        Let volunteers draw or type signatures. Print & upload remains available as backup.
+                      </p>
+                    </div>
+                  </div>
+                  <Switch
+                    id="waiver-enable-esign"
+                    checked={!waiverDisableEsignature}
+                    onCheckedChange={(checked) => updateWaiverDisableEsignatureAction(!checked)}
+                    disabled={!waiverRequired}
+                  />
+                </div>
+
+                {/* Print & Upload Backup */}
+                <div className="flex items-center justify-between space-x-4">
+                  <div className="flex items-center space-x-3 flex-1">
+                    <div className={cn("p-2 rounded-md", waiverRequired ? "bg-primary/10" : "bg-muted")}>
+                      <Upload className={cn("h-5 w-5", waiverRequired ? "text-primary" : "text-muted-foreground")} />
+                    </div>
+                    <div className="flex-1">
+                      <Label htmlFor="waiver-allow-upload" className="text-base font-medium">
+                        Print & upload (backup)
+                      </Label>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Always available as a backup option for volunteers.
                       </p>
                     </div>
                   </div>
                   <Switch
                     id="waiver-allow-upload"
-                    checked={waiverAllowUpload}
-                    onCheckedChange={updateWaiverAllowUploadAction}
-                    disabled={!waiverRequired}
+                    checked={true}
+                    onCheckedChange={() => updateWaiverAllowUploadAction(true)}
+                    disabled
                   />
                 </div>
               </>
@@ -694,20 +817,44 @@ export default function VerificationSettings({
             <label
               htmlFor="visibility-public"
               className={cn(
-                "flex flex-col items-start space-y-3 rounded-lg border p-4 hover:bg-accent cursor-pointer transition-colors",
+                "flex flex-col items-start space-y-3 rounded-lg border p-4 transition-colors",
                 visibility === "public" && "border-primary bg-accent",
+                !isPublicVisibilityDisabled && "hover:bg-accent cursor-pointer",
+                isPublicVisibilityDisabled && "cursor-not-allowed opacity-60",
                 errors.visibility && "border-destructive",
               )}
             >
               <div className="flex w-full justify-between space-x-3">
                 <div className="flex items-center space-x-3">
-                  <RadioGroupItem value="public" id="visibility-public" />
+                  <RadioGroupItem
+                    value="public"
+                    id="visibility-public"
+                    disabled={isPublicVisibilityDisabled}
+                  />
                   <div className="flex items-center space-x-2">
                     <Eye className="h-5 w-5" />
                     <span className="font-medium">Public (Everyone)</span>
                   </div>
                 </div>
-                <Badge variant="default">Recommended</Badge>
+                <div className="flex items-center gap-2">
+                  {isPublicVisibilityDisabled && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger render={
+                          <span className="inline-flex items-center text-muted-foreground" aria-label="Public visibility disabled">
+                            <Lock className="h-4 w-4" />
+                          </span>
+                        } />
+                        <TooltipContent className="text-xs font-normal max-w-xs">
+                          Public feed visibility requires Trusted Member approval.
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
+                  <Badge variant={isPublicVisibilityDisabled ? "secondary" : "default"}>
+                    {isPublicVisibilityDisabled ? "Trusted Members" : "Recommended"}
+                  </Badge>
+                </div>
               </div>
               <p className="text-sm text-muted-foreground ml-6">
                 Your project appears on the home feed and in search results. Anyone on the platform can find and sign up for it.
@@ -770,6 +917,19 @@ export default function VerificationSettings({
               <AlertTriangle className="h-4 w-4" />
               {errors.visibility}
             </div>
+          )}
+
+          {isPublicVisibilityDisabled && (
+            <Alert className="mt-4 bg-warning/10 border-warning/40">
+              <AlertTriangle className="h-4 w-4 text-warning" />
+              <AlertDescription className="text-sm">
+                Public visibility is available to Trusted Members only. You can still create this project as a{' '}
+                <span className="font-medium">Regular Member</span>
+                {isOrganization ? ' inside your organization' : ''}.{' '}
+                <a href="/trusted-member" className="underline text-primary">Apply here</a>
+                {' '}to enable Public feed posting.
+              </AlertDescription>
+            </Alert>
           )}
         </CardContent>
       </Card>
@@ -839,5 +999,3 @@ export default function VerificationSettings({
     </div>
   );
 }
-
-import { Button } from "@/components/ui/button";

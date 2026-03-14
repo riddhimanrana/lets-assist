@@ -16,6 +16,12 @@ function GlobalNotificationProviderInner({
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const isHomeRoute = pathname === "/home";
   // ... rest of the component body ...
   const { user, loading: isLoading } = useAuth();
@@ -91,7 +97,7 @@ function GlobalNotificationProviderInner({
   }, [isHomeRoute]);
 
   useEffect(() => {
-    if (!shouldRedirectHome) return;
+    if (!mounted || !shouldRedirectHome) return;
 
     setShowIntroTour(false);
     setShowOnboardingModal(false);
@@ -99,7 +105,7 @@ function GlobalNotificationProviderInner({
     if (pathname !== "/home") {
       router.replace("/home");
     }
-  }, [pathname, router, shouldRedirectHome]);
+  }, [mounted, pathname, router, shouldRedirectHome]);
 
   const markIntroTourComplete = useCallback(async () => {
     try {

@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sparkles, Loader2, X } from 'lucide-react';
 import { toast } from 'sonner';
-import { EventType, ProjectSchedule } from '@/types';
+import { EventType, ProjectSchedule, RecurrenceFrequency, RecurrenceEndType, RecurrenceWeekday } from '@/types';
 
 interface AIAssistantProps {
   onApplyData: (data: AIParseResult) => void;
@@ -22,6 +22,15 @@ export interface AIParseResult {
   schedule?: ProjectSchedule;
   verificationMethod?: 'qr-code' | 'manual' | 'auto' | 'signup-only';
   requireLogin?: boolean;
+  recurrence?: {
+    enabled: boolean;
+    frequency?: RecurrenceFrequency;
+    interval?: number;
+    endType?: RecurrenceEndType;
+    endDate?: string;
+    endOccurrences?: number;
+    weekdays?: RecurrenceWeekday[];
+  };
 }
 
 // Test data for demo purposes (removed - no longer needed)
@@ -48,14 +57,34 @@ export default function AIAssistant({ onApplyData, onClose, isOpen }: AIAssistan
       });
 
       if (!response.ok) {
-        throw new Error('Failed to parse project');
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(errorData.error || `Server error: ${response.status}`);
       }
 
       const parsedData: AIParseResult = await response.json();
+      
+      // Validate that we received some useful data
+      if (!parsedData || (!parsedData.title && !parsedData.eventType && !parsedData.schedule)) {
+        throw new Error('AI did not return valid project data');
+      }
+
       await applyWithAnimation(parsedData);
     } catch (error) {
       console.error('AI generation error:', error);
-      toast.error('Failed to generate project details. Please try again.');
+      
+      // Provide more specific error messages
+      let errorMessage = 'Failed to generate project details. Please try again.';
+      if (error instanceof Error) {
+        if (error.message.includes('fetch')) {
+          errorMessage = 'Network error. Please check your connection and try again.';
+        } else if (error.message.includes('valid project data')) {
+          errorMessage = 'Could not understand your description. Please try rephrasing it.';
+        } else if (error.message.includes('Server error')) {
+          errorMessage = 'Server error. Please try again in a moment.';
+        }
+      }
+      
+      toast.error(errorMessage);
       setIsApplying(false); // Stop animation on error
     } finally {
       setIsProcessing(false);
@@ -66,15 +95,22 @@ export default function AIAssistant({ onApplyData, onClose, isOpen }: AIAssistan
     // Animation is already running, just wait a bit for visual effect
     await new Promise(resolve => setTimeout(resolve, 400));
     
-    onApplyData(data);
-    toast.success('Project details filled! Review and adjust as needed.');
-    setPrompt('');
-    
-    // Close after a brief moment
-    setTimeout(() => {
+    try {
+      onApplyData(data);
+      toast.success('Project details filled! Review and adjust as needed.');
+      setPrompt('');
+      
+      // Close after a brief moment
+      setTimeout(() => {
+        setIsApplying(false);
+        onClose();
+      }, 600);
+    } catch (error) {
+      console.error('Error applying AI data:', error);
+      toast.error('Failed to apply project details. Please try entering them manually.');
       setIsApplying(false);
       onClose();
-    }, 600);
+    }
   };
 
   if (!isOpen) return null;

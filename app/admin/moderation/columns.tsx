@@ -1,7 +1,7 @@
 "use client"
 
 import { ColumnDef } from "@tanstack/react-table"
-import { ArrowUpDown, Eye, Sparkles } from "lucide-react"
+import { ArrowUpDown, Eye, Sparkles, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { format } from "date-fns"
@@ -30,6 +30,7 @@ export type ContentReport = {
         verdict?: string;
         confidence?: number;
         suggestedStatus?: string | null;
+        recommendedAction?: string | null;
         suggestedAction?: string | null;
     } | null;
 };
@@ -111,7 +112,10 @@ export const getReportColumns = (
                 const ai = row.original.ai_metadata;
                 if (!ai) return <span className="text-xs text-muted-foreground italic">Pending...</span>;
 
-                const action = ai.suggestedAction || 'Review required';
+                const recommendedAction = ai.recommendedAction || ai.suggestedAction;
+                const action = recommendedAction && recommendedAction !== 'none'
+                    ? recommendedAction.replace(/_/g, ' ')
+                    : (ai.suggestedStatus ? `Set ${ai.suggestedStatus.replace(/_/g, ' ')}` : 'Review required');
 
                 return (
                     <div className="flex items-center gap-2">
@@ -166,9 +170,14 @@ export const getReportColumns = (
             id: "actions",
             cell: ({ row }) => {
                 return (
-                    <Button variant="outline" size="sm" onClick={() => onViewDetails(row.original)}>
-                        <Eye className="mr-2 h-3 w-3" />
-                        View Details
+                    <Button
+                        size="sm"
+                        onClick={() => onViewDetails(row.original)}
+                        className="group rounded-full bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground"
+                    >
+                        <Eye className="mr-2 h-3.5 w-3.5" />
+                        Open Case
+                        <ChevronRight className="ml-1 h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
                     </Button>
                 )
             },
@@ -277,9 +286,14 @@ export const getFlaggedColumns = (
             id: "actions",
             cell: ({ row }) => {
                 return (
-                    <Button variant="outline" size="sm" onClick={() => onViewDetails(row.original)}>
-                        <Eye className="mr-2 h-3 w-3" />
-                        View Details
+                    <Button
+                        size="sm"
+                        onClick={() => onViewDetails(row.original)}
+                        className="group rounded-full bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground"
+                    >
+                        <Eye className="mr-2 h-3.5 w-3.5" />
+                        Open Flag
+                        <ChevronRight className="ml-1 h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
                     </Button>
                 )
             },

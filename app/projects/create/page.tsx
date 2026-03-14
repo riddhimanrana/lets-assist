@@ -3,6 +3,7 @@ import ProjectCreator from "./ProjectCreator";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import type { EventFormState } from "@/hooks/use-event-form";
+import { headers } from "next/headers";
 
 // Define a type for the combobox options
 interface OrganizationOption {
@@ -47,6 +48,13 @@ export default async function CreateProjectPage({
 }: {
   searchParams: Promise<{ org?: string; draft?: string }>
 }) {
+  // Defensive: if this route is accidentally served on the Supabase API custom domain,
+  // redirect back to the primary site domain where Next routes are hosted.
+  const host = (await headers()).get("host") || "";
+  if (host === "api.lets-assist.com" || host.endsWith(".api.lets-assist.com")) {
+    return redirect("https://lets-assist.com/projects/create");
+  }
+
   if (process.env.E2E_TEST_MODE === "true") {
     const date = new Date();
     date.setDate(date.getDate() + 2);
@@ -107,39 +115,16 @@ export default async function CreateProjectPage({
     .eq('id', user.id)
     .single();
 
-  // Gate non-trusted users with guidance (allow if TM status already accepted)
-  if (!userProfile?.trusted_member) {
-    const { data: tmApp } = await supabase
-      .from('trusted_member')
-      .select('status')
-      .or(`id.eq.${user.id},user_id.eq.${user.id}`)
-      .maybeSingle();
-    const status = tmApp?.status ?? null;
-    if (status === true) {
-      // Permit access while profile flag syncs
-    } else {
-      return (
-        <div className="container mx-auto p-6 max-w-2xl">
-          <h1 className="text-2xl font-bold mb-2">Create Project</h1>
-          <p className="text-muted-foreground mb-6">
-            Only Trusted Members can create projects.
-          </p>
-          <div className="rounded-md border p-4 space-y-2">
-            {status === false ? (
-              <p>
-                It looks like you have already applied to be a Trusted Member and were not accepted. If you believe this is an error or have questions, please contact support@lets-assist.com.
-              </p>
-            ) : (
-              <p>
-                To request access, please fill out the Trusted Member form. Once your application is accepted, you will be able to create projects.
-              </p>
-            )}
-            <a href="/trusted-member" className="text-primary underline">Go to Trusted Member form</a>
-          </div>
-        </div>
-      );
-    }
-  }
+  // Public visibility requires trusted status. Accept either profile sync flag
+  // or approved trusted_member application row.
+  const { data: tmApp } = await supabase
+    .from('trusted_member')
+    .select('status')
+    .or(`id.eq.${user.id},user_id.eq.${user.id}`)
+    .maybeSingle();
+
+  const canUsePublicVisibility =
+    userProfile?.trusted_member === true || tmApp?.status === true;
 
   // Get organization ID from URL params if provided - fixed approach
   const search = await searchParams;
@@ -226,6 +211,7 @@ export default async function CreateProjectPage({
       <ProjectCreator 
         initialOrgId={initialOrgId} 
         initialOrgOptions={orgOptions}
+        canUsePublicVisibility={canUsePublicVisibility}
         initialDraftData={loadedDraft ?? undefined}
         initialDraftId={loadedDraftId}
         drafts={(drafts as DraftRow[] | null)?.map((d) => ({

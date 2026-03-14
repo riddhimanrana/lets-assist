@@ -1,4 +1,5 @@
 import { getAdminClient } from "@/lib/supabase/admin";
+import { logError, logWarn } from '@/lib/logger';
 
 type NotificationSeverity = "info" | "warning" | "success";
 
@@ -69,7 +70,7 @@ async function getAdminUserIds() {
   });
 
   if (error) {
-    console.error("Failed to fetch admin users:", error);
+    logError('Failed to fetch admin users', error);
     return [];
   }
 
@@ -211,7 +212,10 @@ async function createOrUpdateBatchNotification(adminUserId: string, event: Admin
     .maybeSingle();
 
   if (existingError) {
-    console.error("Error checking existing admin notifications:", existingError);
+    logError('Failed to check existing admin notifications', existingError, {
+      admin_user_id: adminUserId,
+      batch_key: batchKey,
+    });
   }
 
   const nowIso = new Date().toISOString();
@@ -254,7 +258,11 @@ async function createOrUpdateBatchNotification(adminUserId: string, event: Admin
       .eq("id", existing.id);
 
     if (updateError) {
-      console.error("Failed to update batched admin notification:", updateError);
+      logError('Failed to update batched admin notification', updateError, {
+        notification_id: existing.id,
+        admin_user_id: adminUserId,
+        batch_key: batchKey,
+      });
     }
 
     return;
@@ -276,14 +284,19 @@ async function createOrUpdateBatchNotification(adminUserId: string, event: Admin
   });
 
   if (insertError) {
-    console.error("Failed to insert batched admin notification:", insertError);
+    logError('Failed to insert batched admin notification', insertError, {
+      admin_user_id: adminUserId,
+      batch_key: batchKey,
+    });
   }
 }
 
 export async function notifyAdminsBatched(event: AdminBatchEvent) {
   const adminIds = await getAdminUserIds();
   if (!adminIds.length) {
-    console.warn("No admin users found to notify.");
+    logWarn('No admin users found to notify', {
+      event_type: event.type,
+    });
     return;
   }
 
