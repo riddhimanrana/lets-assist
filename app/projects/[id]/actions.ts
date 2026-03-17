@@ -1986,18 +1986,23 @@ export async function cancelSignup(
   anonymousSignupToken?: string,
 ) {
   const supabase = await createClient();
+  const adminSupabase = getAdminClient();
 
   try {
     // Get current user using getClaims() for better performance
     const { user } = await getAuthUser();
 
+    const isAnonymousCancellation = !user && !!anonymousSignupId;
+    const signupLookupClient = isAnonymousCancellation
+      ? adminSupabase
+      : supabase;
+
     // Get signup details, including anonymous_id
-    const { data: signup, error: signupError } = await supabase
+    const { data: signup, error: signupError } = await signupLookupClient
       .from("project_signups")
       .select("*") // Fetch all signup details without join alias
       .eq("id", signupId)
       .maybeSingle();
-
 
     if (signupError || !signup) {
       return { error: "Signup not found" };
@@ -2063,22 +2068,26 @@ export async function cancelSignup(
       // Don't fail the cancellation if calendar removal fails
     }
 
-    const { error: deleteError } = await supabase
+    const deleteClient = isAnonymousCancellation
+      ? adminSupabase
+      : supabase;
+
+    const { error: deleteError } = await deleteClient
       .from("project_signups")
       .delete()
       .eq("id", signupId);
 
     if (deleteError) {
       console.error("Failed to delete signup:", deleteError);
-    } else {
-      console.log("Signup record deleted successfully.");
+      return { error: "Failed to cancel signup" };
     }
+
+    console.log("Signup record deleted successfully.");
 
     let removedAnonymousProfile = false;
 
-    if (!deleteError && anonymousSignupId && signup.anonymous_id === anonymousSignupId) {
-      const serviceSupabase = getAdminClient();
-      const { count, error: remainingError } = await serviceSupabase
+    if (anonymousSignupId && signup.anonymous_id === anonymousSignupId) {
+      const { count, error: remainingError } = await adminSupabase
         .from("project_signups")
         .select("id", { count: "exact", head: true })
         .eq("anonymous_id", anonymousSignupId);
@@ -2086,7 +2095,7 @@ export async function cancelSignup(
       if (remainingError) {
         console.error("Error checking remaining anonymous signups:", remainingError);
       } else if ((count ?? 0) === 0) {
-        const { error: removeAnonymousError } = await serviceSupabase
+        const { error: removeAnonymousError } = await adminSupabase
           .from("anonymous_signups")
           .delete()
           .eq("id", anonymousSignupId);
