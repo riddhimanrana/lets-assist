@@ -572,8 +572,8 @@ export default function AnonymousSignupClient({
           <Separator />
 
           <div className="space-y-3">
-            <div className="bg-blue-50/50 border border-blue-200/50 rounded-lg p-3">
-              <p className="text-sm text-blue-900">
+            <div className="bg-info/20 border border-info/50 rounded-lg p-3">
+              <p className="text-sm text-info">
                 <span className="font-semibold">About linking:</span> When you link this anonymous profile to a Let&apos;s Assist account, all your event signups will be transferred to your account. Your signups are currently <span className="font-semibold">pending approval</span> from the project coordinator. Once approved, you can check in during events and track your volunteer hours—all in one place.
               </p>
             </div>
