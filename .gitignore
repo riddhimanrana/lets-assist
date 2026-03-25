@@ -40,19 +40,19 @@ next-env.d.ts
 
 # supabase
 /supabase/*
+!/supabase/.gitignore
+!/supabase/config.toml
+!/supabase/seed.sql
 !/supabase/migrations/
-/supabase/migrations/*
-!/supabase/migrations/20260216123000_add_recurring_occurrence_date_guard.sql
-!/supabase/migrations/20260217040000_fix_anonymous_cleanup_function.sql
-!/supabase/migrations/20260228153000_fix_notification_settings_rls_and_backfill.sql
-!/supabase/migrations/20260228190000_trusted_public_visibility_rls.sql
-!/supabase/migrations/20260228193000_fix_projects_update_visibility_rls_recursion.sql
-!/supabase/migrations/20260302110000_fix_certificates_reports_rls.sql
+!/supabase/migrations/**
+!/supabase/snippets/
+!/supabase/snippets/**
 
 # github/vscode settings
 /.github/*
 !/.github/workflows/
 !/.github/workflows/**
+!/.github/copilot-instructions.md
 /.vscode
 
 # roo code
