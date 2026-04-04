@@ -61,7 +61,8 @@ next-env.d.ts
 sitemap.xml
 robots.txt
 
-.playwright-mcp
-/test-results
-/test-assets
-/playwright-report
+# Private Plugins
+lib/plugins/private/*
+!.keep
+!lib/plugins/private/.keep
+!lib/plugins/private/registry.ts

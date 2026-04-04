@@ -1,6 +1,7 @@
 import React from "react";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
+import { redirect } from "next/navigation";
 import { EmailVerificationToast } from "@/components/auth/EmailVerificationToast";
 import { EmailConfirmationModal } from "@/components/auth/EmailConfirmationModal";
 import { Button } from "@/components/ui/button";
@@ -22,11 +23,15 @@ export default async function Home() {
   const supabase = await createClient();
 
   // Get the current user using getClaims() for better performance
-  const { user } = await getAuthUser();
+  const { user, error: userError } = await getAuthUser();
+  if (userError || !user) {
+    redirect("/login?redirect=/home");
+  }
+
   const { data: profileData } = await supabase
     .from("profiles")
     .select("full_name, avatar_url, username")
-    .eq("id", user?.id)
+    .eq("id", user.id)
     .single();
   const userName = profileData?.full_name || "Anonymous";
 

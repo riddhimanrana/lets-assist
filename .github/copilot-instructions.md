@@ -10,7 +10,7 @@
   - `bun run supabase:reset`
   - `bun run supabase:dump:schema`
   - `bun run supabase:dump:seed`
-- Keep `NEXT_PUBLIC_SUPABASE_URL` in local development pointed to `http://127.0.0.1:54321` unless explicitly testing hosted environments.
+- Keep `NEXT_PUBLIC_SUPABASE_URL` in local development pointed to `http://127.0.0.1:54321` unless explicitly using hosted environments.
 
 ## Database change rules
 
@@ -39,13 +39,11 @@
 
 - Minimum local checks before opening PR:
   - `bun run typecheck`
-  - `bun run test` (or targeted tests when appropriate)
   - `bun run supabase:reset` for DB-impacting changes
-- For auth/database changes, perform at least one browser smoke test on login/signup paths.
 
 ## CI/CD expectations
 
-- PR CI should run lint/typecheck/tests.
+- PR CI should run lint/typecheck.
 - DB-impacting PRs should include migration/schema artifact validation via local reset semantics.
 - Production workflows should run from `main` only.
 - Scheduled cron workflows should continue targeting deployed app endpoints (as already configured in `.github/workflows`).
@@ -61,7 +59,7 @@
      - Creates `supabase/migrations/20260325_my_feature_name.sql`
   3. Review the generated migration file
   4. Push to repo and open PR
-  5. CI validates: `bun run supabase:reset` + typecheck + tests
+  5. CI validates: `bun run supabase:reset` + typecheck
   6. **Deploy to remote** (after PR approval):
      ```bash
      supabase db push --linked

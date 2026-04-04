@@ -19,6 +19,7 @@ import StaffLinkDisplay from "./StaffLinkDisplay";
 import DeleteOrganizationDialog from "./DeleteOrganizationDialog";
 import OrganizationCalendarSettings from "./OrganizationCalendarSettings";
 import OrganizationSheetsSettings from "./OrganizationSheetsSettings";
+import OrganizationPluginSettings from "./OrganizationPluginSettings";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -181,6 +182,8 @@ export default async function OrganizationSettingsPage({ params }: Props) {
             organizationSlug={organization.username || organization.id}
             organizationName={organization.name}
           />
+
+          <OrganizationPluginSettings organizationId={organization.id} />
 
           {/* Member Data Management */}
           {/* <Card>

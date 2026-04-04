@@ -6,10 +6,13 @@ import { getPublicProfilesByIds } from "@/lib/profile/public";
 import { Metadata } from "next";
 import OrganizationHeader from "@/components/organization/OrganizationHeader";
 import OrganizationTabs from "@/components/organization/OrganizationTabs";
+import { resolveOrganizationPluginBehaviorHook } from "@/lib/plugins/resolve-plugin-behaviors";
+import { resolveOrganizationPluginSurfaces } from "@/lib/plugins/resolve-plugin-surfaces";
 import {
   getOrganizationReportData,
   getOrganizationReportDataForSync,
 } from "./reports/actions";
+import type { OrganizationPluginAccessRole } from "@/types";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -38,6 +41,16 @@ type ProfileRow = {
 type FormattedOrganizationMember = OrganizationMemberRow & {
   profiles: ProfileRow | null;
 };
+
+function toOrganizationPluginRole(
+  role: string | null,
+): OrganizationPluginAccessRole | null {
+  if (role === "admin" || role === "staff" || role === "member") {
+    return role;
+  }
+
+  return null;
+}
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
@@ -252,6 +265,33 @@ export default async function OrganizationPage({
     organization.created_at,
   );
 
+    const pluginRole = toOrganizationPluginRole(userRole);
+    
+    const pluginOverviewExtensions = pluginRole
+      ? (
+          await resolveOrganizationPluginSurfaces({
+            organizationId: organization.id,
+            surface: "organization.overview.cards",
+            viewerRole: pluginRole,
+            target: {
+              userId: user?.id ?? null,
+            },
+          })
+        ).map((surface) => surface.node)
+      : [];
+    const pluginTabsContributions = pluginRole 
+      ? await resolveOrganizationPluginBehaviorHook({
+          organizationId: organization.id,
+          hook: "organization.tabs",
+          viewerRole: pluginRole,
+          target: {
+            userId: user?.id ?? null,
+          }
+        })
+      : [];
+    
+    const pluginTabs = pluginTabsContributions.flatMap((c) => c.behavior);
+console.log("DEV_TABS:", pluginTabs);
   return (
     <div className="flex flex-col w-full">
       <div className="w-full absolute bg-linear-to-br from-primary/15 via-primary/5 to-background/0 min-h-72 before:content-[''] before:absolute before:inset-0 before:bg-linear-to-b before:from-transparent before:to-background" />
@@ -274,6 +314,8 @@ export default async function OrganizationPage({
             organizationSlug={organization.username || organization.id}
             organizationCreatedLabel={organizationCreatedLabel}
             canViewMembers={canViewMembers}
+            pluginOverviewExtensions={pluginOverviewExtensions}
+            pluginTabs={pluginTabs}
           />
         </div>
       </div>

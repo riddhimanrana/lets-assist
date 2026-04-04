@@ -162,7 +162,7 @@ BEGIN
     SET search_path TO public;
 
     -- Function logic to check if the username is unique
-    RETURN NOT EXISTS (SELECT 1 FROM users WHERE username = username);
+    RETURN NOT EXISTS (SELECT 1 FROM profiles WHERE username = username);
 END;
 $$;
 
@@ -1284,7 +1284,7 @@ BEGIN
     SET search_path TO public;
 
     -- Function logic to update the user's profile picture
-    UPDATE users SET profile_picture = picture_url WHERE id = user_id;
+    UPDATE profiles SET profile_picture = picture_url WHERE id = user_id;
 END;
 $$;
 

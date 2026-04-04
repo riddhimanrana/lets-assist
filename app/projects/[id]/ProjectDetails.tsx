@@ -1968,8 +1968,8 @@ export default function ProjectDetails({
             <DialogTitle>Quick Sign Up</DialogTitle>
             <DialogDescription>
               {selectedAnonymousScheduleIds.length > 1
-                ? `You selected ${selectedAnonymousScheduleIds.length} slots. Fill this once and we&apos;ll apply it to all selected slots.`
-                : "Please provide your information to sign up. You&apos;ll receive an email to confirm your spot."}
+                ? `You selected ${selectedAnonymousScheduleIds.length} slots. Fill this once and we'll apply it to all selected slots.`
+                : "Please provide your information to sign up. You'll receive an email to confirm your spot."}
             </DialogDescription>
           </DialogHeader>
           <ProjectSignupForm

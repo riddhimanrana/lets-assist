@@ -1,5 +1,6 @@
 import { getAdminClient } from "@/lib/supabase/admin";
 import { logError, logWarn } from '@/lib/logger';
+import { isSuperAdminUser } from "@/lib/auth/super-admin";
 
 type NotificationSeverity = "info" | "warning" | "success";
 
@@ -75,11 +76,7 @@ async function getAdminUserIds() {
   }
 
   const adminIds = (data?.users ?? [])
-    .filter((user) =>
-      (user as unknown as { is_super_admin?: boolean } | null)?.is_super_admin === true ||
-      user?.user_metadata?.is_super_admin === true ||
-      user?.app_metadata?.is_super_admin === true
-    )
+    .filter((user) => isSuperAdminUser(user))
     .map((user) => user.id);
 
   cachedAdminIds = adminIds;

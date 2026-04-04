@@ -20,7 +20,7 @@ import {
 import { Controller } from "react-hook-form";
 import { Input } from "@/components/ui/input";
 import { initialOnboardingSchema, InitialOnboardingValues } from "@/schemas/onboarding-schema";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { completeInitialOnboarding } from "./onboarding-actions";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
@@ -90,6 +90,7 @@ export default function InitialOnboardingModal({
 
   const usernameValue = form.watch("username");
   const phoneValue = form.watch("phoneNumber");
+  const usernameRequestIdRef = useRef(0);
 
   useEffect(() => {
     setUsernameLength(usernameValue?.length || 0);
@@ -100,12 +101,14 @@ export default function InitialOnboardingModal({
     setPhoneNumberLength(digitsOnly.length);
   }, [phoneValue]);
 
-  async function handleUsernameBlur(e: React.FocusEvent<HTMLInputElement>) {
-    const username = e.target.value.trim();
+  async function checkUsernameAvailability(rawUsername: string) {
+    const username = rawUsername.trim();
     if (username.length < 3) {
       setUsernameAvailable(null);
       return;
     }
+
+    const requestId = ++usernameRequestIdRef.current;
     setCheckingUsername(true);
     try {
       const res = await fetch(
@@ -113,20 +116,53 @@ export default function InitialOnboardingModal({
       );
       if (!res.ok) throw new Error("Failed to check username");
       const data = await res.json();
+
+      // Ignore stale responses when user keeps typing.
+      if (requestId !== usernameRequestIdRef.current) {
+        return;
+      }
+
       setUsernameAvailable(data.available);
       if (!data.available && data.error) {
         form.setError("username", {
           type: "manual",
-          message: data.error
+          message: data.error,
         });
+      } else {
+        form.clearErrors("username");
       }
     } catch (error) {
-      console.error("Error checking username:", error);
-      setUsernameAvailable(null);
-      toast.error("Could not verify username availability. Please try again.");
+      if (requestId === usernameRequestIdRef.current) {
+        console.error("Error checking username:", error);
+        setUsernameAvailable(null);
+      }
     } finally {
-      setCheckingUsername(false);
+      if (requestId === usernameRequestIdRef.current) {
+        setCheckingUsername(false);
+      }
     }
+  }
+
+  useEffect(() => {
+    if (!usernameValue) {
+      setUsernameAvailable(null);
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      void checkUsernameAvailability(usernameValue);
+    }, 300);
+
+    return () => clearTimeout(timeout);
+  }, [usernameValue]);
+
+  async function handleUsernameBlur(e: React.FocusEvent<HTMLInputElement>) {
+    const username = e.target.value.trim();
+    if (username.length < 3) {
+      setUsernameAvailable(null);
+      return;
+    }
+    await checkUsernameAvailability(username);
   }
 
   const formatPhoneNumber = (value: string): string => {

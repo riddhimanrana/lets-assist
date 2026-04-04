@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Shield } from "lucide-react";
 import { Controller, useForm } from "react-hook-form";
@@ -61,7 +61,6 @@ export default function LoginClient({
   const [_turnstileVerified, setTurnstileVerified] = useState(false);
   const turnstileRef = useRef<TurnstileRef>(null);
   const [turnstileReady, setTurnstileReady] = useState(false);
-  const router = useRouter();
 
   const form = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
@@ -76,6 +75,12 @@ export default function LoginClient({
   const isVerified = searchParams.get("verified") === "true";
   const authError = searchParams.get("error");
   const authReason = searchParams.get("reason");
+
+  const navigateAfterAuth = (path: string) => {
+    // Use hard navigation to ensure the next request includes the freshest auth cookies.
+    // This avoids SSR redirects caused by stale prefetched payloads right after sign-in.
+    window.location.assign(path);
+  };
 
   useEffect(() => {
     if (authError === "network-timeout") {
@@ -216,16 +221,11 @@ export default function LoginClient({
           factorData,
         )
       ) {
-        // toast.info(
-        //   "Enter the code from your authenticator app to finish signing in.",
-        // );
-        router.replace(buildMfaRedirectPath(finalRedirectUrl));
-        router.refresh();
+        navigateAfterAuth(buildMfaRedirectPath(finalRedirectUrl));
         return;
       }
 
-      router.replace(finalRedirectUrl);
-      router.refresh();
+      navigateAfterAuth(finalRedirectUrl);
       return;
     } catch (error) {
       console.error("[LoginClient] Login error:", error);

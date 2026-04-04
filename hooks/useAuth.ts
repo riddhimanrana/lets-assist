@@ -24,6 +24,7 @@ import {
   shouldPromptForMfaChallenge,
   type MfaListFactorsLike,
 } from '@/lib/auth/mfa';
+import { isStaleSupabaseAuthUserError } from '@/lib/supabase/auth-errors';
 import type { User } from '@supabase/supabase-js';
 
 export type { User } from '@supabase/supabase-js';
@@ -98,6 +99,16 @@ export function useAuth(): AuthState {
         if (!mounted) return;
 
         if (factorsError) {
+          if (isStaleSupabaseAuthUserError(factorsError)) {
+            await supabase.auth.signOut();
+
+            if (!mounted) return;
+
+            setUser(null);
+            setNeedsMfa(false);
+            return;
+          }
+
           console.error('[useAuth] Error listing MFA factors:', factorsError);
         }
 

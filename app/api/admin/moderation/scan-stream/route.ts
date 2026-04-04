@@ -3,9 +3,9 @@
  * Analyzes reports one-by-one with detailed reasoning steps
  */
 
-import { createClient } from '@/lib/supabase/server';
 import { getAdminClient } from '@/lib/supabase/admin';
 import { getAuthUser } from '@/lib/supabase/auth-helpers';
+import { isSuperAdminUser } from '@/lib/auth/super-admin';
 import {
   analyzeProjectWithAi,
   analyzeReportWithAi,
@@ -13,7 +13,6 @@ import {
 } from '@/app/admin/moderation/ai-review';
 import { isPendingReportStatus } from '@/app/admin/moderation/report-status';
 import { NextRequest } from 'next/server';
-import { cookies } from 'next/headers';
 
 // Helper to fetch auth user from Supabase
 async function fetchAuthUser(userId: string) {
@@ -35,10 +34,7 @@ async function checkSuperAdmin() {
     // Check auth user's is_super_admin flag
     try {
       const authUser = await fetchAuthUser(user.id);
-      const isSuperAdmin =
-        (authUser as unknown as { is_super_admin?: boolean } | null)?.is_super_admin === true ||
-        authUser?.user_metadata?.is_super_admin === true ||
-        authUser?.app_metadata?.is_super_admin === true;
+      const isSuperAdmin = isSuperAdminUser(authUser);
       
       console.log('[scan-stream] Auth check:', { userId: user.id, isSuperAdmin });
       return { isAdmin: isSuperAdmin, user };
