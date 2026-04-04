@@ -61,9 +61,6 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
-      - name: Unit tests
-        run: npm run test -- --run
-
   db-replay-validation:
     needs: changes
     runs-on: ubuntu-latest

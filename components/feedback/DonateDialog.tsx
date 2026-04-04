@@ -26,7 +26,7 @@ interface DonateDialogProps {
 
 export function DonateDialog({ open, onOpenChange }: DonateDialogProps) {
   const [copied, setCopied] = useState(false);
-  const email = "riddhiman.rana@gmail.com";
+  const email = "support@letsassist.org";
 
   const copyEmail = async () => {
     const success = await copyToClipboard(email);

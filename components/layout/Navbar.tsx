@@ -237,6 +237,7 @@ export default function Navbar() {
                       : "text-muted-foreground",
                   )}
                   href="/home"
+                  prefetch={false}
                 >
                   Home
                 </Link>
@@ -248,6 +249,7 @@ export default function Navbar() {
                       : "text-muted-foreground",
                   )}
                   href="/dashboard"
+                  prefetch={false}
                 >
                   Volunteer Dashboard
                 </Link>
@@ -259,6 +261,7 @@ export default function Navbar() {
                       : "text-muted-foreground",
                   )}
                   href="/projects"
+                  prefetch={false}
                 >
                   My Projects
                 </Link>
@@ -270,6 +273,7 @@ export default function Navbar() {
                       : "text-muted-foreground",
                   )}
                   href="/organization"
+                  prefetch={false}
                 >
                   Organizations
                 </Link>
@@ -376,7 +380,7 @@ export default function Navbar() {
                     <DropdownMenuItem
                       className="py-2.5 text-muted-foreground cursor-pointer"
                       render={
-                        <Link href="/home" className="flex items-center w-full">
+                        <Link href="/home" prefetch={false} className="flex items-center w-full">
                           <LayoutDashboard className="mr-2 h-4 w-4" />
                           <span>Volunteer Dashboard</span>
                         </Link>
@@ -386,7 +390,7 @@ export default function Navbar() {
                     <DropdownMenuItem
                       className="py-2.5 text-muted-foreground cursor-pointer"
                       render={
-                        <Link href={`/profile/${profile?.username}`} className="flex items-center w-full">
+                        <Link href={`/profile/${profile?.username}`} prefetch={false} className="flex items-center w-full">
                           <UserRound className="mr-2 h-4 w-4" />
                           <span>My Profile</span>
                         </Link>
@@ -395,7 +399,7 @@ export default function Navbar() {
                     <DropdownMenuItem
                       className="py-2.5 text-muted-foreground cursor-pointer"
                       render={
-                        <Link href="/account/profile" className="flex items-center w-full">
+                        <Link href="/account/profile" prefetch={false} className="flex items-center w-full">
                           <Settings className="mr-2 h-4 w-4" />
                           <span>Account Settings</span>
                         </Link>
@@ -562,6 +566,7 @@ export default function Navbar() {
                     <>
                       <Link
                         href="/home"
+                        prefetch={false}
                         className={cn(
                           buttonVariants({ variant: "ghost" }),
                           "w-full justify-start text-muted-foreground",
@@ -572,6 +577,7 @@ export default function Navbar() {
                       </Link>
                       <Link
                         href="/dashboard"
+                        prefetch={false}
                         className={cn(
                           buttonVariants({ variant: "ghost" }),
                           "w-full justify-start text-muted-foreground",
@@ -582,6 +588,7 @@ export default function Navbar() {
                       </Link>
                       <Link
                         href="/projects"
+                        prefetch={false}
                         className={cn(
                           buttonVariants({ variant: "ghost" }),
                           "w-full justify-start text-muted-foreground",
@@ -593,6 +600,7 @@ export default function Navbar() {
 
                       <Link
                         href="/organization"
+                        prefetch={false}
                         className={cn(
                           buttonVariants({ variant: "ghost" }),
                           "w-full justify-start text-muted-foreground",
@@ -633,6 +641,7 @@ export default function Navbar() {
                     <Separator className="my-4" />
                     <Link
                       href="/account/profile"
+                      prefetch={false}
                       className={cn(
                         buttonVariants({ variant: "ghost" }),
                         "w-full justify-between text-muted-foreground",
@@ -646,6 +655,7 @@ export default function Navbar() {
                     {/* <MobileNotificationButton /> */}
                     <Link
                       href={`/profile/${profile?.username}`}
+                      prefetch={false}
                       className={cn(
                         buttonVariants({ variant: "ghost" }),
                         "w-full justify-between text-muted-foreground",

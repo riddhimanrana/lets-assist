@@ -235,17 +235,26 @@ export async function completeOnboarding(formData: FormData) {
 
 export async function checkUsernameUnique(username: string) {
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   const { data: existingUser, error } = (await supabase
     .from("profiles")
-    .select("username")
+    .select("id,username")
     .eq("username", username)
     .maybeSingle()) as {
-    data: { username?: string | null } | null;
+    data: { id?: string; username?: string | null } | null;
     error: { message?: string } | null;
   };
   if (error) {
     return { available: false, error: error.message };
   }
+
+  if (existingUser && user && existingUser.id === user.id) {
+    return { available: true };
+  }
+
   return { available: !existingUser };
 }
 

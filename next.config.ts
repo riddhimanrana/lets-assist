@@ -7,6 +7,7 @@ const nextConfig: NextConfig = {
   // in the serverless bundle. Marking it external makes Next.js load it at runtime via
   // require() instead of bundling it, so instrumentation.ts polyfills apply first.
   serverExternalPackages: ['pdfjs-dist'],
+  transpilePackages: ['la-plugin-dv-speech-debate'],
 
   experimental: {
     serverActions: {

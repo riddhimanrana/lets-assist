@@ -11,7 +11,7 @@ import { formatTimeTo12Hour, cn } from "@/lib/utils";
 import { TimezoneBadge } from "@/components/shared/TimezoneBadge";
 import { Project } from "@/types";
 import { getMultiDaySlotByScheduleId, getMultiDaySlotDisplayName } from "@/utils/project";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, type ReactNode } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -21,6 +21,7 @@ import { Progress } from "@/components/ui/progress";
 import { cancelSignup, getAnonymousWaiverSignatureMeta, getWaiverDownloadUrl } from "@/app/projects/[id]/actions";
 import { linkAnonymousToAuthenticatedAccount } from "./actions";
 import { AnonymousLinkingDialog } from "./AnonymousLinkingDialog";
+import { type AnonymousProfileExperienceBehavior } from "@/types"; // Added import for AnonymousProfileExperienceBehavior
 
 // Slot data from the server
 interface SlotData {
@@ -183,6 +184,8 @@ interface AnonymousSignupClientProps {
   linkedAccountEmail: string | null;
   linkedAccountVerified: boolean;
   certificateIds: Record<string, string>;
+  anonymousPluginCards?: ReactNode[];
+  anonymousPluginBehavior?: AnonymousProfileExperienceBehavior | null; // Added new property
 }
 
 export default function AnonymousSignupClient({
@@ -200,6 +203,8 @@ export default function AnonymousSignupClient({
   linkedAccountEmail,
   linkedAccountVerified,
   certificateIds,
+  anonymousPluginCards = [],
+  anonymousPluginBehavior = null, // Initialized new property
 }: AnonymousSignupClientProps) {
   type LinkStatus = "unlinked" | "linked" | "verification-pending";
 
@@ -226,6 +231,13 @@ export default function AnonymousSignupClient({
   const confirmedDate = confirmed_at ? new Date(confirmed_at) : null;
   const autoDeletionDate = getAutoDeletionDate(project);
   const activeSlots = slots.filter(s => !removedSlots.has(s.project_signup_id));
+  const pluginPrimaryActions = anonymousPluginBehavior?.primaryActions ?? [];
+
+  // Plugin behavior fallbacks
+  const hideLinkingSection = anonymousPluginBehavior?.hideLinkingSection === true;
+  const disableCancellation = anonymousPluginBehavior?.disableSlotCancellation === true;
+  const cancellationDisabledReason = anonymousPluginBehavior?.cancellationDisabledReason;
+  const bannerMessage = anonymousPluginBehavior?.bannerMessage;
 
   // Load waiver signatures for all slots
   useEffect(() => {
@@ -439,6 +451,13 @@ export default function AnonymousSignupClient({
         </CardHeader>
 
         <CardContent className="space-y-6">
+          {/* Plugin Banner Message */}
+          {bannerMessage && (
+            <Alert className="bg-primary/5 border-primary/20">
+              <AlertDescription className="text-sm">{bannerMessage}</AlertDescription>
+            </Alert>
+          )}
+
           {/* Status Banner */}
           {!isConfirmed && (
             <Card className="w-full border-warning/30 bg-warning/5 overflow-hidden">
@@ -531,6 +550,43 @@ export default function AnonymousSignupClient({
         </CardContent>
       </Card>
 
+      {/* Plugin Primary Actions */}
+      {pluginPrimaryActions.length > 0 && (
+        <div className="flex gap-2 flex-wrap">
+          {pluginPrimaryActions.map((action, idx) => (
+            <Button
+              key={`plugin-action-${idx}`}
+              variant={action.variant ?? "default"}
+              asChild
+            >
+              <Link
+                href={action.href}
+                target={action.external ? "_blank" : undefined}
+                rel={action.external ? "noopener noreferrer" : undefined}
+              >
+                {action.label}
+              </Link>
+            </Button>
+          ))}
+        </div>
+      )}
+
+      {anonymousPluginCards.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Organization Enhancements</CardTitle>
+            <CardDescription>
+              Custom features enabled for this specific signup/profile.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {anonymousPluginCards.map((node, index) => (
+              <div key={`anonymous-plugin-card-${index}`}>{node}</div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Slot Cards */}
       <div className="space-y-4">
         <h3 className="text-lg font-semibold">Your Slot{activeSlots.length > 1 ? 's' : ''}</h3>
@@ -544,6 +600,8 @@ export default function AnonymousSignupClient({
             isConfirmed={isConfirmed}
             waiverSignature={waiverSignatures[slot.project_signup_id]}
             certificateId={certificateIds[slot.project_signup_id]}
+            disableCancellation={disableCancellation}
+            cancellationDisabledReason={cancellationDisabledReason}
             onCancel={() => {
               setCancellingSlotId(slot.project_signup_id);
               setCancelDialogOpen(true);
@@ -565,71 +623,73 @@ export default function AnonymousSignupClient({
       )}
 
       {/* Actions */}
-      <Card>
-        <CardContent className="space-y-4">
-          <h3 className="font-medium text-base">Manage Your Profile</h3>
+      {!hideLinkingSection && (
+        <Card>
+          <CardContent className="space-y-4">
+            <h3 className="font-medium text-base">Manage Your Profile</h3>
 
-          <Separator />
+            <Separator />
 
-          <div className="space-y-3">
-            <div className="bg-blue-50/50 border border-blue-200/50 rounded-lg p-3">
-              <p className="text-sm text-blue-900">
-                <span className="font-semibold">About linking:</span> When you link this anonymous profile to a Let&apos;s Assist account, all your event signups will be transferred to your account. Your signups are currently <span className="font-semibold">pending approval</span> from the project coordinator. Once approved, you can check in during events and track your volunteer hours—all in one place.
-              </p>
-            </div>
-
-            {autoLinkError && !isLinked && (
-              <Alert className="border-warning/30 bg-warning/5">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>Linking needs one more step</AlertTitle>
-                <AlertDescription>{autoLinkError}</AlertDescription>
-              </Alert>
-            )}
-
-            {linkStatus === "linked" ? (
-              <div className="flex items-center gap-2 text-sm text-success bg-success/5 p-3 rounded-lg">
-                <CheckCircle2 className="h-4 w-4 shrink-0" />
-                <span className="font-medium">Account linked successfully! Your signups have been transferred.</span>
+            <div className="space-y-3">
+              <div className="bg-blue-50/50 border border-blue-200/50 rounded-lg p-3">
+                <p className="text-sm text-blue-900">
+                  <span className="font-semibold">About linking:</span> When you link this anonymous profile to a Let&apos;s Assist account, all your event signups will be transferred to your account. Your signups are currently <span className="font-semibold">pending approval</span> from the project coordinator. Once approved, you can check in during events and track your volunteer hours—all in one place.
+                </p>
               </div>
-            ) : linkStatus === "verification-pending" ? (
-              <Alert className="border-primary/30 bg-primary/5">
-                <Mail className="h-4 w-4" />
-                <AlertTitle>Verify your new account</AlertTitle>
-                <AlertDescription className="space-y-1 text-sm">
-                  <p>
-                    Your volunteer profile is linked. We sent a verification email to <span className="font-medium text-foreground">{verificationPendingEmail ?? email}</span>.
-                  </p>
-                  <p>
-                    After verifying, sign in to access your volunteer dashboard, approvals, hours, and certificates.
-                  </p>
-                  <div className="pt-2">
-                    <Link href={`/signup/success?email=${encodeURIComponent(verificationPendingEmail ?? email)}`} className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
-                      Manage verification email
-                    </Link>
-                  </div>
-                </AlertDescription>
-              </Alert>
-            ) : (
-              <AnonymousLinkingDialog
-                anonymousId={id}
-                anonymousToken={accessToken}
-                defaultName={name}
-                defaultEmail={email}
-                isLinked={isLinked}
-                onLinked={() => {
-                  setLinkStatus("linked");
-                  setAutoLinkError(null);
-                }}
-                onLinkedPendingVerification={(pendingEmail) => {
-                  setLinkStatus("verification-pending");
-                  setVerificationPendingEmail(pendingEmail);
-                  setAutoLinkError(null);
-                }}
-              />
-            )}
-          </div>
-        </CardContent>
-      </Card>
+
+              {autoLinkError && !isLinked && (
+                <Alert className="border-warning/30 bg-warning/5">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>Linking needs one more step</AlertTitle>
+                  <AlertDescription>{autoLinkError}</AlertDescription>
+                </Alert>
+              )}
+
+              {linkStatus === "linked" ? (
+                <div className="flex items-center gap-2 text-sm text-success bg-success/5 p-3 rounded-lg">
+                  <CheckCircle2 className="h-4 w-4 shrink-0" />
+                  <span className="font-medium">Account linked successfully! Your signups have been transferred.</span>
+                </div>
+              ) : linkStatus === "verification-pending" ? (
+                <Alert className="border-primary/30 bg-primary/5">
+                  <Mail className="h-4 w-4" />
+                  <AlertTitle>Verify your new account</AlertTitle>
+                  <AlertDescription className="space-y-1 text-sm">
+                    <p>
+                      Your volunteer profile is linked. We sent a verification email to <span className="font-medium text-foreground">{verificationPendingEmail ?? email}</span>.
+                    </p>
+                    <p>
+                      After verifying, sign in to access your volunteer dashboard, approvals, hours, and certificates.
+                    </p>
+                    <div className="pt-2">
+                      <Link href={`/signup/success?email=${encodeURIComponent(verificationPendingEmail ?? email)}`} className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
+                        Manage verification email
+                      </Link>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                <AnonymousLinkingDialog
+                  anonymousId={id}
+                  anonymousToken={accessToken}
+                  defaultName={name}
+                  defaultEmail={email}
+                  isLinked={isLinked}
+                  onLinked={() => {
+                    setLinkStatus("linked");
+                    setAutoLinkError(null);
+                  }}
+                  onLinkedPendingVerification={(pendingEmail) => {
+                    setLinkStatus("verification-pending");
+                    setVerificationPendingEmail(pendingEmail);
+                    setAutoLinkError(null);
+                  }}
+                />
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Cancel Slot Dialog */}
       <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
@@ -676,6 +736,8 @@ function SlotCard({
   isConfirmed,
   waiverSignature,
   certificateId,
+  disableCancellation,
+  cancellationDisabledReason,
   onCancel,
   onViewWaiver,
 }: {
@@ -685,6 +747,8 @@ function SlotCard({
   isConfirmed: boolean;
   waiverSignature: { signature_type: string; signed_at?: string | null } | null | undefined;
   certificateId?: string;
+  disableCancellation?: boolean;
+  cancellationDisabledReason?: string;
   onCancel: () => void;
   onViewWaiver: () => void;
 }) {
@@ -822,15 +886,28 @@ function SlotCard({
         {/* Cancel button */}
         {canCancel && (
           <div className="flex justify-end pt-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-destructive hover:text-destructive hover:bg-destructive/10 h-7 text-xs"
-              onClick={onCancel}
-            >
-              <XCircle className="h-3.5 w-3.5 mr-1" />
-              Cancel This Slot
-            </Button>
+            {disableCancellation ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs opacity-50 cursor-not-allowed"
+                disabled
+                title={cancellationDisabledReason || "Cancellation is disabled."}
+              >
+                <XCircle className="h-3.5 w-3.5 mr-1" />
+                Cancel This Slot
+              </Button>
+            ) : (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-destructive hover:text-destructive hover:bg-destructive/10 h-7 text-xs"
+                onClick={onCancel}
+              >
+                <XCircle className="h-3.5 w-3.5 mr-1" />
+                Cancel This Slot
+              </Button>
+            )}
           </div>
         )}
       </CardContent>

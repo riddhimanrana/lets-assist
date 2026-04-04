@@ -6,8 +6,10 @@ import { getAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
 import type { AccountAccessStatus } from "@/lib/auth/account-access";
 import { isAccountBlockedStatus, readAccountAccessFromMetadata } from "@/lib/auth/account-access";
+import { isStaleSupabaseAuthUserError } from "@/lib/supabase/auth-errors";
 import { sendEmail } from "@/services/email";
 import AccountAccessUpdateEmail from "@/emails/account-access-update";
+import { hasSuperAdminMetadata } from "@/lib/auth/super-admin";
 
 type NotificationSeverity = "info" | "warning" | "success";
 type FeedbackModerationStatus = "pending" | "approved" | "flagged" | "archived";
@@ -185,15 +187,21 @@ export async function checkSuperAdmin() {
     const { data: { user: adminUser }, error } = await serviceClient.auth.admin.getUserById(user.id);
 
     if (error || !adminUser) {
+      if (isStaleSupabaseAuthUserError(error)) {
+        if (process.env.NODE_ENV === "development") {
+          console.warn("[Admin] Stale/deleted auth user while checking super admin status.");
+        }
+
+        return { isAdmin: false };
+      }
+
       console.error("Error fetching admin user:", error);
       return { isAdmin: false };
     }
 
-    const isSuperAdmin =
-      (adminUser as unknown as { is_super_admin?: boolean } | null)?.is_super_admin === true ||
-      adminUser?.user_metadata?.is_super_admin === true ||
-      adminUser?.app_metadata?.is_super_admin === true;
-    return { isAdmin: isSuperAdmin, userId: user.id };
+    const isMetadataAdmin = hasSuperAdminMetadata(adminUser);
+
+    return { isAdmin: isMetadataAdmin, userId: user.id };
   } catch (err) {
     console.error("Exception checking super admin status:", err);
     return { isAdmin: false };

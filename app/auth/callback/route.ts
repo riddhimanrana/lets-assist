@@ -152,9 +152,10 @@ export async function GET(request: Request) {
           return NextResponse.redirect(loginUrl.toString());
         }
 
+        const adminClient = getAdminClient();
+
         // Check if this email is blacklisted (catches OAuth signups with a banned email)
         if (user.email) {
-          const adminClient = getAdminClient();
           const { data: blacklisted } = await adminClient
             .from("banned_emails")
             .select("email")
@@ -166,6 +167,7 @@ export async function GET(request: Request) {
             return NextResponse.redirect(`${origin}/login?error=account-banned`);
           }
         }
+
 
         let inviteOutcome: StaffInviteOutcome | null = null;
   let isNewAccount = false;

@@ -4,6 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import MembersTab from "@/app/organization/[id]/MembersTab";
 import ProjectsTab from "@/app/organization/[id]/ProjectsTab";
 import { useState, useEffect } from "react";
+import type { ReactNode } from "react";
 import {
   LayoutDashboard,
   Users,
@@ -30,7 +31,7 @@ import { Loader2 } from "lucide-react";
 import { ProjectStatusBadge } from "@/components/ui/status-badge";
 import { getProjectStatus } from "@/utils/project";
 import ReportsTab from "@/app/organization/[id]/ReportsTab";
-import type { Organization, Project } from "@/types";
+import type { Organization, Project, ResolvedOrganizationPlugin, OrganizationTabBehavior } from "@/types";
 
 type OrganizationMember = {
   id: string;
@@ -67,6 +68,8 @@ interface OrganizationTabsProps {
   organizationSlug?: string;
   organizationCreatedLabel: string;
   canViewMembers?: boolean;
+  pluginOverviewExtensions?: ReactNode[];
+  pluginTabs?: OrganizationTabBehavior[];
 }
 
 function LeaveOrganizationDialog({
@@ -164,6 +167,8 @@ export default function OrganizationTabs({
   organizationSlug,
   organizationCreatedLabel,
   canViewMembers = true,
+  pluginOverviewExtensions = [],
+  pluginTabs = [],
 }: OrganizationTabsProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -171,10 +176,11 @@ export default function OrganizationTabs({
 
   useEffect(() => {
     const tab = searchParams.get("tab");
-    if (tab && (tab === "overview" || tab === "members" || tab === "projects" || tab === "reports")) {
+    const validTabs = ["overview", "members", "projects", "reports", ...pluginTabs.map(t => t.value)];
+    if (tab && validTabs.includes(tab)) {
       setActiveTab(tab);
     }
-  }, [searchParams]);
+  }, [searchParams, pluginTabs]);
 
   const handleTabChange = (value: string) => {
     setActiveTab(value);
@@ -304,6 +310,14 @@ export default function OrganizationTabs({
             <span className="truncate">Reports</span>
           </TabsTrigger>
         )}
+        {pluginTabs.map((pt) => {
+          return (
+            <TabsTrigger key={pt.value} value={pt.value} className="flex-1 sm:flex-none min-w-0 gap-2 px-3">
+              {pt.icon}
+              <span className="truncate">{pt.label}</span>
+            </TabsTrigger>
+          );
+        })}
       </TabsList>
 
       <TabsContent value="overview" className="space-y-6">
@@ -427,6 +441,24 @@ export default function OrganizationTabs({
             </div>
           </CardContent>
         </Card>
+
+        {pluginOverviewExtensions.length > 0 && (
+          <Card className="overflow-hidden">
+            <CardHeader>
+              <CardTitle className="text-xl! font-bold tracking-tight">
+                Plugin Extensions
+              </CardTitle>
+              <CardDescription>
+                Organization-specific experience modules contributed by installed plugins.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {pluginOverviewExtensions.map((node, index) => (
+                <div key={`plugin-overview-extension-${index}`}>{node}</div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
 
         {userRole && (
           <Card className="overflow-hidden w-full max-w-140 sm:max-w-none">
@@ -642,6 +674,12 @@ export default function OrganizationTabs({
           />
         </TabsContent>
       )}
+
+      {pluginTabs.map((pt) => (
+        <TabsContent key={pt.value} value={pt.value}>
+          {pt.content}
+        </TabsContent>
+      ))}
     </Tabs>
   );
 }
