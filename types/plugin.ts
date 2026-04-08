@@ -4,13 +4,49 @@ export type OrganizationPluginVisibility = "global" | "private";
 
 export type OrganizationPluginAccessRole = "admin" | "staff" | "member";
 
-export type OrganizationPluginSurface =
-  | "organization.overview.cards"
-  | "anonymous.profile.cards";
+/**
+ * Plugin permission scopes for granular access control
+ */
+export type OrganizationPluginScope =
+  | "org:read"           // Read organization data
+  | "org:write"          // Modify organization settings
+  | "members:read"       // Read member list
+  | "members:write"      // Modify member roles
+  | "projects:read"      // Read projects
+  | "projects:write"     // Create/modify projects
+  | "signups:read"       // Read anonymous signups
+  | "signups:write"      // Modify signups
+  | "notifications:send" // Send notifications
+  | "storage:read"       // Read files
+  | "storage:write"      // Upload files
+  | "api:expose";        // Expose custom API endpoints
 
+/**
+ * Available surfaces where plugins can inject UI components
+ */
+export type OrganizationPluginSurface =
+  | "organization.overview.cards"      // Cards on organization dashboard
+  | "organization.settings.cards"      // Cards in organization settings
+  | "anonymous.profile.cards"          // Cards on anonymous signup pages
+  | "project.detail.cards"             // Cards on project detail pages
+  | "project.detail.actions"           // Action buttons on project pages
+  | "user.profile.cards"               // Cards on user profile pages
+  | "dashboard.sidebar.items"          // Items in sidebar navigation
+  | "dashboard.header.actions";        // Actions in header area
+
+/**
+ * Available behavior hooks for modifying application behavior
+ */
 export type OrganizationPluginBehaviorHook =
-  | "anonymous.profile.experience"
-  | "organization.tabs";
+  | "anonymous.profile.experience"     // Modify anonymous signup experience
+  | "organization.tabs"                // Add custom tabs to org dashboard
+  | "project.create.validation"        // Validate project creation
+  | "project.update.validation"        // Validate project updates
+  | "signup.form.fields"               // Add custom fields to signup forms
+  | "signup.submit.validation"         // Validate signup submissions
+  | "notification.send.intercept"      // Intercept outgoing notifications
+  | "organization.member.join"         // React to member joining
+  | "organization.member.leave";       // React to member leaving
 
 export type OrganizationPluginSurfaceAccessLevel =
   | OrganizationPluginAccessRole
@@ -70,9 +106,70 @@ export interface OrganizationTabBehavior {
   content: ReactNode;
 }
 
+/**
+ * Validation result for project create/update hooks
+ */
+export interface ProjectValidationResult {
+  valid: boolean;
+  errors?: Array<{ field?: string; message: string }>;
+}
+
+/**
+ * Custom form field definition for signup forms
+ */
+export interface SignupFormField {
+  key: string;
+  type: "text" | "email" | "tel" | "select" | "checkbox" | "textarea" | "number";
+  label: string;
+  placeholder?: string;
+  required?: boolean;
+  options?: Array<{ value: string; label: string }>;  // For select type
+  validation?: {
+    pattern?: string;
+    min?: number;
+    max?: number;
+    minLength?: number;
+    maxLength?: number;
+  };
+}
+
+/**
+ * Signup submission validation result
+ */
+export interface SignupValidationResult {
+  valid: boolean;
+  errors?: Array<{ field?: string; message: string }>;
+}
+
+/**
+ * Notification interception result
+ */
+export interface NotificationInterceptResult {
+  suppress?: boolean;      // Don't send the notification
+  modify?: {
+    subject?: string;
+    body?: string;
+    metadata?: Record<string, unknown>;
+  };
+}
+
+/**
+ * Member event reaction (no return needed, side-effect only)
+ */
+export interface MemberEventResult {
+  handled?: boolean;  // Acknowledge processing
+}
+
 export interface OrganizationPluginBehaviorHookResultMap {
   "anonymous.profile.experience": AnonymousProfileExperienceBehavior;
   "organization.tabs": OrganizationTabBehavior[];
+  "project.create.validation": ProjectValidationResult;
+  "project.update.validation": ProjectValidationResult;
+  "signup.form.fields": SignupFormField[];
+  "signup.submit.validation": SignupValidationResult;
+  "notification.send.intercept": NotificationInterceptResult;
+  "organization.member.join": MemberEventResult;
+  "organization.member.leave": MemberEventResult;
 }
 
 export interface OrganizationPluginBehaviorHookContext
