@@ -1,0 +1,3 @@
+[submodule "lib/plugins/private"]
+	path = lib/plugins/private
+	url = https://github.com/riddhimanrana/lets-assist-plugins.git
