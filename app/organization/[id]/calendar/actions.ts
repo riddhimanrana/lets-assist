@@ -38,8 +38,14 @@ type OrgAccess = {
 
 async function assertOrgAccess(
   organizationId: string,
-  requireAdmin = false
+  requireAdmin = false,
+  skipAuth = false
 ): Promise<OrgAccess> {
+  // When skipAuth is true, we're in admin-only context (e.g., cron job)
+  if (skipAuth) {
+    return { userId: "system", role: "admin" };
+  }
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -225,7 +231,8 @@ export async function disconnectOrganizationCalendar(
 }
 
 export async function syncOrganizationCalendarNow(
-  organizationId: string
+  organizationId: string,
+  isFromCron = false
 ): Promise<{
   success: boolean;
   createdCount?: number;
@@ -233,7 +240,8 @@ export async function syncOrganizationCalendarNow(
   removedCount?: number;
   error?: string;
 }> {
-  const access = await assertOrgAccess(organizationId, true);
+  // Skip auth when called from cron (admin-only context)
+  const access = await assertOrgAccess(organizationId, true, isFromCron);
   if (access.error) {
     return { success: false, error: access.error };
   }

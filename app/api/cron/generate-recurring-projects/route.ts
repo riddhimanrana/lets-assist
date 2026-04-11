@@ -18,7 +18,7 @@ function createServiceClient() {
 
 function getAllowedCronTokens(): string[] {
   return [
-    process.env.CRON_SECRET,
+    process.env.CRON_TOKEN,
     process.env.RECURRING_PROJECTS_SECRET_TOKEN,
   ].filter((value): value is string => Boolean(value));
 }
