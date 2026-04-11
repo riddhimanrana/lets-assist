@@ -1,5 +1,8 @@
-import { generateText, Output } from 'ai';
 import { z } from 'zod';
+import {
+  generateModerationObject,
+  sanitizeModerationText,
+} from './ai-generation';
 
 type ReportStatus = 'pending' | 'under_review' | 'resolved' | 'dismissed';
 
@@ -157,19 +160,19 @@ function buildProjectFlagDetails(decision: DetailedProjectDecision) {
 }
 
 async function analyzeReportWithAi(report: ReportInput, contentDetails: string) {
-  const { output: decision } = await generateText({
-    model: 'openai/gpt-oss-safeguard-20b',
-    output: Output.object({ schema: detailedReportModerationSchema }),
+  const decision = await generateModerationObject({
+    label: 'ai-moderation-report-review',
+    schema: detailedReportModerationSchema,
     prompt: `You are an expert content moderation AI for a volunteer platform. Analyze this user report with detailed step-by-step reasoning.
 
 ## Report Details
 - Report ID: ${report.id}
-- Reason for Report: ${report.reason}
-- Reporter's Description: ${report.description}
+- Reason for Report: ${sanitizeModerationText(report.reason, 1000)}
+- Reporter's Description: ${sanitizeModerationText(report.description, 1000)}
 - Content Type: ${report.content_type}
 
 ## Content Being Reported
-${contentDetails || 'Content details not available'}
+${sanitizeModerationText(contentDetails, 2500) || 'Content details not available'}
 
 ## Your Task
 1. Understand the context of what's being reported
@@ -199,15 +202,15 @@ Include "toolsUsed" with conceptual tools like: "content_analysis", "policy_chec
 }
 
 async function analyzeProjectWithAi(project: ProjectInput) {
-  const { output: decision } = await generateText({
-    model: 'openai/gpt-oss-safeguard-20b',
-    output: Output.object({ schema: detailedProjectModerationSchema }),
+  const decision = await generateModerationObject({
+    label: 'ai-moderation-project-review',
+    schema: detailedProjectModerationSchema,
     prompt: `You are an expert content moderation AI for a volunteer platform. Analyze this project with detailed step-by-step reasoning.
 
 ## Project Details
 - Project ID: ${project.id}
-- Title: ${project.title}
-- Description: ${project.description}
+- Title: ${sanitizeModerationText(project.title, 1000)}
+- Description: ${sanitizeModerationText(project.description, 1500)}
 
 ## Your Task
 Determine if this project violates any policies (spam, harassment, inappropriate content, violence, hate speech, sexual content, etc.).

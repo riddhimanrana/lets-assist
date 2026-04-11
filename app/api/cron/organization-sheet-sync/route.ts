@@ -9,7 +9,7 @@ import { getGoogleAccessTokenForSheetsForUser } from "@/services/calendar";
 
 const WORKER_ENABLED = process.env.ORG_SHEET_SYNC_WORKER_ENABLED === "true";
 const WORKER_TOKEN = process.env.ORG_SHEET_SYNC_WORKER_SECRET_TOKEN;
-const CRON_SECRET = process.env.CRON_SECRET;
+const CRON_SECRET = process.env.CRON_TOKEN;
 const DEFAULT_TAB_NAME = "Member Hours";
 
 function isAuthorized(request: NextRequest) {
