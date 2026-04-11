@@ -12,6 +12,7 @@ import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 // Import the type for the goals data
 import { VolunteerGoalsData } from "@/types";
+import { withRetryableSupabaseQuery } from "@/lib/supabase/retry-query";
 
 // Copy the formatting function from page.tsx
 function formatTotalDuration(totalHours: number): string {
@@ -153,7 +154,8 @@ export function VolunteerGoals({ userId, totalHours, totalEvents }: GoalsProps) 
         query = query.lte('event_end', endDate.toISOString());
       }
 
-      const { data: certificates, error } = (await query) as {
+      const certificatesResult = await withRetryableSupabaseQuery(() => query);
+      const { data: certificates, error } = certificatesResult as {
         data: { event_start: string; event_end: string }[] | null;
         error: { message?: string } | null;
       };
@@ -207,11 +209,16 @@ export function VolunteerGoals({ userId, totalHours, totalEvents }: GoalsProps) 
         const supabase = createClient();
 
         // Fetch the volunteer_goals JSONB field from the profiles table
-        const { data: profileData, error } = await supabase
+        const profileResult = await withRetryableSupabaseQuery(() => supabase
           .from("profiles")
           .select("volunteer_goals") // Select the JSONB column
           .eq("id", userId)
-          .single();
+          .maybeSingle());
+
+        const { data: profileData, error } = profileResult as {
+          data: { volunteer_goals: VolunteerGoalsData | null } | null;
+          error: { message?: string } | null;
+        };
 
         if (error) {
           console.error("Error fetching profile goals:", error);

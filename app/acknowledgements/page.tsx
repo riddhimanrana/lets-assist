@@ -34,7 +34,7 @@ export default function AcknowledgementsPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 mb-1">
               <Image
-                src="/riddhimanrana.webp"
+                src="/resources/riddhiman-rana-logo.webp"
                 alt="Riddhiman Rana"
                 width={24}
                 height={24}

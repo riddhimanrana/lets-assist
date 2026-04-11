@@ -18,6 +18,7 @@ import JoinCodeAdminDisplay from "./JoinCodeAdminDisplay";
 import StaffLinkDisplay from "./StaffLinkDisplay";
 import DeleteOrganizationDialog from "./DeleteOrganizationDialog";
 import OrganizationCalendarSettings from "./OrganizationCalendarSettings";
+import BulkImportSection from "./BulkImportSection";
 import OrganizationSheetsSettings from "./OrganizationSheetsSettings";
 import OrganizationPluginSettings from "./OrganizationPluginSettings";
 
@@ -168,6 +169,19 @@ export default async function OrganizationSettingsPage({ params }: Props) {
                 organizationId={organization.id}
                 organizationUsername={organization.username}
               />
+            </CardContent>
+          </Card>
+
+          {/* Bulk Import Members */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Bulk Import Members</CardTitle>
+              <CardDescription>
+                Import multiple members or staff by email address
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <BulkImportSection organizationId={organization.id} />
             </CardContent>
           </Card>
 

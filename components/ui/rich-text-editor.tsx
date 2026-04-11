@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { sanitizeRichTextHtml } from "@/lib/security/html.client";
 import { normalizeRichTextLinkUrl } from "@/lib/security/html";
 import { cn } from "@/lib/utils";
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
     Dialog,
     DialogContent,
@@ -41,12 +41,13 @@ export function RichTextEditor({
     const [mounted, setMounted] = useState(false);
     const [linkDialogOpen, setLinkDialogOpen] = useState(false);
     const [linkUrl, setLinkUrl] = useState('');
+    const lastSyncedContentRef = useRef<string | null>(null);
     const sanitizeEditorContent = useCallback(
         (html: string): string => sanitizeRichTextHtml(html),
         []
     );
 
-    const extensions = [
+    const extensions = useMemo(() => [
         StarterKit.configure({
             bulletList: {
                 HTMLAttributes: {
@@ -77,9 +78,8 @@ export function RichTextEditor({
             showOnlyWhenEditable: true,
             emptyEditorClass: 'is-editor-empty before:content-[attr(data-placeholder)] before:float-left before:h-0 before:pointer-events-none before:text-muted-foreground',
         }),
-        // Add CharacterCount extension if maxLength is provided
-        ...(maxLength ? [CharacterCount.configure({ limit: maxLength })] : [])
-    ];
+        ...(maxLength ? [CharacterCount.configure({ limit: maxLength })] : []),
+    ], [placeholder, maxLength]);
 
     const editor = useEditor({
         extensions,
@@ -155,11 +155,25 @@ export function RichTextEditor({
     }, []);
 
     useEffect(() => {
-        if (editor && content !== editor.getHTML()) {
-            const sanitizedContent = sanitizeEditorContent(content);
-            if (sanitizedContent !== editor.getHTML()) {
-                editor.commands.setContent(sanitizedContent, { emitUpdate: false });
-            }
+        if (!editor) return;
+
+        const sanitizedContent = sanitizeEditorContent(content);
+
+        if (lastSyncedContentRef.current === sanitizedContent) {
+            return;
+        }
+
+        const currentHtml = editor.getHTML();
+        if (sanitizedContent === currentHtml) {
+            lastSyncedContentRef.current = sanitizedContent;
+            return;
+        }
+
+        // Only sync external content changes when the editor is not actively being edited.
+        // This avoids resetting the ProseMirror selection/cursor on every keystroke.
+        if (!editor.isFocused) {
+            editor.commands.setContent(sanitizedContent, { emitUpdate: false });
+            lastSyncedContentRef.current = sanitizedContent;
         }
     }, [editor, content, sanitizeEditorContent]);
 

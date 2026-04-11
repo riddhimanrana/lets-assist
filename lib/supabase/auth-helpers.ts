@@ -27,6 +27,7 @@ export type AuthResult = {
 type GetAuthUserOptions = {
   sensitive?: boolean;
   allowMfaPending?: boolean;
+  checkMfa?: boolean;
 };
 
 async function sessionRequiresMfa(
@@ -114,7 +115,7 @@ export async function getAuthUser(options?: GetAuthUserOptions): Promise<AuthRes
       return { user: null, error: null };
     }
 
-    if (!options.allowMfaPending) {
+    if (options.checkMfa) {
       const mfaState = await sessionRequiresMfa(supabase);
 
       if (mfaState.invalidUser) {
@@ -163,7 +164,7 @@ export async function getAuthUser(options?: GetAuthUserOptions): Promise<AuthRes
     return { user: null, error: null };
   }
 
-  if (!options?.allowMfaPending) {
+  if (options?.checkMfa) {
     if (mfaState.requiresMfa) {
       return { user: null, error: null, requiresMfa: true };
     }

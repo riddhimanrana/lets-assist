@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, Menu, MessageSquare, ShieldAlert, Users, BellRing, FileText, BadgeCheck, UserX, Megaphone, Puzzle } from "lucide-react";
+import { LayoutDashboard, Menu, MessageSquare, ShieldAlert, Users, BellRing, BadgeCheck, UserX, Megaphone, Puzzle } from "lucide-react";
 import {
   Sheet,
   SheetClose,
@@ -30,7 +30,6 @@ const navItems = [
   { id: "feedback", href: "/admin/feedback", label: "Feedback", icon: MessageSquare },
   { id: "trusted-members", href: "/admin/trusted-members", label: "Trusted Members", icon: Users },
   { id: "moderation", href: "/admin/moderation", label: "Moderation", icon: ShieldAlert },
-  { id: "waivers", href: "/admin/waivers", label: "Waivers", icon: FileText },
 ];
 
 export function AdminSidebar({ activeTab, onTabChange }: AdminSidebarProps = {}) {
@@ -113,8 +112,15 @@ export function AdminMobileNav({ activeTab, onTabChange }: AdminSidebarProps = {
               return (
                 <SheetClose
                   key={item.id}
-                  className={cn(buttonVariants({ variant: isActive ? "secondary" : "ghost" }), "w-full justify-start gap-2", isActive && "bg-secondary")}
-                  onClick={() => onTabChange(item.id)}
+                  className={cn("w-full justify-start gap-2", isActive && "bg-secondary")}
+                  render={
+                    <Button
+                      type="button"
+                      variant={isActive ? "secondary" : "ghost"}
+                      className={cn("w-full justify-start gap-2", isActive && "bg-secondary")}
+                      onClick={() => onTabChange(item.id)}
+                    />
+                  }
                 >
                   <item.icon className="h-4 w-4" />
                   {item.label}
@@ -128,13 +134,17 @@ export function AdminMobileNav({ activeTab, onTabChange }: AdminSidebarProps = {
                 render={
                   <Link
                     href={item.href}
-                    className={cn(buttonVariants({ variant: isActive ? "secondary" : "ghost" }), "w-full justify-start gap-2 flex items-center", isActive && "bg-secondary")}
-                  >
-                    <item.icon className="h-4 w-4" />
-                    {item.label}
-                  </Link>
+                    className={cn(
+                      buttonVariants({ variant: isActive ? "secondary" : "ghost" }),
+                      "w-full justify-start gap-2 flex items-center",
+                      isActive && "bg-secondary",
+                    )}
+                  />
                 }
-              />
+              >
+                <item.icon className="h-4 w-4" />
+                {item.label}
+              </SheetClose>
             );
           })}
         </nav>

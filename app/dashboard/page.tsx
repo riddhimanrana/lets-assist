@@ -21,6 +21,7 @@ import { Project } from "@/types";
 import { getSlotDetails } from "@/utils/project";
 import { Metadata } from "next";
 import { TimezoneBadge } from "@/components/shared/TimezoneBadge";
+import { withRetryableSupabaseQuery } from "@/lib/supabase/retry-query";
 
 // Define types for certificate data returned by the backend
 // Renamed to avoid colliding with the UI Certificate type imported above
@@ -216,11 +217,13 @@ export default async function VolunteerDashboard() {
   }
 
   // Fetch user's profile
-  const { error: profileError } = (await supabase
+  const profileResult = await withRetryableSupabaseQuery(() => supabase
     .from("profiles")
     .select("*")
     .eq("id", user.id)
-    .single()) as { error: { message?: string } | null };
+    .maybeSingle());
+
+  const { error: profileError } = profileResult as { error: { message?: string } | null };
 
   if (profileError) {
     console.error("Error fetching profile:", profileError);
@@ -244,16 +247,18 @@ export default async function VolunteerDashboard() {
     project_location: string | null;
   };
 
-  const { data: certificates, error: certificatesError } = (await supabase
+  const certificatesResult = await withRetryableSupabaseQuery(() => supabase
     .from("certificates")
     .select(`
       *
     `)
     .eq("user_id", user.id)
-    .order("issued_at", { ascending: false })) as {
-      data: CertificateRow[] | null;
-      error: { message?: string } | null;
-    };
+    .order("issued_at", { ascending: false }));
+
+  const { data: certificates, error: certificatesError } = certificatesResult as {
+    data: CertificateRow[] | null;
+    error: { message?: string } | null;
+  };
 
 
   if (certificatesError) {
@@ -272,7 +277,7 @@ export default async function VolunteerDashboard() {
     | null;
   };
 
-  const { data: signupData, error: signupsError } = (await supabase
+  const signupsResult = await withRetryableSupabaseQuery(() => supabase
     .from("project_signups")
     .select(`
       id,
@@ -287,10 +292,12 @@ export default async function VolunteerDashboard() {
       )
     `)
     .eq("user_id", user.id)
-    .in("status", ["approved", "pending"])) as {
-      data: SignupRow[] | null;
-      error: { message?: string } | null;
-    }; // Fetch approved and pending
+    .in("status", ["approved", "pending"]));
+
+  const { data: signupData, error: signupsError } = signupsResult as {
+    data: SignupRow[] | null;
+    error: { message?: string } | null;
+  }; // Fetch approved and pending
 
   if (signupsError) {
     console.error("Error fetching upcoming signups:", signupsError);
@@ -298,7 +305,7 @@ export default async function VolunteerDashboard() {
   }
 
   // Fetch certificates for the dashboard (modified)
-  const { error: certificatesErrorFetch } = (await supabase
+  const certificatesFetchResult = await withRetryableSupabaseQuery(() => supabase
     .from("certificates")
     .select(`
       *,
@@ -307,7 +314,11 @@ export default async function VolunteerDashboard() {
       )
     `)
     .eq("volunteer_email", user.email) // Assuming you fetch by email
-    .order("issued_at", { ascending: false })) as { error: { message?: string } | null }; // Sort by most recent
+    .order("issued_at", { ascending: false }));
+
+  const { error: certificatesErrorFetch } = certificatesFetchResult as {
+    error: { message?: string } | null;
+  };
 
   if (certificatesErrorFetch) {
     console.error("Error fetching certificates:", certificatesErrorFetch);

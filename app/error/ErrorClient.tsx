@@ -9,19 +9,23 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { AlertCircle } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 export default function ErrorClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [hashErrorDescription, setHashErrorDescription] = useState<string | null>(null);
 
-  // Parse hash fragment for error details (lines 15-21)
-  let hashErrorDescription: string | null = null;
-  if (typeof window !== "undefined" && window.location.hash) {
+  useEffect(() => {
+    if (!window.location.hash) {
+      return;
+    }
+
     const params = new URLSearchParams(window.location.hash.substring(1));
-    // error and error_code are parsed but only description is displayed
-    hashErrorDescription = params.get("error_description");
-  }
+    const description = params.get("error_description");
+    setHashErrorDescription(description);
+  }, []);
 
   const message =
     searchParams.get("message") || hashErrorDescription || "There was a problem with the link.";

@@ -1,7 +1,7 @@
 "use client";
 
 import { Shield, AlertCircle, CheckCircle2 } from "lucide-react";
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -22,16 +22,10 @@ import {
   FieldError as FormMessage,
 } from "@/components/ui/field";
 import { Controller } from "react-hook-form";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { TurnstileComponent, TurnstileRef } from "@/components/ui/turnstile";
+import { TurnstileComponent } from "@/components/ui/turnstile";
+import { BotVerificationDialog } from "@/components/shared/BotVerificationDialog";
+import { useBotVerification } from "@/hooks/useBotVerification";
 import { useRouter } from "next/navigation";
 import { getStaffInviteOrgLabel } from "@/lib/organization/staff-invite-outcome";
 
@@ -39,57 +33,59 @@ interface SignupClientProps {
   redirectPath?: string;
   staffToken?: string;
   orgUsername?: string;
+  prefilledEmail?: string;
 }
 
 const signupSchema = z.object({
   fullName: z.string().min(3, "Full name must be at least 3 characters"),
   email: z.string().email("Invalid email address"),
   password: z.string().min(8, "Password must be at least 8 characters"),
-  turnstileToken: z.string().optional(),
 });
 
 type SignupValues = z.infer<typeof signupSchema>;
 
-export default function SignupClient({ redirectPath, staffToken, orgUsername }: SignupClientProps) {
+export default function SignupClient({
+  redirectPath,
+  staffToken,
+  orgUsername,
+  prefilledEmail,
+}: SignupClientProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-  const turnstileRef = useRef<TurnstileRef>(null);
-  const [turnstileReady, setTurnstileReady] = useState(false);
   const [isResendCaptchaOpen, setIsResendCaptchaOpen] = useState(false);
   const [unconfirmedEmailForResend, setUnconfirmedEmailForResend] = useState<string | null>(null);
   const [isResending, setIsResending] = useState(false);
-  const [resendTurnstileToken, setResendTurnstileToken] = useState<string | null>(null);
-  const [resendTurnstileReady, setResendTurnstileReady] = useState(false);
-  const resendTurnstileRef = useRef<TurnstileRef>(null);
-  const isTurnstileBypassed = process.env.NEXT_PUBLIC_TURNSTILE_BYPASS === "true";
+
+  const verification = useBotVerification({
+    onError: () => {
+      toast.error("Security verification failed. Please try again.");
+    },
+  });
 
   const router = useRouter();
-
-  // Check if this is a staff invite signup
   const isStaffInvite = !!(staffToken && orgUsername);
+  const normalizedPrefilledEmail = prefilledEmail?.trim() ?? "";
 
   const form = useForm<SignupValues>({
     resolver: zodResolver(signupSchema),
     defaultValues: {
       fullName: "",
-      email: "",
+      email: normalizedPrefilledEmail,
       password: "",
-      turnstileToken: "",
     },
   });
 
-  const handleResendWithCaptcha = async () => {
-    if (!unconfirmedEmailForResend || (!resendTurnstileToken && !isTurnstileBypassed)) {
-      toast.error("Please complete the verification challenge.");
+  const handleResendWithCaptcha = async (token: string) => {
+    if (!unconfirmedEmailForResend) {
+      toast.error("Email address not found.");
       return;
     }
 
     setIsResending(true);
     try {
-      const resendToken = resendTurnstileToken ?? (isTurnstileBypassed ? "turnstile-bypass" : undefined);
       const resendResult = await resendVerificationEmail(
         unconfirmedEmailForResend,
-        resendToken,
+        token,
         redirectPath ?? null,
       );
       if (resendResult.success) {
@@ -108,13 +104,11 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
       toast.error("An error occurred. Please try again.");
     } finally {
       setIsResending(false);
-      resendTurnstileRef.current?.reset();
-      setResendTurnstileToken(null);
     }
   };
 
   async function onSubmit(data: SignupValues) {
-    const turnstileToken = turnstileRef.current?.getResponse();
+    const turnstileToken = verification.token;
 
     setIsLoading(true);
     const formData = new FormData();
@@ -127,7 +121,6 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
       formData.append("turnstileToken", turnstileToken);
     }
 
-    // Add staff token if present
     if (staffToken) {
       formData.append("staffToken", staffToken);
     }
@@ -136,13 +129,10 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
     }
 
     const result = await signup(formData);
-    console.log("[Signup] Result:", result);
 
     if (result.error) {
       const errors = result.error;
-      console.warn("[Signup] Error encountered:", errors);
 
-      // Check if this is a confirmed email error
       if ('emailStatus' in result && result.emailStatus === 'confirmed') {
         const serverMessage = result.error?.server?.[0] || "An account with this email address already exists and is verified. Please log in to access your account.";
         toast.error("Account already exists", {
@@ -153,11 +143,10 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
           },
         });
         setIsLoading(false);
-        turnstileRef.current?.reset();
+        verification.reset();
         return;
       }
 
-      // Check if this is an unconfirmed email error
       if ('emailStatus' in result && result.emailStatus === 'unconfirmed' && 'email' in result) {
         const unconfirmedEmail = result.email as string;
         const serverMessage = result.error?.server?.[0] || "It looks like you already signed up but haven't confirmed your email yet.";
@@ -173,7 +162,7 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
           },
         });
         setIsLoading(false);
-        turnstileRef.current?.reset();
+        verification.reset();
         return;
       }
 
@@ -184,7 +173,6 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
             message: errors[key as keyof typeof errors]?.[0],
           });
         } else if (key !== "server") {
-          // Fallback for fields not in the client-side schema (like staffToken/orgUsername)
           toast.error(`Error: ${errors[key as keyof typeof errors]?.[0]}`);
         }
       });
@@ -193,7 +181,6 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
         toast.error(errors.server[0]);
       }
     } else if (result.success && result.email) {
-      // Check if there was a failed invite outcome
       if (result.inviteOutcome && result.inviteOutcome.status !== 'success') {
         const { status } = result.inviteOutcome;
         const orgLabel = getStaffInviteOrgLabel(result.inviteOutcome);
@@ -220,7 +207,6 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
         });
       }
       
-      // Redirect to success page
       const successUrl = new URL("/signup/success", window.location.origin);
       successUrl.searchParams.set("email", result.email);
       if (redirectPath) {
@@ -231,15 +217,12 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
     }
 
     setIsLoading(false);
-    // Reset Turnstile after submission
-    turnstileRef.current?.reset();
+    verification.reset();
   }
 
   const handleGoogleSignIn = async () => {
     try {
       setIsGoogleLoading(true);
-      
-      // Pass staff invite context if present
       const inviteContext = (staffToken || orgUsername)
         ? { staffToken, orgUsername }
         : null;
@@ -283,7 +266,6 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
           </CardDescription>
         </CardHeader>
         <CardContent className="p-6 space-y-4">
-
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <Button
               type="button"
@@ -378,28 +360,22 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
             />
             <div className="flex justify-center">
               <div className="relative w-75 h-16.25 overflow-hidden bg-muted/30 rounded-lg flex items-center justify-center border border-border/50">
-                {!turnstileReady && (
+                {!verification.isReady && (
                   <div className="absolute inset-0 z-10 flex items-center justify-center gap-2 rounded-lg bg-background/80 text-[0.7rem] font-semibold uppercase tracking-wide text-muted-foreground">
                     <Shield className="h-4 w-4 text-muted-foreground/80" />
-                    <span className="text-[0.7rem] font-semibold normal-case tracking-wide">Bot verification loading…</span>
+                    <span className="text-[0.7rem] font-semibold normal-case">Bot verification loading…</span>
                   </div>
                 )}
                 <TurnstileComponent
-                  ref={turnstileRef}
-                  onLoad={() => setTurnstileReady(true)}
-                  onVerify={(token) => {
-                    form.setValue("turnstileToken", token);
-                  }}
-                  onError={() => {
-                    toast.error("Security verification failed. Please try again.");
-                  }}
-                  onExpire={() => {
-                    form.setValue("turnstileToken", "");
-                  }}
+                  ref={verification.ref}
+                  onLoad={verification.onLoad}
+                  onVerify={verification.onVerify}
+                  onError={verification.onError}
+                  onExpire={() => verification.reset()}
                 />
               </div>
             </div>
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Button type="submit" className="w-full" disabled={isLoading || !verification.isReady}>
               {isLoading ? "Creating Account..." : "Create Account"}
             </Button>
             <div className="mt-2 text-center text-sm">
@@ -407,19 +383,18 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
               <Link
                 href={(() => {
                   const params = new URLSearchParams();
-
                   if (redirectPath) {
                     params.set("redirect", redirectPath);
                   }
-
                   if (staffToken) {
                     params.set("staff_token", staffToken);
                   }
-
                   if (orgUsername) {
                     params.set("org", orgUsername);
                   }
-
+                  if (normalizedPrefilledEmail) {
+                    params.set("email", normalizedPrefilledEmail);
+                  }
                   const query = params.toString();
                   return query ? `/login?${query}` : "/login";
                 })()}
@@ -429,52 +404,19 @@ export default function SignupClient({ redirectPath, staffToken, orgUsername }: 
               </Link>
             </div>
           </form>
-
         </CardContent>
       </Card>
 
-      <Dialog open={isResendCaptchaOpen} onOpenChange={setIsResendCaptchaOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Verify before resending</DialogTitle>
-            <DialogDescription>
-              Complete the verification challenge so we can safely send a fresh confirmation link to your email.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex justify-center py-4">
-            <div className="relative w-75 h-16.25 overflow-hidden rounded-lg bg-muted/30 border border-border/50 flex items-center justify-center">
-              {!resendTurnstileReady && !isTurnstileBypassed && (
-                <div className="absolute inset-0 z-10 flex items-center justify-center gap-2 rounded-lg bg-background/80 text-[0.7rem] font-semibold uppercase tracking-wide text-muted-foreground text-center px-4">
-                  <Shield className="h-4 w-4 text-muted-foreground/80 shrink-0" />
-                  <span>Bot verification loading…</span>
-                </div>
-              )}
-              <TurnstileComponent
-                ref={resendTurnstileRef}
-                onLoad={() => setResendTurnstileReady(true)}
-                onVerify={(token) => setResendTurnstileToken(token)}
-                onError={() => {
-                  setResendTurnstileToken(null);
-                  toast.error("Verification failed. Please try again.");
-                }}
-                onExpire={() => setResendTurnstileToken(null)}
-              />
-            </div>
-          </div>
-          <DialogFooter className="flex flex-col gap-2">
-            <Button
-              onClick={handleResendWithCaptcha}
-              disabled={(!resendTurnstileToken && !isTurnstileBypassed) || isResending}
-              className="w-full"
-            >
-              {isResending ? "Sending…" : "Verify & Send"}
-            </Button>
-            <Button variant="ghost" onClick={() => setIsResendCaptchaOpen(false)} className="w-full">
-              Cancel
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <BotVerificationDialog
+        isOpen={isResendCaptchaOpen}
+        onClose={() => setIsResendCaptchaOpen(false)}
+        onVerified={handleResendWithCaptcha}
+        title="Verify before resending"
+        description="Complete the verification challenge so we can safely send a fresh confirmation link to your email."
+        submitLabel="Verify & Send"
+        isLoading={isResending}
+        isSingleStep={true}
+      />
     </div>
   );
 }

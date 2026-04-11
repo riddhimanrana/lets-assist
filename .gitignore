@@ -66,3 +66,7 @@ lib/plugins/private/*
 !.keep
 !lib/plugins/private/.keep
 !lib/plugins/private/registry.ts
+
+.agents
+
+playwright.config.ts

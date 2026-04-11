@@ -168,7 +168,7 @@ export default function CalendarClient({
         <CardHeader>
           <CardTitle className="flex items-center text-xl gap-2">
             <Image
-              src="/googlecalendar.svg"
+              src="/resources/google-calendar-logo.svg"
               alt="Google Calendar"
               width={20}
               height={20}

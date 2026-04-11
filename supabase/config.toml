@@ -64,7 +64,7 @@ enabled = true
 # Supports glob patterns relative to supabase directory: "./seeds/*.sql"
 sql_paths = [
 	"./schemas/remote_baseline_schema.sql",
-	"./seed.sql"
+	"./seeds/local-only.sql"
 ]
 
 [db.network_restrictions]
@@ -116,6 +116,41 @@ file_size_limit = "50MiB"
 # file_size_limit = "50MiB"
 # allowed_mime_types = ["image/png", "image/jpeg"]
 # objects_path = "./images"
+
+[storage.buckets.avatars]
+public = true
+file_size_limit = "10MiB"
+allowed_mime_types = ["image/png", "image/jpeg", "image/jpg", "image/webp"]
+
+[storage.buckets."organization-logos"]
+public = true
+file_size_limit = "10MiB"
+allowed_mime_types = ["image/png", "image/jpeg", "image/jpg", "image/webp"]
+
+[storage.buckets."project-images"]
+public = true
+file_size_limit = "20MiB"
+allowed_mime_types = ["image/png", "image/jpeg", "image/jpg", "image/webp"]
+
+[storage.buckets."project-documents"]
+public = true
+file_size_limit = "20MiB"
+allowed_mime_types = ["application/pdf"]
+
+[storage.buckets."waiver-uploads"]
+public = true
+file_size_limit = "20MiB"
+allowed_mime_types = ["application/pdf"]
+
+[storage.buckets.waivers]
+public = true
+file_size_limit = "20MiB"
+allowed_mime_types = ["application/pdf"]
+
+[storage.buckets."data-exports"]
+public = false
+file_size_limit = "100MiB"
+allowed_mime_types = ["application/zip"]
 
 # Allow connections via S3 compatible clients
 [storage.s3_protocol]
@@ -174,7 +209,7 @@ enable_signup = true
 # Allow/disallow anonymous sign-ins to your project.
 enable_anonymous_sign_ins = false
 # Allow/disallow testing manual linking of accounts
-enable_manual_linking = false
+enable_manual_linking = true
 # Passwords shorter than this value will be rejected as weak. Minimum 6, recommended 8 or more.
 minimum_password_length = 6
 # Passwords that do not meet the following requirements will be rejected as weak. Supported values
@@ -230,10 +265,29 @@ otp_expiry = 3600
 # admin_email = "admin@email.com"
 # sender_name = "Admin"
 
-# Uncomment to customize email template
-# [auth.email.template.invite]
-# subject = "You have been invited"
-# content_path = "./supabase/templates/invite.html"
+[auth.email.template.invite]
+subject = "You've Been Invited!"
+content_path = "./supabase/templates/invite.html"
+
+[auth.email.template.confirmation]
+subject = "Verify your email address"
+content_path = "./supabase/templates/confirmation.html"
+
+[auth.email.template.magic_link]
+subject = "Your Magic Link"
+content_path = "./supabase/templates/magic_link.html"
+
+[auth.email.template.recovery]
+subject = "Reset Your Password"
+content_path = "./supabase/templates/recovery.html"
+
+[auth.email.template.email_change]
+subject = "Confirm your new email address"
+content_path = "./supabase/templates/email_change.html"
+
+[auth.email.template.reauthentication]
+subject = "Confirm Reauthentication"
+content_path = "./supabase/templates/reauthentication.html"
 
 # Uncomment to customize notification email template
 # [auth.email.notification.password_changed]

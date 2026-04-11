@@ -11,11 +11,11 @@ export const metadata: Metadata = {
 };
 
 interface SignupPageProps {
-  searchParams: Promise<{ redirect?: string; staff_token?: string; org?: string }>;
+  searchParams: Promise<{ redirect?: string; staff_token?: string; org?: string; email?: string }>;
 }
 
 export default async function SignupPage({ searchParams }: SignupPageProps) {
-  const { redirect: redirectPath, staff_token, org } = await searchParams;
+  const { redirect: redirectPath, staff_token, org, email } = await searchParams;
 
   if (staff_token && org) {
     const { user } = await getAuthUser({ allowMfaPending: true });
@@ -36,6 +36,7 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
       redirectPath={redirectPath ?? ""} 
       staffToken={staff_token}
       orgUsername={org}
+      prefilledEmail={email}
     />
   );
 }

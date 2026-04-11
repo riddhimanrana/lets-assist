@@ -35,15 +35,9 @@ export default async function AdminPluginsPage() {
 
   return (
     <div className="container mx-auto max-w-7xl space-y-6 px-4 py-8 md:px-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Plugin Control Plane</h1>
-        <p className="text-muted-foreground mt-1">
-          Separate private plugin code from platform controls, and manage org entitlements + forced rollouts.
-        </p>
-      </div>
 
       {data.warning ? (
-        <Card>
+        <Card className="border-amber-200/70 bg-amber-50/60 dark:border-amber-900/40 dark:bg-amber-950/20">
           <CardHeader>
             <CardTitle>Migration notice</CardTitle>
             <CardDescription>{data.warning}</CardDescription>

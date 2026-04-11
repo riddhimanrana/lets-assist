@@ -13,6 +13,10 @@ import {
   getOrganizationReportDataForSync,
 } from "./reports/actions";
 import type { OrganizationPluginAccessRole } from "@/types";
+import {
+  createRemoteReadonlyClient,
+} from "@/lib/supabase/preview-source";
+import { getServerPreviewSource } from "@/lib/supabase/preview-source.server";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -55,10 +59,13 @@ function toOrganizationPluginRole(
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const supabase = await createClient();
+  const previewSource = await getServerPreviewSource();
+  const readClient =
+    previewSource === "remote" ? createRemoteReadonlyClient() ?? supabase : supabase;
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://lets-assist.com";
 
   // Try to fetch by username first
-  const { data: orgByUsername } = await supabase
+  const { data: orgByUsername } = await readClient
     .from("organizations")
     .select("id, name, description, username, logo_url")
     .eq("username", id)
@@ -66,7 +73,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   // If not found by username, try by ID
   const { data: orgById } = !orgByUsername
-    ? await supabase
+    ? await readClient
         .from("organizations")
         .select("id, name, description, username, logo_url")
         .eq("id", id)
@@ -124,6 +131,9 @@ export default async function OrganizationPage({
 }: Props): Promise<React.ReactElement> {
   const { id } = await params;
   const supabase = await createClient();
+  const previewSource = await getServerPreviewSource();
+  const readClient =
+    previewSource === "remote" ? createRemoteReadonlyClient() ?? supabase : supabase;
   // Get current user using getClaims() for better performance
   const { user } = await getAuthUser();
 
@@ -133,12 +143,12 @@ export default async function OrganizationPage({
 
   // Try to fetch organization by username or ID depending on the format
   const { data: organization } = isUUID
-    ? await supabase
+    ? await readClient
         .from("organizations")
         .select("*, created_by, organization_members(user_id, role)")
         .eq("id", id)
         .single()
-    : await supabase
+    : await readClient
         .from("organizations")
         .select("*, created_by, organization_members(user_id, role)")
         .eq("username", id)
@@ -176,7 +186,7 @@ export default async function OrganizationPage({
 
   if (canViewMembers) {
     // FIXED: First fetch members from organization_members table
-    const { data: membersData, error: membersError } = (await supabase
+    const { data: membersData, error: membersError } = (await readClient
       .from("organization_members")
       .select(
         `
@@ -235,7 +245,7 @@ export default async function OrganizationPage({
   }
 
   // Get organization projects
-  const { data: projects } = await supabase
+  const { data: projects } = await readClient
     .from("projects")
     .select("*")
     .eq("organization_id", organization.id)
@@ -297,6 +307,11 @@ console.log("DEV_TABS:", pluginTabs);
       <div className="w-full absolute bg-linear-to-br from-primary/15 via-primary/5 to-background/0 min-h-72 before:content-[''] before:absolute before:inset-0 before:bg-linear-to-b before:from-transparent before:to-background" />
 
       <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 pt-6 sm:pt-10">
+        {previewSource === "remote" && (
+          <div className="mb-4 rounded-md border border-warning bg-warning/15 px-4 py-3 text-sm text-warning">
+            Remote preview mode is active (read-only). Member and org data shown here comes from remote, but all edits still apply to local data.
+          </div>
+        )}
         <OrganizationHeader
           organization={organization}
           userRole={userRole}

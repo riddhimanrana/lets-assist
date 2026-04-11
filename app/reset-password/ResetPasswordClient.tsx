@@ -1,6 +1,6 @@
 "use client";
 import { Shield } from "lucide-react";
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -23,11 +23,11 @@ import { Controller } from "react-hook-form";
 import { toast } from "sonner";
 import Link from "next/link";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { TurnstileComponent, TurnstileRef } from "@/components/ui/turnstile";
+import { TurnstileComponent } from "@/components/ui/turnstile";
+import { useBotVerification } from "@/hooks/useBotVerification";
 
 const resetPasswordSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
-  turnstileToken: z.string().optional(),
 });
 
 type ResetPasswordValues = z.infer<typeof resetPasswordSchema>;
@@ -39,19 +39,21 @@ interface ResetPasswordClientProps {
 export default function ResetPasswordClient({ error }: ResetPasswordClientProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
-  const turnstileRef = useRef<TurnstileRef>(null);
-  const [turnstileReady, setTurnstileReady] = useState(false);
+  const verification = useBotVerification({
+    onError: () => {
+      toast.error("Security verification failed. Please try again.");
+    },
+  });
 
   const form = useForm<ResetPasswordValues>({
     resolver: zodResolver(resetPasswordSchema),
     defaultValues: {
       email: "",
-      turnstileToken: "",
     },
   });
 
   async function onSubmit(data: ResetPasswordValues) {
-    const turnstileToken = turnstileRef.current?.getResponse();
+    const turnstileToken = verification.token;
 
     setIsLoading(true);
     const formData = new FormData();
@@ -79,8 +81,7 @@ export default function ResetPasswordClient({ error }: ResetPasswordClientProps)
     }
 
     setIsLoading(false);
-    // Reset Turnstile after submission
-    turnstileRef.current?.reset();
+    verification.reset();
   }
 
   if (emailSent) {
@@ -151,25 +152,19 @@ export default function ResetPasswordClient({ error }: ResetPasswordClientProps)
               )}
             />
             <div className="flex justify-center">
-              <div className="relative w-[300px] h-[65px] overflow-hidden bg-muted/30 rounded-lg flex items-center justify-center border border-border/50">
-                {!turnstileReady && (
+              <div className="relative w-75 h-16.25 overflow-hidden bg-muted/30 rounded-lg flex items-center justify-center border border-border/50">
+                {!verification.isReady && (
                   <div className="absolute inset-0 z-10 flex items-center justify-center gap-2 rounded-lg bg-background/80 text-[0.7rem] font-semibold uppercase tracking-wide text-muted-foreground">
                     <Shield className="h-4 w-4 text-muted-foreground/80" />
-                    <span className="text-[0.7rem] font-semibold normal-case tracking-wide">Bot verification loading…</span>
+                    <span className="text-[0.7rem] font-semibold normal-case">Bot verification loading…</span>
                   </div>
                 )}
                 <TurnstileComponent
-                  ref={turnstileRef}
-                  onLoad={() => setTurnstileReady(true)}
-                  onVerify={(token) => {
-                    form.setValue("turnstileToken", token);
-                  }}
-                  onError={() => {
-                    toast.error("Security verification failed. Please try again.");
-                  }}
-                  onExpire={() => {
-                    form.setValue("turnstileToken", "");
-                  }}
+                  ref={verification.ref}
+                  onLoad={verification.onLoad}
+                  onVerify={verification.onVerify}
+                  onError={verification.onError}
+                  onExpire={() => verification.reset()}
                 />
               </div>
             </div>

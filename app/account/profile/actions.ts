@@ -38,10 +38,46 @@ const profileInfoSchema = z.object({
 
 export type ProfileInfoValues = z.infer<typeof profileInfoSchema>;
 
+async function ensureProfileExists() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { supabase, user: null as null };
+  }
+
+  const fallbackUsername =
+    user.user_metadata?.username ||
+    user.email?.split("@")[0]?.toLowerCase().replace(/[^a-z0-9_]/g, "-") ||
+    null;
+
+  const fallbackFullName =
+    user.user_metadata?.full_name || user.user_metadata?.name || null;
+
+  await supabase.from("profiles").upsert(
+    {
+      id: user.id,
+      email: user.email ?? null,
+      username: fallbackUsername,
+      full_name: fallbackFullName,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "id" },
+  );
+
+  return { supabase, user };
+}
+
 // New function specifically for updating profile text info (not avatar)
 export async function updateProfileInfo(formData: FormData) {
-  const supabase = await createClient();
-  const userId = (await supabase.auth.getUser()).data.user?.id;
+  const { supabase, user } = await ensureProfileExists();
+  const userId = user?.id;
+
+  if (!userId) {
+    return { error: { server: ["Not authenticated"] } };
+  }
 
   // Get form values
   const fullName = formData.get("fullName")?.toString() || undefined;
@@ -92,11 +128,8 @@ export async function updateProfileInfo(formData: FormData) {
 }
 
 export async function completeOnboarding(formData: FormData) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
+  const { supabase, user } = await ensureProfileExists();
+  const userError = user ? null : new Error("Not authenticated");
 
   if (userError || !user) {
     return { error: { server: ["Not authenticated"] } };
@@ -259,10 +292,7 @@ export async function checkUsernameUnique(username: string) {
 }
 
 export async function removeProfilePicture() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { supabase, user } = await ensureProfileExists();
 
   if (!user) {
     return { error: { server: ["Not authenticated"] } };
@@ -333,8 +363,8 @@ export async function removeProfilePicture() {
 
 // Extremely simple function with no avatar handling at all
 export async function updateNameAndUsername(fullName?: string, username?: string, phoneNumber?: string) { // Add phoneNumber parameter
-  const supabase = await createClient();
-  const userId = (await supabase.auth.getUser()).data.user?.id;
+  const { supabase, user } = await ensureProfileExists();
+  const userId = user?.id;
 
   if (!userId) {
     return { error: { server: ["Not authenticated"] } };
@@ -391,10 +421,7 @@ export async function updateNameAndUsername(fullName?: string, username?: string
 export async function updateProfileVisibility(
   visibility: ProfileVisibility,
 ) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { supabase, user } = await ensureProfileExists();
 
   if (!user) {
     return { error: { server: ["Not authenticated"] } };

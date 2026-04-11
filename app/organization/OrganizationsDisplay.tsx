@@ -46,6 +46,8 @@ interface OrganizationsDisplayProps {
   userMemberships: MembershipRow[];
   isTrusted?: boolean;
   applicationStatus?: boolean | null;
+  sourceBadge?: "local-only" | "remote-preview";
+  previewWarning?: string | null;
 }
 
 export default function OrganizationsDisplay({
@@ -55,6 +57,8 @@ export default function OrganizationsDisplay({
   userMemberships,
   isTrusted = false,
   applicationStatus = undefined,
+  sourceBadge = "local-only",
+  previewWarning = null,
 }: OrganizationsDisplayProps) {
   const getCreatedAtTime = (value?: string | null) =>
     value ? new Date(value).getTime() : 0;
@@ -183,6 +187,16 @@ export default function OrganizationsDisplay({
         </div>
 
         <Separator />
+
+        {/* <div className="rounded-md border border-border bg-muted/40 px-4 py-2 text-xs text-muted-foreground">
+          Data source: {sourceBadge === "remote-preview" ? "Remote preview (read-only)" : "Local only"}
+        </div> */}
+
+        {previewWarning ? (
+          <div className="rounded-md border border-amber-300/50 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+            {previewWarning}
+          </div>
+        ) : null}
 
         {/* Search and filter section */}
         <div className="flex flex-col sm:flex-row gap-3 sm:items-center justify-between">

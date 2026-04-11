@@ -2,6 +2,10 @@ import { createClient } from "@/lib/supabase/server";
 import { Metadata } from "next";
 import OrganizationsDisplay from "./OrganizationsDisplay";
 import type { Organization } from "@/types";
+import {
+  createRemoteReadonlyClient,
+} from "@/lib/supabase/preview-source";
+import { getServerPreviewSource } from "@/lib/supabase/preview-source.server";
 
 type OrganizationRow = Organization & {
   description?: string | null;
@@ -27,7 +31,18 @@ export const metadata: Metadata = {
 
 export default async function OrganizationsPage() {
   const supabase = await createClient();
+  const previewSource = await getServerPreviewSource();
+  const remoteReadonly =
+    previewSource === "remote" ? createRemoteReadonlyClient() : null;
+  const wantsRemotePreview = previewSource === "remote";
+  const usingRemotePreview = wantsRemotePreview && Boolean(remoteReadonly);
+   const readClient = usingRemotePreview && remoteReadonly ? remoteReadonly : supabase;
   const { data: { user } } = await supabase.auth.getUser();
+  const previewWarning =
+    wantsRemotePreview && !usingRemotePreview
+      ? "Remote preview requested, but remote Supabase keys are missing or invalid. Falling back to local data."
+      : null;
+  const sourceBadge = usingRemotePreview ? "remote-preview" : "local-only";
   const isLoggedIn = !!user;
   let isTrusted = false;
   let applicationStatus: boolean | null | undefined = undefined;
@@ -51,7 +66,7 @@ export default async function OrganizationsPage() {
   }
   
   // Fetch all organizations
-  const { data: organizations } = (await supabase
+  const { data: organizations } = (await readClient
     .from("organizations")
     .select(`
       id,
@@ -71,7 +86,7 @@ export default async function OrganizationsPage() {
   };
 
   // Get member counts for all organizations
-  const { data: memberCounts } = (await supabase
+  const { data: memberCounts } = (await readClient
     .from("organization_members")
     .select('organization_id', { count: 'exact', head: false })) as {
     data: MemberCountRow[] | null;
@@ -87,7 +102,7 @@ export default async function OrganizationsPage() {
   // If user is logged in, fetch their organization memberships
   let userMemberships: UserMembership[] = [];
   if (isLoggedIn && user) {
-    const { data: memberships } = (await supabase
+    const { data: memberships } = (await readClient
       .from('organization_members')
       .select(`
         role,
@@ -126,6 +141,8 @@ export default async function OrganizationsPage() {
       userMemberships={userMemberships}
       isTrusted={isTrusted}
       applicationStatus={applicationStatus}
+      sourceBadge={sourceBadge}
+      previewWarning={previewWarning}
     />
   );
 }

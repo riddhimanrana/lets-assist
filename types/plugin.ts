@@ -1,8 +1,16 @@
 import type { ReactNode } from "react";
+import type { Organization } from "./organization";
 
 export type OrganizationPluginVisibility = "global" | "private";
 
 export type OrganizationPluginAccessRole = "admin" | "staff" | "member";
+
+/**
+ * Organization with the viewer's role
+ */
+export interface OrganizationWithRole extends Organization {
+  role: OrganizationPluginAccessRole;
+}
 
 /**
  * Plugin permission scopes for granular access control
@@ -177,6 +185,32 @@ export interface OrganizationPluginBehaviorHookContext
   hookInput?: Record<string, unknown>;
 }
 
+/**
+ * JSON Schema for plugin configuration validation
+ */
+export interface OrganizationPluginConfigSchema {
+  type: "object";
+  properties: Record<string, OrganizationPluginConfigProperty>;
+  required?: string[];
+  additionalProperties?: boolean;
+}
+
+export interface OrganizationPluginConfigProperty {
+  type: "string" | "number" | "integer" | "boolean" | "array" | "object";
+  title?: string;
+  description?: string;
+  default?: unknown;
+  enum?: unknown[];
+  minimum?: number;
+  maximum?: number;
+  minLength?: number;
+  maxLength?: number;
+  pattern?: string;
+  format?: string;
+  items?: OrganizationPluginConfigProperty;
+  properties?: Record<string, OrganizationPluginConfigProperty>;
+}
+
 export interface OrganizationPluginManifest {
   key: string;
   name: string;
@@ -187,6 +221,18 @@ export interface OrganizationPluginManifest {
   navLabel?: string;
   surfaceAccess?: OrganizationPluginSurfaceAccessPolicy;
   behaviorAccess?: OrganizationPluginBehaviorAccessPolicy;
+  /**
+   * JSON Schema for configuration validation
+   */
+  configSchema?: OrganizationPluginConfigSchema;
+  /**
+   * Required permission scopes
+   */
+  requiredScopes?: OrganizationPluginScope[];
+  /**
+   * Tables/data this plugin manages (for documentation/cleanup)
+   */
+  dataScope?: string[];
 }
 
 export interface OrganizationPluginPageProps {
@@ -197,8 +243,66 @@ export interface OrganizationPluginPageProps {
   configuration: Record<string, unknown> | null;
 }
 
+/**
+ * Context passed to lifecycle hooks
+ */
+export interface OrganizationPluginLifecycleContext {
+  organization: OrganizationWithRole;
+  pluginKey: string;
+  config?: Record<string, unknown>;
+  previousConfig?: Record<string, unknown>;
+  actor?: {
+    id: string;
+    type: "user" | "admin";
+  };
+}
+
+/**
+ * Lifecycle hooks for plugin events
+ */
+export interface OrganizationPluginLifecycleHooks {
+  /**
+   * Called when a plugin is first installed for an organization
+   */
+  onInstall?: (context: OrganizationPluginLifecycleContext) => Promise<void>;
+
+  /**
+   * Called when a plugin is being uninstalled
+   */
+  onUninstall?: (context: OrganizationPluginLifecycleContext) => Promise<void>;
+
+  /**
+   * Called when a plugin is enabled after being disabled
+   */
+  onEnable?: (context: OrganizationPluginLifecycleContext) => Promise<void>;
+
+  /**
+   * Called when a plugin is disabled
+   */
+  onDisable?: (context: OrganizationPluginLifecycleContext) => Promise<void>;
+
+  /**
+   * Called when plugin configuration is updated
+   */
+  onConfigUpdate?: (context: OrganizationPluginLifecycleContext) => Promise<void>;
+
+  /**
+   * Called when the plugin version is updated
+   */
+  onVersionUpdate?: (
+    context: OrganizationPluginLifecycleContext & {
+      previousVersion: string;
+      newVersion: string;
+    },
+  ) => Promise<void>;
+}
+
 export interface OrganizationPluginDefinition {
   manifest: OrganizationPluginManifest;
+  /**
+   * Lifecycle hooks for install/uninstall/enable/disable events
+   */
+  lifecycle?: OrganizationPluginLifecycleHooks;
   renderOrganizationPage?: (
     props: OrganizationPluginPageProps,
   ) => ReactNode | Promise<ReactNode>;

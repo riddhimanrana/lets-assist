@@ -57,6 +57,10 @@ import { usePathname } from "next/navigation";
 import { FeedbackDialog } from "@/components/feedback/FeedbackDialog";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import {
+  DEV_PREVIEW_SOURCE_COOKIE,
+  DEV_PREVIEW_SOURCE_STORAGE_KEY,
+} from "@/lib/supabase/preview-source";
 
 const features: {
   title: string;
@@ -89,13 +93,70 @@ export default function Navbar() {
   // Use cached profile data instead of making a separate query
   const { profile, loading: isProfileLoading } = useUserProfile();
 
+  const authMetadata = (user?.user_metadata ?? null) as Record<string, unknown> | null;
+
+  const displayName =
+    profile?.full_name ||
+    (typeof authMetadata?.full_name === "string" ? authMetadata.full_name : null) ||
+    (typeof authMetadata?.name === "string" ? authMetadata.name : null) ||
+    (typeof authMetadata?.display_name === "string" ? authMetadata.display_name : null) ||
+    user?.email?.split("@")[0] ||
+    "Let's Assist user";
+
+  const identityAvatarUrl =
+    user?.identities?.find((identity) => {
+      const avatar = identity.identity_data?.avatar_url || identity.identity_data?.picture;
+      return typeof avatar === "string" && avatar.length > 0;
+    })?.identity_data?.avatar_url ||
+    user?.identities?.find((identity) => {
+      const picture = identity.identity_data?.picture;
+      return typeof picture === "string" && picture.length > 0;
+    })?.identity_data?.picture;
+
+  const avatarUrl =
+    profile?.avatar_url ||
+    (typeof authMetadata?.avatar_url === "string" ? authMetadata.avatar_url : null) ||
+    (typeof authMetadata?.picture === "string" ? authMetadata.picture : null) ||
+    identityAvatarUrl ||
+    undefined;
+
+  const profileUsername =
+    profile?.username ||
+    (typeof authMetadata?.username === "string" ? authMetadata.username : null) ||
+    null;
+  const profileHref = profileUsername ? `/profile/${profileUsername}` : "/account/profile";
+
   const [showDonateDialog, setShowDonateDialog] = useState(false);
   const [showFeedbackDialog, setShowFeedbackDialog] = useState(false);
+  const [devPreviewSource, setDevPreviewSource] = useState<"local" | "remote">("local");
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
   const { theme, setTheme } = useTheme();
   // Add loading state for logout
   const [isLoggingOut, setIsLoggingOut] = React.useState(false);
   const pathname = usePathname();
+
+  const isLocalDevHost = React.useMemo(() => {
+    if (typeof window === "undefined") return false;
+    const host = window.location.hostname;
+    return process.env.NODE_ENV !== "production" && (host === "localhost" || host === "127.0.0.1");
+  }, []);
+
+  React.useEffect(() => {
+    if (!isLocalDevHost || typeof window === "undefined") return;
+
+    const fromStorage = window.localStorage.getItem(DEV_PREVIEW_SOURCE_STORAGE_KEY);
+    if (fromStorage === "local" || fromStorage === "remote") {
+      setDevPreviewSource(fromStorage);
+    }
+  }, [isLocalDevHost]);
+
+  const handleDevSourceToggle = React.useCallback((next: "local" | "remote") => {
+    if (typeof window === "undefined") return;
+    setDevPreviewSource(next);
+    window.localStorage.setItem(DEV_PREVIEW_SOURCE_STORAGE_KEY, next);
+    document.cookie = `${DEV_PREVIEW_SOURCE_COOKIE}=${next}; Path=/; Max-Age=2592000; SameSite=Lax`;
+    window.location.reload();
+  }, []);
 
   const handleNavigation = () => {
     setIsSheetOpen(false);
@@ -351,11 +412,11 @@ export default function Navbar() {
                       render={
                         <Avatar className="w-9 h-9 cursor-pointer hover:opacity-80 transition-opacity">
                           <AvatarImage
-                            src={profile?.avatar_url ?? undefined}
-                            alt={profile?.full_name ?? "User avatar"}
+                            src={avatarUrl}
+                            alt={displayName}
                           />
                           <AvatarFallback>
-                            <NoAvatar fullName={profile?.full_name ?? undefined} />
+                            <NoAvatar fullName={displayName} />
                           </AvatarFallback>
                         </Avatar>
                       }
@@ -368,7 +429,7 @@ export default function Navbar() {
                       <DropdownMenuLabel className="font-normal mb-2">
                         <div className="flex flex-col space-y-2">
                           <p className="text-sm font-medium leading-tight">
-                            {profile?.full_name}
+                            {displayName}
                           </p>
                           <p className="text-sm leading-none text-muted-foreground">
                             {user.email}
@@ -390,7 +451,7 @@ export default function Navbar() {
                     <DropdownMenuItem
                       className="py-2.5 text-muted-foreground cursor-pointer"
                       render={
-                        <Link href={`/profile/${profile?.username}`} prefetch={false} className="flex items-center w-full">
+                        <Link href={profileHref} prefetch={false} className="flex items-center w-full">
                           <UserRound className="mr-2 h-4 w-4" />
                           <span>My Profile</span>
                         </Link>
@@ -437,6 +498,38 @@ export default function Navbar() {
                       </span>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator className="my-2" />
+
+                    {isLocalDevHost ? (
+                      <>
+                        <div className="px-2 py-2">
+                          <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                            Local dev data source
+                          </p>
+                          <div className="grid grid-cols-2 gap-1 rounded-md border bg-muted/40 p-1">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant={devPreviewSource === "local" ? "default" : "ghost"}
+                              className="h-7 text-xs"
+                              onClick={() => handleDevSourceToggle("local")}
+                            >
+                              Local
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant={devPreviewSource === "remote" ? "default" : "ghost"}
+                              className="h-7 text-xs"
+                              onClick={() => handleDevSourceToggle("remote")}
+                            >
+                              Remote (RO)
+                            </Button>
+                          </div>
+                        </div>
+                        <DropdownMenuSeparator className="my-2" />
+                      </>
+                    ) : null}
+
                     <DropdownMenuItem
                       className="text-destructive focus:text-destructive py-2.5 cursor-pointer w-full"
                       onClick={handleLogout}
@@ -507,16 +600,16 @@ export default function Navbar() {
                       ) : (
                         <Avatar className="w-12 h-12">
                           <AvatarImage
-                            src={profile?.avatar_url ?? undefined}
-                            alt={profile?.full_name ?? "User avatar"}
+                            src={avatarUrl}
+                            alt={displayName}
                           />
                           <AvatarFallback>
-                            <NoAvatar fullName={profile?.full_name ?? undefined} />
+                            <NoAvatar fullName={displayName} />
                           </AvatarFallback>
                         </Avatar>
                       )}
                       <div className="flex flex-col">
-                        <p className="font-medium">{profile?.full_name}</p>
+                        <p className="font-medium">{displayName}</p>
                         <p className="text-sm text-muted-foreground">
                           {user.email}
                         </p>

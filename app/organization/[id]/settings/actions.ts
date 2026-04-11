@@ -502,7 +502,16 @@ type PluginInstallRow = {
   plugin_key: string;
   enabled: boolean;
   installed_version: string | null;
-  auto_update: boolean;
+};
+
+type PluginAccessRow = {
+  plugin_key: string;
+  enabled: boolean;
+  installed_version: string | null;
+  install_created_at: string | null;
+  entitlement_status: "active" | "inactive" | null;
+  entitlement_starts_at: string | null;
+  entitlement_ends_at: string | null;
 };
 
 type SupabaseLikeError = {
@@ -556,7 +565,7 @@ export async function getOrganizationPluginSettings(
     return { plugins: [], error: "Only organization admins can manage plugins" };
   }
 
-  const [catalogResult, entitlementResult, installResult] = await Promise.all([
+  const [catalogResult, accessResult] = await Promise.all([
     supabase
       .from("plugins")
       .select(
@@ -564,40 +573,83 @@ export async function getOrganizationPluginSettings(
       )
       .eq("is_active", true),
     supabase
-      .from("organization_plugin_entitlements")
-      .select("plugin_key, status, starts_at, ends_at")
-      .eq("organization_id", organizationId),
-    supabase
-      .from("organization_plugin_installs")
-      .select("plugin_key, enabled, installed_version, auto_update")
+      .from("organization_plugin_access")
+      .select(
+        "plugin_key, enabled, installed_version, install_created_at, entitlement_status, entitlement_starts_at, entitlement_ends_at",
+      )
       .eq("organization_id", organizationId),
   ]);
 
   if (
     isMissingPluginTableError(catalogResult.error) ||
-    isMissingPluginTableError(entitlementResult.error) ||
-    isMissingPluginTableError(installResult.error)
+    isMissingPluginTableError(accessResult.error)
   ) {
-    return {
-      plugins: [],
-      warning:
-        "Plugin platform tables are not initialized in this environment yet. Run a local Supabase reset after applying migrations.",
-    };
+    const [entitlementResult, installResult] = await Promise.all([
+      supabase
+        .from("organization_plugin_entitlements")
+        .select("plugin_key, status, starts_at, ends_at")
+        .eq("organization_id", organizationId),
+      supabase
+        .from("organization_plugin_installs")
+        .select("plugin_key, enabled, installed_version")
+        .eq("organization_id", organizationId),
+    ]);
+
+    if (
+      isMissingPluginTableError(entitlementResult.error) ||
+      isMissingPluginTableError(installResult.error)
+    ) {
+      return {
+        plugins: [],
+        warning:
+          "Plugin platform tables are not initialized in this environment yet. Run a local Supabase reset after applying migrations.",
+      };
+    }
+
+    if (catalogResult.error) {
+      return { plugins: [], error: `Failed to load plugin catalog: ${catalogResult.error.message}` };
+    }
+
+    if (entitlementResult.error) {
+      return {
+        plugins: [],
+        error: `Failed to load plugin entitlements: ${entitlementResult.error.message}`,
+      };
+    }
+
+    if (installResult.error) {
+      return {
+        plugins: [],
+        error: `Failed to load plugin installs: ${installResult.error.message}`,
+      };
+    }
+
+    const runtimePlugins = listRegisteredPlugins().map((plugin) => ({
+      key: plugin.manifest.key,
+      navLabel: plugin.manifest.navLabel ?? plugin.manifest.name,
+      version: plugin.manifest.version,
+      minimumRole: plugin.manifest.minimumRole ?? "member",
+    }));
+
+    const plugins = buildOrganizationPluginAdminSettings({
+      catalog: (catalogResult.data ?? []) as PluginCatalogRow[],
+      entitlements: (entitlementResult.data ?? []) as PluginEntitlementRow[],
+      installs: (installResult.data ?? []) as PluginInstallRow[],
+      runtimePlugins,
+    });
+
+    return { plugins };
   }
 
   if (catalogResult.error) {
     return { plugins: [], error: `Failed to load plugin catalog: ${catalogResult.error.message}` };
   }
 
-  if (entitlementResult.error) {
+  if (accessResult.error) {
     return {
       plugins: [],
-      error: `Failed to load plugin entitlements: ${entitlementResult.error.message}`,
+      error: `Failed to load consolidated plugin access: ${accessResult.error.message}`,
     };
-  }
-
-  if (installResult.error) {
-    return { plugins: [], error: `Failed to load plugin installs: ${installResult.error.message}` };
   }
 
   const runtimePlugins = listRegisteredPlugins().map((plugin) => ({
@@ -607,10 +659,29 @@ export async function getOrganizationPluginSettings(
     minimumRole: plugin.manifest.minimumRole ?? "member",
   }));
 
+  const accessRows = (accessResult.data ?? []) as PluginAccessRow[];
+
+  const entitlements = accessRows
+    .filter((row) => row.entitlement_status !== null)
+    .map((row) => ({
+      plugin_key: row.plugin_key,
+      status: row.entitlement_status as "active" | "inactive",
+      starts_at: row.entitlement_starts_at,
+      ends_at: row.entitlement_ends_at,
+    })) as PluginEntitlementRow[];
+
+  const installs = accessRows
+    .filter((row) => row.install_created_at !== null)
+    .map((row) => ({
+      plugin_key: row.plugin_key,
+      enabled: row.enabled,
+      installed_version: row.installed_version,
+    })) as PluginInstallRow[];
+
   const plugins = buildOrganizationPluginAdminSettings({
     catalog: (catalogResult.data ?? []) as PluginCatalogRow[],
-    entitlements: (entitlementResult.data ?? []) as PluginEntitlementRow[],
-    installs: (installResult.data ?? []) as PluginInstallRow[],
+    entitlements,
+    installs,
     runtimePlugins,
   });
 

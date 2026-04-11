@@ -1,75 +1,75 @@
 # Copilot Instructions — lets-assist
 
-## Local-first Supabase workflow (required)
+## What this repository is
 
-- Treat **local Supabase CLI** as the default development database.
-- Do **not** make direct schema/data changes against hosted production from local feature work.
-- Use project scripts for local DB lifecycle:
-  - `bun run supabase:start`
-  - `bun run supabase:status`
+This repo is a Next.js application built with the new App Router. It uses:
+
+- Supabase for database, auth, storage, and edge functions
+- A local-first dev experience with a Supabase CLI local instance
+- TypeScript, ESLint, and custom components under `components/`
+- Supabase schema migrations in `supabase/migrations/`
+
+The app is intended to run locally with `NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321` and a local Supabase instance for development.
+
+## Local vs remote Supabase usage
+
+- Local copilot agents should assume the local Supabase development environment.
+  - Use `bun run supabase:start`, `bun run supabase:status`, `bun run supabase:reset`, etc.
+  - Keep `NEXT_PUBLIC_SUPABASE_URL` pointed at `http://127.0.0.1:54321` for local work.
+- Remote copilot agents or deployed environments should use the hosted Supabase project URL and runtime config from the deployment environment.
+  - Do not hardcode local URLs for remote agents.
+  - Use environment variables supplied by deployment when resolving Supabase connection values.
+
+## Supabase database workflow
+
+- The repo uses a local-first workflow with a baseline schema snapshot.
+- Local database resets should be performed with:
   - `bun run supabase:reset`
+- Schema changes should be generated using diff-based migrations, not manual edits of the baseline snapshot.
+- After remote schema changes are finalized, update local baseline with:
   - `bun run supabase:dump:schema`
-  - `bun run supabase:dump:seed`
-- Keep `NEXT_PUBLIC_SUPABASE_URL` in local development pointed to `http://127.0.0.1:54321` unless explicitly using hosted environments.
+  - `bun run supabase:reset`
 
-## Database change rules
+### Change rules for DB artifacts
 
-- Before changing DB structure, ensure local Supabase is healthy and resettable (`bun run supabase:reset`).
-- For schema updates in this repo, preserve the current baseline local bootstrap mode in `supabase/config.toml` unless explicitly migrating strategy.
-- If adding/adjusting SQL artifacts, verify local replay succeeds from a clean reset.
-- Never commit secrets (service-role keys, OAuth secrets, API tokens).
+- Do not make schema or data changes directly against hosted production from local feature work.
+- Preserve the current Supabase local bootstrap mode in `supabase/config.toml` unless there is an explicit repo-wide migration strategy change.
+- If you add or change SQL artifacts, verify the change by resetting the local DB from a clean state.
+- Never commit secrets, service-role keys, OAuth secrets, or API tokens.
 
-## Auth and Google OAuth (local)
+## Auth and OAuth guidance
 
 - Local Google auth depends on both:
-  - App env in `.env.local`
-  - Supabase runtime env in `supabase/.env.local`
-- Keep Supabase Google provider callback consistent with local setup:
-  - `http://localhost:54321/auth/v1/callback`
-- If Google login fails with `redirect_uri_mismatch`, instruct to update Google Cloud OAuth client authorized redirect URIs to exact match.
+  - `.env.local` for app config
+  - `supabase/.env.local` for Supabase runtime config
+- Maintain the configured local callback URI for Google auth when working locally.
+- If login issues occur, verify callback URIs and environment config before changing code.
 
-## Branching model (required)
+## Repository conventions
 
-- Feature work starts from `development`.
-- Open PRs into `development` first.
-- Promote `development` into `main` via PR after validation.
+- Feature branches should be based on `development`.
+- Open pull requests into `development` first.
+- Promote `development` into `main` only after validation.
 - Avoid direct commits to `main` except for urgent hotfix procedures.
 
-## Quality gates before merge
+## Quality and CI expectations
 
-- Minimum local checks before opening PR:
+- Local checks before opening a PR:
   - `bun run typecheck`
   - `bun run supabase:reset` for DB-impacting changes
-
-## CI/CD expectations
-
-- PR CI should run lint/typecheck.
-- DB-impacting PRs should include migration/schema artifact validation via local reset semantics.
+- PR CI should run lint and typecheck.
+- DB-impacting PRs should include migration/schema artifact validation using local reset semantics.
 - Production workflows should run from `main` only.
-- Scheduled cron workflows should continue targeting deployed app endpoints (as already configured in `.github/workflows`).
+- Scheduled cron workflows and deployed services should target live endpoints, not local dev hostnames.
 
-## Database workflow (local-first with diff-based migrations)
+## Local schema change process
 
-- **Local setup**: Baseline snapshot mode (`[db.migrations].enabled = false`)
-  - `supabase db reset` loads from `schemas/remote_baseline_schema.sql` (fast, reproducible)
-  - No replay of legacy 60+ migrations — start from finished schema state
-- **Schema changes**: Use diff-based migration approach
-  1. Make changes locally in Supabase Studio (`localhost:54321`)
-  2. Generate migration from diff: `supabase db diff --linked -f my_feature_name`
-     - Creates `supabase/migrations/20260325_my_feature_name.sql`
-  3. Review the generated migration file
-  4. Push to repo and open PR
-  5. CI validates: `bun run supabase:reset` + typecheck
-  6. **Deploy to remote** (after PR approval):
-     ```bash
-     supabase db push --linked
-     ```
-- **Stay in sync after remote changes**:
-  ```bash
-  bun run supabase:dump:schema  # Pull latest baseline
-  bun run supabase:reset        # Reset local to new baseline
-  ```
-- Never commit schema changes without migrations tracked in `/supabase/migrations/`
+1. Make schema changes in local Supabase Studio at `http://localhost:54321`.
+2. Generate a migration with the diff-based workflow.
+3. Review the generated SQL migration under `supabase/migrations/`.
+4. Push the migration and open a PR.
+5. Validate with `bun run supabase:reset` + `bun run typecheck`.
+6. After PR approval, deploy remote schema changes using the approved remote Supabase workflow.
 
 ## Agent behavior expectations
 
@@ -77,5 +77,5 @@ When editing this repository, prioritize:
 
 1. Safety of production data
 2. Reproducibility of local setup
-3. Branch-discipline (`feature -> development -> main`)
-4. Clear docs for any new environment requirement
+3. Branch discipline (`feature -> development -> main`)
+4. Clear documentation for new environment requirements

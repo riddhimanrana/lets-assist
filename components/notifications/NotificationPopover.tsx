@@ -29,7 +29,7 @@ import { useMediaQuery } from "@/hooks/use-media-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useInfiniteQuery, type SupabaseQueryHandler } from "@/hooks/use-infinite-query";
 import { useInView } from "react-intersection-observer";
-import { useNotification } from "@/contexts/NotificationContext";
+import { useNotification } from "@/components/providers/NotificationContext";
 
 type NotificationSeverity = 'info' | 'warning' | 'success';
 

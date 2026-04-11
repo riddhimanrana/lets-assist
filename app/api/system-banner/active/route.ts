@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { getAdminClient } from "@/lib/supabase/admin";
+import { withRetryableSupabaseQuery } from "@/lib/supabase/retry-query";
 import type { ActiveSystemBannersResponse, SystemBanner } from "@/types/system-banner";
 
 const SELECT_COLUMNS =
@@ -37,15 +38,20 @@ const pickLatestByScope = (
 export async function GET() {
   try {
     const supabase = getAdminClient();
-    const { data, error } = await supabase
+    const bannerResult = await withRetryableSupabaseQuery(() => supabase
       .from("system_banners")
       .select(SELECT_COLUMNS)
       .eq("is_active", true)
-      .in("target_scope", ["sitewide", "landing"]);
+      .in("target_scope", ["sitewide", "landing"]));
+
+    const { data, error } = bannerResult as {
+      data: SystemBanner[] | null;
+      error: { message?: string } | null;
+    };
 
     if (error) {
       return NextResponse.json(EMPTY_RESPONSE, {
-        status: 500,
+        status: 200,
         headers: { "Cache-Control": "no-store" },
       });
     }
@@ -64,7 +70,7 @@ export async function GET() {
     });
   } catch {
     return NextResponse.json(EMPTY_RESPONSE, {
-      status: 500,
+      status: 200,
       headers: {
         "Cache-Control": "no-store",
       },
