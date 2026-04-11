@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { CertificatesList } from "./CertificatesList";
 import { Metadata } from "next";
+import { withRetryableSupabaseQuery } from "@/lib/supabase/retry-query";
 
 type Certificate = {
   id: string;
@@ -44,7 +45,7 @@ export default async function CertificatesPage() {
   }
 
   // fetch this user’s certificates
-    const { data: certificates, error: certError } = (await supabase
+    const certificatesResult = await withRetryableSupabaseQuery(() => supabase
     .from("certificates")
     .select(`
       *,
@@ -53,10 +54,12 @@ export default async function CertificatesPage() {
       )
     `)
     .eq("user_id", user.id)
-    .order("issued_at", { ascending: false })) as {
+    .order("issued_at", { ascending: false }));
+
+    const { data: certificates, error: certError } = certificatesResult as {
       data: Certificate[] | null;
-    error: { message?: string } | null;
-  };
+      error: { message?: string } | null;
+    };
   if (certError) {
     console.error("Error loading certificates:", certError);
     return <p className="p-4 text-destructive">Failed to load certificates.</p>;

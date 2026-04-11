@@ -3,7 +3,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Share2, GlobeIcon, UsersIcon, Plus, Building2, BadgeCheck, GraduationCap, Building } from "lucide-react";
+import { Share2, GlobeIcon, UsersIcon, Plus, BadgeCheck } from "lucide-react";
 import { useState } from "react";
 import JoinCodeDialog from "@/app/organization/[id]/JoinCodeDialog";
 import { useRouter } from "next/navigation";
@@ -34,6 +34,14 @@ export default function OrganizationHeader({
     return name
       ? name.split(' ').map(part => part[0]).join('').toUpperCase().substring(0, 2)
       : "ORG";
+  };
+
+  const getMonogramFallback = (name: string) => {
+    return (
+      <span className="text-xl font-semibold">
+        {getInitials(name)}
+      </span>
+    );
   };
 
   const handleShare = async () => {
@@ -79,20 +87,7 @@ export default function OrganizationHeader({
             <Avatar className="h-20 w-20 rounded-full border-4 border-background shadow-sm md:h-24 md:w-24">
               <AvatarImage src={organization.logo_url || undefined} alt={organization.name} />
               <AvatarFallback className="bg-primary/10 text-xl rounded-full">
-                {(() => {
-                  switch (organization.type) {
-                    case 'company':
-                      return <Building2 className="h-10 w-10 text-primary/60" />;
-                    case 'school':
-                      return <GraduationCap className="h-10 w-10 text-primary/60" />;
-                    case 'government':
-                      return <Building className="h-10 w-10 text-primary/60" />;
-                    case 'nonprofit':
-                    case 'other':
-                    default:
-                      return getInitials(organization.name);
-                  }
-                })()}
+                {getMonogramFallback(organization.name)}
               </AvatarFallback>
             </Avatar>
             {organization.verified && (

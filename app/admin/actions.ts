@@ -5,8 +5,7 @@ import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
 import type { AccountAccessStatus } from "@/lib/auth/account-access";
-import { isAccountBlockedStatus, readAccountAccessFromMetadata } from "@/lib/auth/account-access";
-import { isStaleSupabaseAuthUserError } from "@/lib/supabase/auth-errors";
+import { readAccountAccessFromMetadata } from "@/lib/auth/account-access";
 import { sendEmail } from "@/services/email";
 import AccountAccessUpdateEmail from "@/emails/account-access-update";
 import { hasSuperAdminMetadata } from "@/lib/auth/super-admin";
@@ -183,25 +182,7 @@ export async function checkSuperAdmin() {
   }
 
   try {
-    const serviceClient = getAdminClient();
-    const { data: { user: adminUser }, error } = await serviceClient.auth.admin.getUserById(user.id);
-
-    if (error || !adminUser) {
-      if (isStaleSupabaseAuthUserError(error)) {
-        if (process.env.NODE_ENV === "development") {
-          console.warn("[Admin] Stale/deleted auth user while checking super admin status.");
-        }
-
-        return { isAdmin: false };
-      }
-
-      console.error("Error fetching admin user:", error);
-      return { isAdmin: false };
-    }
-
-    const isMetadataAdmin = hasSuperAdminMetadata(adminUser);
-
-    return { isAdmin: isMetadataAdmin, userId: user.id };
+    return { isAdmin: hasSuperAdminMetadata(user), userId: user.id };
   } catch (err) {
     console.error("Exception checking super admin status:", err);
     return { isAdmin: false };

@@ -248,8 +248,12 @@ export default function InitialOnboardingModal({
         await waitForMetadataUpdate();
         onClose();
 
+        if (typeof window !== "undefined") {
+          window.sessionStorage.setItem("lets-assist:onboarding-complete", "true");
+        }
+
         setTimeout(() => {
-          window.location.href = "/home";
+          window.location.href = "/home?onboarding=complete";
         }, 1000);
       }
     } catch (error) {

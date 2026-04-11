@@ -45,6 +45,14 @@ const CONSTANTS = {
   },
 } as const;
 
+const ORG_TYPE_LABELS: Record<OrganizationFormValues["type"], string> = {
+  nonprofit: "Nonprofit Organization",
+  school: "Educational Institution",
+  company: "Company/Business",
+  government: "Government Agency",
+  other: "Other",
+};
+
 // Form schema with enhanced validation
 const orgCreationSchema = z.object({
   name: z.string()
@@ -115,7 +123,7 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
       username: "",
       description: "",
       website: "",
-      type: undefined, // Remove default value to force selection
+      type: "nonprofit",
       logoUrl: null,
       autoJoinDomain: "",
       enableAutoJoin: false,
@@ -401,15 +409,15 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
                   <FieldLabel htmlFor={field.name}>Organization Type *</FieldLabel>
                   <Select
                     onValueChange={field.onChange}
-                    defaultValue={field.value}
+                    value={field.value}
                   >
                     <SelectTrigger
                       id={field.name}
-                      data-empty={!field.value}
-                      className="data-[empty=true]:text-muted-foreground"
                       aria-invalid={fieldState.invalid}
                     >
-                      <SelectValue placeholder="Select organization type" />
+                      <SelectValue placeholder="Select organization type">
+                        {field.value ? ORG_TYPE_LABELS[field.value] : null}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       <SelectGroup>

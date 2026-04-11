@@ -46,20 +46,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
         with:
-          node-version: 20
-          cache: npm
+          bun-version: latest
 
       - name: Install dependencies
-        run: npm ci
+        run: bun install --frozen-lockfile
 
       - name: Lint
-        run: npm run lint
+        run: bun run lint
 
       - name: Typecheck
-        run: npm run typecheck
+        run: bun run typecheck
 
   db-replay-validation:
     needs: changes
@@ -69,27 +68,26 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
         with:
-          node-version: 20
-          cache: npm
+          bun-version: latest
 
       - name: Install dependencies
-        run: npm ci
+        run: bun install --frozen-lockfile
 
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
 
       - name: Start local Supabase
-        run: npm run supabase:start
+        run: bun run supabase:start
 
       - name: Validate DB reset replay
-        run: npm run supabase:reset
+        run: bun run supabase:reset
 
       - name: Show Supabase status
-        run: npm run supabase:status
+        run: bun run supabase:status
 
       - name: Stop local Supabase
         if: always()
-        run: npm run supabase:stop
+        run: bun run supabase:stop

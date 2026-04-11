@@ -19,12 +19,6 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import {
-  deriveAuthenticatorAssurance,
-  shouldPromptForMfaChallenge,
-  type MfaListFactorsLike,
-} from '@/lib/auth/mfa';
-import { isStaleSupabaseAuthUserError } from '@/lib/supabase/auth-errors';
 import type { User } from '@supabase/supabase-js';
 
 export type { User } from '@supabase/supabase-js';
@@ -94,41 +88,9 @@ export function useAuth(): AuthState {
           return;
         }
 
-        const { data: factorsData, error: factorsError } = await supabase.auth.mfa.listFactors();
-
         if (!mounted) return;
 
-        if (factorsError) {
-          if (isStaleSupabaseAuthUserError(factorsError)) {
-            await supabase.auth.signOut();
-
-            if (!mounted) return;
-
-            setUser(null);
-            setNeedsMfa(false);
-            return;
-          }
-
-          console.error('[useAuth] Error listing MFA factors:', factorsError);
-        }
-
-        const factorData = (factorsData as MfaListFactorsLike | null) ?? null;
-        const assuranceData = deriveAuthenticatorAssurance(
-          typeof claimsData.claims.aal === 'string' ? claimsData.claims.aal : null,
-          factorData,
-        );
-
-        const pendingMfaChallenge = shouldPromptForMfaChallenge(
-          assuranceData,
-          factorData,
-        );
-
-        setNeedsMfa(pendingMfaChallenge);
-
-        if (pendingMfaChallenge) {
-          setUser(null);
-          return;
-        }
+        setNeedsMfa(false);
 
         setUser(buildUserFromClaims(claimsData.claims as AuthClaimsLike));
       } catch (error) {

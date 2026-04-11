@@ -105,9 +105,9 @@ export default function ContactClient() {
                 "Looking for a team rollout? We can help with onboarding, setup, and best-practice guidance.",
             buttonLabel: "Talk to Our Team",
             icon: Building2,
-            iconClassName: "border-chart-3/20 bg-chart-3/10 text-chart-3",
-            hoverClassName: "hover:border-chart-3/30",
-            buttonClassName: "bg-chart-3 text-background hover:bg-chart-3/90",
+            iconClassName: "border-chart-4/20 bg-chart-4/10 text-chart-4",
+            hoverClassName: "hover:border-chart-4/30",
+            buttonClassName: "bg-chart-4 text-background hover:bg-chart-4/90",
             href: "mailto:contact@lets-assist.com",
         },
     ];
@@ -121,30 +121,28 @@ export default function ContactClient() {
                     <div className="pointer-events-none absolute -bottom-24 -left-24 size-72 rounded-full bg-primary/15 blur-3xl" />
 
                     <div className="relative z-10 flex flex-col gap-5">
-                        <Badge variant="secondary" className="w-fit">
+                        {/* <Badge variant="secondary" className="w-fit">
                             <Sparkles data-icon="inline-start" />
                             We&apos;re listening
-                        </Badge>
+                        </Badge> */}
 
                         <div className="flex flex-col gap-3">
                             <h1 className="text-3xl font-bold tracking-tight md:text-5xl">
                                 Get in touch with the Let&apos;s Assist team
                             </h1>
                             <p className="max-w-3xl text-base text-muted-foreground md:text-lg">
-                                Questions, feedback, bug reports, or organizational setup help — pick
-                                the option below and we&apos;ll make sure your message gets to the right
-                                people.
+                                Whether you have a question, feedback, or just want to say hi, we&apos;d love to hear from you. Our team is here to help and support you.
                             </p>
                         </div>
 
-                        <div className="grid gap-3 text-sm text-muted-foreground sm:grid-cols-2">
+                        {/* <div className="grid gap-3 text-sm text-muted-foreground sm:grid-cols-2">
                             <p className="rounded-xl border border-border/70 bg-background/80 px-3 py-2">
                                 Most messages are reviewed within one business day.
                             </p>
                             <p className="rounded-xl border border-border/70 bg-background/80 px-3 py-2">
                                 Feedback helps prioritize roadmap and quality improvements.
                             </p>
-                        </div>
+                        </div> */}
                     </div>
                 </section>
 

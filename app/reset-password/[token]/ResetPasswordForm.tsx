@@ -112,12 +112,12 @@ export default function ResetPasswordForm({ token }: ResetPasswordFormProps) {
                   />
                   {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
                   <div className="mt-3 space-y-2">
-                    <div className="rounded-lg bg-[hsl(var(--warning)/0.15)] border border-[hsl(var(--warning)/0.4)] p-3 shadow-xs">
-                      <p className="text-xs font-semibold text-[hsl(var(--warning))] dark:text-[hsl(var(--warning))] mb-2 flex items-center gap-2">
+                    <div className="rounded-lg bg-warning/15 border border-warning/40 p-3 shadow-xs">
+                      <p className="text-xs font-semibold text-warning mb-2 flex items-center gap-2">
                         <AlertTriangle className="h-3.5 w-3.5" />
                         Password Requirements
                       </p>
-                      <ul className="space-y-1.5 text-xs text-[hsl(var(--warning))] dark:text-[hsl(var(--warning))] opacity-90">
+                      <ul className="space-y-1.5 text-xs text-warning opacity-90">
                         <li className="flex items-start gap-2">
                           <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                           <span>At least 8 characters long</span>

@@ -181,9 +181,6 @@ export function PrintCertificate({ data }: { data: CertificateData }) {
               </div>
             </div>
           </div>
-          <script>
-            window.onload = () => { window.print(); window.onafterprint = () => window.close(); }
-          </script>
         </body>
       </html>
     `;
@@ -221,6 +218,12 @@ export function PrintCertificate({ data }: { data: CertificateData }) {
       try {
         if (iframe.contentWindow) {
           iframe.contentWindow.focus();
+          
+          // Set up after-print handler to cleanup
+          iframe.contentWindow.onafterprint = () => {
+            cleanup();
+          };
+          
           iframe.contentWindow.print();
 
           // Set up cancel detection

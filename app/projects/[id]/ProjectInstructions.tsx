@@ -493,7 +493,7 @@ export default function ProjectInstructionsModal({
         return (
           <div className="space-y-4">
             <div className="text-center mb-6">
-              <Badge className="bg-amber-500/20 text-amber-500 border-amber-500/30 mb-3">Manual Check-In</Badge>
+              <Badge className="bg-chart-6/20 text-chart-6 border-chart-6/30 mb-3">Manual Check-In</Badge>
               <h3 className="text-lg font-semibold">How to Check In</h3>
               <p className="text-muted-foreground">The event coordinator will handle your attendance</p>
             </div>

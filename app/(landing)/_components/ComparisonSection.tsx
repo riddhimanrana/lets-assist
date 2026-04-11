@@ -446,7 +446,7 @@ function ModernDashboardMockup() {
                       className="w-full h-8 text-xs gap-1.5"
                     >
                       <Image
-                        src="/googlecalendar.svg"
+                        src="/resources/google-calendar-logo.svg"
                         width={12}
                         height={12}
                         alt="GCal"
@@ -651,10 +651,10 @@ function ModernDashboardMockup() {
                     </p>
                   </div>
 
-                  <Badge className="bg-primary/15 text-primary border-0 text-[10px] sm:text-xs shrink-0 animate-pulse">
+                  {/* <Badge className="bg-primary/15 text-primary border-0 text-[10px] sm:text-xs shrink-0 animate-pulse">
                     <TrendingUp className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-0.5 sm:mr-1" />
                     Stats Updated
-                  </Badge>
+                  </Badge> */}
                 </div>
 
                 {/* Stats cards */}
@@ -783,7 +783,7 @@ function OutdatedMockup() {
           {/* SignUpGenius logo */}
           <div className="flex items-center gap-2 sm:gap-3">
             <Image
-              src="/signupgenius.jpg"
+              src="/resources/signupgenius-logo.jpg"
               alt="SignUpGenius"
               width={32}
               height={32}
@@ -1125,7 +1125,7 @@ export default function ComparisonSection() {
                     <TableHead className="py-3 sm:py-5 px-2 sm:px-4 text-center w-20 sm:w-32">
                       <div className="flex flex-col items-center gap-1 sm:gap-1.5 grayscale opacity-60">
                         <Image
-                          src="/signupgenius.jpg"
+                          src="/resources/signupgenius-logo.jpg"
                           alt="SignUpGenius"
                           width={28}
                           height={28}

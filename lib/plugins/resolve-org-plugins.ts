@@ -32,6 +32,19 @@ type PluginInstallRow = {
   installed_version: string | null;
 };
 
+type PluginAccessRow = {
+  plugin_key: string;
+  enabled: boolean;
+  configuration: Record<string, unknown> | null;
+  installed_at: string | null;
+  installed_version: string | null;
+  visibility: "global" | "private";
+  is_active: boolean;
+  latest_version: string;
+  force_update_version: string | null;
+  is_accessible: boolean;
+};
+
 type SupabaseLikeError = {
   code?: string;
   message?: string;
@@ -88,6 +101,65 @@ export async function resolveOrganizationPlugins(options: {
   }
 
   const supabase = await createClient();
+
+  const unifiedAccessResult = await supabase
+    .from("organization_plugin_access")
+    .select(
+      "plugin_key, enabled, configuration, installed_at, installed_version, visibility, is_active, latest_version, force_update_version, is_accessible",
+    )
+    .eq("organization_id", organizationId)
+    .eq("enabled", true);
+
+  if (!isMissingPluginTableError(unifiedAccessResult.error)) {
+    if (unifiedAccessResult.error) {
+      throw new Error(
+        `Failed to load consolidated plugin access: ${unifiedAccessResult.error.message}`,
+      );
+    }
+
+    const rows = (unifiedAccessResult.data ?? []) as PluginAccessRow[];
+    const resolved: ResolvedOrganizationPlugin[] = [];
+
+    for (const row of rows) {
+      if (!row.enabled || !row.is_active || !row.is_accessible) continue;
+
+      const definition = getRegisteredPlugin(row.plugin_key);
+      if (!definition) continue;
+
+      const installedVersion = coalescePluginVersion(
+        row.installed_version,
+        row.latest_version,
+      );
+
+      const forceUpdateRequired =
+        Boolean(row.force_update_version) &&
+        isPluginVersionBehind(installedVersion, row.force_update_version);
+
+      if (forceUpdateRequired) continue;
+
+      const minimumRole = definition.manifest.minimumRole ?? "member";
+      if (!hasOrganizationPluginAccess(userRole, minimumRole)) continue;
+
+      resolved.push({
+        key: definition.manifest.key,
+        name: definition.manifest.name,
+        description: definition.manifest.description,
+        navLabel: definition.manifest.navLabel ?? definition.manifest.name,
+        version: definition.manifest.version,
+        visibility: definition.manifest.visibility,
+        minimumRole,
+        installedAt: row.installed_at,
+        enabled: row.enabled,
+        configuration: row.configuration,
+        latestVersion: row.latest_version,
+        installedVersion,
+        forceUpdateVersion: row.force_update_version,
+        forceUpdateRequired,
+      });
+    }
+
+    return resolved.sort((a, b) => a.navLabel.localeCompare(b.navLabel));
+  }
 
   const [catalogResult, entitlementResult, installResult] = await Promise.all([
     supabase

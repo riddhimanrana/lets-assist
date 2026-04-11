@@ -27,6 +27,34 @@ export interface ResolvedOrganizationPluginBehaviorContribution<
   behavior: OrganizationPluginBehaviorHookResultMap[THook];
 }
 
+type PluginInstallRow = {
+  plugin_key: string;
+  enabled: boolean;
+  configuration: Record<string, unknown> | null;
+};
+
+type PluginAccessRow = {
+  plugin_key: string;
+  enabled: boolean;
+  is_accessible: boolean;
+  configuration: Record<string, unknown> | null;
+};
+
+type SupabaseLikeError = {
+  code?: string;
+  message?: string;
+};
+
+function isMissingPluginTableError(error: SupabaseLikeError | null): boolean {
+  if (!error) return false;
+
+  return (
+    error.code === "42P01" ||
+    error.code === "42703" ||
+    (typeof error.message === "string" && error.message.includes("does not exist"))
+  );
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
@@ -58,20 +86,50 @@ export async function resolveOrganizationPluginBehaviorHook<
 ): Promise<Array<ResolvedOrganizationPluginBehaviorContribution<THook>>> {
   const supabase = options.useAdminClient ? getAdminClient() : await createClient();
 
-  const { data: installs, error } = await supabase
-    .from("organization_plugin_installs")
-    .select("plugin_key, enabled, configuration")
+
+  const pluginAccessResult = await supabase
+    .from("organization_plugin_access")
+    .select("plugin_key, enabled, is_accessible, configuration")
     .eq("organization_id", options.organizationId)
     .eq("enabled", true);
 
-  if (error || !installs) {
-    console.error("PLUGIN ERROR:", error);
-    return [];
+  let installRows: PluginInstallRow[] = [];
+
+  if (!isMissingPluginTableError(pluginAccessResult.error)) {
+    if (pluginAccessResult.error) {
+      throw new Error(
+        `Failed to load consolidated plugin access: ${pluginAccessResult.error.message}`,
+      );
+    }
+
+    installRows = ((pluginAccessResult.data ?? []) as PluginAccessRow[])
+      .filter((row) => row.is_accessible)
+      .map((row) => ({
+        plugin_key: row.plugin_key,
+        enabled: row.enabled,
+        configuration: row.configuration,
+      }));
+  } else {
+    const { data: installs, error } = await supabase
+      .from("organization_plugin_installs")
+      .select("plugin_key, enabled, configuration")
+      .eq("organization_id", options.organizationId)
+      .eq("enabled", true);
+
+    if (isMissingPluginTableError(error)) {
+      return [];
+    }
+
+    if (error) {
+      throw new Error(`Failed to load plugin installs: ${error.message}`);
+    }
+
+    installRows = (installs ?? []) as PluginInstallRow[];
   }
 
   const results: Array<ResolvedOrganizationPluginBehaviorContribution<THook>> = [];
 
-  for (const install of installs) {
+  for (const install of installRows) {
     const plugin = getRegisteredPlugin(install.plugin_key);
     if (!plugin?.resolveBehaviorHook) {
       continue;

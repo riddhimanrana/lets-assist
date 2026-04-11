@@ -24,7 +24,7 @@ import { toast } from "sonner";
 import { TimezoneBadge } from '@/components/shared/TimezoneBadge';
 import { WaiverSigningDialog } from '@/components/waiver/WaiverSigningDialog';
 import { Check, PenTool } from 'lucide-react';
-import type { Project, WaiverSignatureInput, WaiverTemplate, WaiverDefinitionFull } from '@/types';
+import type { Project, WaiverSignatureInput, WaiverDefinitionFull } from '@/types';
 
 interface UserProfile {
   full_name: string | null;
@@ -40,7 +40,6 @@ interface SignupConfirmationModalProps {
   waiverRequired?: boolean;
   waiverAllowUpload?: boolean;
   waiverDisableEsignature?: boolean;
-  waiverTemplate?: WaiverTemplate | null;
   waiverPdfUrl?: string | null;
   waiverDefinition?: WaiverDefinitionFull | null;
   project: {
@@ -64,7 +63,6 @@ export function SignupConfirmationModal({
   waiverRequired = false,
   waiverAllowUpload = true,
   waiverDisableEsignature = false,
-  waiverTemplate = null,
   waiverPdfUrl = null,
   waiverDefinition = null,
   project,
@@ -400,7 +398,6 @@ export function SignupConfirmationModal({
                 onComplete={handleWaiverComplete}
                 waiverDefinition={waiverDefinition}
                 waiverPdfUrl={waiverPdfUrl}
-                waiverTemplate={waiverTemplate}
                 defaultSignerName={currentUserProfile?.full_name || ""}
                 defaultSignerEmail={currentUserProfile?.email || ""}
                 allowUpload={waiverAllowUpload}
@@ -488,7 +485,7 @@ export function SignupConfirmationModal({
                     <Loader2 className="h-5 w-5 animate-spin shrink-0" />
                   ) : (
                     <Image
-                      src="/googlecalendar.svg"
+                      src="/resources/google-calendar-logo.svg"
                       alt="Google Calendar"
                       width={20}
                       height={20}

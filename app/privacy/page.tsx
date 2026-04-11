@@ -151,10 +151,10 @@ const PrivacyPage = () => {
               Delete your account and all associated data at any time. You can do
               this in your account settings or by contacting{" "}
               <Link
-                href="mailto:privacy@lets-assist.com"
+                href="mailto:legal@lets-assist.com"
                 className="text-info"
               >
-                privacy@lets-assist.com
+                legal@lets-assist.com
               </Link>
               .
             </li>
@@ -179,10 +179,10 @@ const PrivacyPage = () => {
           <p className="mt-2 leading-relaxed">
             For privacy-related inquiries, email us at{" "}
             <Link
-              href="mailto:privacy@lets-assist.com"
+              href="mailto:legal@lets-assist.com"
               className="text-info"
             >
-              privacy@lets-assist.com
+              legal@lets-assist.com
             </Link>
             .
           </p>
