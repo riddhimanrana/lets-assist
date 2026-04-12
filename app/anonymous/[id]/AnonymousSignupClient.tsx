@@ -479,63 +479,63 @@ export default function AnonymousSignupClient({
 
           {isConfirmed && !isProjectCancelled && (
             <Card className="w-full border-success/30 bg-success/5 overflow-hidden">
-              <CardContent className="">
-                <div className="flex items-start gap-3">
-                  <div className="bg-success/10 p-2 rounded-full shrink-0">
-                    <CheckCircle2 className="h-5 w-5 text-success" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-foreground">You&apos;re Registered!</h3>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Your email has been confirmed and you&apos;re signed up for {activeSlots.length} slot{activeSlots.length > 1 ? 's' : ''}.
-                    </p>
-                  </div>
+              <div className="space-y-3">
+                <div className="bg-info/20 border border-info/50 rounded-lg p-3">
+                  <p className="text-sm text-info">
+                    <span className="font-semibold">About linking:</span> When you link this anonymous profile to a Let&apos;s Assist account, all your event signups will be transferred to your account. Your signups are currently <span className="font-semibold">pending approval</span> from the project coordinator. Once approved, you can check in during events and track your volunteer hours—all in one place.
+                  </p>
                 </div>
-              </CardContent>
-            </Card>
-          )}
 
-          {/* Your Information */}
-          <div className="space-y-3 text-sm">
-            <h3 className="font-medium text-base mb-2">Your Information</h3>
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <User className="h-4 w-4" /> Name: <span className="text-foreground font-medium">{name}</span>
-            </div>
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Mail className="h-4 w-4" /> Email: <span className="text-foreground font-medium">{email}</span>
-            </div>
-            {phone_number && (
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Phone className="h-4 w-4" /> Phone: <span className="text-foreground font-medium">{phone_number}</span>
+                {autoLinkError && !isLinked && (
+                  <Alert className="border-warning/30 bg-warning/5">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>Linking needs one more step</AlertTitle>
+                    <AlertDescription>{autoLinkError}</AlertDescription>
+                  </Alert>
+                )}
+
+                {linkStatus === "linked" ? (
+                  <div className="flex items-center gap-2 text-sm text-success bg-success/5 p-3 rounded-lg">
+                    <CheckCircle2 className="h-4 w-4 shrink-0" />
+                    <span className="font-medium">Account linked successfully! Your signups have been transferred.</span>
+                  </div>
+                ) : linkStatus === "verification-pending" ? (
+                  <Alert className="border-primary/30 bg-primary/5">
+                    <Mail className="h-4 w-4" />
+                    <AlertTitle>Verify your new account</AlertTitle>
+                    <AlertDescription className="space-y-1 text-sm">
+                      <p>
+                        Your volunteer profile is linked. We sent a verification email to <span className="font-medium text-foreground">{verificationPendingEmail ?? email}</span>.
+                      </p>
+                      <p>
+                        After verifying, sign in to access your volunteer dashboard, approvals, hours, and certificates.
+                      </p>
+                      <div className="pt-2">
+                        <Link href={`/signup/success?email=${encodeURIComponent(verificationPendingEmail ?? email)}`} className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
+                          Manage verification email
+                        </Link>
+                      </div>
+                    </AlertDescription>
+                  </Alert>
+                ) : (
+                  <AnonymousLinkingDialog
+                    anonymousId={id}
+                    anonymousToken={accessToken}
+                    defaultName={name}
+                    defaultEmail={email}
+                    isLinked={isLinked}
+                    onLinked={() => {
+                      setLinkStatus("linked");
+                      setAutoLinkError(null);
+                    }}
+                    onLinkedPendingVerification={(pendingEmail) => {
+                      setLinkStatus("verification-pending");
+                      setVerificationPendingEmail(pendingEmail);
+                      setAutoLinkError(null);
+                    }}
+                  />
+                )}
               </div>
-            )}
-          </div>
-
-          <Separator />
-
-          {/* Timeline */}
-          <div>
-            <h3 className="text-base font-semibold mb-3">Timeline</h3>
-            <div className="space-y-3 text-sm">
-              <div className="flex gap-3">
-                <div className="flex flex-col items-center">
-                  <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center">
-                    <span className="text-xs font-medium text-primary-foreground">1</span>
-                  </div>
-                  <div className="w-0.5 h-full bg-border mt-1"></div>
-                </div>
-                <div>
-                  <p className="font-medium">Profile Created</p>
-                  <p className="text-muted-foreground text-xs">{format(createdDate, "MMMM d, yyyy 'at' h:mm a")}</p>
-                </div>
-              </div>
-
-              <div className="flex gap-3">
-                <div className="flex flex-col items-center">
-                  <div className={`w-6 h-6 rounded-full ${confirmedDate ? 'bg-primary' : 'bg-muted'} flex items-center justify-center`}>
-                    {confirmedDate ? <CheckCircle2 className="h-3.5 w-3.5 text-popover" /> : <Clock className="h-3.5 w-3.5 text-muted-foreground" />}
-                  </div>
-                </div>
                 <div>
                   <p className="font-medium">Email {confirmedDate ? 'Confirmed' : 'Confirmation Pending'}</p>
                   {confirmedDate ? (
@@ -630,11 +630,33 @@ export default function AnonymousSignupClient({
 
             <Separator />
 
+<<<<<<< HEAD
             <div className="space-y-3">
               <div className="bg-blue-50/50 border border-blue-200/50 rounded-lg p-3">
                 <p className="text-sm text-blue-900">
                   <span className="font-semibold">About linking:</span> When you link this anonymous profile to a Let&apos;s Assist account, all your event signups will be transferred to your account. Your signups are currently <span className="font-semibold">pending approval</span> from the project coordinator. Once approved, you can check in during events and track your volunteer hours—all in one place.
                 </p>
+=======
+          <div className="space-y-3">
+            <div className="bg-info/20 border border-info/50 rounded-lg p-3">
+              <p className="text-sm text-info">
+                <span className="font-semibold">About linking:</span> When you link this anonymous profile to a Let&apos;s Assist account, all your event signups will be transferred to your account. Your signups are currently <span className="font-semibold">pending approval</span> from the project coordinator. Once approved, you can check in during events and track your volunteer hours—all in one place.
+              </p>
+            </div>
+
+            {autoLinkError && !isLinked && (
+              <Alert className="border-warning/30 bg-warning/5">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Linking needs one more step</AlertTitle>
+                <AlertDescription>{autoLinkError}</AlertDescription>
+              </Alert>
+            )}
+
+            {linkStatus === "linked" ? (
+              <div className="flex items-center gap-2 text-sm text-success bg-success/5 p-3 rounded-lg">
+                <CheckCircle2 className="h-4 w-4 shrink-0" />
+                <span className="font-medium">Account linked successfully! Your signups have been transferred.</span>
+>>>>>>> origin/main
               </div>
 
               {autoLinkError && !isLinked && (
