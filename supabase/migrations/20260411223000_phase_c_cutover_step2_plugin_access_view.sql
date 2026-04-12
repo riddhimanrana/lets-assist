@@ -19,7 +19,7 @@ select
   i.installed_version,
   i.installed_at,
   i.updated_at as install_updated_at,
-  i.created_at as install_created_at,
+  i.installed_at as install_created_at,
 
   p.name as plugin_name,
   p.description as plugin_description,

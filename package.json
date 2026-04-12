@@ -12,7 +12,7 @@
     "supabase:status": "supabase status",
     "supabase:pull": "supabase db pull",
     "supabase:push": "supabase db push",
-    "supabase:reset": "supabase db reset",
+    "supabase:reset": "supabase db reset --yes",
     "supabase:dump:schema": "supabase db dump --linked --schema public --file supabase/schemas/remote_baseline_schema.sql",
     "supabase:dump:seed": "supabase db dump --linked --data-only --schema public --file supabase/seeds/remote-snapshot.sql",
     "supabase:bootstrap:auth": "node scripts/local-dev/bootstrap-auth-user.mjs",
