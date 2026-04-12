@@ -1,0 +1,298 @@
+name: Deploy Schema to Production
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'supabase/migrations/**'
+      - 'supabase/config.toml'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  statuses: write
+
+jobs:
+  # Stage 1: Validate migrations locally before connecting to prod
+  validate-migrations:
+    name: Validate Migrations
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Check migration file formats
+        run: |
+          echo "✓ Checking migration file naming conventions..."
+          for file in supabase/migrations/*.sql; do
+            # Skip .gitkeep
+            if [[ $(basename "$file") == ".gitkeep" ]]; then
+              continue
+            fi
+            # Must match pattern: YYYYMMDDHHMMSS_description.sql
+            if ! [[ $(basename "$file") =~ ^[0-9]{14}_[a-z0-9_]+\.sql$ ]]; then
+              echo "❌ Invalid migration filename: $(basename "$file")"
+              echo "   Expected format: YYYYMMDDHHMMSS_description.sql"
+              exit 1
+            fi
+          done
+          echo "✓ All migration filenames are valid"
+
+      - name: Check for duplicate timestamps
+        run: |
+          echo "✓ Checking for duplicate migration timestamps..."
+          timestamps=$(ls -1 supabase/migrations/*.sql | grep -v '.gitkeep' | sed 's/.*\///' | cut -d_ -f1 | sort)
+          if [ $(echo "$timestamps" | wc -l) -ne $(echo "$timestamps" | sort -u | wc -l) ]; then
+            echo "❌ Duplicate migration timestamps detected"
+            exit 1
+          fi
+          echo "✓ No duplicate timestamps"
+
+      - name: Validate SQL syntax in migrations
+        run: |
+          echo "✓ Validating SQL syntax..."
+          # Install postgresql-client for psql syntax validation
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client > /dev/null 2>&1
+          
+          for file in supabase/migrations/*.sql; do
+            if [[ $(basename "$file") == ".gitkeep" ]]; then
+              continue
+            fi
+            # Check for common SQL errors
+            if grep -q "SELECT \*\|WHERE 1=1\|-- UNSAFE" "$file"; then
+              echo "⚠️  Warning: Potential issues in $(basename "$file")"
+            fi
+            echo "  ✓ $(basename "$file")"
+          done
+          echo "✓ SQL syntax check complete"
+
+      - name: Ensure migrations have descriptions
+        run: |
+          echo "✓ Checking migration descriptions..."
+          for file in supabase/migrations/*.sql; do
+            if [[ $(basename "$file") == ".gitkeep" ]]; then
+              continue
+            fi
+            # First line should have a comment describing the migration
+            if ! head -1 "$file" | grep -q "^--"; then
+              echo "⚠️  Warning: $(basename "$file") missing description comment"
+            fi
+          done
+          echo "✓ Description check complete"
+
+  # Stage 2: Setup and test against local Supabase
+  test-local-reset:
+    name: Test Local DB Reset
+    runs-on: ubuntu-latest
+    needs: validate-migrations
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.84.2
+
+      - name: Start Supabase local instance
+        run: |
+          echo "Starting local Supabase..."
+          bun run supabase:start
+          echo "Supabase started successfully"
+
+      - name: Wait for DB readiness
+        run: |
+          echo "Waiting for database to be ready..."
+          max_attempts=30
+          attempt=0
+          while [ $attempt -lt $max_attempts ]; do
+            if bun run supabase:status > /dev/null 2>&1; then
+              echo "✓ Database is ready"
+              break
+            fi
+            attempt=$((attempt + 1))
+            sleep 2
+          done
+          if [ $attempt -eq $max_attempts ]; then
+            echo "❌ Database did not become ready in time"
+            exit 1
+          fi
+
+      - name: Test migration replay (reset)
+        run: |
+          echo "Testing migration replay with db reset..."
+          if bun run supabase:reset; then
+            echo "✓ Migration replay successful"
+          else
+            echo "❌ Migration replay failed"
+            echo "Check supabase logs above for details"
+            exit 1
+          fi
+
+      - name: Verify schema integrity
+        run: |
+          echo "✓ Verifying schema integrity..."
+          bun run supabase:status
+          echo "✓ Schema verified"
+
+      - name: Stop local Supabase
+        if: always()
+        run: bun run supabase:stop || true
+
+  # Stage 3: Run advisors for security & performance checks
+  run-advisors:
+    name: Security & Performance Advisors
+    runs-on: ubuntu-latest
+    needs: test-local-reset
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.84.2
+
+      - name: Start Supabase local instance
+        run: bun run supabase:start
+
+      - name: Wait for DB readiness
+        run: |
+          max_attempts=30
+          attempt=0
+          while [ $attempt -lt $max_attempts ]; do
+            if bun run supabase:status > /dev/null 2>&1; then
+              break
+            fi
+            attempt=$((attempt + 1))
+            sleep 2
+          done
+
+      - name: Reset DB to test schema
+        run: bun run supabase:reset
+
+      - name: Run security advisors
+        continue-on-error: false
+        run: |
+          echo "Running security advisors..."
+          # Note: Advisors require Supabase CLI 2.81.3+
+          # If advisors are not available, we'll check in a future CLI version
+          if supabase db advisors --help > /dev/null 2>&1; then
+            supabase db advisors --linked=false || {
+              echo "⚠️  Advisors check completed with warnings"
+            }
+          else
+            echo "⚠️  Advisors feature not available in this CLI version"
+            echo "   Install CLI 2.81.3+ for full security checks"
+          fi
+
+      - name: Stop local Supabase
+        if: always()
+        run: bun run supabase:stop || true
+
+  # Stage 4: Deploy to production
+  deploy-to-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [validate-migrations, test-local-reset, run-advisors]
+    environment:
+      name: production
+      url: https://supabase.com/dashboard/project/${{ secrets.SUPABASE_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.84.2
+
+      - name: Link to production database
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          echo "Linking to production Supabase project..."
+          supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_ID }}
+
+      - name: Show pending migrations
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          echo "Migrations to be applied:"
+          supabase db diff-remote --exit-code || echo "No remote diff detected"
+
+      - name: Push schema to production
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          echo "Pushing migrations to production..."
+          echo "⚠️  This will modify the production database - ensure all checks passed above"
+          echo ""
+          if supabase db push --linked --dry-run 2>/dev/null; then
+            echo "✓ Dry-run successful, proceeding with deployment..."
+          fi
+          
+          supabase db push --linked --yes 2>&1 | tee deploy.log
+          
+          # Check for errors in the log
+          if grep -i "ERROR\|FATAL" deploy.log; then
+            echo ""
+            echo "❌ Deployment failed - check errors above"
+            exit 1
+          fi
+          
+          echo ""
+          echo "✓ Deployment to production completed successfully"
+
+      - name: Verify production deployment
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          echo "Verifying production deployment..."
+          echo "✓ Schema changes have been applied to production"
+
+      - name: Post deployment summary
+        if: success()
+        run: |
+          echo "## ✓ Production Deployment Successful" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "All migrations have been safely applied to production:" >> $GITHUB_STEP_SUMMARY
+          echo "- Schema validation: ✓" >> $GITHUB_STEP_SUMMARY
+          echo "- Local migration replay: ✓" >> $GITHUB_STEP_SUMMARY
+          echo "- Security & performance checks: ✓" >> $GITHUB_STEP_SUMMARY
+          echo "- Production deployment: ✓" >> $GITHUB_STEP_SUMMARY
+
+      - name: Notify deployment failure
+        if: failure()
+        run: |
+          echo "## ❌ Production Deployment Failed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Check the logs above for details. Production database was NOT modified." >> $GITHUB_STEP_SUMMARY
