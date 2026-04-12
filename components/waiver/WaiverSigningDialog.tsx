@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { SignerData, SignaturePayload, WaiverDefinitionSigner, WaiverDefinitionFull, WaiverDefinitionField } from "@/types/waiver-definitions";
-import { WaiverTemplate, WaiverSignatureInput } from "@/types/waiver";
+import { WaiverSignatureInput } from "@/types/waiver";
 import { SignatureCapture } from "./SignatureCapture";
 import { WaiverSigningPdfPane } from "./WaiverSigningPdfPane";
 import { PdfViewerWithOverlay, CustomPlacement } from "./PdfViewerWithOverlay";
@@ -27,7 +27,6 @@ interface WaiverSigningDialogProps {
   onClose: (open: boolean) => void;
   waiverDefinition?: WaiverDefinitionFull | null;
   waiverPdfUrl?: string | null;
-  waiverTemplate?: WaiverTemplate | null;
   onComplete: (payload: WaiverSignatureInput) => Promise<void>;
   defaultSignerName?: string;
   defaultSignerEmail?: string;
@@ -67,7 +66,6 @@ export function WaiverSigningDialog({
   onClose,
   waiverDefinition,
   waiverPdfUrl,
-  waiverTemplate,
   onComplete,
   defaultSignerName,
   defaultSignerEmail,
@@ -224,9 +222,6 @@ export function WaiverSigningDialog({
   const hasPdfDocument = Boolean(safeWaiverPdfUrl);
 
   const generatedWaiverPreview = useMemo(() => {
-    const templateContent = waiverTemplate?.content?.trim();
-    if (templateContent) return templateContent;
-
     const signerLabels = sortedSigners.map((s) => s.label).join(", ");
     const signersText = signerLabels.length > 0 ? signerLabels : "Volunteer";
 
@@ -243,7 +238,7 @@ export function WaiverSigningDialog({
       "",
       "Signed electronically via Lets Assist.",
     ].join("\n");
-  }, [waiverTemplate?.content, sortedSigners]);
+  }, [sortedSigners]);
 
   // Convert ALL definition fields to placements for PDF overlay value rendering.
   // (We still keep currentSignerFields for any step-specific UX decisions.)
@@ -354,7 +349,6 @@ export function WaiverSigningDialog({
 
       // Convert to WaiverSignatureInput
       const input: WaiverSignatureInput = {
-        templateId: waiverTemplate?.id || "project-pdf",
         definitionId: waiverDefinition?.id,
         signatureType: "multi-signer",
         payload: payload,
@@ -430,7 +424,6 @@ export function WaiverSigningDialog({
                 // This is SINGLE-SIGNATURE offline upload mode
                 // Not multi-signer! Use WaiverSignatureInput format
                 const uploadInput: WaiverSignatureInput = {
-                  templateId: waiverTemplate?.id || "project-pdf",
                   definitionId: waiverDefinition?.id,
                   signatureType: 'upload', // Single upload type
                   uploadFileDataUrl: dataUrl,
@@ -538,13 +531,13 @@ export function WaiverSigningDialog({
                       <div className="flex-1 overflow-y-auto p-4 sm:p-6">
                         <article className="mx-auto max-w-3xl rounded-lg border bg-background shadow-sm p-5 sm:p-6 space-y-4">
                           <h3 className="text-base font-semibold">
-                            {waiverTemplate?.title || effectiveDefinition?.title || "Waiver"}
+                            {effectiveDefinition?.title || "Waiver"}
                           </h3>
                           <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-6">
                             {generatedWaiverPreview}
                           </p>
                           <div className="pt-3 border-t text-xs text-muted-foreground">
-                            This generated text is shown because no signed PDF template is currently available.
+                            This generated text is shown because no signed waiver PDF is currently available.
                           </div>
                         </article>
                         {allowUpload && (

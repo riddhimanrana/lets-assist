@@ -28,7 +28,7 @@ function createServiceClient() {
 }
 
 function getAllowedCronTokens(): string[] {
-  const tokens = [process.env.CRON_SECRET, process.env.AUTO_PUBLISH_SECRET_TOKEN].filter(
+  const tokens = [process.env.CRON_TOKEN, process.env.AUTO_PUBLISH_SECRET_TOKEN].filter(
     (value): value is string => Boolean(value)
   );
 

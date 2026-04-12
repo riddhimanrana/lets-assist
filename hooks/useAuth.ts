@@ -19,12 +19,12 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import type { User } from '@supabase/supabase-js';
 import {
-  deriveAuthenticatorAssurance,
   shouldPromptForMfaChallenge,
+  deriveAuthenticatorAssurance,
   type MfaListFactorsLike,
 } from '@/lib/auth/mfa';
-import type { User } from '@supabase/supabase-js';
 
 export type { User } from '@supabase/supabase-js';
 
@@ -93,33 +93,32 @@ export function useAuth(): AuthState {
           return;
         }
 
-        const { data: factorsData, error: factorsError } = await supabase.auth.mfa.listFactors();
-
         if (!mounted) return;
 
-        if (factorsError) {
-          console.error('[useAuth] Error listing MFA factors:', factorsError);
+        // Restore MFA state from JWT claims
+        const claims = claimsData.claims as AuthClaimsLike & { aal?: string };
+        const currentAal = claims.aal || 'aal1';
+
+        // Get MFA factors if user exists
+        let mfaFactors: MfaListFactorsLike = { totp: [], phone: [] };
+        try {
+          const { data: factors } = await supabase.auth.mfa.listFactors();
+          if (factors) {
+            mfaFactors = factors as MfaListFactorsLike;
+          }
+        } catch (mfaError) {
+          console.debug('[useAuth] Could not fetch MFA factors:', mfaError);
         }
 
-        const factorData = (factorsData as MfaListFactorsLike | null) ?? null;
-        const assuranceData = deriveAuthenticatorAssurance(
-          typeof claimsData.claims.aal === 'string' ? claimsData.claims.aal : null,
-          factorData,
+        // Determine if user needs MFA challenge
+        const userNeedsMfa = shouldPromptForMfaChallenge(
+          deriveAuthenticatorAssurance(currentAal, mfaFactors),
+          mfaFactors
         );
 
-        const pendingMfaChallenge = shouldPromptForMfaChallenge(
-          assuranceData,
-          factorData,
-        );
+        setNeedsMfa(userNeedsMfa);
 
-        setNeedsMfa(pendingMfaChallenge);
-
-        if (pendingMfaChallenge) {
-          setUser(null);
-          return;
-        }
-
-        setUser(buildUserFromClaims(claimsData.claims as AuthClaimsLike));
+        setUser(buildUserFromClaims(claims));
       } catch (error) {
         console.error('[useAuth] Error during auth initialization:', error);
         if (mounted) {

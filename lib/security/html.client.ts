@@ -5,6 +5,7 @@ import {
   RICH_TEXT_ALLOWED_ATTRIBUTES,
   RICH_TEXT_ALLOWED_SCHEMES,
   RICH_TEXT_ALLOWED_TAGS,
+  stripScriptTags,
   trimTrailingEmptyParagraphs,
 } from "@/lib/security/html";
 
@@ -22,5 +23,8 @@ export function sanitizeRichTextHtml(html: string | null | undefined): string {
     return "";
   }
 
-  return trimTrailingEmptyParagraphs(sanitizeHtml(html, RICH_TEXT_SANITIZE_OPTIONS));
+  const withoutScripts = stripScriptTags(html);
+  return trimTrailingEmptyParagraphs(
+    sanitizeHtml(withoutScripts, RICH_TEXT_SANITIZE_OPTIONS),
+  );
 }

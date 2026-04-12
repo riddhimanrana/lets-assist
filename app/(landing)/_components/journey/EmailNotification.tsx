@@ -19,9 +19,9 @@ export function EmailNotification() {
           initial={{ scale: 0, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ type: "spring", duration: 0.4, delay: 0.5 }}
-          className="absolute -top-2 -right-2 bg-green-500 rounded-full p-1"
+          className="absolute -top-2 -right-2 bg-success/20 rounded-full p-1"
         >
-          <CheckCircle className="h-6 w-6 text-white" />
+          <CheckCircle className="h-6 w-6 text-success" />
         </motion.div>
       </motion.div>
       

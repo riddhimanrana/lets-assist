@@ -1150,7 +1150,7 @@ export default function EditProjectClient({ project }: Props) {
                   <div className="space-y-0.5 min-w-0">
                     <FieldLabel htmlFor={field.name}>Require Waiver Signature</FieldLabel>
                     <FieldDescription className="wrap-break-word">
-                      Volunteers must sign your waiver PDF or the global template before signing up.
+                      Volunteers must sign your waiver PDF or the active global waiver definition before signing up.
                     </FieldDescription>
                   </div>
                   <Switch
@@ -1327,7 +1327,7 @@ export default function EditProjectClient({ project }: Props) {
                 {!(waiverPdfUrl || project.waiver_pdf_url) && (
                   <Alert className="bg-info/20 border-info">
                     <AlertDescription className="text-xs text-info">
-                      If you don&apos;t upload a custom waiver, we&apos;ll use the active global platform waiver template (or the default Let&apos;s Assist waiver if none is configured yet).
+                      If you don&apos;t upload a custom waiver, we&apos;ll use the active global waiver definition (or the default Let&apos;s Assist waiver text if none is configured yet).
                     </AlertDescription>
                   </Alert>
                 )}

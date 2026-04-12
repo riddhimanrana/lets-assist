@@ -3,12 +3,12 @@ import { performAiModerationScan } from '@/app/admin/moderation/ai-scan-logic';
 
 function authorizeCronRequest(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
-  const cronSecret = process.env.CRON_SECRET;
+  const cronSecret = process.env.CRON_TOKEN ?? process.env.CRON_SECRET;
 
   if (!cronSecret) {
     return {
       ok: false,
-      response: NextResponse.json({ error: "CRON_SECRET not configured" }, { status: 500 }),
+      response: NextResponse.json({ error: "Cron secret not configured" }, { status: 500 }),
     };
   }
 
@@ -28,6 +28,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(result);
   } catch (error) {
     console.error('Cron job failed:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json(
+      {
+        error: error instanceof Error ? error.message : 'Internal server error',
+      },
+      { status: 500 }
+    );
   }
 }

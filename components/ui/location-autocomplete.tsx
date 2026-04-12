@@ -6,7 +6,7 @@ import { Check, MapPin, Search, Loader2, AlertCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Input } from "@/components/ui/input"
 import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from "@/components/ui/command"
-import { APIProvider, useApiIsLoaded } from "@vis.gl/react-google-maps"
+import { APIProvider } from "@vis.gl/react-google-maps"
 import { LocationData } from "@/types"
 
 interface LocationAutocompleteProps {
@@ -38,126 +38,55 @@ function LocationAutocompleteContent({
   "aria-invalid": ariaInvalid,
   "aria-errormessage": ariaErrorMessage,
 }: LocationAutocompleteProps) {
+  type LocationPrediction =
+    | { kind: "current-selection"; placePrediction: null }
+    | { kind: "suggestion"; placePrediction: google.maps.places.PlacePrediction }
+
   const [query, setQuery] = useState("")
   const [inputValue, setInputValue] = useState("") // Initialize with empty string instead of undefined
   const [showResults, setShowResults] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-  const [predictions, setPredictions] = useState<google.maps.places.AutocompletePrediction[]>([])
+  const [predictions, setPredictions] = useState<LocationPrediction[]>([])
   const [focusedIndex, setFocusedIndex] = useState(-1)
   const [placesApiReady, setPlacesApiReady] = useState(false)
 
-  const autocompleteService = useRef<google.maps.places.AutocompleteService | null>(null)
-  const placesService = useRef<google.maps.places.PlacesService | null>(null)
   const searchDebounceRef = useRef<NodeJS.Timeout | undefined>(undefined)
   const containerRef = useRef<HTMLDivElement>(null)
-  const placesInitAttempts = useRef(0)
-  const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-
-  // Check if the API is loaded using vis.gl hook
-  const isLoaded = useApiIsLoaded();
 
   // Update input value when value prop changes, ensuring it's never undefined
   useEffect(() => {
     setInputValue(value?.text || "")
   }, [value])
 
-  // Initialize services when API is loaded - improved retry mechanism
   useEffect(() => {
-    // Cleanup function to clear any pending timeouts
-    return () => {
-      if (retryTimeoutRef.current) {
-        clearTimeout(retryTimeoutRef.current);
-        retryTimeoutRef.current = null;
+    let cancelled = false
+
+    const initializePlacesAPI = async () => {
+      try {
+        if (typeof google === 'undefined' || !google.maps?.importLibrary) return
+        await google.maps.importLibrary('places')
+        if (!cancelled) setPlacesApiReady(true)
+      } catch (error) {
+        console.error('Error loading Places library:', error)
+        if (!cancelled) setPlacesApiReady(false)
       }
-    };
-  }, []);
-
-  useEffect(() => {
-    // Don't proceed if API isn't loaded at all
-    if (!isLoaded) return;
-
-    // If services are already initialized, nothing to do
-    if (autocompleteService.current && placesService.current) {
-      setPlacesApiReady(true);
-      return;
     }
 
-    const initializePlacesAPI = () => {
-      // Check if Places library is available
-      if (typeof google !== 'undefined' && google.maps && google.maps.places) {
-        try {
-          // Initialize services
-          autocompleteService.current = new google.maps.places.AutocompleteService();
+    void initializePlacesAPI()
 
-          const attributionNode = document.createElement('div');
-          attributionNode.style.display = 'none';
-          document.body.appendChild(attributionNode);
-          placesService.current = new google.maps.places.PlacesService(attributionNode);
-
-          setPlacesApiReady(true);
-          console.log('Places API initialized successfully');
-        } catch (error) {
-          console.error('Error initializing Places services:', error);
-          setPlacesApiReady(false);
-          scheduleRetry();
-        }
-      } else {
-        scheduleRetry();
-      }
-    };
-
-    const scheduleRetry = () => {
-      // Clear any existing timeout
-      if (retryTimeoutRef.current) {
-        clearTimeout(retryTimeoutRef.current);
-      }
-
-      // Places library not available yet, retry with exponential backoff
-      if (placesInitAttempts.current < 5) {
-        placesInitAttempts.current += 1;
-        const delay = Math.pow(2, placesInitAttempts.current) * 100;
-
-        console.log(`Places API not available yet. Retrying in ${delay}ms (attempt ${placesInitAttempts.current})`);
-
-        retryTimeoutRef.current = setTimeout(() => {
-          initializePlacesAPI();
-        }, delay);
-      } else {
-        console.error('Failed to load Places API after multiple attempts');
-      }
-    };
-
-    // Start initialization process
-    initializePlacesAPI();
-
-    // Cleanup
     return () => {
-      if (retryTimeoutRef.current) {
-        clearTimeout(retryTimeoutRef.current);
-        retryTimeoutRef.current = null;
-      }
-    };
-  }, [isLoaded]);
+      cancelled = true
+    }
+  }, [])
 
   // Search for predictions or show current selection when input is focused
   useEffect(() => {
-    if (!isLoaded || !placesApiReady || !autocompleteService.current) return;
+    if (!placesApiReady) return;
 
     if (!query.trim()) {
       // If no query but we have a selected value, create a single prediction for it
       if (value?.text) {
-        setPredictions([{
-          place_id: 'current-selection',
-          description: value.text,
-          structured_formatting: {
-            main_text: value.text,
-            secondary_text: value.display_name || '',
-            main_text_matched_substrings: []
-          },
-          matched_substrings: [],
-          terms: [],
-          types: []
-        }])
+        setPredictions([{ kind: "current-selection", placePrediction: null }])
       } else {
         setPredictions([])
       }
@@ -176,20 +105,27 @@ function LocationAutocompleteContent({
 
     searchDebounceRef.current = setTimeout(() => {
       setIsLoading(true)
-      autocompleteService.current?.getPlacePredictions(
-        {
-          input: query,
-          types: ['geocode', 'establishment'],
-        },
-        (results, status) => {
+      void google.maps.places.AutocompleteSuggestion.fetchAutocompleteSuggestions({
+        input: query,
+      })
+        .then(({ suggestions }) => {
+          setPredictions(
+            suggestions
+              .map((suggestion) => suggestion.placePrediction)
+              .filter((placePrediction): placePrediction is google.maps.places.PlacePrediction => Boolean(placePrediction))
+              .map((placePrediction) => ({
+                kind: "suggestion",
+                placePrediction,
+              }))
+          )
+        })
+        .catch((error) => {
+          console.error('Error fetching autocomplete suggestions:', error)
+          setPredictions([])
+        })
+        .finally(() => {
           setIsLoading(false)
-          if (status === google.maps.places.PlacesServiceStatus.OK && results) {
-            setPredictions(results)
-          } else {
-            setPredictions([])
-          }
-        }
-      )
+        })
     }, 300)
 
     return () => {
@@ -197,42 +133,42 @@ function LocationAutocompleteContent({
         clearTimeout(searchDebounceRef.current)
       }
     }
-  }, [query, isLoaded, value, placesApiReady])
+  }, [query, value, placesApiReady])
 
-  const handleSelect = (prediction: google.maps.places.AutocompletePrediction) => {
+  const handleSelect = async (prediction: LocationPrediction) => {
     // If selecting the current selection, just close the dropdown
-    if (prediction.place_id === 'current-selection') {
+    if (prediction.kind === "current-selection") {
       setShowResults(false)
       return
     }
 
-    if (!placesService.current) return
-
     setIsLoading(true)
-    placesService.current.getDetails(
-      {
-        placeId: prediction.place_id,
-        fields: ['name', 'formatted_address', 'geometry', 'address_components']
-      },
-      (place, status) => {
-        setIsLoading(false)
-        if (status === google.maps.places.PlacesServiceStatus.OK && place && place.geometry?.location) {
-          const locationData: LocationData = {
-            text: place.name || prediction.description,
-            display_name: place.formatted_address || prediction.description,
-            coordinates: {
-              latitude: place.geometry.location.lat(),
-              longitude: place.geometry.location.lng()
-            }
-          }
+    try {
+      const place = prediction.placePrediction.toPlace()
+      await place.fetchFields({
+        fields: ['displayName', 'formattedAddress', 'location'],
+      })
 
-          setInputValue(locationData.text)
-          onChangeAction(locationData)
-          setQuery("")
-          setShowResults(false)
-        }
+      if (!place.location) return
+
+      const locationData: LocationData = {
+        text: place.displayName || prediction.placePrediction.text.text,
+        display_name: place.formattedAddress || prediction.placePrediction.text.text,
+        coordinates: {
+          latitude: place.location.lat(),
+          longitude: place.location.lng(),
+        },
       }
-    )
+
+      setInputValue(locationData.text)
+      onChangeAction(locationData)
+      setQuery("")
+      setShowResults(false)
+    } catch (error) {
+      console.error('Error fetching place details:', error)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -296,7 +232,7 @@ function LocationAutocompleteContent({
   }, [])
 
   // Show loading state when API is not yet loaded or Places API is initializing
-  if (!isLoaded || !placesApiReady) {
+  if (!placesApiReady) {
     return (
       <div className={cn("relative space-y-1.5", className)}>
         <div className="relative">
@@ -386,29 +322,50 @@ function LocationAutocompleteContent({
               </CommandEmpty>
               <CommandGroup>
                 {predictions.map((prediction, index) => {
-                  const isCurrentSelection = prediction.place_id === 'current-selection'
+                  const isCurrentSelection = prediction.kind === "current-selection"
+                  if (isCurrentSelection) {
+                    return (
+                      <CommandItem
+                        key="current-selection"
+                        value="current-selection"
+                        onSelect={() => handleSelect(prediction)}
+                        className={cn(
+                          "cursor-pointer py-1.5 px-2",
+                          focusedIndex === index && "bg-accent",
+                          "bg-primary/5"
+                        )}
+                      >
+                        <div className="flex items-center w-full">
+                          <MapPin className="mr-2 h-4 w-4 text-muted-foreground shrink-0" />
+                          <div className="flex-1 truncate">
+                            <p className="truncate">{value?.text}</p>
+                            <p className="text-xs text-muted-foreground truncate">{value?.display_name || ''}</p>
+                          </div>
+                          <Check className="ml-2 h-4 w-4 text-primary shrink-0" />
+                        </div>
+                      </CommandItem>
+                    )
+                  }
+
+                  const placePrediction = prediction.placePrediction
+                  if (!placePrediction) return null
+
                   return (
                     <CommandItem
-                      key={prediction.place_id}
-                      value={prediction.place_id}
+                      key={placePrediction.text.text}
+                      value={placePrediction.text.text}
                       onSelect={() => handleSelect(prediction)}
                       className={cn(
                         "cursor-pointer py-1.5 px-2",
                         focusedIndex === index && "bg-accent",
-                        isCurrentSelection && "bg-primary/5"
                       )}
                     >
                       <div className="flex items-center w-full">
                         <MapPin className="mr-2 h-4 w-4 text-muted-foreground shrink-0" />
                         <div className="flex-1 truncate">
-                          <p className="truncate">{prediction.structured_formatting.main_text}</p>
-                          <p className="text-xs text-muted-foreground truncate">
-                            {prediction.structured_formatting.secondary_text}
-                          </p>
+                          <p className="truncate">{placePrediction.text.text}</p>
+                          <p className="text-xs text-muted-foreground truncate">{''}</p>
                         </div>
-                        {isCurrentSelection && (
-                          <Check className="ml-2 h-4 w-4 text-primary shrink-0" />
-                        )}
                       </div>
                     </CommandItem>
                   );

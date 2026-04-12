@@ -58,6 +58,22 @@ async function checkEnvironment(): Promise<StatusCheck> {
       };
     }
 
+    const configuredSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+    const isLocalSupabaseUrl =
+      configuredSupabaseUrl.includes("127.0.0.1:54321") ||
+      configuredSupabaseUrl.includes("localhost:54321");
+
+    if (process.env.NODE_ENV === "development" && !isLocalSupabaseUrl) {
+      return {
+        state: "warn",
+        message: "Development mode is configured to a non-local Supabase URL",
+        details: {
+          configuredSupabaseUrl,
+          expectedLocalUrl: "http://127.0.0.1:54321",
+        },
+      };
+    }
+
     return {
       state: "pass",
       message: "Required environment variables are configured",

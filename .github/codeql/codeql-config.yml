@@ -1,0 +1,4 @@
+name: "Let's Assist CodeQL config"
+
+paths-ignore:
+  - scripts/local-dev/**

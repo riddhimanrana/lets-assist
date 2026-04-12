@@ -38,7 +38,7 @@ type NotificationSettingsRow = {
 function isAuthorized(request: NextRequest): { ok: true } | { ok: false; response: NextResponse } {
   const authHeader = request.headers.get("authorization");
   const expectedToken = process.env.PROJECT_CANCELLATION_WORKER_SECRET_TOKEN;
-  const cronSecret = process.env.CRON_SECRET;
+  const cronSecret = process.env.CRON_TOKEN;
   const allowedTokens = [expectedToken, cronSecret].filter(
     (value): value is string => Boolean(value)
   );

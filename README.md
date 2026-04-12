@@ -22,6 +22,29 @@ This project is built using the following technologies:
 - [Cloudflare](https://www.cloudflare.com/): Security, domain and performance optimization.
 And many other libraries...
 
+## Private Plugin Model (Not Open Source)
+
+Core Let&apos;s Assist application code in this repository is open-source under GPL-3.0, but **organization-specific custom plugins are intentionally not open-sourced here**.
+
+- Custom client plugins (for example, organization-specific workflows) are stored in **separate private repositories**.
+- This repo only stores the platform-side plugin control plane and runtime registration hooks.
+- Private plugin code is distributed as private packages/references and loaded into the runtime intentionally.
+- Platform admins control rollout from `/admin/plugins` (catalog, entitlement, and force-update execution).
+- Plugin rollout control is admin-dashboard driven (no environment-variable allowlist toggles).
+- Runtime extension surfaces are available for deep org customization, including `organization.overview.cards` and `anonymous.profile.cards`.
+- Per-person targeting is configured from `/admin/plugins` via install configuration JSON (`organization_plugin_installs.configuration.targeting`).
+- Organization admins control local install/update state from `/organization/[org]/settings`.
+
+Reference example included in this repository:
+
+- `lib/plugins/private/dv-speech-debate/` (isolated, customized custom code for organizations)
+
+Production client-specific logic should remain in private repos and be imported into this app runtime, not developed directly in public source.
+
+For implementation details and update/force-update operations, see:
+
+- [`docs/private-plugin-development-guide.md`](docs/private-plugin-development-guide.md)
+
 ## FAQ
 
 <details>

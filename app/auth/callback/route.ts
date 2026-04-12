@@ -17,12 +17,13 @@ import {
   readAccountAccessFromMetadata,
 } from "@/lib/auth/account-access";
 import {
-  buildMfaRedirectPath,
-  deriveAuthenticatorAssurance,
   resolvePostAuthRedirectPath,
+  buildMfaRedirectPath,
   shouldPromptForMfaChallenge,
+  deriveAuthenticatorAssurance,
   type MfaListFactorsLike,
 } from "@/lib/auth/mfa";
+import { getGoogleSigninCapRestriction } from "@/lib/security/google-cap";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -52,7 +53,14 @@ export async function GET(request: Request) {
         `${origin}/login?error=email-password-exists`,
       );
     }
-    return NextResponse.redirect(`${origin}/error`);
+    const errorUrl = new URL(`${origin}/error`);
+    if (error_description) {
+      errorUrl.searchParams.set("message", error_description);
+    }
+    if (error) {
+      errorUrl.searchParams.set("code", error);
+    }
+    return NextResponse.redirect(errorUrl.toString());
   }
 
   // Normal OAuth flow or email verification
@@ -152,9 +160,10 @@ export async function GET(request: Request) {
           return NextResponse.redirect(loginUrl.toString());
         }
 
+        const adminClient = getAdminClient();
+
         // Check if this email is blacklisted (catches OAuth signups with a banned email)
         if (user.email) {
-          const adminClient = getAdminClient();
           const { data: blacklisted } = await adminClient
             .from("banned_emails")
             .select("email")
@@ -166,6 +175,7 @@ export async function GET(request: Request) {
             return NextResponse.redirect(`${origin}/login?error=account-banned`);
           }
         }
+
 
         let inviteOutcome: StaffInviteOutcome | null = null;
   let isNewAccount = false;
@@ -193,6 +203,27 @@ export async function GET(request: Request) {
           !!identities &&
           identities.length > 0 &&
           identities.some((identity) => identity.provider !== "email");
+        const isGoogleOAuthLogin =
+          !!identities &&
+          identities.length > 0 &&
+          identities.some((identity) => identity.provider === "google");
+
+        const googleCapRestriction = getGoogleSigninCapRestriction(
+          user.app_metadata ?? null,
+        );
+
+        if (isGoogleOAuthLogin && googleCapRestriction.disabled) {
+          await supabase.auth.signOut();
+
+          const loginUrl = new URL(`${origin}/login`);
+          loginUrl.searchParams.set("error", "google-signin-disabled");
+
+          if (googleCapRestriction.reason) {
+            loginUrl.searchParams.set("reason", googleCapRestriction.reason);
+          }
+
+          return NextResponse.redirect(loginUrl.toString());
+        }
 
         // ONLY show verification success page for email/password signups (not OAuth)
         // If this is a recent email/password signup verification, DON'T sign in the user
@@ -314,6 +345,46 @@ export async function GET(request: Request) {
           }
         }
 
+        // Check if user needs MFA challenge before redirecting
+        const currentAal = user.aud ? 'aal2' : 'aal1'; // Check AAL from user claims
+        let mfaFactors: MfaListFactorsLike = { totp: [], phone: [] };
+        
+        try {
+          const { data: factors } = await supabase.auth.mfa.listFactors();
+          if (factors) {
+            mfaFactors = factors as MfaListFactorsLike;
+          }
+        } catch (mfaError) {
+          console.debug('Could not fetch MFA factors during callback:', mfaError);
+        }
+
+        const userNeedsMfa = shouldPromptForMfaChallenge(
+          deriveAuthenticatorAssurance(currentAal, mfaFactors),
+          mfaFactors
+        );
+
+        // If user needs MFA, redirect to MFA challenge (preserving the intended destination)
+        if (userNeedsMfa) {
+          // Determine what the target path would be, then use it as the continuation path after MFA
+          const targetPath = inviteOutcome
+            ? buildStaffInviteRedirectPath(inviteOutcome, {
+                fallbackPath: resolvePostAuthRedirectPath(redirectAfterAuth),
+                toastPosition: isNewAccount ? "bottom-center" : undefined,
+              })
+            : resolvePostAuthRedirectPath(redirectAfterAuth);
+
+          const mfaRedirectPath = buildMfaRedirectPath(targetPath);
+          
+          const forwardedHost = request.headers.get("x-forwarded-host");
+          if (process.env.NODE_ENV === "development") {
+            return NextResponse.redirect(`${origin}${mfaRedirectPath}`);
+          } else if (forwardedHost) {
+            return NextResponse.redirect(`https://${forwardedHost}${mfaRedirectPath}`);
+          } else {
+            return NextResponse.redirect(`${origin}${mfaRedirectPath}`);
+          }
+        }
+
         // Determine redirect path for OAuth or other flows
         const finalRedirectTo = inviteOutcome
           ? buildStaffInviteRedirectPath(inviteOutcome, {
@@ -322,38 +393,7 @@ export async function GET(request: Request) {
             })
           : resolvePostAuthRedirectPath(redirectAfterAuth);
 
-        const accessToken = exchangeResult.data.session?.access_token;
-
-        const [
-          { data: claimsData, error: claimsError },
-          { data: factorsData, error: factorsError },
-        ] = await Promise.all([
-          accessToken
-            ? supabase.auth.getClaims(accessToken)
-            : Promise.resolve({ data: null, error: null }),
-          supabase.auth.mfa.listFactors(),
-        ]);
-
-        if (claimsError) {
-          console.error("Claims lookup failed during auth callback:", claimsError);
-        }
-
-        if (factorsError) {
-          console.error("MFA factor lookup failed during auth callback:", factorsError);
-        }
-
-        const factorData = (factorsData as MfaListFactorsLike | null) ?? null;
-        const assuranceData = deriveAuthenticatorAssurance(
-          typeof claimsData?.claims?.aal === "string" ? claimsData.claims.aal : null,
-          factorData,
-        );
-
-        const destinationPath = shouldPromptForMfaChallenge(
-          assuranceData,
-          factorData,
-        )
-          ? buildMfaRedirectPath(finalRedirectTo)
-          : finalRedirectTo;
+        const destinationPath = finalRedirectTo;
 
         const forwardedHost = request.headers.get("x-forwarded-host");
         

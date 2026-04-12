@@ -1,20 +1,21 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 import { useSearchParams, useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { 
-  FileSpreadsheet, 
   ExternalLink, 
   RefreshCw, 
   AlertTriangle, 
-  CheckCircle2,
   Settings2,
   UserCircle,
-  Unlink
+  Unlink,
+  FileSpreadsheet
 } from "lucide-react";
 import { toast } from "sonner";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
@@ -38,6 +39,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   getSheetSyncStatus,
+  disconnectOrganizationSheetConnection,
   syncSheetNow,
   unlinkSheetSync,
   updateSheetSyncSettings,
@@ -78,7 +80,9 @@ export default function OrganizationSheetsSettings({
   const [loading, setLoading] = useState(true);
   const [syncingNow, setSyncingNow] = useState(false);
   const [unlinking, setUnlinking] = useState(false);
+  const [disconnectingAccount, setDisconnectingAccount] = useState(false);
   const [showUnlinkDialog, setShowUnlinkDialog] = useState(false);
+  const [showAccountDisconnectDialog, setShowAccountDisconnectDialog] = useState(false);
   const [updatingSettings, setUpdatingSettings] = useState(false);
   const [availableOwners, setAvailableOwners] = useState<Array<{
     id: string;
@@ -210,6 +214,19 @@ export default function OrganizationSheetsSettings({
     setShowUnlinkDialog(false);
   };
 
+  const handleDisconnectAccount = async () => {
+    setDisconnectingAccount(true);
+    const result = await disconnectOrganizationSheetConnection(organizationId);
+    if (!result.success) {
+      toast.error(result.error || "Failed to remove Google account");
+    } else {
+      toast.success("Google account removed from this organization");
+      await loadStatus();
+    }
+    setDisconnectingAccount(false);
+    setShowAccountDisconnectDialog(false);
+  };
+
   const handleOwnerChange = async (ownerId: string | null) => {
     if (!ownerId) return;
     const result = await updateSheetOwner(organizationId, ownerId);
@@ -243,29 +260,77 @@ export default function OrganizationSheetsSettings({
         ) : status?.connected && status.syncConfig ? (
           <div className="space-y-6">
             {/* Connection Status */}
-            <div className="space-y-3 rounded-xl border border-border/60 bg-muted/30 p-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-success" />
-                    <p className="text-sm font-medium">Linked to Google Sheet</p>
+            <div className="space-y-4 rounded-2xl border border-border/60 bg-linear-to-br from-muted/50 via-card to-muted/20 p-4 shadow-sm">
+              <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                <div className="space-y-4">
+                  <div className="flex items-start gap-3">
+                    <span className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-background shadow-sm">
+                      <Image
+                        src="/resources/google-sheets-logo.svg"
+                        alt="Google Sheets"
+                        width={24}
+                        height={24}
+                        className="size-6"
+                      />
+                    </span>
+                    <div className="space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-medium">Linked to Google Sheet</p>
+                        <Badge variant={status.syncConfig.autoSync ? "secondary" : "outline"}>
+                          {status.syncConfig.autoSync ? "Auto-sync on" : "Auto-sync off"}
+                        </Badge>
+                        {!status.scopesOk && (
+                          <Badge variant="destructive">Reconnect required</Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {status.syncConfig.sheetTitle || "Let's Assist Reports"}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground opacity-70">
+                        ID: {status.syncConfig.sheetId}
+                      </p>
+                    </div>
                   </div>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {status.syncConfig.sheetTitle || "Let's Assist Reports"}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground opacity-70">
-                    ID: {status.syncConfig.sheetId}
-                  </p>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-xl border border-border/60 bg-background/80 p-3">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        Connected account
+                      </p>
+                      <div className="mt-1 flex items-center gap-2">
+                        <UserCircle className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm font-medium break-all">{status.connectedEmail || "Unknown"}</span>
+                      </div>
+                      {connectedByLabel && (
+                        <span className="mt-1 block text-[10px] text-muted-foreground">
+                          Authorized by {connectedByLabel}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="rounded-xl border border-border/60 bg-background/80 p-3">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        Last sync
+                      </p>
+                      <p className="mt-1 text-sm font-medium">{lastSynced || "Never"}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {status.syncConfig.autoSync
+                          ? "Updates run automatically in the background"
+                          : "Manual syncs only until auto-sync is enabled"}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex flex-wrap gap-2">
+
+                <div className="flex flex-wrap gap-2 xl:justify-end">
                   <Button
                     variant="outline"
                     size="sm"
                     asChild
                   >
-                    <a 
-                      href={status.syncConfig.sheetUrl} 
-                      target="_blank" 
+                    <a
+                      href={status.syncConfig.sheetUrl}
+                      target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-2"
                     >
@@ -282,11 +347,21 @@ export default function OrganizationSheetsSettings({
                     <RefreshCw className={`h-3.5 w-3.5 mr-2 ${syncingNow ? "animate-spin" : ""}`} />
                     Sync Now
                   </Button>
+                  {status.viewerIsOwner && (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => setShowAccountDisconnectDialog(true)}
+                      disabled={disconnectingAccount}
+                    >
+                      Remove Google account
+                    </Button>
+                  )}
                 </div>
               </div>
 
               {!status.scopesOk && (
-                <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive flex gap-3">
+                <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive flex gap-3">
                   <AlertTriangle className="h-4 w-4 shrink-0" />
                   <div>
                     <p className="font-semibold">Reconnect required</p>
@@ -298,25 +373,21 @@ export default function OrganizationSheetsSettings({
               <div className="grid gap-4 pt-2 sm:grid-cols-2">
                 <div className="flex flex-col gap-1">
                   <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Connected Account
+                    Sync interval
                   </span>
-                  <div className="flex items-center gap-2">
-                    <UserCircle className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm font-medium">{status.connectedEmail || "Unknown"}</span>
-                  </div>
-                  {connectedByLabel && (
-                    <span className="text-[10px] text-muted-foreground">
-                      Authorized by {connectedByLabel}
-                    </span>
-                  )}
+                  <span className="text-sm font-medium">{getSyncIntervalLabel(status.syncConfig.syncIntervalMinutes)}</span>
+                  <span className="text-[10px] text-muted-foreground">
+                    How frequently reports are pushed to Google Sheets
+                  </span>
                 </div>
-                
+
                 <div className="flex flex-col gap-1">
                   <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Last Sync
+                    Credential owner
                   </span>
-                  <span className="text-sm font-medium">
-                    {lastSynced || "Never"}
+                  <span className="text-sm font-medium">{connectedByLabel || status.connectedEmail || "Unknown"}</span>
+                  <span className="text-[10px] text-muted-foreground">
+                    {status.viewerIsOwner ? "You own this Google connection" : "Managed by another organization admin"}
                   </span>
                 </div>
               </div>
@@ -420,9 +491,15 @@ export default function OrganizationSheetsSettings({
             </div>
           </div>
         ) : status?.connected ? (
-          <div className="space-y-4 rounded-xl border border-dashed border-border/60 bg-muted/40 p-6 text-center">
-            <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-success/10 shadow-sm mb-2">
-              <CheckCircle2 className="h-6 w-6 text-success" />
+          <div className="space-y-4 rounded-2xl border border-dashed border-border/60 bg-muted/30 p-6 text-center">
+            <div className="mx-auto flex size-12 items-center justify-center rounded-full border border-border/60 bg-background shadow-sm">
+              <Image
+                src="/resources/google-sheets-logo.svg"
+                alt="Google Sheets"
+                width={24}
+                height={24}
+                className="size-6"
+              />
             </div>
             <div>
               <p className="text-sm font-medium">Google Account Connected</p>
@@ -451,12 +528,26 @@ export default function OrganizationSheetsSettings({
               >
                 Switch Account
               </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setShowAccountDisconnectDialog(true)}
+                disabled={disconnectingAccount}
+              >
+                Remove Google account
+              </Button>
             </div>
           </div>
         ) : (
-          <div className="space-y-4 rounded-xl border border-dashed border-border/60 bg-muted/40 p-6 text-center">
-            <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-muted shadow-sm mb-2">
-              <FileSpreadsheet className="h-6 w-6 text-muted-foreground/60" />
+          <div className="space-y-4 rounded-2xl border border-dashed border-border/60 bg-muted/30 p-6 text-center">
+            <div className="mx-auto flex size-12 items-center justify-center rounded-full border border-border/60 bg-background shadow-sm">
+              <Image
+                src="/resources/google-sheets-logo.svg"
+                alt="Google Sheets"
+                width={24}
+                height={24}
+                className="size-6"
+              />
             </div>
             <div>
               <p className="text-sm font-medium">No Google Account Connected</p>
@@ -503,6 +594,34 @@ export default function OrganizationSheetsSettings({
               disabled={unlinking}
             >
               {unlinking ? "Unlinking..." : "Unlink Sheet"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={showAccountDisconnectDialog}
+        onOpenChange={setShowAccountDisconnectDialog}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove the connected Google account?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will disconnect the Google account from this organization and remove the sheet sync configuration.
+              You&apos;ll need to connect another Google account to resume automatic spreadsheet updates.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={disconnectingAccount}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive hover:bg-destructive/90"
+              onClick={(e) => {
+                e.preventDefault();
+                handleDisconnectAccount();
+              }}
+              disabled={disconnectingAccount}
+            >
+              {disconnectingAccount ? "Removing..." : "Remove account"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

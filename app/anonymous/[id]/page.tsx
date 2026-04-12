@@ -7,6 +7,11 @@ import {
   getAnonymousSignupAccessRecord,
   normalizeAnonymousSignupToken,
 } from "@/lib/anonymous-signup-access";
+import {
+  mergeAnonymousProfileExperienceBehaviors,
+  resolveOrganizationPluginBehaviorHook,
+} from "@/lib/plugins/resolve-plugin-behaviors";
+import { resolveOrganizationPluginSurfaces } from "@/lib/plugins/resolve-plugin-surfaces";
 
 interface PageProps {
   params: Promise<{ id: string}>;
@@ -132,6 +137,48 @@ export default async function AnonymousSignupPage({
     }
   }
 
+  const anonymousPluginCards = project.organization_id
+    ? (
+        await resolveOrganizationPluginSurfaces({
+          organizationId: project.organization_id,
+          surface: "anonymous.profile.cards",
+          useAdminClient: true,
+          viewerRole: null,
+          target: {
+            anonymousSignupId: signupData.id,
+            userId: signupData.linked_user_id,
+            userProfileId: null,
+            projectId: signupData.project_id,
+            anonymousEmail: signupData.email,
+          },
+        })
+      ).map((surface) => surface.node)
+    : [];
+
+  const anonymousPluginBehavior = project.organization_id
+    ? mergeAnonymousProfileExperienceBehaviors(
+        (
+          await resolveOrganizationPluginBehaviorHook({
+            organizationId: project.organization_id,
+            hook: "anonymous.profile.experience",
+            useAdminClient: true,
+            viewerRole: null,
+            target: {
+              anonymousSignupId: signupData.id,
+              userId: signupData.linked_user_id,
+              userProfileId: null,
+              projectId: signupData.project_id,
+              anonymousEmail: signupData.email,
+            },
+            hookInput: {
+              projectStatus: project.status,
+              slotCount: slots.length,
+            },
+          })
+        ).map((entry) => entry.behavior),
+      )
+    : null;
+
   return (
     <AnonymousSignupClient
       id={signupId}
@@ -148,6 +195,8 @@ export default async function AnonymousSignupPage({
       linkedAccountEmail={linkedAccountSnapshot?.email ?? null}
       linkedAccountVerified={linkedAccountSnapshot?.isVerified ?? false}
       certificateIds={certificateIds}
+      anonymousPluginCards={anonymousPluginCards}
+      anonymousPluginBehavior={anonymousPluginBehavior}
     />
   );
 }

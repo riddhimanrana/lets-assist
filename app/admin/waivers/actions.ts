@@ -6,10 +6,10 @@ import { WaiverDefinition, WaiverBuilderDefinition } from '@/types/waiver-defini
 import { checkSuperAdmin } from '../actions';
 
 /**
- * Get all global waiver templates (admin only)
+ * Get all global waiver definitions (admin only)
  * Uses service-role client to bypass RLS
  */
-export async function getGlobalWaiverTemplates(): Promise<WaiverDefinition[]> {
+export async function getGlobalWaiverDefinitions(): Promise<WaiverDefinition[]> {
   const { isAdmin } = await checkSuperAdmin();
   if (!isAdmin) {
     throw new Error('Unauthorized');
@@ -33,11 +33,11 @@ export async function getGlobalWaiverTemplates(): Promise<WaiverDefinition[]> {
 }
 
 /**
- * Get the active global waiver template
+ * Get the active global waiver definition
  * Uses service-role client to ensure reliability regardless of RLS
  * No admin check - this is called by non-admin server flows
  */
-export async function getActiveGlobalTemplate(): Promise<WaiverDefinition | null> {
+export async function getActiveGlobalWaiverDefinition(): Promise<WaiverDefinition | null> {
   const supabase = getAdminClient();
   
   const { data, error } = await supabase
@@ -56,7 +56,7 @@ export async function getActiveGlobalTemplate(): Promise<WaiverDefinition | null
     .maybeSingle();
 
   if (error) {
-    console.error("Error fetching active global template:", error);
+    console.error("Error fetching active global waiver definition:", error);
     return null;
   }
 
@@ -65,10 +65,10 @@ export async function getActiveGlobalTemplate(): Promise<WaiverDefinition | null
 }
 
 /**
- * Create a new global waiver template
+ * Create a new global waiver definition
  * Uses service-role client for all DB and storage operations
  */
-export async function createGlobalWaiverTemplate(
+export async function createGlobalWaiverDefinition(
   title: string,
   pdfFile: FormData,
   builderDefinition: WaiverBuilderDefinition
@@ -87,7 +87,7 @@ export async function createGlobalWaiverTemplate(
 
   // 1. Upload PDF
   const timestamp = Date.now();
-  const filePath = `global-templates/${timestamp}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+  const filePath = `global-definitions/${timestamp}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
   
   const { error: uploadError } = await supabase.storage
     .from('waivers')
@@ -227,10 +227,10 @@ export async function createGlobalWaiverTemplate(
 }
 
 /**
- * Activate a global template (deactivates others)
+ * Activate a global waiver definition (deactivates others)
  * Uses service-role client for DB updates
  */
-export async function activateGlobalTemplate(
+export async function activateGlobalWaiverDefinition(
   definitionId: string
 ): Promise<{ success: boolean; error?: string }> {
   const { isAdmin } = await checkSuperAdmin();
@@ -241,18 +241,18 @@ export async function activateGlobalTemplate(
   const supabase = getAdminClient();
 
   // Validate target exists and is global-scoped
-  const { data: targetTemplate, error: targetError } = await supabase
+  const { data: targetDefinition, error: targetError } = await supabase
     .from('waiver_definitions')
     .select('id')
     .eq('id', definitionId)
     .eq('scope', 'global')
     .single();
 
-  if (targetError || !targetTemplate) {
-    return { success: false, error: 'Global template not found' };
+  if (targetError || !targetDefinition) {
+    return { success: false, error: 'Global waiver definition not found' };
   }
   
-  // Activate target template first, then deactivate others.
+  // Activate target definition first, then deactivate others.
   const { error: activateError } = await supabase
     .from('waiver_definitions')
     .update({ active: true })
@@ -277,10 +277,10 @@ export async function activateGlobalTemplate(
 }
 
 /**
- * Delete a global template (with safety checks)
+ * Delete a global waiver definition (with safety checks)
  * Uses service-role client for safety checks and deletion
  */
-export async function deleteGlobalTemplate(
+export async function deleteGlobalWaiverDefinition(
   definitionId: string
 ): Promise<{ success: boolean; error?: string }> {
   const { isAdmin } = await checkSuperAdmin();
@@ -291,18 +291,18 @@ export async function deleteGlobalTemplate(
   const supabase = getAdminClient();
 
   // Validate target exists and is global-scoped
-  const { data: targetTemplate, error: targetError } = await supabase
+  const { data: targetDefinition, error: targetError } = await supabase
     .from('waiver_definitions')
     .select('id')
     .eq('id', definitionId)
     .eq('scope', 'global')
     .single();
 
-  if (targetError || !targetTemplate) {
-    return { success: false, error: 'Global template not found' };
+  if (targetError || !targetDefinition) {
+    return { success: false, error: 'Global waiver definition not found' };
   }
   
-  // Check if any projects are using this template (though projects link to global via fallback usually)
+  // Check if any projects are explicitly linked to this definition (fallback users remain unaffected)
   // Actually, projects might not directly link to a *specific* global definition ID if they are using fallback.
   // They just have `waiver_definition_id = null`.
   // However, if we ever decided to "copy" a global definition to a project, that would be different.
@@ -317,7 +317,7 @@ export async function deleteGlobalTemplate(
   if (count && count > 0) {
       return {
           success: false,
-          error: `Cannot delete: ${count} signature(s) have been collected with this template.`
+            error: `Cannot delete: ${count} signature(s) have been collected with this waiver definition.`
       };
   }
   
@@ -330,7 +330,7 @@ export async function deleteGlobalTemplate(
   if (projectCount && projectCount > 0) {
     return {
       success: false,
-      error: `Cannot delete: ${projectCount} project(s) are explicitly using this template definition.`
+      error: `Cannot delete: ${projectCount} project(s) are explicitly using this waiver definition.`
     };
   }
   
@@ -349,10 +349,10 @@ export async function deleteGlobalTemplate(
 }
 
 /**
- * Update global template metadata
+ * Update global waiver definition metadata
  * Uses service-role client for DB updates
  */
-export async function updateGlobalTemplateMetadata(
+export async function updateGlobalWaiverDefinitionMetadata(
   definitionId: string,
   updates: { title?: string; }
 ): Promise<{ success: boolean; error?: string }> {

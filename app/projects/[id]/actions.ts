@@ -7,7 +7,7 @@ import { canCancelProject, getMultiDaySlotByScheduleId, getMultiDaySlotDisplayNa
 import { revalidatePath } from "next/cache";
 import { ProjectStatus } from "@/types";
 // Make sure AnonymousSignup is imported from the correct types definition
-import { type Project, type AnonymousSignupData, type ProjectSignup, type SignupStatus, type WaiverSignatureInput, type WaiverTemplate } from "@/types";
+import { type Project, type AnonymousSignupData, type ProjectSignup, type SignupStatus, type WaiverSignatureInput } from "@/types";
 import { headers } from "next/headers";
 import crypto from 'crypto';
 // Import centralized email service
@@ -69,31 +69,6 @@ const WAIVER_SIGNATURE_BUCKET = "waiver-signatures";
 const WAIVER_UPLOAD_BUCKET = "waiver-uploads";
 const MAX_WAIVER_SIGNATURE_BYTES = 2 * 1024 * 1024; // 2MB
 const MAX_WAIVER_UPLOAD_BYTES = 10 * 1024 * 1024; // 10MB
-const PLATFORM_DEFAULT_WAIVER_TEMPLATE_ID = "platform-default-waiver-template-v1";
-
-function buildDefaultPlatformWaiverTemplate(): WaiverTemplate {
-  const now = new Date().toISOString();
-
-  return {
-    id: PLATFORM_DEFAULT_WAIVER_TEMPLATE_ID,
-    title: "Lets Assist Platform Waiver",
-    content: [
-      "WAIVER & RELEASE OF LIABILITY",
-      "",
-      "By participating in this activity, I acknowledge and agree that participation may involve risks, including possible injury, loss, or damage.",
-      "",
-      "I voluntarily assume all such risks and release the organizer, host venue, and affiliated staff/volunteers from claims arising from my participation, except where prohibited by law.",
-      "",
-      "I confirm that I have read this waiver, understand its contents, and agree that my electronic signature is legally binding.",
-      "",
-      "Signed electronically via Lets Assist.",
-    ].join("\n"),
-    version: 1,
-    active: true,
-    created_at: now,
-    updated_at: now,
-  };
-}
 
 type PostgrestErrorLike = {
   message?: string;
@@ -443,50 +418,7 @@ export async function getCreatorProfile(userId: string) {
   return { profile };
 }
 
-export async function getActiveWaiverTemplate() {
-  try {
-    const serviceSupabase = getAdminClient();
-    const { data, error } = await serviceSupabase
-      .from("waiver_templates")
-      .select("*")
-      .eq("active", true)
-      .order("version", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (error) {
-      console.error("Error fetching waiver template:", error);
-      return { error: "Failed to load waiver template" };
-    }
-
-    if (data) {
-      return { template: data };
-    }
-
-    // Be resilient if no row is explicitly active yet.
-    const { data: latestTemplate, error: latestTemplateError } = await serviceSupabase
-      .from("waiver_templates")
-      .select("*")
-      .order("version", { ascending: false })
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (latestTemplateError) {
-      console.error("Error fetching latest waiver template:", latestTemplateError);
-      return { error: "Failed to load waiver template" };
-    }
-
-    return { template: latestTemplate };
-  } catch (error) {
-    console.error("Error fetching waiver template:", error);
-    return { error: "Failed to load waiver template" };
-  }
-}
-
-import { getActiveGlobalTemplate } from '@/app/admin/waivers/actions';
-
-// Get project-specific waiver or fall back to global template
+// Get project-specific waiver or fall back to global waiver definition
 export async function getProjectWaiver(projectId: string) {
   try {
     const serviceSupabase = getAdminClient();
@@ -546,7 +478,6 @@ export async function getProjectWaiver(projectId: string) {
              isWaiverDefinition: true,
           },
           definition,
-          template: null
         };
       }
     }
@@ -561,46 +492,20 @@ export async function getProjectWaiver(projectId: string) {
           waiverPdfStoragePath: project.waiver_pdf_storage_path,
           isProjectSpecific: true,
         },
-        template: null,
+        definition: null,
       };
     }
 
-    // Fall back to active global template (Phase 6)
-    const activeGlobalTemplate = await getActiveGlobalTemplate();
-    
-    if (activeGlobalTemplate) {
-        return {
-            waiverConfig: {
-                waiverRequired: project.waiver_required ?? true,
-                waiverAllowUpload: project.waiver_disable_esignature ? true : (project.waiver_allow_upload ?? true),
-                waiverPdfUrl: activeGlobalTemplate.pdf_public_url,
-                waiverPdfStoragePath: activeGlobalTemplate.pdf_storage_path,
-                isProjectSpecific: false,
-                isWaiverDefinition: true,
-            },
-            definition: activeGlobalTemplate,
-            template: null
-        };
-    }
-
-    // Fall back to legacy global template if no new definition
-    const { template, error: templateError } = await getActiveWaiverTemplate();
-
-    if (templateError) {
-      return { error: templateError };
-    }
-
-    const resolvedTemplate = template ?? buildDefaultPlatformWaiverTemplate();
-
+    // No global waiver fallback - projects must have custom waivers
     return {
       waiverConfig: {
-        waiverRequired: project.waiver_required ?? false,
+        waiverRequired: project.waiver_required ?? true,
         waiverAllowUpload: project.waiver_disable_esignature ? true : (project.waiver_allow_upload ?? true),
         waiverPdfUrl: null,
         waiverPdfStoragePath: null,
         isProjectSpecific: false,
       },
-      template: resolvedTemplate,
+      definition: null,
     };
   } catch (error) {
     console.error("Error fetching project waiver:", error);
@@ -724,7 +629,7 @@ export async function removeProjectWaiverPdf(projectId: string) {
       .update({
         waiver_pdf_url: null,
         waiver_pdf_storage_path: null,
-        // Also detach the project waiver definition so we fall back to the global template.
+        // Also detach the project waiver definition so we fall back to the active global waiver definition.
         waiver_definition_id: null,
       })
       .eq("id", projectId);
@@ -926,17 +831,14 @@ async function persistWaiverSignature(params: {
     }
   }
 
-  const waiverDefinitionId: string | null = params.waiverSignature.definitionId?.trim() || null;
-
-  const rawTemplateId = typeof params.waiverSignature.templateId === "string" ? params.waiverSignature.templateId.trim() : "";
-  let templateId: string | null = rawTemplateId === "project-pdf" ? null : (rawTemplateId || null);
+  const waiverDefinitionIdInput = params.waiverSignature.definitionId?.trim() || null;
+  let waiverDefinitionId: string | null = waiverDefinitionIdInput;
 
   let waiverPdfUrl: string | null = project?.waiver_pdf_url || params.waiverSignature.waiverPdfUrl || null;
   // Phase 1: Default to true for backward compatibility with projects created before this feature
   const waiverAllowUpload = project?.waiver_disable_esignature ? true : (project?.waiver_allow_upload ?? true);
 
-  // New system: waiver_definitions are a complete waiver source (PDF + placements).
-  // If definitionId is present, we should NOT require / validate legacy waiver_templates.
+  // New system: waiver_definitions are the canonical waiver source (PDF + placements).
   if (waiverDefinitionId) {
     const { data: definition, error: defError } = await serviceSupabase
       .from("waiver_definitions")
@@ -957,50 +859,12 @@ async function persistWaiverSignature(params: {
 
     // Prefer an explicitly provided waiverPdfUrl, otherwise use the definition's PDF.
     waiverPdfUrl = waiverPdfUrl || definition.pdf_public_url || null;
-    templateId = null;
   }
 
-  if (!waiverPdfUrl && waiverDefinitionId) {
-    return { error: "No waiver PDF is available for this waiver definition." };
-  }
-
-  // If using project-specific PDF, we don't need a template
-  if (waiverPdfUrl) {
-    templateId = null; // Set to null when using project PDF
-  } else if (templateId && templateId !== "project-pdf") {
-    if (templateId === PLATFORM_DEFAULT_WAIVER_TEMPLATE_ID) {
-      // Built-in fallback template is not persisted in DB.
-      templateId = null;
-    } else {
-      // Validate template if provided and not using project PDF
-      const { data: template, error: templateError } = await serviceSupabase
-        .from("waiver_templates")
-        .select("id")
-        .eq("id", templateId)
-        .maybeSingle();
-
-      if (templateError || !template) {
-        return { error: "Invalid waiver template." };
-      }
-    }
-  } else {
-    // If no PDF and no valid template, get the active global template
-    const { data: activeTemplate } = await serviceSupabase
-      .from("waiver_templates")
-      .select("id")
-      .eq("active", true)
-      .order("version", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (activeTemplate) {
-      templateId = activeTemplate.id;
-    }
-  }
+  // No global waiver fallback - projects must have custom waivers
 
   const { ipAddress, userAgent } = await getRequestMetadata();
   let signaturePayload: Record<string, unknown> | null = null;
-  // waiverDefinitionId resolved above
 
   // Handle Multi-Signer Payload (Phase 4)
   if (params.waiverSignature.signatureType === "multi-signer" && params.waiverSignature.payload) {
@@ -1066,7 +930,6 @@ async function persistWaiverSignature(params: {
   const { error: insertError } = await serviceSupabase
     .from("waiver_signatures")
     .insert({
-      waiver_template_id: templateId,
       waiver_definition_id: waiverDefinitionId,
       waiver_pdf_url: waiverPdfUrl,
       project_id: params.projectId,
@@ -1103,7 +966,6 @@ async function cloneAnonymousWaiverSignatureToSignup(params: {
   const { data: latestSignature, error: fetchError } = await serviceSupabase
     .from("waiver_signatures")
     .select(`
-      waiver_template_id,
       waiver_definition_id,
       waiver_pdf_url,
       signer_name,
@@ -1222,12 +1084,11 @@ export async function signUpForProject(
     }
 
     if (waiverSignature) {
-      const hasTemplateId = typeof waiverSignature.templateId === "string" && waiverSignature.templateId.trim().length > 0;
       const hasDefinitionId = typeof waiverSignature.definitionId === "string" && waiverSignature.definitionId.trim().length > 0;
       const hasWaiverPdfUrl = typeof waiverSignature.waiverPdfUrl === "string" && waiverSignature.waiverPdfUrl.trim().length > 0;
 
-      if (!hasTemplateId && !hasDefinitionId && !hasWaiverPdfUrl) {
-        return { error: "Waiver configuration is missing." };
+      if (!hasDefinitionId && !hasWaiverPdfUrl && waiverSignature.signatureType === "upload") {
+        return { error: "Please attach or reference a waiver document before uploading a signed copy." };
       }
 
       if (

@@ -11,7 +11,6 @@ import {
   Signup,
   WaiverDefinitionFull,
   WaiverSignatureInput,
-  WaiverTemplate,
 } from "@/types";
 import { AuthUser } from '@/lib/supabase/types';
 import type { ProjectCreatorProfileRecord } from '@/lib/profile/public';
@@ -201,7 +200,6 @@ export default function ProjectDetails({
   const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
   const [pendingScheduleId, setPendingScheduleId] = useState<string>("");
   const [publicAttendees, setPublicAttendees] = useState<SlotAttendee[]>([]);
-  const [waiverTemplate, setWaiverTemplate] = useState<WaiverTemplate | null>(null);
   const [waiverDefinition, setWaiverDefinition] = useState<WaiverDefinitionFull | null>(null);
 
   // Add state to track calculated status
@@ -416,10 +414,6 @@ export default function ProjectDetails({
 
         if (result.definition) {
              setWaiverDefinition(result.definition as WaiverDefinitionFull);
-        }
-        
-        if (result.template) {
-             setWaiverTemplate(result.template as WaiverTemplate);
         }
       } catch (error) {
         console.error("Error fetching waiver configuration:", error);
@@ -1872,11 +1866,11 @@ export default function ProjectDetails({
               This project requires an account to sign up.
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
+          <div className="grid gap-2 py-2">
             <div className="flex flex-col gap-4">
               <Button
                 onClick={() => redirectToAuth('login')}
-                className="flex items-center justify-center gap-2"
+                className="flex items-center justify-center"
               >
                 <LogIn className="h-4 w-4" />
                 Login to Your Account
@@ -1884,7 +1878,7 @@ export default function ProjectDetails({
               <Button
                 onClick={() => redirectToAuth('signup')}
                 variant="outline"
-                className="flex items-center justify-center gap-2"
+                className="flex items-center justify-center"
               >
                 <UserPlus className="h-4 w-4" />
                 Create New Account
@@ -1968,8 +1962,8 @@ export default function ProjectDetails({
             <DialogTitle>Quick Sign Up</DialogTitle>
             <DialogDescription>
               {selectedAnonymousScheduleIds.length > 1
-                ? `You selected ${selectedAnonymousScheduleIds.length} slots. Fill this once and we&apos;ll apply it to all selected slots.`
-                : "Please provide your information to sign up. You&apos;ll receive an email to confirm your spot."}
+                ? `You selected ${selectedAnonymousScheduleIds.length} slots. Fill this once and we'll apply it to all selected slots.`
+                : "Please provide your information to sign up. You'll receive an email to confirm your spot."}
             </DialogDescription>
           </DialogHeader>
           <ProjectSignupForm
@@ -1982,7 +1976,6 @@ export default function ProjectDetails({
             waiverRequired={!!project.waiver_required}
             waiverAllowUpload={project.waiver_disable_esignature ? true : (project.waiver_allow_upload ?? true)}
             waiverDisableEsignature={project.waiver_disable_esignature ?? false}
-            waiverTemplate={waiverTemplate}
             waiverPdfUrl={waiverDefinition?.pdf_public_url || project.waiver_pdf_url || null}
             waiverDefinition={waiverDefinition}
           />
@@ -2049,7 +2042,7 @@ export default function ProjectDetails({
                     {!resendTurnstileReady && (
                       <div className="absolute inset-0 z-10 flex items-center justify-center gap-2 rounded-lg bg-background/80 text-[0.7rem] font-semibold uppercase tracking-wide text-muted-foreground">
                         <Shield className="h-4 w-4 text-muted-foreground/80" />
-                        <span className="text-[0.7rem] font-semibold normal-case tracking-wide">
+                        <span className="text-[0.7rem] font-semibold normal-case">
                           Bot verification loading…
                         </span>
                       </div>
@@ -2092,7 +2085,6 @@ export default function ProjectDetails({
           waiverRequired={!!project.waiver_required}
           waiverAllowUpload={project.waiver_disable_esignature ? true : (project.waiver_allow_upload ?? true)}
           waiverDisableEsignature={project.waiver_disable_esignature ?? false}
-          waiverTemplate={waiverTemplate}
           waiverPdfUrl={waiverDefinition?.pdf_public_url || project.waiver_pdf_url || null}
           waiverDefinition={waiverDefinition}
           project={{
