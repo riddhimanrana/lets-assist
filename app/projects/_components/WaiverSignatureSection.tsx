@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
-import { WaiverSignatureInput, WaiverSignatureType, WaiverTemplate } from "@/types";
+import { WaiverSignatureInput, WaiverSignatureType } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -26,9 +26,15 @@ type DetectedWaiverField = {
   options?: string[];
 };
 
+type WaiverContentPreview = {
+  id: string;
+  title?: string | null;
+  content?: string | null;
+};
+
 interface WaiverSignatureSectionProps {
-  // Either template (global waiver) or waiverPdfUrl (project-specific PDF) should be provided
-  template?: WaiverTemplate | null;
+  // Either definition-backed waiver content or waiverPdfUrl (project-specific PDF) should be provided
+  waiverDefinitionPreview?: WaiverContentPreview | null;
   waiverPdfUrl?: string | null;
   signerName?: string | null;
   signerEmail?: string | null;
@@ -38,7 +44,7 @@ interface WaiverSignatureSectionProps {
 }
 
 export function WaiverSignatureSection({
-  template,
+  waiverDefinitionPreview,
   waiverPdfUrl,
   signerName,
   signerEmail,
@@ -65,7 +71,7 @@ export function WaiverSignatureSection({
   const drawingRef = useRef(false);
 
   // Determine if we have a valid waiver source
-  const hasWaiverSource = !!waiverPdfUrl || !!template?.id;
+  const hasWaiverSource = !!waiverPdfUrl || !!waiverDefinitionPreview?.id;
 
   const normalizeFieldLabel = (name: string) => {
     const withSpaces = name
@@ -378,7 +384,7 @@ export function WaiverSignatureSection({
     }
 
     const payload: WaiverSignatureInput = {
-      templateId: template?.id || "project-pdf",
+      definitionId: waiverDefinitionPreview?.id,
       signatureType,
       signatureText: signatureType === "typed" ? typedSignature.trim() : undefined,
       signatureImageDataUrl: signatureType === "draw" ? signatureDataUrl || undefined : undefined,
@@ -392,7 +398,7 @@ export function WaiverSignatureSection({
     };
 
     onChange(payload);
-  }, [isSignatureValid, onChange, signatureType, signatureDataUrl, typedSignature, uploadDataUrl, uploadFileName, uploadFileType, signerName, signerEmail, template?.id, waiverPdfUrl, hasWaiverSource, pdfFields.length, pdfFieldValues]);
+  }, [isSignatureValid, onChange, signatureType, signatureDataUrl, typedSignature, uploadDataUrl, uploadFileName, uploadFileType, signerName, signerEmail, waiverDefinitionPreview?.id, waiverPdfUrl, hasWaiverSource, pdfFields.length, pdfFieldValues]);
 
   const signatureControls = (
     <div className="space-y-4">
@@ -693,7 +699,7 @@ export function WaiverSignatureSection({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Waiver Content - Either PDF or Template */}
+        {/* Waiver Content - Either PDF or definition preview */}
         {waiverPdfUrl ? (
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
             <div className="space-y-3">
@@ -742,10 +748,10 @@ export function WaiverSignatureSection({
             </div>
             {signatureControls}
           </div>
-        ) : template ? (
+        ) : waiverDefinitionPreview ? (
           <div className="space-y-4">
             <div className="rounded-lg border bg-background p-3 max-h-48 overflow-y-auto text-sm">
-              <RichTextContent content={template.content} className="text-muted-foreground text-sm" />
+              <RichTextContent content={waiverDefinitionPreview.content ?? ""} className="text-muted-foreground text-sm" />
             </div>
             {signatureControls}
           </div>

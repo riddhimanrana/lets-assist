@@ -54,14 +54,14 @@ export default function BayAreaExamples() {
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true, amount: 0.4 }}
                     transition={{ duration: 0.35 }}
-                    className="group relative flex h-8 w-24 items-center justify-center px-2"
+                    className="group relative flex h-12 w-32 items-center justify-center px-2"
                   >
                     {partner.logo ? (
                       <Image
                         src={partner.logo}
                         alt={`${partner.name} logo`}
-                        width={64}
-                        height={24}
+                        fill
+                        sizes="128px"
                         className="object-contain opacity-70 grayscale transition duration-200 group-hover:opacity-100 group-hover:grayscale-0"
                       />
                     ) : (

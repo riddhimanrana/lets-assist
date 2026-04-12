@@ -16,6 +16,7 @@ import {
   shouldPromptForMfaChallenge,
   type MfaListFactorsLike,
 } from '@/lib/auth/mfa';
+import { isStaleSupabaseAuthUserError } from '@/lib/supabase/auth-errors';
 
 export type AuthResult = {
   user: AuthUser | null;
@@ -26,6 +27,7 @@ export type AuthResult = {
 type GetAuthUserOptions = {
   sensitive?: boolean;
   allowMfaPending?: boolean;
+  checkMfa?: boolean;
 };
 
 async function sessionRequiresMfa(
@@ -33,26 +35,33 @@ async function sessionRequiresMfa(
   currentAal?: string | null,
 ) {
   if (currentAal === 'aal2') {
-    return false;
+    return { requiresMfa: false, invalidUser: false };
   }
 
   const { data: factorsData, error: factorsError } = await supabase.auth.mfa.listFactors();
 
   if (factorsError) {
+    if (isStaleSupabaseAuthUserError(factorsError)) {
+      return { requiresMfa: false, invalidUser: true };
+    }
+
     if (process.env.NODE_ENV === 'development') {
       console.warn('[AuthHelpers] MFA factor lookup failed:', factorsError.message);
     }
 
-    return false;
+    return { requiresMfa: false, invalidUser: false };
   }
 
   const factorData = (factorsData as MfaListFactorsLike | null) ?? null;
   const assuranceData = deriveAuthenticatorAssurance(currentAal, factorData);
 
-  return shouldPromptForMfaChallenge(
-    assuranceData,
-    factorData,
-  );
+  return {
+    requiresMfa: shouldPromptForMfaChallenge(
+      assuranceData,
+      factorData,
+    ),
+    invalidUser: false,
+  };
 }
 
 /**
@@ -95,6 +104,10 @@ export async function getAuthUser(options?: GetAuthUserOptions): Promise<AuthRes
     const { data: { user }, error } = await supabase.auth.getUser();
 
     if (error) {
+      if (isStaleSupabaseAuthUserError(error)) {
+        return { user: null, error: null };
+      }
+
       return { user: null, error };
     }
 
@@ -102,10 +115,15 @@ export async function getAuthUser(options?: GetAuthUserOptions): Promise<AuthRes
       return { user: null, error: null };
     }
 
-    if (!options.allowMfaPending) {
-      const requiresMfa = await sessionRequiresMfa(supabase);
+    if (options.checkMfa) {
+      const mfaState = await sessionRequiresMfa(supabase);
 
-      if (requiresMfa) {
+      if (mfaState.invalidUser) {
+        await supabase.auth.signOut();
+        return { user: null, error: null };
+      }
+
+      if (mfaState.requiresMfa) {
         return { user: null, error: null, requiresMfa: true };
       }
     }
@@ -139,10 +157,15 @@ export async function getAuthUser(options?: GetAuthUserOptions): Promise<AuthRes
   const { claims } = claimsData;
   const currentAal = typeof claims.aal === 'string' ? claims.aal : null;
 
-  if (!options?.allowMfaPending) {
-    const requiresMfa = await sessionRequiresMfa(supabase, currentAal);
+  const mfaState = await sessionRequiresMfa(supabase, currentAal);
 
-    if (requiresMfa) {
+  if (mfaState.invalidUser) {
+    await supabase.auth.signOut();
+    return { user: null, error: null };
+  }
+
+  if (options?.checkMfa) {
+    if (mfaState.requiresMfa) {
       return { user: null, error: null, requiresMfa: true };
     }
   }

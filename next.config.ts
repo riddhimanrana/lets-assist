@@ -7,30 +7,13 @@ const nextConfig: NextConfig = {
   // in the serverless bundle. Marking it external makes Next.js load it at runtime via
   // require() instead of bundling it, so instrumentation.ts polyfills apply first.
   serverExternalPackages: ['pdfjs-dist'],
+  transpilePackages: ['la-plugin-dv-speech-debate'],
 
   experimental: {
     serverActions: {
       bodySizeLimit: '15mb',
     },
   },
-
-  async rewrites() {
-    return [
-      {
-        source: "/ingest/static/:path*",
-        destination: "https://us-assets.i.posthog.com/static/:path*",
-      },
-      {
-        source: "/ingest/:path*",
-        destination: "https://us.i.posthog.com/:path*",
-      },
-      {
-        source: "/ingest/decide",
-        destination: "https://us.i.posthog.com/decide",
-      },
-    ];
-  },
-  skipTrailingSlashRedirect: true, // This is required to support PostHog trailing slash API requests
   images: {
     remotePatterns: [
       {
@@ -46,6 +29,18 @@ const nextConfig: NextConfig = {
       {
         protocol: "https",
         hostname: "api.lets-assist.com", // supabase custom domain
+        pathname: "/**",
+      },
+      {
+        protocol: "http",
+        hostname: "127.0.0.1",
+        port: "54321",
+        pathname: "/**",
+      },
+      {
+        protocol: "http",
+        hostname: "localhost",
+        port: "54321",
         pathname: "/**",
       }
     ],

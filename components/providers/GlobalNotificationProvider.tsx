@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, Suspense } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import InitialOnboardingModal from "@/components/onboarding/InitialOnboardingModal";
 import FirstLoginTour from "@/components/onboarding/FirstLoginTour";
-import { NotificationProvider } from "@/contexts/NotificationContext";
+import { NotificationProvider } from "@/components/providers/NotificationContext";
 import { useAuth } from "@/hooks/useAuth";
 import { createClient } from "@/lib/supabase/client";
 
@@ -45,6 +45,8 @@ function GlobalNotificationProviderInner({
   ]).current;
 
   const noRedirect = searchParams.get("noRedirect") === "1";
+  const onboardingCompleteParam = searchParams.get("onboarding") === "complete";
+  const [suppressOnboardingAfterReturn, setSuppressOnboardingAfterReturn] = useState(false);
   const isRestrictedPath = !!pathname && restrictedPathsForLoggedInUsers.includes(pathname);
   const shouldRedirectHome = !!user && !isLoading && isRestrictedPath && !noRedirect;
 
@@ -106,6 +108,35 @@ function GlobalNotificationProviderInner({
       router.replace("/home");
     }
   }, [mounted, pathname, router, shouldRedirectHome]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const justFinishedOnboarding =
+      onboardingCompleteParam ||
+      window.sessionStorage.getItem("lets-assist:onboarding-complete") === "true";
+
+    if (!justFinishedOnboarding) {
+      return;
+    }
+
+    setSuppressOnboardingAfterReturn(true);
+    window.sessionStorage.removeItem("lets-assist:onboarding-complete");
+
+    if (onboardingCompleteParam) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("onboarding");
+      window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setSuppressOnboardingAfterReturn(false);
+    }, 1500);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [onboardingCompleteParam]);
 
   const markIntroTourComplete = useCallback(async () => {
     try {
@@ -252,7 +283,12 @@ function GlobalNotificationProviderInner({
       setShowIntroTour(false);
     }
 
-    if (!onboardingCompletedRef.current && !suppressOnboardingModal && isHomeRoute) {
+    if (
+      !onboardingCompletedRef.current &&
+      !suppressOnboardingModal &&
+      isHomeRoute &&
+      !suppressOnboardingAfterReturn
+    ) {
       prepareOnboardingModal();
       setShowOnboardingModal(true);
     } else {
@@ -261,6 +297,7 @@ function GlobalNotificationProviderInner({
   }, [
     user,
     suppressOnboardingModal,
+    suppressOnboardingAfterReturn,
     prepareOnboardingModal,
     homeRouteReady,
     introTourStarted,

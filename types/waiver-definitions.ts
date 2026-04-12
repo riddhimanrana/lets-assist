@@ -11,8 +11,8 @@
 // Core Enums
 // ============================================================================
 
-export type WaiverDefinitionScope = 'project' | 'global';
-export type WaiverDefinitionSource = 'project_pdf' | 'global_pdf' | 'rich_text';
+export type WaiverDefinitionScope = 'project';
+export type WaiverDefinitionSource = 'project_pdf' | 'rich_text';
 export type WaiverFieldType = 'signature' | 'name' | 'date' | 'email' | 'phone' | 'address' | 'text' | 'checkbox' | 'radio' | 'dropdown' | 'initial';
 export type WaiverFieldSource = 'pdf_widget' | 'custom_overlay';
 
@@ -22,7 +22,7 @@ export type WaiverFieldSource = 'pdf_widget' | 'custom_overlay';
 
 /**
  * Waiver Definition
- * Represents a configured waiver template (project-specific or global)
+ * Represents a configured waiver definition (project-specific)
  */
 export interface WaiverDefinition {
   id: string;
@@ -144,7 +144,6 @@ export interface ProjectWithWaiverDefinition {
 export interface WaiverSignatureExtended {
   // Existing fields
   id: string;
-  waiver_template_id: string;
   waiver_pdf_url: string | null;
   project_id: string;
   signup_id: string;

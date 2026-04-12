@@ -12,6 +12,7 @@ import {
     shouldPromptForMfaChallenge,
     type MfaListFactorsLike,
 } from "@/lib/auth/mfa";
+import { isStaleSupabaseAuthUserError } from "@/lib/supabase/auth-errors";
 
 // Paths that require authentication
 const PROTECTED_PATHS = [
@@ -35,6 +36,25 @@ export function isProtectedPath(path: string) {
     );
 }
 
+export function applyPrivateNoStore<T extends NextResponse>(response: T): T {
+    response.headers.set("Cache-Control", "private, no-store");
+    return response;
+}
+
+function clearSupabaseAuthCookies(request: NextRequest, response: NextResponse) {
+    const cookieNames = new Set([
+        ...request.cookies.getAll().map((cookie) => cookie.name),
+        "sb-access-token",
+        "sb-refresh-token",
+    ]);
+
+    for (const name of cookieNames) {
+        if (name.startsWith("sb-")) {
+            response.cookies.delete(name);
+        }
+    }
+}
+
 // Function to check if path is for project creator only
 function isProjectCreatorPath(path: string) {
     const matches = path.match(/^\/projects\/([^/]+)\/(edit|signups|documents|attendance|hours)$/);
@@ -45,6 +65,7 @@ export async function updateSession(request: NextRequest) {
     let supabaseResponse = NextResponse.next({
         request,
     });
+    applyPrivateNoStore(supabaseResponse);
 
     const supabase = createServerClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -108,9 +129,8 @@ export async function updateSession(request: NextRequest) {
             }
 
             const response = NextResponse.redirect(loginUrl);
-            response.cookies.delete('sb-access-token');
-            response.cookies.delete('sb-refresh-token');
-            return response;
+            clearSupabaseAuthCookies(request, response);
+            return applyPrivateNoStore(response);
         }
     }
 
@@ -131,7 +151,7 @@ export async function updateSession(request: NextRequest) {
         !!searchParams.get("org");
 
     if (searchParams.get("noRedirect") === "1") {
-        return supabaseResponse; // Skip redirects if requested
+        return applyPrivateNoStore(supabaseResponse); // Skip redirects if requested
     }
 
     // Handle reset password paths specially
@@ -139,11 +159,10 @@ export async function updateSession(request: NextRequest) {
         if (user) {
             await supabase.auth.signOut();
             const response = NextResponse.redirect(request.url);
-            response.cookies.delete('sb-access-token');
-            response.cookies.delete('sb-refresh-token');
-            return response;
+            clearSupabaseAuthCookies(request, response);
+            return applyPrivateNoStore(response);
         }
-        return supabaseResponse;
+        return applyPrivateNoStore(supabaseResponse);
     }
 
     // Guard the MFA challenge page itself.
@@ -156,11 +175,11 @@ export async function updateSession(request: NextRequest) {
             if (existingRedirect) {
                 loginUrl.searchParams.set("redirect", existingRedirect);
             }
-            return NextResponse.redirect(loginUrl);
+            return applyPrivateNoStore(NextResponse.redirect(loginUrl));
         }
         // Let authenticated users (aal1 or aal2) through; MfaChallengeClient
         // performs the precise check and redirects aal2 users automatically.
-        return supabaseResponse;
+        return applyPrivateNoStore(supabaseResponse);
     }
 
     let requiresMfaChallenge = false;
@@ -175,28 +194,42 @@ export async function updateSession(request: NextRequest) {
     if (shouldCheckMfa) {
         const { data: factorsData, error: factorsError } = await supabase.auth.mfa.listFactors();
 
-        if (factorsError && process.env.NODE_ENV === "development") {
-            console.log("[Proxy] MFA factor lookup error:", factorsError.message);
+        if (factorsError) {
+            if (isStaleSupabaseAuthUserError(factorsError)) {
+                if (process.env.NODE_ENV === "development") {
+                    console.warn("[Proxy] Detected stale/deleted auth user. Signing out and treating request as unauthenticated.");
+                }
+
+                await supabase.auth.signOut();
+                clearSupabaseAuthCookies(request, supabaseResponse);
+                user = null;
+            } else if (process.env.NODE_ENV === "development") {
+                console.log("[Proxy] MFA factor lookup error:", factorsError.message);
+            }
         }
 
-        const factorData = (factorsData as MfaListFactorsLike | null) ?? null;
-        const assuranceData = deriveAuthenticatorAssurance(currentAal, factorData);
+        if (user) {
+            const factorData = (factorsData as MfaListFactorsLike | null) ?? null;
+            const assuranceData = deriveAuthenticatorAssurance(currentAal, factorData);
 
-        requiresMfaChallenge = shouldPromptForMfaChallenge(
-            assuranceData,
-            factorData,
-        );
-
-        if (requiresMfaChallenge) {
-            const continuationPath = deriveMfaContinuationPath({
-                pathname: effectivePathForMfa,
-                search: effectiveSearchForMfa,
-                requestedRedirect: searchParams.get("redirect"),
-            });
-
-            return NextResponse.redirect(
-                new URL(buildMfaRedirectPath(continuationPath), request.url),
+            requiresMfaChallenge = shouldPromptForMfaChallenge(
+                assuranceData,
+                factorData,
             );
+
+            if (requiresMfaChallenge) {
+                const continuationPath = deriveMfaContinuationPath({
+                    pathname: effectivePathForMfa,
+                    search: effectiveSearchForMfa,
+                    requestedRedirect: searchParams.get("redirect"),
+                });
+
+                return applyPrivateNoStore(
+                    NextResponse.redirect(
+                        new URL(buildMfaRedirectPath(continuationPath), request.url),
+                    ),
+                );
+            }
         }
     }
 
@@ -205,32 +238,32 @@ export async function updateSession(request: NextRequest) {
         if (!user) {
             const loginUrl = new URL('/login', request.url);
             loginUrl.searchParams.set('redirect', '/account/profile');
-            return NextResponse.redirect(loginUrl);
+            return applyPrivateNoStore(NextResponse.redirect(loginUrl));
         }
 
-        return NextResponse.redirect(new URL("/account/profile", request.url));
+        return applyPrivateNoStore(NextResponse.redirect(new URL("/account/profile", request.url)));
     }
 
     // Redirect authenticated users trying to access restricted paths
     if (user && isRestrictedPathForLoggedIn) {
         if (hasStaffInviteContext) {
-            return supabaseResponse;
+            return applyPrivateNoStore(supabaseResponse);
         }
 
-        return NextResponse.redirect(new URL("/home", request.url));
+        return applyPrivateNoStore(NextResponse.redirect(new URL("/home", request.url)));
     }
 
     // Redirect non-authenticated users trying to access protected paths
     if (!user && isProtectedPath(currentPath)) {
         const loginUrl = new URL('/login', request.url);
         loginUrl.searchParams.set('redirect', request.nextUrl.pathname);
-        return NextResponse.redirect(loginUrl);
+        return applyPrivateNoStore(NextResponse.redirect(loginUrl));
     }
 
     // Handle admin routes - redirect to 404 if not super admin
     if (currentPath.startsWith("/admin")) {
         if (!user) {
-            return NextResponse.redirect(new URL("/not-found", request.url));
+            return applyPrivateNoStore(NextResponse.redirect(new URL("/not-found", request.url)));
         }
         // Logged-in users proceed; the admin route performs a service-role check server-side.
     }
@@ -241,7 +274,7 @@ export async function updateSession(request: NextRequest) {
         if (!user) {
             const loginUrl = new URL('/login', request.url);
             loginUrl.searchParams.set('redirect', request.nextUrl.pathname);
-            return NextResponse.redirect(loginUrl);
+            return applyPrivateNoStore(NextResponse.redirect(loginUrl));
         }
 
         try {
@@ -253,19 +286,21 @@ export async function updateSession(request: NextRequest) {
 
             if (error) {
                 console.error("Error fetching project for creator check:", error);
-                return NextResponse.redirect(new URL("/home", request.url));
+                return applyPrivateNoStore(NextResponse.redirect(new URL("/home", request.url)));
             }
 
             if (!project || project.creator_id !== user.id) {
-                return NextResponse.redirect(
-                    new URL(`/projects/${projectId}`, request.url)
+                return applyPrivateNoStore(
+                    NextResponse.redirect(
+                        new URL(`/projects/${projectId}`, request.url)
+                    ),
                 );
             }
         } catch (e) {
             console.error("Exception during project creator check:", e);
-            return NextResponse.redirect(new URL("/home", request.url));
+            return applyPrivateNoStore(NextResponse.redirect(new URL("/home", request.url)));
         }
     }
 
-    return supabaseResponse;
+    return applyPrivateNoStore(supabaseResponse);
 }

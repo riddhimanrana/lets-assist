@@ -7,9 +7,10 @@ import {
 } from "@/components/ui/card";
 import Link from "next/link";
 import { Metadata } from "next";
-import { SiGithub } from "react-icons/si";
+import { siGithub } from "simple-icons";
 import { ExternalLink } from "lucide-react";
 import Image from "next/image";
+import { SimpleIcon } from "@/components/ui/simple-icon";
 
 export const metadata: Metadata = {
   title: "Acknowledgements",
@@ -34,7 +35,7 @@ export default function AcknowledgementsPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 mb-1">
               <Image
-                src="/riddhimanrana.webp"
+                src="/resources/riddhiman-rana-logo.webp"
                 alt="Riddhiman Rana"
                 width={24}
                 height={24}
@@ -68,7 +69,7 @@ export default function AcknowledgementsPage() {
         <Card className="transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 mb-1">
-              <SiGithub size={24} />
+              <SimpleIcon icon={siGithub} className="h-6 w-6" />
               Source Code
             </CardTitle>
             <CardDescription>

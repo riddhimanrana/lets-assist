@@ -26,6 +26,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const token_hash = searchParams.get("token_hash");
   const token = searchParams.get("token");
+  const email = searchParams.get("email") ?? undefined;
   const typeParam = (searchParams.get("type") as EmailOtpType | null) ?? null;
   const type: EmailOtpType = typeParam ?? "signup";
   const code = searchParams.get("code");
@@ -34,6 +35,19 @@ export async function GET(request: NextRequest) {
   const isExpiredLinkError = (message: string) => {
     const lowered = message.toLowerCase();
     return lowered.includes("expired") || lowered.includes("otp") || lowered.includes("token");
+  };
+
+  const redirectToExpiredLink = () => {
+    const url = new URL("/auth/email-expired", request.url);
+    if (email) {
+      url.searchParams.set("email", email);
+    }
+    redirect(url.toString());
+  };
+
+  const isPkceVerifierMissingError = (message?: string, code?: string | null) => {
+    const lowered = (message ?? "").toLowerCase();
+    return code === "pkce_code_verifier_not_found" || lowered.includes("pkce code verifier not found");
   };
 
   const getTrustedUser = async () => {
@@ -57,8 +71,11 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error("Code exchange error:", error);
+      if (type === "signup" && isPkceVerifierMissingError(error.message, error.code)) {
+        return redirectToExpiredLink();
+      }
       if (type === "signup" && isExpiredLinkError(error.message ?? "")) {
-        return redirect("/auth/email-expired");
+        return redirectToExpiredLink();
       }
       return redirect(`/error?message=${encodeURIComponent(error.message)}`);
     }
@@ -98,7 +115,7 @@ export async function GET(request: NextRequest) {
   if (error) {
     console.error("Verification error:", error);
     if (type === "signup" && isExpiredLinkError(error.message ?? "")) {
-      return redirect("/auth/email-expired");
+      return redirectToExpiredLink();
     }
     return redirect(`/error?message=${encodeURIComponent(error.message)}`);
   }

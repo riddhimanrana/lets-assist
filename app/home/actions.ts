@@ -1,6 +1,7 @@
 "use server";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { withRetryableSupabaseQuery } from "@/lib/supabase/retry-query";
 import type { Project, ProjectStatus, Organization } from "@/types";
 import {
   ACTIVE_PROJECT_SIGNUP_STATUSES,
@@ -74,7 +75,8 @@ export async function getActiveProjects(
   query = query.range(offset, offset + limit - 1)
     .order("created_at", { ascending: false });
 
-  const { data: projects, error } = (await query) as {
+  const projectsResult = await withRetryableSupabaseQuery(() => query);
+  const { data: projects, error } = projectsResult as {
     data: Project[] | null;
     error: { message?: string } | null;
   };
@@ -91,7 +93,7 @@ export async function getActiveProjects(
   if (projectIds.length > 0) {
     // Fetch aggregate occupancy with the admin client so the public feed can
     // show accurate capacity without exposing who signed up.
-    const { data, error: signupsError } = (await admin
+    const signupsResult = await withRetryableSupabaseQuery(() => admin
       .from("project_signups")
       .select(`
         project_id,
@@ -99,7 +101,9 @@ export async function getActiveProjects(
         status
       `)
       .in("status", [...ACTIVE_PROJECT_SIGNUP_STATUSES])
-      .in("project_id", projectIds)) as {
+      .in("project_id", projectIds));
+
+    const { data, error: signupsError } = signupsResult as {
       data: { project_id: string; schedule_id: string | null; status: string }[] | null;
       error: { message?: string } | null;
     };
@@ -134,10 +138,12 @@ export async function getActiveProjects(
   // Short-circuit: Skip profile query if no creator IDs
   let profiles: Profile[] | null = null;
   if (creatorIds.length > 0) {
-    const { data, error: profilesError } = (await admin
+    const profilesResult = await withRetryableSupabaseQuery(() => admin
       .from("profiles")
       .select("id, avatar_url, full_name, username, created_at")
-      .in("id", creatorIds)) as {
+      .in("id", creatorIds));
+
+    const { data, error: profilesError } = profilesResult as {
       data: Profile[] | null;
       error: { message?: string } | null;
     };
@@ -152,10 +158,12 @@ export async function getActiveProjects(
   // Fetch organizations if needed
   let orgs: Organization[] = [];
   if (orgIds.length > 0) {
-    const { data: organizations, error: orgsError } = (await supabase
+    const orgsResult = await withRetryableSupabaseQuery(() => supabase
       .from("organizations")
       .select("id, name, username, logo_url, verified, type")
-      .in("id", orgIds)) as {
+      .in("id", orgIds));
+
+    const { data: organizations, error: orgsError } = orgsResult as {
       data: Organization[] | null;
       error: { message?: string } | null;
     };

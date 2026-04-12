@@ -11,7 +11,7 @@ import { formatTimeTo12Hour, cn } from "@/lib/utils";
 import { TimezoneBadge } from "@/components/shared/TimezoneBadge";
 import { Project } from "@/types";
 import { getMultiDaySlotByScheduleId, getMultiDaySlotDisplayName } from "@/utils/project";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, type ReactNode } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -21,6 +21,7 @@ import { Progress } from "@/components/ui/progress";
 import { cancelSignup, getAnonymousWaiverSignatureMeta, getWaiverDownloadUrl } from "@/app/projects/[id]/actions";
 import { linkAnonymousToAuthenticatedAccount } from "./actions";
 import { AnonymousLinkingDialog } from "./AnonymousLinkingDialog";
+import type { AnonymousProfileExperienceBehavior } from "@/types";
 
 // Slot data from the server
 interface SlotData {
@@ -183,6 +184,8 @@ interface AnonymousSignupClientProps {
   linkedAccountEmail: string | null;
   linkedAccountVerified: boolean;
   certificateIds: Record<string, string>;
+  anonymousPluginCards: ReactNode[];
+  anonymousPluginBehavior: AnonymousProfileExperienceBehavior | null;
 }
 
 export default function AnonymousSignupClient({
@@ -200,6 +203,8 @@ export default function AnonymousSignupClient({
   linkedAccountEmail,
   linkedAccountVerified,
   certificateIds,
+  anonymousPluginCards: _anonymousPluginCards,
+  anonymousPluginBehavior: _anonymousPluginBehavior,
 }: AnonymousSignupClientProps) {
   type LinkStatus = "unlinked" | "linked" | "verification-pending";
 

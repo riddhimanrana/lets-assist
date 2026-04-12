@@ -16,7 +16,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { DialogFooter } from "@/components/ui/dialog";
 import { useEffect, useState, useCallback, useRef } from "react";
-import type { AnonymousSignupData, WaiverSignatureInput, WaiverTemplate, WaiverDefinitionFull } from "@/types";
+import type { AnonymousSignupData, WaiverSignatureInput, WaiverDefinitionFull } from "@/types";
 import { WaiverSigningDialog } from '@/components/waiver/WaiverSigningDialog';
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Switch } from "@/components/ui/switch";
@@ -138,7 +138,6 @@ interface ProjectFormProps {
   waiverRequired?: boolean;
   waiverAllowUpload?: boolean;
   waiverDisableEsignature?: boolean;
-  waiverTemplate?: WaiverTemplate | null;
   waiverPdfUrl?: string | null;
   waiverDefinition?: WaiverDefinitionFull | null;
 }
@@ -178,7 +177,6 @@ export function ProjectSignupForm({
   waiverRequired = false,
   waiverAllowUpload = true,
   waiverDisableEsignature = false,
-  waiverTemplate = null,
   waiverPdfUrl = null,
   waiverDefinition = null,
 }: ProjectFormProps) {
@@ -615,7 +613,6 @@ export function ProjectSignupForm({
             onClose={() => setIsWaiverDialogOpen(false)}
             waiverDefinition={waiverDefinition}
             waiverPdfUrl={waiverPdfUrl}
-            waiverTemplate={waiverTemplate}
             onComplete={handleWaiverComplete}
             defaultSignerName={signerName}
             defaultSignerEmail={signerEmail}
@@ -642,7 +639,7 @@ export function ProjectSignupForm({
               {!turnstileReady && (
                 <div className="absolute inset-0 z-10 flex items-center justify-center gap-2 rounded-lg bg-background/80 text-[0.7rem] font-semibold uppercase tracking-wide text-muted-foreground">
                   <Shield className="h-4 w-4 text-muted-foreground/80" />
-                  <span className="text-[0.7rem] font-semibold normal-case tracking-wide">
+                  <span className="text-[0.7rem] font-semibold normal-case">
                     Bot verification loading…
                   </span>
                 </div>

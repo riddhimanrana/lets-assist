@@ -4,7 +4,7 @@ import { processPendingDataExportJobs } from "@/lib/supabase/data-export-jobs";
 
 function authorizeCronRequest(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
-  const cronSecret = process.env.CRON_SECRET;
+  const cronSecret = process.env.CRON_TOKEN;
 
   if (!cronSecret) {
     return {

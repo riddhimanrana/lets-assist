@@ -1,6 +1,7 @@
 import React from "react";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
+import { redirect } from "next/navigation";
 import { EmailVerificationToast } from "@/components/auth/EmailVerificationToast";
 import { EmailConfirmationModal } from "@/components/auth/EmailConfirmationModal";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,7 @@ import { NoAvatar } from "@/components/shared/NoAvatar";
 import { Metadata } from "next";
 import { ProjectsInfiniteScroll } from "@/components/projects/ProjectsInfiniteScroll";
 import { checkSuperAdmin } from "@/app/admin/actions";
+import { withRetryableSupabaseQuery } from "@/lib/supabase/retry-query";
 
 export const metadata: Metadata = {
   title: "Home",
@@ -22,13 +24,33 @@ export default async function Home() {
   const supabase = await createClient();
 
   // Get the current user using getClaims() for better performance
-  const { user } = await getAuthUser();
-  const { data: profileData } = await supabase
+  const { user, error: userError } = await getAuthUser();
+  if (userError || !user) {
+    redirect("/login?redirect=/home");
+  }
+
+  const profileResult = await withRetryableSupabaseQuery(() => supabase
     .from("profiles")
     .select("full_name, avatar_url, username")
-    .eq("id", user?.id)
-    .single();
-  const userName = profileData?.full_name || "Anonymous";
+    .eq("id", user.id)
+    .maybeSingle());
+
+  const { data: profileData, error: profileError } = profileResult as {
+    data: { full_name: string | null; avatar_url: string | null; username: string | null } | null;
+    error: { message?: string } | null;
+  };
+
+  if (profileError) {
+    console.warn("[Home] Failed to load profile data:", profileError);
+  }
+  const authMetadata = user.user_metadata as Record<string, unknown> | null | undefined;
+  const userName =
+    profileData?.full_name ||
+    (typeof authMetadata?.full_name === "string" ? authMetadata.full_name : null) ||
+    (typeof authMetadata?.name === "string" ? authMetadata.name : null) ||
+    (typeof authMetadata?.display_name === "string" ? authMetadata.display_name : null) ||
+    user.email?.split("@")[0] ||
+    "Let's Assist user";
 
   // Check if user is super admin
   const { isAdmin } = await checkSuperAdmin();
@@ -41,9 +63,9 @@ export default async function Home() {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
           <div className="flex items-center gap-3" data-tour-id="home-greeting">
             <Avatar className="w-10 h-10">
-              <AvatarImage src={profileData?.avatar_url} alt={userName} />
+              <AvatarImage src={profileData?.avatar_url ?? undefined} alt={userName} />
               <AvatarFallback>
-                <NoAvatar fullName={profileData?.full_name} />
+                <NoAvatar fullName={profileData?.full_name ?? userName} />
               </AvatarFallback>
             </Avatar>
             <div>

@@ -4,6 +4,8 @@
  */
 
 import { createClient } from "@/lib/supabase/server";
+import { getAdminClient } from "@/lib/supabase/admin";
+import { isSuperAdminUser } from "@/lib/auth/super-admin";
 
 export interface AccessControlResult {
   canAccess: boolean;
@@ -142,7 +144,20 @@ export async function canViewPrivateProfile(
  * Check if user is a super admin
  */
 export async function isSuperAdmin(_userId: string): Promise<boolean> {
-  // TODO: Implement super admin check based on your admin system
-  // For now, return false - you may have an admin table or role
-  return false;
+  if (!_userId) {
+    return false;
+  }
+
+  try {
+    const service = getAdminClient();
+    const { data: { user }, error } = await service.auth.admin.getUserById(_userId);
+
+    if (error || !user) {
+      return false;
+    }
+
+    return isSuperAdminUser(user);
+  } catch {
+    return false;
+  }
 }

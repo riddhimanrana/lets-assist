@@ -562,6 +562,27 @@ export default function VerificationSettings({
 
             {waiverRequired && (
               <>
+                <Alert className={cn(
+                  hasWaiverPdf ? "border-warning bg-warning/10" : "border-destructive/40 bg-destructive/5"
+                )}>
+                  <AlertTriangle
+                    className={cn(
+                      "h-4 w-4",
+                      hasWaiverPdf ? "text-warning" : "text-destructive"
+                    )}
+                  />
+                  <AlertDescription
+                    className={cn(
+                      "text-sm",
+                      hasWaiverPdf ? "text-warning" : "text-destructive"
+                    )}
+                  >
+                    {hasWaiverPdf
+                      ? "Waiver-enabled projects must be created directly; drafts aren't available for these projects."
+                      : "Upload the waiver PDF before you can continue or save this project."}
+                  </AlertDescription>
+                </Alert>
+
                 {showWaiverReuploadNotice && !hasWaiverPdf && (
                   <Alert className="bg-warning/10 border-warning">
                     <AlertTriangle className="h-4 w-4 text-warning" />
@@ -704,7 +725,7 @@ export default function VerificationSettings({
 
                       <AlertDescription className="text-info text-xs flex gap-2">
                         <Info className="h-4 w-4 text-info text-xs" />
-                        If you don&apos;t upload a custom waiver, we&apos;ll use the active global platform waiver template (or the default Let&apos;s Assist waiver if none is configured yet).
+                        Projects must have custom waivers. Upload a PDF to enable waiver collection.
                       </AlertDescription>
                     </Alert>
                   )}

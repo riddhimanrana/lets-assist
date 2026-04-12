@@ -27,7 +27,69 @@ interface SendEmailParams {
     attachments?: EmailAttachment[];
 }
 
-export async function sendEmail({ to, subject, html, react, userId, type, attachments }: SendEmailParams) {
+export type SendEmailResult = {
+    success: boolean;
+    data?: { id: string; transport?: string };
+    skipped?: boolean;
+    reason?: string;
+    error?: string | Error;
+};
+
+function shouldUseMailpitTransport(resendClient: Resend | null): boolean {
+    const configured = process.env.EMAIL_TRANSPORT?.trim().toLowerCase();
+    if (configured === 'mailpit') return true;
+    if (configured === 'resend') return false;
+
+    // Local convenience fallback: always route emails to local Mailpit/Inbucket 
+    // in development, unless EMAIL_TRANSPORT=resend is explicitly set.
+    return process.env.NODE_ENV !== 'production';
+}
+
+async function sendViaMailpit({
+    to,
+    subject,
+    html,
+    attachments,
+}: {
+    to: string | string[];
+    subject: string;
+    html: string;
+    attachments?: EmailAttachment[];
+}) {
+    const nodemailer = await import('nodemailer');
+
+    const host = process.env.MAILPIT_HOST?.trim() || '127.0.0.1';
+    const port = Number(process.env.MAILPIT_SMTP_PORT || '54325');
+    const from = process.env.MAILPIT_FROM_EMAIL?.trim() || "Let's Assist <no-reply@local.lets-assist.test>";
+
+    const transporter = nodemailer.createTransport({
+        host,
+        port,
+        secure: false,
+    });
+
+    const response = await transporter.sendMail({
+        from,
+        to,
+        subject,
+        html,
+        attachments: attachments?.map((attachment) => ({
+            filename: attachment.filename,
+            content: attachment.content,
+            encoding: 'base64',
+        })),
+    });
+
+    return {
+        success: true,
+        data: {
+            id: response.messageId,
+            transport: 'mailpit',
+        },
+    };
+}
+
+export async function sendEmail({ to, subject, html, react, userId, type, attachments }: SendEmailParams): Promise<SendEmailResult> {
     const shouldLog = process.env.NODE_ENV !== "test";
 
     // Validate that either html or react is provided
@@ -107,9 +169,32 @@ export async function sendEmail({ to, subject, html, react, userId, type, attach
     // 2. Send email via Resend
     try {
         const resend = getResendClient();
+        // Render React component to HTML if provided
+        const emailHtml = react ? await render(react) : html!;
+
+        if (shouldUseMailpitTransport(resend)) {
+            const mailpitResult = await sendViaMailpit({
+                to,
+                subject,
+                html: emailHtml,
+                attachments,
+            });
+
+            if (shouldLog) {
+                logInfo('Email delivered via local Mailpit transport', {
+                    to: Array.isArray(to) ? to.join(',') : to,
+                    subject,
+                    type,
+                    user_id: userId,
+                });
+            }
+
+            return mailpitResult;
+        }
+
         if (!resend) {
             if (shouldLog) {
-                logWarn('RESEND_API_KEY not set; skipping email send', {
+                logWarn('Email transport unavailable (set EMAIL_TRANSPORT=mailpit locally or configure RESEND_API_KEY)', {
                     to: Array.isArray(to) ? to.join(',') : to,
                     subject,
                     type,
@@ -118,9 +203,6 @@ export async function sendEmail({ to, subject, html, react, userId, type, attach
             }
             return { success: false, skipped: true, reason: 'Email service not configured' };
         }
-
-        // Render React component to HTML if provided
-        const emailHtml = react ? await render(react) : html!;
 
         const { data, error } = await resend.emails.send({
             from: "Let's Assist <projects@notifications.lets-assist.com>",
@@ -152,6 +234,6 @@ export async function sendEmail({ to, subject, html, react, userId, type, attach
                 user_id: userId,
             });
         }
-        return { success: false, error };
+        return { success: false, error: error as Error };
     }
 }

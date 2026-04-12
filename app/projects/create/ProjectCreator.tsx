@@ -26,6 +26,7 @@ import { toast } from "sonner";
 import { createProject, uploadCoverImage, uploadProjectDocument, uploadWaiverPdf, finalizeProject, saveProjectAsNewDraft, autoSaveDraft, deleteDraft, checkProfanity } from "./actions";
 import { saveWaiverDefinition } from "../[id]/actions";
 import { useRouter } from "next/navigation";
+import { getWaiverPdfRequirementError } from "@/lib/projects/waiver-validation";
 // Import Zod schemas
 import {
   basicInfoSchema,
@@ -148,6 +149,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, canUse
   const [showWaiverReuploadNotice, setShowWaiverReuploadNotice] = useState(
     shouldPromptWaiverReuploadFromDraft
   );
+  const waiverPdfRequirementError = getWaiverPdfRequirementError(state);
 
   // Autosave state - initialize with loaded draft ID if available
   const [autosaveDraftId, setAutosaveDraftId] = useState<string | undefined>(initialDraftId || undefined);
@@ -217,6 +219,13 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, canUse
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (!state) return;
+
+    // Waiver-enabled projects currently can't be autosaved as drafts because the
+    // draft payload intentionally strips file objects/URLs. Keep the workflow
+    // explicit so users don't end up with incomplete drafts.
+    if (state.waiverRequired) {
+      return;
+    }
 
     // Don't autosave while submitting/saving to avoid recreating drafts during publish flow
     if (isSubmitting || isSavingDraft) {
@@ -628,6 +637,11 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, canUse
     }
 
     try {
+      if (waiverPdfRequirementError) {
+        toast.error(waiverPdfRequirementError);
+        return;
+      }
+
       setIsSubmitting(true);
 
       const profanityToast = toast.loading("Checking content for inappropriate language...");
@@ -796,6 +810,11 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, canUse
     // Only require a title for drafts
     if (!state.basicInfo.title || state.basicInfo.title.trim() === '') {
       toast.error("Please enter a title to save as draft");
+      return;
+    }
+
+    if (state.waiverRequired) {
+      toast.error("Projects that require waivers can't be saved as drafts.");
       return;
     }
 
@@ -1033,7 +1052,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, canUse
                     variant="secondary"
                     size="icon"
                     onClick={handleSaveDraft}
-                    disabled={isSubmitting || isSavingDraft || !state.basicInfo.title?.trim()}
+                    disabled={isSubmitting || isSavingDraft || !state.basicInfo.title?.trim() || state.waiverRequired}
                     className="h-9 w-9"
                   >
                     {isSavingDraft ? (
@@ -1084,7 +1103,7 @@ export default function ProjectCreator({ initialOrgId, initialOrgOptions, canUse
             {/* Continue / Create button (full) */}
             <Button
               onClick={handleSubmit}
-              disabled={isSubmitting || isSavingDraft}
+              disabled={isSubmitting || isSavingDraft || (state.step === 5 && Boolean(waiverPdfRequirementError))}
               className="w-30"
             >
               {isSubmitting ? (

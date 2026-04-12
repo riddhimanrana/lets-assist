@@ -319,6 +319,20 @@
 
 @layer utilities {
 
+  html .font-overusedgrotesk {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-synthesis: none;
+    text-rendering: geometricPrecision;
+  }
+
+  @media (max-width: 639.98px) {
+    html .font-overusedgrotesk.font-semibold {
+      font-weight: 650;
+      font-variation-settings: "wght" 650;
+    }
+  }
+
   /* Add Tippy.js animations */
   @keyframes shift-away {
     0% {

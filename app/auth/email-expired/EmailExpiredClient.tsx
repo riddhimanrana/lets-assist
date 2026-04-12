@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,19 +10,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { AlertCircle, Mail, RotateCcw, Shield } from "lucide-react";
+import { AlertCircle, Mail, RotateCcw } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { resendVerificationEmail } from "@/app/signup/actions";
 import { toast } from "sonner";
-import { TurnstileComponent, TurnstileRef } from "@/components/ui/turnstile";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { BotVerificationDialog } from "@/components/shared/BotVerificationDialog";
 
 interface EmailExpiredClientProps {
   email: string;
@@ -33,37 +25,22 @@ export default function EmailExpiredClient({
 }: EmailExpiredClientProps) {
   const [isResending, setIsResending] = useState(false);
   const [hasResent, setHasResent] = useState(false);
-  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
-  const [turnstileReady, setTurnstileReady] = useState(false);
   const [isCaptchaOpen, setIsCaptchaOpen] = useState(false);
-  const turnstileRef = useRef<TurnstileRef>(null);
 
-  const closeDialog = () => {
-    setIsCaptchaOpen(false);
-    turnstileRef.current?.reset();
-    setTurnstileToken(null);
-    setTurnstileReady(false);
-  };
-
-  const handleResendEmail = async () => {
+  const handleVerified = async (token: string) => {
     if (!email) {
       toast.error("Email address not found. Please sign up again.");
       return;
     }
 
-    if (!turnstileToken) {
-      toast.error("Please complete the verification challenge before resending.");
-      return;
-    }
-
     setIsResending(true);
     try {
-      const result = await resendVerificationEmail(email, turnstileToken);
+      const result = await resendVerificationEmail(email, token);
 
       if (result.success) {
         setHasResent(true);
         toast.success(result.message || "Verification email resent!");
-        closeDialog();
+        setIsCaptchaOpen(false);
       } else {
         if ("code" in result) {
           if (result.code === "link_expired") {
@@ -202,51 +179,16 @@ export default function EmailExpiredClient({
         </CardContent>
       </Card>
 
-      <Dialog open={isCaptchaOpen} onOpenChange={(open) => !open && closeDialog()}>
-        <DialogContent className="sm:max-w-lg rounded-2xl border border-border/60 bg-background shadow-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-lg font-semibold">Verify before resending</DialogTitle>
-            <DialogDescription className="text-sm text-muted-foreground">
-              Complete the verification challenge so we can safely send a new link to your inbox.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex justify-center py-4">
-            <div className="relative w-[300px] h-[65px] overflow-hidden rounded-lg bg-muted/30 border border-border/50 flex items-center justify-center">
-              {!turnstileReady && (
-                <div className="absolute inset-0 z-10 flex items-center justify-center gap-2 rounded-lg bg-background/80 text-[0.7rem] font-semibold uppercase tracking-wide text-muted-foreground">
-                  <Shield className="h-4 w-4 text-muted-foreground/80" />
-                  <span className="text-[0.7rem] font-semibold normal-case tracking-wide">
-                    Bot verification loading…
-                  </span>
-                </div>
-              )}
-              <TurnstileComponent
-                ref={turnstileRef}
-                onLoad={() => setTurnstileReady(true)}
-                onVerify={(token) => setTurnstileToken(token)}
-                onError={() => {
-                  setTurnstileToken(null);
-                  toast.error("Verification failed. Please try again.");
-                }}
-                onExpire={() => setTurnstileToken(null)}
-                className="h-full w-full"
-              />
-            </div>
-          </div>
-          <DialogFooter className="flex flex-col gap-2">
-            <Button
-              onClick={handleResendEmail}
-              disabled={!turnstileToken || isResending}
-              className="w-full"
-            >
-              {isResending ? 'Sending…' : 'Verify & send'}
-            </Button>
-            <Button variant="ghost" onClick={closeDialog} className="w-full">
-              Cancel
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <BotVerificationDialog
+        isOpen={isCaptchaOpen}
+        onClose={() => setIsCaptchaOpen(false)}
+        onVerified={handleVerified}
+        title="Verify before resending"
+        description="Complete this security challenge to resend your verification email."
+        submitLabel="Resend Email"
+        isLoading={isResending}
+        isSingleStep={true}
+      />
     </div>
   );
 }

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Shield } from "lucide-react";
 import { Controller, useForm } from "react-hook-form";
@@ -20,13 +20,7 @@ import {
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { TurnstileComponent, TurnstileRef } from "@/components/ui/turnstile";
-import {
-  buildMfaRedirectPath,
-  deriveAuthenticatorAssurance,
-  resolvePostAuthRedirectPath,
-  shouldPromptForMfaChallenge,
-  type MfaListFactorsLike,
-} from "@/lib/auth/mfa";
+import { resolvePostAuthRedirectPath } from "@/lib/auth/mfa";
 import { buildStaffInviteRedirectPath } from "@/lib/organization/staff-invite-outcome";
 import {
   getAccountAccessErrorCode,
@@ -48,12 +42,16 @@ interface LoginClientProps {
   redirectPath?: string;
   staffToken?: string;
   orgUsername?: string;
+  inviteToken?: string;
+  prefilledEmail?: string;
 }
 
 export default function LoginClient({
   redirectPath,
   staffToken,
   orgUsername,
+  inviteToken,
+  prefilledEmail,
 }: LoginClientProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
@@ -61,12 +59,12 @@ export default function LoginClient({
   const [_turnstileVerified, setTurnstileVerified] = useState(false);
   const turnstileRef = useRef<TurnstileRef>(null);
   const [turnstileReady, setTurnstileReady] = useState(false);
-  const router = useRouter();
+  const normalizedPrefilledEmail = prefilledEmail?.trim() ?? "";
 
   const form = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: "",
+      email: normalizedPrefilledEmail,
       password: "",
       turnstileToken: "",
     },
@@ -76,6 +74,12 @@ export default function LoginClient({
   const isVerified = searchParams.get("verified") === "true";
   const authError = searchParams.get("error");
   const authReason = searchParams.get("reason");
+
+  const navigateAfterAuth = (path: string) => {
+    // Use hard navigation to ensure the next request includes the freshest auth cookies.
+    // This avoids SSR redirects caused by stale prefetched payloads right after sign-in.
+    window.location.assign(path);
+  };
 
   useEffect(() => {
     if (authError === "network-timeout") {
@@ -170,7 +174,14 @@ export default function LoginClient({
 
       let finalRedirectUrl = defaultRedirectUrl;
 
-      if (staffToken && orgUsername) {
+      // Handle generic invite token (newer flow)
+      if (inviteToken) {
+        const inviteParams = new URLSearchParams({ token: inviteToken });
+        if (orgUsername) inviteParams.set("org", orgUsername);
+        finalRedirectUrl = `/organization/join/invite?${inviteParams.toString()}`;
+      }
+      // Handle staff token (legacy flow)
+      else if (staffToken && orgUsername) {
         const inviteResult = await applyStaffInviteForCurrentUser(
           staffToken,
           orgUsername,
@@ -184,52 +195,20 @@ export default function LoginClient({
         }
       }
 
-      const accessToken = authData.session?.access_token;
-
-      const [
-        { data: claimsData, error: claimsError },
-        { data: factorsData, error: factorsError },
-      ] = await Promise.all([
-        accessToken
-          ? supabase.auth.getClaims(accessToken)
-          : Promise.resolve({ data: null, error: null }),
-        supabase.auth.mfa.listFactors(),
-      ]);
-
-      if (claimsError) {
-        console.error("[LoginClient] Claims lookup failed:", claimsError);
-      }
-
-      if (factorsError) {
-        console.error("[LoginClient] MFA factor lookup failed:", factorsError);
-      }
-
-      const factorData = (factorsData as MfaListFactorsLike | null) ?? null;
-      const assuranceData = deriveAuthenticatorAssurance(
-        typeof claimsData?.claims?.aal === "string" ? claimsData.claims.aal : null,
-        factorData,
-      );
-
-      if (
-        shouldPromptForMfaChallenge(
-          assuranceData,
-          factorData,
-        )
-      ) {
-        // toast.info(
-        //   "Enter the code from your authenticator app to finish signing in.",
-        // );
-        router.replace(buildMfaRedirectPath(finalRedirectUrl));
-        router.refresh();
-        return;
-      }
-
-      router.replace(finalRedirectUrl);
-      router.refresh();
+      navigateAfterAuth(finalRedirectUrl);
       return;
     } catch (error) {
       console.error("[LoginClient] Login error:", error);
-      toast.error("An error occurred. Please try again.");
+
+      if (error instanceof TypeError && error.message.includes("Failed to fetch")) {
+        toast.error("Cannot reach authentication service.", {
+          description:
+            "Supabase appears unreachable from the browser. If you use local Supabase, ensure Docker is running and start it with `bun run supabase:start`.",
+        });
+      } else {
+        toast.error("An error occurred. Please try again.");
+      }
+
       setIsLoading(false);
       turnstileRef.current?.reset();
       setTurnstileVerified(false);
@@ -373,7 +352,7 @@ export default function LoginClient({
                   {!turnstileReady && (
                     <div className="absolute inset-0 z-10 flex items-center justify-center gap-2 rounded-lg bg-background/80 text-[0.7rem] font-semibold uppercase tracking-wide text-muted-foreground">
                       <Shield className="h-4 w-4 text-muted-foreground/80" />
-                      <span className="text-[0.7rem] font-semibold normal-case tracking-wide">
+                      <span className="text-[0.7rem] font-semibold normal-case">
                         Bot verification loading…
                       </span>
                     </div>
@@ -420,6 +399,10 @@ export default function LoginClient({
 
                   if (orgUsername) {
                     params.set("org", orgUsername);
+                  }
+
+                  if (normalizedPrefilledEmail) {
+                    params.set("email", normalizedPrefilledEmail);
                   }
 
                   const query = params.toString();

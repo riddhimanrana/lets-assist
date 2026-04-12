@@ -5,7 +5,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardAction } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
-import { CalendarIcon, MapPin, Plus, Search, Calendar, CheckCircle2, AlertCircle, Clock3, LayoutGrid } from "lucide-react";
+import { CalendarIcon, MapPin, Plus, Search, Calendar, CheckCircle2, AlertCircle, Clock3, LayoutGrid, Folders } from "lucide-react";
 import Link from "next/link";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ProjectStatus, Project } from "@/types";
@@ -128,21 +128,48 @@ export default function ProjectsTab({
               ))}
             </div>
           ) : (
-            <div className="text-center py-8 border rounded-md bg-muted/10">
-              <p className="text-muted-foreground">
+            <div className="flex flex-col items-center justify-center py-16 px-6">
+              <div className="mx-auto w-16 h-16 bg-linear-to-br from-primary/20 to-primary/10 flex items-center justify-center rounded-full mb-5 ring-1 ring-primary/20">
+                {searchTerm ? (
+                  <Search className="h-8 w-8 text-muted-foreground" />
+                ) : activeTab === "upcoming" ? (
+                  <Calendar className="h-8 w-8 text-muted-foreground" />
+                ) : activeTab === "in-progress" ? (
+                  <Clock3 className="h-8 w-8 text-muted-foreground" />
+                ) : activeTab === "completed" ? (
+                  <CheckCircle2 className="h-8 w-8 text-muted-foreground" />
+                ) : activeTab === "cancelled" ? (
+                  <AlertCircle className="h-8 w-8 text-muted-foreground" />
+                ) : (
+                  <Folders className="h-8 w-8 text-muted-foreground" />
+                )}
+              </div>
+              
+              <h3 className="text-lg font-semibold text-foreground mb-2">
+                {searchTerm ? "No projects found" : "None yet"}
+              </h3>
+              
+              <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-6 text-center">
                 {searchTerm
-                  ? `No projects found matching "${searchTerm}"`
+                  ? `We couldn't find any projects matching "${searchTerm}". Try a different search term.`
                   : activeTab === "all"
-                    ? "No projects found in this organization"
-                    : `No ${activeTab} projects found`}
+                    ? "No projects have been created in this organization yet. Create one to get started!"
+                    : activeTab === "upcoming"
+                      ? "There are no upcoming projects scheduled. Create a new project to get started!"
+                      : activeTab === "in-progress"
+                        ? "No projects are currently in progress. Check back later or create a new one!"
+                        : activeTab === "completed"
+                          ? "No completed projects yet. Create and complete a project to see it here!"
+                          : "No cancelled projects."}
               </p>
-              {canCreateProjects && activeTab !== "cancelled" && (
+              
+              {canCreateProjects && activeTab !== "cancelled" && !searchTerm && (
                 <Link
                   href={`/projects/create?org=${organizationId}`}
-                  className={cn(buttonVariants({ variant: "outline" }), "mt-4")}
+                  className={cn(buttonVariants({ size: "sm" }), "")}
                 >
                   <Plus className="h-4 w-4 mr-1.5" />
-                  Create Project
+                  Create First Project
                 </Link>
               )}
             </div>

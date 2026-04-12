@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { sanitizeRichTextHtml } from "@/lib/security/html.server";
+import { getWaiverPdfRequirementError } from "@/lib/projects/waiver-validation";
 import { revalidatePath } from "next/cache";
 import { v4 as uuidv4 } from "uuid";
 import type { EventFormState } from "@/hooks/use-event-form";
@@ -185,6 +186,11 @@ export async function createBasicProject(
     if (orgMember.role !== "admin" && orgMember.role !== "staff") {
       return { error: "Only organization admins and staff can create projects" };
     }
+  }
+
+  const waiverPdfError = getWaiverPdfRequirementError(projectData);
+  if (waiverPdfError) {
+    return { error: waiverPdfError };
   }
 
   try {
@@ -552,6 +558,11 @@ export async function autoSaveDraft(projectData: Partial<EventFormState>, autosa
       return { error: "You must be logged in to autosave a draft", autosaved: false };
     }
 
+    const waiverPdfError = getWaiverPdfRequirementError(sanitizedProjectData);
+    if (waiverPdfError) {
+      return { error: waiverPdfError, autosaved: false };
+    }
+
     // Extract title for easy reference
     const title = sanitizedProjectData.basicInfo?.title || "Untitled Draft";
 
@@ -617,6 +628,11 @@ export async function saveProjectAsNewDraft(formData: FormData) {
       return { error: "You must be logged in to save a draft" };
     }
 
+    const waiverPdfError = getWaiverPdfRequirementError(sanitizedProjectData);
+    if (waiverPdfError) {
+      return { error: waiverPdfError };
+    }
+
     // Extract title for easy reference
     const title = sanitizedProjectData.basicInfo?.title || "Untitled Draft";
 
@@ -658,6 +674,11 @@ export async function saveProjectAsDraft(formData: FormData) {
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
       return { error: "You must be logged in to save a draft" };
+    }
+
+    const waiverPdfError = getWaiverPdfRequirementError(sanitizedProjectData);
+    if (waiverPdfError) {
+      return { error: waiverPdfError };
     }
 
     // Extract title for easy reference
@@ -711,6 +732,10 @@ export async function publishDraft(draftId: string) {
 
   // Create the project from draft data
   const projectData = draft.draft_data;
+  const waiverPdfError = getWaiverPdfRequirementError(projectData);
+  if (waiverPdfError) {
+    return { error: waiverPdfError };
+  }
   const basicResult = await createBasicProject(projectData, false);
   
   if (basicResult.error) {
@@ -765,6 +790,11 @@ export async function updateDraft(projectId: string, projectData: Partial<EventF
 
   if (!projectData.basicInfo || !projectData.eventType || !projectData.schedule?.[projectData.eventType]) {
     return { error: "Incomplete project data for draft update" };
+  }
+
+  const waiverPdfError = getWaiverPdfRequirementError(projectData);
+  if (waiverPdfError) {
+    return { error: waiverPdfError };
   }
 
   const targetVisibility = projectData.visibility || project.visibility || "unlisted";

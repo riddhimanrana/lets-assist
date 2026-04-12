@@ -4,9 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Mail } from "lucide-react";
-import { SiInstagram, SiX } from "react-icons/si";
+import { siInstagram, siX } from "simple-icons";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
+import { SimpleIcon } from "@/components/ui/simple-icon";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 type FooterSystemStatus = "operational" | "degraded" | "outage" | "unknown";
@@ -171,7 +172,7 @@ export function Footer() {
                   className="text-muted-foreground hover:text-foreground"
                   aria-label="Instagram"
                 >
-                  <SiInstagram className="h-4 w-4" />
+                  <SimpleIcon icon={siInstagram} className="h-4 w-4" />
                 </Link>
                 <Link
                   href="https://x.com/letsassistapp"
@@ -180,7 +181,7 @@ export function Footer() {
                   className="text-muted-foreground hover:text-foreground"
                   aria-label="Twitter"
                 >
-                  <SiX className="h-4 w-4" />
+                  <SimpleIcon icon={siX} className="h-4 w-4" />
                 </Link>
                 <Link
                   href="mailto:contact@lets-assist.com"
@@ -226,7 +227,7 @@ export function Footer() {
                 className="text-muted-foreground hover:text-foreground"
                 aria-label="Instagram"
               >
-                <SiInstagram className="h-4 w-4" />
+                <SimpleIcon icon={siInstagram} className="h-4 w-4" />
               </Link>
               <Link
                 href="https://x.com/letsassistapp"
@@ -235,7 +236,7 @@ export function Footer() {
                 className="text-muted-foreground hover:text-foreground"
                 aria-label="Twitter"
               >
-                <SiX className="h-4 w-4" />
+                <SimpleIcon icon={siX} className="h-4 w-4" />
               </Link>
               <Link
                 href="mailto:contact@lets-assist.com"

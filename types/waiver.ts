@@ -2,19 +2,8 @@ import { SignaturePayload } from "./waiver-definitions";
 
 export type WaiverSignatureType = "draw" | "typed" | "upload" | "multi-signer";
 
-export interface WaiverTemplate {
-  id: string;
-  title: string;
-  content: string;
-  version: number;
-  active: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
 export interface WaiverSignature {
   id: string;
-  waiver_template_id: string;
   waiver_pdf_url?: string | null;
   project_id: string;
   signup_id: string;
@@ -35,7 +24,6 @@ export interface WaiverSignature {
 }
 
 export interface WaiverSignatureInput {
-  templateId: string;
   signatureType: WaiverSignatureType;
   signatureText?: string;
   signatureImageDataUrl?: string;

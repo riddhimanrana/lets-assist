@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { customAlphabet } from 'nanoid';
+import { hasSuperAdminMetadata } from "@/lib/auth/super-admin";
 
 // Generate a random 6-digit code
 const generateJoinCode = customAlphabet('0123456789', 6);
@@ -115,6 +116,9 @@ export async function createOrganization(data: OrganizationCreationData) {
     }
   }
 
+  const isSuperAdmin = hasSuperAdminMetadata(user);
+  const organizationLimit = isSuperAdmin ? 2 : 1;
+
   // Rate limiting: Check organizations created in the last 14 days
   const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
   const { count: orgsCount, error: countError } = await supabase
@@ -128,8 +132,12 @@ export async function createOrganization(data: OrganizationCreationData) {
     // Decide if you want to block creation or allow if count fails. For now, allowing.
   }
 
-  if (orgsCount !== null && orgsCount >= 1) {
-    return { error: "You can only create one organization every 14 days." };
+  if (orgsCount !== null && orgsCount >= organizationLimit) {
+    return {
+      error: isSuperAdmin
+        ? "Super admins can create up to two organizations every 14 days."
+        : "You can only create one organization every 14 days.",
+    };
   }
 
   // Double-check username availability

@@ -3,7 +3,10 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import MembersTab from "@/app/organization/[id]/MembersTab";
 import ProjectsTab from "@/app/organization/[id]/ProjectsTab";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { NoAvatar } from "@/components/shared/NoAvatar";
 import { useState, useEffect } from "react";
+import type { ReactNode } from "react";
 import {
   LayoutDashboard,
   Users,
@@ -17,7 +20,8 @@ import {
   MapPin,
   ShieldCheck,
   LogOut,
-  BarChart3
+  BarChart3,
+  Frown
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import Link from "next/link";
@@ -30,7 +34,7 @@ import { Loader2 } from "lucide-react";
 import { ProjectStatusBadge } from "@/components/ui/status-badge";
 import { getProjectStatus } from "@/utils/project";
 import ReportsTab from "@/app/organization/[id]/ReportsTab";
-import type { Organization, Project } from "@/types";
+import type { Organization, Project, ResolvedOrganizationPlugin, OrganizationTabBehavior } from "@/types";
 
 type OrganizationMember = {
   id: string;
@@ -67,6 +71,8 @@ interface OrganizationTabsProps {
   organizationSlug?: string;
   organizationCreatedLabel: string;
   canViewMembers?: boolean;
+  pluginOverviewExtensions?: ReactNode[];
+  pluginTabs?: OrganizationTabBehavior[];
 }
 
 function LeaveOrganizationDialog({
@@ -164,6 +170,8 @@ export default function OrganizationTabs({
   organizationSlug,
   organizationCreatedLabel,
   canViewMembers = true,
+  pluginOverviewExtensions = [],
+  pluginTabs = [],
 }: OrganizationTabsProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -171,10 +179,11 @@ export default function OrganizationTabs({
 
   useEffect(() => {
     const tab = searchParams.get("tab");
-    if (tab && (tab === "overview" || tab === "members" || tab === "projects" || tab === "reports")) {
+    const validTabs = ["overview", "members", "projects", "reports", ...pluginTabs.map(t => t.value)];
+    if (tab && validTabs.includes(tab)) {
       setActiveTab(tab);
     }
-  }, [searchParams]);
+  }, [searchParams, pluginTabs]);
 
   const handleTabChange = (value: string) => {
     setActiveTab(value);
@@ -304,6 +313,14 @@ export default function OrganizationTabs({
             <span className="truncate">Reports</span>
           </TabsTrigger>
         )}
+        {pluginTabs.map((pt) => {
+          return (
+            <TabsTrigger key={pt.value} value={pt.value} className="flex-1 sm:flex-none min-w-0 gap-2 px-3">
+              {pt.icon}
+              <span className="truncate">{pt.label}</span>
+            </TabsTrigger>
+          );
+        })}
       </TabsList>
 
       <TabsContent value="overview" className="space-y-6">
@@ -360,7 +377,7 @@ export default function OrganizationTabs({
             </CardContent>
           </Card>
           {/* Recent Projects Card */}
-          {projects.length > 0 && (
+          {projects.length > 0 ? (
             <Card className="overflow-hidden">
               <CardHeader>
                 <CardTitle className="text-xl! font-bold tracking-tight">Recent Projects</CardTitle>
@@ -386,6 +403,29 @@ export default function OrganizationTabs({
                     </Link>
                   ))}
                 </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="hidden h-full overflow-hidden lg:flex lg:flex-col">
+              <CardHeader>
+                <CardTitle className="text-xl! font-bold tracking-tight">Recent Projects</CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-1 flex-col items-center justify-center px-6 py-10 text-center">
+                <div className="h-16 w-16 rounded-full bg-muted/50 flex items-center justify-center">
+                  <Frown className="h-8 w-8 text-muted-foreground" />
+                </div>
+
+                <div className="mt-4 space-y-2">
+                  <h3 className="text-lg font-semibold">None yet</h3>
+                  <CardDescription className="max-w-xs">
+                    No projects have been added to this organization yet.
+                  </CardDescription>
+                </div>
+
+                {/* <div className="mt-6 inline-flex items-center gap-2 rounded-full border bg-muted/40 px-3 py-1 text-xs text-muted-foreground">
+                  <Folders className="h-3.5 w-3.5" />
+                  Waiting for the first project
+                </div> */}
               </CardContent>
             </Card>
           )}
@@ -427,6 +467,24 @@ export default function OrganizationTabs({
             </div>
           </CardContent>
         </Card>
+
+        {pluginOverviewExtensions.length > 0 && (
+          <Card className="overflow-hidden">
+            <CardHeader>
+              <CardTitle className="text-xl! font-bold tracking-tight">
+                Plugin Extensions
+              </CardTitle>
+              <CardDescription>
+                Organization-specific experience modules contributed by installed plugins.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {pluginOverviewExtensions.map((node, index) => (
+                <div key={`plugin-overview-extension-${index}`}>{node}</div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
 
         {userRole && (
           <Card className="overflow-hidden w-full max-w-140 sm:max-w-none">
@@ -642,6 +700,12 @@ export default function OrganizationTabs({
           />
         </TabsContent>
       )}
+
+      {pluginTabs.map((pt) => (
+        <TabsContent key={pt.value} value={pt.value}>
+          {pt.content}
+        </TabsContent>
+      ))}
     </Tabs>
   );
 }

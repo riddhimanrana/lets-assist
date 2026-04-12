@@ -7,7 +7,6 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import Navbar from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import localFont from "next/font/local";
-import { PostHogProvider } from "./providers";
 
 import { Toaster } from "@/components/ui/sonner";
 import { QueryMessageToast } from "@/components/shared/QueryMessageToast";
@@ -85,6 +84,8 @@ const overusedgrotesk = localFont({
   src: "../public/fonts/OverusedGrotesk-VF.woff2",
   display: "swap",
   variable: "--font-overusedgrotesk",
+  weight: "300 900",
+  style: "normal",
 });
 
 const inter = Inter({
@@ -110,24 +111,22 @@ export default async function RootLayout({
           disableTransitionOnChange
         >
           <AuthProvider>
-            <PostHogProvider>
-              <GlobalNotificationProvider>
-                <div className="bg-background text-foreground min-h-screen flex flex-col w-full">
-                  <SystemStickyBanner />
-                  <Navbar />
-                  <Toaster richColors />
-                  <main className="flex-1 w-full">{children}</main>
-                  <Suspense fallback={null}>
-                    <QueryMessageToast />
-                  </Suspense>
-                  <Footer />
-                  <SpeedInsights />
-                  <Suspense fallback={null}>
-                    <CalendarOAuthCallbackHandler />
-                  </Suspense>
-                </div>
-              </GlobalNotificationProvider>
-            </PostHogProvider>
+            <GlobalNotificationProvider>
+              <div className="bg-background text-foreground min-h-screen flex flex-col w-full">
+                <SystemStickyBanner />
+                <Navbar />
+                <Toaster richColors />
+                <main className="flex-1 w-full">{children}</main>
+                <Suspense fallback={null}>
+                  <QueryMessageToast />
+                </Suspense>
+                <Footer />
+                <SpeedInsights />
+                <Suspense fallback={null}>
+                  <CalendarOAuthCallbackHandler />
+                </Suspense>
+              </div>
+            </GlobalNotificationProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

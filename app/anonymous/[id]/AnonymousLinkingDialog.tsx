@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -35,7 +35,8 @@ import {
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TurnstileComponent, type TurnstileRef } from "@/components/ui/turnstile";
+import { TurnstileComponent } from "@/components/ui/turnstile";
+import { useBotVerification } from "@/hooks/useBotVerification";
 import { shouldRenderTurnstileWidget } from "@/lib/anonymous-signup-security";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
@@ -79,7 +80,6 @@ export function AnonymousLinkingDialog({
   onLinkedPendingVerification,
 }: AnonymousLinkingDialogProps) {
   const router = useRouter();
-  const turnstileRef = useRef<TurnstileRef>(null);
   const [open, setOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"existing" | "create">("existing");
   const [currentUser, setCurrentUser] = useState<CurrentUserState>(null);
@@ -87,11 +87,14 @@ export function AnonymousLinkingDialog({
   const [isLinkingExisting, setIsLinkingExisting] = useState(false);
   const [isCreatingAccount, setIsCreatingAccount] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-  const [turnstileReady, setTurnstileReady] = useState(false);
-  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
-  const [turnstileError, setTurnstileError] = useState<string | null>(null);
   const [verificationDialogOpen, setVerificationDialogOpen] = useState(false);
   const [verificationEmail, setVerificationEmail] = useState(defaultEmail);
+
+  const verification = useBotVerification({
+    onError: () => {
+      toast.error("Security verification failed. Please try again.");
+    },
+  });
 
   const showTurnstileWidget = shouldRenderTurnstileWidget({
     siteKey: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
@@ -159,18 +162,12 @@ export function AnonymousLinkingDialog({
     };
   }, []);
 
-  const resetCaptcha = () => {
-    turnstileRef.current?.reset();
-    setCaptchaToken(null);
-    setTurnstileError(null);
-  };
-
   const requireCaptchaToken = () => {
-    if (!showTurnstileWidget || captchaToken) {
+    if (!showTurnstileWidget || verification.token) {
       return true;
     }
 
-    setTurnstileError("Please complete the security verification challenge.");
+    toast.error("Please complete the security verification challenge.");
     return false;
   };
 
@@ -219,12 +216,12 @@ export function AnonymousLinkingDialog({
           anonymousToken,
           values.email,
           values.password,
-          captchaToken ?? undefined,
+          verification.token ?? undefined,
         );
 
         if (result.error) {
           toast.error(result.error);
-          resetCaptcha();
+          verification.reset();
           return;
         }
 
@@ -236,7 +233,7 @@ export function AnonymousLinkingDialog({
       } catch (error) {
         console.error("Error linking existing account:", error);
         toast.error("Failed to link your account. Please try again.");
-        resetCaptcha();
+        verification.reset();
       } finally {
         setIsLinkingExisting(false);
       }
@@ -257,12 +254,12 @@ export function AnonymousLinkingDialog({
         values.email,
         values.password,
         values.fullName,
-        captchaToken ?? undefined,
+        verification.token ?? undefined,
       );
 
       if (result.error) {
         toast.error(result.error);
-        resetCaptcha();
+        verification.reset();
         return;
       }
 
@@ -272,7 +269,7 @@ export function AnonymousLinkingDialog({
         password: "",
       });
 
-      resetCaptcha();
+      verification.reset();
       setOpen(false);
 
       if (result.requiresEmailVerification) {
@@ -287,7 +284,7 @@ export function AnonymousLinkingDialog({
     } catch (error) {
       console.error("Error creating linked account:", error);
       toast.error("Failed to create your account. Please try again.");
-      resetCaptcha();
+      verification.reset();
     } finally {
       setIsCreatingAccount(false);
     }
@@ -321,8 +318,8 @@ export function AnonymousLinkingDialog({
     existingAccountForm.clearErrors();
     createAccountForm.clearErrors();
     setActiveTab("existing");
-    resetCaptcha();
-  }, [createAccountForm, existingAccountForm, open]);
+    verification.reset();
+  }, [createAccountForm, existingAccountForm, open, verification]);
 
   if (isLinked) {
     return null;
@@ -419,7 +416,7 @@ export function AnonymousLinkingDialog({
                     )}
                   />
 
-                  <Button type="submit" className="w-full sm:w-auto" disabled={isBusy || (showTurnstileWidget && !captchaToken)}>
+                  <Button type="submit" className="w-full sm:w-auto" disabled={isBusy || (showTurnstileWidget && !verification.token)}>
                     {isLinkingExisting ? (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     ) : (
@@ -468,7 +465,7 @@ export function AnonymousLinkingDialog({
                     )}
                   />
 
-                  <Button type="submit" className="w-full sm:w-auto" disabled={isBusy || (showTurnstileWidget && !captchaToken)}>
+                  <Button type="submit" className="w-full sm:w-auto" disabled={isBusy || (showTurnstileWidget && !verification.token)}>
                     {isCreatingAccount ? (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     ) : (
@@ -494,35 +491,26 @@ export function AnonymousLinkingDialog({
 
                 <div className="flex justify-center">
                   <div className="relative flex h-16.25 w-75 items-center justify-center overflow-hidden rounded-lg border border-border/50 bg-background/80">
-                    {!turnstileReady && (
+                    {!verification.isReady && (
                       <div className="absolute inset-0 z-10 flex items-center justify-center gap-2 rounded-lg bg-background/80 text-[0.7rem] font-semibold uppercase tracking-wide text-muted-foreground">
                         <Shield className="h-4 w-4 text-muted-foreground/80" />
-                        <span className="text-[0.7rem] font-semibold normal-case tracking-wide">
+                        <span className="text-[0.7rem] font-semibold normal-case">
                           Bot verification loading…
                         </span>
                       </div>
                     )}
 
                     <TurnstileComponent
-                      ref={turnstileRef}
-                      onLoad={() => setTurnstileReady(true)}
-                      onVerify={(token) => {
-                        setTurnstileError(null);
-                        setCaptchaToken(token);
-                      }}
-                      onError={() => {
-                        resetCaptcha();
-                        setTurnstileError("Security verification failed. Please try again.");
-                      }}
-                      onExpire={() => {
-                        setCaptchaToken(null);
-                        setTurnstileError("Security verification expired. Please complete it again.");
-                      }}
+                      ref={verification.ref}
+                      onLoad={verification.onLoad}
+                      onVerify={verification.onVerify}
+                      onError={verification.onError}
+                      onExpire={() => verification.reset()}
                     />
                   </div>
                 </div>
 
-                {turnstileError && <FieldError>{turnstileError}</FieldError>}
+                {verification.error && <FieldError>{verification.error}</FieldError>}
               </div>
             )}
 

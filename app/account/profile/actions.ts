@@ -38,10 +38,46 @@ const profileInfoSchema = z.object({
 
 export type ProfileInfoValues = z.infer<typeof profileInfoSchema>;
 
+async function ensureProfileExists() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { supabase, user: null as null };
+  }
+
+  const fallbackUsername =
+    user.user_metadata?.username ||
+    user.email?.split("@")[0]?.toLowerCase().replace(/[^a-z0-9_]/g, "-") ||
+    null;
+
+  const fallbackFullName =
+    user.user_metadata?.full_name || user.user_metadata?.name || null;
+
+  await supabase.from("profiles").upsert(
+    {
+      id: user.id,
+      email: user.email ?? null,
+      username: fallbackUsername,
+      full_name: fallbackFullName,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "id" },
+  );
+
+  return { supabase, user };
+}
+
 // New function specifically for updating profile text info (not avatar)
 export async function updateProfileInfo(formData: FormData) {
-  const supabase = await createClient();
-  const userId = (await supabase.auth.getUser()).data.user?.id;
+  const { supabase, user } = await ensureProfileExists();
+  const userId = user?.id;
+
+  if (!userId) {
+    return { error: { server: ["Not authenticated"] } };
+  }
 
   // Get form values
   const fullName = formData.get("fullName")?.toString() || undefined;
@@ -58,45 +94,71 @@ export async function updateProfileInfo(formData: FormData) {
 
   const { fullName: validFullName, username: validUsername } = validatedFields.data;
 
-  // Check for profanity in username
+  // Normalize and validate username uniqueness if provided
   if (validUsername) {
-    const profanity = await checkOffensiveLanguage(validUsername);
+    const normalizedUsername = validUsername.trim().toLowerCase();
+
+    // Check for profanity in username
+    const profanity = await checkOffensiveLanguage(normalizedUsername);
     if (profanity.isProfane) {
       return { error: { username: [profanity.error || "Inappropriate language"] } };
     }
-  }
 
-  // Create an update object with only provided fields
-  const updateFields: {
-    full_name?: string;
-    username?: string;
-    updated_at: string;
-  } = {
-    updated_at: new Date().toISOString(),
-  };
-  
-  if (validFullName !== undefined) updateFields.full_name = validFullName;
-  if (validUsername !== undefined) updateFields.username = validUsername;
+    // Check for uniqueness (excluding current user's existing username)
+    const uniquenessCheck = await checkUsernameUnique(normalizedUsername);
+    if (!uniquenessCheck.available) {
+      return { error: { username: ["This username is already taken"] } };
+    }
 
-  const { error: updateError } = (await supabase
-    .from("profiles")
-    .update(updateFields)
-    .eq("id", userId)) as { error: { message?: string } | null };
+    // Create an update object with normalized username
+    const updateFields: {
+      full_name?: string;
+      username?: string;
+      updated_at: string;
+    } = {
+      updated_at: new Date().toISOString(),
+      username: normalizedUsername,
+    };
+    
+    if (validFullName !== undefined) updateFields.full_name = validFullName;
 
-  if (updateError) {
-    console.log(updateError);
-    return { error: { server: ["Failed to update profile"] } };
+    const { error: updateError } = (await supabase
+      .from("profiles")
+      .update(updateFields)
+      .eq("id", userId)) as { error: { message?: string } | null };
+
+    if (updateError) {
+      console.log(updateError);
+      return { error: { server: ["Failed to update profile"] } };
+    }
+  } else {
+    // Only update full name if no username is being updated
+    const updateFields: {
+      full_name?: string;
+      updated_at: string;
+    } = {
+      updated_at: new Date().toISOString(),
+    };
+    
+    if (validFullName !== undefined) updateFields.full_name = validFullName;
+
+    const { error: updateError } = (await supabase
+      .from("profiles")
+      .update(updateFields)
+      .eq("id", userId)) as { error: { message?: string } | null };
+
+    if (updateError) {
+      console.log(updateError);
+      return { error: { server: ["Failed to update profile"] } };
+    }
   }
   
   return { success: true };
 }
 
 export async function completeOnboarding(formData: FormData) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
+  const { supabase, user } = await ensureProfileExists();
+  const userError = user ? null : new Error("Not authenticated");
 
   if (userError || !user) {
     return { error: { server: ["Not authenticated"] } };
@@ -125,9 +187,17 @@ export async function completeOnboarding(formData: FormData) {
   const { fullName: validFullName, username: validUsername, avatarUrl: validAvatarUrl } = validatedFields.data;
 
   if (validUsername) {
-    const profanity = await checkOffensiveLanguage(validUsername);
+    const normalizedUsername = validUsername.trim().toLowerCase();
+
+    const profanity = await checkOffensiveLanguage(normalizedUsername);
     if (profanity.isProfane) {
       return { error: { username: [profanity.error || "Inappropriate language"] } };
+    }
+
+    // Check for uniqueness
+    const uniquenessCheck = await checkUsernameUnique(normalizedUsername);
+    if (!uniquenessCheck.available) {
+      return { error: { username: ["This username is already taken"] } };
     }
   }
 
@@ -140,7 +210,7 @@ export async function completeOnboarding(formData: FormData) {
   } = {};
   
   if (validFullName !== undefined) updateFields.full_name = validFullName;
-  if (validUsername !== undefined) updateFields.username = validUsername;
+  if (validUsername !== undefined) updateFields.username = validUsername.trim().toLowerCase();
 
   // Only process avatarUrl if it was explicitly included in the form data
   let metadataAvatarUrl: string | null | undefined = undefined;
@@ -235,25 +305,34 @@ export async function completeOnboarding(formData: FormData) {
 
 export async function checkUsernameUnique(username: string) {
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  // Normalize username for consistent comparison
+  const normalizedUsername = username.trim().toLowerCase();
+
   const { data: existingUser, error } = (await supabase
     .from("profiles")
-    .select("username")
-    .eq("username", username)
+    .select("id,username")
+    .eq("username", normalizedUsername)
     .maybeSingle()) as {
-    data: { username?: string | null } | null;
+    data: { id?: string; username?: string | null } | null;
     error: { message?: string } | null;
   };
   if (error) {
     return { available: false, error: error.message };
   }
+
+  if (existingUser && user && existingUser.id === user.id) {
+    return { available: true };
+  }
+
   return { available: !existingUser };
 }
 
 export async function removeProfilePicture() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { supabase, user } = await ensureProfileExists();
 
   if (!user) {
     return { error: { server: ["Not authenticated"] } };
@@ -324,8 +403,8 @@ export async function removeProfilePicture() {
 
 // Extremely simple function with no avatar handling at all
 export async function updateNameAndUsername(fullName?: string, username?: string, phoneNumber?: string) { // Add phoneNumber parameter
-  const supabase = await createClient();
-  const userId = (await supabase.auth.getUser()).data.user?.id;
+  const { supabase, user } = await ensureProfileExists();
+  const userId = user?.id;
 
   if (!userId) {
     return { error: { server: ["Not authenticated"] } };
@@ -382,10 +461,7 @@ export async function updateNameAndUsername(fullName?: string, username?: string
 export async function updateProfileVisibility(
   visibility: ProfileVisibility,
 ) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { supabase, user } = await ensureProfileExists();
 
   if (!user) {
     return { error: { server: ["Not authenticated"] } };

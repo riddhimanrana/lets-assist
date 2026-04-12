@@ -12,7 +12,7 @@
  * ```
  */
 
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -55,8 +55,66 @@ export function useUserProfile(): UseUserProfileReturn {
   const [error, setError] = useState<Error | null>(null);
 
   const supabase = useMemo(() => createClient(), []);
+  const channelNameRef = useRef(`profile-updates-${globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`}`);
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current);
+      channelRef.current = null;
+    }
+
+    const channel = supabase.channel(`${channelNameRef.current}-${user.id}`);
+
+    channel.on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'profiles',
+        filter: `id=eq.${user.id}`,
+      },
+      (payload) => {
+        if (payload.new) {
+          setProfile(payload.new as UserProfile);
+        } else if (payload.old) {
+          setProfile(payload.old as UserProfile);
+        }
+      }
+    );
+
+    channel.on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'notification_settings',
+        filter: `user_id=eq.${user.id}`,
+      },
+      (payload) => {
+        if (payload.new) {
+          setSettings(payload.new as NotificationSettings);
+        } else if (payload.old) {
+          setSettings(payload.old as NotificationSettings);
+        }
+      }
+    );
+
+    channel.subscribe();
+    channelRef.current = channel;
+
+    return () => {
+      if (channelRef.current === channel) {
+        supabase.removeChannel(channel);
+        channelRef.current = null;
+      }
+    };
+  }, [user?.id, supabase]);
 
   const fetchData = useCallback(async (userId: string) => {
+    setLoading(true);
     try {
       // Fetch profile and settings in parallel
       const [profileResult, settingsResult] = await Promise.all([
@@ -102,47 +160,6 @@ export function useUserProfile(): UseUserProfileReturn {
 
     fetchData(user.id);
   }, [user?.id, authLoading, fetchData]);
-
-  // Subscribe to realtime profile updates
-  useEffect(() => {
-    if (!user?.id) return;
-
-    const channel = supabase
-      .channel(`profile-updates-${user.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'profiles',
-          filter: `id=eq.${user.id}`,
-        },
-        (payload) => {
-          if (payload.new) {
-            setProfile(payload.new as UserProfile);
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'notification_settings',
-          filter: `user_id=eq.${user.id}`,
-        },
-        (payload) => {
-          if (payload.new) {
-            setSettings(payload.new as NotificationSettings);
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user?.id, supabase]);
 
   const refetch = useCallback(async () => {
     if (user?.id) {

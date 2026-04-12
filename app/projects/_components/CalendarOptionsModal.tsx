@@ -312,7 +312,7 @@ export default function CalendarOptionsModal({
                   <Loader2 className="h-5 w-5 animate-spin shrink-0 text-primary" />
                 ) : (
                   <Image
-                    src="/googlecalendar.svg"
+                    src="/resources/google-calendar-logo.svg"
                     alt="Google Calendar"
                     width={20}
                     height={20}

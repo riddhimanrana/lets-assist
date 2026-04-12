@@ -834,6 +834,53 @@ export async function revokeGoogleCalendarAccess(
 }
 
 /**
+ * Deactivate the user's active Google connection and optionally revoke it with Google.
+ */
+export async function deactivateGoogleConnection(
+  userId: string,
+  options: { revokeAccess?: boolean } = {}
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createClient();
+
+  const { data: connection, error: fetchError } = await supabase
+    .from("user_calendar_connections")
+    .select("id, refresh_token")
+    .eq("user_id", userId)
+    .eq("provider", "google")
+    .eq("is_active", true)
+    .single();
+
+  if (fetchError || !connection) {
+    return { success: false, error: "No active Google connection found" };
+  }
+
+  if (options.revokeAccess !== false && connection.refresh_token) {
+    try {
+      const decryptedRefreshToken = decrypt(connection.refresh_token);
+      await revokeGoogleCalendarAccess(decryptedRefreshToken);
+    } catch (error) {
+      console.error("Failed to revoke Google access:", error);
+      // Continue deactivating locally even if the remote revoke fails.
+    }
+  }
+
+  const { error: deactivateError } = await supabase
+    .from("user_calendar_connections")
+    .update({
+      is_active: false,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", connection.id);
+
+  if (deactivateError) {
+    console.error("Failed to deactivate Google connection:", deactivateError);
+    return { success: false, error: "Failed to disconnect Google account" };
+  }
+
+  return { success: true };
+}
+
+/**
  * Get user's calendar email
  */
 export async function getCalendarEmail(userId: string): Promise<string | null> {

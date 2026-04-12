@@ -57,8 +57,13 @@ export async function checkUsernameAvailability(username: string): Promise<{ ava
   const supabase = await createClient();
 
   try {
+    const normalizedUsername = username.trim().toLowerCase();
+    const { 
+      data: { user },
+    } = await supabase.auth.getUser();
+
     // 1. Profanity check
-    const profanityResult = await checkOffensiveLanguage(username.toLowerCase());
+    const profanityResult = await checkOffensiveLanguage(normalizedUsername);
     if (profanityResult.isProfane) {
       return { available: false, error: profanityResult.error || "This username contains inappropriate language" };
     }
@@ -66,13 +71,18 @@ export async function checkUsernameAvailability(username: string): Promise<{ ava
     // 2. Uniqueness check
     const { data: existingUser, error } = await supabase
       .from("profiles")
-      .select("username")
-      .eq("username", username)
+      .select("id,username")
+      .eq("username", normalizedUsername)
       .maybeSingle();
 
     if (error) {
       console.error("Error checking username:", error);
       return { available: false, error: error.message };
+    }
+
+    // If the matching username belongs to the current user, it is still available.
+    if (existingUser && user && "id" in existingUser && existingUser.id === user.id) {
+      return { available: true };
     }
 
     return { available: !existingUser };
@@ -136,6 +146,15 @@ export async function completeInitialOnboarding(
 
     if (updateError) {
       console.log("Error updating profile:", updateError);
+      if (
+        "code" in updateError &&
+        updateError.code === "23505" &&
+        "message" in updateError &&
+        typeof updateError.message === "string" &&
+        updateError.message.includes("profiles_username_key")
+      ) {
+        return { error: "Username is already taken" };
+      }
       return { error: "Failed to update profile" };
     }
 
