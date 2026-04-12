@@ -43,6 +43,8 @@ next-env.d.ts
 !/supabase/.gitignore
 !/supabase/config.toml
 !/supabase/seed.sql
+!/supabase/templates/
+!/supabase/templates/**
 !/supabase/migrations/
 !/supabase/migrations/**
 !/supabase/snippets/
