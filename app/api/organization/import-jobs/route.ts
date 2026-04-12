@@ -1,9 +1,26 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
-import { createContactImportJobFromFile } from "@/lib/organization/contact-import-jobs";
+import {
+  createContactImportJobFromFile,
+  importContactsDirectFromFile,
+} from "@/lib/organization/contact-import-jobs";
 
 const SUPPORTED_ROLES = new Set(["staff", "member"]);
+
+function shouldFallbackToDirectImport(errorMessage?: string): boolean {
+  if (!errorMessage) {
+    return false;
+  }
+
+  const normalized = errorMessage.toLowerCase();
+  return (
+    normalized.includes("organization_contact_import_jobs") &&
+    (normalized.includes("schema cache") ||
+      normalized.includes("relation") ||
+      normalized.includes("does not exist"))
+  );
+}
 
 export async function POST(request: Request) {
   try {
@@ -41,6 +58,22 @@ export async function POST(request: Request) {
       );
     }
 
+    const useJobsMode = process.env.CONTACT_IMPORT_USE_JOBS === "true";
+
+    if (!useJobsMode) {
+      const direct = await importContactsDirectFromFile({
+        supabase,
+        organizationId,
+        userId: user.id,
+        role,
+        file,
+      });
+
+      return NextResponse.json(direct, {
+        status: direct.success ? 200 : 400,
+      });
+    }
+
     const result = await createContactImportJobFromFile({
       supabase,
       organizationId,
@@ -48,6 +81,20 @@ export async function POST(request: Request) {
       role,
       file,
     });
+
+    if (!result.success && shouldFallbackToDirectImport(result.error)) {
+      const fallback = await importContactsDirectFromFile({
+        supabase,
+        organizationId,
+        userId: user.id,
+        role,
+        file,
+      });
+
+      return NextResponse.json(fallback, {
+        status: fallback.success ? 200 : 400,
+      });
+    }
 
     return NextResponse.json(result, {
       status: result.success ? 200 : 400,

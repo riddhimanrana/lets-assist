@@ -3,7 +3,7 @@ export interface OrganizationInvitation {
   organization_id: string;
   import_job_id?: string | null;
   email: string;
-  role: 'staff' | 'member';
+  role: 'admin' | 'staff' | 'member';
   token: string;
   invited_by: string | null;
   status: 'pending' | 'accepted' | 'expired' | 'cancelled';
@@ -11,6 +11,9 @@ export interface OrganizationInvitation {
   expires_at: string;
   accepted_at: string | null;
   accepted_by: string | null;
+  invited_full_name?: string | null;
+  invited_phone?: string | null;
+  invited_profile_data?: Record<string, string> | null;
 }
 
 export interface OrganizationInvitationWithDetails extends OrganizationInvitation {
@@ -21,7 +24,7 @@ export interface OrganizationInvitationWithDetails extends OrganizationInvitatio
   organization?: {
     name: string;
     username: string;
-    logo_url: string | null;
+    logo_url?: string | null;
   };
 }
 

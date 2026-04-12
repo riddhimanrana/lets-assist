@@ -5,7 +5,7 @@ export type AiWorkloadScope = "moderation" | "platform" | "plugin";
 const SCOPE_KEY_CANDIDATES: Record<AiWorkloadScope, string[]> = {
   moderation: ["AI_GATEWAY_KEY_MODERATION", "AI_GATEWAY_API_KEY"],
   platform: ["AI_GATEWAY_KEY_PLATFORM", "AI_GATEWAY_API_KEY"],
-  plugin: ["AI_GATEWAY_KEY_PLUGIN", "AI_GATEWAY_API_KEY_PLATFORM", "AI_GATEWAY_API_KEY"],
+  plugin: ["AI_GATEWAY_KEY_PLUGINS", "AI_GATEWAY_KEY_PLUGIN", "AI_GATEWAY_API_KEY_PLATFORM", "AI_GATEWAY_API_KEY"],
 };
 
 const gatewayCache = new Map<string, ReturnType<typeof createGateway>>();

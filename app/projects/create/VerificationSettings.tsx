@@ -562,6 +562,27 @@ export default function VerificationSettings({
 
             {waiverRequired && (
               <>
+                <Alert className={cn(
+                  hasWaiverPdf ? "border-warning bg-warning/10" : "border-destructive/40 bg-destructive/5"
+                )}>
+                  <AlertTriangle
+                    className={cn(
+                      "h-4 w-4",
+                      hasWaiverPdf ? "text-warning" : "text-destructive"
+                    )}
+                  />
+                  <AlertDescription
+                    className={cn(
+                      "text-sm",
+                      hasWaiverPdf ? "text-warning" : "text-destructive"
+                    )}
+                  >
+                    {hasWaiverPdf
+                      ? "Waiver-enabled projects must be created directly; drafts aren't available for these projects."
+                      : "Upload the waiver PDF before you can continue or save this project."}
+                  </AlertDescription>
+                </Alert>
+
                 {showWaiverReuploadNotice && !hasWaiverPdf && (
                   <Alert className="bg-warning/10 border-warning">
                     <AlertTriangle className="h-4 w-4 text-warning" />

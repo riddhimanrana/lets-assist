@@ -69,6 +69,8 @@ export default function PendingInvitations({
   const [actionPending, setActionPending] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   const loadInvitations = async () => {
     setIsLoading(true);
@@ -86,6 +88,10 @@ export default function PendingInvitations({
   useEffect(() => {
     loadInvitations();
   }, [organizationId, statusFilter, refreshKey]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusFilter]);
 
   const handleCancel = async (invitationId: string) => {
     setActionPending(invitationId);
@@ -252,6 +258,8 @@ export default function PendingInvitations({
             <TableHeader>
               <TableRow>
                 <TableHead>Email</TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead>Phone</TableHead>
                 <TableHead>Role</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Sent</TableHead>
@@ -260,13 +268,19 @@ export default function PendingInvitations({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {invitations.map((invitation) => {
+              {invitations.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((invitation) => {
                 const isPending = invitation.status === "pending" && !isExpired(invitation.expires_at);
 
                 return (
                   <TableRow key={invitation.id}>
                     <TableCell className="font-mono text-sm">
                       {invitation.email}
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {invitation.invited_full_name || <span className="text-muted-foreground italic">N/A</span>}
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {invitation.invited_phone || <span className="text-muted-foreground italic">N/A</span>}
                     </TableCell>
                     <TableCell>{getRoleBadge(invitation.role)}</TableCell>
                     <TableCell>{getStatusBadge(invitation)}</TableCell>
@@ -313,6 +327,31 @@ export default function PendingInvitations({
               })}
             </TableBody>
           </Table>
+          {Math.ceil(invitations.length / itemsPerPage) > 1 && (
+            <div className="flex items-center justify-between border-t px-4 py-4">
+              <div className="text-sm text-muted-foreground">
+                Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, invitations.length)} of {invitations.length} entries
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(prev => prev - 1)}
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage === Math.ceil(invitations.length / itemsPerPage)}
+                  onClick={() => setCurrentPage(prev => prev + 1)}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

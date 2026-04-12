@@ -15,6 +15,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -50,6 +58,31 @@ type PluginFormState = {
 };
 
 type PluginBrowserFilter = "all" | "global" | "private";
+
+const PLUGIN_BROWSER_FILTER_ITEMS: Array<{
+  label: string;
+  value: PluginBrowserFilter;
+}> = [
+  { label: "All", value: "all" },
+  { label: "Global", value: "global" },
+  { label: "Private", value: "private" },
+];
+
+const PLUGIN_VISIBILITY_ITEMS: Array<{
+  label: string;
+  value: PluginFormState["visibility"];
+}> = [
+  { label: "Private", value: "private" },
+  { label: "Global", value: "global" },
+];
+
+const ENTITLEMENT_STATUS_ITEMS: Array<{
+  label: string;
+  value: "active" | "inactive";
+}> = [
+  { label: "Active", value: "active" },
+  { label: "Inactive", value: "inactive" },
+];
 
 function getPluginHighlights(plugin: PluginControlPlaneData["plugins"][number]) {
   const items: string[] = [];
@@ -152,29 +185,32 @@ export default function PluginControlPlane({ data }: PluginControlPlaneProps) {
     [data.plugins],
   );
 
-  const pluginMetrics = useMemo(() => {
-    const total = data.plugins.length;
-    const globalCount = data.plugins.filter((plugin) => plugin.visibility === "global").length;
-    const privateCount = total - globalCount;
-    const activeCatalogCount = data.plugins.filter((plugin) => plugin.is_active).length;
-    const totalInstalls = data.plugins.reduce(
-      (count, plugin) => count + plugin.installed_count,
-      0,
-    );
-    const forcePending = data.plugins.reduce(
-      (count, plugin) => count + plugin.force_pending_count,
-      0,
-    );
+  const organizationSelectItems = useMemo(
+    () =>
+      data.organizations.map((organization) => ({
+        label: organization.name,
+        value: organization.id,
+      })),
+    [data.organizations],
+  );
 
-    return {
-      total,
-      globalCount,
-      privateCount,
-      activeCatalogCount,
-      totalInstalls,
-      forcePending,
-    };
-  }, [data.plugins]);
+  const pluginSelectItems = useMemo(
+    () =>
+      pluginOptions.map((plugin) => ({
+        label: plugin.name,
+        value: plugin.key,
+      })),
+    [pluginOptions],
+  );
+
+  const privatePluginSelectItems = useMemo(
+    () =>
+      privatePluginOptions.map((plugin) => ({
+        label: plugin.name,
+        value: plugin.key,
+      })),
+    [privatePluginOptions],
+  );
 
   const filteredPlugins = useMemo(() => {
     const term = pluginSearch.trim().toLowerCase();
@@ -445,50 +481,15 @@ export default function PluginControlPlane({ data }: PluginControlPlaneProps) {
   };
 
   return (
-    <Tabs defaultValue="catalog" className="space-y-6">
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Card className="border-border/60">
-          <CardContent className="pt-4">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">Catalog</p>
-            <p className="text-xl font-semibold">{pluginMetrics.total}</p>
-            <p className="text-xs text-muted-foreground">
-              {pluginMetrics.activeCatalogCount} active entries
-            </p>
-          </CardContent>
-        </Card>
-        <Card className="border-border/60">
-          <CardContent className="pt-4">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">Visibility split</p>
-            <p className="text-xl font-semibold">
-              {pluginMetrics.globalCount} global / {pluginMetrics.privateCount} private
-            </p>
-            <p className="text-xs text-muted-foreground">Tier health at a glance</p>
-          </CardContent>
-        </Card>
-        <Card className="border-border/60">
-          <CardContent className="pt-4">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">Installs</p>
-            <p className="text-xl font-semibold">{pluginMetrics.totalInstalls}</p>
-            <p className="text-xs text-muted-foreground">Enabled org installations</p>
-          </CardContent>
-        </Card>
-        <Card className="border-border/60">
-          <CardContent className="pt-4">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">Rollout backlog</p>
-            <p className="text-xl font-semibold">{pluginMetrics.forcePending}</p>
-            <p className="text-xs text-muted-foreground">Pending force-upgrade installs</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <TabsList className="flex h-auto w-full gap-1 overflow-x-auto rounded-xl border bg-muted/40 p-1 md:grid md:grid-cols-4 md:overflow-visible">
-        <TabsTrigger value="catalog" className="whitespace-nowrap px-4">Catalog</TabsTrigger>
-        <TabsTrigger value="entitlements" className="whitespace-nowrap px-4">Access</TabsTrigger>
-        <TabsTrigger value="deployments" className="whitespace-nowrap px-4">Rollouts</TabsTrigger>
-        <TabsTrigger value="configuration" className="whitespace-nowrap px-4">Config</TabsTrigger>
+    <Tabs defaultValue="catalog" className="w-full gap-4">
+      <TabsList className="w-full justify-start">
+        <TabsTrigger value="catalog">Catalog</TabsTrigger>
+        <TabsTrigger value="entitlements">Access</TabsTrigger>
+        <TabsTrigger value="deployments">Rollouts</TabsTrigger>
+        <TabsTrigger value="configuration">Config</TabsTrigger>
       </TabsList>
 
-      <TabsContent value="catalog" className="mt-6 space-y-4">
+      <TabsContent value="catalog" className="mt-0 flex flex-col gap-4">
       <Card className="border-border/60 shadow-sm">
         <CardHeader className="space-y-2 border-b bg-muted/20">
           <CardTitle>Catalog source of truth</CardTitle>
@@ -515,9 +516,13 @@ export default function PluginControlPlane({ data }: PluginControlPlaneProps) {
                   </div>
 
                   <Dialog open={pluginBrowserOpen} onOpenChange={setPluginBrowserOpen}>
-                    <DialogTrigger className="inline-flex h-9 items-center justify-center rounded-md border bg-background px-4 text-sm font-medium shadow-xs transition-colors hover:bg-muted">
-                      Choose plugin
-                    </DialogTrigger>
+                    <DialogTrigger
+                      render={
+                        <Button type="button" variant="outline">
+                          Choose plugin
+                        </Button>
+                      }
+                    />
                     <DialogContent className="max-h-[80vh] overflow-hidden sm:max-w-3xl">
                       <DialogHeader>
                         <DialogTitle>Choose plugin</DialogTitle>
@@ -532,20 +537,24 @@ export default function PluginControlPlane({ data }: PluginControlPlaneProps) {
                             <Label htmlFor="plugin-browser-filter" className="text-xs">
                               Visibility filter
                             </Label>
-                            <select
-                              id="plugin-browser-filter"
-                              className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                            <Select
+                              items={PLUGIN_BROWSER_FILTER_ITEMS}
                               value={pluginBrowserFilter}
-                              onChange={(event) =>
-                                setPluginBrowserFilter(
-                                  event.target.value as PluginBrowserFilter,
-                                )
+                              onValueChange={(value) =>
+                                setPluginBrowserFilter(value as PluginBrowserFilter)
                               }
                             >
-                              <option value="all">all</option>
-                              <option value="global">global</option>
-                              <option value="private">private</option>
-                            </select>
+                              <SelectTrigger id="plugin-browser-filter" className="w-full">
+                                <SelectValue placeholder="Filter by visibility" />
+                              </SelectTrigger>
+                              <SelectContent alignItemWithTrigger={false}>
+                                <SelectGroup>
+                                  <SelectItem value="all">All</SelectItem>
+                                  <SelectItem value="global">Global</SelectItem>
+                                  <SelectItem value="private">Private</SelectItem>
+                                </SelectGroup>
+                              </SelectContent>
+                            </Select>
                           </div>
                         </div>
 
@@ -649,20 +658,26 @@ export default function PluginControlPlane({ data }: PluginControlPlaneProps) {
             </div>
             <div className="space-y-2">
               <Label htmlFor="plugin-visibility">Visibility</Label>
-              <select
-                id="plugin-visibility"
-                className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+              <Select
+                items={PLUGIN_VISIBILITY_ITEMS}
                 value={pluginForm.visibility}
-                onChange={(event) =>
+                onValueChange={(value) =>
                   setPluginForm((prev) => ({
                     ...prev,
-                    visibility: event.target.value as "global" | "private",
+                    visibility: value as "global" | "private",
                   }))
                 }
               >
-                <option value="private">private</option>
-                <option value="global">global</option>
-              </select>
+                <SelectTrigger id="plugin-visibility" className="w-full">
+                  <SelectValue placeholder="Select visibility" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value="private">Private</SelectItem>
+                    <SelectItem value="global">Global</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="plugin-latest-version">Latest version</Label>
@@ -811,7 +826,7 @@ export default function PluginControlPlane({ data }: PluginControlPlaneProps) {
       </Card>
       </TabsContent>
       
-      <TabsContent value="entitlements" className="mt-6 space-y-4">
+      <TabsContent value="entitlements" className="mt-0 flex flex-col gap-4">
       <Card className="border-border/60 shadow-sm">
         <CardHeader className="space-y-2 border-b bg-muted/20">
           <CardTitle>Organization access</CardTitle>
@@ -823,47 +838,65 @@ export default function PluginControlPlane({ data }: PluginControlPlaneProps) {
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="entitlement-org">Organization</Label>
-              <select
-                id="entitlement-org"
-                className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+              <Select
+                items={organizationSelectItems}
                 value={entitlementOrgId}
-                onChange={(event) => setEntitlementOrgId(event.target.value)}
+                onValueChange={(value) => setEntitlementOrgId(value as string)}
               >
-                {data.organizations.map((organization) => (
-                  <option key={organization.id} value={organization.id}>
-                    {organization.name}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger id="entitlement-org" className="w-full">
+                  <SelectValue placeholder="Select organization" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {data.organizations.map((organization) => (
+                      <SelectItem key={organization.id} value={organization.id}>
+                        {organization.name}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="entitlement-plugin">Plugin</Label>
-              <select
-                id="entitlement-plugin"
-                className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+              <Select
+                items={pluginSelectItems}
                 value={entitlementPluginKey}
-                onChange={(event) => setEntitlementPluginKey(event.target.value)}
+                onValueChange={(value) => setEntitlementPluginKey(value as string)}
               >
-                {pluginOptions.map((plugin) => (
-                  <option key={plugin.key} value={plugin.key}>
-                    {plugin.name}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger id="entitlement-plugin" className="w-full">
+                  <SelectValue placeholder="Select plugin" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {pluginOptions.map((plugin) => (
+                      <SelectItem key={plugin.key} value={plugin.key}>
+                        {plugin.name}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="entitlement-status">Status</Label>
-              <select
-                id="entitlement-status"
-                className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+              <Select
+                items={ENTITLEMENT_STATUS_ITEMS}
                 value={entitlementStatus}
-                onChange={(event) =>
-                  setEntitlementStatus(event.target.value as "active" | "inactive")
+                onValueChange={(value) =>
+                  setEntitlementStatus(value as "active" | "inactive")
                 }
               >
-                <option value="active">active</option>
-                <option value="inactive">inactive</option>
-              </select>
+                <SelectTrigger id="entitlement-status" className="w-full">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="entitlement-start">Starts at (optional)</Label>
@@ -965,33 +998,45 @@ export default function PluginControlPlane({ data }: PluginControlPlaneProps) {
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="bulk-entitlement-plugin">Private plugin</Label>
-              <select
-                id="bulk-entitlement-plugin"
-                className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+              <Select
+                items={privatePluginSelectItems}
                 value={bulkEntitlementPluginKey}
-                onChange={(event) => setBulkEntitlementPluginKey(event.target.value)}
+                onValueChange={(value) => setBulkEntitlementPluginKey(value as string)}
               >
-                {privatePluginOptions.map((plugin) => (
-                  <option key={plugin.key} value={plugin.key}>
-                    {plugin.name}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger id="bulk-entitlement-plugin" className="w-full">
+                  <SelectValue placeholder="Select private plugin" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {privatePluginOptions.map((plugin) => (
+                      <SelectItem key={plugin.key} value={plugin.key}>
+                        {plugin.name}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="bulk-entitlement-status">Status</Label>
-              <select
-                id="bulk-entitlement-status"
-                className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+              <Select
+                items={ENTITLEMENT_STATUS_ITEMS}
                 value={bulkEntitlementStatus}
-                onChange={(event) =>
-                  setBulkEntitlementStatus(event.target.value as "active" | "inactive")
+                onValueChange={(value) =>
+                  setBulkEntitlementStatus(value as "active" | "inactive")
                 }
               >
-                <option value="active">active</option>
-                <option value="inactive">inactive</option>
-              </select>
+                <SelectTrigger id="bulk-entitlement-status" className="w-full">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">
@@ -1033,7 +1078,7 @@ export default function PluginControlPlane({ data }: PluginControlPlaneProps) {
       </Card>
       </TabsContent>
 
-      <TabsContent value="deployments" className="mt-6 space-y-4">
+      <TabsContent value="deployments" className="mt-0 flex flex-col gap-4">
         <Card className="border-border/60 shadow-sm">
           <CardHeader className="space-y-2 border-b bg-muted/20">
             <CardTitle>Rollout execution</CardTitle>
@@ -1045,33 +1090,45 @@ export default function PluginControlPlane({ data }: PluginControlPlaneProps) {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="force-update-org">Organization</Label>
-                <select
-                  id="force-update-org"
-                  className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                <Select
+                  items={organizationSelectItems}
                   value={forceUpdateOrgId}
-                  onChange={(event) => setForceUpdateOrgId(event.target.value)}
+                  onValueChange={(value) => setForceUpdateOrgId(value as string)}
                 >
-                  {data.organizations.map((organization) => (
-                    <option key={organization.id} value={organization.id}>
-                      {organization.name}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger id="force-update-org" className="w-full">
+                    <SelectValue placeholder="Select organization" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {data.organizations.map((organization) => (
+                        <SelectItem key={organization.id} value={organization.id}>
+                          {organization.name}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="force-update-plugin">Plugin</Label>
-                <select
-                  id="force-update-plugin"
-                  className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                <Select
+                  items={pluginSelectItems}
                   value={forceUpdatePluginKey}
-                  onChange={(event) => setForceUpdatePluginKey(event.target.value)}
+                  onValueChange={(value) => setForceUpdatePluginKey(value as string)}
                 >
-                  {pluginOptions.map((plugin) => (
-                    <option key={plugin.key} value={plugin.key}>
-                      {plugin.name}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger id="force-update-plugin" className="w-full">
+                    <SelectValue placeholder="Select plugin" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {pluginOptions.map((plugin) => (
+                        <SelectItem key={plugin.key} value={plugin.key}>
+                          {plugin.name}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
@@ -1116,7 +1173,7 @@ export default function PluginControlPlane({ data }: PluginControlPlaneProps) {
         </Card>
       </TabsContent>
 
-      <TabsContent value="configuration" className="mt-6 space-y-4">
+      <TabsContent value="configuration" className="mt-0 flex flex-col gap-4">
         <Card className="border-border/60 shadow-sm">
           <CardHeader className="space-y-2 border-b bg-muted/20">
             <CardTitle>Install targeting</CardTitle>
@@ -1129,34 +1186,46 @@ export default function PluginControlPlane({ data }: PluginControlPlaneProps) {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="config-org">Organization</Label>
-                <select
-                  id="config-org"
-                  className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                <Select
+                  items={organizationSelectItems}
                   value={configOrganizationId}
-                  onChange={(event) => setConfigOrganizationId(event.target.value)}
+                  onValueChange={(value) => setConfigOrganizationId(value as string)}
                 >
-                  {data.organizations.map((organization) => (
-                    <option key={organization.id} value={organization.id}>
-                      {organization.name}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger id="config-org" className="w-full">
+                    <SelectValue placeholder="Select organization" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {data.organizations.map((organization) => (
+                        <SelectItem key={organization.id} value={organization.id}>
+                          {organization.name}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="config-plugin">Plugin</Label>
-                <select
-                  id="config-plugin"
-                  className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                <Select
+                  items={pluginSelectItems}
                   value={configPluginKey}
-                  onChange={(event) => setConfigPluginKey(event.target.value)}
+                  onValueChange={(value) => setConfigPluginKey(value as string)}
                 >
-                  {pluginOptions.map((plugin) => (
-                    <option key={plugin.key} value={plugin.key}>
-                      {plugin.name}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger id="config-plugin" className="w-full">
+                    <SelectValue placeholder="Select plugin" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {pluginOptions.map((plugin) => (
+                        <SelectItem key={plugin.key} value={plugin.key}>
+                          {plugin.name}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 

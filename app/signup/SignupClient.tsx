@@ -33,12 +33,16 @@ interface SignupClientProps {
   redirectPath?: string;
   staffToken?: string;
   orgUsername?: string;
+  inviteToken?: string;
   prefilledEmail?: string;
+  prefilledName?: string;
+  prefilledPhone?: string;
 }
 
 const signupSchema = z.object({
   fullName: z.string().min(3, "Full name must be at least 3 characters"),
   email: z.string().email("Invalid email address"),
+  phone: z.string().optional(),
   password: z.string().min(8, "Password must be at least 8 characters"),
 });
 
@@ -48,7 +52,10 @@ export default function SignupClient({
   redirectPath,
   staffToken,
   orgUsername,
+  inviteToken,
   prefilledEmail,
+  prefilledName,
+  prefilledPhone,
 }: SignupClientProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
@@ -65,12 +72,15 @@ export default function SignupClient({
   const router = useRouter();
   const isStaffInvite = !!(staffToken && orgUsername);
   const normalizedPrefilledEmail = prefilledEmail?.trim() ?? "";
+  const normalizedPrefilledName = prefilledName?.trim() ?? "";
+  const normalizedPrefilledPhone = prefilledPhone?.trim() ?? "";
 
   const form = useForm<SignupValues>({
     resolver: zodResolver(signupSchema),
     defaultValues: {
-      fullName: "",
+      fullName: normalizedPrefilledName,
       email: normalizedPrefilledEmail,
+      phone: normalizedPrefilledPhone,
       password: "",
     },
   });
@@ -312,7 +322,14 @@ export default function SignupClient({
               name="fullName"
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={field.name}>Full Name</FieldLabel>
+                  <FieldLabel htmlFor={field.name}>
+                    Full Name
+                    {normalizedPrefilledName && (
+                      <span className="ml-2 text-xs text-muted-foreground font-normal italic">
+                        (auto-filled by org admin)
+                      </span>
+                    )}
+                  </FieldLabel>
                   <Input id={field.name} placeholder="John Doe" {...field} aria-invalid={fieldState.invalid} />
                   {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
                 </Field>
@@ -323,8 +340,33 @@ export default function SignupClient({
               name="email"
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={field.name}>Email</FieldLabel>
+                  <FieldLabel htmlFor={field.name}>
+                    Email
+                    {normalizedPrefilledEmail && (
+                      <span className="ml-2 text-xs text-muted-foreground font-normal italic">
+                        (auto-filled by org admin)
+                      </span>
+                    )}
+                  </FieldLabel>
                   <Input id={field.name} placeholder="m@example.com" {...field} aria-invalid={fieldState.invalid} />
+                  {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
+                </Field>
+              )}
+            />
+            <Controller
+              control={form.control}
+              name="phone"
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor={field.name}>
+                    Phone Number (Optional)
+                    {normalizedPrefilledPhone && (
+                      <span className="ml-2 text-xs text-muted-foreground font-normal italic">
+                        (auto-filled by org admin)
+                      </span>
+                    )}
+                  </FieldLabel>
+                  <Input id={field.name} placeholder="+1 555-1234" {...field} aria-invalid={fieldState.invalid} />
                   {fieldState.invalid && <FormMessage errors={[fieldState.error]} />}
                 </Field>
               )}

@@ -502,7 +502,6 @@ export async function upsertOrganizationPluginEntitlement(input: {
         starts_at: dateWindow.startsAt,
         ends_at: dateWindow.endsAt,
         updated_at: new Date().toISOString(),
-        created_by: userId,
       },
       { onConflict: "organization_id,plugin_key" },
     );
@@ -687,7 +686,6 @@ export async function bulkUpsertOrganizationPluginEntitlements(input: {
       status: input.status,
       starts_at: dateWindow.startsAt,
       ends_at: dateWindow.endsAt,
-      created_by: userId,
       updated_at: now,
     }),
   );
@@ -728,8 +726,8 @@ export async function forceUpdateOrganizationPluginInstall(input: {
   organizationId: string;
   pluginKey: string;
 }): Promise<{ success: boolean; error?: string }> {
-  const { isAdmin, userId } = await checkSuperAdmin();
-  if (!isAdmin || !userId) {
+  const { isAdmin } = await checkSuperAdmin();
+  if (!isAdmin) {
     return { success: false, error: "Unauthorized" };
   }
 
@@ -755,9 +753,7 @@ export async function forceUpdateOrganizationPluginInstall(input: {
     .update({
       installed_version: plugin.latest_version,
       enabled: true,
-      auto_update: true,
       last_version_update_at: now,
-      updated_by: userId,
       updated_at: now,
     })
     .eq("organization_id", input.organizationId)
@@ -829,7 +825,6 @@ export async function forceInstallOrganizationPlugin(input: {
             status: "active",
             starts_at: null,
             ends_at: null,
-            created_by: userId,
             updated_at: new Date().toISOString(),
           },
           { onConflict: "organization_id,plugin_key" },
@@ -876,10 +871,8 @@ export async function forceInstallOrganizationPlugin(input: {
         plugin_key: input.pluginKey,
         enabled: true,
         installed_version: plugin.latest_version,
-        auto_update: true,
         installed_by: userId,
         installed_at: now,
-        updated_by: userId,
         last_version_update_at: now,
         updated_at: now,
       },
@@ -923,8 +916,8 @@ export async function setOrganizationPluginInstallStateByAdmin(input: {
     });
   }
 
-  const { isAdmin, userId } = await checkSuperAdmin();
-  if (!isAdmin || !userId) {
+  const { isAdmin } = await checkSuperAdmin();
+  if (!isAdmin) {
     return { success: false, error: "Unauthorized" };
   }
 
@@ -935,7 +928,6 @@ export async function setOrganizationPluginInstallStateByAdmin(input: {
     .from("organization_plugin_installs")
     .update({
       enabled: false,
-      updated_by: userId,
       updated_at: now,
     })
     .eq("organization_id", input.organizationId)
@@ -1046,7 +1038,6 @@ export async function upsertOrganizationPluginInstallConfiguration(input: {
         organization_id: input.organizationId,
         plugin_key: input.pluginKey,
         enabled: false,
-        auto_update: true,
         configuration: parsedConfiguration,
         updated_at: new Date().toISOString(),
       });

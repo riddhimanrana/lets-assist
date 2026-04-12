@@ -42,6 +42,7 @@ interface LoginClientProps {
   redirectPath?: string;
   staffToken?: string;
   orgUsername?: string;
+  inviteToken?: string;
   prefilledEmail?: string;
 }
 
@@ -49,6 +50,7 @@ export default function LoginClient({
   redirectPath,
   staffToken,
   orgUsername,
+  inviteToken,
   prefilledEmail,
 }: LoginClientProps) {
   const [isLoading, setIsLoading] = useState(false);
@@ -172,7 +174,14 @@ export default function LoginClient({
 
       let finalRedirectUrl = defaultRedirectUrl;
 
-      if (staffToken && orgUsername) {
+      // Handle generic invite token (newer flow)
+      if (inviteToken) {
+        const inviteParams = new URLSearchParams({ token: inviteToken });
+        if (orgUsername) inviteParams.set("org", orgUsername);
+        finalRedirectUrl = `/organization/join/invite?${inviteParams.toString()}`;
+      }
+      // Handle staff token (legacy flow)
+      else if (staffToken && orgUsername) {
         const inviteResult = await applyStaffInviteForCurrentUser(
           staffToken,
           orgUsername,

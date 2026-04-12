@@ -1,22 +1,36 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
 import { formatDistanceToNowStrict } from "date-fns";
 import {
+  AlertTriangle,
+  Check,
   Columns3Cog,
+  Info,
   Loader2,
-  Shield,
   Puzzle,
   Search,
   Settings2,
+  Shield,
   Store,
+  Trash2,
   Wrench,
 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Card,
   CardContent,
@@ -46,20 +60,22 @@ import {
   FieldLabel,
   FieldTitle,
 } from "@/components/ui/field";
-import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { Input } from "@/components/ui/input";
 import {
-  NativeSelect,
-  NativeSelectOption,
-} from "@/components/ui/native-select";
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import type { OrganizationPluginAdminSetting } from "@/types";
+import type { OrganizationPluginAdminSetting, OrganizationPluginScope } from "@/types";
 import {
   getOrganizationPluginSettings,
   setOrganizationPluginInstallState,
+  uninstallOrganizationPlugin,
   updateOrganizationPluginConfiguration,
   updateOrganizationPluginToLatest,
   type OrganizationPluginSettingsResult,
@@ -71,9 +87,17 @@ type OrganizationPluginSettingsProps = {
 
 type MarketplaceFilter = "all" | "installed" | "available" | "updates";
 type SettingsEditorMode = "guided" | "json";
+type PluginActionIntent = "install" | "uninstall";
+
+type PluginActionConfirmation = {
+  plugin: OrganizationPluginAdminSetting;
+  intent: PluginActionIntent;
+} | null;
+
 type ConfigSchemaProperty = NonNullable<
   OrganizationPluginAdminSetting["configSchema"]
 >["properties"][string];
+
 type ConfigFieldKind =
   | "text"
   | "textarea"
@@ -106,6 +130,18 @@ function stringifyConfig(config: Record<string, unknown>): string {
   return JSON.stringify(config, null, 2);
 }
 
+function encodeEnumValue(value: unknown): string {
+  return JSON.stringify(value);
+}
+
+function decodeEnumValue(value: string): unknown {
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return value;
+  }
+}
+
 function resolveConfigFieldKind(property: ConfigSchemaProperty): ConfigFieldKind {
   if (Array.isArray(property.enum) && property.enum.length > 0) {
     return "enum";
@@ -130,19 +166,52 @@ function resolveConfigFieldKind(property: ConfigSchemaProperty): ConfigFieldKind
   return "unsupported";
 }
 
-function encodeEnumValue(value: unknown): string {
-  return JSON.stringify(value);
-}
-
-function decodeEnumValue(value: string): unknown {
-  try {
-    return JSON.parse(value) as unknown;
-  } catch {
-    return value;
+function formatOwnerTypeLabel(
+  ownerType: OrganizationPluginAdminSetting["ownerType"],
+): string {
+  switch (ownerType) {
+    case "partner":
+      return "Partner";
+    case "community":
+      return "Community";
+    case "platform-official":
+    default:
+      return "Platform official";
   }
 }
 
-function formatLastUpdated(lastUpdatedAt: string | null): string {
+function formatScopeLabel(scope: OrganizationPluginScope): string {
+  switch (scope) {
+    case "org:read":
+      return "Read organization data";
+    case "org:write":
+      return "Modify organization settings";
+    case "members:read":
+      return "Read member list";
+    case "members:write":
+      return "Manage members and roles";
+    case "projects:read":
+      return "Read projects";
+    case "projects:write":
+      return "Create or modify projects";
+    case "signups:read":
+      return "Read anonymous signups";
+    case "signups:write":
+      return "Modify anonymous signups";
+    case "notifications:send":
+      return "Send notifications";
+    case "storage:read":
+      return "Read storage files";
+    case "storage:write":
+      return "Upload and modify storage files";
+    case "api:expose":
+      return "Expose custom API endpoints";
+    default:
+      return scope;
+  }
+}
+
+function formatLastUpdated(lastUpdatedAt: string | null | undefined): string {
   if (!lastUpdatedAt) {
     return "Unknown";
   }
@@ -152,7 +221,7 @@ function formatLastUpdated(lastUpdatedAt: string | null): string {
     return "Unknown";
   }
 
-  return `${formatDistanceToNowStrict(parsedDate, { addSuffix: true })}`;
+  return formatDistanceToNowStrict(parsedDate, { addSuffix: true });
 }
 
 export default function OrganizationPluginSettings({
@@ -165,6 +234,9 @@ export default function OrganizationPluginSettings({
   const [marketplaceSearch, setMarketplaceSearch] = useState("");
   const [marketplaceFilter, setMarketplaceFilter] =
     useState<MarketplaceFilter>("all");
+  const [pluginActionConfirmation, setPluginActionConfirmation] =
+    useState<PluginActionConfirmation>(null);
+  const [installConsentChecked, setInstallConsentChecked] = useState(false);
   const [settingsPluginKey, setSettingsPluginKey] = useState<string | null>(null);
   const [settingsEditorMode, setSettingsEditorMode] =
     useState<SettingsEditorMode>("json");
@@ -172,7 +244,7 @@ export default function OrganizationPluginSettings({
   const [settingsJson, setSettingsJson] = useState("{}");
   const [settingsSaving, setSettingsSaving] = useState(false);
 
-  const loadSettings = async () => {
+  const loadSettings = useCallback(async () => {
     try {
       setLoading(true);
       const settingsResult = await getOrganizationPluginSettings(organizationId);
@@ -185,11 +257,11 @@ export default function OrganizationPluginSettings({
     } finally {
       setLoading(false);
     }
-  };
+  }, [organizationId]);
 
   useEffect(() => {
     void loadSettings();
-  }, [organizationId]);
+  }, [loadSettings]);
 
   const plugins = useMemo(() => result?.plugins ?? [], [result]);
   const enabledCount = useMemo(
@@ -207,10 +279,19 @@ export default function OrganizationPluginSettings({
       ).length,
     [plugins],
   );
+
   const activeSettingsPlugin = useMemo(
     () => plugins.find((plugin) => plugin.key === settingsPluginKey) ?? null,
     [plugins, settingsPluginKey],
   );
+
+  const activePluginActionId = pluginActionConfirmation
+    ? `${pluginActionConfirmation.plugin.key}:${pluginActionConfirmation.intent}`
+    : null;
+  const activePluginAction = pluginActionConfirmation?.plugin ?? null;
+  const isInstallAction = pluginActionConfirmation?.intent === "install";
+  const isPluginActionSubmitting =
+    Boolean(activePluginActionId) && updatingActionId === activePluginActionId;
 
   const configFields = useMemo<ConfigFieldDescriptor[]>(() => {
     if (!activeSettingsPlugin?.configSchema) {
@@ -246,10 +327,18 @@ export default function OrganizationPluginSettings({
         return true;
       }
 
-      return [plugin.name, plugin.key, plugin.navLabel, plugin.description]
+      const searchableText = [
+        plugin.name,
+        plugin.key,
+        plugin.navLabel,
+        plugin.description ?? "",
+        plugin.detailedDescription,
+        plugin.ownerName,
+      ]
         .join(" ")
-        .toLowerCase()
-        .includes(term);
+        .toLowerCase();
+
+      return searchableText.includes(term);
     });
   }, [marketplaceSearch, plugins]);
 
@@ -260,6 +349,7 @@ export default function OrganizationPluginSettings({
 
   const installedPlugins = useMemo(() => {
     const base = searchedPlugins.filter((plugin) => plugin.installed);
+
     if (marketplaceFilter === "updates") {
       return base.filter(
         (plugin) => plugin.updateAvailable || plugin.forceUpdateRequired,
@@ -276,6 +366,11 @@ export default function OrganizationPluginSettings({
     marketplaceFilter === "installed" ||
     marketplaceFilter === "updates";
 
+  const visiblePluginCount =
+    (showAvailableSection ? availablePlugins.length : 0) +
+    (showInstalledSection ? installedPlugins.length : 0);
+  const useMarketplaceScroll = visiblePluginCount > 1;
+
   useEffect(() => {
     if (settingsPluginKey && settingsEditorMode === "guided") {
       setSettingsJson(stringifyConfig(settingsValues));
@@ -286,33 +381,90 @@ export default function OrganizationPluginSettings({
     plugin: OrganizationPluginAdminSetting,
     enabled: boolean,
   ) => {
-    const pluginKey = plugin.key;
-    setUpdatingActionId(`${pluginKey}:toggle`);
+    setUpdatingActionId(`${plugin.key}:toggle`);
+
     const response = await setOrganizationPluginInstallState({
       organizationId,
-      pluginKey,
+      pluginKey: plugin.key,
       enabled,
     });
 
     if (!response.success) {
       toast.error(response.error || "Failed to update plugin state");
-    } else {
-      if (enabled && !plugin.installed) {
-        toast.success("Plugin installed");
-      } else if (enabled) {
-        toast.success("Plugin enabled");
-      } else {
-        toast.success("Plugin disabled");
-      }
-
-      await loadSettings();
+      setUpdatingActionId(null);
+      return;
     }
 
+    if (enabled && !plugin.installed) {
+      toast.success("Plugin installed");
+    } else if (enabled) {
+      toast.success("Plugin enabled");
+    } else {
+      toast.success("Plugin disabled");
+    }
+
+    await loadSettings();
+    setUpdatingActionId(null);
+  };
+
+  const handleRequestPluginAction = (
+    plugin: OrganizationPluginAdminSetting,
+    intent: PluginActionIntent,
+  ) => {
+    setInstallConsentChecked(false);
+    setPluginActionConfirmation({ plugin, intent });
+  };
+
+  const handleConfirmPluginAction = async () => {
+    if (!pluginActionConfirmation) {
+      return;
+    }
+
+    if (pluginActionConfirmation.intent === "install" && !installConsentChecked) {
+      toast.error("Please confirm plugin data access before installing.");
+      return;
+    }
+
+    const {
+      intent,
+      plugin: { key: pluginKey, name: pluginName },
+    } = pluginActionConfirmation;
+    const actionId = `${pluginKey}:${intent}`;
+    setUpdatingActionId(actionId);
+
+    const response =
+      intent === "install"
+        ? await setOrganizationPluginInstallState({
+            organizationId,
+            pluginKey,
+            enabled: true,
+          })
+        : await uninstallOrganizationPlugin({
+            organizationId,
+            pluginKey,
+          });
+
+    if (!response.success) {
+      toast.error(response.error || "Failed to update plugin state");
+      setUpdatingActionId(null);
+      return;
+    }
+
+    toast.success(
+      intent === "install"
+        ? `${pluginName} installed successfully`
+        : `${pluginName} uninstalled successfully`,
+    );
+
+    setPluginActionConfirmation(null);
+    setInstallConsentChecked(false);
+    await loadSettings();
     setUpdatingActionId(null);
   };
 
   const handleUpdatePlugin = async (pluginKey: string) => {
     setUpdatingActionId(`${pluginKey}:update`);
+
     const response = await updateOrganizationPluginToLatest({
       organizationId,
       pluginKey,
@@ -320,11 +472,12 @@ export default function OrganizationPluginSettings({
 
     if (!response.success) {
       toast.error(response.error || "Failed to update plugin");
-    } else {
-      toast.success("Plugin updated to latest version");
-      await loadSettings();
+      setUpdatingActionId(null);
+      return;
     }
 
+    toast.success("Plugin updated to latest version");
+    await loadSettings();
     setUpdatingActionId(null);
   };
 
@@ -334,7 +487,9 @@ export default function OrganizationPluginSettings({
       return;
     }
 
-    const initialValues = isPlainRecord(plugin.configuration) ? plugin.configuration : {};
+    const initialValues = isPlainRecord(plugin.configuration)
+      ? plugin.configuration
+      : {};
 
     setSettingsPluginKey(plugin.key);
     setSettingsValues(initialValues);
@@ -347,6 +502,7 @@ export default function OrganizationPluginSettings({
     setSettingsValues({});
     setSettingsJson("{}");
     setSettingsEditorMode("json");
+    setSettingsSaving(false);
   };
 
   const handleSettingsValueChange = (key: string, value: unknown) => {
@@ -409,27 +565,299 @@ export default function OrganizationPluginSettings({
     }
 
     toast.success(response.message || "Plugin settings saved");
-    setSettingsSaving(false);
     handleCloseSettingsEditor();
     await loadSettings();
   };
+
+  const renderAvailablePluginCard = (plugin: OrganizationPluginAdminSetting) => {
+    const isInstallUpdating = updatingActionId === `${plugin.key}:install`;
+    const isPrivatePlugin = plugin.visibility === "private" || plugin.privateCodebase;
+    const canInstall =
+      plugin.entitled && plugin.availableInRuntime && !isPrivatePlugin;
+
+    return (
+      <div key={plugin.key} className="rounded-lg border border-border/70 bg-background px-3 py-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex flex-1 flex-col gap-1.5">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-sm font-semibold">{plugin.name}</p>
+              <Badge variant="outline">{plugin.navLabel}</Badge>
+              <Badge variant={isPrivatePlugin ? "destructive" : "secondary"}>
+                {isPrivatePlugin ? "Private" : "Available"}
+              </Badge>
+            </div>
+
+            <p className="line-clamp-2 text-xs text-muted-foreground">
+              {plugin.detailedDescription || plugin.description || "No description available."}
+            </p>
+
+            <p className="text-xs text-muted-foreground">
+              {plugin.ownerName} · {formatOwnerTypeLabel(plugin.ownerType)} · v{plugin.latestVersion}
+              {plugin.requiredScopes.length > 0
+                ? ` · ${plugin.requiredScopes.length} permission${plugin.requiredScopes.length === 1 ? "" : "s"}`
+                : ""}
+            </p>
+
+            {!plugin.entitled && plugin.blockedReason ? (
+              <p className="text-xs text-destructive">{plugin.blockedReason}</p>
+            ) : null}
+
+            {!plugin.availableInRuntime ? (
+              <p className="text-xs text-amber-700">
+                Package is still syncing with this deployment.
+              </p>
+            ) : null}
+          </div>
+
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => handleRequestPluginAction(plugin, "install")}
+            disabled={isInstallUpdating || !canInstall}
+          >
+            {isInstallUpdating ? (
+              <>
+                <Loader2 data-icon="inline-start" className="animate-spin" />
+                Installing...
+              </>
+            ) : isPrivatePlugin ? (
+              <>
+                <Shield data-icon="inline-start" />
+                Managed
+              </>
+            ) : (
+              <>
+                <Store data-icon="inline-start" />
+                Install
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
+    );
+  };
+
+  const renderInstalledPluginCard = (plugin: OrganizationPluginAdminSetting) => {
+    const isToggleUpdating = updatingActionId === `${plugin.key}:toggle`;
+    const isVersionUpdating = updatingActionId === `${plugin.key}:update`;
+    const isUninstalling = updatingActionId === `${plugin.key}:uninstall`;
+    const isPrivatePlugin = plugin.visibility === "private" || plugin.privateCodebase;
+    const canToggle = plugin.entitled && plugin.availableInRuntime && !isPrivatePlugin;
+    const canUninstall = plugin.installed && !isPrivatePlugin;
+    const canUpdate =
+      plugin.availableInRuntime &&
+      plugin.entitled &&
+      !isPrivatePlugin &&
+      (plugin.updateAvailable || plugin.forceUpdateRequired);
+
+    return (
+      <div key={plugin.key} className="rounded-lg border border-border/70 bg-background px-3 py-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex flex-1 flex-col gap-1.5">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-sm font-semibold">{plugin.name}</p>
+              <Badge variant={plugin.enabled ? "default" : "secondary"}>
+                {plugin.enabled ? "Enabled" : "Disabled"}
+              </Badge>
+              {plugin.updateAvailable ? <Badge variant="outline">Update</Badge> : null}
+              {plugin.forceUpdateRequired ? <Badge variant="destructive">Required</Badge> : null}
+            </div>
+
+            <p className="line-clamp-2 text-xs text-muted-foreground">
+              {plugin.detailedDescription || plugin.description || "No description available."}
+            </p>
+
+            <p className="text-xs text-muted-foreground">
+              {plugin.ownerName} · {formatOwnerTypeLabel(plugin.ownerType)} · Installed{" "}
+              {plugin.installedVersion || plugin.latestVersion} · Updated {formatLastUpdated(plugin.lastUpdatedAt)}
+            </p>
+
+            {!plugin.availableInRuntime ? (
+              <p className="text-xs text-amber-700">
+                Package is not loaded in this deployment yet.
+              </p>
+            ) : null}
+
+            {plugin.blockedReason && !plugin.availableInRuntime ? null : plugin.blockedReason ? (
+              <p className="text-xs text-destructive">{plugin.blockedReason}</p>
+            ) : null}
+          </div>
+
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => handleOpenSettingsEditor(plugin)}
+              disabled={!plugin.availableInRuntime || isPrivatePlugin}
+            >
+              <Settings2 data-icon="inline-start" />
+              Settings
+            </Button>
+
+            {plugin.updateAvailable || plugin.forceUpdateRequired ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                onClick={() => {
+                  void handleUpdatePlugin(plugin.key);
+                }}
+                disabled={isVersionUpdating || !canUpdate}
+              >
+                {isVersionUpdating ? (
+                  <>
+                    <Loader2 data-icon="inline-start" className="animate-spin" />
+                    Updating...
+                  </>
+                ) : (
+                  <>
+                    <Wrench data-icon="inline-start" />
+                    Update
+                  </>
+                )}
+              </Button>
+            ) : null}
+
+            <Button
+              type="button"
+              size="sm"
+              variant={plugin.enabled ? "outline" : "default"}
+              onClick={() => {
+                void handleTogglePlugin(plugin, !plugin.enabled);
+              }}
+              disabled={isToggleUpdating || !canToggle}
+            >
+              {isToggleUpdating ? (
+                <>
+                  <Loader2 data-icon="inline-start" className="animate-spin" />
+                  Saving...
+                </>
+              ) : plugin.enabled ? (
+                "Disable"
+              ) : (
+                "Enable"
+              )}
+            </Button>
+
+            <Button
+              type="button"
+              size="sm"
+              variant="destructive"
+              onClick={() => handleRequestPluginAction(plugin, "uninstall")}
+              disabled={isUninstalling || !canUninstall}
+            >
+              {isUninstalling ? (
+                <>
+                  <Loader2 data-icon="inline-start" className="animate-spin" />
+                  Uninstalling...
+                </>
+              ) : (
+                <>
+                  <Trash2 data-icon="inline-start" />
+                  Uninstall
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const marketplaceSections = (
+    <>
+      {showAvailableSection ? (
+        <section className="flex flex-col gap-3 pt-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-sm font-semibold">Available to install</p>
+              <p className="text-xs text-muted-foreground">
+                New plugins your organization can activate.
+              </p>
+            </div>
+            <Badge variant="secondary">{availablePlugins.length}</Badge>
+          </div>
+
+          {availablePlugins.length === 0 ? (
+            <Empty className="rounded-xl border bg-muted/20 py-8">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <Store />
+                </EmptyMedia>
+                <EmptyTitle>No available plugins in this view</EmptyTitle>
+                <EmptyDescription>
+                  Try switching filters or clearing the search query.
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          ) : (
+            <div className="grid gap-3">{availablePlugins.map(renderAvailablePluginCard)}</div>
+          )}
+        </section>
+      ) : null}
+
+      {showInstalledSection ? (
+        <section className="flex flex-col gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-sm font-semibold">Installed plugins</p>
+              <p className="text-xs text-muted-foreground">
+                Manage active plugins and update settings.
+              </p>
+            </div>
+            <Badge variant="secondary">{installedPlugins.length}</Badge>
+          </div>
+
+          {installedPlugins.length === 0 ? (
+            <Empty className="rounded-xl border bg-muted/20 py-8">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <Puzzle />
+                </EmptyMedia>
+                <EmptyTitle>No installed plugins in this view</EmptyTitle>
+                <EmptyDescription>
+                  Install a plugin to configure and manage it here.
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          ) : (
+            <div className="grid gap-3">{installedPlugins.map(renderInstalledPluginCard)}</div>
+          )}
+        </section>
+      ) : null}
+
+      {!showAvailableSection && !showInstalledSection ? (
+        <Empty className="py-8">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <Search />
+            </EmptyMedia>
+            <EmptyTitle>No matching plugins</EmptyTitle>
+            <EmptyDescription>Try a different search term or filter.</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      ) : null}
+    </>
+  );
 
   return (
     <>
       <Card id="organization-plugins">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Puzzle className="h-5 w-5" />
+            <Puzzle className="size-5" />
             Organization Plugins
           </CardTitle>
           <CardDescription>
-            Browse public plugins, install what you need, and manage per-plugin settings.
+            Browse available plugins, install what you need, and manage per-plugin settings.
           </CardDescription>
         </CardHeader>
+
         <CardContent className="flex flex-col gap-4">
           {loading ? (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Loader2 className="size-4 animate-spin" />
               Loading plugin settings...
             </div>
           ) : null}
@@ -480,9 +908,9 @@ export default function OrganizationPluginSettings({
                     <EmptyMedia variant="icon">
                       <Puzzle />
                     </EmptyMedia>
-                    <EmptyTitle>No public plugins yet</EmptyTitle>
+                    <EmptyTitle>No plugins yet</EmptyTitle>
                     <EmptyDescription>
-                      As new public plugins are released, they&apos;ll appear here automatically.
+                      As new plugins are released, they&apos;ll appear here automatically.
                     </EmptyDescription>
                   </EmptyHeader>
                 </Empty>
@@ -491,19 +919,19 @@ export default function OrganizationPluginSettings({
               <div className="rounded-xl border bg-card p-4">
                 <div className="flex items-start gap-3">
                   <span className="mt-0.5 rounded-md border bg-muted p-1.5">
-                    <Columns3Cog className="h-4 w-4 text-muted-foreground" />
+                    <Columns3Cog className="size-4 text-muted-foreground" />
                   </span>
-                  <div className="space-y-2">
+                  <div className="flex flex-col gap-2">
                     <p className="text-sm font-semibold">Want something custom?</p>
                     <p className="text-sm text-muted-foreground">
                       Email <a href="mailto:contact@lets-assist.com">contact@lets-assist.com</a> and
                       we can build a custom plugin for your organization.
                     </p>
-                    <ul className="ml-5 list-disc space-y-1 text-sm text-muted-foreground">
+                    <div className="ml-5 flex list-disc flex-col gap-1 text-sm text-muted-foreground">
                       <li>Describe the workflow you want to automate.</li>
                       <li>Share required integrations and data sources.</li>
                       <li>Include your timeline, team size, and desired outcomes.</li>
-                    </ul>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -516,7 +944,7 @@ export default function OrganizationPluginSettings({
         <DialogContent className="sm:max-w-4xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-xl">
-              <Store className="h-5 w-5" />
+              <Store className="size-5" />
               Plugin marketplace
             </DialogTitle>
             <DialogDescription>
@@ -535,7 +963,7 @@ export default function OrganizationPluginSettings({
                     </InputGroupAddon>
                     <InputGroupInput
                       id="organization-plugin-search"
-                      placeholder="Search by name, key, or description"
+                      placeholder="Search by name, key, owner, or description"
                       value={marketplaceSearch}
                       onChange={(event) => setMarketplaceSearch(event.target.value)}
                     />
@@ -545,319 +973,193 @@ export default function OrganizationPluginSettings({
 
               <div className="flex flex-col gap-2 lg:min-w-80">
                 <FieldTitle>Filter</FieldTitle>
-              <ToggleGroup
-                value={[marketplaceFilter]}
-                onValueChange={(value) => {
-                  const nextValue = value[0];
-                  if (
-                    nextValue === "all" ||
-                    nextValue === "installed" ||
-                    nextValue === "available" ||
-                    nextValue === "updates"
-                  ) {
-                    setMarketplaceFilter(nextValue);
-                  }
-                }}
-                spacing={2}
-              >
-                <ToggleGroupItem value="all">All</ToggleGroupItem>
-                <ToggleGroupItem value="installed">Installed</ToggleGroupItem>
-                <ToggleGroupItem value="available">Available</ToggleGroupItem>
-                <ToggleGroupItem value="updates">Needs update</ToggleGroupItem>
-              </ToggleGroup>
+                <ToggleGroup
+                  value={[marketplaceFilter]}
+                  onValueChange={(value) => {
+                    const nextValue = value[0];
+                    if (
+                      nextValue === "all" ||
+                      nextValue === "installed" ||
+                      nextValue === "available" ||
+                      nextValue === "updates"
+                    ) {
+                      setMarketplaceFilter(nextValue);
+                    }
+                  }}
+                  spacing={2}
+                >
+                  <ToggleGroupItem value="all">All</ToggleGroupItem>
+                  <ToggleGroupItem value="installed">Installed</ToggleGroupItem>
+                  <ToggleGroupItem value="available">Available</ToggleGroupItem>
+                  <ToggleGroupItem value="updates">Needs update</ToggleGroupItem>
+                </ToggleGroup>
               </div>
             </div>
 
-            <ScrollArea className="max-h-120 rounded-2xl border">
-              <div className="flex flex-col gap-6 p-4">
-                {showAvailableSection ? (
-                  <section className="flex flex-col gap-3">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div>
-                        <p className="text-sm font-semibold">Available to install</p>
-                        <p className="text-xs text-muted-foreground">
-                          New plugins your organization can activate.
-                        </p>
-                      </div>
-                      <Badge variant="secondary">{availablePlugins.length}</Badge>
-                    </div>
-
-                    {availablePlugins.length === 0 ? (
-                      <Empty className="rounded-xl border bg-muted/20 py-8">
-                        <EmptyHeader>
-                          <EmptyMedia variant="icon">
-                            <Store />
-                          </EmptyMedia>
-                          <EmptyTitle>No available plugins in this view</EmptyTitle>
-                          <EmptyDescription>
-                            Try switching filters or clearing the search query.
-                          </EmptyDescription>
-                        </EmptyHeader>
-                      </Empty>
-                    ) : (
-                      <div className="grid gap-3">
-                        {availablePlugins.map((plugin) => {
-                          const isToggleUpdating = updatingActionId === `${plugin.key}:toggle`;
-                          const isPrivatePlugin = plugin.visibility === "private";
-                          const canInstall =
-                            plugin.entitled && plugin.availableInRuntime && !isPrivatePlugin;
-
-                          return (
-                            <div
-                              key={plugin.key}
-                              className="rounded-xl border bg-card p-4"
-                            >
-                              <div className="min-w-0 flex-1 flex flex-col gap-2">
-                                <div className="flex flex-wrap items-center justify-between gap-2">
-                                  <div className="flex flex-wrap items-center gap-2">
-                                    <p className="text-sm font-semibold">{plugin.name}</p>
-                                    <Badge variant="outline">{plugin.navLabel}</Badge>
-                                    <Badge variant={isPrivatePlugin ? "destructive" : "secondary"}>
-                                      {isPrivatePlugin ? "Private" : "New"}
-                                    </Badge>
-                                  </div>
-
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    onClick={() => handleTogglePlugin(plugin, true)}
-                                    disabled={isToggleUpdating || !canInstall}
-                                  >
-                                    {isToggleUpdating ? (
-                                      <>
-                                        <Loader2 data-icon="inline-start" className="animate-spin" />
-                                        Installing...
-                                      </>
-                                    ) : isPrivatePlugin ? (
-                                      <>
-                                        <Shield data-icon="inline-start" />
-                                        Managed
-                                      </>
-                                    ) : (
-                                      <>
-                                        <Store data-icon="inline-start" />
-                                        Install
-                                      </>
-                                    )}
-                                  </Button>
-                                </div>
-
-                                {plugin.description ? (
-                                  <p className="text-xs text-muted-foreground">{plugin.description}</p>
-                                ) : null}
-
-                                <p className="text-xs text-muted-foreground">
-                                  <span className="font-mono">{plugin.key}</span> · Version{" "}
-                                  {plugin.latestVersion} · Updated {formatLastUpdated(plugin.lastUpdatedAt)}
-                                </p>
-
-                                {plugin.requiredScopes.length > 0 ? (
-                                  <div className="flex flex-wrap gap-1.5">
-                                    {plugin.requiredScopes.slice(0, 3).map((scope) => (
-                                      <Badge key={`${plugin.key}-${scope}`} variant="outline">
-                                        {scope}
-                                      </Badge>
-                                    ))}
-                                    {plugin.requiredScopes.length > 3 ? (
-                                      <Badge variant="outline">
-                                        +{plugin.requiredScopes.length - 3} more
-                                      </Badge>
-                                    ) : null}
-                                  </div>
-                                ) : null}
-
-                                {!plugin.availableInRuntime ? (
-                                  <p className="text-xs text-amber-700">
-                                    Package is still syncing with this deployment.
-                                  </p>
-                                ) : null}
-
-                                {isPrivatePlugin ? (
-                                  <p className="text-xs text-muted-foreground">
-                                    Private plugins are managed by the Let&apos;s Assist team.
-                                  </p>
-                                ) : null}
-
-                                {!plugin.entitled && plugin.blockedReason ? (
-                                  <p className="text-xs text-destructive">{plugin.blockedReason}</p>
-                                ) : null}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </section>
-                ) : null}
-
-                {showInstalledSection ? (
-                  <section className="flex flex-col gap-3">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div>
-                        <p className="text-sm font-semibold">Installed plugins</p>
-                        <p className="text-xs text-muted-foreground">
-                          Manage active plugins and update settings.
-                        </p>
-                      </div>
-                      <Badge variant="secondary">{installedPlugins.length}</Badge>
-                    </div>
-
-                    {installedPlugins.length === 0 ? (
-                      <Empty className="rounded-xl border bg-muted/20 py-8">
-                        <EmptyHeader>
-                          <EmptyMedia variant="icon">
-                            <Puzzle />
-                          </EmptyMedia>
-                          <EmptyTitle>No installed plugins in this view</EmptyTitle>
-                          <EmptyDescription>
-                            Install a plugin to configure and manage it here.
-                          </EmptyDescription>
-                        </EmptyHeader>
-                      </Empty>
-                    ) : (
-                      <div className="grid gap-3">
-                        {installedPlugins.map((plugin) => {
-                          const isToggleUpdating = updatingActionId === `${plugin.key}:toggle`;
-                          const isVersionUpdating = updatingActionId === `${plugin.key}:update`;
-                          const isPrivatePlugin = plugin.visibility === "private";
-                          const canToggle =
-                            plugin.entitled && plugin.availableInRuntime && !isPrivatePlugin;
-                          const canUpdate =
-                            plugin.availableInRuntime &&
-                            plugin.entitled &&
-                            !isPrivatePlugin &&
-                            (plugin.updateAvailable || plugin.forceUpdateRequired);
-
-                          return (
-                            <div
-                              key={plugin.key}
-                              className="rounded-xl border bg-card p-4"
-                            >
-                              <div className="min-w-0 flex-1 flex flex-col gap-2">
-                                <div className="flex flex-wrap items-center justify-between gap-2">
-                                  <div className="flex flex-wrap items-center gap-2">
-                                    <p className="text-sm font-semibold">{plugin.name}</p>
-                                    <Badge variant={plugin.enabled ? "default" : "secondary"}>
-                                      {plugin.enabled ? "Active" : "Paused"}
-                                    </Badge>
-                                    <Badge variant={isPrivatePlugin ? "destructive" : "outline"}>
-                                      {isPrivatePlugin ? "Private" : "Public"}
-                                    </Badge>
-                                    {plugin.updateAvailable ? (
-                                      <Badge variant="outline">Update available</Badge>
-                                    ) : null}
-                                    {plugin.forceUpdateRequired ? (
-                                      <Badge variant="destructive">Update required</Badge>
-                                    ) : null}
-                                  </div>
-                                </div>
-
-                                {plugin.description ? (
-                                  <p className="text-xs text-muted-foreground">{plugin.description}</p>
-                                ) : null}
-
-                                <p className="text-xs text-muted-foreground">
-                                  <span className="font-mono">{plugin.key}</span> · Installed{" "}
-                                  {plugin.installedVersion || plugin.latestVersion}
-                                  {plugin.updateAvailable ? ` · Latest ${plugin.latestVersion}` : ""} · Updated{" "}
-                                  {formatLastUpdated(plugin.lastUpdatedAt)}
-                                </p>
-
-                                {!plugin.availableInRuntime ? (
-                                  <p className="text-xs text-amber-700">
-                                    Package is not loaded in this deployment yet.
-                                  </p>
-                                ) : null}
-
-                                {isPrivatePlugin ? (
-                                  <p className="text-xs text-muted-foreground">
-                                    Private plugins are managed by the Let&apos;s Assist team.
-                                  </p>
-                                ) : null}
-
-                                {plugin.blockedReason && !plugin.availableInRuntime ? null :
-                                plugin.blockedReason ? (
-                                  <p className="text-xs text-destructive">{plugin.blockedReason}</p>
-                                ) : null}
-
-                                <div className="flex flex-wrap justify-end gap-2 pt-1">
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleOpenSettingsEditor(plugin)}
-                                    disabled={!plugin.availableInRuntime || isPrivatePlugin}
-                                  >
-                                    <Settings2 data-icon="inline-start" />
-                                    Settings
-                                  </Button>
-
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="secondary"
-                                    onClick={() => handleUpdatePlugin(plugin.key)}
-                                    disabled={isVersionUpdating || !canUpdate}
-                                  >
-                                    {isVersionUpdating ? (
-                                      <>
-                                        <Loader2 data-icon="inline-start" className="animate-spin" />
-                                        Updating...
-                                      </>
-                                    ) : (
-                                      <>
-                                        <Wrench data-icon="inline-start" />
-                                        Update
-                                      </>
-                                    )}
-                                  </Button>
-
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    variant={plugin.enabled ? "outline" : "default"}
-                                    onClick={() => handleTogglePlugin(plugin, !plugin.enabled)}
-                                    disabled={isToggleUpdating || !canToggle}
-                                  >
-                                    {isToggleUpdating ? (
-                                      <>
-                                        <Loader2 data-icon="inline-start" className="animate-spin" />
-                                        Saving...
-                                      </>
-                                    ) : plugin.enabled ? (
-                                      "Disable"
-                                    ) : (
-                                      "Enable"
-                                    )}
-                                  </Button>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </section>
-                ) : null}
-
-                {!showAvailableSection && !showInstalledSection ? (
-                  <Empty className="py-8">
-                    <EmptyHeader>
-                      <EmptyMedia variant="icon">
-                        <Search />
-                      </EmptyMedia>
-                      <EmptyTitle>No matching plugins</EmptyTitle>
-                      <EmptyDescription>
-                        Try a different search term or filter.
-                      </EmptyDescription>
-                    </EmptyHeader>
-                  </Empty>
-                ) : null}
+            {useMarketplaceScroll ? (
+              <ScrollArea className="max-h-120 rounded-2xl border">
+                <div className="flex flex-col gap-6 p-4">{marketplaceSections}</div>
+              </ScrollArea>
+            ) : (
+              <div className="rounded-2xl border p-4">
+                <div className="flex flex-col gap-6">{marketplaceSections}</div>
               </div>
-            </ScrollArea>
+            )}
           </div>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog
+        open={Boolean(pluginActionConfirmation)}
+        onOpenChange={(open: boolean) => {
+          if (!open && !isPluginActionSubmitting) {
+            setPluginActionConfirmation(null);
+            setInstallConsentChecked(false);
+          }
+        }}
+      >
+        <AlertDialogContent className="sm:max-w-md gap-0 p-0 overflow-hidden">
+          {activePluginAction ? (
+            <>
+              <div className="flex flex-col items-center text-center px-6 pt-8 pb-6">
+                <div className="relative mb-5 flex size-14 items-center justify-center rounded-2xl border bg-secondary/30 shadow-sm">
+                  {isInstallAction ? (
+                    <Store className="size-6 text-primary" />
+                  ) : (
+                    <Trash2 className="size-6 text-destructive" />
+                  )}
+                  {isInstallAction && (
+                    <div className="absolute -bottom-1 -right-1 flex size-5 items-center justify-center rounded-full bg-primary ring-2 ring-background">
+                      <Check className="size-3 text-primary-foreground" />
+                    </div>
+                  )}
+                </div>
+
+                <AlertDialogTitle className="text-xl font-semibold">
+                  {isInstallAction
+                    ? `Install ${activePluginAction.name}?`
+                    : `Uninstall ${activePluginAction.name}?`}
+                </AlertDialogTitle>
+
+                <AlertDialogDescription className="mt-2 text-center text-sm text-muted-foreground w-[90%]">
+                  {isInstallAction
+                    ? `Are you sure you want to add this plugin to your organization?`
+                    : "This will remove the plugin and its settings from your organization immediately."}
+                </AlertDialogDescription>
+              </div>
+
+              <div className="flex flex-col gap-4 border-y bg-muted/20 px-6 py-5">
+                {isInstallAction ? (
+                  <>
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-foreground">
+                          {activePluginAction.name}
+                        </span>
+                        <Badge variant="secondary" className="px-1.5 py-0 text-[10px] uppercase tracking-wide">
+                          {formatOwnerTypeLabel(activePluginAction.ownerType)}
+                        </Badge>
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        by {activePluginAction.ownerName} &middot; v{activePluginAction.version}
+                      </span>
+                      <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                        {activePluginAction.detailedDescription}
+                      </p>
+                    </div>
+
+                    <div className="mt-2 flex flex-col gap-3 rounded-lg border bg-background/50 p-4">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        This plugin requests access to:
+                      </p>
+                      <ul className="flex flex-col gap-2.5">
+                        {activePluginAction.requiredScopes.length > 0 ||
+                        activePluginAction.dataAccess.length > 0 ? (
+                          <>
+                            {activePluginAction.requiredScopes.map((scope) => (
+                              <li
+                                key={`${activePluginAction.key}-scope-${scope}`}
+                                className="flex items-start gap-2.5 text-sm text-foreground"
+                              >
+                                <Check className="mt-0.5 size-4 shrink-0 text-primary" />
+                                <span>{formatScopeLabel(scope)}</span>
+                              </li>
+                            ))}
+                            {activePluginAction.dataAccess.map((entry) => (
+                              <li
+                                key={`${activePluginAction.key}-data-${entry}`}
+                                className="flex items-start gap-2.5 text-sm text-foreground"
+                              >
+                                <Check className="mt-0.5 size-4 shrink-0 text-primary" />
+                                <span>{entry}</span>
+                              </li>
+                            ))}
+                          </>
+                        ) : (
+                          <li className="flex items-center gap-2.5 text-sm text-muted-foreground">
+                            <Info className="size-4 shrink-0" />
+                            <span>No additional data access required.</span>
+                          </li>
+                        )}
+                      </ul>
+                    </div>
+                  </>
+                ) : (
+                  <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-4 flex items-start gap-3">
+                    <AlertTriangle className="mt-0.5 size-4 shrink-0 text-destructive" />
+                    <p className="text-sm text-destructive font-medium leading-relaxed">
+                      All plugin workflows will stop, and your settings will be permanently lost. This cannot be undone.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-4 bg-background p-6">
+                {isInstallAction && (
+                  <label className="flex cursor-pointer items-center gap-3 rounded-md px-1 py-1 hover:bg-muted/50 group transition-colors">
+                    <Checkbox
+                      checked={installConsentChecked}
+                      onCheckedChange={(checked) => setInstallConsentChecked(checked === true)}
+                    />
+                    <span className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">
+                      I approve installing this plugin and grant the requested access.
+                    </span>
+                  </label>
+                )}
+
+                <AlertDialogFooter className="sm:justify-between w-full">
+                  <AlertDialogCancel
+                    disabled={isPluginActionSubmitting}
+                    className="w-full m-0 sm:w-auto sm:flex-1"
+                  >
+                    Cancel
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    variant={isInstallAction ? "default" : "destructive"}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      void handleConfirmPluginAction();
+                    }}
+                    disabled={isPluginActionSubmitting || (isInstallAction && !installConsentChecked)}
+                    className="w-full sm:w-auto sm:flex-1 mt-2 sm:mt-0 sm:ml-2"
+                  >
+                    {isPluginActionSubmitting ? (
+                      <>
+                        <Loader2 data-icon="inline-start" className="animate-spin" />
+                        {isInstallAction ? "Installing..." : "Removing..."}
+                      </>
+                    ) : isInstallAction ? (
+                      "Install Plugin"
+                    ) : (
+                      "Yes, Uninstall"
+                    )}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </div>
+            </>
+          ) : null}
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog
         open={Boolean(activeSettingsPlugin)}
@@ -880,7 +1182,16 @@ export default function OrganizationPluginSettings({
           {activeSettingsPlugin ? (
             <div className="flex flex-col gap-4">
               <div className="rounded-lg border bg-muted/25 p-3 text-xs text-muted-foreground">
-                Plugin key <span className="font-mono">{activeSettingsPlugin.key}</span>
+                <p>
+                  Plugin key <span className="font-mono">{activeSettingsPlugin.key}</span>
+                </p>
+                <p className="mt-1">
+                  Owner: {activeSettingsPlugin.ownerName} ·{" "}
+                  {formatOwnerTypeLabel(activeSettingsPlugin.ownerType)}
+                </p>
+                <p className="mt-1">
+                  Last updated {formatLastUpdated(activeSettingsPlugin.lastUpdatedAt)}
+                </p>
               </div>
 
               {activeSettingsPlugin.configSchema ? (
@@ -1091,8 +1402,7 @@ export default function OrganizationPluginSettings({
                           <AlertTitle>Some fields require JSON mode</AlertTitle>
                           <AlertDescription>
                             {unsupportedFieldCount} advanced field
-                            {unsupportedFieldCount === 1 ? "" : "s"} can only be edited in
-                            JSON mode.
+                            {unsupportedFieldCount === 1 ? "" : "s"} can only be edited in JSON mode.
                           </AlertDescription>
                         </Alert>
                       ) : null}
@@ -1144,11 +1454,7 @@ export default function OrganizationPluginSettings({
                 >
                   Cancel
                 </Button>
-                <Button
-                  type="button"
-                  onClick={handleSaveSettings}
-                  disabled={settingsSaving}
-                >
+                <Button type="button" onClick={handleSaveSettings} disabled={settingsSaving}>
                   {settingsSaving ? (
                     <>
                       <Loader2 data-icon="inline-start" className="animate-spin" />
@@ -1166,7 +1472,6 @@ export default function OrganizationPluginSettings({
           ) : null}
         </DialogContent>
       </Dialog>
-
     </>
   );
 }
