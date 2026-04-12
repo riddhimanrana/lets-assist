@@ -59,7 +59,6 @@ enabled = true
 # Specifies an ordered list of seed files to load during db reset.
 # Supports glob patterns relative to supabase directory: "./seeds/*.sql"
 sql_paths = [
-	"./schemas/remote_baseline_schema.sql",
 	"./seeds/local-only.sql"
 ]
 
