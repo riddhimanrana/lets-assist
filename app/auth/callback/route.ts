@@ -16,7 +16,13 @@ import {
   isAccountBlockedStatus,
   readAccountAccessFromMetadata,
 } from "@/lib/auth/account-access";
-import { resolvePostAuthRedirectPath } from "@/lib/auth/mfa";
+import {
+  resolvePostAuthRedirectPath,
+  buildMfaRedirectPath,
+  shouldPromptForMfaChallenge,
+  deriveAuthenticatorAssurance,
+  type MfaListFactorsLike,
+} from "@/lib/auth/mfa";
 import { getGoogleSigninCapRestriction } from "@/lib/security/google-cap";
 
 export async function GET(request: Request) {
@@ -336,6 +342,46 @@ export async function GET(request: Request) {
               staffToken,
               orgUsername,
             });
+          }
+        }
+
+        // Check if user needs MFA challenge before redirecting
+        const currentAal = user.aud ? 'aal2' : 'aal1'; // Check AAL from user claims
+        let mfaFactors: MfaListFactorsLike = { totp: [], phone: [] };
+        
+        try {
+          const { data: factors } = await supabase.auth.mfa.listFactors();
+          if (factors) {
+            mfaFactors = factors as MfaListFactorsLike;
+          }
+        } catch (mfaError) {
+          console.debug('Could not fetch MFA factors during callback:', mfaError);
+        }
+
+        const userNeedsMfa = shouldPromptForMfaChallenge(
+          deriveAuthenticatorAssurance(currentAal, mfaFactors),
+          mfaFactors
+        );
+
+        // If user needs MFA, redirect to MFA challenge (preserving the intended destination)
+        if (userNeedsMfa) {
+          // Determine what the target path would be, then use it as the continuation path after MFA
+          const targetPath = inviteOutcome
+            ? buildStaffInviteRedirectPath(inviteOutcome, {
+                fallbackPath: resolvePostAuthRedirectPath(redirectAfterAuth),
+                toastPosition: isNewAccount ? "bottom-center" : undefined,
+              })
+            : resolvePostAuthRedirectPath(redirectAfterAuth);
+
+          const mfaRedirectPath = buildMfaRedirectPath(targetPath);
+          
+          const forwardedHost = request.headers.get("x-forwarded-host");
+          if (process.env.NODE_ENV === "development") {
+            return NextResponse.redirect(`${origin}${mfaRedirectPath}`);
+          } else if (forwardedHost) {
+            return NextResponse.redirect(`https://${forwardedHost}${mfaRedirectPath}`);
+          } else {
+            return NextResponse.redirect(`${origin}${mfaRedirectPath}`);
           }
         }
 
