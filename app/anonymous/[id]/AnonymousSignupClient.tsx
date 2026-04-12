@@ -203,8 +203,8 @@ export default function AnonymousSignupClient({
   linkedAccountEmail,
   linkedAccountVerified,
   certificateIds,
-  anonymousPluginCards,
-  anonymousPluginBehavior,
+  anonymousPluginCards: _anonymousPluginCards,
+  anonymousPluginBehavior: _anonymousPluginBehavior,
 }: AnonymousSignupClientProps) {
   type LinkStatus = "unlinked" | "linked" | "verification-pending";
 
