@@ -80,6 +80,91 @@ async function isOrgAdmin(
   return data?.role === "admin";
 }
 
+function normalizeImportedProfileData(value: unknown): Record<string, string> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+
+  return Object.entries(value).reduce<Record<string, string>>((acc, [key, rawValue]) => {
+    if (typeof rawValue !== "string") {
+      return acc;
+    }
+
+    const trimmed = rawValue.trim();
+    if (!trimmed) {
+      return acc;
+    }
+
+    acc[key] = trimmed;
+    return acc;
+  }, {});
+}
+
+async function applyImportedProfileData(params: {
+  supabase: Awaited<ReturnType<typeof createClient>>;
+  userId: string;
+  importJobId: string | null;
+  invitedEmail: string;
+}) {
+  const { supabase, userId, importJobId, invitedEmail } = params;
+
+  if (!importJobId) {
+    return;
+  }
+
+  const { data: importRow } = await supabase
+    .from("organization_contact_import_rows")
+    .select("full_name, profile_data")
+    .eq("job_id", importJobId)
+    .eq("email", invitedEmail)
+    .maybeSingle();
+
+  const importedProfileData = normalizeImportedProfileData(importRow?.profile_data);
+  const importedFullName =
+    (importRow?.full_name || importedProfileData.full_name || "").trim();
+  const importedPhone = (importedProfileData.phone || "").trim();
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("full_name, phone, profile_metadata")
+    .eq("id", userId)
+    .single();
+
+  if (!profile) {
+    return;
+  }
+
+  const updates: Record<string, unknown> = {};
+  const currentName = (profile.full_name || "").trim();
+  const currentPhone = (profile.phone || "").trim();
+  const currentMetadata =
+    profile.profile_metadata && typeof profile.profile_metadata === "object" && !Array.isArray(profile.profile_metadata)
+      ? (profile.profile_metadata as Record<string, unknown>)
+      : {};
+
+  if (
+    importedFullName &&
+    (!currentName || currentName === "Unknown User" || currentName.startsWith("user_"))
+  ) {
+    updates.full_name = importedFullName;
+  }
+
+  if (importedPhone && !currentPhone) {
+    updates.phone = importedPhone;
+  }
+
+  updates.profile_metadata = {
+    ...currentMetadata,
+    ...importedProfileData,
+  };
+
+  if (Object.keys(updates).length === 0) {
+    return;
+  }
+
+  await supabase.from("profiles").update(updates).eq("id", userId);
+}
+
 // Bulk invite members to an organization
 export async function bulkInviteMembers({
   organizationId,
@@ -262,7 +347,7 @@ export async function bulkInviteMembers({
       results.push({
         email,
         success: false,
-        error: "Failed to send invitation email (invite saved as pending; use resend)",
+        error: "Failed to send invitation email",
         invitationId: invitation.id,
       });
       failed++;
@@ -569,6 +654,13 @@ export async function acceptInvitation(
         })
         .eq("id", invitation.id);
 
+      await applyImportedProfileData({
+        supabase,
+        userId: user.id,
+        importJobId: invitation.import_job_id,
+        invitedEmail,
+      });
+
       const org = invitation.organization as { username: string };
       return {
         success: true,
@@ -604,6 +696,13 @@ export async function acceptInvitation(
       accepted_by: user.id,
     })
     .eq("id", invitation.id);
+
+  await applyImportedProfileData({
+    supabase,
+    userId: user.id,
+    importJobId: invitation.import_job_id,
+    invitedEmail,
+  });
 
   const org = invitation.organization as { username: string };
   return {

@@ -1,5 +1,7 @@
 import { generateText } from 'ai';
 import { NextRequest } from 'next/server';
+import { gatewayModel } from '@/lib/ai/gateway';
+import { createPostHogTelemetry } from '@/lib/ai/posthog-telemetry';
 
 // export const runtime = 'edge'; - incompatible with cacheComponents
 
@@ -122,7 +124,13 @@ export async function POST(req: NextRequest) {
     }
 
     const { text } = await generateText({
-      model: 'google/gemini-2.5-flash-lite',
+      model: gatewayModel('platform', 'google/gemini-2.5-flash-lite'),
+      experimental_telemetry: createPostHogTelemetry({
+        functionId: 'parse-project',
+        metadata: {
+          ai_feature: 'project-form-parser',
+        },
+      }),
       system: systemPrompt,
       prompt,
       temperature: 0.3,

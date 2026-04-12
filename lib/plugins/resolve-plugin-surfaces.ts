@@ -45,10 +45,17 @@ type SupabaseLikeError = {
 function isMissingPluginTableError(error: SupabaseLikeError | null): boolean {
   if (!error) return false;
 
+  const message =
+    typeof error.message === "string" ? error.message.toLowerCase() : "";
+
   return (
     error.code === "42P01" ||
     error.code === "42703" ||
-    (typeof error.message === "string" && error.message.includes("does not exist"))
+    error.code === "PGRST205" ||
+    message.includes("does not exist") ||
+    message.includes("schema cache") ||
+    message.includes("could not find the table") ||
+    message.includes("could not find the relation")
   );
 }
 

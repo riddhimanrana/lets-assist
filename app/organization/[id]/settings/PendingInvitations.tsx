@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useTransition } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -20,6 +20,7 @@ import {
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -50,6 +51,14 @@ interface PendingInvitationsProps {
 
 type StatusFilter = "pending" | "accepted" | "expired" | "cancelled" | "all";
 
+const STATUS_FILTER_OPTIONS = [
+  { value: "pending", label: "Pending" },
+  { value: "accepted", label: "Accepted" },
+  { value: "expired", label: "Expired" },
+  { value: "cancelled", label: "Cancelled" },
+  { value: "all", label: "All" },
+] as const;
+
 export default function PendingInvitations({
   organizationId,
   refreshKey = 0,
@@ -67,7 +76,7 @@ export default function PendingInvitations({
     try {
       const data = await getOrganizationInvitations(organizationId, statusFilter);
       setInvitations(data);
-    } catch (err) {
+    } catch {
       setError("Failed to load invitations");
     } finally {
       setIsLoading(false);
@@ -186,18 +195,21 @@ export default function PendingInvitations({
       {/* Filters and Actions */}
       <div className="flex items-center justify-between">
         <Select
+          items={STATUS_FILTER_OPTIONS}
           value={statusFilter}
           onValueChange={(v) => setStatusFilter(v as StatusFilter)}
         >
-          <SelectTrigger className="w-[150px]">
-            <SelectValue />
+          <SelectTrigger className="w-37.5">
+            <SelectValue placeholder="Pending" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="accepted">Accepted</SelectItem>
-            <SelectItem value="expired">Expired</SelectItem>
-            <SelectItem value="cancelled">Cancelled</SelectItem>
-            <SelectItem value="all">All</SelectItem>
+            <SelectGroup>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="accepted">Accepted</SelectItem>
+              <SelectItem value="expired">Expired</SelectItem>
+              <SelectItem value="cancelled">Cancelled</SelectItem>
+              <SelectItem value="all">All</SelectItem>
+            </SelectGroup>
           </SelectContent>
         </Select>
 
@@ -244,7 +256,7 @@ export default function PendingInvitations({
                 <TableHead>Status</TableHead>
                 <TableHead>Sent</TableHead>
                 <TableHead>Expires</TableHead>
-                <TableHead className="w-[50px]"></TableHead>
+                <TableHead className="w-12.5"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

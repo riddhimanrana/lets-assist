@@ -22,7 +22,7 @@ export default function BulkImportSection({ organizationId }: BulkImportSectionP
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm text-muted-foreground">
-            Upload CSV/Excel files or paste copied member lists to invite members in bulk.
+            Upload CSV/Excel files (or paste emails) to invite members in bulk.
           </p>
         </div>
         <BulkImportDialog

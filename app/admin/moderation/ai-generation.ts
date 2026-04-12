@@ -1,5 +1,7 @@
 import { generateText, Output } from 'ai';
 import { z } from 'zod';
+import { gatewayModel } from '@/lib/ai/gateway';
+import { createPostHogTelemetry } from '@/lib/ai/posthog-telemetry';
 
 export const MODERATION_MODELS = [
   'google/gemini-2.5-flash-lite',
@@ -50,7 +52,13 @@ export async function generateModerationObject<TSchema extends z.ZodTypeAny>({
   for (const model of models) {
     try {
       const { output } = await generateText({
-        model,
+        model: gatewayModel('moderation', model),
+        experimental_telemetry: createPostHogTelemetry({
+          functionId: label,
+          metadata: {
+            ai_feature: 'moderation',
+          },
+        }),
         output: Output.object({ schema }),
         prompt,
       });

@@ -1,8 +1,10 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
 import {
+  deactivateGoogleConnection,
   getSheetsConnection,
   getGoogleAccessTokenForSheets,
   getGoogleAccessTokenForSheetsForUser,
@@ -795,6 +797,73 @@ export async function unlinkSheetSync(
     return { success: false, error: "Failed to unlink sheet" };
   }
 
+  return { success: true };
+}
+
+export async function disconnectOrganizationSheetConnection(
+  organizationId: string
+): Promise<{ success: boolean; error?: string }> {
+  const access = await assertOrgAccess(organizationId);
+  if (access.error || !access.userId) {
+    return { success: false, error: access.error };
+  }
+
+  if (access.role !== "admin") {
+    return { success: false, error: "Admin access required" };
+  }
+
+  const serviceSupabase = getAdminClient();
+  const { data: existingSync, error: existingSyncError } = await serviceSupabase
+    .from("organization_sheet_syncs")
+    .select("organization_id, created_by")
+    .eq("organization_id", organizationId)
+    .maybeSingle();
+
+  if (existingSyncError) {
+    console.error("Failed to load sheet sync before disconnect:", existingSyncError);
+    return { success: false, error: "Failed to verify sheet owner" };
+  }
+
+  if (existingSync?.created_by && existingSync.created_by !== access.userId) {
+    const { data: ownerProfile } = await serviceSupabase
+      .from("profiles")
+      .select("full_name, username, email")
+      .eq("id", existingSync.created_by)
+      .maybeSingle();
+
+    const ownerLabel =
+      ownerProfile?.full_name ||
+      ownerProfile?.username ||
+      ownerProfile?.email ||
+      "the connected admin";
+
+    return {
+      success: false,
+      error: `Sheets sync is currently managed by ${ownerLabel}. Only that Google account can be removed from the organization connection.`,
+    };
+  }
+
+  const deactivateResult = await deactivateGoogleConnection(access.userId);
+  if (!deactivateResult.success && deactivateResult.error !== "No active Google connection found") {
+    return {
+      success: false,
+      error: deactivateResult.error || "Failed to disconnect Google account",
+    };
+  }
+
+  if (existingSync) {
+    const { error } = await serviceSupabase
+      .from("organization_sheet_syncs")
+      .delete()
+      .eq("organization_id", organizationId);
+
+    if (error) {
+      console.error("Failed to remove organization sheet connection:", error);
+      return { success: false, error: "Failed to disconnect Google account" };
+    }
+  }
+
+  revalidatePath(`/organization/${organizationId}/settings`);
   return { success: true };
 }
 

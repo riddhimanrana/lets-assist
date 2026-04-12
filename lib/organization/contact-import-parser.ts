@@ -30,17 +30,32 @@ const NAME_HEADER_KEYS = [
   "first_name",
 ];
 
-const HEADER_HINT_KEYS = [
-  ...EMAIL_HEADER_KEYS,
-  ...NAME_HEADER_KEYS,
-  "role",
-  "status",
-  "groupmember",
-  "memberrole",
-  "membertype",
-];
-
-const EMAIL_INFERENCE_SAMPLE_ROWS = 30;
+const PROFILE_FIELD_KEY_ALIASES: Record<string, string> = {
+  name: "full_name",
+  fullname: "full_name",
+  full_name: "full_name",
+  firstname: "first_name",
+  first_name: "first_name",
+  lastname: "last_name",
+  last_name: "last_name",
+  phone: "phone",
+  phonenumber: "phone",
+  phone_number: "phone",
+  mobile: "phone",
+  mobilenumber: "phone",
+  mobile_number: "phone",
+  cell: "phone",
+  cellphone: "phone",
+  cell_phone: "phone",
+  avatar: "avatar_url",
+  avatarurl: "avatar_url",
+  avatar_url: "avatar_url",
+  username: "username",
+  company: "company",
+  organization: "organization",
+  notes: "notes",
+  note: "notes",
+};
 
 export interface ParsedContactImportResult {
   fileType: ContactImportFileType;
@@ -55,6 +70,24 @@ function normalizeHeader(value: string): string {
 
 function hasMatchingHeader(normalizedHeader: string, allowedKeys: string[]): boolean {
   return allowedKeys.some((key) => normalizedHeader === key || normalizedHeader.includes(key));
+}
+
+function normalizeMetadataHeader(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .replace(/_+/g, "_");
+}
+
+function normalizeProfileFieldKey(header: string): string | null {
+  const normalized = normalizeMetadataHeader(header);
+  if (!normalized) {
+    return null;
+  }
+
+  return PROFILE_FIELD_KEY_ALIASES[normalized] ?? normalized;
 }
 
 function inferFileType(fileName: string): ContactImportFileType | null {
@@ -99,38 +132,6 @@ function getIndexedRows(rawRows: unknown[]): Array<{ sourceRowNumber: number; ce
   }
 
   return indexedRows;
-}
-
-function inferEmailColumnIndex(
-  indexedRows: Array<{ sourceRowNumber: number; cells: string[] }>,
-  startRowIndex: number,
-): number {
-  const scoreByColumn = new Map<number, number>();
-  const upperBound = Math.min(indexedRows.length, startRowIndex + EMAIL_INFERENCE_SAMPLE_ROWS);
-
-  for (let rowIndex = startRowIndex; rowIndex < upperBound; rowIndex++) {
-    const row = indexedRows[rowIndex];
-
-    row.cells.forEach((cell, columnIndex) => {
-      const normalizedCell = cell.trim().toLowerCase();
-
-      if (isValidEmail(normalizedCell)) {
-        scoreByColumn.set(columnIndex, (scoreByColumn.get(columnIndex) || 0) + 1);
-      }
-    });
-  }
-
-  let bestColumnIndex = -1;
-  let bestScore = 0;
-
-  for (const [columnIndex, score] of scoreByColumn.entries()) {
-    if (score > bestScore) {
-      bestScore = score;
-      bestColumnIndex = columnIndex;
-    }
-  }
-
-  return bestColumnIndex;
 }
 
 export async function parseContactImportFile(file: File): Promise<ParsedContactImportResult> {
@@ -200,52 +201,33 @@ export async function parseContactImportFile(file: File): Promise<ParsedContactI
 
   const firstDataCandidate = indexedRows[0];
   const normalizedFirstRow = firstDataCandidate.cells.map(normalizeHeader);
-  const explicitEmailHeaderIndex = normalizedFirstRow.findIndex((header) =>
+  const emailHeaderIndex = normalizedFirstRow.findIndex((header) =>
     hasMatchingHeader(header, EMAIL_HEADER_KEYS),
   );
   const nameHeaderIndex = normalizedFirstRow.findIndex((header) =>
     hasMatchingHeader(header, NAME_HEADER_KEYS),
   );
 
-  const inferredEmailColumnIndexFromAllRows = inferEmailColumnIndex(indexedRows, 0);
-  const firstRowCellAtInferredColumn =
-    inferredEmailColumnIndexFromAllRows >= 0
-      ? firstDataCandidate.cells[inferredEmailColumnIndexFromAllRows]?.trim().toLowerCase()
-      : "";
-  const firstRowContainsEmailAtInferredColumn =
-    !!firstRowCellAtInferredColumn && isValidEmail(firstRowCellAtInferredColumn);
-
-  const hasHeaderHintsInFirstRow = normalizedFirstRow.some((header) =>
-    hasMatchingHeader(header, HEADER_HINT_KEYS),
-  );
-
   const hasHeaderRow =
-    explicitEmailHeaderIndex >= 0 ||
-    hasHeaderHintsInFirstRow ||
-    (inferredEmailColumnIndexFromAllRows >= 0 && !firstRowContainsEmailAtInferredColumn);
+    emailHeaderIndex >= 0 ||
+    normalizedFirstRow.some(
+      (header) => header.includes("email") || header.includes("name") || header.includes("role"),
+    );
 
-  const rowStartIndex = hasHeaderRow ? 1 : 0;
-  const inferredEmailColumnIndexFromDataRows = inferEmailColumnIndex(indexedRows, rowStartIndex);
-
-  const emailColumnIndex =
-    explicitEmailHeaderIndex >= 0
-      ? explicitEmailHeaderIndex
-      : inferredEmailColumnIndexFromDataRows >= 0
-        ? inferredEmailColumnIndexFromDataRows
-        : inferredEmailColumnIndexFromAllRows;
-
-  if (emailColumnIndex < 0) {
+  if (hasHeaderRow && emailHeaderIndex < 0) {
     throw new Error(
       "Could not find an email column. Add a header like 'email' or 'email address'.",
     );
   }
 
+  const emailColumnIndex = hasHeaderRow ? emailHeaderIndex : 0;
   const fullNameColumnIndex = hasHeaderRow
     ? nameHeaderIndex
     : firstDataCandidate.cells.length > 1
-      ? firstDataCandidate.cells.findIndex((_, index) => index !== emailColumnIndex)
+      ? 1
       : -1;
 
+  const rowStartIndex = hasHeaderRow ? 1 : 0;
   const validRows: ContactImportParsedRow[] = [];
   const invalidRows: ContactImportInvalidRow[] = [];
   const seenEmails = new Set<string>();
@@ -298,10 +280,46 @@ export async function parseContactImportFile(file: File): Promise<ParsedContactI
     const fullName =
       fullNameColumnIndex >= 0 ? row.cells[fullNameColumnIndex]?.trim() || null : null;
 
+    const profileData: Record<string, string> = {};
+
+    if (hasHeaderRow) {
+      for (let columnIndex = 0; columnIndex < row.cells.length; columnIndex++) {
+        if (columnIndex === emailColumnIndex || columnIndex === fullNameColumnIndex) {
+          continue;
+        }
+
+        const rawHeader = firstDataCandidate.cells[columnIndex]?.trim() ?? "";
+        const rawValue = row.cells[columnIndex]?.trim() ?? "";
+
+        if (!rawHeader || !rawValue) {
+          continue;
+        }
+
+        const normalizedKey = normalizeProfileFieldKey(rawHeader);
+        if (!normalizedKey) {
+          continue;
+        }
+
+        profileData[normalizedKey] = rawValue;
+      }
+    }
+
+    if (fullName) {
+      profileData.full_name = fullName;
+    } else {
+      const firstName = profileData.first_name?.trim();
+      const lastName = profileData.last_name?.trim();
+
+      if (firstName || lastName) {
+        profileData.full_name = [firstName, lastName].filter(Boolean).join(" ");
+      }
+    }
+
     validRows.push({
       rowNumber: row.sourceRowNumber,
       email: normalizedEmail,
       fullName,
+      profileData,
     });
   }
 

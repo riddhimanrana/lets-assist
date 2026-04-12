@@ -17,6 +17,8 @@ import { streamText } from 'ai';
 import { createClient } from '@/lib/supabase/server';
 import { notifyAdminUserBatched } from '@/services/admin-notifications';
 import { logError } from '@/lib/logger';
+import { gatewayModel } from '@/lib/ai/gateway';
+import { createPostHogTelemetry } from '@/lib/ai/posthog-telemetry';
 
 // Model configuration for Vercel AI Gateway
 const MODEL = 'google/gemini-2.0-flash-lite';
@@ -49,8 +51,18 @@ export interface ModerationResult {
 export async function moderateImage(imageUrl: string, userId?: string): Promise<ModerationResult> {
   try {
     let fullText = '';
+    const telemetry = createPostHogTelemetry({
+      functionId: 'moderate-image',
+      distinctId: userId,
+      metadata: {
+        ai_feature: 'content-moderation',
+        content_type: 'image',
+      },
+    });
+
     const result = streamText({
-      model: MODEL,
+      model: gatewayModel('moderation', MODEL),
+      experimental_telemetry: telemetry,
       messages: [
         {
           role: 'system',
@@ -160,8 +172,18 @@ export async function moderateImage(imageUrl: string, userId?: string): Promise<
 export async function moderateText(text: string, userId?: string, contentId?: string): Promise<ModerationResult> {
   try {
     let fullText = '';
+    const telemetry = createPostHogTelemetry({
+      functionId: 'moderate-text',
+      distinctId: userId,
+      metadata: {
+        ai_feature: 'content-moderation',
+        content_type: 'text',
+      },
+    });
+
     const result = streamText({
-      model: MODEL,
+      model: gatewayModel('moderation', MODEL),
+      experimental_telemetry: telemetry,
       messages: [
         {
           role: 'system',
