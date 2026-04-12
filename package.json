@@ -19,6 +19,9 @@
     "supabase:bootstrap:dev-accounts": "node scripts/local-dev/bootstrap-dev-accounts.mjs",
     "supabase:seed:local-dev": "bun run supabase:bootstrap:dev-accounts && bun run supabase:seed:dummy-orgs",
     "supabase:seed:dummy-orgs": "node scripts/local-dev/seed-dummy-orgs.mjs",
+    "db:validate": "bash scripts/db-validate.sh",
+    "db:dry-run": "bash scripts/db-dry-run.sh",
+    "db:advisors": "bash scripts/db-advisors.sh",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "email:dev": "email dev"
@@ -113,7 +116,7 @@
     "use-debounce": "^10.1.1",
     "uuid": "^13.0.0",
     "vaul": "^1.1.2",
-    "xlsx": "^0.18.5",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.2/xlsx-0.20.2.tgz",
     "zod": "^4.3.6"
   },
   "devDependencies": {
