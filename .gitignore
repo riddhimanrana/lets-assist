@@ -53,6 +53,8 @@ next-env.d.ts
 !/.github/workflows/
 !/.github/workflows/**
 !/.github/copilot-instructions.md
+!/.github/codeql/
+!/.github/codeql/**
 /.vscode
 
 # roo code
@@ -68,6 +70,8 @@ lib/plugins/private/*
 !lib/plugins/private/registry.ts
 
 .agents
+
+scripts/local-dev/
 
 playwright.config.ts
 
