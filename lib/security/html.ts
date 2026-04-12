@@ -30,6 +30,8 @@ export const RICH_TEXT_ALLOWED_SCHEMES = ["http", "https", "mailto", "tel"] as c
 
 export const RICH_TEXT_ALLOWED_URI_REGEXP = /^(?:(?:https?|mailto|tel):|[#/?]|\.{1,2}\/)/i;
 
+const SCRIPT_TAG_PATTERN = /<\s*script\b[^>]*>[\s\S]*?<\s*\/\s*script\s*>/gi;
+
 const SAFE_LINK_PROTOCOLS = new Set(RICH_TEXT_ALLOWED_SCHEMES.map((scheme) => `${scheme}:`));
 const DOMAIN_LIKE_URL_REGEX =
   /^(?:localhost(?::\d+)?|(?:[\w-]+\.)+[a-z]{2,})(?:[/?#].*)?$/i;
@@ -44,6 +46,14 @@ const HTML_ESCAPE_LOOKUP: Record<string, string> = {
 
 export function trimTrailingEmptyParagraphs(html: string): string {
   return html.replace(/(?:<p>(?:\s*<br\s*\/?>\s*|\s*)<\/p>\s*)+$/gi, "").trim();
+}
+
+export function stripScriptTags(html: string): string {
+  if (!html) {
+    return "";
+  }
+
+  return html.replace(SCRIPT_TAG_PATTERN, "");
 }
 
 export function escapeHtml(value: unknown): string {

@@ -360,4 +360,8 @@ export interface OrganizationPluginAdminSetting {
   codeRepository: string | null;
   codeReference: string | null;
   privateCodebase: boolean;
+  lastUpdatedAt: string | null;
+  configuration: Record<string, unknown> | null;
+  configSchema: OrganizationPluginConfigSchema | null;
+  requiredScopes: OrganizationPluginScope[];
 }

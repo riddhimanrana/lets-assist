@@ -18,6 +18,7 @@ interface OrganizationInvitationProps {
   organizationName: string;
   organizationUsername: string;
   inviterName: string;
+  recipientName?: string | null;
   role: "staff" | "member";
   inviteUrl: string;
   expiresAt: string;
@@ -27,6 +28,7 @@ export default function OrganizationInvitation({
   organizationName = "Acme Organization",
   organizationUsername = "acme-org",
   inviterName = "John Doe",
+  recipientName = null,
   role = "member",
   inviteUrl = "https://lets-assist.com/organization/join/invite?token=abc123",
   expiresAt = "April 11, 2026",
@@ -75,6 +77,11 @@ export default function OrganizationInvitation({
             {/* Content */}
             <Section style={content} className="content">
               <Heading style={heading1}>You're Invited!</Heading>
+              {recipientName ? (
+                <Text style={paragraph}>
+                  Hi <strong>{recipientName}</strong>,
+                </Text>
+              ) : null}
               <Text style={paragraph}>
                 <strong>{inviterName}</strong> has invited you to join{" "}
                 <strong>{organizationName}</strong> on Let's Assist.

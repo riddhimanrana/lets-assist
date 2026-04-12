@@ -5,7 +5,11 @@ import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { revalidatePath } from "next/cache";
 import { getRegisteredPlugin, listRegisteredPlugins } from "@/lib/plugins/registry";
 import { buildOrganizationPluginAdminSettings } from "@/lib/plugins/organization-plugin-settings";
-import { isEntitlementActive } from "@/lib/plugins/resolve-org-plugins";
+import {
+  applyConfigDefaults,
+  validatePluginConfig,
+  type PluginConfigSchema,
+} from "@/lib/plugins/config-schema";
 import type { OrganizationPluginAdminSetting } from "@/types";
 
 // Allowed image MIME types
@@ -489,6 +493,7 @@ type PluginCatalogRow = {
   code_repository: string | null;
   code_reference: string | null;
   private_codebase: boolean;
+  updated_at: string | null;
 };
 
 type PluginEntitlementRow = {
@@ -502,12 +507,14 @@ type PluginInstallRow = {
   plugin_key: string;
   enabled: boolean;
   installed_version: string | null;
+  configuration: Record<string, unknown> | null;
 };
 
 type PluginAccessRow = {
   plugin_key: string;
   enabled: boolean;
   installed_version: string | null;
+  configuration: Record<string, unknown> | null;
   install_created_at: string | null;
   entitlement_status: "active" | "inactive" | null;
   entitlement_starts_at: string | null;
@@ -527,11 +534,23 @@ export type OrganizationPluginSettingsResult = {
 
 function isMissingPluginTableError(error: SupabaseLikeError | null): boolean {
   if (!error) return false;
+
+  const message =
+    typeof error.message === "string" ? error.message.toLowerCase() : "";
+
   return (
     error.code === "42P01" ||
     error.code === "42703" ||
-    (typeof error.message === "string" && error.message.includes("does not exist"))
+    error.code === "PGRST205" ||
+    message.includes("does not exist") ||
+    message.includes("schema cache") ||
+    message.includes("could not find the table") ||
+    message.includes("could not find the relation")
   );
+}
+
+function isPlainObjectRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 async function isOrganizationAdminForSettings(
@@ -569,13 +588,13 @@ export async function getOrganizationPluginSettings(
     supabase
       .from("plugins")
       .select(
-        "key, name, description, visibility, is_active, latest_version, force_update_version, code_repository, code_reference, private_codebase",
+        "key, name, description, visibility, is_active, latest_version, force_update_version, code_repository, code_reference, private_codebase, updated_at",
       )
       .eq("is_active", true),
     supabase
       .from("organization_plugin_access")
       .select(
-        "plugin_key, enabled, installed_version, install_created_at, entitlement_status, entitlement_starts_at, entitlement_ends_at",
+        "plugin_key, enabled, installed_version, configuration, install_created_at, entitlement_status, entitlement_starts_at, entitlement_ends_at",
       )
       .eq("organization_id", organizationId),
   ]);
@@ -591,7 +610,7 @@ export async function getOrganizationPluginSettings(
         .eq("organization_id", organizationId),
       supabase
         .from("organization_plugin_installs")
-        .select("plugin_key, enabled, installed_version")
+        .select("plugin_key, enabled, installed_version, configuration")
         .eq("organization_id", organizationId),
     ]);
 
@@ -629,6 +648,8 @@ export async function getOrganizationPluginSettings(
       navLabel: plugin.manifest.navLabel ?? plugin.manifest.name,
       version: plugin.manifest.version,
       minimumRole: plugin.manifest.minimumRole ?? "member",
+      configSchema: plugin.manifest.configSchema ?? null,
+      requiredScopes: plugin.manifest.requiredScopes ?? [],
     }));
 
     const plugins = buildOrganizationPluginAdminSettings({
@@ -657,6 +678,8 @@ export async function getOrganizationPluginSettings(
     navLabel: plugin.manifest.navLabel ?? plugin.manifest.name,
     version: plugin.manifest.version,
     minimumRole: plugin.manifest.minimumRole ?? "member",
+    configSchema: plugin.manifest.configSchema ?? null,
+    requiredScopes: plugin.manifest.requiredScopes ?? [],
   }));
 
   const accessRows = (accessResult.data ?? []) as PluginAccessRow[];
@@ -676,6 +699,7 @@ export async function getOrganizationPluginSettings(
       plugin_key: row.plugin_key,
       enabled: row.enabled,
       installed_version: row.installed_version,
+      configuration: row.configuration,
     })) as PluginInstallRow[];
 
   const plugins = buildOrganizationPluginAdminSettings({
@@ -710,7 +734,8 @@ export async function setOrganizationPluginInstallState(options: {
   if (!definition) {
     return {
       success: false,
-      error: "This plugin package is not loaded in the current deployment.",
+      error:
+        "This plugin package is not loaded in the current deployment yet. Please try again in a moment.",
     };
   }
 
@@ -747,93 +772,76 @@ export async function setOrganizationPluginInstallState(options: {
     return { success: false, error: "Plugin is not active in the catalog." };
   }
 
-  if (pluginCatalog.visibility === "private") {
-    const { data: entitlement, error: entitlementError } = (await supabase
-      .from("organization_plugin_entitlements")
-      .select("plugin_key, status, starts_at, ends_at")
-      .eq("organization_id", organizationId)
-      .eq("plugin_key", pluginKey)
-      .maybeSingle()) as {
-      data: PluginEntitlementRow | null;
-      error: SupabaseLikeError | null;
+  if (pluginCatalog.visibility !== "global") {
+    return {
+      success: false,
+      error:
+        "Private plugins are managed by the Let's Assist team. Contact support for changes.",
     };
-
-    if (isMissingPluginTableError(entitlementError)) {
-      return {
-        success: false,
-        error: "Plugin entitlement table is not initialized in this environment yet.",
-      };
-    }
-
-    if (entitlementError) {
-      return {
-        success: false,
-        error: `Failed to validate entitlement: ${entitlementError.message}`,
-      };
-    }
-
-    if (!entitlement || !isEntitlementActive(entitlement)) {
-      return {
-        success: false,
-        error: "Your organization does not have an active entitlement for this private plugin.",
-      };
-    }
   }
 
-  if (enabled) {
-    const { error: upsertError } = await supabase
-      .from("organization_plugin_installs")
-      .upsert(
-        {
-          organization_id: organizationId,
-          plugin_key: pluginKey,
-          enabled: true,
-          installed_version: pluginCatalog.latest_version,
-          auto_update: true,
-          installed_by: user.id,
-          installed_at: new Date().toISOString(),
-          last_version_update_at: new Date().toISOString(),
-          updated_by: user.id,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "organization_id,plugin_key" },
-      );
+  const { data: existingInstall, error: existingInstallError } = (await supabase
+    .from("organization_plugin_installs")
+    .select("organization_id, plugin_key")
+    .eq("organization_id", organizationId)
+    .eq("plugin_key", pluginKey)
+    .maybeSingle()) as {
+    data: { organization_id: string; plugin_key: string } | null;
+    error: SupabaseLikeError | null;
+  };
 
-    if (upsertError) {
-      return { success: false, error: `Failed to install plugin: ${upsertError.message}` };
-    }
-  } else {
-    const { data: existingInstall, error: existingInstallError } = (await supabase
-      .from("organization_plugin_installs")
-      .select("id")
-      .eq("organization_id", organizationId)
-      .eq("plugin_key", pluginKey)
-      .maybeSingle()) as {
-      data: { id: string } | null;
-      error: SupabaseLikeError | null;
+  if (existingInstallError) {
+    return {
+      success: false,
+      error: `Failed to load current install state: ${existingInstallError.message}`,
     };
+  }
 
-    if (existingInstallError) {
-      return {
-        success: false,
-        error: `Failed to load current install state: ${existingInstallError.message}`,
-      };
-    }
+  const now = new Date().toISOString();
 
+  if (enabled) {
     if (existingInstall) {
       const { error: updateError } = await supabase
         .from("organization_plugin_installs")
         .update({
-          enabled: false,
-          updated_by: user.id,
-          updated_at: new Date().toISOString(),
+          enabled: true,
+          installed_version: pluginCatalog.latest_version,
+          updated_at: now,
         })
         .eq("organization_id", organizationId)
         .eq("plugin_key", pluginKey);
 
       if (updateError) {
-        return { success: false, error: `Failed to disable plugin: ${updateError.message}` };
+        return { success: false, error: `Failed to enable plugin: ${updateError.message}` };
       }
+    } else {
+      const { error: insertError } = await supabase
+        .from("organization_plugin_installs")
+        .insert({
+          organization_id: organizationId,
+          plugin_key: pluginKey,
+          enabled: true,
+          installed_version: pluginCatalog.latest_version,
+          installed_at: now,
+          updated_at: now,
+        });
+
+      if (insertError) {
+        return { success: false, error: `Failed to install plugin: ${insertError.message}` };
+      }
+    }
+  } else if (existingInstall) {
+    const { error: updateError } = await supabase
+      .from("organization_plugin_installs")
+      .update({
+        enabled: false,
+        updated_at: now,
+      })
+      .eq("organization_id", organizationId)
+      .eq("plugin_key", pluginKey);
+
+    if (updateError) {
+      return { success: false, error: `Failed to disable plugin: ${updateError.message}` };
     }
   }
 
@@ -898,6 +906,14 @@ export async function updateOrganizationPluginToLatest(options: {
     return { success: false, error: "Plugin is not active in catalog." };
   }
 
+  if (pluginCatalog.visibility !== "global") {
+    return {
+      success: false,
+      error:
+        "Private plugins are managed by the Let's Assist team. Contact support for changes.",
+    };
+  }
+
   const { data: existingInstall, error: existingInstallError } = (await supabase
     .from("organization_plugin_installs")
     .select("id, enabled")
@@ -927,8 +943,6 @@ export async function updateOrganizationPluginToLatest(options: {
     .update({
       installed_version: pluginCatalog.latest_version,
       enabled: true,
-      last_version_update_at: new Date().toISOString(),
-      updated_by: user.id,
       updated_at: new Date().toISOString(),
     })
     .eq("organization_id", organizationId)
@@ -954,4 +968,177 @@ export async function updateOrganizationPluginToLatest(options: {
   revalidatePath(`/organization/${organizationId}/settings`);
 
   return { success: true };
+}
+
+export async function updateOrganizationPluginConfiguration(options: {
+  organizationId: string;
+  pluginKey: string;
+  configurationJson: string;
+}): Promise<{ success: boolean; error?: string; message?: string }> {
+  const { organizationId, pluginKey, configurationJson } = options;
+  const supabase = await createClient();
+  const { user } = await getAuthUser();
+
+  if (!user) {
+    return { success: false, error: "You must be logged in to update plugin settings" };
+  }
+
+  const isAdmin = await isOrganizationAdminForSettings(organizationId, user.id);
+  if (!isAdmin) {
+    return { success: false, error: "Only organization admins can update plugin settings" };
+  }
+
+  const definition = getRegisteredPlugin(pluginKey);
+  if (!definition) {
+    return {
+      success: false,
+      error: "This plugin package is not loaded in the current deployment.",
+    };
+  }
+
+  if (definition.manifest.visibility !== "global") {
+    return {
+      success: false,
+      error:
+        "Private plugins are managed by the Let's Assist team. Contact support for changes.",
+    };
+  }
+
+  const { data: pluginCatalog, error: pluginCatalogError } = (await supabase
+    .from("plugins")
+    .select("key, visibility, is_active")
+    .eq("key", pluginKey)
+    .eq("is_active", true)
+    .maybeSingle()) as {
+    data: { key: string; visibility: "global" | "private"; is_active: boolean } | null;
+    error: SupabaseLikeError | null;
+  };
+
+  if (pluginCatalogError) {
+    return {
+      success: false,
+      error: `Failed to load plugin catalog entry: ${pluginCatalogError.message}`,
+    };
+  }
+
+  if (!pluginCatalog) {
+    return { success: false, error: "Plugin is not active in catalog." };
+  }
+
+  if (pluginCatalog.visibility !== "global") {
+    return {
+      success: false,
+      error:
+        "Private plugins are managed by the Let's Assist team. Contact support for changes.",
+    };
+  }
+
+  const { data: existingInstall, error: existingInstallError } = (await supabase
+    .from("organization_plugin_installs")
+    .select("id")
+    .eq("organization_id", organizationId)
+    .eq("plugin_key", pluginKey)
+    .maybeSingle()) as {
+    data: { id: string } | null;
+    error: SupabaseLikeError | null;
+  };
+
+  if (existingInstallError) {
+    return {
+      success: false,
+      error: `Failed to load plugin install state: ${existingInstallError.message}`,
+    };
+  }
+
+  if (!existingInstall) {
+    return {
+      success: false,
+      error: "Install the plugin before updating its settings.",
+    };
+  }
+
+  const trimmed = configurationJson.trim();
+
+  let parsedConfiguration: Record<string, unknown> = {};
+  if (trimmed.length > 0) {
+    try {
+      const parsed = JSON.parse(trimmed) as unknown;
+      if (!isPlainObjectRecord(parsed)) {
+        return {
+          success: false,
+          error: "Plugin settings must be a JSON object.",
+        };
+      }
+
+      parsedConfiguration = parsed;
+    } catch {
+      return {
+        success: false,
+        error: "Plugin settings JSON is invalid.",
+      };
+    }
+  }
+
+  const schema = definition.manifest.configSchema;
+  let normalizedConfiguration = parsedConfiguration;
+
+  if (schema) {
+    normalizedConfiguration = applyConfigDefaults(
+      parsedConfiguration,
+      schema as PluginConfigSchema,
+    );
+
+    const validation = validatePluginConfig(
+      normalizedConfiguration,
+      schema as PluginConfigSchema,
+    );
+
+    if (!validation.valid) {
+      const firstError = validation.errors[0];
+      const fieldPath = firstError?.path && firstError.path !== "/"
+        ? firstError.path
+        : "root";
+
+      return {
+        success: false,
+        error: `Settings validation failed at ${fieldPath}: ${firstError?.message || "Invalid value"}`,
+      };
+    }
+  }
+
+  const { error: updateError } = await supabase
+    .from("organization_plugin_installs")
+    .update({
+      configuration: normalizedConfiguration,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("organization_id", organizationId)
+    .eq("plugin_key", pluginKey);
+
+  if (updateError) {
+    return {
+      success: false,
+      error: `Failed to save plugin settings: ${updateError.message}`,
+    };
+  }
+
+  const { data: organization } = await supabase
+    .from("organizations")
+    .select("id, username")
+    .eq("id", organizationId)
+    .maybeSingle();
+
+  if (organization) {
+    const organizationSlug = organization.username || organization.id;
+    revalidatePath(`/organization/${organizationSlug}`);
+    revalidatePath(`/organization/${organizationSlug}/settings`);
+  }
+
+  revalidatePath(`/organization/${organizationId}`);
+  revalidatePath(`/organization/${organizationId}/settings`);
+
+  return {
+    success: true,
+    message: "Plugin settings saved.",
+  };
 }

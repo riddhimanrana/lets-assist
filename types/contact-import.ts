@@ -15,6 +15,7 @@ export interface ContactImportParsedRow {
   rowNumber: number;
   email: string;
   fullName: string | null;
+  profileData: Record<string, string>;
 }
 
 export interface ContactImportInvalidRow {
@@ -60,6 +61,7 @@ export interface OrganizationContactImportRow {
   row_number: number;
   email: string;
   full_name: string | null;
+  profile_data: Record<string, string> | null;
   status: ContactImportRowStatus;
   error: string | null;
   invitation_id: string | null;

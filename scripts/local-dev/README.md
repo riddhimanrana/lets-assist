@@ -10,6 +10,8 @@ This folder contains scripts used to provision a predictable local Supabase test
   - Creates reusable persona accounts in local `auth.users` + `public.profiles`.
 - `seed-dummy-orgs.mjs`
   - Creates dummy organizations, memberships, projects, signups, and certificates for role-based org scenarios.
+- `member-import-mock.csv`
+  - 10-row sample file for testing organization member CSV import, including phone numbers and notes.
 
 ## Recommended workflow
 

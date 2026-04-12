@@ -9,6 +9,8 @@ import { detectCandidateAreas } from '@/lib/waiver/candidate-detection';
 import { detectPdfWidgets } from '@/lib/waiver/pdf-field-detect';
 import type { CandidateArea } from '@/lib/waiver/candidate-detection';
 import type { DetectedPdfField } from '@/lib/waiver/pdf-field-detect';
+import { gatewayModel } from '@/lib/ai/gateway';
+import { createPostHogTelemetry } from '@/lib/ai/posthog-telemetry';
 
 const FIELD_TYPES = [
   'signature',
@@ -1110,12 +1112,14 @@ export async function POST(request: NextRequest) {
     const isE2EBypassEnabled = 
       process.env.NODE_ENV !== 'production' && 
       process.env.ENABLE_E2E_AUTH_BYPASS === 'true';
+    let posthogDistinctId: string | undefined;
 
     if (!isE2EBypassEnabled) {
       const authResult = await getAuthUser();
       if (!authResult.user) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
       }
+      posthogDistinctId = authResult.user.id;
     }
 
     const MAX_PDF_BYTES = 20 * 1024 * 1024; // 20MB
@@ -1284,7 +1288,14 @@ export async function POST(request: NextRequest) {
     }, null, 2);
 
     const result = await generateText({
-      model: selectedModel,
+      model: gatewayModel('platform', selectedModel),
+      experimental_telemetry: createPostHogTelemetry({
+        functionId: 'analyze-waiver',
+        distinctId: posthogDistinctId,
+        metadata: {
+          ai_feature: 'waiver-analysis',
+        },
+      }),
       output: Output.object({ schema: WaiverClassificationSchema }),
       messages: [
         {
@@ -1413,7 +1424,15 @@ ${structuredInput}
         }, null, 2);
 
         const fallback = await generateText({
-          model: selectedModel,
+          model: gatewayModel('platform', selectedModel),
+          experimental_telemetry: createPostHogTelemetry({
+            functionId: 'analyze-waiver-vision-fallback',
+            distinctId: posthogDistinctId,
+            metadata: {
+              ai_feature: 'waiver-analysis',
+              ai_phase: 'vision-fallback',
+            },
+          }),
           output: Output.object({ schema: VisionFallbackSchema }),
           messages: [
             {

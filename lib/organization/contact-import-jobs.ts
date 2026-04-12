@@ -38,6 +38,7 @@ type ContactImportRowRow = {
   row_number: number;
   email: string;
   full_name: string | null;
+  profile_data: Record<string, string> | null;
   status: "pending" | "invited" | "skipped" | "failed";
   error: string | null;
   invitation_id: string | null;
@@ -223,6 +224,7 @@ export async function createContactImportJobFromFile(params: {
       row_number: row.rowNumber,
       email: row.email,
       full_name: row.fullName,
+      profile_data: row.profileData,
       status: "pending" as const,
     }));
 
@@ -372,7 +374,7 @@ export async function processContactImportJobBatch(params: {
 
   const { data: pendingRowsData, error: pendingRowsError } = await supabase
     .from("organization_contact_import_rows")
-    .select("id, row_number, email, full_name, status, error, invitation_id")
+    .select("id, row_number, email, full_name, profile_data, status, error, invitation_id")
     .eq("job_id", job.id)
     .eq("status", "pending")
     .order("row_number", { ascending: true })
@@ -537,6 +539,7 @@ export async function processContactImportJobBatch(params: {
         organizationName: organization.name,
         organizationUsername: organization.username,
         inviterName,
+        recipientName: row.full_name,
         role: job.role,
         inviteUrl,
         expiresAt: expiresAtDisplay,
@@ -545,8 +548,12 @@ export async function processContactImportJobBatch(params: {
     });
 
     if (!emailResult.success && !emailResult.skipped) {
-      const reason =
-        "Invitation email could not be sent (invite kept pending; use resend in invitation history)";
+      const reason = "Invitation email could not be sent";
+
+      await supabase
+        .from("organization_invitations")
+        .update({ status: "cancelled" })
+        .eq("id", invitationData.id);
 
       await markRow("failed", reason, invitationData.id);
       failedCount++;

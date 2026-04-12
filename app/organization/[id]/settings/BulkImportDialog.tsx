@@ -63,6 +63,10 @@ type FailedRowPreview = {
 };
 
 const IMPORT_BATCH_SIZE = 100;
+const ROLE_OPTIONS = [
+  { label: "Members", value: "member" },
+  { label: "Staff", value: "staff" },
+] as const;
 
 function formatFileSize(bytes: number): string {
   if (!Number.isFinite(bytes) || bytes <= 0) return "0 KB";
@@ -293,28 +297,42 @@ export default function BulkImportDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger render={
-        <Button>
-          <Upload className="mr-2 h-4 w-4" />
-          Bulk Import
-        </Button>
-      } />
-      <DialogContent className="sm:max-w-lg">
+      <DialogTrigger
+        render={
+          <Button>
+            <Upload className="mr-2 h-4 w-4" />
+            Bulk Import
+          </Button>
+        }
+      />
+      <DialogContent className="sm:max-w-2xl">
         {step === "input" && (
           <>
             <DialogHeader>
               <DialogTitle>Bulk Import Members</DialogTitle>
               <DialogDescription>
-                Upload CSV/Excel files, or paste a copied member list.
+                Upload CSV/Excel files or paste copied member lists. The parser will infer the email column automatically.
               </DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-4 py-4">
+            <div className="flex flex-col gap-4 ">
+              {/* <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>No setup required</AlertTitle>
+                <AlertDescription>
+                  Upload a CSV/XLSX file or paste a copied list. We’ll parse the email column automatically and keep duplicates out.
+                </AlertDescription>
+              </Alert> */}
+
               <div className="space-y-2">
                 <Label htmlFor="role">Invite as</Label>
-                <Select value={role} onValueChange={(v) => setRole(v as ContactImportRole)}>
+                <Select
+                  items={ROLE_OPTIONS}
+                  value={role}
+                  onValueChange={(v) => setRole(v as ContactImportRole)}
+                >
                   <SelectTrigger id="role">
-                    <SelectValue />
+                    <SelectValue placeholder="Invite as" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="member">
@@ -345,7 +363,7 @@ export default function BulkImportDialog({
                 </TabsList>
 
                 <TabsContent value="file" className="space-y-4">
-                  <div className="space-y-2">
+                  <div className="space-y-2 rounded-lg border bg-muted/20 p-3">
                     <Label htmlFor="import-file">CSV / Excel file</Label>
                     <input
                       id="import-file"
@@ -359,7 +377,7 @@ export default function BulkImportDialog({
                       className="w-full rounded-md border bg-background px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-1.5 file:text-xs file:font-medium"
                     />
                     <p className="text-xs text-muted-foreground">
-                      Required column: <span className="font-medium">email</span>. Optional: <span className="font-medium">name</span>. Flexible headers are supported.
+                      We support CSV, XLSX, and XLS. Use one contact per row.
                     </p>
                   </div>
 
@@ -368,14 +386,14 @@ export default function BulkImportDialog({
                       <FileSpreadsheet className="h-4 w-4" />
                       <AlertTitle>{selectedFile.name}</AlertTitle>
                       <AlertDescription>
-                        {formatFileSize(selectedFile.size)} · ready to import in batches.
+                        {formatFileSize(selectedFile.size)} · ready to import.
                       </AlertDescription>
                     </Alert>
                   )}
                 </TabsContent>
 
                 <TabsContent value="manual" className="space-y-4">
-                  <div className="space-y-2">
+                  <div className="space-y-2 rounded-lg border bg-muted/20 p-3">
                     <Label htmlFor="emails">Email Addresses</Label>
                     <Textarea
                       id="emails"
@@ -383,16 +401,13 @@ export default function BulkImportDialog({
 
 john@example.com
 jane@example.com
-bob@example.com
-
-or paste formats like:
-Jane Doe <jane@example.com>"
+bob@example.com"
                       value={emailInput}
                       onChange={(e) => setEmailInput(e.target.value)}
                       className="min-h-40 font-mono text-sm"
                     />
                     <p className="text-xs text-muted-foreground">
-                      Supports copied text, CSV-style rows, and Name &lt;email&gt; formats.
+                      Supports copied text, CSV-style rows, and Name &lt;email&gt; format.
                     </p>
                   </div>
 

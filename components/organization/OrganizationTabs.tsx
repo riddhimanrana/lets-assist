@@ -3,6 +3,8 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import MembersTab from "@/app/organization/[id]/MembersTab";
 import ProjectsTab from "@/app/organization/[id]/ProjectsTab";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { NoAvatar } from "@/components/shared/NoAvatar";
 import { useState, useEffect } from "react";
 import type { ReactNode } from "react";
 import {
@@ -18,7 +20,8 @@ import {
   MapPin,
   ShieldCheck,
   LogOut,
-  BarChart3
+  BarChart3,
+  Frown
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import Link from "next/link";
@@ -374,7 +377,7 @@ export default function OrganizationTabs({
             </CardContent>
           </Card>
           {/* Recent Projects Card */}
-          {projects.length > 0 && (
+          {projects.length > 0 ? (
             <Card className="overflow-hidden">
               <CardHeader>
                 <CardTitle className="text-xl! font-bold tracking-tight">Recent Projects</CardTitle>
@@ -400,6 +403,29 @@ export default function OrganizationTabs({
                     </Link>
                   ))}
                 </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="hidden h-full overflow-hidden lg:flex lg:flex-col">
+              <CardHeader>
+                <CardTitle className="text-xl! font-bold tracking-tight">Recent Projects</CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-1 flex-col items-center justify-center px-6 py-10 text-center">
+                <div className="h-16 w-16 rounded-full bg-muted/50 flex items-center justify-center">
+                  <Frown className="h-8 w-8 text-muted-foreground" />
+                </div>
+
+                <div className="mt-4 space-y-2">
+                  <h3 className="text-lg font-semibold">None yet</h3>
+                  <CardDescription className="max-w-xs">
+                    No projects have been added to this organization yet.
+                  </CardDescription>
+                </div>
+
+                {/* <div className="mt-6 inline-flex items-center gap-2 rounded-full border bg-muted/40 px-3 py-1 text-xs text-muted-foreground">
+                  <Folders className="h-3.5 w-3.5" />
+                  Waiting for the first project
+                </div> */}
               </CardContent>
             </Card>
           )}

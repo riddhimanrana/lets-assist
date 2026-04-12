@@ -16,6 +16,7 @@ export type PluginCatalogForSettings = {
   code_repository: string | null;
   code_reference: string | null;
   private_codebase: boolean;
+  updated_at: string | null;
 };
 
 export type PluginEntitlementForSettings = {
@@ -29,6 +30,7 @@ export type PluginInstallForSettings = {
   plugin_key: string;
   enabled: boolean;
   installed_version: string | null;
+  configuration: Record<string, unknown> | null;
 };
 
 export type RuntimePluginInfo = {
@@ -36,6 +38,8 @@ export type RuntimePluginInfo = {
   navLabel: string;
   version: string;
   minimumRole: "admin" | "staff" | "member";
+  configSchema?: OrganizationPluginAdminSetting["configSchema"];
+  requiredScopes?: OrganizationPluginAdminSetting["requiredScopes"];
 };
 
 export function buildOrganizationPluginAdminSettings(input: {
@@ -104,6 +108,10 @@ export function buildOrganizationPluginAdminSettings(input: {
         codeRepository: plugin.code_repository,
         codeReference: plugin.code_reference,
         privateCodebase: plugin.private_codebase,
+        lastUpdatedAt: plugin.updated_at,
+        configuration: install?.configuration ?? null,
+        configSchema: runtimePlugin?.configSchema ?? null,
+        requiredScopes: runtimePlugin?.requiredScopes ?? [],
       } satisfies OrganizationPluginAdminSetting;
     })
     .sort((a, b) => a.name.localeCompare(b.name));

@@ -8,6 +8,7 @@ import {
   deleteGoogleCalendarEventForCalendar,
   ensureOrganizationCalendar,
   getGoogleAccessTokenForUser,
+  deactivateGoogleConnection,
   updateGoogleCalendarEventForCalendar,
 } from "@/services/calendar";
 import type { Project } from "@/types";
@@ -26,6 +27,7 @@ type OrgCalendarStatus = {
   autoSync?: boolean;
   lastSyncedAt?: string | null;
   canManage: boolean;
+  viewerIsOwner?: boolean;
   needsReconnect?: boolean;
   error?: string;
 };
@@ -132,6 +134,7 @@ export async function getOrganizationCalendarStatus(
     return {
       connected: false,
       canManage: access.role === "admin",
+      viewerIsOwner: false,
     };
   }
 
@@ -166,8 +169,69 @@ export async function getOrganizationCalendarStatus(
     autoSync: syncConfig.auto_sync,
     lastSyncedAt: syncConfig.last_synced_at,
     canManage: access.role === "admin",
+    viewerIsOwner: syncConfig.created_by === access.userId,
     needsReconnect: !ownerConnection,
   };
+}
+
+export async function disconnectOrganizationCalendarConnection(
+  organizationId: string
+): Promise<{ success: boolean; error?: string }> {
+  const access = await assertOrgAccess(organizationId, true);
+  if (access.error) {
+    return { success: false, error: access.error };
+  }
+
+  const serviceSupabase = getAdminClient();
+  const { data: syncConfig, error: syncError } = await serviceSupabase
+    .from("organization_calendar_syncs")
+    .select("created_by")
+    .eq("organization_id", organizationId)
+    .maybeSingle();
+
+  if (syncError) {
+    console.error("Failed to load org calendar sync before disconnect:", syncError);
+    return { success: false, error: "Failed to verify calendar owner" };
+  }
+
+  if (!syncConfig?.created_by) {
+    return { success: false, error: "Calendar sync not configured" };
+  }
+
+  if (syncConfig.created_by !== access.userId) {
+    return {
+      success: false,
+      error: "Only the connected Google account owner can remove this connection.",
+    };
+  }
+
+  const deactivateResult = await deactivateGoogleConnection(access.userId);
+  if (!deactivateResult.success) {
+    return { success: false, error: deactivateResult.error || "Failed to disconnect Google account" };
+  }
+
+  const { error: eventsError } = await serviceSupabase
+    .from("organization_calendar_events")
+    .delete()
+    .eq("organization_id", organizationId);
+
+  if (eventsError) {
+    console.error("Failed to delete org calendar events during account disconnect:", eventsError);
+    return { success: false, error: "Failed to remove calendar events" };
+  }
+
+  const { error: syncErrorDelete } = await serviceSupabase
+    .from("organization_calendar_syncs")
+    .delete()
+    .eq("organization_id", organizationId);
+
+  if (syncErrorDelete) {
+    console.error("Failed to delete org calendar sync during account disconnect:", syncErrorDelete);
+    return { success: false, error: "Failed to disconnect calendar" };
+  }
+
+  revalidatePath(`/organization/${organizationId}/settings`);
+  return { success: true };
 }
 
 export async function updateOrganizationCalendarSettings(

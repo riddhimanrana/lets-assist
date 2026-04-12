@@ -1,6 +1,0 @@
-Contact: mailto:contact@lets-assist.com
-Contact: https://lets-assist.com/contact
-Policy: https://github.com/riddhimanrana/lets-assist/security/policy
-Preferred-Languages: en
-Canonical: https://lets-assist.com/.well-known/security.txt
-Expires: 2027-04-11T23:59:59.000Z
