@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "node scripts/sync-private-submodules.mjs && next build",
     "postbuild": "next-sitemap",
     "start": "next start",
     "supabase:start": "supabase start",
