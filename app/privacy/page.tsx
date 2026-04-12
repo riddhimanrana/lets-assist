@@ -73,30 +73,31 @@ const PrivacyPage = () => {
             <li>Send you important service notifications and updates.</li>
           </ul>
 
-          <h2 className="text-2xl font-semibold">4. Google Calendar Integration (Optional)</h2>
+          <h2 className="text-2xl font-semibold">4. Google Integrations (Optional)</h2>
           <p className="mt-2 leading-relaxed">
-            If you choose to connect your Google Calendar:
+            If you choose to connect your Google account for Calendar or Sheets integrations:
           </p>
           <ul className="list-disc pl-5 mt-2 space-y-2">
             <li>
-              <strong>What We Access:</strong> We access your Google Calendar
-              and email address to verify your account and add volunteering
-              events.
+              <strong>What We Access:</strong> We request the following Google permissions to enable features like calendar sync and spreadsheet management:
+              <ul className="list-disc pl-5 mt-2 space-y-2">
+                <li><strong>Email and Profile (userinfo.email, userinfo.profile):</strong> To identify and link your Google account to your Let's Assist profile.</li>
+                <li><strong>Google Drive Files (drive.file):</strong> To access only the specific Google Drive files you select or create through our app, such as spreadsheets.</li>
+                <li><strong>Google Sheets (https://www.googleapis.com/auth/spreadsheets):</strong> To create, read, update, and delete spreadsheets and sheets for features like templates, bulk import/export, and two-way sync. Full access is required because our features involve structural changes, formulas, and bulk operations that narrower scopes do not support.</li>
+                <li><strong>Google Calendar (https://www.googleapis.com/auth/calendar):</strong> To create, update, share, and remove calendars and events for scheduling features and sync.</li>
+              </ul>
             </li>
             <li>
-              <strong>How We Use It:</strong> We automatically add volunteering
-              events to your calendar. We store encrypted access tokens locally
-              to maintain this connection.
+              <strong>How We Use It:</strong> We use these permissions to add volunteering events to your calendar, manage spreadsheets for data import/export, and enable two-way synchronization. We store encrypted OAuth tokens securely and do not access other Google data.
             </li>
             <li>
-              <strong>No Sharing:</strong> We do not share your Google Calendar
-              data with third parties. It is used only within Let&apos;s Assist.
+              <strong>Data Retention:</strong> OAuth tokens are retained only as long as you maintain the connection. Upon disconnection or account deletion, we delete tokens and associated data within 30 days.
             </li>
             <li>
-              <strong>How to Disconnect:</strong> You can revoke access at any
-              time in your account settings. This deletes our stored tokens.
-              Events already in your calendar will remain unless you delete them
-              manually.
+              <strong>No Sharing:</strong> We do not share your Google data with third parties. It is used only within Let's Assist.
+            </li>
+            <li>
+              <strong>How to Disconnect:</strong> You can revoke access at any time via your Google Account (Security → Third-party apps with account access) or in your Let's Assist account settings. This deletes our stored tokens. Events or spreadsheets already created will remain in your Google account unless you delete them manually.
             </li>
           </ul>
           <p className="mt-2 leading-relaxed">
