@@ -94,34 +94,63 @@ export async function updateProfileInfo(formData: FormData) {
 
   const { fullName: validFullName, username: validUsername } = validatedFields.data;
 
-  // Check for profanity in username
+  // Normalize and validate username uniqueness if provided
   if (validUsername) {
-    const profanity = await checkOffensiveLanguage(validUsername);
+    const normalizedUsername = validUsername.trim().toLowerCase();
+
+    // Check for profanity in username
+    const profanity = await checkOffensiveLanguage(normalizedUsername);
     if (profanity.isProfane) {
       return { error: { username: [profanity.error || "Inappropriate language"] } };
     }
-  }
 
-  // Create an update object with only provided fields
-  const updateFields: {
-    full_name?: string;
-    username?: string;
-    updated_at: string;
-  } = {
-    updated_at: new Date().toISOString(),
-  };
-  
-  if (validFullName !== undefined) updateFields.full_name = validFullName;
-  if (validUsername !== undefined) updateFields.username = validUsername;
+    // Check for uniqueness (excluding current user's existing username)
+    const uniquenessCheck = await checkUsernameUnique(normalizedUsername);
+    if (!uniquenessCheck.available) {
+      return { error: { username: ["This username is already taken"] } };
+    }
 
-  const { error: updateError } = (await supabase
-    .from("profiles")
-    .update(updateFields)
-    .eq("id", userId)) as { error: { message?: string } | null };
+    // Create an update object with normalized username
+    const updateFields: {
+      full_name?: string;
+      username?: string;
+      updated_at: string;
+    } = {
+      updated_at: new Date().toISOString(),
+      username: normalizedUsername,
+    };
+    
+    if (validFullName !== undefined) updateFields.full_name = validFullName;
 
-  if (updateError) {
-    console.log(updateError);
-    return { error: { server: ["Failed to update profile"] } };
+    const { error: updateError } = (await supabase
+      .from("profiles")
+      .update(updateFields)
+      .eq("id", userId)) as { error: { message?: string } | null };
+
+    if (updateError) {
+      console.log(updateError);
+      return { error: { server: ["Failed to update profile"] } };
+    }
+  } else {
+    // Only update full name if no username is being updated
+    const updateFields: {
+      full_name?: string;
+      updated_at: string;
+    } = {
+      updated_at: new Date().toISOString(),
+    };
+    
+    if (validFullName !== undefined) updateFields.full_name = validFullName;
+
+    const { error: updateError } = (await supabase
+      .from("profiles")
+      .update(updateFields)
+      .eq("id", userId)) as { error: { message?: string } | null };
+
+    if (updateError) {
+      console.log(updateError);
+      return { error: { server: ["Failed to update profile"] } };
+    }
   }
   
   return { success: true };
@@ -158,9 +187,17 @@ export async function completeOnboarding(formData: FormData) {
   const { fullName: validFullName, username: validUsername, avatarUrl: validAvatarUrl } = validatedFields.data;
 
   if (validUsername) {
-    const profanity = await checkOffensiveLanguage(validUsername);
+    const normalizedUsername = validUsername.trim().toLowerCase();
+
+    const profanity = await checkOffensiveLanguage(normalizedUsername);
     if (profanity.isProfane) {
       return { error: { username: [profanity.error || "Inappropriate language"] } };
+    }
+
+    // Check for uniqueness
+    const uniquenessCheck = await checkUsernameUnique(normalizedUsername);
+    if (!uniquenessCheck.available) {
+      return { error: { username: ["This username is already taken"] } };
     }
   }
 
@@ -173,7 +210,7 @@ export async function completeOnboarding(formData: FormData) {
   } = {};
   
   if (validFullName !== undefined) updateFields.full_name = validFullName;
-  if (validUsername !== undefined) updateFields.username = validUsername;
+  if (validUsername !== undefined) updateFields.username = validUsername.trim().toLowerCase();
 
   // Only process avatarUrl if it was explicitly included in the form data
   let metadataAvatarUrl: string | null | undefined = undefined;
@@ -272,10 +309,13 @@ export async function checkUsernameUnique(username: string) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // Normalize username for consistent comparison
+  const normalizedUsername = username.trim().toLowerCase();
+
   const { data: existingUser, error } = (await supabase
     .from("profiles")
     .select("id,username")
-    .eq("username", username)
+    .eq("username", normalizedUsername)
     .maybeSingle()) as {
     data: { id?: string; username?: string | null } | null;
     error: { message?: string } | null;

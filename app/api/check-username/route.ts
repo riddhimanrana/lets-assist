@@ -29,7 +29,7 @@ export const GET = async (request: Request) => {
       );
     }
 
-    const usernameLc = username.toLowerCase();
+    const usernameLc = username.trim().toLowerCase();
 
     // Fast profanity check
     const profanityResult = await checkOffensiveLanguage(usernameLc);

@@ -20,6 +20,11 @@
 import { useEffect, useState, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import type { User } from '@supabase/supabase-js';
+import {
+  shouldPromptForMfaChallenge,
+  deriveAuthenticatorAssurance,
+  type MfaListFactorsLike,
+} from '@/lib/auth/mfa';
 
 export type { User } from '@supabase/supabase-js';
 
@@ -90,9 +95,30 @@ export function useAuth(): AuthState {
 
         if (!mounted) return;
 
-        setNeedsMfa(false);
+        // Restore MFA state from JWT claims
+        const claims = claimsData.claims as AuthClaimsLike & { aal?: string };
+        const currentAal = claims.aal || 'aal1';
 
-        setUser(buildUserFromClaims(claimsData.claims as AuthClaimsLike));
+        // Get MFA factors if user exists
+        let mfaFactors: MfaListFactorsLike = { totp: [], phone: [] };
+        try {
+          const { data: factors } = await supabase.auth.mfa.listFactors();
+          if (factors) {
+            mfaFactors = factors as MfaListFactorsLike;
+          }
+        } catch (mfaError) {
+          console.debug('[useAuth] Could not fetch MFA factors:', mfaError);
+        }
+
+        // Determine if user needs MFA challenge
+        const userNeedsMfa = shouldPromptForMfaChallenge(
+          deriveAuthenticatorAssurance(currentAal, mfaFactors),
+          mfaFactors
+        );
+
+        setNeedsMfa(userNeedsMfa);
+
+        setUser(buildUserFromClaims(claims));
       } catch (error) {
         console.error('[useAuth] Error during auth initialization:', error);
         if (mounted) {
