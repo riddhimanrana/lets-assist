@@ -84,6 +84,8 @@ const overusedgrotesk = localFont({
   src: "../public/fonts/OverusedGrotesk-VF.woff2",
   display: "swap",
   variable: "--font-overusedgrotesk",
+  weight: "300 900",
+  style: "normal",
 });
 
 const inter = Inter({

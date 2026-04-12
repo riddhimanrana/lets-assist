@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
+import { getAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { getRegisteredPlugin, listRegisteredPlugins } from "@/lib/plugins/registry";
 import { buildOrganizationPluginAdminSettings } from "@/lib/plugins/organization-plugin-settings";
@@ -648,6 +649,14 @@ export async function getOrganizationPluginSettings(
       navLabel: plugin.manifest.navLabel ?? plugin.manifest.name,
       version: plugin.manifest.version,
       minimumRole: plugin.manifest.minimumRole ?? "member",
+      ownerName: plugin.manifest.owner?.name ?? "Let's Assist",
+      ownerType: plugin.manifest.owner?.type ?? "platform-official",
+      detailedDescription:
+        plugin.manifest.detailedDescription ??
+        plugin.manifest.description ??
+        `${plugin.manifest.name} plugin for organization workflows.`,
+      capabilityHighlights: plugin.manifest.capabilityHighlights ?? [],
+      dataAccess: plugin.manifest.dataScope ?? [],
       configSchema: plugin.manifest.configSchema ?? null,
       requiredScopes: plugin.manifest.requiredScopes ?? [],
     }));
@@ -678,6 +687,14 @@ export async function getOrganizationPluginSettings(
     navLabel: plugin.manifest.navLabel ?? plugin.manifest.name,
     version: plugin.manifest.version,
     minimumRole: plugin.manifest.minimumRole ?? "member",
+    ownerName: plugin.manifest.owner?.name ?? "Let's Assist",
+    ownerType: plugin.manifest.owner?.type ?? "platform-official",
+    detailedDescription:
+      plugin.manifest.detailedDescription ??
+      plugin.manifest.description ??
+      `${plugin.manifest.name} plugin for organization workflows.`,
+    capabilityHighlights: plugin.manifest.capabilityHighlights ?? [],
+    dataAccess: plugin.manifest.dataScope ?? [],
     configSchema: plugin.manifest.configSchema ?? null,
     requiredScopes: plugin.manifest.requiredScopes ?? [],
   }));
@@ -718,12 +735,13 @@ export async function setOrganizationPluginInstallState(options: {
   enabled: boolean;
 }): Promise<{ success: boolean; error?: string }> {
   const { organizationId, pluginKey, enabled } = options;
-  const supabase = await createClient();
   const { user } = await getAuthUser();
 
   if (!user) {
     return { success: false, error: "You must be logged in to manage plugins" };
   }
+
+  const adminSupabase = getAdminClient();
 
   const isAdmin = await isOrganizationAdminForSettings(organizationId, user.id);
   if (!isAdmin) {
@@ -739,7 +757,7 @@ export async function setOrganizationPluginInstallState(options: {
     };
   }
 
-  const { data: pluginCatalog, error: pluginCatalogError } = (await supabase
+  const { data: pluginCatalog, error: pluginCatalogError } = (await adminSupabase
     .from("plugins")
     .select("key, visibility, is_active, latest_version")
     .eq("key", pluginKey)
@@ -780,7 +798,7 @@ export async function setOrganizationPluginInstallState(options: {
     };
   }
 
-  const { data: existingInstall, error: existingInstallError } = (await supabase
+  const { data: existingInstall, error: existingInstallError } = (await adminSupabase
     .from("organization_plugin_installs")
     .select("organization_id, plugin_key")
     .eq("organization_id", organizationId)
@@ -801,7 +819,7 @@ export async function setOrganizationPluginInstallState(options: {
 
   if (enabled) {
     if (existingInstall) {
-      const { error: updateError } = await supabase
+      const { error: updateError } = await adminSupabase
         .from("organization_plugin_installs")
         .update({
           enabled: true,
@@ -815,7 +833,7 @@ export async function setOrganizationPluginInstallState(options: {
         return { success: false, error: `Failed to enable plugin: ${updateError.message}` };
       }
     } else {
-      const { error: insertError } = await supabase
+      const { error: insertError } = await adminSupabase
         .from("organization_plugin_installs")
         .insert({
           organization_id: organizationId,
@@ -831,7 +849,7 @@ export async function setOrganizationPluginInstallState(options: {
       }
     }
   } else if (existingInstall) {
-    const { error: updateError } = await supabase
+    const { error: updateError } = await adminSupabase
       .from("organization_plugin_installs")
       .update({
         enabled: false,
@@ -845,7 +863,114 @@ export async function setOrganizationPluginInstallState(options: {
     }
   }
 
-  const { data: organization } = await supabase
+  const { data: organization } = await adminSupabase
+    .from("organizations")
+    .select("id, username")
+    .eq("id", organizationId)
+    .maybeSingle();
+
+  if (organization) {
+    const organizationSlug = organization.username || organization.id;
+    revalidatePath(`/organization/${organizationSlug}`);
+    revalidatePath(`/organization/${organizationSlug}/settings`);
+  }
+
+  revalidatePath(`/organization/${organizationId}`);
+  revalidatePath(`/organization/${organizationId}/settings`);
+
+  return { success: true };
+}
+
+export async function uninstallOrganizationPlugin(options: {
+  organizationId: string;
+  pluginKey: string;
+}): Promise<{ success: boolean; error?: string }> {
+  const { organizationId, pluginKey } = options;
+  const { user } = await getAuthUser();
+
+  if (!user) {
+    return { success: false, error: "You must be logged in to manage plugins" };
+  }
+
+  const adminSupabase = getAdminClient();
+  const isAdmin = await isOrganizationAdminForSettings(organizationId, user.id);
+
+  if (!isAdmin) {
+    return { success: false, error: "Only organization admins can manage plugins" };
+  }
+
+  const { data: pluginCatalog, error: pluginCatalogError } = (await adminSupabase
+    .from("plugins")
+    .select("key, visibility")
+    .eq("key", pluginKey)
+    .maybeSingle()) as {
+    data: {
+      key: string;
+      visibility: "global" | "private";
+    } | null;
+    error: SupabaseLikeError | null;
+  };
+
+  if (isMissingPluginTableError(pluginCatalogError)) {
+    return {
+      success: false,
+      error: "Plugin platform tables are not initialized in this environment yet.",
+    };
+  }
+
+  if (pluginCatalogError) {
+    return {
+      success: false,
+      error: `Failed to validate plugin availability: ${pluginCatalogError.message}`,
+    };
+  }
+
+  if (pluginCatalog?.visibility === "private") {
+    return {
+      success: false,
+      error:
+        "Private plugins are managed by the Let's Assist team. Contact support for changes.",
+    };
+  }
+
+  const { data: existingInstall, error: existingInstallError } = (await adminSupabase
+    .from("organization_plugin_installs")
+    .select("organization_id, plugin_key")
+    .eq("organization_id", organizationId)
+    .eq("plugin_key", pluginKey)
+    .maybeSingle()) as {
+    data: { organization_id: string; plugin_key: string } | null;
+    error: SupabaseLikeError | null;
+  };
+
+  if (existingInstallError) {
+    return {
+      success: false,
+      error: `Failed to load current install state: ${existingInstallError.message}`,
+    };
+  }
+
+  if (!existingInstall) {
+    return {
+      success: false,
+      error: "Plugin is not installed for this organization.",
+    };
+  }
+
+  const { error: deleteError } = await adminSupabase
+    .from("organization_plugin_installs")
+    .delete()
+    .eq("organization_id", organizationId)
+    .eq("plugin_key", pluginKey);
+
+  if (deleteError) {
+    return {
+      success: false,
+      error: `Failed to uninstall plugin: ${deleteError.message}`,
+    };
+  }
+
+  const { data: organization } = await adminSupabase
     .from("organizations")
     .select("id, username")
     .eq("id", organizationId)
@@ -868,19 +993,20 @@ export async function updateOrganizationPluginToLatest(options: {
   pluginKey: string;
 }): Promise<{ success: boolean; error?: string }> {
   const { organizationId, pluginKey } = options;
-  const supabase = await createClient();
   const { user } = await getAuthUser();
 
   if (!user) {
     return { success: false, error: "You must be logged in to update plugins" };
   }
 
+  const adminSupabase = getAdminClient();
+
   const isAdmin = await isOrganizationAdminForSettings(organizationId, user.id);
   if (!isAdmin) {
     return { success: false, error: "Only organization admins can update plugins" };
   }
 
-  const { data: pluginCatalog, error: pluginCatalogError } = (await supabase
+  const { data: pluginCatalog, error: pluginCatalogError } = (await adminSupabase
     .from("plugins")
     .select("key, visibility, is_active, latest_version")
     .eq("key", pluginKey)
@@ -914,7 +1040,7 @@ export async function updateOrganizationPluginToLatest(options: {
     };
   }
 
-  const { data: existingInstall, error: existingInstallError } = (await supabase
+  const { data: existingInstall, error: existingInstallError } = (await adminSupabase
     .from("organization_plugin_installs")
     .select("id, enabled")
     .eq("organization_id", organizationId)
@@ -938,7 +1064,7 @@ export async function updateOrganizationPluginToLatest(options: {
     };
   }
 
-  const { error: updateError } = await supabase
+  const { error: updateError } = await adminSupabase
     .from("organization_plugin_installs")
     .update({
       installed_version: pluginCatalog.latest_version,
@@ -952,7 +1078,7 @@ export async function updateOrganizationPluginToLatest(options: {
     return { success: false, error: `Failed to update plugin: ${updateError.message}` };
   }
 
-  const { data: organization } = await supabase
+  const { data: organization } = await adminSupabase
     .from("organizations")
     .select("id, username")
     .eq("id", organizationId)
@@ -976,12 +1102,13 @@ export async function updateOrganizationPluginConfiguration(options: {
   configurationJson: string;
 }): Promise<{ success: boolean; error?: string; message?: string }> {
   const { organizationId, pluginKey, configurationJson } = options;
-  const supabase = await createClient();
   const { user } = await getAuthUser();
 
   if (!user) {
     return { success: false, error: "You must be logged in to update plugin settings" };
   }
+
+  const adminSupabase = getAdminClient();
 
   const isAdmin = await isOrganizationAdminForSettings(organizationId, user.id);
   if (!isAdmin) {
@@ -1004,7 +1131,7 @@ export async function updateOrganizationPluginConfiguration(options: {
     };
   }
 
-  const { data: pluginCatalog, error: pluginCatalogError } = (await supabase
+  const { data: pluginCatalog, error: pluginCatalogError } = (await adminSupabase
     .from("plugins")
     .select("key, visibility, is_active")
     .eq("key", pluginKey)
@@ -1033,7 +1160,7 @@ export async function updateOrganizationPluginConfiguration(options: {
     };
   }
 
-  const { data: existingInstall, error: existingInstallError } = (await supabase
+  const { data: existingInstall, error: existingInstallError } = (await adminSupabase
     .from("organization_plugin_installs")
     .select("id")
     .eq("organization_id", organizationId)
@@ -1106,7 +1233,7 @@ export async function updateOrganizationPluginConfiguration(options: {
     }
   }
 
-  const { error: updateError } = await supabase
+  const { error: updateError } = await adminSupabase
     .from("organization_plugin_installs")
     .update({
       configuration: normalizedConfiguration,
@@ -1122,7 +1249,7 @@ export async function updateOrganizationPluginConfiguration(options: {
     };
   }
 
-  const { data: organization } = await supabase
+  const { data: organization } = await adminSupabase
     .from("organizations")
     .select("id, username")
     .eq("id", organizationId)

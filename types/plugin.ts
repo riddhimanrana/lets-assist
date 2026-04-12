@@ -29,6 +29,16 @@ export type OrganizationPluginScope =
   | "storage:write"      // Upload files
   | "api:expose";        // Expose custom API endpoints
 
+export type OrganizationPluginOwnerType =
+  | "platform-official"
+  | "partner"
+  | "community";
+
+export interface OrganizationPluginOwner {
+  name: string;
+  type?: OrganizationPluginOwnerType;
+}
+
 /**
  * Available surfaces where plugins can inject UI components
  */
@@ -215,6 +225,9 @@ export interface OrganizationPluginManifest {
   key: string;
   name: string;
   description?: string;
+  detailedDescription?: string;
+  owner?: OrganizationPluginOwner;
+  capabilityHighlights?: string[];
   version: string;
   visibility: OrganizationPluginVisibility;
   minimumRole?: OrganizationPluginAccessRole;
@@ -295,6 +308,13 @@ export interface OrganizationPluginLifecycleHooks {
       newVersion: string;
     },
   ) => Promise<void>;
+
+  /**
+   * Called when an org requests permanent deletion of all plugin data.
+   * Must delete ALL data in plugin_data schema for this org + plugin.
+   * Used for GDPR compliance and clean org offboarding.
+   */
+  onDataDelete?: (context: OrganizationPluginLifecycleContext) => Promise<void>;
 }
 
 export interface OrganizationPluginDefinition {
@@ -343,6 +363,11 @@ export interface OrganizationPluginAdminSetting {
   key: string;
   name: string;
   description?: string;
+  detailedDescription: string;
+  ownerName: string;
+  ownerType: OrganizationPluginOwnerType;
+  capabilityHighlights: string[];
+  dataAccess: string[];
   visibility: OrganizationPluginVisibility;
   navLabel: string;
   version: string;

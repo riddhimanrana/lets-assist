@@ -70,3 +70,6 @@ lib/plugins/private/*
 .agents
 
 playwright.config.ts
+
+# Pending plugin data migrations (not yet ready for deploy)
+supabase/migrations/.pending-plugin-data/

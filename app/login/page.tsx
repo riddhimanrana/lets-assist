@@ -13,15 +13,35 @@ export const metadata: Metadata = {
 };
 
 interface LoginPageProps {
-  searchParams: Promise<{ redirect?: string; staff_token?: string; org?: string; email?: string }>;
+  searchParams: Promise<{
+    redirect?: string;
+    staff_token?: string;
+    org?: string;
+    email?: string;
+    invite_token?: string;
+    member_token?: string;
+    token?: string;
+  }>;
 }
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
-  const { redirect: redirectPath, staff_token, org, email } = await searchParams;
+  const { redirect: redirectPath, staff_token, org, email, invite_token, member_token, token } = await searchParams;
+  
+  // Resolve invite token: prefer invite_token, fallback to member_token, then token
+  const inviteToken = invite_token || member_token || token;
+
   const defaultRedirectPath = resolvePostAuthRedirectPath(redirectPath);
 
   const { user } = await getAuthUser({ allowMfaPending: true });
 
+  // If user is already logged in with an invite token, redirect to the invite acceptance page
+  if (user && inviteToken && !staff_token) {
+    const inviteParams = new URLSearchParams({ token: inviteToken });
+    if (org) inviteParams.set("org", org);
+    redirect(`/organization/join/invite?${inviteParams.toString()}`);
+  }
+
+  // Existing staff invite handling
   if (user && !(staff_token && org)) {
     redirect(defaultRedirectPath);
   }
@@ -44,6 +64,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
       redirectPath={resolvedRedirectPath}
       staffToken={staff_token}
       orgUsername={org}
+      inviteToken={inviteToken}
       prefilledEmail={email}
     />
   );

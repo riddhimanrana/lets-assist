@@ -9,7 +9,6 @@ import type {
   BulkInviteResponse,
   OrganizationInvitationWithDetails,
 } from "@/types/invitation";
-
 // Get member directory
 export async function getOrganizationMembers(organizationId: string) {
   const supabase = await createClient();
@@ -245,9 +244,11 @@ export async function bulkInviteMembers({
     (existingMembers || [])
       .map((m) => {
         const profiles = m.profiles as { email: string } | { email: string }[] | null;
+
         if (Array.isArray(profiles)) {
           return profiles[0]?.email?.toLowerCase();
         }
+
         return profiles?.email?.toLowerCase();
       })
       .filter(Boolean)

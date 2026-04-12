@@ -87,6 +87,23 @@ const updateEmailSchema = z.object({
 });
 type UpdateEmailValues = z.infer<typeof updateEmailSchema>;
 
+type ExportJobStatus = "pending" | "processing" | "completed" | "failed";
+
+type ExportJob = {
+  id: string;
+  status: ExportJobStatus;
+  delivery_email: string;
+  requested_at: string;
+  started_at?: string | null;
+  completed_at?: string | null;
+  failed_at?: string | null;
+  error_message?: string | null;
+  zip_size_bytes?: number | null;
+  record_count?: number | null;
+  signed_url?: string | null;
+  signed_url_expires_at?: string | null;
+};
+
 export default function SecurityClient() {
   const { user } = useAuth(); // Use centralized auth hook
   const [isDeleting, setIsDeleting] = useState(false);
@@ -98,26 +115,28 @@ export default function SecurityClient() {
   const [isPasswordLoading, setIsPasswordLoading] = useState(false);
   const [isEmailLoading, setIsEmailLoading] = useState(false);
   const [isExportEmailing, setIsExportEmailing] = useState(false);
-  const [exportJobs, setExportJobs] = useState<any[]>([]);
+  const [exportJobs, setExportJobs] = useState<ExportJob[]>([]);
   const [isExportJobsLoading, setIsExportJobsLoading] = useState(true);
 
   // Poll for export jobs
   useEffect(() => {
-    let interval: NodeJS.Timeout;
-
     const fetchJobs = async () => {
       const result = await getDataExportJobs();
       if (result.success) {
-        setExportJobs(result.jobs);
+        setExportJobs(result.jobs as ExportJob[]);
       }
       setIsExportJobsLoading(false);
     };
 
     fetchJobs();
-    interval = setInterval(fetchJobs, 10000); // Poll every 10s
+    const interval = setInterval(fetchJobs, 10000); // Poll every 10s
 
     return () => clearInterval(interval);
   }, []);
+
+  const hasActiveExportRequest = exportJobs.some(
+    (job) => job.status === "pending" || job.status === "processing",
+  );
 
   // OAuth detection state
   const [hasPassword, setHasPassword] = useState<boolean | null>(null);
@@ -380,6 +399,33 @@ export default function SecurityClient() {
           ? `Export queued. We'll email ${result.email} when it's ready.`
           : "Export queued. We'll email you when it's ready.",
       );
+
+      const queuedJobId = result.jobId ?? `queued-${Date.now()}`;
+      const queuedJob: ExportJob = {
+        id: queuedJobId,
+        status: "pending",
+        delivery_email: result.email ?? currentEmail,
+        requested_at: result.requestedAt ?? new Date().toISOString(),
+        started_at: null,
+        completed_at: null,
+        failed_at: null,
+        error_message: null,
+        zip_size_bytes: null,
+        record_count: null,
+        signed_url: null,
+        signed_url_expires_at: null,
+      };
+
+      setExportJobs((previousJobs) => {
+        const dedupedJobs = previousJobs.filter((job) => job.id !== queuedJobId);
+        return [queuedJob, ...dedupedJobs].slice(0, 5);
+      });
+      setIsExportJobsLoading(false);
+
+      const refreshedJobs = await getDataExportJobs();
+      if (refreshedJobs.success) {
+        setExportJobs(refreshedJobs.jobs as ExportJob[]);
+      }
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Failed to email data export",
@@ -648,6 +694,10 @@ export default function SecurityClient() {
               <b> Note: Background exports are processed every 20 minutes; you will receive your email within 24 hours.</b>
             </p>
 
+            {isExportJobsLoading && (
+              <p className="text-xs text-muted-foreground">Loading export history...</p>
+            )}
+
             {exportJobs.length > 0 && (
               <div className="space-y-3 pt-2">
                 <Label className="text-sm font-medium">Recent Export Requests</Label>
@@ -661,22 +711,22 @@ export default function SecurityClient() {
                         <span className="font-medium flex items-center gap-2">
                           {new Date(job.requested_at).toLocaleString()}
                           {job.status === "pending" && (
-                            <span className="px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 text-[10px] font-bold uppercase animate-pulse">
+                            <span className="px-1.5 py-0.5 rounded-full border border-info/40 bg-info/15 text-info text-[10px] font-bold uppercase animate-pulse">
                               Pending
                             </span>
                           )}
                           {job.status === "processing" && (
-                            <span className="px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 text-[10px] font-bold uppercase animate-pulse">
+                            <span className="px-1.5 py-0.5 rounded-full border border-warning/40 bg-warning/15 text-warning text-[10px] font-bold uppercase animate-pulse">
                               Processing
                             </span>
                           )}
                           {job.status === "completed" && (
-                            <span className="px-1.5 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 text-[10px] font-bold uppercase">
+                            <span className="px-1.5 py-0.5 rounded-full border border-success/40 bg-success/15 text-success text-[10px] font-bold uppercase">
                               Sent
                             </span>
                           )}
                           {job.status === "failed" && (
-                            <span className="px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 text-[10px] font-bold uppercase">
+                            <span className="px-1.5 py-0.5 rounded-full border border-destructive/40 bg-destructive/15 text-destructive text-[10px] font-bold uppercase">
                               Failed
                             </span>
                           )}
@@ -713,13 +763,22 @@ export default function SecurityClient() {
               <Button
                 type="button"
                 onClick={handleEmailDataExport}
-                disabled={isExportEmailing}
+                disabled={isExportEmailing || hasActiveExportRequest}
                 className="w-full sm:w-auto"
               >
                 <Mail className="h-4 w-4 mr-2" />
-                {isExportEmailing ? "Queueing Export..." : "Email My Zipped Data"}
+                {isExportEmailing
+                  ? "Queueing Export..."
+                  : hasActiveExportRequest
+                    ? "Export Already Queued"
+                    : "Email My Zipped Data"}
               </Button>
             </div>
+            {hasActiveExportRequest && (
+              <p className="text-xs text-muted-foreground">
+                Your export request is already queued. No refresh needed — you&apos;re good to go.
+              </p>
+            )}
           </CardContent>
         </Card>
 

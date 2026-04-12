@@ -614,7 +614,7 @@ export default function OrganizationSheetsSettings({
           <AlertDialogFooter>
             <AlertDialogCancel disabled={disconnectingAccount}>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="bg-destructive hover:bg-destructive/90"
               onClick={(e) => {
                 e.preventDefault();
                 handleDisconnectAccount();

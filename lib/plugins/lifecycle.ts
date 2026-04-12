@@ -10,7 +10,7 @@ export type { OrganizationPluginLifecycleContext, OrganizationPluginLifecycleHoo
 
 function getLifecycleActionName(
   hookName: keyof OrganizationPluginLifecycleHooks,
-): "lifecycle.install" | "lifecycle.uninstall" | "lifecycle.enable" | "lifecycle.disable" | "lifecycle.config_update" | "lifecycle.version_update" {
+): "lifecycle.install" | "lifecycle.uninstall" | "lifecycle.enable" | "lifecycle.disable" | "lifecycle.config_update" | "lifecycle.version_update" | "lifecycle.data_delete" {
   switch (hookName) {
     case "onInstall":
       return "lifecycle.install";
@@ -24,6 +24,8 @@ function getLifecycleActionName(
       return "lifecycle.config_update";
     case "onVersionUpdate":
       return "lifecycle.version_update";
+    case "onDataDelete":
+      return "lifecycle.data_delete";
   }
 }
 
@@ -153,6 +155,21 @@ export async function runPluginConfigUpdate(
   },
 ): Promise<{ success: boolean; error?: string }> {
   return executeLifecycleHook(plugin, "onConfigUpdate", {
+    ...context,
+    pluginKey: plugin.manifest.key,
+  });
+}
+
+/**
+ * Run the data delete lifecycle for a plugin.
+ * Called when an org requests permanent deletion of all plugin data.
+ * Used for GDPR compliance and clean org offboarding.
+ */
+export async function runPluginDataDelete(
+  plugin: OrganizationPluginDefinition,
+  context: Omit<OrganizationPluginLifecycleContext, "pluginKey">,
+): Promise<{ success: boolean; error?: string }> {
+  return executeLifecycleHook(plugin, "onDataDelete", {
     ...context,
     pluginKey: plugin.manifest.key,
   });

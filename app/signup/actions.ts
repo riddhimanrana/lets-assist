@@ -13,6 +13,7 @@ import {
 const signupSchema = z.object({
   fullName: z.string().min(3, "Full name must be at least 3 characters"),
   email: z.string().email("Invalid email address"),
+  phone: z.string().optional(),
   password: z.string().min(8, "Password must be at least 8 characters"),
   turnstileToken: z.string().nullish(),
   staffToken: z.string().nullish(),
@@ -116,6 +117,7 @@ export async function signup(formData: FormData) {
   const validatedFields = signupSchema.safeParse({
     fullName: formData.get("fullName"),
     email: formData.get("email"),
+    phone: formData.get("phone"),
     password: formData.get("password"),
     turnstileToken,
     staffToken,
@@ -180,6 +182,7 @@ export async function signup(formData: FormData) {
         data: {
           full_name: string;
           username: string;
+          phone?: string;
           created_at: string;
         };
         emailRedirectTo: string;
@@ -192,6 +195,7 @@ export async function signup(formData: FormData) {
         data: {
           // Pass profile fields via user metadata; DB trigger will populate public.profiles
           full_name: validatedFields.data.fullName,
+          phone: validatedFields.data.phone,
           username: `user_${randomUUID().slice(0, 8)}`,
           created_at: new Date().toISOString(),
         },

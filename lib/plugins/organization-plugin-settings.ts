@@ -38,6 +38,11 @@ export type RuntimePluginInfo = {
   navLabel: string;
   version: string;
   minimumRole: "admin" | "staff" | "member";
+  ownerName?: OrganizationPluginAdminSetting["ownerName"];
+  ownerType?: OrganizationPluginAdminSetting["ownerType"];
+  detailedDescription?: OrganizationPluginAdminSetting["detailedDescription"];
+  capabilityHighlights?: OrganizationPluginAdminSetting["capabilityHighlights"];
+  dataAccess?: OrganizationPluginAdminSetting["dataAccess"];
   configSchema?: OrganizationPluginAdminSetting["configSchema"];
   requiredScopes?: OrganizationPluginAdminSetting["requiredScopes"];
 };
@@ -63,8 +68,16 @@ export function buildOrganizationPluginAdminSettings(input: {
     .map((plugin) => {
       const runtimePlugin = runtimeByKey.get(plugin.key);
       const install = installByKey.get(plugin.key);
+      const ownerName = runtimePlugin?.ownerName?.trim() || "Let's Assist";
+      const ownerType = runtimePlugin?.ownerType ?? "platform-official";
       const entitled =
         plugin.visibility === "global" || entitledPrivateKeys.has(plugin.key);
+
+      const description = plugin.description?.trim() || undefined;
+      const detailedDescription =
+        runtimePlugin?.detailedDescription?.trim() ||
+        description ||
+        `${plugin.name} plugin for organization workflows.`;
 
       let blockedReason: string | null = null;
       if (!runtimePlugin) {
@@ -90,7 +103,12 @@ export function buildOrganizationPluginAdminSettings(input: {
       return {
         key: plugin.key,
         name: plugin.name,
-        description: plugin.description ?? undefined,
+        description,
+        detailedDescription,
+        ownerName,
+        ownerType,
+        capabilityHighlights: runtimePlugin?.capabilityHighlights ?? [],
+        dataAccess: runtimePlugin?.dataAccess ?? [],
         visibility: plugin.visibility,
         navLabel: runtimePlugin?.navLabel ?? plugin.name,
         version: runtimePlugin?.version ?? "unregistered",

@@ -10,6 +10,7 @@ export type ContactImportJobStatus =
   | "cancelled";
 
 export type ContactImportRowStatus = "pending" | "invited" | "skipped" | "failed";
+export type ContactImportMode = "job" | "direct";
 
 export interface ContactImportParsedRow {
   rowNumber: number;
@@ -71,9 +72,21 @@ export interface OrganizationContactImportRow {
 
 export interface ContactImportCreateResponse {
   success: boolean;
+  mode?: ContactImportMode;
   job?: OrganizationContactImportJob;
   parseSummary?: ContactImportParseSummary;
   invalidRowsPreview?: ContactImportInvalidRow[];
+  directResult?: {
+    total: number;
+    successful: number;
+    failed: number;
+    results: Array<{
+      email: string;
+      success: boolean;
+      error?: string;
+      invitationId?: string;
+    }>;
+  };
   message?: string;
   error?: string;
 }

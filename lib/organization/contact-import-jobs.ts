@@ -8,6 +8,7 @@ import type {
   ContactImportRole,
   OrganizationContactImportJob,
 } from "@/types/contact-import";
+import type { BulkInviteResponse, BulkInviteResult } from "@/types/invitation";
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -614,5 +615,229 @@ export async function processContactImportJobBatch(params: {
       failed: failedCount,
     },
     failedRowsPreview: failedRowsPreview.slice(0, 25),
+  };
+}
+
+export async function importContactsDirectFromFile(params: {
+  supabase: SupabaseClient;
+  organizationId: string;
+  userId: string;
+  role: ContactImportRole;
+  file: File;
+}): Promise<
+  ContactImportCreateResponse & {
+    mode: "direct";
+    directResult: BulkInviteResponse;
+  }
+> {
+  const { supabase, organizationId, userId, role, file } = params;
+
+  const admin = await isOrgAdmin(supabase, organizationId, userId);
+  if (!admin) {
+    const deniedResult: BulkInviteResponse = {
+      total: 0,
+      successful: 0,
+      failed: 0,
+      results: [],
+    };
+
+    return {
+      success: false,
+      error: "Only organization admins can run contact imports.",
+      mode: "direct",
+      directResult: deniedResult,
+    };
+  }
+
+  const organization = await getOrganizationContext(supabase, organizationId);
+  if (!organization) {
+    const missingOrgResult: BulkInviteResponse = {
+      total: 0,
+      successful: 0,
+      failed: 0,
+      results: [],
+    };
+
+    return {
+      success: false,
+      error: "Organization not found.",
+      mode: "direct",
+      directResult: missingOrgResult,
+    };
+  }
+
+  let parsed;
+  try {
+    parsed = await parseContactImportFile(file);
+  } catch (error) {
+    return {
+      success: false,
+      mode: "direct",
+      directResult: {
+        total: 0,
+        successful: 0,
+        failed: 0,
+        results: [],
+      },
+      error: error instanceof Error ? error.message : "Failed to parse uploaded file.",
+    };
+  }
+
+  if (parsed.rows.length === 0) {
+    const emptyResult: BulkInviteResponse = {
+      total: 0,
+      successful: 0,
+      failed: 0,
+      results: [],
+    };
+
+    return {
+      success: true,
+      mode: "direct",
+      directResult: emptyResult,
+      parseSummary: parsed.summary,
+      invalidRowsPreview: parsed.invalidRows.slice(0, 25),
+      message: "No valid contacts were found in the uploaded file.",
+    };
+  }
+
+  const inviterName = await getInviterName(supabase, userId);
+  const baseUrl = getBaseUrl();
+  const { expiresAtIso, expiresAtDisplay } = getExpirationDetails();
+
+  const { data: existingMembers } = await supabase
+    .from("organization_members")
+    .select("profiles(email)")
+    .eq("organization_id", organization.id);
+
+  const existingMemberEmails = new Set(
+    (existingMembers || [])
+      .map((member) => {
+        const profile = member.profiles as { email: string } | { email: string }[] | null;
+        if (Array.isArray(profile)) {
+          return profile[0]?.email?.toLowerCase();
+        }
+        return profile?.email?.toLowerCase();
+      })
+      .filter((email): email is string => Boolean(email)),
+  );
+
+  const { data: pendingInvitations } = await supabase
+    .from("organization_invitations")
+    .select("email")
+    .eq("organization_id", organization.id)
+    .eq("status", "pending");
+
+  const pendingInvitationEmails = new Set(
+    (pendingInvitations || [])
+      .map((invitation) => invitation.email?.toLowerCase())
+      .filter((email): email is string => Boolean(email)),
+  );
+
+  const results: BulkInviteResult[] = [];
+  let successful = 0;
+  let failed = 0;
+
+  for (const row of parsed.rows) {
+    const lowerEmail = row.email.toLowerCase();
+
+    if (existingMemberEmails.has(lowerEmail)) {
+      results.push({
+        email: lowerEmail,
+        success: false,
+        error: "Already a member of this organization",
+      });
+      failed++;
+      continue;
+    }
+
+    if (pendingInvitationEmails.has(lowerEmail)) {
+      results.push({
+        email: lowerEmail,
+        success: false,
+        error: "Already has a pending invitation",
+      });
+      failed++;
+      continue;
+    }
+
+    const { data: invitationData, error: invitationError } = await supabase
+      .from("organization_invitations")
+      .insert({
+        organization_id: organization.id,
+        email: lowerEmail,
+        role,
+        invited_by: userId,
+        expires_at: expiresAtIso,
+      })
+      .select("id, token")
+      .single();
+
+    if (invitationError || !invitationData) {
+      results.push({
+        email: lowerEmail,
+        success: false,
+        error: invitationError?.message || "Failed to create invitation",
+      });
+      failed++;
+      continue;
+    }
+
+    const inviteUrl = `${baseUrl}/organization/join/invite?token=${invitationData.token}`;
+
+    const emailResult = await sendEmail({
+      to: lowerEmail,
+      subject: `You're invited to join ${organization.name} on Let's Assist`,
+      react: OrganizationInvitation({
+        organizationName: organization.name,
+        organizationUsername: organization.username,
+        inviterName,
+        recipientName: row.fullName,
+        role,
+        inviteUrl,
+        expiresAt: expiresAtDisplay,
+      }),
+      type: "transactional",
+    });
+
+    if (!emailResult.success && !emailResult.skipped) {
+      await supabase
+        .from("organization_invitations")
+        .update({ status: "cancelled" })
+        .eq("id", invitationData.id);
+
+      results.push({
+        email: lowerEmail,
+        success: false,
+        error: "Invitation email could not be sent",
+        invitationId: invitationData.id,
+      });
+      failed++;
+      continue;
+    }
+
+    results.push({
+      email: lowerEmail,
+      success: true,
+      invitationId: invitationData.id,
+    });
+    successful++;
+    pendingInvitationEmails.add(lowerEmail);
+  }
+
+  const directResult: BulkInviteResponse = {
+    total: parsed.rows.length,
+    successful,
+    failed,
+    results,
+  };
+
+  return {
+    success: true,
+    mode: "direct",
+    directResult,
+    parseSummary: parsed.summary,
+    invalidRowsPreview: parsed.invalidRows.slice(0, 25),
+    message: "Import processed directly without background jobs.",
   };
 }

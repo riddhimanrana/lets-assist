@@ -31,7 +31,12 @@ export default function InviteAcceptClient({ invitation, token }: InviteAcceptCl
 
   const authLinks = useMemo(() => {
     const params = new URLSearchParams();
-    params.set("redirect", `/organization/join/invite?token=${encodeURIComponent(token)}`);
+    params.set("invite_token", token);
+    params.set("member_token", token);
+
+    if (org?.username) {
+      params.set("org", org.username);
+    }
 
     if (invitedEmail) {
       params.set("email", invitedEmail);
@@ -43,7 +48,7 @@ export default function InviteAcceptClient({ invitation, token }: InviteAcceptCl
       login: `/login?${query}`,
       signup: `/signup?${query}`,
     };
-  }, [invitedEmail, token]);
+  }, [invitedEmail, org?.username, token]);
 
   const isExpired = new Date(invitation.expires_at) < new Date();
   const isAlreadyUsed = invitation.status !== "pending";
